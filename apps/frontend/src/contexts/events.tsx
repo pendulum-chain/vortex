@@ -1,13 +1,11 @@
-import { FiatToken, PriceEndpoints } from '@packages/shared';
-import { getNetworkId, isNetworkEVM } from '@packages/shared';
-import { createContext } from 'react';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
-import { LocalStorageKeys } from '../hooks/useLocalStorage';
-import { useVortexAccount } from '../hooks/useVortexAccount';
-import { storageService } from '../services/storage/local';
-import { useInputAmount } from '../stores/ramp/useRampFormStore';
-import { RampState } from '../types/phases';
-import { useNetwork } from './network';
+import { FiatToken, getNetworkId, isNetworkEVM, PriceProvider } from "@packages/shared";
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useRef } from "react";
+import { LocalStorageKeys } from "../hooks/useLocalStorage";
+import { useVortexAccount } from "../hooks/useVortexAccount";
+import { storageService } from "../services/storage/local";
+import { useInputAmount } from "../stores/ramp/useRampFormStore";
+import { RampState } from "../types/phases";
+import { useNetwork } from "./network";
 
 declare global {
   interface Window {
@@ -15,31 +13,31 @@ declare global {
   }
 }
 
-const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
-  'click_details',
-  'click_support',
-  'transaction_confirmation',
-  'kyc_started',
-  'kyc_completed',
-  'signing_requested',
-  'transaction_signed',
-  'transaction_success',
-  'transaction_failure',
-  'email_submission',
+const UNIQUE_EVENT_TYPES: TrackableEvent["event"][] = [
+  "click_details",
+  "click_support",
+  "transaction_confirmation",
+  "kyc_started",
+  "kyc_completed",
+  "signing_requested",
+  "transaction_signed",
+  "transaction_success",
+  "transaction_failure",
+  "email_submission"
 ];
 
 export interface AmountTypeEvent {
-  event: 'amount_type';
+  event: "amount_type";
   input_amount: string;
 }
 
 export interface ClickDetailsEvent {
-  event: 'click_details';
+  event: "click_details";
 }
 
 export interface WalletConnectEvent {
-  event: 'wallet_connect';
-  wallet_action: 'connect' | 'disconnect' | 'change';
+  event: "wallet_connect";
+  wallet_action: "connect" | "disconnect" | "change";
   input_amount?: string;
   account_address?: string;
   network_selected?: string;
@@ -53,81 +51,81 @@ export interface RampParameters {
 }
 
 export type TransactionEvent = RampParameters & {
-  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+  event: "transaction_confirmation" | "kyc_started" | "kyc_completed" | "transaction_success" | "transaction_failure";
 };
 
 export type TransactionFailedEvent = RampParameters & {
-  event: 'transaction_failure';
+  event: "transaction_failure";
   phase_name: string;
   phase_index: number;
   error_message: string;
 };
 
 export type CompareQuoteEvent = RampParameters & {
-  event: 'compare_quote';
+  event: "compare_quote";
   moonpay_quote?: string;
   alchemypay_quote?: string;
   transak_quote?: string;
 };
 
 export interface ProgressEvent {
-  event: 'progress';
+  event: "progress";
   phase_name: string;
   phase_index: number;
 }
 
 export interface SigningRequestedEvent {
-  event: 'signing_requested';
+  event: "signing_requested";
   index: number;
 }
 
 export interface TransactionSignedEvent {
-  event: 'transaction_signed';
+  event: "transaction_signed";
   index: number;
 }
 
 export interface EmailSubmissionEvent {
-  event: 'email_submission';
-  transaction_status: 'success' | 'failure';
+  event: "email_submission";
+  transaction_status: "success" | "failure";
 }
 
 export interface ClickSupportEvent {
-  event: 'click_support';
-  transaction_status: 'success' | 'failure';
+  event: "click_support";
+  transaction_status: "success" | "failure";
 }
 
 export interface NetworkChangeEvent {
-  event: 'network_change';
+  event: "network_change";
   from_network: number;
   to_network: number;
 }
 
 export interface FormErrorEvent {
-  event: 'form_error';
+  event: "form_error";
   input_amount: string;
   error_message:
-    | 'insufficient_balance'
-    | 'insufficient_liquidity'
-    | 'less_than_minimum_withdrawal'
-    | 'more_than_maximum_withdrawal';
+    | "insufficient_balance"
+    | "insufficient_liquidity"
+    | "less_than_minimum_withdrawal"
+    | "more_than_maximum_withdrawal";
 }
 
 export interface InitializationErrorEvent {
-  event: 'initialization_error';
+  event: "initialization_error";
   error_message: InitializationErrorMessage;
 }
 
 export interface TokenUnavailableErrorEvent {
-  event: 'token_unavailable';
+  event: "token_unavailable";
   token: FiatToken;
 }
 
 type InitializationErrorMessage =
-  | 'node_connection_issue'
-  | 'signer_service_issue'
-  | 'moonbeam_account_issue'
-  | 'stellar_account_issue'
-  | 'pendulum_account_issue';
+  | "node_connection_issue"
+  | "signer_service_issue"
+  | "moonbeam_account_issue"
+  | "stellar_account_issue"
+  | "pendulum_account_issue";
 
 export type TrackableEvent =
   | AmountTypeEvent
@@ -146,7 +144,7 @@ export type TrackableEvent =
   | InitializationErrorEvent
   | TokenUnavailableErrorEvent;
 
-type EventType = TrackableEvent['event'];
+type EventType = TrackableEvent["event"];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
 
@@ -160,13 +158,13 @@ const useEvents = () => {
   const scheduledPrices = useRef<
     | {
         parameters: RampParameters;
-        prices: Partial<Record<PriceEndpoints.Provider, string>>;
+        prices: Partial<Record<PriceProvider, string>>;
       }
     | undefined
   >(undefined);
 
   const trackedEventTypes = useRef<Set<EventType>>(new Set());
-  const firedFormErrors = useRef<Set<FormErrorEvent['error_message']>>(new Set());
+  const firedFormErrors = useRef<Set<FormErrorEvent["error_message"]>>(new Set());
 
   const trackEvent = useCallback((event: TrackableEvent) => {
     if (UNIQUE_EVENT_TYPES.includes(event.event)) {
@@ -177,9 +175,9 @@ const useEvents = () => {
       }
     }
 
-    if (event.event === 'initialization_error') {
+    if (event.event === "initialization_error") {
       const eventsStored = storageService.getParsed<Set<InitializationErrorMessage>>(
-        LocalStorageKeys.FIRED_INITIALIZATION_EVENTS,
+        LocalStorageKeys.FIRED_INITIALIZATION_EVENTS
       );
       const eventsSet = eventsStored ? new Set(eventsStored) : new Set();
       if (eventsSet.has(event.error_message)) {
@@ -191,7 +189,7 @@ const useEvents = () => {
     }
 
     // Check if form error message has already been fired as we only want to fire each error message once
-    if (event.event === 'form_error') {
+    if (event.event === "form_error") {
       const { error_message } = event;
       if (firedFormErrors.current.has(error_message)) {
         return;
@@ -201,7 +199,7 @@ const useEvents = () => {
       }
     }
 
-    console.log('Push data layer', event);
+    console.log("Push data layer", event);
 
     window.dataLayer.push(event);
   }, []);
@@ -213,12 +211,7 @@ const useEvents = () => {
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const schedulePrice = useCallback(
-    (
-      service: PriceEndpoints.Provider | 'vortex',
-      price: string,
-      parameters: RampParameters,
-      enableEventTracking: boolean,
-    ) => {
+    (service: PriceProvider | "vortex", price: string, parameters: RampParameters, enableEventTracking: boolean) => {
       if (!enableEventTracking) return;
 
       const prev = scheduledPrices.current;
@@ -234,21 +227,21 @@ const useEvents = () => {
       if (Object.keys(newPrices).length === 3) {
         trackEvent({
           ...parameters,
-          event: 'compare_quote',
-          transak_quote: newPrices.transak !== '-1' ? newPrices.transak : undefined,
-          moonpay_quote: newPrices.moonpay !== '-1' ? newPrices.moonpay : undefined,
-          alchemypay_quote: newPrices.alchemypay !== '-1' ? newPrices.alchemypay : undefined,
+          alchemypay_quote: newPrices.alchemypay !== "-1" ? newPrices.alchemypay : undefined,
+          event: "compare_quote",
+          moonpay_quote: newPrices.moonpay !== "-1" ? newPrices.moonpay : undefined,
+          transak_quote: newPrices.transak !== "-1" ? newPrices.transak : undefined
         });
         // Reset the prices
         scheduledPrices.current = undefined;
       } else {
         scheduledPrices.current = {
           parameters,
-          prices: newPrices,
+          prices: newPrices
         };
       }
     },
-    [trackEvent],
+    [trackEvent]
   );
 
   useEffect(() => {
@@ -262,9 +255,9 @@ const useEvents = () => {
     }
 
     trackEvent({
-      event: 'network_change',
+      event: "network_change",
       from_network: previousChainId.current,
-      to_network: chainId,
+      to_network: chainId
     });
 
     previousChainId.current = chainId;
@@ -290,19 +283,19 @@ const useEvents = () => {
 
     if (!isConnected && wasConnected) {
       trackEvent({
-        event: 'wallet_connect',
-        wallet_action: 'disconnect',
         account_address: previous,
-        input_amount: inputAmount ? inputAmount.toString() : '0',
+        event: "wallet_connect",
+        input_amount: inputAmount ? inputAmount.toString() : "0",
         network_selected: networkId.toString(),
+        wallet_action: "disconnect"
       });
     } else if (wasChanged && networkId) {
       trackEvent({
-        event: 'wallet_connect',
-        wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
-        input_amount: inputAmount ? inputAmount.toString() : '0',
+        event: "wallet_connect",
+        input_amount: inputAmount ? inputAmount.toString() : "0",
         network_selected: networkId.toString(),
+        wallet_action: wasConnected ? "change" : "connect"
       });
     }
 
@@ -314,9 +307,9 @@ const useEvents = () => {
   }, [inputAmount, selectedNetwork, address, trackEvent]);
 
   return {
-    trackEvent,
     resetUniqueEvents,
     schedulePrice,
+    trackEvent
   };
 };
 const Context = createContext<UseEventsContext | undefined>(undefined);
@@ -324,7 +317,7 @@ const Context = createContext<UseEventsContext | undefined>(undefined);
 export const useEventsContext = () => {
   const contextValue = useContext(Context);
   if (contextValue === undefined) {
-    throw new Error('Context must be inside a Provider');
+    throw new Error("Context must be inside a Provider");
   }
 
   return contextValue;
@@ -336,13 +329,13 @@ export function EventsProvider({ children }: PropsWithChildren) {
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
 }
 
-export function createTransactionEvent(type: TransactionEvent['event'], state: RampState) {
+export function createTransactionEvent(type: TransactionEvent["event"], state: RampState) {
   return {
     event: type,
-    from_asset: state.quote.inputCurrency,
-    to_asset: state.quote.outputCurrency,
     from_amount: state.quote.inputAmount,
+    from_asset: state.quote.inputCurrency,
     to_amount: state.quote.outputAmount,
+    to_asset: state.quote.outputCurrency
   };
 }
 

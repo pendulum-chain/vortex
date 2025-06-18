@@ -1,5 +1,5 @@
-import httpStatus from 'http-status';
-import ExtendableError from './extendable-error';
+import httpStatus from "http-status";
+import ExtendableError from "./extendable-error";
 
 interface APIErrorParams {
   message: string;
@@ -22,11 +22,11 @@ export class APIError extends ExtendableError {
    */
   constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false }: APIErrorParams) {
     super({
-      message,
       errors,
-      status,
       isPublic,
+      message,
       stack,
+      status
     });
   }
 }

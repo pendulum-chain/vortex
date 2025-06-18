@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { debounce } from '../helpers/function';
+import { useEffect, useMemo, useState } from "react";
+import { debounce } from "../helpers/function";
 
 export const useDebouncedValue = <T>(value: T, delay = 1000) => {
   const [debouncedValue, setDebouncedValue] = useState(value);

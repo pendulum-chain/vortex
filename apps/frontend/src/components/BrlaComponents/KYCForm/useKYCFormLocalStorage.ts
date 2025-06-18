@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { Path, PathValue, UseFormReturn } from 'react-hook-form';
-import { debounce } from '../../../hooks/useLocalStorage';
+import { useEffect } from "react";
+import { Path, PathValue, UseFormReturn } from "react-hook-form";
+import { debounce } from "../../../hooks/useLocalStorage";
 
-export const BRLA_KYC_FORM_STORAGE_KEY = 'brla_kyc_form_data';
+export const BRLA_KYC_FORM_STORAGE_KEY = "brla_kyc_form_data";
 
 export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>) => {
   const { watch, setValue } = form;
@@ -24,12 +24,12 @@ export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>)
         setValue(key as Path<T>, value as PathValue<T, Path<T>>, { shouldValidate: true });
       });
     } catch (error) {
-      console.error('Error loading form data from localStorage:', error);
+      console.error("Error loading form data from localStorage:", error);
     }
   }, [setValue]);
 
   useEffect(() => {
-    const subscription = watch((data) => {
+    const subscription = watch(data => {
       saveToStorage(data as T);
     });
     return () => subscription.unsubscribe();
@@ -40,6 +40,6 @@ export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>)
   };
 
   return {
-    clearStorage,
+    clearStorage
   };
 };

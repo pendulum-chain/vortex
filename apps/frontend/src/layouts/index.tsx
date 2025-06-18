@@ -1,9 +1,9 @@
-import { FC, ReactNode, useEffect } from 'react';
-import { Footer } from '../components/Footer';
-import { MaintenanceBanner } from '../components/MaintenanceBanner';
-import { Navbar } from '../components/Navbar';
-import { useWidgetMode } from '../hooks/useWidgetMode';
-import { useFetchMaintenanceStatus } from '../stores/maintenanceStore';
+import { FC, ReactNode, useEffect } from "react";
+import { Footer } from "../components/Footer";
+import { MaintenanceBanner } from "../components/MaintenanceBanner";
+import { Navbar } from "../components/Navbar";
+import { useWidgetMode } from "../hooks/useWidgetMode";
+import { useFetchMaintenanceStatus } from "../stores/maintenanceStore";
 
 interface BaseLayoutProps {
   main: ReactNode;
@@ -23,7 +23,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
       () => {
         fetchMaintenanceStatus();
       },
-      5 * 60 * 1000,
+      5 * 60 * 1000
     );
 
     return () => clearInterval(interval);

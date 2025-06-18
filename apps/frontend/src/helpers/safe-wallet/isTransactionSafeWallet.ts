@@ -1,10 +1,10 @@
-import SafeApiKit from '@safe-global/api-kit';
-import { getTransaction } from '@wagmi/core';
-import { Hash } from 'viem';
+import SafeApiKit from "@safe-global/api-kit";
+import { getTransaction } from "@wagmi/core";
+import { Hash } from "viem";
 
-import { wagmiConfig } from '../../wagmiConfig';
+import { wagmiConfig } from "../../wagmiConfig";
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Determines if a transaction hash belongs to a Safe Wallet transaction or a regular Ethereum transaction.
@@ -36,7 +36,7 @@ export async function isTransactionHashSafeWallet(hash: Hash, chainId: number) {
   } catch (_error) {
     // Transaction not found on chain, check if it's a Safe Wallet transaction
     const safeApiKit = new SafeApiKit({
-      chainId: BigInt(chainId),
+      chainId: BigInt(chainId)
     });
 
     try {

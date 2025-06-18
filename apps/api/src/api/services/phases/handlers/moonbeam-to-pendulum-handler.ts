@@ -1,38 +1,38 @@
-import { RampPhase } from '@packages/shared';
-import { u8aToHex } from '@polkadot/util';
-import { decodeAddress } from '@polkadot/util-crypto';
-import { readContract } from '@wagmi/core';
-import Big from 'big.js';
-import { encodeFunctionData } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
+import { RampPhase } from "@packages/shared";
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
+import { readContract } from "@wagmi/core";
+import Big from "big.js";
+import { encodeFunctionData } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { moonbeam } from "viem/chains";
 
-import splitReceiverABI from '../../../../../mooncontracts/splitReceiverABI.json';
-import logger from '../../../../config/logger';
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from '../../../../constants/constants';
-import RampState from '../../../../models/rampState.model';
-import { waitUntilTrue } from '../../../helpers/functions';
-import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
-import { ApiManager } from '../../pendulum/apiManager';
-import encodePayload from '../../transactions/squidrouter/payload';
-import { BasePhaseHandler } from '../base-phase-handler';
-import { StateMetadata } from '../meta-state-types';
+import splitReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
+import logger from "../../../../config/logger";
+import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
+import RampState from "../../../../models/rampState.model";
+import { waitUntilTrue } from "../../../helpers/functions";
+import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
+import { ApiManager } from "../../pendulum/apiManager";
+import encodePayload from "../../transactions/squidrouter/payload";
+import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return 'moonbeamToPendulum';
+    return "moonbeamToPendulum";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
-    const pendulumNode = await apiManager.getApi('pendulum');
+    const pendulumNode = await apiManager.getApi("pendulum");
 
     const {
       pendulumEphemeralAddress,
       inputTokenPendulumDetails,
       moonbeamXcmTransactionHash,
       squidRouterReceiverId,
-      squidRouterReceiverHash,
+      squidRouterReceiverHash
     } = state.state as StateMetadata;
 
     if (
@@ -42,7 +42,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       !squidRouterReceiverId ||
       !squidRouterReceiverHash
     ) {
-      throw new Error('MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.');
+      throw new Error("MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
@@ -51,19 +51,21 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const didInputTokenArrivedOnPendulum = async () => {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.pendulumCurrencyId,
+        inputTokenPendulumDetails.pendulumCurrencyId
       );
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? '0');
+
+      // @ts-ignore
+      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
       return currentBalance.gt(Big(0));
     };
 
     const isHashRegisteredInSplitReceiver = async () => {
       const result = (await readContract(moonbeamConfig, {
         abi: splitReceiverABI,
-        chainId: moonbeam.id,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
-        functionName: 'xcmDataMapping',
         args: [squidRouterReceiverHash],
+        chainId: moonbeam.id,
+        functionName: "xcmDataMapping"
       })) as bigint;
 
       return result > 0n;
@@ -78,7 +80,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       logger.error(e);
-      throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.');
+      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.");
     }
 
     let obtainedHash: string | undefined = moonbeamXcmTransactionHash;
@@ -87,17 +89,17 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
         if (moonbeamXcmTransactionHash === undefined) {
           const data = encodeFunctionData({
             abi: splitReceiverABI,
-            functionName: 'executeXCM',
             args: [squidRouterReceiverId, squidRouterPayload],
+            functionName: "executeXCM"
           });
 
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
           obtainedHash = await walletClient.sendTransaction({
-            to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
-            value: 0n,
             data,
             maxFeePerGas,
             maxPriorityFeePerGas,
+            to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+            value: 0n
           });
 
           // We want to store the `moonbeamXcmTransactionHash` immediately in the local storage
@@ -106,24 +108,24 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           // For recovery purposes.
           state.state = {
             ...state.state,
-            moonbeamXcmTransactionHash: obtainedHash,
+            moonbeamXcmTransactionHash: obtainedHash
           };
           await state.update({ state: state.state });
         }
       }
     } catch (e) {
-      console.error('Error while executing moonbeam split contract transaction:', e);
-      throw new Error('MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction');
+      console.error("Error while executing moonbeam split contract transaction:", e);
+      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction");
     }
 
     try {
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
-      console.error('Error while waiting for transaction receipt:', e);
-      throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.');
+      console.error("Error while waiting for transaction receipt:", e);
+      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
     }
 
-    return this.transitionToNextPhase(state, 'distributeFees');
+    return this.transitionToNextPhase(state, "distributeFees");
   }
 }
 

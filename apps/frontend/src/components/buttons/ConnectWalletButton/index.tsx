@@ -1,15 +1,9 @@
-import { isNetworkEVM } from '@packages/shared';
-import { useNetwork } from '../../../contexts/network';
-import { EVMWalletButton } from '../EVMWalletButton';
-import { PolkadotWalletButton } from '../PolkadotWalletButton';
+import { isNetworkEVM } from "@packages/shared";
+import { useNetwork } from "../../../contexts/network";
+import { EVMWalletButton } from "../EVMWalletButton";
+import { PolkadotWalletButton } from "../PolkadotWalletButton";
 
-export const ConnectWalletButton = ({
-  customStyles,
-  hideIcon,
-}: {
-  customStyles?: string;
-  hideIcon?: boolean;
-}) => {
+export const ConnectWalletButton = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
   const { selectedNetwork } = useNetwork();
 
   if (isNetworkEVM(selectedNetwork)) {

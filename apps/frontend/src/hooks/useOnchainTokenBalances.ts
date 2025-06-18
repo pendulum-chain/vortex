@@ -1,28 +1,27 @@
-import Big from 'big.js';
-import { useEffect, useMemo, useState } from 'react';
-import { Abi } from 'viem';
-import { useReadContracts } from 'wagmi';
-
 import {
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   FiatTokenDetails,
-  OnChainTokenDetails,
-  OnChainTokenDetailsWithBalance,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
   nativeToDecimal,
-} from '@packages/shared';
+  OnChainTokenDetails,
+  OnChainTokenDetailsWithBalance
+} from "@packages/shared";
+import Big from "big.js";
+import { useEffect, useMemo, useState } from "react";
+import { Abi } from "viem";
+import { useReadContracts } from "wagmi";
 
-import { useNetwork } from '../contexts/network';
-import { useAssetHubNode } from '../contexts/polkadotNode';
-import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import erc20ABI from '../contracts/ERC20';
-import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { useVortexAccount } from './useVortexAccount';
+import { useNetwork } from "../contexts/network";
+import { useAssetHubNode } from "../contexts/polkadotNode";
+import { usePolkadotWalletState } from "../contexts/polkadotWallet";
+import erc20ABI from "../contracts/ERC20";
+import { multiplyByPowerOfTen } from "../helpers/contracts";
+import { useVortexAccount } from "./useVortexAccount";
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { address } = useVortexAccount();
@@ -31,13 +30,13 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 
   const { data: balances } = useReadContracts({
     contracts:
-      tokens.map((token) => ({
-        address: token.erc20AddressSourceChain,
+      tokens.map(token => ({
         abi: erc20ABI as Abi,
-        functionName: 'balanceOf',
+        address: token.erc20AddressSourceChain,
         args: [address],
         chainId,
-      })) ?? [],
+        functionName: "balanceOf"
+      })) ?? []
   });
 
   if (!tokens.length || !balances) {
@@ -47,13 +46,11 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
     const tokenBalance = balances[index]?.result;
 
-    const balance = tokenBalance
-      ? multiplyByPowerOfTen(Big(tokenBalance.toString()), -curr.decimals).toFixed(2, 0)
-      : '0.00';
+    const balance = tokenBalance ? multiplyByPowerOfTen(Big(tokenBalance.toString()), -curr.decimals).toFixed(2, 0) : "0.00";
 
     prev.push({
       ...curr,
-      balance,
+      balance
     });
 
     return prev;
@@ -73,10 +70,10 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     const getBalances = async () => {
       const { api } = assetHubNode;
 
-      const assetIds = tokens.map((token) => token.foreignAssetId).filter(Boolean);
+      const assetIds = tokens.map(token => token.foreignAssetId).filter(Boolean);
       const assetInfos = await api.query.assets.asset.multi(assetIds);
 
-      const accountQueries = assetIds.map((assetId) => [assetId, walletAccount.address]);
+      const accountQueries = assetIds.map(assetId => [assetId, walletAccount.address]);
       const accountInfos = await api.query.assets.account.multi(accountQueries);
 
       const tokensWithBalances = tokens.map((token, index) => {
@@ -104,13 +101,10 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
 };
 
 export const useOnchainTokenBalances = (
-  tokens: (FiatTokenDetails | OnChainTokenDetails)[],
+  tokens: (FiatTokenDetails | OnChainTokenDetails)[]
 ): OnChainTokenDetailsWithBalance[] => {
   const evmTokens = useMemo(() => tokens.filter(isEvmTokenDetails) as EvmTokenDetailsWithBalance[], [tokens]);
-  const substrateTokens = useMemo(
-    () => tokens.filter(isAssetHubTokenDetails) as AssetHubTokenDetailsWithBalance[],
-    [tokens],
-  );
+  const substrateTokens = useMemo(() => tokens.filter(isAssetHubTokenDetails) as AssetHubTokenDetailsWithBalance[], [tokens]);
   const evmBalances = useEvmBalances(evmTokens);
   const substrateBalances = useAssetHubBalances(substrateTokens);
 

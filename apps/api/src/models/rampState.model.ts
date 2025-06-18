@@ -1,12 +1,12 @@
-import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from '@packages/shared';
-import { DataTypes, Model, Optional } from 'sequelize';
-import { StateMetadata } from '../api/services/phases/meta-state-types';
-import sequelize from '../config/database';
+import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from "@packages/shared";
+import { DataTypes, Model, Optional } from "sequelize";
+import { StateMetadata } from "../api/services/phases/meta-state-types";
+import sequelize from "../config/database";
 
 export interface PhaseHistoryEntry {
   phase: RampPhase;
   timestamp: Date;
-  metadata?: any;
+  metadata?: StateMetadata;
 }
 
 type ProcessingLock = {
@@ -30,7 +30,7 @@ type PostCompleteState = {
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
   id: string; // UUID
-  type: 'on' | 'off';
+  type: "on" | "off";
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[]; // JSONB array
   presignedTxs: PresignedTx[] | null; // JSONB array
@@ -47,13 +47,13 @@ export interface RampStateAttributes {
 }
 
 // Define the attributes that can be set during creation
-type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+export type RampStateCreationAttributes = Optional<RampStateAttributes, "id" | "createdAt" | "updatedAt">;
 
 // Define the RampState model
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
   declare id: string;
 
-  declare type: 'on' | 'off';
+  declare type: "on" | "off";
 
   declare currentPhase: RampPhase;
 
@@ -85,125 +85,125 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 // Initialize the model
 RampState.init(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    type: {
-      type: DataTypes.ENUM('on', 'off'),
+    createdAt: {
       allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     currentPhase: {
-      type: DataTypes.STRING(32),
       allowNull: false,
-      defaultValue: 'initial',
-      field: 'current_phase',
+      defaultValue: "initial",
+      field: "current_phase",
+      type: DataTypes.STRING(32)
     },
-    unsignedTxs: {
-      type: DataTypes.JSONB,
+    errorLogs: {
       allowNull: false,
-      field: 'unsigned_txs',
-      validate: {
-        isValidTxArray(value: UnsignedTx[]) {
-          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
-            throw new Error('unsignedTxs must be an array with 1-8 elements');
-          }
-        },
-      },
+      defaultValue: [],
+      field: "error_logs",
+      type: DataTypes.JSONB
+    },
+    from: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    phaseHistory: {
+      allowNull: false,
+      defaultValue: [],
+      field: "phase_history",
+      type: DataTypes.JSONB
+    },
+    postCompleteState: {
+      allowNull: false,
+      field: "post_complete_state",
+      type: DataTypes.JSONB
     },
     presignedTxs: {
-      type: DataTypes.JSONB,
       allowNull: true,
-      field: 'presigned_txs',
+      field: "presigned_txs",
+      type: DataTypes.JSONB,
       validate: {
         isValidTxArray(value: PresignedTx[] | null) {
           if (value === null) return;
 
           if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
-            throw new Error('presignedTxs must be an array with 1-8 elements');
+            throw new Error("presignedTxs must be an array with 1-8 elements");
           }
 
           for (const tx of value) {
             if (!tx.txData || !tx.phase || !tx.network || tx.nonce === undefined || !tx.signer) {
-              throw new Error('Each transaction must have txData, phase, network, nonce, and signer properties');
+              throw new Error("Each transaction must have txData, phase, network, nonce, and signer properties");
             }
           }
-        },
-      },
-    },
-    from: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    to: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    state: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-    },
-    quoteId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: 'quote_id',
-      references: {
-        model: 'quote_tickets',
-        key: 'id',
-      },
-    },
-    phaseHistory: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: [],
-      field: 'phase_history',
-    },
-    errorLogs: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: [],
-      field: 'error_logs',
+        }
+      }
     },
     processingLock: {
-      type: DataTypes.JSONB,
       allowNull: false,
-      field: 'processing_lock',
+      field: "processing_lock",
+      type: DataTypes.JSONB
     },
-    postCompleteState: {
-      type: DataTypes.JSONB,
+    quoteId: {
       allowNull: false,
-      field: 'post_complete_state',
+      field: "quote_id",
+      references: {
+        key: "id",
+        model: "quote_tickets"
+      },
+      type: DataTypes.UUID
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    state: {
       allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at',
+      type: DataTypes.JSONB
+    },
+    to: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
+    },
+    type: {
+      allowNull: false,
+      type: DataTypes.ENUM("on", "off")
+    },
+    unsignedTxs: {
+      allowNull: false,
+      field: "unsigned_txs",
+      type: DataTypes.JSONB,
+      validate: {
+        isValidTxArray(value: UnsignedTx[]) {
+          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
+            throw new Error("unsignedTxs must be an array with 1-8 elements");
+          }
+        }
+      }
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at',
-    },
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
   },
   {
-    sequelize,
-    modelName: 'RampState',
-    tableName: 'ramp_states',
-    timestamps: true,
     indexes: [
       {
-        name: 'idx_ramp_phase_status',
-        fields: ['currentPhase'],
+        fields: ["currentPhase"],
+        name: "idx_ramp_phase_status"
       },
       {
-        name: 'idx_ramp_quote',
-        fields: ['quoteId'],
-      },
+        fields: ["quoteId"],
+        name: "idx_ramp_quote"
+      }
     ],
-  },
+    modelName: "RampState",
+    sequelize,
+    tableName: "ramp_states",
+    timestamps: true
+  }
 );
 
 export default RampState;

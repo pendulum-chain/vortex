@@ -1,4 +1,4 @@
-import Big from 'big.js';
+import Big from "big.js";
 
 export const ChainDecimals = 12;
 

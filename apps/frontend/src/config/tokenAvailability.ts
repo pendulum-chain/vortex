@@ -1,5 +1,5 @@
-import { FiatToken } from '@packages/shared';
-import { DEFAULT_FIAT_TOKEN } from '../stores/ramp/useRampFormStore';
+import { FiatToken } from "@packages/shared";
+import { DEFAULT_FIAT_TOKEN } from "../stores/ramp/useRampFormStore";
 
 export interface TokenAvailabilityConfig {
   enabled: boolean;
@@ -9,17 +9,17 @@ export interface TokenAvailabilityConfig {
 // This is our central configuration for token availability
 export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> = {
   [FiatToken.EURC]: {
-    enabled: true,
-    disabledReasonTranslationKey: 'pages.swap.error.EURC_tokenUnavailable',
+    disabledReasonTranslationKey: "pages.swap.error.EURC_tokenUnavailable",
+    enabled: true
   },
   [FiatToken.ARS]: {
-    enabled: true,
-    disabledReasonTranslationKey: 'pages.swap.error.ARS_tokenUnavailable',
+    disabledReasonTranslationKey: "pages.swap.error.ARS_tokenUnavailable",
+    enabled: true
   },
   [FiatToken.BRL]: {
-    enabled: true,
-    disabledReasonTranslationKey: 'pages.swap.error.BRL_tokenUnavailable',
-  },
+    disabledReasonTranslationKey: "pages.swap.error.BRL_tokenUnavailable",
+    enabled: true
+  }
 };
 
 export function isFiatTokenEnabled(token: FiatToken): boolean {

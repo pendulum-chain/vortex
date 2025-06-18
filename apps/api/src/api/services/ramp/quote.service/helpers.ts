@@ -1,6 +1,6 @@
-import { DestinationType, RampCurrency } from '@packages/shared';
-import httpStatus from 'http-status';
-import { APIError } from '../../../errors/api-error';
+import { DestinationType, Networks, RampCurrency } from "@packages/shared";
+import httpStatus from "http-status";
+import { APIError } from "../../../errors/api-error";
 
 /**
  * Supported chains configuration for ramp operations
@@ -10,13 +10,29 @@ export const SUPPORTED_CHAINS: {
   on: { from: DestinationType[]; to: DestinationType[] };
 } = {
   off: {
-    from: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
-    to: ['pix', 'sepa', 'cbu'],
+    from: [
+      Networks.AssetHub,
+      Networks.Avalanche,
+      Networks.Arbitrum,
+      Networks.BSC,
+      Networks.Base,
+      Networks.Ethereum,
+      Networks.Polygon
+    ],
+    to: ["pix", "sepa", "cbu"]
   },
   on: {
-    from: ['pix'],
-    to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
-  },
+    from: ["pix"],
+    to: [
+      Networks.AssetHub,
+      Networks.Avalanche,
+      Networks.Arbitrum,
+      Networks.BSC,
+      Networks.Base,
+      Networks.Ethereum,
+      Networks.Polygon
+    ]
+  }
 };
 
 /**
@@ -27,12 +43,12 @@ export const SUPPORTED_CHAINS: {
  * @returns The target fiat currency for fee calculations
  */
 export function getTargetFiatCurrency(
-  rampType: 'on' | 'off',
+  rampType: "on" | "off",
   inputCurrency: RampCurrency,
-  outputCurrency: RampCurrency,
+  outputCurrency: RampCurrency
 ): RampCurrency {
   // TODO: Add validation to ensure the identified currency is a supported fiat currency
-  if (rampType === 'on') {
+  if (rampType === "on") {
     // Assuming input is the fiat currency for on-ramp (e.g., BRL from pix)
     return inputCurrency;
   }
@@ -47,11 +63,11 @@ export function getTargetFiatCurrency(
  * @param to - The target destination type
  * @throws APIError if the chain combination is not supported
  */
-export function validateChainSupport(rampType: 'on' | 'off', from: DestinationType, to: DestinationType): void {
+export function validateChainSupport(rampType: "on" | "off", from: DestinationType, to: DestinationType): void {
   if (!SUPPORTED_CHAINS[rampType].from.includes(from) || !SUPPORTED_CHAINS[rampType].to.includes(to)) {
     throw new APIError({
-      status: httpStatus.BAD_REQUEST,
       message: `${rampType}ramping from ${from} to ${to} is not supported.`,
+      status: httpStatus.BAD_REQUEST
     });
   }
 }
@@ -62,21 +78,21 @@ export function validateChainSupport(rampType: 'on' | 'off', from: DestinationTy
  * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
  */
 export function trimTrailingZeros(decimalString: string): string {
-  if (!decimalString?.includes('.')) {
+  if (!decimalString?.includes(".")) {
     return `${decimalString}.00`;
   }
 
   // Split string at decimal point
-  const [integerPart, fractionalPart] = decimalString.split('.');
+  const [integerPart, fractionalPart] = decimalString.split(".");
 
   // Trim trailing zeros but ensure there are at least 2 decimal places
-  let trimmedFraction = fractionalPart.replace(/0+$/g, '');
+  let trimmedFraction = fractionalPart.replace(/0+$/g, "");
 
   // If all were zeros or not enough digits, pad to 2 decimal places
   if (trimmedFraction.length === 0) {
-    trimmedFraction = '00';
+    trimmedFraction = "00";
   } else if (trimmedFraction.length === 1) {
-    trimmedFraction += '0';
+    trimmedFraction += "0";
   }
 
   return `${integerPart}.${trimmedFraction}`;

@@ -1,26 +1,34 @@
-import { BrlaEndpoints, EvmAddress } from '@packages/shared';
-import { apiRequest } from './api-client';
+import {
+  BrlaCreateSubaccountRequest,
+  BrlaCreateSubaccountResponse,
+  BrlaGetKycStatusResponse,
+  BrlaGetRampStatusResponse,
+  BrlaGetUserRemainingLimitResponse,
+  BrlaGetUserResponse,
+  BrlaKYCDataUploadFileFiles,
+  BrlaStartKYC2Response,
+  BrlaTriggerOfframpRequest,
+  BrlaTriggerOfframpResponse,
+  BrlaValidatePixKeyResponse,
+  StartKYC2Request
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
-export enum KYCDocType {
-  RG = 'RG',
-  CNH = 'CNH',
-}
-
-export type KYCDataUploadFileFiles = BrlaEndpoints.KYCDataUploadFileFiles;
+export type KYCDataUploadFileFiles = BrlaKYCDataUploadFileFiles;
 /**
  * Service for interacting with BRLA API endpoints
  */
 export class BrlaService {
-  private static readonly BASE_PATH = '/brla';
+  private static readonly BASE_PATH = "/brla";
 
   /**
    * Get BRLA user information by tax ID
    * @param taxId The user's tax ID
    * @returns The user's EVM wallet address
    */
-  static async getUser(taxId: string): Promise<BrlaEndpoints.GetUserResponse> {
-    return apiRequest<BrlaEndpoints.GetUserResponse>('get', `${this.BASE_PATH}/getUser`, undefined, {
-      params: { taxId },
+  static async getUser(taxId: string): Promise<BrlaGetUserResponse> {
+    return apiRequest<BrlaGetUserResponse>("get", `${this.BASE_PATH}/getUser`, undefined, {
+      params: { taxId }
     });
   }
 
@@ -29,9 +37,9 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The offramp status
    */
-  static async getRampStatus(taxId: string): Promise<BrlaEndpoints.GetRampStatusResponse> {
-    return apiRequest<BrlaEndpoints.GetRampStatusResponse>('get', `${this.BASE_PATH}/getRampStatus`, undefined, {
-      params: { taxId },
+  static async getRampStatus(taxId: string): Promise<BrlaGetRampStatusResponse> {
+    return apiRequest<BrlaGetRampStatusResponse>("get", `${this.BASE_PATH}/getRampStatus`, undefined, {
+      params: { taxId }
     });
   }
 
@@ -40,9 +48,9 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The KYC status
    */
-  static async getKycStatus(taxId: string): Promise<BrlaEndpoints.GetKycStatusResponse> {
-    return apiRequest<BrlaEndpoints.GetKycStatusResponse>('get', `${this.BASE_PATH}/getKycStatus`, undefined, {
-      params: { taxId },
+  static async getKycStatus(taxId: string): Promise<BrlaGetKycStatusResponse> {
+    return apiRequest<BrlaGetKycStatusResponse>("get", `${this.BASE_PATH}/getKycStatus`, undefined, {
+      params: { taxId }
     });
   }
 
@@ -51,9 +59,9 @@ export class BrlaService {
    * @param pixKey The PIX key to validate
    * @returns Whether the PIX key is valid
    */
-  static async validatePixKey(pixKey: string): Promise<BrlaEndpoints.ValidatePixKeyResponse> {
-    return apiRequest<BrlaEndpoints.ValidatePixKeyResponse>('get', `${this.BASE_PATH}/validatePixKey`, undefined, {
-      params: { pixKey },
+  static async validatePixKey(pixKey: string): Promise<BrlaValidatePixKeyResponse> {
+    return apiRequest<BrlaValidatePixKeyResponse>("get", `${this.BASE_PATH}/validatePixKey`, undefined, {
+      params: { pixKey }
     });
   }
 
@@ -62,15 +70,10 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The remaining limit for onramp and offramp
    */
-  static async getUserRemainingLimit(taxId: string): Promise<BrlaEndpoints.GetUserRemainingLimitResponse> {
-    return apiRequest<BrlaEndpoints.GetUserRemainingLimitResponse>(
-      'get',
-      `${this.BASE_PATH}/getUserRemainingLimit`,
-      undefined,
-      {
-        params: { taxId },
-      },
-    );
+  static async getUserRemainingLimit(taxId: string): Promise<BrlaGetUserRemainingLimitResponse> {
+    return apiRequest<BrlaGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
+      params: { taxId }
+    });
   }
 
   /**
@@ -78,10 +81,8 @@ export class BrlaService {
    * @param request The offramp request
    * @returns The offramp ID
    */
-  static async triggerOfframp(
-    request: BrlaEndpoints.TriggerOfframpRequest,
-  ): Promise<BrlaEndpoints.TriggerOfframpResponse> {
-    return apiRequest<BrlaEndpoints.TriggerOfframpResponse>('post', `${this.BASE_PATH}/triggerOfframp`, request);
+  static async triggerOfframp(request: BrlaTriggerOfframpRequest): Promise<BrlaTriggerOfframpResponse> {
+    return apiRequest<BrlaTriggerOfframpResponse>("post", `${this.BASE_PATH}/triggerOfframp`, request);
   }
 
   /**
@@ -89,10 +90,8 @@ export class BrlaService {
    * @param request The subaccount creation request
    * @returns The subaccount ID
    */
-  static async createSubaccount(
-    request: BrlaEndpoints.CreateSubaccountRequest,
-  ): Promise<BrlaEndpoints.CreateSubaccountResponse> {
-    return apiRequest<BrlaEndpoints.CreateSubaccountResponse>('post', `${this.BASE_PATH}/createSubaccount`, request);
+  static async createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse> {
+    return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
   /**
@@ -100,7 +99,7 @@ export class BrlaService {
    * @param request Tax id and document type that will be used.
    * @returns The url's to upload the documents.
    */
-  static async startKYC2(request: BrlaEndpoints.StartKYC2Request): Promise<BrlaEndpoints.StartKYC2Response> {
-    return apiRequest<BrlaEndpoints.StartKYC2Response>('post', `${this.BASE_PATH}/startKYC2`, request);
+  static async startKYC2(request: StartKYC2Request): Promise<BrlaStartKYC2Response> {
+    return apiRequest<BrlaStartKYC2Response>("post", `${this.BASE_PATH}/startKYC2`, request);
   }
 }

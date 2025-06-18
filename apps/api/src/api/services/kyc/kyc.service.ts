@@ -1,10 +1,11 @@
-import { Transaction } from 'sequelize';
-import { v4 as uuidv4 } from 'uuid';
-import sequelize from '../../../config/database';
-import logger from '../../../config/logger';
-import KycLevel2, { KycLevel2Status } from '../../../models/kycLevel2.model';
-import { BrlaApiService } from '../brla/brlaApiService';
-import { KYCDocType, KycLevel2Response } from '../brla/types';
+import { BrlaKYCDocType } from "@packages/shared";
+import { Transaction } from "sequelize";
+import { v4 as uuidv4 } from "uuid";
+import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
+import KycLevel2, { KycLevel2Status } from "../../../models/kycLevel2.model";
+import { BrlaApiService } from "../brla/brlaApiService";
+import { KycLevel2Response } from "../brla/types";
 
 export class KycService {
   private brlaApiService: BrlaApiService;
@@ -16,22 +17,22 @@ export class KycService {
   protected async createKycLevel2(
     data: {
       subaccountId: string;
-      documentType: KYCDocType;
+      documentType: BrlaKYCDocType;
       status?: KycLevel2Status;
       uploadData?: KycLevel2Response;
     },
-    transaction?: Transaction,
+    transaction?: Transaction
   ): Promise<KycLevel2> {
     return KycLevel2.create(
       {
-        id: uuidv4(),
-        subaccountId: data.subaccountId,
         documentType: data.documentType,
-        status: data.status || KycLevel2Status.REQUESTED,
         errorLogs: [],
-        uploadData: data.uploadData,
+        id: uuidv4(),
+        status: data.status || KycLevel2Status.REQUESTED,
+        subaccountId: data.subaccountId,
+        uploadData: data.uploadData
       },
-      { transaction },
+      { transaction }
     );
   }
 
@@ -41,8 +42,8 @@ export class KycService {
 
   protected async getLatestKycLevel2BySubaccount(subaccountId: string): Promise<KycLevel2 | null> {
     return KycLevel2.findOne({
-      where: { subaccountId },
-      order: [['createdAt', 'DESC']],
+      order: [["createdAt", "DESC"]],
+      where: { subaccountId }
     });
   }
 
@@ -54,12 +55,12 @@ export class KycService {
       return result;
     } catch (error) {
       await transaction.rollback();
-      logger.error('Transaction failed:', error);
+      logger.error("Transaction failed:", error);
       throw error;
     }
   }
 
-  public async requestKycLevel2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+  public async requestKycLevel2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
     try {
       // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
@@ -75,25 +76,25 @@ export class KycService {
 
       const kycResponse = await this.brlaApiService.startKYC2(subaccountId, documentType);
 
-      return this.withTransaction(async (transaction) => {
+      return this.withTransaction(async transaction => {
         const kycLevel2 = await this.createKycLevel2(
           {
-            subaccountId,
             documentType,
             status: KycLevel2Status.REQUESTED,
-            uploadData: kycResponse,
+            subaccountId,
+            uploadData: kycResponse
           },
-          transaction,
+          transaction
         );
 
         logger.info(`KYC Level 2 verification requested for subaccount ${subaccountId}`, {
-          kycLevel2Id: kycLevel2.id,
+          kycLevel2Id: kycLevel2.id
         });
 
         return kycLevel2.uploadData;
       });
     } catch (error) {
-      logger.error('Failed to request KYC Level 2 verification:', error);
+      logger.error("Failed to request KYC Level 2 verification:", error);
       throw error;
     }
   }

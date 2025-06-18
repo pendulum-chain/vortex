@@ -1,5 +1,5 @@
-import logger from '../../../config/logger';
-import { PhaseHandler } from './base-phase-handler';
+import logger from "../../../config/logger";
+import { PhaseHandler } from "./base-phase-handler";
 
 /**
  * Registry for phase handlers

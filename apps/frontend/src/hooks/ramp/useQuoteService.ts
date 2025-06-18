@@ -1,14 +1,14 @@
-import { FiatToken, OnChainToken } from '@packages/shared';
-import Big from 'big.js';
-import { useCallback, useEffect } from 'react';
+import { FiatToken, OnChainToken } from "@packages/shared";
+import Big from "big.js";
+import { useCallback, useEffect } from "react";
 
-import { RampDirection } from '../../components/RampToggle';
-import { useEventsContext } from '../../contexts/events';
-import { useNetwork } from '../../contexts/network';
-import { usePartnerId } from '../../stores/partnerStore';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
-import { useQuoteConstraintsValid } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from "../../components/RampToggle";
+import { useEventsContext } from "../../contexts/events";
+import { useNetwork } from "../../contexts/network";
+import { usePartnerId } from "../../stores/partnerStore";
+import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
+import { useQuoteConstraintsValid } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
 
 // @TODO: Rethink this hook, because now
 // if you want to get a quote - you get outputAmount through useQuoteService
@@ -19,7 +19,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
-  const rampType = rampDirection === RampDirection.ONRAMP ? 'on' : 'off';
+  const rampType = rampDirection === RampDirection.ONRAMP ? "on" : "off";
   const partnerId = usePartnerId();
   const quoteConstraintsValid = useQuoteConstraintsValid();
 
@@ -41,12 +41,12 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         onChainToken,
         fiatToken,
         selectedNetwork,
-        partnerId: partnerId === null ? undefined : partnerId, // Handle null case
+        partnerId: partnerId === null ? undefined : partnerId // Handle null case
       });
     } catch (_err) {
       trackEvent({
-        event: 'initialization_error',
-        error_message: 'signer_service_issue',
+        event: "initialization_error",
+        error_message: "signer_service_issue"
       });
     }
   }, [
@@ -58,15 +58,15 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
     fiatToken,
     selectedNetwork,
     partnerId,
-    trackEvent,
+    trackEvent
   ]);
 
   useEffect(() => {
     getQuote();
-  }, [getQuote, partnerId]);
+  }, [getQuote]);
 
   return {
     outputAmount,
-    getQuote,
+    getQuote
   };
 };

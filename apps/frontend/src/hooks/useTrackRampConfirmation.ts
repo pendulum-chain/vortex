@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
-import { RampDirection } from '../components/RampToggle';
-import { useEventsContext } from '../contexts/events';
-import { useQuoteStore } from '../stores/ramp/useQuoteStore';
-import { useFiatToken, useInputAmount, useOnChainToken } from '../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../stores/rampDirectionStore';
+import { useCallback } from "react";
+import { RampDirection } from "../components/RampToggle";
+import { useEventsContext } from "../contexts/events";
+import { useQuoteStore } from "../stores/ramp/useQuoteStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../stores/rampDirectionStore";
 
 export const useTrackRampConfirmation = () => {
   const rampDirection = useRampDirection();
@@ -17,11 +17,11 @@ export const useTrackRampConfirmation = () => {
     const fromAsset = rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken;
     const toAsset = rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken;
     trackEvent({
-      event: 'transaction_confirmation',
+      event: "transaction_confirmation",
+      from_amount: inputAmount?.toString() || "0",
       from_asset: fromAsset,
-      to_asset: toAsset,
-      from_amount: inputAmount?.toString() || '0',
-      to_amount: quote?.outputAmount || '0',
+      to_amount: quote?.outputAmount || "0",
+      to_asset: toAsset
     });
   }, [fiatToken, onChainToken, inputAmount, quote, rampDirection, trackEvent]);
 };

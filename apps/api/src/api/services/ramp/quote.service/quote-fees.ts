@@ -1,17 +1,17 @@
-import { DestinationType, RampCurrency } from '@packages/shared';
-import Big from 'big.js';
-import httpStatus from 'http-status';
-import logger from '../../../../config/logger';
-import Anchor from '../../../../models/anchor.model';
-import Partner from '../../../../models/partner.model';
-import { APIError } from '../../../errors/api-error';
-import { priceFeedService } from '../../priceFeed.service';
-import { getTargetFiatCurrency, validateChainSupport } from './helpers';
+import { DestinationType, RampCurrency } from "@packages/shared";
+import Big from "big.js";
+import httpStatus from "http-status";
+import logger from "../../../../config/logger";
+import Anchor from "../../../../models/anchor.model";
+import Partner from "../../../../models/partner.model";
+import { APIError } from "../../../errors/api-error";
+import { priceFeedService } from "../../priceFeed.service";
+import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 
 export interface CalculateFeeComponentsRequest {
   inputAmount: string;
   outputAmountOfframp: string; // This is only needed for offramp quotes
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   from: DestinationType;
   to: DestinationType;
   partnerName?: string;
@@ -42,14 +42,14 @@ export interface PreNablaDeductibleFeesResult {
  */
 async function calculateFeeComponent(
   feeValue: Big.BigSource,
-  feeType: 'absolute' | 'relative',
+  feeType: "absolute" | "relative",
   baseAmount: string,
   baseCurrency: RampCurrency,
-  targetCurrency: RampCurrency,
+  targetCurrency: RampCurrency
 ): Promise<Big> {
   let feeComponent = new Big(0);
 
-  if (feeType === 'absolute') {
+  if (feeType === "absolute") {
     feeComponent = new Big(feeValue);
   } else {
     // relative
@@ -71,10 +71,10 @@ async function calculateFeeComponent(
  */
 async function calculatePartnerAndVortexFees(
   inputAmount: string,
-  rampType: 'on' | 'off',
+  rampType: "on" | "off",
   partnerName: string | undefined,
   inputCurrency: RampCurrency,
-  feeCurrency: RampCurrency,
+  feeCurrency: RampCurrency
 ): Promise<{ partnerMarkupFee: Big; vortexFee: Big }> {
   let totalPartnerMarkupInFeeCurrency = new Big(0);
   let totalVortexFeeInFeeCurrency = new Big(0);
@@ -84,10 +84,10 @@ async function calculatePartnerAndVortexFees(
     // Query all records where name matches partnerName AND rampType matches rampType
     const partnerRecords = await Partner.findAll({
       where: {
-        name: partnerName,
-        rampType: rampType,
         isActive: true,
-      },
+        name: partnerName,
+        rampType: rampType
+      }
     });
 
     if (partnerRecords.length > 0) {
@@ -95,19 +95,19 @@ async function calculatePartnerAndVortexFees(
 
       for (const record of partnerRecords) {
         // Partner markup fee
-        if (record.markupType !== 'none') {
+        if (record.markupType !== "none") {
           const markupFeeComponent = await calculateFeeComponent(
             record.markupValue,
-            record.markupType as 'absolute' | 'relative',
+            record.markupType as "absolute" | "relative",
             inputAmount,
             inputCurrency,
-            record.markupCurrency,
+            record.markupCurrency
           );
 
           const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
             markupFeeComponent.toString(),
             record.markupCurrency,
-            feeCurrency,
+            feeCurrency
           );
           totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
 
@@ -117,19 +117,19 @@ async function calculatePartnerAndVortexFees(
         }
 
         // Vortex Fee Component from this partner record
-        if (record.vortexFeeType !== 'none') {
+        if (record.vortexFeeType !== "none") {
           const vortexFeeComponent = await calculateFeeComponent(
             record.vortexFeeValue,
-            record.vortexFeeType as 'absolute' | 'relative',
+            record.vortexFeeType as "absolute" | "relative",
             inputAmount,
             inputCurrency,
-            record.markupCurrency,
+            record.markupCurrency
           );
 
           const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
             vortexFeeComponent.toString(),
             record.markupCurrency,
-            feeCurrency,
+            feeCurrency
           );
           totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
 
@@ -141,9 +141,7 @@ async function calculatePartnerAndVortexFees(
 
       // Log warning if partner found but no applicable custom fees
       if (!hasApplicableFees) {
-        logger.warn(
-          `Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`,
-        );
+        logger.warn(`Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`);
       }
     } else {
       // No specific partner records found, will use default Vortex fee below
@@ -156,35 +154,35 @@ async function calculatePartnerAndVortexFees(
     // Query all vortex records for this ramp type
     const vortexFoundationPartners = await Partner.findAll({
       where: {
-        name: 'vortex',
         isActive: true,
-        rampType: rampType,
-      },
+        name: "vortex",
+        rampType: rampType
+      }
     });
 
     if (vortexFoundationPartners.length === 0) {
       logger.error(`Vortex partner configuration not found for ${rampType}-ramp in database.`);
       throw new APIError({
-        status: httpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Internal configuration error [VF]',
+        message: "Internal configuration error [VF]",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
     // Process each vortex record and accumulate fees
     for (const vortexFoundationPartner of vortexFoundationPartners) {
-      if (vortexFoundationPartner.markupType !== 'none') {
+      if (vortexFoundationPartner.markupType !== "none") {
         const vortexFeeComponent = await calculateFeeComponent(
           vortexFoundationPartner.markupValue,
-          vortexFoundationPartner.markupType as 'absolute' | 'relative',
+          vortexFoundationPartner.markupType as "absolute" | "relative",
           inputAmount,
           inputCurrency,
-          vortexFoundationPartner.markupCurrency,
+          vortexFoundationPartner.markupCurrency
         );
 
         const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
           vortexFeeComponent.toString(),
           vortexFoundationPartner.markupCurrency,
-          feeCurrency,
+          feeCurrency
         );
         totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
       }
@@ -193,7 +191,7 @@ async function calculatePartnerAndVortexFees(
 
   return {
     partnerMarkupFee: totalPartnerMarkupInFeeCurrency,
-    vortexFee: totalVortexFeeInFeeCurrency,
+    vortexFee: totalVortexFeeInFeeCurrency
   };
 }
 
@@ -207,30 +205,30 @@ async function calculatePartnerAndVortexFees(
  * @returns The calculated anchor fee as a Big number
  */
 async function calculateAnchorFee(
-  rampType: 'on' | 'off',
+  rampType: "on" | "off",
   from: DestinationType,
   to: DestinationType,
   inputAmount: string,
-  outputAmount: string,
+  outputAmount: string
 ): Promise<Big> {
   // Determine anchor identifier based on ramp type and destination
-  let anchorIdentifier = 'default';
-  if (rampType === 'on' && from === 'pix') {
-    anchorIdentifier = 'moonbeam_brla';
-  } else if (rampType === 'off' && to === 'pix') {
-    anchorIdentifier = 'moonbeam_brla';
-  } else if (rampType === 'off' && to === 'sepa') {
-    anchorIdentifier = 'stellar_eurc';
-  } else if (rampType === 'off' && to === 'cbu') {
-    anchorIdentifier = 'stellar_ars';
+  let anchorIdentifier = "default";
+  if (rampType === "on" && from === "pix") {
+    anchorIdentifier = "moonbeam_brla";
+  } else if (rampType === "off" && to === "pix") {
+    anchorIdentifier = "moonbeam_brla";
+  } else if (rampType === "off" && to === "sepa") {
+    anchorIdentifier = "stellar_eurc";
+  } else if (rampType === "off" && to === "cbu") {
+    anchorIdentifier = "stellar_ars";
   }
 
   const anchorFeeConfigs = await Anchor.findAll({
     where: {
-      rampType: rampType,
       identifier: anchorIdentifier,
       isActive: true,
-    },
+      rampType: rampType
+    }
   });
 
   // Calculate anchor fee based on type (absolute or relative)
@@ -238,12 +236,12 @@ async function calculateAnchorFee(
   if (anchorFeeConfigs.length > 0) {
     // Calculate total anchor fee by reducing the array
     totalAnchorFee = anchorFeeConfigs.reduce((total, feeConfig) => {
-      if (feeConfig.valueType === 'absolute') {
+      if (feeConfig.valueType === "absolute") {
         return total.plus(feeConfig.value);
       }
-      if (feeConfig.valueType === 'relative') {
+      if (feeConfig.valueType === "relative") {
         // Calculate relative fee based on the input or output amount
-        const amount = rampType === 'on' ? inputAmount : outputAmount;
+        const amount = rampType === "on" ? inputAmount : outputAmount;
         const relativeFee = new Big(amount).mul(feeConfig.value);
         return total.plus(relativeFee);
       }
@@ -269,10 +267,10 @@ export async function calculatePreNablaDeductibleFees(
   inputAmount: string,
   inputCurrency: RampCurrency,
   outputCurrency: RampCurrency,
-  rampType: 'on' | 'off',
+  rampType: "on" | "off",
   from: DestinationType,
   to: DestinationType,
-  partnerName?: string,
+  partnerName?: string
 ): Promise<PreNablaDeductibleFeesResult> {
   try {
     // Validate chain support
@@ -283,17 +281,13 @@ export async function calculatePreNablaDeductibleFees(
 
     let preNablaDeductibleFeeAmount = new Big(0);
 
-    if (rampType === 'on') {
+    if (rampType === "on") {
       // For on-ramp: Only Anchor Fee is deducted before Nabla
       const anchorFee = await calculateAnchorFee(rampType, from, to, inputAmount, inputAmount);
 
       // Convert anchor fee to fee currency if needed
       if (feeCurrency !== inputCurrency) {
-        const anchorFeeInFeeCurrency = await priceFeedService.convertCurrency(
-          anchorFee.toString(),
-          inputCurrency,
-          feeCurrency,
-        );
+        const anchorFeeInFeeCurrency = await priceFeedService.convertCurrency(anchorFee.toString(), inputCurrency, feeCurrency);
         preNablaDeductibleFeeAmount = new Big(anchorFeeInFeeCurrency);
       } else {
         preNablaDeductibleFeeAmount = anchorFee;
@@ -305,21 +299,21 @@ export async function calculatePreNablaDeductibleFees(
         rampType,
         partnerName,
         inputCurrency,
-        feeCurrency,
+        feeCurrency
       );
 
       preNablaDeductibleFeeAmount = vortexFee.plus(partnerMarkupFee);
     }
 
     return {
-      preNablaDeductibleFeeAmount,
       feeCurrency,
+      preNablaDeductibleFeeAmount
     };
   } catch (error) {
-    logger.error('Error calculating pre-Nabla deductible fees:', error);
+    logger.error("Error calculating pre-Nabla deductible fees:", error);
     throw new APIError({
-      status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate pre-Nabla deductible fees',
+      message: "Failed to calculate pre-Nabla deductible fees",
+      status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }
 }
@@ -343,7 +337,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
       request.rampType,
       request.partnerName,
       request.inputCurrency,
-      feeCurrency,
+      feeCurrency
     );
 
     // Calculate anchor fees
@@ -352,33 +346,29 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
       request.from,
       request.to,
       request.inputAmount,
-      request.outputAmountOfframp,
+      request.outputAmountOfframp
     );
 
     // Convert anchor fee to fee currency if needed
     let anchorFeeInFeeCurrency = anchorFee;
     if (feeCurrency !== request.inputCurrency && feeCurrency !== request.outputCurrency) {
       // Determine the base currency for anchor fee conversion
-      const baseCurrency = request.rampType === 'on' ? request.inputCurrency : request.outputCurrency;
-      const anchorFeeConverted = await priceFeedService.convertCurrency(
-        anchorFee.toString(),
-        baseCurrency,
-        feeCurrency,
-      );
+      const baseCurrency = request.rampType === "on" ? request.inputCurrency : request.outputCurrency;
+      const anchorFeeConverted = await priceFeedService.convertCurrency(anchorFee.toString(), baseCurrency, feeCurrency);
       anchorFeeInFeeCurrency = new Big(anchorFeeConverted);
     }
 
     return {
-      vortexFee: vortexFee.toFixed(2),
       anchorFee: anchorFeeInFeeCurrency.toFixed(2),
-      partnerMarkupFee: partnerMarkupFee.toFixed(2),
       feeCurrency,
+      partnerMarkupFee: partnerMarkupFee.toFixed(2),
+      vortexFee: vortexFee.toFixed(2)
     };
   } catch (error) {
-    logger.error('Error calculating fee components:', error);
+    logger.error("Error calculating fee components:", error);
     throw new APIError({
-      status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate fee components',
+      message: "Failed to calculate fee components",
+      status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }
 }

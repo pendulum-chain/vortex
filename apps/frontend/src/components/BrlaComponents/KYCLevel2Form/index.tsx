@@ -1,13 +1,14 @@
-import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
-import { motion } from 'motion/react';
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useMaintenanceAwareButton } from '../../../hooks/useMaintenanceAware';
-import { BrlaService, KYCDocType } from '../../../services/api';
-import { KycLevel2Toggle } from '../../KycLevel2Toggle';
+import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { BrlaKYCDocType } from "@packages/shared";
+import { motion } from "motion/react";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
+import { BrlaService } from "../../../services/api";
+import { KycLevel2Toggle } from "../../KycLevel2Toggle";
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 
 interface DocumentUploadProps {
   onSubmitHandler: () => void;
@@ -20,16 +21,16 @@ async function uploadFileAsBuffer(file: File, url: string) {
   const uint8 = new Uint8Array(arrayBuffer);
 
   const res = await fetch(url, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'Content-Type': file.type,
-      'Content-Length': String(uint8.length),
+      "Content-Type": file.type,
+      "Content-Length": String(uint8.length)
     },
-    body: arrayBuffer,
+    body: arrayBuffer
   });
 
   if (!res.ok) {
-    console.log('upload failed', res.statusText);
+    console.log("upload failed", res.statusText);
     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
   }
 }
@@ -38,7 +39,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
-  const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
+  const [docType, setDocType] = useState<BrlaKYCDocType>(BrlaKYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -48,17 +49,17 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
   const [backValid, setBackValid] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
 
   if (!taxId) {
-    console.error('Tax ID is not available');
+    console.error("Tax ID is not available");
     return null;
   }
 
   const validateAndSetFile = (
     file: File | null,
     setter: React.Dispatch<React.SetStateAction<File | null>>,
-    validSetter: React.Dispatch<React.SetStateAction<boolean>>,
+    validSetter: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
     if (!file) {
       setter(null);
@@ -66,18 +67,18 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
       return;
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError(t('components.documentUpload.validation.invalidFileType'));
+      setError(t("components.documentUpload.validation.invalidFileType"));
       setter(null);
       validSetter(false);
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setError(t('components.documentUpload.validation.fileSizeExceeded', { max: '15 MB' }));
+      setError(t("components.documentUpload.validation.fileSizeExceeded", { max: "15 MB" }));
       setter(null);
       validSetter(false);
       return;
     }
-    setError('');
+    setError("");
     setter(file);
     validSetter(true);
   };
@@ -85,60 +86,59 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<File | null>>,
-    validSetter: React.Dispatch<React.SetStateAction<boolean>>,
+    validSetter: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
     const file = e.target.files?.[0] || null;
     validateAndSetFile(file, setter, validSetter);
   };
 
-  const isSubmitDisabled =
-    loading || !selfieValid || (docType === KYCDocType.RG ? !frontValid || !backValid : !frontValid);
+  const isSubmitDisabled = loading || !selfieValid || (docType === BrlaKYCDocType.RG ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
-    setError('');
+    setError("");
     if (
       !selfieValid ||
-      (docType === KYCDocType.RG && (!frontValid || !backValid)) ||
-      (docType === KYCDocType.CNH && !frontValid)
+      (docType === BrlaKYCDocType.RG && (!frontValid || !backValid)) ||
+      (docType === BrlaKYCDocType.CNH && !frontValid)
     ) {
-      setError(t('components.documentUpload.validation.validationError'));
+      setError(t("components.documentUpload.validation.validationError"));
       return;
     }
     setLoading(true);
     try {
       const response = await BrlaService.startKYC2({
         taxId,
-        documentType: docType,
+        documentType: docType
       });
 
       const uploads: Promise<void>[] = [];
-      if (docType === KYCDocType.RG) {
+      if (docType === BrlaKYCDocType.RG) {
         if (!selfie || !front || !back) {
-          setError(t('components.documentUpload.uploadBug'));
-          console.error('Validation flags were true, but file data is missing. This is a bug.');
+          setError(t("components.documentUpload.uploadBug"));
+          console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
           uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
-          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl),
+          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
         );
       } else {
         if (!selfie || !front) {
-          setError(t('components.documentUpload.uploadBug'));
-          console.error('Validation flags were true, but file data is missing. This is a bug.');
+          setError(t("components.documentUpload.uploadBug"));
+          console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl),
+          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
         );
       }
 
       await Promise.all(uploads);
       onSubmitHandler();
     } catch {
-      setError(t('components.documentUpload.uploadFailed'));
+      setError(t("components.documentUpload.uploadFailed"));
     } finally {
       setLoading(false);
     }
@@ -148,13 +148,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
     label: string,
     onChange: React.ChangeEventHandler<HTMLInputElement> | undefined,
     valid: boolean,
-    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>,
+    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   ) => (
-    <label className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500">
-      <Icon className="w-12 h-12 text-gray-400 mb-2" />
-      <span className="text-gray-600 mb-1">{label}</span>
+    <label className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-blue-500">
+      <Icon className="mb-2 h-12 w-12 text-gray-400" />
+      <span className="mb-1 text-gray-600">{label}</span>
       <input type="file" accept=".png,.jpeg,.jpg,.pdf" onChange={onChange} className="hidden" />
-      {valid && <CheckCircleIcon className="absolute top-2 right-2 w-6 h-6 text-green-500" />}
+      {valid && <CheckCircleIcon className="absolute top-2 right-2 h-6 w-6 text-green-500" />}
     </label>
   );
 
@@ -163,55 +163,50 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="px-4 pt-6 pb-8 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 bg-white"
+      className="mx-4 mt-8 mb-4 rounded-lg bg-white px-4 pt-6 pb-8 shadow-custom md:mx-auto md:w-96"
     >
-      <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">{t('components.documentUpload.title')}</h2>
-      <p className="text-center text-gray-600 mb-4">{t('components.documentUpload.description')}</p>
+      <h2 className="mb-6 text-center font-semibold text-2xl text-blue-700">{t("components.documentUpload.title")}</h2>
+      <p className="mb-4 text-center text-gray-600">{t("components.documentUpload.description")}</p>
 
       <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
 
       <div className="grid grid-cols-1 gap-4">
         {renderField(
-          t('components.documentUpload.fields.uploadSelfie'),
-          (e) => handleFileChange(e, setSelfie, setSelfieValid),
+          t("components.documentUpload.fields.uploadSelfie"),
+          e => handleFileChange(e, setSelfie, setSelfieValid),
           selfieValid,
-          CameraIcon,
+          CameraIcon
         )}
-        {docType === KYCDocType.RG && (
+        {docType === BrlaKYCDocType.RG && (
           <>
             {renderField(
-              t('components.documentUpload.fields.rgFront'),
-              (e) => handleFileChange(e, setFront, setFrontValid),
+              t("components.documentUpload.fields.rgFront"),
+              e => handleFileChange(e, setFront, setFrontValid),
               frontValid,
-              DocumentTextIcon,
+              DocumentTextIcon
             )}
             {renderField(
-              t('components.documentUpload.fields.rgBack'),
-              (e) => handleFileChange(e, setBack, setBackValid),
+              t("components.documentUpload.fields.rgBack"),
+              e => handleFileChange(e, setBack, setBackValid),
               backValid,
-              DocumentTextIcon,
+              DocumentTextIcon
             )}
           </>
         )}
-        {docType === KYCDocType.CNH &&
+        {docType === BrlaKYCDocType.CNH &&
           renderField(
-            t('components.documentUpload.fields.cnhDocument'),
-            (e) => handleFileChange(e, setFront, setFrontValid),
+            t("components.documentUpload.fields.cnhDocument"),
+            e => handleFileChange(e, setFront, setFrontValid),
             frontValid,
-            DocumentTextIcon,
+            DocumentTextIcon
           )}
       </div>
 
-      {error && <p className="text-red-500 text-center mt-4">{error}</p>}
+      {error && <p className="mt-4 text-center text-red-500">{error}</p>}
 
-      <div className="flex gap-3 mt-8">
-        <button
-          type="button"
-          className="btn-vortex-primary-inverse btn flex-1"
-          onClick={onBackClick}
-          disabled={loading}
-        >
-          {t('components.documentUpload.buttons.back')}
+      <div className="mt-8 flex gap-3">
+        <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick} disabled={loading}>
+          {t("components.documentUpload.buttons.back")}
         </button>
         <button
           type="button"
@@ -223,8 +218,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           {isMaintenanceDisabled
             ? buttonProps.title
             : loading
-              ? t('components.documentUpload.buttons.uploading')
-              : t('components.documentUpload.buttons.finish')}
+              ? t("components.documentUpload.buttons.uploading")
+              : t("components.documentUpload.buttons.finish")}
         </button>
       </div>
     </motion.div>

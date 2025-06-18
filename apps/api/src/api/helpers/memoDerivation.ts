@@ -1,5 +1,5 @@
-import { Keyring } from '@polkadot/api';
-import { keccak256 } from 'viem/utils';
+import { Keyring } from "@polkadot/api";
+import { keccak256 } from "viem/utils";
 
 type Address = `0x${string}` | string;
 type AddressValue = `0x${string}` | Uint8Array;
@@ -10,11 +10,11 @@ type AddressValue = `0x${string}` | Uint8Array;
  * For Polkadot addresses, returns the raw bytes of the decoded address.
  */
 function getRawAddressValue(address: Address): AddressValue {
-  if (address.startsWith('0x')) {
+  if (address.startsWith("0x")) {
     return address as `0x${string}`;
   }
 
-  const keyring = new Keyring({ type: 'sr25519' });
+  const keyring = new Keyring({ type: "sr25519" });
   return keyring.decodeAddress(address);
 }
 

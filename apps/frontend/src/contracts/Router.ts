@@ -1,53 +1,53 @@
 export const routerAbi = {
   contract: {
-    authors: ['unknown'],
-    name: 'Router',
-    version: '0.0.1',
+    authors: ["unknown"],
+    name: "Router",
+    version: "0.0.1"
   },
   source: {
-    compiler: 'solang 0.3.2',
-    hash: '0x1461e0f01fe866142df918dc0c65f8a185e5079d6a642da2b79436f6839db44e',
-    language: 'Solidity 0.3.2',
+    compiler: "solang 0.3.2",
+    hash: "0x1461e0f01fe866142df918dc0c65f8a185e5079d6a642da2b79436f6839db44e",
+    language: "Solidity 0.3.2"
   },
   spec: {
     constructors: [
       {
         args: [],
         default: false,
-        docs: [''],
-        label: 'new',
+        docs: [""],
+        label: "new",
         payable: false,
         returnType: null,
-        selector: '0x861731d5',
-      },
+        selector: "0x861731d5"
+      }
     ],
-    docs: [''],
+    docs: [""],
     environment: {
       accountId: {
-        displayName: ['AccountId'],
-        type: 2,
+        displayName: ["AccountId"],
+        type: 2
       },
       balance: {
-        displayName: ['Balance'],
-        type: 8,
+        displayName: ["Balance"],
+        type: 8
       },
       blockNumber: {
-        displayName: ['BlockNumber'],
-        type: 9,
+        displayName: ["BlockNumber"],
+        type: 9
       },
       chainExtension: {
         displayName: [],
-        type: 0,
+        type: 0
       },
       hash: {
-        displayName: ['Hash'],
-        type: 10,
+        displayName: ["Hash"],
+        type: 10
       },
       maxEventTopics: 4,
       timestamp: {
-        displayName: ['Timestamp'],
-        type: 9,
-      },
+        displayName: ["Timestamp"],
+        type: 9
+      }
     },
     events: [
       {
@@ -55,450 +55,448 @@ export const routerAbi = {
           {
             docs: [],
             indexed: false,
-            label: 'account',
+            label: "account",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: [''],
-        label: 'Paused',
+        docs: [""],
+        label: "Paused"
       },
       {
         args: [
           {
             docs: [],
             indexed: false,
-            label: 'account',
+            label: "account",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: [''],
-        label: 'Unpaused',
+        docs: [""],
+        label: "Unpaused"
       },
       {
         args: [
           {
             docs: [],
             indexed: true,
-            label: 'previousOwner',
+            label: "previousOwner",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: true,
-            label: 'newOwner',
+            label: "newOwner",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: [''],
-        label: 'OwnershipTransferred',
+        docs: [""],
+        label: "OwnershipTransferred"
       },
       {
         args: [
           {
             docs: [],
             indexed: true,
-            label: 'sender',
+            label: "sender",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'pool',
+            label: "pool",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'asset',
+            label: "asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: ['Emitted when a new pool is registered'],
-        label: 'SwapPoolRegistered',
+        docs: ["Emitted when a new pool is registered"],
+        label: "SwapPoolRegistered"
       },
       {
         args: [
           {
             docs: [],
             indexed: true,
-            label: 'sender',
+            label: "sender",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'asset',
+            label: "asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: ['Emitted when pool is unregistered'],
-        label: 'SwapPoolUnregistered',
+        docs: ["Emitted when pool is unregistered"],
+        label: "SwapPoolUnregistered"
       },
       {
         args: [
           {
             docs: [],
             indexed: true,
-            label: 'sender',
+            label: "sender",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'amountIn',
+            label: "amountIn",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
+              displayName: ["uint256"],
+              type: 3
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'amountOut',
+            label: "amountOut",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
+              displayName: ["uint256"],
+              type: 3
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'tokenIn',
+            label: "tokenIn",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: false,
-            label: 'tokenOut',
+            label: "tokenOut",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
             docs: [],
             indexed: true,
-            label: 'to',
+            label: "to",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
-        docs: ['Emitted on each swap'],
-        label: 'Swap',
-      },
+        docs: ["Emitted on each swap"],
+        label: "Swap"
+      }
     ],
     lang_error: {
-      displayName: ['SolidityError'],
-      type: 14,
+      displayName: ["SolidityError"],
+      type: 14
     },
     messages: [
       {
         args: [],
         default: false,
-        docs: [''],
-        label: 'paused',
+        docs: [""],
+        label: "paused",
         mutates: false,
         payable: false,
         returnType: {
-          displayName: ['bool'],
-          type: 4,
+          displayName: ["bool"],
+          type: 4
         },
-        selector: '0x5c975abb',
+        selector: "0x5c975abb"
       },
       {
         args: [],
         default: false,
-        docs: [''],
-        label: 'owner',
+        docs: [""],
+        label: "owner",
         mutates: false,
         payable: false,
         returnType: {
-          displayName: ['ink_primitives', 'types', 'AccountId'],
-          type: 2,
+          displayName: ["ink_primitives", "types", "AccountId"],
+          type: 2
         },
-        selector: '0x8da5cb5b',
+        selector: "0x8da5cb5b"
       },
       {
         args: [],
         default: false,
-        docs: [''],
-        label: 'renounceOwnership',
+        docs: [""],
+        label: "renounceOwnership",
         mutates: true,
         payable: false,
         returnType: null,
-        selector: '0x715018a6',
+        selector: "0x715018a6"
       },
       {
         args: [
           {
-            label: 'newOwner',
+            label: "newOwner",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: [''],
-        label: 'transferOwnership',
+        docs: [""],
+        label: "transferOwnership",
         mutates: true,
         payable: false,
         returnType: null,
-        selector: '0xf2fde38b',
+        selector: "0xf2fde38b"
       },
       {
         args: [
           {
-            label: 'asset',
+            label: "asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: [''],
-        label: 'poolByAsset',
+        docs: [""],
+        label: "poolByAsset",
         mutates: false,
         payable: false,
         returnType: {
-          displayName: ['ink_primitives', 'types', 'AccountId'],
-          type: 2,
+          displayName: ["ink_primitives", "types", "AccountId"],
+          type: 2
         },
-        selector: '0x06de94d8',
+        selector: "0x06de94d8"
       },
       {
         args: [
           {
-            label: 'asset',
+            label: "asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: [''],
-        label: 'oracleByAsset',
+        docs: [""],
+        label: "oracleByAsset",
         mutates: false,
         payable: false,
         returnType: {
-          displayName: ['ink_primitives', 'types', 'AccountId'],
-          type: 2,
+          displayName: ["ink_primitives", "types", "AccountId"],
+          type: 2
         },
-        selector: '0x38163032',
+        selector: "0x38163032"
       },
       {
         args: [
           {
-            label: '_asset',
+            label: "_asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
-            label: '_priceOracle',
+            label: "_priceOracle",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: ['Changes the pools priceOracle. Can only be set by the contract owner.'],
-        label: 'setPriceOracle',
+        docs: ["Changes the pools priceOracle. Can only be set by the contract owner."],
+        label: "setPriceOracle",
         mutates: true,
         payable: false,
         returnType: null,
-        selector: '0x67a74ddc',
+        selector: "0x67a74ddc"
       },
       {
         args: [
           {
-            label: '_asset',
+            label: "_asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
-            label: '_swapPool',
+            label: "_swapPool",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: ['Registers a newly created swap pool'],
-        label: 'registerPool',
+        docs: ["Registers a newly created swap pool"],
+        label: "registerPool",
         mutates: true,
         payable: false,
         returnType: {
-          displayName: ['bool'],
-          type: 4,
+          displayName: ["bool"],
+          type: 4
         },
-        selector: '0x7286e5e5',
+        selector: "0x7286e5e5"
       },
       {
         args: [
           {
-            label: '_asset',
+            label: "_asset",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
-          },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
+          }
         ],
         default: false,
-        docs: ['Unregisters a swap pool'],
-        label: 'unregisterPool',
+        docs: ["Unregisters a swap pool"],
+        label: "unregisterPool",
         mutates: true,
         payable: false,
         returnType: {
-          displayName: ['bool'],
-          type: 4,
+          displayName: ["bool"],
+          type: 4
         },
-        selector: '0xada61cc3',
+        selector: "0xada61cc3"
       },
       {
         args: [],
         default: false,
-        docs: ['Disable all swaps'],
-        label: 'pause',
+        docs: ["Disable all swaps"],
+        label: "pause",
         mutates: true,
         payable: false,
         returnType: null,
-        selector: '0x8456cb59',
+        selector: "0x8456cb59"
       },
       {
         args: [],
         default: false,
-        docs: ['Resume all swaps'],
-        label: 'unpause',
+        docs: ["Resume all swaps"],
+        label: "unpause",
         mutates: true,
         payable: false,
         returnType: null,
-        selector: '0x3f4ba83a',
+        selector: "0x3f4ba83a"
       },
       {
         args: [
           {
-            label: '_amountIn',
+            label: "_amountIn",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
+              displayName: ["uint256"],
+              type: 3
+            }
           },
           {
-            label: '_amountOutMin',
+            label: "_amountOutMin",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
+              displayName: ["uint256"],
+              type: 3
+            }
           },
           {
-            label: '_tokenInOut',
+            label: "_tokenInOut",
             type: {
               displayName: [],
-              type: 6,
-            },
+              type: 6
+            }
           },
           {
-            label: '_to',
+            label: "_to",
             type: {
-              displayName: ['ink_primitives', 'types', 'AccountId'],
-              type: 2,
-            },
+              displayName: ["ink_primitives", "types", "AccountId"],
+              type: 2
+            }
           },
           {
-            label: '_deadline',
+            label: "_deadline",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
-          },
+              displayName: ["uint256"],
+              type: 3
+            }
+          }
         ],
         default: false,
         docs: [
-          'Swap some `_fromToken` tokens for `_toToken` tokens,\nensures `_amountOutMin` and `_deadline`, sends funds to `_to` address `msg.sender` needs to grant the chef contract a sufficient allowance beforehand',
+          "Swap some `_fromToken` tokens for `_toToken` tokens,\nensures `_amountOutMin` and `_deadline`, sends funds to `_to` address `msg.sender` needs to grant the chef contract a sufficient allowance beforehand"
         ],
-        label: 'swapExactTokensForTokens',
+        label: "swapExactTokensForTokens",
         mutates: true,
         payable: false,
         returnType: {
           displayName: [],
-          type: 5,
+          type: 5
         },
-        selector: '0x38ed1739',
+        selector: "0x38ed1739"
       },
       {
         args: [
           {
-            label: '_amountIn',
+            label: "_amountIn",
             type: {
-              displayName: ['uint256'],
-              type: 3,
-            },
+              displayName: ["uint256"],
+              type: 3
+            }
           },
           {
-            label: '_tokenInOut',
+            label: "_tokenInOut",
             type: {
               displayName: [],
-              type: 6,
-            },
-          },
+              type: 6
+            }
+          }
         ],
         default: false,
-        docs: [
-          'Get a quote for how many `_toToken` tokens `_amountIn` many `tokenIn`\ntokens can currently be swapped for.',
-        ],
-        label: 'getAmountOut',
+        docs: ["Get a quote for how many `_toToken` tokens `_amountIn` many `tokenIn`\ntokens can currently be swapped for."],
+        label: "getAmountOut",
         mutates: false,
         payable: false,
         returnType: {
-          displayName: ['Router', 'getAmountOut', 'return_type'],
-          type: 7,
+          displayName: ["Router", "getAmountOut", "return_type"],
+          type: 7
         },
-        selector: '0xb8239ebb',
-      },
-    ],
+        selector: "0xb8239ebb"
+      }
+    ]
   },
   storage: {
     struct: {
@@ -512,48 +510,48 @@ export const routerAbi = {
                     {
                       layout: {
                         leaf: {
-                          key: '0x00000000',
-                          ty: 1,
-                        },
+                          key: "0x00000000",
+                          ty: 1
+                        }
                       },
-                      name: '',
-                    },
+                      name: ""
+                    }
                   ],
-                  name: 'AccountId',
-                },
+                  name: "AccountId"
+                }
               },
-              root_key: '0x00000000',
-            },
+              root_key: "0x00000000"
+            }
           },
-          name: '_owner',
+          name: "_owner"
         },
         {
           layout: {
             root: {
               layout: {
                 leaf: {
-                  key: '0x00000001',
-                  ty: 3,
-                },
+                  key: "0x00000001",
+                  ty: 3
+                }
               },
-              root_key: '0x00000001',
-            },
+              root_key: "0x00000001"
+            }
           },
-          name: '_status',
+          name: "_status"
         },
         {
           layout: {
             root: {
               layout: {
                 leaf: {
-                  key: '0x00000002',
-                  ty: 4,
-                },
+                  key: "0x00000002",
+                  ty: 4
+                }
               },
-              root_key: '0x00000002',
-            },
+              root_key: "0x00000002"
+            }
           },
-          name: '_paused',
+          name: "_paused"
         },
         {
           layout: {
@@ -564,20 +562,20 @@ export const routerAbi = {
                     {
                       layout: {
                         leaf: {
-                          key: '0x00000003',
-                          ty: 1,
-                        },
+                          key: "0x00000003",
+                          ty: 1
+                        }
                       },
-                      name: '',
-                    },
+                      name: ""
+                    }
                   ],
-                  name: 'AccountId',
-                },
+                  name: "AccountId"
+                }
               },
-              root_key: '0x00000003',
-            },
+              root_key: "0x00000003"
+            }
           },
-          name: 'poolByAsset',
+          name: "poolByAsset"
         },
         {
           layout: {
@@ -588,34 +586,34 @@ export const routerAbi = {
                     {
                       layout: {
                         leaf: {
-                          key: '0x00000004',
-                          ty: 1,
-                        },
+                          key: "0x00000004",
+                          ty: 1
+                        }
                       },
-                      name: '',
-                    },
+                      name: ""
+                    }
                   ],
-                  name: 'AccountId',
-                },
+                  name: "AccountId"
+                }
               },
-              root_key: '0x00000004',
-            },
+              root_key: "0x00000004"
+            }
           },
-          name: 'oracleByAsset',
-        },
+          name: "oracleByAsset"
+        }
       ],
-      name: 'Router',
-    },
+      name: "Router"
+    }
   },
   types: [
     {
       id: 0,
       type: {
         def: {
-          primitive: 'u8',
+          primitive: "u8"
         },
-        path: ['uint8'],
-      },
+        path: ["uint8"]
+      }
     },
     {
       id: 1,
@@ -623,10 +621,10 @@ export const routerAbi = {
         def: {
           array: {
             len: 32,
-            type: 0,
-          },
-        },
-      },
+            type: 0
+          }
+        }
+      }
     },
     {
       id: 2,
@@ -635,78 +633,78 @@ export const routerAbi = {
           composite: {
             fields: [
               {
-                type: 1,
-              },
-            ],
-          },
+                type: 1
+              }
+            ]
+          }
         },
-        path: ['ink_primitives', 'types', 'AccountId'],
-      },
+        path: ["ink_primitives", "types", "AccountId"]
+      }
     },
     {
       id: 3,
       type: {
         def: {
-          primitive: 'u256',
+          primitive: "u256"
         },
-        path: ['uint256'],
-      },
+        path: ["uint256"]
+      }
     },
     {
       id: 4,
       type: {
         def: {
-          primitive: 'bool',
+          primitive: "bool"
         },
-        path: ['bool'],
-      },
+        path: ["bool"]
+      }
     },
     {
       id: 5,
       type: {
         def: {
           sequence: {
-            type: 3,
-          },
-        },
-      },
+            type: 3
+          }
+        }
+      }
     },
     {
       id: 6,
       type: {
         def: {
           sequence: {
-            type: 2,
-          },
-        },
-      },
+            type: 2
+          }
+        }
+      }
     },
     {
       id: 7,
       type: {
         def: {
-          tuple: [3, 3],
+          tuple: [3, 3]
         },
-        path: ['Router', 'getAmountOut', 'return_type'],
-      },
+        path: ["Router", "getAmountOut", "return_type"]
+      }
     },
     {
       id: 8,
       type: {
         def: {
-          primitive: 'u128',
+          primitive: "u128"
         },
-        path: ['uint128'],
-      },
+        path: ["uint128"]
+      }
     },
     {
       id: 9,
       type: {
         def: {
-          primitive: 'u64',
+          primitive: "u64"
         },
-        path: ['uint64'],
-      },
+        path: ["uint64"]
+      }
     },
     {
       id: 10,
@@ -715,22 +713,22 @@ export const routerAbi = {
           composite: {
             fields: [
               {
-                type: 1,
-              },
-            ],
-          },
+                type: 1
+              }
+            ]
+          }
         },
-        path: ['ink_primitives', 'types', 'Hash'],
-      },
+        path: ["ink_primitives", "types", "Hash"]
+      }
     },
     {
       id: 11,
       type: {
         def: {
-          primitive: 'str',
+          primitive: "str"
         },
-        path: ['string'],
-      },
+        path: ["string"]
+      }
     },
     {
       id: 12,
@@ -739,13 +737,13 @@ export const routerAbi = {
           composite: {
             fields: [
               {
-                type: 11,
-              },
-            ],
-          },
+                type: 11
+              }
+            ]
+          }
         },
-        path: ['0x08c379a0'],
-      },
+        path: ["0x08c379a0"]
+      }
     },
     {
       id: 13,
@@ -754,13 +752,13 @@ export const routerAbi = {
           composite: {
             fields: [
               {
-                type: 3,
-              },
-            ],
-          },
+                type: 3
+              }
+            ]
+          }
         },
-        path: ['0x4e487b71'],
-      },
+        path: ["0x4e487b71"]
+      }
     },
     {
       id: 14,
@@ -771,27 +769,27 @@ export const routerAbi = {
               {
                 fields: [
                   {
-                    type: 12,
-                  },
+                    type: 12
+                  }
                 ],
                 index: 0,
-                name: 'Error',
+                name: "Error"
               },
               {
                 fields: [
                   {
-                    type: 13,
-                  },
+                    type: 13
+                  }
                 ],
                 index: 1,
-                name: 'Panic',
-              },
-            ],
-          },
+                name: "Panic"
+              }
+            ]
+          }
         },
-        path: ['SolidityError'],
-      },
-    },
+        path: ["SolidityError"]
+      }
+    }
   ],
-  version: '4',
+  version: "4"
 };

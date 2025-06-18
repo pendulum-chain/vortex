@@ -1,13 +1,13 @@
-import { NABLA_ROUTER, PendulumDetails } from '@packages/shared';
-import { Extrinsic, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
-import { ApiPromise } from '@polkadot/api';
-import { Abi } from '@polkadot/api-contract';
-import { config } from '../../../../config';
-import logger from '../../../../config/logger';
-import { routerAbi } from '../../../../contracts/Router';
-import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contracts';
-import { API } from '../../pendulum/apiManager';
-import { ExtrinsicOptions } from './index';
+import { NABLA_ROUTER, PendulumDetails } from "@packages/shared";
+import { createExecuteMessageExtrinsic, Extrinsic } from "@pendulum-chain/api-solang";
+import { ApiPromise } from "@polkadot/api";
+import { Abi } from "@polkadot/api-contract";
+import { config } from "../../../../config";
+import logger from "../../../../config/logger";
+import { routerAbi } from "../../../../contracts/Router";
+import { createWriteOptions, defaultWriteLimits } from "../../../helpers/contracts";
+import { API } from "../../pendulum/apiManager";
+import { ExtrinsicOptions } from "./index";
 
 export interface PrepareNablaSwapParams {
   inputTokenDetails: PendulumDetails;
@@ -37,32 +37,26 @@ export async function createSwapExtrinsic({
   amount,
   amountMin,
   contractAbi,
-  callerAddress,
+  callerAddress
 }: CreateSwapExtrinsicOptions) {
   const extrinsicOptions: ExtrinsicOptions = {
     callerAddress,
     contractDeploymentAddress: NABLA_ROUTER,
-    messageName: 'swapExactTokensForTokens',
-    // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
-    messageArguments: [
-      amount,
-      amountMin,
-      [tokenIn, tokenOut],
-      callerAddress,
-      calcDeadline(config.swap.deadlineMinutes),
-    ],
+    gasLimitTolerancePercentage: 10,
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
-    skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
+    // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
+    messageArguments: [amount, amountMin, [tokenIn, tokenOut], callerAddress, calcDeadline(config.swap.deadlineMinutes)],
+    messageName: "swapExactTokensForTokens", // Allow 3 fold gas tolerance
+    skipDryRunning: true // We have to skip this because it will not work before the approval transaction executed
   };
 
   const { execution } = await createExecuteMessageExtrinsic({
     ...extrinsicOptions,
-    api,
     abi: contractAbi,
+    api
   });
 
-  if (execution.type === 'onlyRpc') {
+  if (execution.type === "onlyRpc") {
     throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");
   }
 
@@ -76,7 +70,7 @@ export async function prepareNablaSwapTransaction({
   amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
-  pendulumNode,
+  pendulumNode
 }: PrepareNablaSwapParams): Promise<{
   extrinsic: Extrinsic;
   extrinsicOptions: ExtrinsicOptions;
@@ -88,16 +82,16 @@ export async function prepareNablaSwapTransaction({
   // Try create swap extrinsic
   try {
     logger.info(
-      `Preparing transaction to swap tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol} -> min ${nablaHardMinimumOutputRaw} ${outputTokenDetails.pendulumAssetSymbol}`,
+      `Preparing transaction to swap tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol} -> min ${nablaHardMinimumOutputRaw} ${outputTokenDetails.pendulumAssetSymbol}`
     );
     return createSwapExtrinsic({
-      api,
       amount: amountRaw,
       amountMin: nablaHardMinimumOutputRaw,
-      tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,
-      tokenOut: outputTokenDetails.pendulumErc20WrapperAddress,
-      contractAbi: routerAbiObject,
+      api,
       callerAddress: pendulumEphemeralAddress,
+      contractAbi: routerAbiObject,
+      tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,
+      tokenOut: outputTokenDetails.pendulumErc20WrapperAddress
     });
   } catch (e) {
     logger.error(`Error creating swap extrinsic: ${e}`);

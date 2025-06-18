@@ -1,6 +1,6 @@
-import CopyIcon from '../../../assets/copy-icon.svg';
-import { useClipboard } from '../../../hooks/useClipboard';
-import { ClickablePublicKey, ClickablePublicKeyProps } from '../ClickablePublicKey';
+import CopyIcon from "../../../assets/copy-icon.svg";
+import { useClipboard } from "../../../hooks/useClipboard";
+import { ClickablePublicKey, ClickablePublicKeyProps } from "../ClickablePublicKey";
 
 interface CopyablePublicKeyProps extends ClickablePublicKeyProps {
   onClick?: () => void;
@@ -19,7 +19,7 @@ export const CopyablePublicKey = ({ onClick, publicKey, ...props }: CopyablePubl
     <ClickablePublicKey
       {...{ ...props, publicKey }}
       onClick={handleClick}
-      icon={<img src={CopyIcon} className="w-4 h-4" alt="Copy" />}
+      icon={<img src={CopyIcon} className="h-4 w-4" alt="Copy" />}
     />
   );
 };

@@ -1,30 +1,28 @@
-import { ToastPopover } from './components/ToastPopover';
-import 'react-toastify/dist/ReactToastify.css';
+import "react-toastify/dist/ReactToastify.css";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { ToastPopover } from "./components/ToastPopover";
+import { Main } from "./pages/main";
+import { Language, getLanguageFromPath } from "./translations/helpers";
 
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-
-import enTranslations from './translations/en.json';
-import ptTranslations from './translations/pt.json';
-
-import '../App.css';
-import { Main } from './pages/main';
-import { Language, getLanguageFromPath } from './translations/helpers';
+import enTranslations from "./translations/en.json";
+import ptTranslations from "./translations/pt.json";
+import "../App.css";
 
 export function App() {
   const lng = getLanguageFromPath();
 
   i18n.use(initReactI18next).init({
     lng,
-    fallbackLng: 'en',
+    fallbackLng: "en",
     resources: {
       [Language.English]: {
-        translation: enTranslations,
+        translation: enTranslations
       },
       [Language.Portuguese_Brazil]: {
-        translation: ptTranslations,
-      },
-    },
+        translation: ptTranslations
+      }
+    }
   });
 
   return (

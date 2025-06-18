@@ -1,11 +1,9 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from '@packages/shared';
-import { http, createPublicClient, encodeFunctionData } from 'viem';
-import { moonbeam } from 'viem/chains';
-import { createOnrampRouteParams, getRoute } from './route';
-
-import Big from 'big.js';
-import erc20ABI from '../../../../contracts/ERC20';
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
+import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
+import { createPublicClient, encodeFunctionData, http } from "viem";
+import { moonbeam } from "viem/chains";
+import erc20ABI from "../../../../contracts/ERC20";
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
+import { createOnrampRouteParams, getRoute } from "./route";
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -18,8 +16,8 @@ export interface OnrampSquidrouterParams {
 
 export interface OnrampTransactionData {
   approveData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
+    to: EvmAddress;
+    data: EvmAddress;
     value: string;
     gas: string;
     nonce: number;
@@ -27,8 +25,8 @@ export interface OnrampTransactionData {
     maxPriorityFeePerGas?: string;
   };
   swapData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
+    to: EvmAddress;
+    data: EvmAddress;
     value: string;
     gas: string;
     nonce: number;
@@ -37,20 +35,14 @@ export interface OnrampTransactionData {
   };
 }
 
-function bigNumberMin(a: Big, b: Big): Big {
-  return a.lt(b) ? a : b;
-}
-
-export async function createOnrampSquidrouterTransactions(
-  params: OnrampSquidrouterParams,
-): Promise<OnrampTransactionData> {
+export async function createOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
-    throw new Error('AssetHub is not supported for Squidrouter onramp');
+    throw new Error("AssetHub is not supported for Squidrouter onramp");
   }
 
   const publicClient = createPublicClient({
     chain: moonbeam,
-    transport: http(),
+    transport: http()
   });
 
   const routeParams = createOnrampRouteParams(
@@ -58,7 +50,7 @@ export async function createOnrampSquidrouterTransactions(
     params.rawAmount,
     params.outputTokenDetails,
     params.toNetwork,
-    params.addressDestination,
+    params.addressDestination
   );
 
   try {
@@ -69,36 +61,36 @@ export async function createOnrampSquidrouterTransactions(
 
     const approveTransactionData = encodeFunctionData({
       abi: erc20ABI,
-      functionName: 'approve',
       args: [transactionRequest?.target, params.rawAmount],
+      functionName: "approve"
     });
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
     // Create transaction data objects
     const approveData = {
-      to: AXL_USDC_MOONBEAM as `0x${string}`,
       data: approveTransactionData,
-      value: '0',
-      nonce: params.moonbeamEphemeralStartingNonce,
-      gas: '150000',
+      gas: "150000",
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+      nonce: params.moonbeamEphemeralStartingNonce,
+      to: AXL_USDC_MOONBEAM as EvmAddress,
+      value: "0"
     };
 
     const swapData = {
-      to: transactionRequest.target as `0x${string}`,
-      data: transactionRequest.data,
-      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+      data: transactionRequest.data as EvmAddress,
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
       nonce: params.moonbeamEphemeralStartingNonce + 1,
+      to: transactionRequest.target as EvmAddress,
+      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
     };
 
     return {
       approveData,
-      swapData,
+      swapData
     };
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);

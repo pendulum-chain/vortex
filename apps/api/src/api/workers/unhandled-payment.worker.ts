@@ -1,13 +1,13 @@
-import { CronJob } from 'cron';
-import { Op } from 'sequelize';
-import logger from '../../config/logger';
-import RampState from '../../models/rampState.model';
-import { BrlaApiService } from '../services/brla/brlaApiService';
-import { generateReferenceLabel, isValidReferenceLabel } from '../services/brla/helpers';
-import { DepositLog } from '../services/brla/types';
-import { SlackNotifier } from '../services/slack.service';
+import { CronJob } from "cron";
+import { Op } from "sequelize";
+import logger from "../../config/logger";
+import RampState from "../../models/rampState.model";
+import { BrlaApiService } from "../services/brla/brlaApiService";
+import { generateReferenceLabel, isValidReferenceLabel } from "../services/brla/helpers";
+import { DepositLog } from "../services/brla/types";
+import { SlackNotifier } from "../services/slack.service";
 
-const DEFAULT_CRON_TIME = '*/15 * * * *';
+const DEFAULT_CRON_TIME = "*/15 * * * *";
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,17 +33,17 @@ class UnhandledPaymentWorker {
   }
 
   public start(): void {
-    logger.info('Starting unhandled payment worker');
+    logger.info("Starting unhandled payment worker");
     this.job.start();
   }
 
   public stop(): void {
-    logger.info('Stopping unhandled payment worker');
+    logger.info("Stopping unhandled payment worker");
     this.job.stop();
   }
 
   private async checkUnhandledPayments(): Promise<void> {
-    logger.info('Running unhandled payment worker cycle');
+    logger.info("Running unhandled payment worker cycle");
     try {
       const staleInitialStates = await this.fetchStaleInitialStates();
       const failedStates = await this.fetchFailedStates();
@@ -51,7 +51,7 @@ class UnhandledPaymentWorker {
       const statesToCheck = [...staleInitialStates, ...failedStates];
 
       if (statesToCheck.length === 0) {
-        logger.info('No stale or failed states found for payment check');
+        logger.info("No stale or failed states found for payment check");
         return;
       }
 
@@ -59,9 +59,9 @@ class UnhandledPaymentWorker {
 
       await this.processStatesForUnhandledPayments(statesToCheck);
 
-      logger.info('Unhandled payment worker cycle completed');
+      logger.info("Unhandled payment worker cycle completed");
     } catch (error) {
-      logger.error('Error during unhandled payment worker cycle:', error);
+      logger.error("Error during unhandled payment worker cycle:", error);
     }
   }
 
@@ -75,20 +75,20 @@ class UnhandledPaymentWorker {
     try {
       const states = await RampState.findAll({
         where: {
-          currentPhase: 'initial',
           createdAt: {
             [Op.lt]: tenMinutesAgo,
-            [Op.gt]: threeDaysAgo,
+            [Op.gt]: threeDaysAgo
           },
+          currentPhase: "initial",
           id: {
-            [Op.notIn]: Array.from(this.processedStateIds),
-          },
-        },
+            [Op.notIn]: Array.from(this.processedStateIds)
+          }
+        }
       });
 
       return states;
     } catch (error) {
-      logger.error('Error fetching stale initial states:', error);
+      logger.error("Error fetching stale initial states:", error);
       return [];
     }
   }
@@ -102,19 +102,19 @@ class UnhandledPaymentWorker {
     try {
       const states = await RampState.findAll({
         where: {
-          currentPhase: 'failed',
           createdAt: {
-            [Op.gt]: threeDaysAgo,
+            [Op.gt]: threeDaysAgo
           },
+          currentPhase: "failed",
           id: {
-            [Op.notIn]: Array.from(this.processedStateIds),
-          },
-        },
+            [Op.notIn]: Array.from(this.processedStateIds)
+          }
+        }
       });
 
       return states;
     } catch (error) {
-      logger.error('Error fetching failed states:', error);
+      logger.error("Error fetching failed states:", error);
       return [];
     }
   }
@@ -129,7 +129,7 @@ class UnhandledPaymentWorker {
       const existingIds = referenceDetails.get(payment.referenceLabel);
       if (existingIds) {
         existingIds.push(payment.id);
-        return { label: payment.referenceLabel, ids: existingIds };
+        return { ids: existingIds, label: payment.referenceLabel };
       } else {
         referenceDetails.set(payment.referenceLabel, [payment.id]);
       }
@@ -174,21 +174,21 @@ class UnhandledPaymentWorker {
 
         // Check 1: Unexpected payment found for the state's specific referenceLabel
         const matchingPayments = paymentHistory.filter(
-          (payment) =>
+          payment =>
             payment.referenceLabel === referenceLabel &&
             payment.id &&
-            new Date(payment.createdAt).getTime() > state.createdAt.getTime(),
+            new Date(payment.createdAt).getTime() > state.createdAt.getTime()
         );
 
         if (matchingPayments.length > 0) {
           const firstMatchingPayment = matchingPayments[0];
           logger.error(
-            `ALERT: Found ${matchingPayments.length} unhandled payment(s) for state ${state.id} with reference label ${referenceLabel}. First Payment ID: ${firstMatchingPayment.id}`,
+            `ALERT: Found ${matchingPayments.length} unhandled payment(s) for state ${state.id} with reference label ${referenceLabel}. First Payment ID: ${firstMatchingPayment.id}`
           );
-          const reason = 'Payment found for an initial or failed state where none was expected.';
+          const reason = "Payment found for an initial or failed state where none was expected.";
           const slackMessage = `Unhandled payment for State ID: ${state.id}, Payment ID(s): ${matchingPayments
-            .map((p) => p.id)
-            .join(', ')}, Label: ${referenceLabel}, Reason: ${reason}`;
+            .map(p => p.id)
+            .join(", ")}, Label: ${referenceLabel}, Reason: ${reason}`;
 
           this.alertsThisCycle.push(slackMessage);
           this.alertedSubaccounts.set(subaccountId, Date.now());
@@ -198,17 +198,15 @@ class UnhandledPaymentWorker {
         const duplicateInfo = this.findFirstDuplicateReferenceInfo(paymentHistory);
         if (duplicateInfo) {
           logger.error(
-            `ALERT: Found duplicate reference label ('${
-              duplicateInfo.label
-            }') in payment history for subaccount of state ${
+            `ALERT: Found duplicate reference label ('${duplicateInfo.label}') in payment history for subaccount of state ${
               state.id
-            }. Associated Payment IDs: ${duplicateInfo.ids.join(', ')}`,
+            }. Associated Payment IDs: ${duplicateInfo.ids.join(", ")}`
           );
           const reason = `Duplicate reference label '${duplicateInfo.label}' detected in subaccount ${subaccountId}.`;
           const slackMessage = `Duplicate payment reference issue associated with State ID: ${
             state.id
           }. Duplicated Label: '${duplicateInfo.label}', Involved Payment IDs: ${duplicateInfo.ids.join(
-            ', ',
+            ", "
           )}. Reason: ${reason}`;
 
           this.alertsThisCycle.push(slackMessage);
@@ -217,18 +215,18 @@ class UnhandledPaymentWorker {
 
         // Check 3: Payments with NO reference label, or invalid one.
         const paymentsWithInvalidLabels = paymentHistory.filter(
-          (payment) =>
+          payment =>
             payment.id &&
             payment.referenceLabel !== undefined &&
             !isValidReferenceLabel(payment.referenceLabel) &&
-            new Date(payment.createdAt).getTime() > state.createdAt.getTime(),
+            new Date(payment.createdAt).getTime() > state.createdAt.getTime()
         );
 
         if (paymentsWithInvalidLabels.length > 0) {
           const firstInvalidPayment = paymentsWithInvalidLabels[0];
-          const invalidLabel = firstInvalidPayment.referenceLabel || 'undefined';
+          const invalidLabel = firstInvalidPayment.referenceLabel || "undefined";
           logger.error(
-            `ALERT: Found ${paymentsWithInvalidLabels.length} payment(s) with invalid reference label for state ${state.id}. First Payment ID: ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}'`,
+            `ALERT: Found ${paymentsWithInvalidLabels.length} payment(s) with invalid reference label for state ${state.id}. First Payment ID: ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}'`
           );
           const reason = `Invalid reference label format detected. Expected 8 characters, found: '${invalidLabel}'`;
           const slackMessage = `Invalid payment reference label for State ID: ${state.id}, Payment ID(s): ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}', Reason: ${reason}`;
@@ -263,18 +261,18 @@ class UnhandledPaymentWorker {
 
   private async notifySlack(): Promise<void> {
     if (this.alertsThisCycle.length === 0) {
-      logger.info('No alerts to send to Slack in this cycle.');
+      logger.info("No alerts to send to Slack in this cycle.");
       return;
     }
 
-    const alertText = this.alertsThisCycle.join('\n');
+    const alertText = this.alertsThisCycle.join("\n");
     try {
       logger.info(`Attempting to send ${this.alertsThisCycle.length} alert(s) to Slack.`);
       await this.slackNotifier.sendMessage({ text: alertText });
-      logger.info('Slack notification sent successfully.');
+      logger.info("Slack notification sent successfully.");
       this.alertsThisCycle = [];
     } catch (error) {
-      logger.error('Error sending Slack notification:', error);
+      logger.error("Error sending Slack notification:", error);
       // alertsThisCycle is not cleared, so messages will be included in the next attempt.
     }
   }

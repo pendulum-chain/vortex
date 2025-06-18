@@ -1,32 +1,32 @@
-import { EphemeralAccount } from '@packages/shared';
-import { Keyring } from '@polkadot/api';
-import { mnemonicGenerate } from '@polkadot/util-crypto';
-import { Keypair } from 'stellar-sdk';
+import { EphemeralAccount } from "@packages/shared";
+import { Keyring } from "@polkadot/api";
+import { mnemonicGenerate } from "@polkadot/util-crypto";
+import { Keypair } from "stellar-sdk";
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
-  const keyring = new Keyring({ type: 'ethereum' });
+  const keyring = new Keyring({ type: "ethereum" });
 
   const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   return {
-    secret: seedPhrase,
     address: ephemeralAccountKeypair.address,
+    secret: seedPhrase
   };
 }
 
 export function createPendulumEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
 
-  const keyring = new Keyring({ type: 'sr25519' });
+  const keyring = new Keyring({ type: "sr25519" });
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
 
-  return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
+  return { address: ephemeralAccountKeypair.address, secret: seedPhrase };
 }
 
 export function createStellarEphemeral(): EphemeralAccount {
   const ephemeralKeys = Keypair.random();
   const address = ephemeralKeys.publicKey();
 
-  return { secret: ephemeralKeys.secret(), address };
+  return { address, secret: ephemeralKeys.secret() };
 }

@@ -1,14 +1,14 @@
-import { useEffect } from 'react';
-import { RampService } from '../../../services/api';
-import { useRampStore } from '../../../stores/rampStore';
-import { useTrackRampConfirmation } from '../../useTrackRampConfirmation';
+import { useEffect } from "react";
+import { RampService } from "../../../services/api";
+import { useRampStore } from "../../../stores/rampStore";
+import { useTrackRampConfirmation } from "../../useTrackRampConfirmation";
 
 export const useStartRamp = () => {
   const {
     rampState,
     rampStarted,
     rampPaymentConfirmed,
-    actions: { setRampStarted },
+    actions: { setRampStarted }
   } = useRampStore();
 
   const trackRampConfirmation = useTrackRampConfirmation();
@@ -19,39 +19,39 @@ export const useStartRamp = () => {
     }
 
     // Check if user confirmed that they made the payment
-    if (Boolean(rampState.ramp?.type === 'on') && !rampPaymentConfirmed) {
+    if (Boolean(rampState.ramp?.type === "on") && !rampPaymentConfirmed) {
       return;
     }
 
-    if (rampState.ramp.type === 'off') {
+    if (rampState.ramp.type === "off") {
       // Check if the user signed the necessary transactions
       if (!rampState.userSigningMeta) {
-        console.error('User signing meta is missing. Cannot start ramp.');
+        console.error("User signing meta is missing. Cannot start ramp.");
         return;
       }
 
-      if (rampState.ramp.from === 'assethub') {
+      if (rampState.ramp.from === "assethub") {
         if (!rampState.userSigningMeta.assetHubToPendulumHash) {
-          console.error('AssetHub to Pendulum hash is missing. Cannot start ramp.');
+          console.error("AssetHub to Pendulum hash is missing. Cannot start ramp.");
           return;
         }
       } else {
         // Here we assume we are in any EVM network and need squidrouter
         if (!rampState.userSigningMeta.squidRouterApproveHash || !rampState.userSigningMeta.squidRouterSwapHash) {
-          console.error('Squid router hash is missing. Cannot start ramp.');
+          console.error("Squid router hash is missing. Cannot start ramp.");
           return;
         }
       }
     }
 
     RampService.startRamp(rampState.ramp.id)
-      .then((response) => {
-        console.log('startRampResponse', response);
+      .then(response => {
+        console.log("startRampResponse", response);
         setRampStarted(true);
         trackRampConfirmation();
       })
-      .catch((err) => {
-        console.error('Error starting ramp:', err);
+      .catch(err => {
+        console.error("Error starting ramp:", err);
         // TODO this can fail if the ramp 'expired'. We should handle this case and show a message to the user
       });
   }, [rampPaymentConfirmed, rampStarted, rampState, setRampStarted, trackRampConfirmation]);

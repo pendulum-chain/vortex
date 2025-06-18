@@ -1,28 +1,28 @@
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
   TokenType,
   getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
-} from '@packages/shared';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNetwork } from '../../contexts/network';
-import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
-import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
+  getOnChainTokenDetailsOrDefault
+} from "@packages/shared";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNetwork } from "../../contexts/network";
+import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
 import {
   useCanRegisterRamp,
   useRampActions,
   useRampExecutionInput,
   useRampState,
-  useSigningRejected,
-} from '../../stores/rampStore';
-import { useIsQuoteExpired, useRampSummaryStore } from '../../stores/rampSummary';
-import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
-import { RampDirection } from '../RampToggle';
-import { Spinner } from '../Spinner';
+  useSigningRejected
+} from "../../stores/rampStore";
+import { useIsQuoteExpired, useRampSummaryStore } from "../../stores/rampSummary";
+import { useSep24StoreCachedAnchorUrl } from "../../stores/sep24Store";
+import { RampDirection } from "../RampToggle";
+import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
   isSubmitted: boolean;
@@ -44,69 +44,69 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     const isBRCodeReady = Boolean(rampState?.ramp?.brCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
-    const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
+    const isAnchorWithoutRedirect = toToken.type === "moonbeam";
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if ((isOnramp && isBRCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
-        text: t('components.dialogs.RampSummaryDialog.quoteExpired'),
-        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.quoteExpired"),
+        icon: null
       };
     }
 
     // Add check for signing rejection
     if (signingRejected) {
       return {
-        text: t('components.dialogs.RampSummaryDialog.tryAgain'),
-        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.tryAgain"),
+        icon: null
       };
     }
 
     if (submitButtonDisabled) {
       return {
-        text: t('components.swapSubmitButton.processing'),
-        icon: <Spinner />,
+        text: t("components.swapSubmitButton.processing"),
+        icon: <Spinner />
       };
     }
 
     if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
       return {
-        text: t('components.dialogs.RampSummaryDialog.confirm'),
-        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.confirm"),
+        icon: null
       };
     }
 
     if (isOfframp && rampState !== undefined) {
       return {
-        text: t('components.dialogs.RampSummaryDialog.processing'),
-        icon: <Spinner />,
+        text: t("components.dialogs.RampSummaryDialog.processing"),
+        icon: <Spinner />
       };
     }
 
     if (isOnramp && isBRCodeReady) {
       return {
-        text: t('components.swapSubmitButton.confirmPayment'),
-        icon: null,
+        text: t("components.swapSubmitButton.confirmPayment"),
+        icon: null
       };
     }
 
     if (isOfframp && isAnchorWithRedirect) {
       if (isSubmitted) {
         return {
-          text: t('components.dialogs.RampSummaryDialog.continueOnPartnersPage'),
-          icon: <Spinner />,
+          text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage"),
+          icon: <Spinner />
         };
       } else {
         return {
-          text: t('components.dialogs.RampSummaryDialog.continueWithPartner'),
-          icon: <ArrowTopRightOnSquareIcon className="w-4 h-4" />,
+          text: t("components.dialogs.RampSummaryDialog.continueWithPartner"),
+          icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />
         };
       }
     }
 
     return {
-      text: t('components.swapSubmitButton.processing'),
-      icon: <Spinner />,
+      text: t("components.swapSubmitButton.processing"),
+      icon: <Spinner />
     };
   }, [
     submitButtonDisabled,
@@ -117,7 +117,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     isSubmitted,
     canRegisterRamp,
     toToken,
-    signingRejected,
+    signingRejected
   ]);
 };
 
@@ -137,9 +137,7 @@ export const RampSummaryButton = () => {
   const { selectedNetwork } = useNetwork();
   const executionInput = useRampExecutionInput();
 
-  const toToken = isOnramp
-    ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
-    : getAnyFiatTokenDetails(fiatToken);
+  const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
     if (!executionInput) return true;
@@ -147,7 +145,7 @@ export const RampSummaryButton = () => {
 
     if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
-      if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return true;
+      if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
     const isBRCodeReady = Boolean(isOnramp && rampState?.ramp?.brCode);
@@ -167,33 +165,33 @@ export const RampSummaryButton = () => {
     isSubmitted,
     anchorUrl,
     fiatToken,
-    signingRejected,
+    signingRejected
   ]);
 
   const buttonContent = useButtonContent({
     isSubmitted,
     toToken: toToken as FiatTokenDetails,
-    submitButtonDisabled,
+    submitButtonDisabled
   });
 
   const onSubmit = () => {
     setIsSubmitted(true);
 
     // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === 'off') {
+    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
       setCanRegisterRamp(true);
     }
 
-    if (executionInput?.quote.rampType === 'on') {
+    if (executionInput?.quote.rampType === "on") {
       setRampPaymentConfirmed(true);
     } else {
       onRampConfirm();
     }
 
-    if (!isOnramp && (toToken as FiatTokenDetails).type !== 'moonbeam' && anchorUrl) {
+    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
       // If signing was rejected, we do not open the anchor URL again
       if (!signingRejected) {
-        window.open(anchorUrl, '_blank');
+        window.open(anchorUrl, "_blank");
       }
     }
 
@@ -206,11 +204,11 @@ export const RampSummaryButton = () => {
     <button
       disabled={submitButtonDisabled}
       className="btn-vortex-primary btn rounded-xl"
-      style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+      style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}
       onClick={onSubmit}
     >
       {buttonContent.icon}
-      {buttonContent.icon && ' '}
+      {buttonContent.icon && " "}
       {buttonContent.text}
     </button>
   );

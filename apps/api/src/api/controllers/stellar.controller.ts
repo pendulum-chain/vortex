@@ -1,88 +1,93 @@
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { Keypair } from 'stellar-sdk';
+import {
+  CreateStellarTransactionRequest,
+  CreateStellarTransactionResponse,
+  GetSep10MasterPKResponse,
+  SignSep10ChallengeRequest,
+  SignSep10ChallengeResponse,
+  StellarErrorResponse
+} from "@packages/shared";
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import { Keypair } from "stellar-sdk";
+import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from "../../constants/constants";
+import { signSep10Challenge } from "../services/sep10/sep10.service";
+import { SlackNotifier } from "../services/slack.service";
+import { buildCreationStellarTx, horizonServer } from "../services/stellar.service";
 
-import { FiatToken } from '@packages/shared';
-import { StellarEndpoints } from '@packages/shared';
-import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
-import { signSep10Challenge } from '../services/sep10/sep10.service';
-import { SlackNotifier } from '../services/slack.service';
-import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
-
-const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
+const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
 
 export const createStellarTransactionHandler = async (
-  req: Request<{}, {}, StellarEndpoints.CreateStellarTransactionRequest>,
-  res: Response<StellarEndpoints.CreateStellarTransactionResponse | StellarEndpoints.StellarErrorResponse>,
-  _next: NextFunction,
+  req: Request<unknown, unknown, CreateStellarTransactionRequest>,
+  res: Response<CreateStellarTransactionResponse | StellarErrorResponse>,
+  _next: NextFunction
 ): Promise<void> => {
   try {
     if (!FUNDING_SECRET) {
-      throw new Error('FUNDING_SECRET is not configured');
+      throw new Error("FUNDING_SECRET is not configured");
     }
     const { signature, sequence } = await buildCreationStellarTx(
       FUNDING_SECRET,
       req.body.accountId,
       req.body.maxTime,
       req.body.assetCode,
-      req.body.baseFee,
+      req.body.baseFee
     );
-    res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
+    res.json({ public: FUNDING_PUBLIC_KEY, sequence, signature });
     return;
   } catch (error) {
-    console.error('Error in createStellarTransaction:', error);
+    console.error("Error in createStellarTransaction:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Failed to create transaction',
       details: (error as Error).message,
+      error: "Failed to create transaction"
     });
   }
 };
 
 export const signSep10ChallengeHandler = async (
-  req: Request<{}, {}, StellarEndpoints.SignSep10ChallengeRequest>,
-  res: Response<StellarEndpoints.SignSep10ChallengeResponse | StellarEndpoints.StellarErrorResponse>,
-  _next: NextFunction,
+  req: Request<unknown, unknown, SignSep10ChallengeRequest>,
+  res: Response<SignSep10ChallengeResponse | StellarErrorResponse>,
+  _next: NextFunction
 ): Promise<void> => {
   try {
     const { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
-      req.derivedMemo,
+      req.derivedMemo
     );
     res.json({
-      masterClientSignature,
-      masterClientPublic,
-      clientSignature,
-      clientPublic,
+      clientPublic: clientPublic ?? "",
+      clientSignature: clientSignature ?? "",
+      masterClientPublic: masterClientPublic ?? "",
+      masterClientSignature: masterClientSignature ?? ""
     });
     return;
   } catch (error) {
-    console.error('Error in signSep10Challenge:', error);
+    console.error("Error in signSep10Challenge:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Failed to sign challenge',
       details: (error as Error).message,
+      error: "Failed to sign challenge"
     });
   }
 };
 
 export const getSep10MasterPKHandler = async (
   _: Request,
-  res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
-  _next: NextFunction,
+  res: Response<GetSep10MasterPKResponse | StellarErrorResponse>,
+  _next: NextFunction
 ): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {
-      throw new Error('SEP10_MASTER_SECRET is not configured');
+      throw new Error("SEP10_MASTER_SECRET is not configured");
     }
     const masterSep10Public = Keypair.fromSecret(SEP10_MASTER_SECRET).publicKey();
     res.json({ masterSep10Public });
     return;
   } catch (error) {
-    console.error('Error in getSep10MasterPK:', error);
+    console.error("Error in getSep10MasterPK:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Failed to get master public key',
       details: (error as Error).message,
+      error: "Failed to get master public key"
     });
   }
 };
@@ -98,21 +103,21 @@ export async function sendStatusWithPk(): Promise<StatusResult> {
   try {
     const account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
     const stellarBalance = account.balances.find(
-      (balance: { asset_type: string; balance: string }) => balance.asset_type === 'native',
+      (balance: { asset_type: string; balance: string }) => balance.asset_type === "native"
     );
 
     if (!stellarBalance || Number(stellarBalance.balance) < Number(STELLAR_FUNDING_AMOUNT_UNITS)) {
       await slackNotifier.sendMessage({
         text: `Current balance of funding account is ${
           stellarBalance?.balance ?? 0
-        } XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
+        } XLM please charge the account ${FUNDING_PUBLIC_KEY}.`
       });
-      return { status: false, public: FUNDING_PUBLIC_KEY };
+      return { public: FUNDING_PUBLIC_KEY, status: false };
     }
 
-    return { status: true, public: FUNDING_PUBLIC_KEY };
+    return { public: FUNDING_PUBLIC_KEY, status: true };
   } catch (error) {
     console.error("Couldn't load Stellar account:", error);
-    return { status: false, public: FUNDING_PUBLIC_KEY };
+    return { public: FUNDING_PUBLIC_KEY, status: false };
   }
 }

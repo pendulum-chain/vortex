@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   FiatToken,
@@ -11,21 +11,21 @@ import {
   evmTokenConfig,
   getEnumKeyByStringValue,
   moonbeamTokenConfig,
-  stellarTokenConfig,
-} from '@packages/shared';
-import { isFiatTokenDisabled } from '../../config/tokenAvailability';
+  stellarTokenConfig
+} from "@packages/shared";
+import { isFiatTokenDisabled } from "../../config/tokenAvailability";
 
-import { useNetwork } from '../../contexts/network';
-import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
-import { useFiatToken, useOnChainToken, useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useRampModalActions } from '../../stores/rampModalStore';
-import { useRampModalState } from '../../stores/rampModalStore';
-import { Dialog } from '../Dialog';
-import { RampDirection } from '../RampToggle';
-import { SearchInput } from '../SearchInput';
-import { Skeleton } from '../Skeleton';
-import { PoolListItem } from './PoolListItem';
+import { useNetwork } from "../../contexts/network";
+import { useOnchainTokenBalances } from "../../hooks/useOnchainTokenBalances";
+import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampModalActions } from "../../stores/rampModalStore";
+import { useRampModalState } from "../../stores/rampModalStore";
+import { Dialog } from "../Dialog";
+import { RampDirection } from "../RampToggle";
+import { SearchInput } from "../SearchInput";
+import { Skeleton } from "../Skeleton";
+import { PoolListItem } from "./PoolListItem";
 
 export interface TokenDefinition {
   assetSymbol: string;
@@ -48,19 +48,19 @@ export function PoolSelectorModal() {
     <Dialog
       visible={isOpen}
       onClose={closeTokenSelectModal}
-      headerText={t('components.dialogs.selectionModal.title')}
+      headerText={t("components.dialogs.selectionModal.title")}
       content={content}
     />
   );
 }
 
 function LoadingContent() {
-  return <Skeleton className="w-full h-10 mb-2" />;
+  return <Skeleton className="mb-2 h-10 w-full" />;
 }
 
 function TokenSelectionList() {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<string>('');
+  const [filter, setFilter] = useState<string>("");
   const { filteredDefinitions } = useTokenDefinitions(filter);
   const { tokenSelectModalType } = useRampModalState();
   const { closeTokenSelectModal } = useRampModalActions();
@@ -76,13 +76,13 @@ function TokenSelectionList() {
     }
 
     if (rampDirection === RampDirection.ONRAMP) {
-      if (tokenSelectModalType === 'from') {
+      if (tokenSelectModalType === "from") {
         setFiatToken(token as FiatToken);
       } else {
         setOnChainToken(token as OnChainToken);
       }
     } else {
-      if (tokenSelectModalType === 'from') {
+      if (tokenSelectModalType === "from") {
         setOnChainToken(token as OnChainToken);
       } else {
         setFiatToken(token as FiatToken);
@@ -93,24 +93,19 @@ function TokenSelectionList() {
 
   const selectedToken =
     rampDirection === RampDirection.ONRAMP
-      ? tokenSelectModalType === 'from'
+      ? tokenSelectModalType === "from"
         ? fiatToken
         : onChainToken
-      : tokenSelectModalType === 'from'
+      : tokenSelectModalType === "from"
         ? onChainToken
         : fiatToken;
 
   return (
     <div className="relative">
-      <SearchInput set={setFilter} placeholder={t('components.dialogs.selectionModal.searchPlaceholder')} />
-      <div className="flex flex-col gap-2 mt-5">
-        {filteredDefinitions.map((token) => (
-          <PoolListItem
-            key={token.type}
-            isSelected={selectedToken === token.type}
-            onSelect={handleTokenSelect}
-            token={token}
-          />
+      <SearchInput set={setFilter} placeholder={t("components.dialogs.selectionModal.searchPlaceholder")} />
+      <div className="mt-5 flex flex-col gap-2">
+        {filteredDefinitions.map(token => (
+          <PoolListItem key={token.type} isSelected={selectedToken === token.type} onSelect={handleTokenSelect} token={token} />
         ))}
       </div>
     </div>
@@ -126,10 +121,10 @@ function useTokenDefinitions(filter: string) {
 
   const definitions = useMemo(
     () => getTokenDefinitionsForNetwork(tokenSelectModalType, rampDirection, selectedNetwork),
-    [tokenSelectModalType, rampDirection, selectedNetwork],
+    [tokenSelectModalType, rampDirection, selectedNetwork]
   );
 
-  const tokenDetails = useMemo(() => definitions.map((d) => d.details), [definitions]);
+  const tokenDetails = useMemo(() => definitions.map(d => d.details), [definitions]);
   const definitionsWithBalance = useOnchainTokenBalances(tokenDetails);
 
   const balanceMap = useMemo(() => {
@@ -140,7 +135,7 @@ function useTokenDefinitions(filter: string) {
         acc[token.assetSymbol] = token.balance;
         return acc;
       },
-      {} as Record<string, string>,
+      {} as Record<string, string>
     );
   }, [definitionsWithBalance]);
 
@@ -148,8 +143,8 @@ function useTokenDefinitions(filter: string) {
     if (!definitionsWithBalance.length) return definitions;
 
     return [...definitions].sort((a, b) => {
-      const balanceA = balanceMap[a.assetSymbol] || '0';
-      const balanceB = balanceMap[b.assetSymbol] || '0';
+      const balanceA = balanceMap[a.assetSymbol] || "0";
+      const balanceB = balanceMap[b.assetSymbol] || "0";
       return Number(balanceB) - Number(balanceA);
     });
   }, [definitions, balanceMap, definitionsWithBalance.length]);
@@ -158,7 +153,7 @@ function useTokenDefinitions(filter: string) {
     const searchTerm = filter.toLowerCase();
     return sortedDefinitions.filter(
       ({ assetSymbol, name }) =>
-        assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm)),
+        assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm))
     );
   }, [sortedDefinitions, filter]);
 
@@ -171,7 +166,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
       type: key as OnChainToken,
       assetSymbol: value.assetSymbol,
       assetIcon: value.networkAssetIcon,
-      details: value as OnChainTokenDetails,
+      details: value as OnChainTokenDetails
     }));
   }
 
@@ -179,33 +174,33 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
     type: key as OnChainToken,
     assetSymbol: value.assetSymbol,
     assetIcon: value.networkAssetIcon,
-    details: value as OnChainTokenDetails,
+    details: value as OnChainTokenDetails
   }));
 }
 
 const getTokenDefinitionsForNetwork = (
-  type: 'from' | 'to',
+  type: "from" | "to",
   direction: RampDirection,
-  selectedNetwork: Networks,
+  selectedNetwork: Networks
 ): TokenDefinition[] => {
   const isOnramp = direction === RampDirection.ONRAMP;
 
   if (isOnramp) {
-    if (type === 'from') {
+    if (type === "from") {
       // @TODO: RESTRICT IT TO BRLA ONLY
       return Object.entries(moonbeamTokenConfig).map(([key, value]) => ({
         type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
         assetSymbol: value.fiat.symbol,
         assetIcon: value.fiat.assetIcon,
         name: value.fiat.name,
-        details: value as FiatTokenDetails,
+        details: value as FiatTokenDetails
       }));
     }
 
     return getOnChainTokensDefinitionsForNetwork(selectedNetwork);
   }
 
-  if (type === 'from') {
+  if (type === "from") {
     return getOnChainTokensDefinitionsForNetwork(selectedNetwork);
   } else {
     return [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
@@ -213,7 +208,7 @@ const getTokenDefinitionsForNetwork = (
       assetSymbol: value.fiat.symbol,
       assetIcon: value.fiat.assetIcon,
       name: value.fiat.name,
-      details: value as FiatTokenDetails,
+      details: value as FiatTokenDetails
     }));
   }
 };

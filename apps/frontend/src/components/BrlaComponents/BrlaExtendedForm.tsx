@@ -1,17 +1,17 @@
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
-import { useKYCForm } from '../../hooks/brla/useKYCForm';
-import { isValidCnpj } from '../../hooks/ramp/schema';
-import { useRampKycLevel2Started } from '../../stores/rampStore';
+import { useKYCProcess } from "../../hooks/brla/useBRLAKYCProcess";
+import { useKYCForm } from "../../hooks/brla/useKYCForm";
+import { isValidCnpj } from "../../hooks/ramp/schema";
+import { useRampKycLevel2Started } from "../../stores/rampStore";
 
-import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
-import { KYCForm } from './KYCForm';
-import { useKYCFormLocalStorage } from './KYCForm/useKYCFormLocalStorage';
-import { DocumentUpload } from './KYCLevel2Form';
-import { VerificationStatus } from './VerificationStatus';
-import { useBrlaKycTaxIdLocalStorage } from './useBrlaKycTaxIdLocalStorage';
+import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
+import { KYCForm } from "./KYCForm";
+import { useKYCFormLocalStorage } from "./KYCForm/useKYCFormLocalStorage";
+import { DocumentUpload } from "./KYCLevel2Form";
+import { VerificationStatus } from "./VerificationStatus";
+import { useBrlaKycTaxIdLocalStorage } from "./useBrlaKycTaxIdLocalStorage";
 
 export const PIXKYCForm = () => {
   const {
@@ -26,7 +26,7 @@ export const PIXKYCForm = () => {
     isSubmitted,
     kycVerificationError,
     proceedWithRamp,
-    resetToDefault,
+    resetToDefault
   } = useKYCProcess();
 
   const rampKycLevel2Started = useRampKycLevel2Started();
@@ -49,7 +49,7 @@ export const PIXKYCForm = () => {
   const handleRetryDocumentUpload = useCallback(() => {
     setIsSubmitted(false);
     resetToDefault();
-  }, [setIsSubmitted]);
+  }, [setIsSubmitted, resetToDefault]);
 
   if (!taxId) {
     return null;
@@ -58,106 +58,106 @@ export const PIXKYCForm = () => {
   const pixformFields: BrlaFieldProps[] = [
     {
       id: ExtendedBrlaFieldOptions.TAX_ID,
-      label: t('components.brlaExtendedForm.form.taxId'),
-      type: 'text',
+      label: t("components.brlaExtendedForm.form.taxId"),
+      type: "text",
       required: true,
-      index: 0,
+      index: 0
     },
     {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
-      label: t('components.brlaExtendedForm.form.fullName'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.fullName'),
+      label: t("components.brlaExtendedForm.form.fullName"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.fullName"),
       required: true,
-      index: 1,
+      index: 1
     },
     {
       id: ExtendedBrlaFieldOptions.PHONE,
-      label: t('components.brlaExtendedForm.form.phoneNumber'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.phoneNumber'),
+      label: t("components.brlaExtendedForm.form.phoneNumber"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.phoneNumber"),
       required: true,
-      index: 2,
+      index: 2
     },
     {
       id: ExtendedBrlaFieldOptions.CEP,
-      label: 'CEP',
-      type: 'text',
-      placeholder: 'CEP',
+      label: "CEP",
+      type: "text",
+      placeholder: "CEP",
       required: true,
-      index: 3,
+      index: 3
     },
     {
       id: ExtendedBrlaFieldOptions.CITY,
-      label: t('components.brlaExtendedForm.form.city'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.city'),
+      label: t("components.brlaExtendedForm.form.city"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.city"),
       required: true,
-      index: 4,
+      index: 4
     },
     {
       id: ExtendedBrlaFieldOptions.STATE,
-      label: t('components.brlaExtendedForm.form.state'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.state'),
+      label: t("components.brlaExtendedForm.form.state"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.state"),
       required: true,
-      index: 5,
+      index: 5
     },
     {
       id: ExtendedBrlaFieldOptions.STREET,
-      label: t('components.brlaExtendedForm.form.street'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.street'),
+      label: t("components.brlaExtendedForm.form.street"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.street"),
       required: true,
-      index: 6,
+      index: 6
     },
     {
       id: ExtendedBrlaFieldOptions.NUMBER,
-      label: t('components.brlaExtendedForm.form.number'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.number'),
+      label: t("components.brlaExtendedForm.form.number"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.number"),
       required: true,
-      index: 7,
+      index: 7
     },
     {
       id: ExtendedBrlaFieldOptions.DISTRICT,
-      label: t('components.brlaExtendedForm.form.district'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.district'),
+      label: t("components.brlaExtendedForm.form.district"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.district"),
       required: true,
-      index: 8,
+      index: 8
     },
     {
       id: ExtendedBrlaFieldOptions.BIRTHDATE,
-      label: t('components.brlaExtendedForm.form.birthdate'),
-      type: 'date',
+      label: t("components.brlaExtendedForm.form.birthdate"),
+      type: "date",
       required: true,
-      index: 9,
-    },
+      index: 9
+    }
   ];
 
   if (isValidCnpj(taxId)) {
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.COMPANY_NAME,
-      label: t('components.brlaExtendedForm.form.companyName'),
-      type: 'text',
-      placeholder: t('components.brlaExtendedForm.form.companyName'),
+      label: t("components.brlaExtendedForm.form.companyName"),
+      type: "text",
+      placeholder: t("components.brlaExtendedForm.form.companyName"),
       required: true,
-      index: 10,
+      index: 10
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.START_DATE,
-      label: t('components.brlaExtendedForm.form.startDate'),
-      type: 'date',
+      label: t("components.brlaExtendedForm.form.startDate"),
+      type: "date",
       required: true,
-      index: 11,
+      index: 11
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.PARTNER_CPF,
-      label: t('components.brlaExtendedForm.form.partnerCpf'),
-      type: 'text',
+      label: t("components.brlaExtendedForm.form.partnerCpf"),
+      type: "text",
       required: true,
-      index: 12,
+      index: 12
     });
   }
 
@@ -198,7 +198,7 @@ export const PIXKYCForm = () => {
       <KYCForm
         fields={pixformFields}
         form={kycForm}
-        onSubmit={async (formData) => {
+        onSubmit={async formData => {
           await handleKYCFormSubmit(formData);
           clearStorage();
         }}

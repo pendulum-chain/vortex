@@ -1,39 +1,39 @@
-import path from 'path';
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config({
-  path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')],
+  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager } from './api/services/pendulum/apiManager';
-import { testDatabaseConnection } from './config/database';
-import app from './config/express';
-import logger from './config/logger';
-import { config } from './config/vars';
+import { ApiManager } from "./api/services/pendulum/apiManager";
+import { testDatabaseConnection } from "./config/database";
+import app from "./config/express";
+import logger from "./config/logger";
+import { config } from "./config/vars";
 import {
   CLIENT_DOMAIN_SECRET,
   DEFAULT_POLLING_INTERVAL,
   FUNDING_SECRET,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  PENDULUM_FUNDING_SEED,
-} from './constants/constants';
-import { runMigrations } from './database/migrator';
-import './models'; // Initialize models
-import { EventPoller } from './api/services/brla/webhooks';
-import registerPhaseHandlers from './api/services/phases/register-handlers';
-import CleanupWorker from './api/workers/cleanup.worker';
-import RampRecoveryWorker from './api/workers/ramp-recovery.worker';
-import UnhandledPaymentWorker from './api/workers/unhandled-payment.worker';
+  PENDULUM_FUNDING_SEED
+} from "./constants/constants";
+import { runMigrations } from "./database/migrator";
+import "./models"; // Initialize models
+import { EventPoller } from "./api/services/brla/webhooks";
+import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import CleanupWorker from "./api/workers/cleanup.worker";
+import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
+import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
 const { port, env } = config;
 
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {
   const requiredVars = {
-    FUNDING_SECRET,
-    PENDULUM_FUNDING_SEED,
-    MOONBEAM_EXECUTOR_PRIVATE_KEY,
     CLIENT_DOMAIN_SECRET,
+    FUNDING_SECRET,
+    MOONBEAM_EXECUTOR_PRIVATE_KEY,
+    PENDULUM_FUNDING_SEED
   };
 
   for (const [key, value] of Object.entries(requiredVars)) {
@@ -70,7 +70,7 @@ const initializeApp = async () => {
     // Start the server
     app.listen(port, () => logger.info(`server started on port ${port} (${env})`));
   } catch (error) {
-    logger.error('Failed to initialize application:', error);
+    logger.error("Failed to initialize application:", error);
     process.exit(1);
   }
 };
