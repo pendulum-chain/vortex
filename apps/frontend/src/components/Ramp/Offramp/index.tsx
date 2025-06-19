@@ -1,17 +1,16 @@
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@packages/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@packages/shared";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
 import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
-import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
+import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
 import { useRampModalActions } from "../../../stores/rampModalStore";
 import { useValidateTerms } from "../../../stores/termsStore";
@@ -19,13 +18,11 @@ import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
 import { BrlaSwapFields } from "../../BrlaComponents/BrlaSwapFields";
 import { LabeledInput } from "../../LabeledInput";
+import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
 import { RampSubmitButtons } from "../../RampSubmitButtons";
 import { RampTerms } from "../../RampTerms";
 import { UserBalance } from "../../UserBalance";
-
-import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
-import { RampErrorMessage } from "../../RampErrorMessage";
 
 export const Offramp = () => {
   const { t } = useTranslation();
@@ -79,14 +76,14 @@ export const Offramp = () => {
     () => (
       <>
         <AssetNumericInput
+          assetIcon={fromToken.networkAssetIcon}
+          id="inputAmount"
+          onChange={handleInputChange}
+          onClick={() => openTokenSelectModal("from")}
           registerInput={form.register("inputAmount")}
           tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.networkAssetIcon}
-          onClick={() => openTokenSelectModal("from")}
-          onChange={handleInputChange}
-          id="inputAmount"
         />
-        <UserBalance token={fromToken} onClick={handleBalanceClick} />
+        <UserBalance onClick={handleBalanceClick} token={fromToken} />
       </>
     ),
     [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick]
@@ -96,13 +93,13 @@ export const Offramp = () => {
     () => (
       <AssetNumericInput
         assetIcon={toToken.fiat.assetIcon}
-        tokenSymbol={toToken.fiat.symbol}
-        onClick={() => openTokenSelectModal("to")}
-        loading={quoteLoading}
-        registerInput={form.register("outputAmount")}
         disabled={!toAmount}
-        readOnly={true}
         id="outputAmount"
+        loading={quoteLoading}
+        onClick={() => openTokenSelectModal("to")}
+        readOnly={true}
+        registerInput={form.register("outputAmount")}
+        tokenSymbol={toToken.fiat.symbol}
       />
     ),
     [toToken.fiat.assetIcon, toToken.fiat.symbol, quoteLoading, form, toAmount, openTokenSelectModal]
@@ -119,9 +116,9 @@ export const Offramp = () => {
   return (
     <FormProvider {...form}>
       <motion.form onSubmit={form.handleSubmit(handleConfirm)}>
-        <LabeledInput label={t("components.swap.firstInputLabel.sell")} htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <LabeledInput htmlFor="fromAmount" Input={WithdrawNumericInput} label={t("components.swap.firstInputLabel.sell")} />
         <div className="my-10" />
-        <LabeledInput label={t("components.swap.secondInputLabel")} htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <LabeledInput htmlFor="toAmount" Input={ReceiveNumericInput} label={t("components.swap.secondInputLabel")} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="mt-5 flex w-full items-center justify-center">

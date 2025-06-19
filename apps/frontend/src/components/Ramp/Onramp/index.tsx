@@ -74,12 +74,12 @@ export const Onramp = () => {
     () => (
       <>
         <AssetNumericInput
+          assetIcon={fromToken.fiat.assetIcon}
+          id="inputAmount"
+          onChange={handleInputChange}
+          onClick={() => openTokenSelectModal("from")}
           registerInput={form.register("inputAmount")}
           tokenSymbol={fromToken.fiat.symbol}
-          assetIcon={fromToken.fiat.assetIcon}
-          onClick={() => openTokenSelectModal("from")}
-          onChange={handleInputChange}
-          id="inputAmount"
         />
       </>
     ),
@@ -90,13 +90,13 @@ export const Onramp = () => {
     () => (
       <AssetNumericInput
         assetIcon={toToken.networkAssetIcon}
-        tokenSymbol={toToken.assetSymbol}
-        onClick={() => openTokenSelectModal("to")}
-        registerInput={form.register("outputAmount")}
-        loading={quoteLoading}
         disabled={!toAmount}
-        readOnly={true}
         id="outputAmount"
+        loading={quoteLoading}
+        onClick={() => openTokenSelectModal("to")}
+        readOnly={true}
+        registerInput={form.register("outputAmount")}
+        tokenSymbol={toToken.assetSymbol}
       />
     ),
     [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal]
@@ -113,9 +113,9 @@ export const Onramp = () => {
   return (
     <FormProvider {...form}>
       <motion.form onSubmit={form.handleSubmit(handleConfirm)}>
-        <LabeledInput label={t("components.swap.firstInputLabel.buy")} htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <LabeledInput htmlFor="fromAmount" Input={WithdrawNumericInput} label={t("components.swap.firstInputLabel.buy")} />
         <div className="my-10" />
-        <LabeledInput label={t("components.swap.secondInputLabel")} htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <LabeledInput htmlFor="toAmount" Input={ReceiveNumericInput} label={t("components.swap.secondInputLabel")} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="mt-5 flex w-full items-center justify-center">

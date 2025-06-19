@@ -36,17 +36,17 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
 
     try {
       await fetchQuote({
-        rampType,
+        fiatToken,
         inputAmount: Big(inputAmount),
         onChainToken,
-        fiatToken,
-        selectedNetwork,
-        partnerId: partnerId === null ? undefined : partnerId // Handle null case
+        partnerId: partnerId === null ? undefined : partnerId, // Handle null case
+        rampType,
+        selectedNetwork
       });
     } catch (_err) {
       trackEvent({
-        event: "initialization_error",
-        error_message: "signer_service_issue"
+        error_message: "signer_service_issue",
+        event: "initialization_error"
       });
     }
   }, [
@@ -66,7 +66,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   }, [getQuote]);
 
   return {
-    outputAmount,
-    getQuote
+    getQuote,
+    outputAmount
   };
 };
