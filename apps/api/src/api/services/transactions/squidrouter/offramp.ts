@@ -7,7 +7,7 @@ import erc20ABI from '../../../../contracts/ERC20';
 import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
 import { getSquidRouterConfig } from './config';
 import encodePayload from './payload';
-import { createOfframpGenericRouteParams, createOfframpRouteParams, getRoute } from './route';
+import { createGenericRouteParams, createOfframpRouteParams, getRoute } from './route';
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
@@ -113,7 +113,7 @@ export async function createOfframpSquidrouterTransactionsToEvm(
     transport: http(),
   });
 
-  const routeParams = createOfframpGenericRouteParams(
+  const routeParams = createGenericRouteParams(
     params.fromAddress,
     params.rawAmount,
     params.inputTokenDetails,

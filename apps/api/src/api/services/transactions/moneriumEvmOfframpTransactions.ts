@@ -1,49 +1,24 @@
 import {
-  AMM_MINIMUM_OUTPUT_HARD_MARGIN,
-  AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   AccountMeta,
   EvmTokenDetails,
-  FiatToken,
   Networks,
-  PaymentData,
   UnsignedTx,
-  addAdditionalTransactionsToMeta,
-  encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
-  getNetworkId,
   getOnChainTokenDetails,
   getPendulumDetails,
   isEvmTokenDetails,
   isFiatToken,
   isOnChainToken,
-  isStellarOutputTokenDetails,
 } from '@packages/shared';
 
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from '@packages/shared';
 import Big from 'big.js';
-import { Keypair } from 'stellar-sdk';
-import logger from '../../../config/logger';
-import Partner from '../../../models/partner.model';
-import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
-import { ApiManager } from '../pendulum/apiManager';
+import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { getFirstMoneriumLinkedAddress } from '../monerium';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { StateMetadata } from '../phases/meta-state-types';
-import { priceFeedService } from '../priceFeed.service';
 import { encodeEvmTransactionData } from './index';
-import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createOfframpSquidrouterTransactionsToEvm } from './squidrouter/offramp';
-
-interface MoneriumAddress {
-  address: string;
-  profile: string;
-  chains: string[];
-}
-
-interface MoneriumResponse {
-  addresses: MoneriumAddress[];
-  total: number;
-}
 
 /**
  * TODO: implement for Monerium prototype?
@@ -51,35 +26,6 @@ interface MoneriumResponse {
 async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
   return '';
 }
-
-const getFirstMoneriumLinkedAddress = async (token: string): Promise<string | null> => {
-  const url = 'https://api.monerium.app/addresses';
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.monerium.api-v2+json',
-  };
-
-  try {
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: MoneriumResponse = await response.json();
-
-    if (data.addresses && data.addresses.length > 0) {
-      const firstAddress = data.addresses[0].address;
-      return firstAddress;
-    } else {
-      console.log('No addresses found in the response.');
-      return null;
-    }
-  } catch (error) {
-    console.error('Failed to fetch addresses:', error);
-    return null;
-  }
-};
 
 export interface MoneriumOfframpTransactionParams {
   quote: QuoteTicketAttributes;
@@ -90,7 +36,6 @@ export interface MoneriumOfframpTransactionParams {
 
 export async function prepareMoneriumEvmOfframpTransactions({
   quote,
-  signingAccounts,
   userAddress,
   moneriumAuthToken,
 }: MoneriumOfframpTransactionParams): Promise<{

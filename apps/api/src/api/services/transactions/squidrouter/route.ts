@@ -188,7 +188,7 @@ export function createOfframpRouteParams(
   };
 }
 
-export function createOfframpGenericRouteParams(
+export function createGenericRouteParams(
   fromAddress: string,
   amount: string,
   inputTokenDetails: EvmTokenDetails,
