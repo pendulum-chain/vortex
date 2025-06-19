@@ -83,7 +83,7 @@ export const useRegisterRamp = () => {
   const signingRejected = useSigningRejected();
 
   // Get Monerium auth data
-  const { authToken, codeVerifier } = useMoneriumStore();
+  const { authToken, codeVerifier, triggered: moneriumTriggered } = useMoneriumStore();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -294,13 +294,22 @@ export const useRegisterRamp = () => {
       !rampState?.userSigningMeta?.squidRouterSwapHash &&
       !rampState?.userSigningMeta?.assetHubToPendulumHash;
 
+    // If this is a Monerium offramp, we need to wait for a page refresh and the corresponding auth token.
+    const waitForAuthToken = moneriumTriggered && !authToken;
+
     const shouldRequestSignatures =
       Boolean(rampState?.ramp) && // Ramp process data exists
       !rampStarted && // Ramp hasn't been started yet
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || signingRejected) {
+    if (
+      !rampState ||
+      rampState?.ramp?.type === 'on' ||
+      !shouldRequestSignatures ||
+      signingRejected ||
+      waitForAuthToken
+    ) {
       return; // Exit early if conditions aren't met
     }
 
