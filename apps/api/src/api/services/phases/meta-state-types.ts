@@ -1,5 +1,5 @@
-import { PendulumDetails, RampCurrency, StellarTokenDetails } from '@packages/shared';
-import { ExtrinsicOptions } from '../transactions/nabla';
+import { PendulumDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { ExtrinsicOptions } from "../transactions/nabla";
 
 export interface StateMetadata {
   inputAmount: string;
@@ -35,7 +35,7 @@ export interface StateMetadata {
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
-  pendulumToAssethubXcmHash: string;
+  pendulumToAssethubXcmHash?: string;
   nabla: {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
@@ -45,5 +45,6 @@ export interface StateMetadata {
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
+  pendulumToMoonbeamXcmHash?: string;
   brCode: string | undefined;
 }

@@ -1,8 +1,8 @@
-import { WalletAccount } from '@talismn/connect-wallets';
-import { JSX, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { LocalStorageKeys, useLocalStorage } from '../../hooks/useLocalStorage';
-import { storageService } from '../../services/storage/local';
-import { handleWalletConnectDisconnect, initSelectedWallet } from './helpers';
+import { WalletAccount } from "@talismn/connect-wallets";
+import { createContext, JSX, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { LocalStorageKeys, useLocalStorage } from "../../hooks/useLocalStorage";
+import { storageService } from "../../services/storage/local";
+import { handleWalletConnectDisconnect, initSelectedWallet } from "./helpers";
 
 export interface PolkadotWalletState {
   tenantRPC?: string;
@@ -19,16 +19,16 @@ const PolkadotWalletStateProvider = ({ children }: { children: JSX.Element }) =>
   const {
     state: storageAddress,
     set,
-    clear,
+    clear
   } = useLocalStorage<string | undefined>({
-    key: `${LocalStorageKeys.SELECTED_POLKADOT_ACCOUNT}`,
+    key: `${LocalStorageKeys.SELECTED_POLKADOT_ACCOUNT}`
   });
 
-  const clearLocalStorageWallets = () => {
-    storageService.remove(LocalStorageKeys.SELECTED_POLKADOT_WALLET);
-  };
-
   const removeWalletAccount = useCallback(async () => {
+    const clearLocalStorageWallets = () => {
+      storageService.remove(LocalStorageKeys.SELECTED_POLKADOT_WALLET);
+    };
+
     await handleWalletConnectDisconnect(walletAccount);
     clear();
     clearLocalStorageWallets();
@@ -40,7 +40,7 @@ const PolkadotWalletStateProvider = ({ children }: { children: JSX.Element }) =>
       set(newWalletAccount?.address);
       setWallet(newWalletAccount);
     },
-    [set],
+    [set]
   );
 
   useEffect(() => {
@@ -62,11 +62,11 @@ const PolkadotWalletStateProvider = ({ children }: { children: JSX.Element }) =>
 
   const providerValue = useMemo<PolkadotWalletState>(
     () => ({
-      walletAccount,
-      setWalletAccount,
       removeWalletAccount,
+      setWalletAccount,
+      walletAccount
     }),
-    [removeWalletAccount, setWalletAccount, walletAccount],
+    [removeWalletAccount, setWalletAccount, walletAccount]
   );
 
   return <PolkadotWalletStateContext.Provider value={providerValue}>{children}</PolkadotWalletStateContext.Provider>;
@@ -74,7 +74,7 @@ const PolkadotWalletStateProvider = ({ children }: { children: JSX.Element }) =>
 
 const usePolkadotWalletState = () => {
   const state = useContext(PolkadotWalletStateContext);
-  if (!state) throw 'PolkadotWalletStateProvider not defined!';
+  if (!state) throw "PolkadotWalletStateProvider not defined!";
   return state;
 };
 

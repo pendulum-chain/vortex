@@ -1,10 +1,10 @@
-import SafeApiKit from '@safe-global/api-kit';
-import { getChainId, waitForTransactionReceipt } from '@wagmi/core';
-import { Hash } from 'viem';
+import SafeApiKit from "@safe-global/api-kit";
+import { getChainId, waitForTransactionReceipt } from "@wagmi/core";
+import { Hash } from "viem";
 
-import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
-import { wagmiConfig } from '../../wagmiConfig';
-import { isTransactionHashSafeWallet } from './isTransactionSafeWallet';
+import { useSafeWalletSignatureStore } from "../../stores/safeWalletSignaturesStore";
+import { wagmiConfig } from "../../wagmiConfig";
+import { isTransactionHashSafeWallet } from "./isTransactionSafeWallet";
 
 /**
  * Waits for a transaction to be confirmed, handling both regular and Safe Wallet transactions.
@@ -48,7 +48,7 @@ export interface SafeTransactionResponse {
 async function pollSafeWalletTransaction(hash: Hash, delay = 5000): Promise<Hash> {
   const chainId = getChainId(wagmiConfig);
   const safeApiKit = new SafeApiKit({
-    chainId: BigInt(chainId),
+    chainId: BigInt(chainId)
   });
 
   const safeTransaction = await safeApiKit.getTransaction(hash);
@@ -59,6 +59,6 @@ async function pollSafeWalletTransaction(hash: Hash, delay = 5000): Promise<Hash
     return safeTransaction.transactionHash as Hash;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, delay));
+  await new Promise(resolve => setTimeout(resolve, delay));
   return pollSafeWalletTransaction(hash, delay);
 }

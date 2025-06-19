@@ -1,10 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
+import { useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
-import { useEventsContext } from '../../contexts/events';
-import { EmailService } from '../../services/api';
-import { TextInput } from '../TextInput';
+import { useEventsContext } from "../../contexts/events";
+import { EmailService } from "../../services/api";
+import { TextInput } from "../TextInput";
 
 interface EmailFormProps {
   transactionId?: string;
@@ -21,56 +21,56 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
     mutate: saveUserEmailMutation,
     isPending,
     isSuccess,
-    isError,
+    isError
   } = useMutation({
     mutationFn: async (data: { email: string; transactionId: string }) => {
       return EmailService.storeEmail(data.email, data.transactionId);
-    },
+    }
   });
 
-  const onSubmit = handleSubmit((data) => {
+  const onSubmit = handleSubmit(data => {
     if (!transactionId) {
-      console.error('Transaction ID is missing');
+      console.error("Transaction ID is missing");
       return;
     }
 
-    trackEvent({ event: 'email_submission', transaction_status: transactionSuccess ? 'success' : 'failure' });
+    trackEvent({ event: "email_submission", transaction_status: transactionSuccess ? "success" : "failure" });
     saveUserEmailMutation({ email: data.email, transactionId });
   });
 
   const FormButtonSection = () => {
     if (isSuccess) {
       return (
-        <div className="flex items-center px-4 md:px-8 mt-2 py-2 bg-green-600 text-white font-medium rounded">
-          {t('components.emailForm.success')}
+        <div className="mt-2 flex items-center rounded bg-green-600 px-4 py-2 font-medium text-white md:px-8">
+          {t("components.emailForm.success")}
         </div>
       );
     }
 
     if (isPending) {
       return (
-        <div className="flex items-center px-4 md:px-8 mt-2 py-2 bg-blue-600 text-white font-medium rounded">
-          {t('components.emailForm.loading')}
+        <div className="mt-2 flex items-center rounded bg-blue-600 px-4 py-2 font-medium text-white md:px-8">
+          {t("components.emailForm.loading")}
         </div>
       );
     }
 
     return (
       <>
-        <div className="flex items-center mt-2">
+        <div className="mt-2 flex items-center">
           <div className="mr-3 grow">
-            <TextInput type="email" placeholder="example@mail.com" register={register('email')} />
+            <TextInput placeholder="example@mail.com" register={register("email")} type="email" />
           </div>
           <button
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors"
+            className="rounded bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
             type="submit"
           >
-            {t('components.emailForm.submit')}
+            {t("components.emailForm.submit")}
           </button>
         </div>
         {isError && (
-          <p className="mt-2 px-4 md:px-8 text-red-600 text-sm" id="request-error-message">
-            {t('components.emailForm.error')}
+          <p className="mt-2 px-4 text-red-600 text-sm md:px-8" id="request-error-message">
+            {t("components.emailForm.error")}
           </p>
         )}
       </>
@@ -78,15 +78,13 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   };
 
   return (
-    <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
+    <form aria-errormessage={isError ? "request-error-message" : undefined} className="w-full" onSubmit={onSubmit}>
       <div className="mb-4">
-        <p className="font-bold text-gray-700 mb-2">{t('components.emailForm.title')}</p>{' '}
+        <p className="mb-2 font-bold text-gray-700">{t("components.emailForm.title")}</p>{" "}
         {/* Changed text-blue-700 to text-gray-700 */}
-        <p className="font-light text-gray-700 leading-relaxed mb-1">{t('components.emailForm.description')}</p>{' '}
+        <p className="mb-1 font-light text-gray-700 leading-relaxed">{t("components.emailForm.description")}</p>{" "}
         {/* Changed text-blue-700 to text-gray-700 */}
-        <p className="font-light text-gray-700 leading-relaxed text-sm">
-          {t('components.emailForm.noNewslettersNoSpam')}
-        </p>{' '}
+        <p className="font-light text-gray-700 text-sm leading-relaxed">{t("components.emailForm.noNewslettersNoSpam")}</p>{" "}
         {/* Changed text-blue-700 to text-gray-700 */}
       </div>
       <FormButtonSection />

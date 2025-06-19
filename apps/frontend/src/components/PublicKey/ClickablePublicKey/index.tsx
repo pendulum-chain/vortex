@@ -1,5 +1,5 @@
-import { CSSProperties, JSX } from 'react';
-import { FormatPublicKeyVariant, PublicKey } from '..';
+import { CSSProperties, JSX } from "react";
+import { FormatPublicKeyVariant, PublicKey } from "..";
 
 export interface ClickablePublicKeyProps {
   publicKey: string;
@@ -14,10 +14,10 @@ export interface ClickablePublicKeyProps {
 
 export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
   <button
-    className={`btn btn-ghost h-1 p-1 m-0 rounded ${props.className || ''}`}
-    style={props.inline ? { height: 'inherit', minHeight: '0', padding: 0 } : {}}
-    type="button"
+    className={`btn btn-ghost m-0 h-1 rounded p-1 ${props.className || ""}`}
     onClick={props.onClick}
+    style={props.inline ? { height: "inherit", minHeight: "0", padding: 0 } : {}}
+    type="button"
   >
     {props.icon ? (
       <>

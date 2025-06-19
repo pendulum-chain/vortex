@@ -1,20 +1,20 @@
-import { EvmToken } from './evm';
+import { EvmToken } from "./evm";
 
 export enum TokenType {
-  Evm = 'evm',
-  AssetHub = 'assethub',
-  Stellar = 'stellar',
-  Moonbeam = 'moonbeam',
+  Evm = "evm",
+  AssetHub = "assethub",
+  Stellar = "stellar",
+  Moonbeam = "moonbeam"
 }
 
 export enum FiatToken {
-  EURC = 'eur',
-  ARS = 'ars',
-  BRL = 'brl',
+  EURC = "eur",
+  ARS = "ars",
+  BRL = "brl"
 }
 
 export enum AssetHubToken {
-  USDC = 'usdc',
+  USDC = "usdc"
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;

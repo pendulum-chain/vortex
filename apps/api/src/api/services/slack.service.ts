@@ -18,7 +18,7 @@ export class SlackNotifier {
   constructor() {
     const token = process.env.SLACK_WEB_HOOK_TOKEN;
     if (!token) {
-      throw new Error('SLACK_WEB_HOOK_TOKEN is not defined');
+      throw new Error("SLACK_WEB_HOOK_TOKEN is not defined");
     }
     this.webhookUrl = `https://hooks.slack.com/services/${token}`;
     this.messageHistory = new Map();
@@ -38,7 +38,7 @@ export class SlackNotifier {
 
     const messageWithUserTag = {
       ...message,
-      text: slackUserId ? `<@${slackUserId}> ${message.text}` : message.text,
+      text: slackUserId ? `<@${slackUserId}> ${message.text}` : message.text
     };
 
     const signature = generateMessageSignature(messageWithUserTag);
@@ -49,11 +49,11 @@ export class SlackNotifier {
     }
 
     const response = await fetch(this.webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(message),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
     });
 
     if (!response.ok) {

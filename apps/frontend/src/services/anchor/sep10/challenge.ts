@@ -1,4 +1,4 @@
-import { Memo, MemoType, Networks, Operation, Transaction } from 'stellar-sdk';
+import { Memo, MemoType, Networks, Operation, Transaction } from "stellar-sdk";
 
 interface Sep10Challenge {
   transaction: string;
@@ -8,12 +8,12 @@ interface Sep10Challenge {
 async function validateChallenge(
   transaction: Transaction<Memo<MemoType>, Operation[]>,
   signingKey: string,
-  networkPassphrase: string,
+  networkPassphrase: string
 ): Promise<void> {
   if (transaction.source !== signingKey) {
     throw new Error(`sep10: Invalid source account: ${transaction.source}`);
   }
-  if (transaction.sequence !== '0') {
+  if (transaction.sequence !== "0") {
     throw new Error(`sep10: Invalid sequence number: ${transaction.sequence}`);
   }
   if (networkPassphrase !== Networks.PUBLIC) {
@@ -24,7 +24,7 @@ async function validateChallenge(
 export async function fetchAndValidateChallenge(
   webAuthEndpoint: string,
   urlParams: URLSearchParams,
-  signingKey: string,
+  signingKey: string
 ): Promise<Transaction<Memo<MemoType>, Operation[]>> {
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {

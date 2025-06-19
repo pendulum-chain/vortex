@@ -1,89 +1,89 @@
-import { useTranslation } from 'react-i18next';
-import { ToastOptions, toast } from 'react-toastify';
+import { useTranslation } from "react-i18next";
+import { ToastOptions, toast } from "react-toastify";
 
 export enum ToastMessage {
-  AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
-  RAMP_LIMIT_EXCEEDED = 'RAMP_LIMIT_EXCEEDED',
-  KYC_COMPLETED = 'KYC_COMPLETED',
-  KYC_VERIFICATION_FAILED = 'KYC_VERIFICATION_FAILED',
-  SIGNING_FAILED = 'SIGNING_FAILED',
-  POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
-  ERROR = 'ERROR',
-  NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
-  SIGNING_REJECTED = 'SIGNING_REJECTED',
-  COPY_TEXT = 'COPY_TEXT',
+  AMOUNT_MISMATCH = "AMOUNT_MISMATCH",
+  RAMP_LIMIT_EXCEEDED = "RAMP_LIMIT_EXCEEDED",
+  KYC_COMPLETED = "KYC_COMPLETED",
+  KYC_VERIFICATION_FAILED = "KYC_VERIFICATION_FAILED",
+  SIGNING_FAILED = "SIGNING_FAILED",
+  POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = "POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION",
+  ERROR = "ERROR",
+  NODE_CONNECTION_ERROR = "NODE_CONNECTION_ERROR",
+  SIGNING_REJECTED = "SIGNING_REJECTED",
+  COPY_TEXT = "COPY_TEXT"
 }
 
 const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey: string }> = {
   [ToastMessage.COPY_TEXT]: {
     options: {
       toastId: ToastMessage.COPY_TEXT,
-      type: 'success',
+      type: "success"
     },
-    translationKey: 'toasts.copyText',
+    translationKey: "toasts.copyText"
   },
   [ToastMessage.AMOUNT_MISMATCH]: {
     options: {
       toastId: ToastMessage.AMOUNT_MISMATCH,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.amountMismatch',
+    translationKey: "toasts.amountMismatch"
   },
   [ToastMessage.KYC_COMPLETED]: {
     options: {
       toastId: ToastMessage.KYC_COMPLETED,
-      type: 'success',
+      type: "success"
     },
-    translationKey: 'toasts.kycCompleted',
+    translationKey: "toasts.kycCompleted"
   },
   [ToastMessage.KYC_VERIFICATION_FAILED]: {
     options: {
       toastId: ToastMessage.KYC_VERIFICATION_FAILED,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.kycVerificationFailed',
+    translationKey: "toasts.kycVerificationFailed"
   },
   [ToastMessage.SIGNING_FAILED]: {
     options: {
       toastId: ToastMessage.SIGNING_FAILED,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.signingFailed',
+    translationKey: "toasts.signingFailed"
   },
   [ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
     options: {
       toastId: ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.walletAlreadyOpen',
+    translationKey: "toasts.walletAlreadyOpen"
   },
   [ToastMessage.NODE_CONNECTION_ERROR]: {
     options: {
       toastId: ToastMessage.NODE_CONNECTION_ERROR,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.nodeConnectionError',
+    translationKey: "toasts.nodeConnectionError"
   },
   [ToastMessage.RAMP_LIMIT_EXCEEDED]: {
     options: {
       toastId: ToastMessage.RAMP_LIMIT_EXCEEDED,
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.rampLimitExceeded',
+    translationKey: "toasts.rampLimitExceeded"
   },
   [ToastMessage.ERROR]: {
     options: {
-      type: 'error',
+      type: "error"
     },
-    translationKey: 'toasts.genericError',
+    translationKey: "toasts.genericError"
   },
   [ToastMessage.SIGNING_REJECTED]: {
     options: {
       toastId: ToastMessage.SIGNING_REJECTED,
-      type: 'warning',
+      type: "warning"
     },
-    translationKey: 'toasts.signingRejected',
-  },
+    translationKey: "toasts.signingRejected"
+  }
 };
 
 export function useToastMessage() {
@@ -109,8 +109,8 @@ export function useToastMessage() {
   };
 
   return {
-    ToastMessage,
     showToast,
+    ToastMessage
   };
 }
 

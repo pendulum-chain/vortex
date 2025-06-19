@@ -1,59 +1,71 @@
-// eslint-disable-next-line import/no-unresolved
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import RampState from '../../models/rampState.model';
-import CleanupWorker from './cleanup.worker';
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { CleanupPhase } from "@packages/shared";
+import RampState, { RampStateAttributes } from "../../models/rampState.model";
+import CleanupWorker from "./cleanup.worker";
 
-mock.module('../../config/logger', () => ({
+class TestCleanupWorker extends CleanupWorker {
+  public async testProcessCleanup(state: RampState): Promise<void> {
+    return this.processCleanup(state);
+  }
+}
+
+mock.module("../../config/logger", () => ({
   default: {
-    info: mock(() => {}),
-    error: mock(() => {}),
-    warn: mock(() => {}),
-  },
+    error: mock(() => {
+      console.log("error");
+    }),
+    info: mock(() => {
+      console.log("info");
+    }),
+    warn: mock(() => {
+      console.log("warn");
+    })
+  }
 }));
 
 type ProcessResult = readonly [boolean, Error | null];
 
 const mockPendulumHandler = {
-  shouldProcess: mock((_state: any) => true),
+  getCleanupName: () => "pendulumCleanup" as CleanupPhase,
   process: mock(async (): Promise<ProcessResult> => [true, null]),
-  getCleanupName: () => 'pendulum',
+  shouldProcess: mock((_state: RampState) => true)
 };
 
 const mockStellarHandler = {
-  shouldProcess: mock((_state: any) => true),
+  getCleanupName: () => "stellarCleanup" as CleanupPhase,
   process: mock(async (): Promise<ProcessResult> => [true, null]),
-  getCleanupName: () => 'stellar',
+  shouldProcess: mock((_state: RampState) => true)
 };
 
-mock.module('../services/phases/post-process', () => ({
-  postProcessHandlers: [mockPendulumHandler, mockStellarHandler],
+mock.module("../services/phases/post-process", () => ({
+  postProcessHandlers: [mockPendulumHandler, mockStellarHandler]
 }));
 
-const updateMock = mock((_values: any, _options: any) => {
+const updateMock = mock((_values: Partial<RampStateAttributes>, _options: { where: { id: string } }) => {
   return Promise.resolve([1, []]);
 });
-RampState.update = updateMock as any;
+RampState.update = updateMock as unknown as typeof RampState.update;
 
 /**
  * Unit tests for processCleanup method in CleanupWorker.
  */
-describe('CleanupWorker - processCleanup', () => {
-  let cleanupWorker: CleanupWorker;
-  let testState: any;
+describe("CleanupWorker - processCleanup", () => {
+  let cleanupWorker: TestCleanupWorker;
+  let testState: RampState;
 
   beforeEach(() => {
-    cleanupWorker = new CleanupWorker();
+    cleanupWorker = new TestCleanupWorker();
 
     testState = {
-      id: 'test-state-id',
-      currentPhase: 'complete',
+      currentPhase: "complete",
+      id: "test-state-id",
       postCompleteState: {
         cleanup: {
           cleanupCompleted: false,
-          errors: null,
-        },
-      },
-    };
+          errors: null
+        }
+      }
+    } as RampState;
 
     mockPendulumHandler.shouldProcess.mockClear();
     mockPendulumHandler.process.mockClear();
@@ -62,11 +74,11 @@ describe('CleanupWorker - processCleanup', () => {
     updateMock.mockClear();
   });
 
-  it('should process all applicable handlers successfully', async () => {
+  it("should process all applicable handlers successfully", async () => {
     mockPendulumHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
     mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
-    await (cleanupWorker as any).processCleanup(testState);
+    await cleanupWorker.testProcessCleanup(testState);
 
     // Verify both handlers were checked
     expect(mockPendulumHandler.shouldProcess).toHaveBeenCalledTimes(1);
@@ -82,19 +94,19 @@ describe('CleanupWorker - processCleanup', () => {
     // Verify update data
     const [values, options] = updateMock.mock.calls[0];
 
-    expect(values.postCompleteState.cleanup.cleanupCompleted).toBe(true);
-    expect(values.postCompleteState.cleanup.errors).toBe(null);
+    expect(values.postCompleteState?.cleanup.cleanupCompleted).toBe(true);
+    expect(values.postCompleteState?.cleanup.errors).toBe(null);
 
     expect(options.where.id).toBe(testState.id);
   });
 
-  it('should handle one handler failing and track the error', async () => {
+  it("should handle one handler failing and track the error", async () => {
     // Setup one handler to fail
-    const testError = new Error('Test failure');
+    const testError = new Error("Test failure");
     mockPendulumHandler.process.mockImplementation(async () => [false, testError] as ProcessResult);
     mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
-    await (cleanupWorker as any).processCleanup(testState);
+    await cleanupWorker.testProcessCleanup(testState);
 
     expect(mockPendulumHandler.process).toHaveBeenCalledTimes(1);
     expect(mockStellarHandler.process).toHaveBeenCalledTimes(1);
@@ -104,18 +116,18 @@ describe('CleanupWorker - processCleanup', () => {
     const [values] = updateMock.mock.calls[0];
 
     // Verify the update data
-    expect(values.postCompleteState.cleanup.cleanupCompleted).toBe(false);
-    expect(values.postCompleteState.cleanup.errors).toEqual([{ name: 'pendulum', error: 'Test failure' }]);
+    expect(values.postCompleteState?.cleanup.cleanupCompleted).toBe(false);
+    expect(values.postCompleteState?.cleanup.errors).toEqual([{ error: "Test failure", name: "pendulumCleanup" }]);
   });
 
-  it('should only retry failed handlers on subsequent attempts', async () => {
-    testState.postCompleteState.cleanup.errors = [{ name: 'pendulum', error: 'Previous failure' }];
+  it("should only retry failed handlers on subsequent attempts", async () => {
+    testState.postCompleteState.cleanup.errors = [{ error: "Previous failure", name: "pendulumCleanup" }];
 
     // Setup both handlers to succeed this time
     mockPendulumHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
     mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
-    await (cleanupWorker as any).processCleanup(testState);
+    await cleanupWorker.testProcessCleanup(testState);
 
     // The pendulum handler should be processed again (because it failed before)
     expect(mockPendulumHandler.process).toHaveBeenCalledTimes(1);
@@ -129,25 +141,25 @@ describe('CleanupWorker - processCleanup', () => {
     const [values] = updateMock.mock.calls[0];
 
     // Verify the update data. All errors should be cleared.
-    expect(values.postCompleteState.cleanup.cleanupCompleted).toBe(true);
-    expect(values.postCompleteState.cleanup.errors).toBe(null);
+    expect(values.postCompleteState?.cleanup.cleanupCompleted).toBe(true);
+    expect(values.postCompleteState?.cleanup.errors).toBe(null);
   });
 
-  it('should properly track errors for multiple failed handlers', async () => {
-    mockPendulumHandler.process.mockImplementation(async () => [false, new Error('Pendulum failure')] as ProcessResult);
-    mockStellarHandler.process.mockImplementation(async () => [false, new Error('Stellar failure')] as ProcessResult);
+  it("should properly track errors for multiple failed handlers", async () => {
+    mockPendulumHandler.process.mockImplementation(async () => [false, new Error("Pendulum failure")] as ProcessResult);
+    mockStellarHandler.process.mockImplementation(async () => [false, new Error("Stellar failure")] as ProcessResult);
 
-    await (cleanupWorker as any).processCleanup(testState);
+    await cleanupWorker.testProcessCleanup(testState);
 
     expect(updateMock).toHaveBeenCalledTimes(1);
 
     const [values] = updateMock.mock.calls[0];
 
-    expect(values.postCompleteState.cleanup.cleanupCompleted).toBe(false);
+    expect(values.postCompleteState?.cleanup.cleanupCompleted).toBe(false);
 
-    const errors = values.postCompleteState.cleanup.errors;
+    const errors = values.postCompleteState?.cleanup.errors;
     expect(errors).toHaveLength(2);
-    expect(errors.some((e: any) => e.name === 'pendulum' && e.error === 'Pendulum failure')).toBe(true);
-    expect(errors.some((e: any) => e.name === 'stellar' && e.error === 'Stellar failure')).toBe(true);
+    expect(errors?.some(e => e.name === "pendulumCleanup" && e.error === "Pendulum failure")).toBe(true);
+    expect(errors?.some(e => e.name === "stellarCleanup" && e.error === "Stellar failure")).toBe(true);
   });
 });

@@ -1,18 +1,15 @@
-import { Router } from 'express';
-import { getAllPricesBundled, getPriceForProvider } from '../../controllers/price.controller';
-import { PriceQuery, validateBundledPriceInput, validatePriceInput } from '../../middlewares/validators';
+import { Router } from "express";
+import { getAllPricesBundled, getPriceForProvider } from "../../controllers/price.controller";
+import { PriceQuery, validateBundledPriceInput, validatePriceInput } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 
 router
-  .route('/')
+  .route("/")
   .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(validatePriceInput, getPriceForProvider);
 
 router
-  .route('/all')
-  .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(
-    validateBundledPriceInput,
-    getAllPricesBundled,
-  );
+  .route("/all")
+  .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(validateBundledPriceInput, getAllPricesBundled);
 
 export default router;

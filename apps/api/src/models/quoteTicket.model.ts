@@ -1,21 +1,21 @@
-import { DestinationType, QuoteEndpoints, RampCurrency } from '@packages/shared';
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
+import { DestinationType, QuoteFeeStructure, RampCurrency } from "@packages/shared";
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  fee: QuoteEndpoints.FeeStructure;
+  fee: QuoteFeeStructure;
   partnerId: string | null;
   expiresAt: Date;
-  status: 'pending' | 'consumed' | 'expired';
+  status: "pending" | "consumed" | "expired";
   metadata: QuoteTicketMetadata;
   createdAt: Date;
   updatedAt: Date;
@@ -26,17 +26,17 @@ export interface QuoteTicketMetadata {
   offrampAmountBeforeAnchorFees?: string;
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
-  usdFeeStructure: QuoteEndpoints.FeeStructure;
+  usdFeeStructure: QuoteFeeStructure;
 }
 
 // Define the attributes that can be set during creation
-type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id" | "createdAt" | "updatedAt">;
 
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
 
-  declare rampType: 'on' | 'off';
+  declare rampType: "on" | "off";
 
   declare from: DestinationType;
 
@@ -50,13 +50,13 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare outputCurrency: RampCurrency;
 
-  declare fee: QuoteEndpoints.FeeStructure;
+  declare fee: QuoteFeeStructure;
 
   declare partnerId: string | null;
 
   declare expiresAt: Date;
 
-  declare status: 'pending' | 'consumed' | 'expired';
+  declare status: "pending" | "consumed" | "expired";
 
   declare metadata: QuoteTicketMetadata;
 
@@ -68,106 +68,106 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 // Initialize the model
 QuoteTicket.init(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    rampType: {
-      type: DataTypes.ENUM('on', 'off'),
+    createdAt: {
       allowNull: false,
-      field: 'ramp_type',
-    },
-    from: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    to: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    inputAmount: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'input_amount',
-    },
-    inputCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: false,
-      field: 'input_currency',
-    },
-    outputAmount: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'output_amount',
-    },
-    outputCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: false,
-      field: 'output_currency',
-    },
-    fee: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-    },
-    partnerId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      field: 'partner_id',
-      references: {
-        model: 'partners',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     expiresAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'expires_at',
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+      field: "expires_at",
+      type: DataTypes.DATE
     },
-    status: {
-      type: DataTypes.ENUM('pending', 'consumed', 'expired'),
+    fee: {
       allowNull: false,
-      defaultValue: 'pending',
+      type: DataTypes.JSONB
+    },
+    from: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    inputAmount: {
+      allowNull: false,
+      field: "input_amount",
+      type: DataTypes.DECIMAL(38, 18)
+    },
+    inputCurrency: {
+      allowNull: false,
+      field: "input_currency",
+      type: DataTypes.STRING(8)
     },
     metadata: {
-      type: DataTypes.JSONB,
       allowNull: false,
+      type: DataTypes.JSONB
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    outputAmount: {
       allowNull: false,
-      field: 'created_at',
-      defaultValue: DataTypes.NOW,
+      field: "output_amount",
+      type: DataTypes.DECIMAL(38, 18)
+    },
+    outputCurrency: {
+      allowNull: false,
+      field: "output_currency",
+      type: DataTypes.STRING(8)
+    },
+    partnerId: {
+      allowNull: true,
+      field: "partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
+    rampType: {
+      allowNull: false,
+      field: "ramp_type",
+      type: DataTypes.ENUM("on", "off")
+    },
+    status: {
+      allowNull: false,
+      defaultValue: "pending",
+      type: DataTypes.ENUM("pending", "consumed", "expired")
+    },
+    to: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'updated_at',
       defaultValue: DataTypes.NOW,
-    },
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
   },
   {
-    sequelize,
-    modelName: 'QuoteTicket',
-    tableName: 'quote_tickets',
-    timestamps: true,
     indexes: [
       {
-        name: 'idx_quote_chain_expiry',
-        fields: ['from', 'to', 'expires_at'],
+        fields: ["from", "to", "expires_at"],
+        name: "idx_quote_chain_expiry",
         where: {
-          status: 'pending',
-        },
+          status: "pending"
+        }
       },
       {
-        name: 'idx_quote_tickets_partner',
-        fields: ['partner_id'],
-      },
+        fields: ["partner_id"],
+        name: "idx_quote_tickets_partner"
+      }
     ],
-  },
+    modelName: "QuoteTicket",
+    sequelize,
+    tableName: "quote_tickets",
+    timestamps: true
+  }
 );
 
 export default QuoteTicket;

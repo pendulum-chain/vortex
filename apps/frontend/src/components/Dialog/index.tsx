@@ -1,8 +1,8 @@
-import { FC, FormEvent, JSX, useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { cn } from '../../helpers/cn';
+import { FC, FormEvent, JSX, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { cn } from "../../helpers/cn";
 
-import { CloseButton } from '../buttons/CloseButton';
+import { CloseButton } from "../buttons/CloseButton";
 
 interface DialogProps {
   visible: boolean;
@@ -28,7 +28,7 @@ export const Dialog: FC<DialogProps> = ({
   id,
   form,
   disableNativeEvents = false,
-  hideCloseButton = false,
+  hideCloseButton = false
 }) => {
   const ref = useRef<HTMLDialogElement>(null);
   const dialog = ref.current;
@@ -47,7 +47,7 @@ export const Dialog: FC<DialogProps> = ({
       dialog.close();
       onClose && onClose();
     },
-    [isSubmitting, onClose],
+    [isSubmitting, onClose]
   );
 
   const closeListener = useCallback(() => {
@@ -61,7 +61,7 @@ export const Dialog: FC<DialogProps> = ({
   useEffect(() => {
     const dialog = ref.current;
     if (dialog) {
-      dialog.addEventListener('close', closeListener);
+      dialog.addEventListener("close", closeListener);
       if (visible && !dialog.open) {
         dialog.showModal();
       } else if (!visible && dialog.open) {
@@ -69,28 +69,28 @@ export const Dialog: FC<DialogProps> = ({
       }
 
       return () => {
-        dialog.removeEventListener('close', closeListener);
+        dialog.removeEventListener("close", closeListener);
       };
     }
-  }, [visible, closeListener, headerText]);
+  }, [visible, closeListener]);
 
   // This useEffect handles disableNativeEvents ( prevents the dialog from closing on Escape key press )
   useEffect(() => {
     if (!disableNativeEvents || !dialog) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (disableNativeEvents && e.key === 'Escape') {
+      if (disableNativeEvents && e.key === "Escape") {
         e.preventDefault();
         return;
       }
     };
 
-    dialog.addEventListener('keydown', handleKeyDown);
+    dialog.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      dialog.removeEventListener('keydown', handleKeyDown);
+      dialog.removeEventListener("keydown", handleKeyDown);
     };
-  }, [disableNativeEvents, headerText, dialog]);
+  }, [disableNativeEvents, dialog]);
 
   const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (form) {
@@ -100,26 +100,24 @@ export const Dialog: FC<DialogProps> = ({
     }
   };
 
-  const container = document.getElementById('modals');
+  const container = document.getElementById("modals");
   if (!container) return null;
 
   const modalBody = (
     <>
       <div className="modal-body">{content}</div>
-      <div className="justify-center mt-4 modal-action">{actions}</div>
+      <div className="modal-action mt-4 justify-center">{actions}</div>
     </>
   );
 
   return createPortal(
-    <dialog className="modal border border-[--modal-border]" id={id} ref={ref} aria-labelledby={`${headerText}-header`}>
+    <dialog aria-labelledby={`${headerText}-header`} className="modal border border-[--modal-border]" id={id} ref={ref}>
       <div className="modal-box bg-base-200">
-        <div
-          className={cn('text-2xl claim-title items-center flex mb-5', headerText ? 'justify-between' : 'justify-end')}
-        >
+        <div className={cn("claim-title mb-5 flex items-center text-2xl", headerText ? "justify-between" : "justify-end")}>
           <span>{headerText}</span> {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
         </div>
         {form ? (
-          <form onSubmit={handleFormSubmit} className={form.className} method="dialog">
+          <form className={form.className} method="dialog" onSubmit={handleFormSubmit}>
             {modalBody}
           </form>
         ) : (
@@ -127,6 +125,6 @@ export const Dialog: FC<DialogProps> = ({
         )}
       </div>
     </dialog>,
-    container,
+    container
   );
 };

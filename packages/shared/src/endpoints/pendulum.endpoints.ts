@@ -1,17 +1,15 @@
-export namespace PendulumEndpoints {
-  // POST /pendulum/fundEphemeral
-  export interface FundEphemeralRequest {
-    ephemeralAddress: string;
-    requiresGlmr?: boolean;
-  }
+// POST /pendulum/fundEphemeral
+export interface PendulumFundEphemeralRequest {
+  ephemeralAddress: string;
+  requiresGlmr?: boolean;
+}
 
-  export interface FundEphemeralResponse {
-    status: 'success';
-    data: undefined;
-  }
+export interface PendulumFundEphemeralResponse {
+  status: "success";
+  data: undefined;
+}
 
-  export interface FundEphemeralErrorResponse {
-    error: string;
-    details?: string;
-  }
+export interface PendulumFundEphemeralErrorResponse {
+  error: string;
+  details?: string;
 }

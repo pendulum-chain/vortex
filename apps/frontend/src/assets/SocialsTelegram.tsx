@@ -1,18 +1,11 @@
 export function Telegram({ className }: { className?: string }) {
   return (
-    <svg
-      width="24"
-      height="20"
-      viewBox="0 0 24 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
+    <svg className={className} fill="none" height="20" viewBox="0 0 24 20" width="24" xmlns="http://www.w3.org/2000/svg">
       <path
-        fillRule="evenodd"
         clipRule="evenodd"
         d="M18.4 19.8C18.7 20 19.1 20.1 19.5 19.9C19.9 19.8 20.1 19.4 20.2 19.1C21.1 15 23.2 4.7 24 1C24 0.700003 24 0.400003 23.7 0.200003C23.5 3.05474e-06 23.2 3.05474e-06 22.9 0.200003C18.7 1.6 5.8 6.4 0.5 8.4C0.2 8.5 0 8.8 0 9.2C0 9.6 0.2 0.9 0.6 10C3 10.7 6.1 11.7 6.1 11.7C6.1 11.7 7.6 16.1 8.3 18.3C8.3 18.6 8.6 18.8 8.9 18.9C9.2 18.9 9.5 18.9 9.7 18.7C10.9 17.6 12.8 15.8 12.8 15.8C12.8 15.8 16.4 18.4 18.4 19.9V19.8ZM7.4 11.1L9.1 16.6L9.5 13.1C9.5 13.1 16 7.2 19.7 3.9C19.8 3.9 19.8 3.6 19.7 3.5C19.7 3.5 19.4 3.5 19.3 3.5C15 6.2 7.4 11.1 7.4 11.1Z"
         fill="inherit"
+        fillRule="evenodd"
       ></path>
     </svg>
   );

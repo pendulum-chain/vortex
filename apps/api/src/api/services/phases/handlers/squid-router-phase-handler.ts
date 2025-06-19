@@ -1,9 +1,10 @@
-import { RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
-import { http, createPublicClient } from 'viem';
-import { moonbeam } from 'viem/chains';
-import logger from '../../../../config/logger';
-import RampState from '../../../../models/rampState.model';
-import { BasePhaseHandler } from '../base-phase-handler';
+import { getNetworkFromDestination, getNetworkId, RampPhase } from "@packages/shared";
+import { createPublicClient, http } from "viem";
+import { moonbeam } from "viem/chains";
+
+import logger from "../../../../config/logger";
+import RampState from "../../../../models/rampState.model";
+import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
  * Handler for the squidRouter phase
@@ -15,7 +16,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     super();
     this.publicClient = createPublicClient({
       chain: moonbeam,
-      transport: http(),
+      transport: http()
     });
   }
 
@@ -23,7 +24,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'squidRouterSwap';
+    return "squidRouterSwap";
   }
 
   /**
@@ -34,31 +35,31 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    if (state.type === 'off') {
-      logger.info(`SquidRouter phase is not supported for off-ramp`);
+    if (state.type === "off") {
+      logger.info("SquidRouter phase is not supported for off-ramp");
       return state;
     }
 
     try {
       // Get the presigned transactions for this phase
-      const approveTransaction = this.getPresignedTransaction(state, 'squidRouterApprove');
-      const swapTransaction = this.getPresignedTransaction(state, 'squidRouterSwap');
+      const approveTransaction = this.getPresignedTransaction(state, "squidRouterApprove");
+      const swapTransaction = this.getPresignedTransaction(state, "squidRouterSwap");
 
       if (!approveTransaction || !swapTransaction) {
-        throw new Error('Missing presigned transactions for squidRouter phase');
+        throw new Error("Missing presigned transactions for squidRouter phase");
       }
 
       const accountNonce = await this.getNonce(approveTransaction.signer as `0x${string}`);
       if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
         logger.warn(
-          `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`,
+          `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`
         );
       }
 
       const destinationNetwork = getNetworkFromDestination(state.to);
       const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
       if (!chainId) {
-        throw new Error('Invalid destination network');
+        throw new Error("Invalid destination network");
       }
 
       // Execute the approve transaction
@@ -82,13 +83,13 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         state: {
           ...state.state,
           squidRouterApproveHash: approveHash,
-          squidRouterSwapHash: swapHash,
-        },
+          squidRouterSwapHash: swapHash
+        }
       });
 
       // Transition to the next phase
-      return this.transitionToNextPhase(updatedState, 'squidRouterPay');
-    } catch (error: any) {
+      return this.transitionToNextPhase(updatedState, "squidRouterPay");
+    } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
     }
@@ -102,12 +103,12 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private async executeTransaction(txData: string): Promise<string> {
     try {
       const txHash = await this.publicClient.sendRawTransaction({
-        serializedTransaction: txData as `0x${string}`,
+        serializedTransaction: txData as `0x${string}`
       });
       return txHash;
     } catch (error) {
-      logger.error('Error sending raw transaction', error);
-      throw new Error('Failed to send transaction');
+      logger.error("Error sending raw transaction", error);
+      throw new Error("Failed to send transaction");
     }
   }
 
@@ -119,9 +120,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
     try {
       const receipt = await this.publicClient.waitForTransactionReceipt({
-        hash: txHash as `0x${string}`,
+        hash: txHash as `0x${string}`
       });
-      if (!receipt || receipt.status !== 'success') {
+      if (!receipt || receipt.status !== "success") {
         throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
       }
     } catch (error) {
@@ -134,8 +135,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       // List all transactions for the address to get the nonce
       return await this.publicClient.getTransactionCount({ address });
     } catch (error) {
-      logger.error('Error getting nonce', error);
-      throw new Error('Failed to get transaction nonce');
+      logger.error("Error getting nonce", error);
+      throw new Error("Failed to get transaction nonce");
     }
   }
 }

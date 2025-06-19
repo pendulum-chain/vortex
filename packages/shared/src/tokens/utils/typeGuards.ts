@@ -2,11 +2,11 @@
  * Type guards for token configuration
  */
 
-import { AssetHubTokenDetails } from '../types/assethub';
-import { AssetHubToken, FiatToken, OnChainToken, TokenType } from '../types/base';
-import { EvmToken, EvmTokenDetails } from '../types/evm';
-import { MoonbeamTokenDetails } from '../types/moonbeam';
-import { StellarTokenDetails } from '../types/stellar';
+import { AssetHubTokenDetails } from "../types/assethub";
+import { AssetHubToken, FiatToken, OnChainToken, TokenType } from "../types/base";
+import { EvmToken, EvmTokenDetails } from "../types/evm";
+import { MoonbeamTokenDetails } from "../types/moonbeam";
+import { StellarTokenDetails } from "../types/stellar";
 
 export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarTokenDetails | MoonbeamTokenDetails;
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
@@ -62,7 +62,7 @@ export function isFiatTokenDetails(token: TokenDetails): token is FiatTokenDetai
  * Type guard for Stellar output token details
  */
 export function isStellarOutputTokenDetails(
-  tokenDetails: StellarTokenDetails | MoonbeamTokenDetails,
+  tokenDetails: StellarTokenDetails | MoonbeamTokenDetails
 ): tokenDetails is StellarTokenDetails {
   return tokenDetails.type === TokenType.Stellar;
 }
@@ -71,7 +71,7 @@ export function isStellarOutputTokenDetails(
  * Type guard for Moonbeam output token details
  */
 export function isMoonbeamOutputTokenDetails(
-  outputTokenDetails: StellarTokenDetails | MoonbeamTokenDetails,
+  outputTokenDetails: StellarTokenDetails | MoonbeamTokenDetails
 ): outputTokenDetails is MoonbeamTokenDetails {
   return outputTokenDetails.type === TokenType.Moonbeam;
 }

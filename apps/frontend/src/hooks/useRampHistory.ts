@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { Transaction } from '../components/RampHistory/types';
-import { RampService } from '../services/api/ramp.service';
+import { useQuery } from "@tanstack/react-query";
+import { Transaction } from "../components/RampHistory/types";
+import { RampService } from "../services/api/ramp.service";
 
 export function useRampHistory(walletAddress: string | undefined) {
   return useQuery({
-    queryKey: ['rampHistory', walletAddress],
+    enabled: !!walletAddress,
     queryFn: async () => {
       if (!walletAddress) {
         return { transactions: [] };
@@ -13,24 +13,24 @@ export function useRampHistory(walletAddress: string | undefined) {
       const response = await RampService.getRampHistory(walletAddress);
 
       const transactions: Transaction[] = response.transactions.map(
-        (tx) =>
+        tx =>
           ({
-            id: tx.id,
-            fromNetwork: tx.fromNetwork,
-            toNetwork: tx.toNetwork,
-            fromAmount: tx.fromAmount,
-            toAmount: tx.toAmount,
-            status: tx.status,
             date: new Date(tx.date),
+            fromAmount: tx.fromAmount,
             fromCurrency: tx.fromCurrency,
+            fromNetwork: tx.fromNetwork,
+            id: tx.id,
+            status: tx.status,
+            toAmount: tx.toAmount,
             toCurrency: tx.toCurrency,
-          }) as Transaction,
+            toNetwork: tx.toNetwork
+          }) as Transaction
       );
 
       return { transactions };
     },
-    enabled: !!walletAddress,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
+    queryKey: ["rampHistory", walletAddress],
+    refetchOnWindowFocus: true, // 5 minutes
+    staleTime: 5 * 60 * 1000
   });
 }

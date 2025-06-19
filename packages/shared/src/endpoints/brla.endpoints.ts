@@ -1,127 +1,123 @@
-import { EvmAddress } from '../types';
-
 export enum KycFailureReason {
-  FACE = 'face',
-  NAME = 'name',
-  UNKNOWN = 'unknown',
+  FACE = "face",
+  NAME = "name",
+  UNKNOWN = "unknown"
 }
 
-export namespace BrlaEndpoints {
-  // GET /brla/getUser?taxId=:taxId
-  export interface GetUserRequest {
-    taxId: string;
-  }
+// GET /brla/getUser?taxId=:taxId
+export interface BrlaGetUserRequest {
+  taxId: string;
+}
 
-  export interface GetUserResponse {
-    evmAddress: string;
-    kycLevel: number;
-  }
+export interface BrlaGetUserResponse {
+  evmAddress: string;
+  kycLevel: number;
+}
 
-  // GET /brla/getRampStatus?taxId=:taxId
-  export interface GetRampStatusRequest {
-    taxId: string;
-  }
+// GET /brla/getRampStatus?taxId=:taxId
+export interface BrlaGetRampStatusRequest {
+  taxId: string;
+}
 
-  export interface GetRampStatusResponse {
-    type: string;
-    status: string;
-  }
+export interface BrlaGetRampStatusResponse {
+  type: string;
+  status: string;
+}
 
-  // GET /brla/getKycStatus?taxId=:taxId
-  export interface GetKycStatusRequest {
-    taxId: string;
-  }
+// GET /brla/getKycStatus?taxId=:taxId
+export interface BrlaGetKycStatusRequest {
+  taxId: string;
+}
 
-  export interface GetKycStatusResponse {
-    type: string;
-    status: string;
-    failureReason: KycFailureReason;
-    level: number;
-  }
+export interface BrlaGetKycStatusResponse {
+  type: string;
+  status: string;
+  level: number;
+  failureReason: KycFailureReason;
+}
 
-  // GET /brla/validatePixKey?pixKey=:pixKey
-  export interface ValidatePixKeyRequest {
-    pixKey: string;
-  }
+// GET /brla/validatePixKey?pixKey=:pixKey
+export interface BrlaValidatePixKeyRequest {
+  pixKey: string;
+}
 
-  export interface ValidatePixKeyResponse {
-    valid: boolean;
-  }
+export interface BrlaValidatePixKeyResponse {
+  valid: boolean;
+}
 
-  export interface GetUserRemainingLimitRequest {
-    taxId: string;
-  }
+export interface BrlaGetUserRemainingLimitRequest {
+  taxId: string;
+}
 
-  export interface GetUserRemainingLimitResponse {
-    remainingLimitOnramp: number;
-    remainingLimitOfframp: number;
-  }
+export interface BrlaGetUserRemainingLimitResponse {
+  remainingLimitOnramp: number;
+  remainingLimitOfframp: number;
+}
 
-  // POST /brla/triggerOfframp
-  export interface TriggerOfframpRequest {
-    taxId: string;
-    pixKey: string;
-    amount: string;
-    receiverTaxId: string;
-  }
+// POST /brla/triggerOfframp
+export interface BrlaTriggerOfframpRequest {
+  taxId: string;
+  pixKey: string;
+  amount: string;
+  receiverTaxId: string;
+}
 
-  export interface TriggerOfframpResponse {
-    offrampId: string;
-  }
+export interface BrlaTriggerOfframpResponse {
+  offrampId: string;
+}
 
-  // POST /brla/createSubaccount
-  export interface BrlaAddress {
-    cep: string;
-    city: string;
-    state: string;
-    street: string;
-    number: string;
-    district: string;
-    complement?: string;
-  }
+// POST /brla/createSubaccount
+export interface BrlaAddress {
+  cep: string;
+  city: string;
+  state: string;
+  street: string;
+  number: string;
+  district: string;
+  complement?: string;
+}
 
-  export type TaxIdType = 'CPF' | 'CNPJ';
+export type TaxIdType = "CPF" | "CNPJ";
 
-  export interface CreateSubaccountRequest {
-    phone: string;
-    taxIdType: TaxIdType;
-    address: BrlaAddress;
-    fullName: string;
-    cpf: string;
-    birthdate: number; // Timestamp
-    companyName?: string;
-    startDate?: number;
-    cnpj?: string;
-  }
+export interface BrlaCreateSubaccountRequest {
+  phone: string;
+  taxIdType: TaxIdType;
+  address: BrlaAddress;
+  fullName: string;
+  cpf: string;
+  birthdate: number; // Timestamp
+  companyName?: string;
+  startDate?: number;
+  cnpj?: string;
+}
 
-  export interface CreateSubaccountResponse {
-    subaccountId: string;
-  }
+export interface BrlaCreateSubaccountResponse {
+  subaccountId: string;
+}
 
-  export interface BrlaErrorResponse {
-    error: string;
-    details?: string;
-  }
+export interface BrlaErrorResponse {
+  error: string;
+  details?: string;
+}
 
-  export enum KYCDocType {
-    RG = 'RG',
-    CNH = 'CNH',
-  }
+export enum BrlaKYCDocType {
+  RG = "RG",
+  CNH = "CNH"
+}
 
-  // POST /brla/startKYC2
-  export interface StartKYC2Request {
-    documentType: KYCDocType;
-    taxId: string;
-  }
+// POST /brla/startKYC2
+export interface StartKYC2Request {
+  documentType: BrlaKYCDocType;
+  taxId: string;
+}
 
-  export interface StartKYC2Response {
-    uploadUrls: KYCDataUploadFileFiles;
-  }
+export interface BrlaStartKYC2Response {
+  uploadUrls: BrlaKYCDataUploadFileFiles;
+}
 
-  export interface KYCDataUploadFileFiles {
-    selfieUploadUrl: string;
-    RGFrontUploadUrl: string;
-    RGBackUploadUrl: string;
-    CNHUploadUrl: string;
-  }
+export interface BrlaKYCDataUploadFileFiles {
+  selfieUploadUrl: string;
+  RGFrontUploadUrl: string;
+  RGBackUploadUrl: string;
+  CNHUploadUrl: string;
 }

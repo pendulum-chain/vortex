@@ -1,14 +1,12 @@
-// @todo: remove no-explicit-any
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { ApiPromise } from "@polkadot/api";
+import { Event, EventRecord } from "@polkadot/types/interfaces";
 
-import { ApiPromise } from '@polkadot/api';
+import { parseEventRedeemExecution, parseEventXcmSent } from "./eventParsers";
 
-import { parseEventRedeemExecution, parseEventXcmSent } from './eventParsers';
-
-interface IPendingEvent {
+interface IPendingEvent<T = unknown> {
   id: string;
-  filter: any;
-  resolve: (event: any) => void;
+  filter: (event: EventRecord) => T | null;
+  resolve: (event: T) => void;
 }
 
 export class EventListener {
@@ -24,8 +22,8 @@ export class EventListener {
     this.api = api;
     this.initEventSubscriber();
 
-    this.api?.on('connected', async (): Promise<void> => {
-      console.log('Connected (or reconnected) to the endpoint.');
+    this.api?.on("connected", async (): Promise<void> => {
+      console.log("Connected (or reconnected) to the endpoint.");
       await this.checkForMissedEvents();
     });
   }
@@ -40,19 +38,20 @@ export class EventListener {
   }
 
   async initEventSubscriber() {
-    this.unsubscribeHandle = (await this.api?.query.system.events((events: any) => {
-      events.forEach((event: any) => {
-        this.processEvents(event, this.pendingRedeemEvents);
-        this.processEvents(event, this.pendingXcmSentEvents);
-      });
-    })) as any;
+    this.unsubscribeHandle =
+      ((await this.api?.query.system.events((events: EventRecord[]) => {
+        events.forEach((event: EventRecord) => {
+          this.processEvents(event, this.pendingRedeemEvents);
+          this.processEvents(event, this.pendingXcmSentEvents);
+        });
+      })) as unknown as () => void) || null;
   }
 
   waitForRedeemExecuteEvent(redeemId: string, maxWaitingTimeMs: number) {
-    const filter = (event: any) => {
-      if (event.event.section === 'redeem' && event.event.method === 'ExecuteRedeem') {
-        const eventParsed = parseEventRedeemExecution(event);
-        if (eventParsed.redeemId == redeemId) {
+    const filter = (event: EventRecord) => {
+      if (event.event.section === "redeem" && event.event.method === "ExecuteRedeem") {
+        const eventParsed = parseEventRedeemExecution({ event: event.event });
+        if (eventParsed.redeemId === redeemId) {
           return eventParsed;
         }
       }
@@ -66,20 +65,20 @@ export class EventListener {
 
       this.pendingRedeemEvents.push({
         filter,
-        resolve: (event) => {
+        id: redeemId,
+        resolve: event => {
           clearTimeout(timeout);
           resolve(event);
-        },
-        id: redeemId,
+        }
       });
     });
   }
 
   waitForXcmSentEvent(originAddress: string, maxWaitingTimeMs: number) {
-    const filter = (event: any) => {
-      if (event.event.section === 'polkadotXcm' && event.event.method === 'Sent') {
-        const eventParsed = parseEventXcmSent(event);
-        if (eventParsed.originAddress == originAddress) {
+    const filter = (event: EventRecord) => {
+      if (event.event.section === "polkadotXcm" && event.event.method === "Sent") {
+        const eventParsed = parseEventXcmSent({ event: event.event });
+        if (eventParsed.originAddress === originAddress) {
           return eventParsed;
         }
       }
@@ -93,16 +92,16 @@ export class EventListener {
 
       this.pendingXcmSentEvents.push({
         filter,
-        resolve: (event) => {
+        id: originAddress,
+        resolve: event => {
           clearTimeout(timeout);
           resolve(event);
-        },
-        id: originAddress,
+        }
       });
     });
   }
 
-  processEvents(event: any, pendingEvents: IPendingEvent[]) {
+  processEvents<T>(event: EventRecord, pendingEvents: IPendingEvent<T>[]) {
     pendingEvents.forEach((pendingEvent, index) => {
       const matchedEvent = pendingEvent.filter(event);
 
@@ -117,9 +116,9 @@ export class EventListener {
     const freshApiPromise = this.api;
     if (!freshApiPromise || !freshApiPromise.isConnected) return;
 
-    this.pendingRedeemEvents.forEach((pendingEvent) => {
+    this.pendingRedeemEvents.forEach(pendingEvent => {
       const redeemId = pendingEvent.id;
-      freshApiPromise.query.redeem.redeemRequests(redeemId).then((redeem) => {
+      freshApiPromise.query.redeem.redeemRequests(redeemId).then(redeem => {
         if (redeem) {
           pendingEvent.resolve(redeem);
         }
@@ -136,7 +135,9 @@ export class EventListener {
     this.pendingRedeemEvents = [];
     this.pendingXcmSentEvents = [];
 
-    EventListener.eventListeners.delete(this.api!);
+    if (this.api) {
+      EventListener.eventListeners.delete(this.api);
+    }
 
     this.api = undefined;
   }

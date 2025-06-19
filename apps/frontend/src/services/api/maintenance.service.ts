@@ -1,4 +1,4 @@
-import { apiRequest } from './api-client';
+import { apiRequest } from "./api-client";
 
 export interface MaintenanceDetails {
   title: string;
@@ -18,5 +18,5 @@ export interface MaintenanceStatusResponse {
  * @returns Promise<MaintenanceStatusResponse>
  */
 export const getMaintenanceStatus = async (): Promise<MaintenanceStatusResponse> => {
-  return apiRequest<MaintenanceStatusResponse>('get', '/maintenance/status');
+  return apiRequest<MaintenanceStatusResponse>("get", "/maintenance/status");
 };

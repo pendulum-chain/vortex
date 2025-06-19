@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-import { SafeTransactionResponse } from '../helpers/safe-wallet/waitForTransactionConfirmation';
+import { SafeTransactionResponse } from "../helpers/safe-wallet/waitForTransactionConfirmation";
 
 interface SafeTransactionStatus {
   currentConfirmations: number;
@@ -24,11 +24,11 @@ interface SafeWalletSignatureState {
 
 export const useSafeWalletSignatureStore = create<SafeWalletSignatureState>((set, get) => ({
   confirmations: {
-    required: 0,
     current: 0,
+    required: 0
   },
-  setSigners: (required: number, current: number) => set({ confirmations: { required, current } }),
-  reset: () => set({ confirmations: { required: 0, current: 0 } }),
+  reset: () => set({ confirmations: { current: 0, required: 0 } }),
+  setSigners: (required: number, current: number) => set({ confirmations: { current, required } }),
   /**
    * Updates the global signature status store based on a Safe transaction's current state.
    * Tracks the number of confirmations received vs required, and resets when complete.
@@ -39,7 +39,7 @@ export const useSafeWalletSignatureStore = create<SafeWalletSignatureState>((set
   updateSafeWalletSignatureStatus: (safeTransaction: SafeTransactionResponse) => {
     const status: SafeTransactionStatus = {
       currentConfirmations: safeTransaction.confirmations?.length ?? 0,
-      requiredConfirmations: safeTransaction.confirmationsRequired ?? 0,
+      requiredConfirmations: safeTransaction.confirmationsRequired ?? 0
     };
 
     get().setSigners(status.requiredConfirmations, status.currentConfirmations);
@@ -49,5 +49,5 @@ export const useSafeWalletSignatureStore = create<SafeWalletSignatureState>((set
     }
 
     return status;
-  },
+  }
 }));

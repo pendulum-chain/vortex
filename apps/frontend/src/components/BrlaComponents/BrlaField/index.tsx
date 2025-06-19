@@ -1,32 +1,32 @@
-import { motion } from 'motion/react';
-import { FC } from 'react';
-import { useFormContext, useFormState } from 'react-hook-form';
+import { motion } from "motion/react";
+import { FC } from "react";
+import { useFormContext, useFormState } from "react-hook-form";
 
-import { cn } from '../../../helpers/cn';
-import { Field, FieldProps } from '../../Field';
+import { cn } from "../../../helpers/cn";
+import { Field, FieldProps } from "../../Field";
 
 export enum StandardBrlaFieldOptions {
-  TAX_ID = 'taxId',
-  PIX_ID = 'pixId',
+  TAX_ID = "taxId",
+  PIX_ID = "pixId"
 }
 
 export enum ExtendedBrlaFieldOptions {
-  PHONE = 'phone',
-  ADDRESS = 'address',
-  TAX_ID = 'taxId',
-  CEP = 'cep',
-  CITY = 'city',
-  STATE = 'state',
-  STREET = 'street',
-  NUMBER = 'number',
-  DISTRICT = 'district',
-  FULL_NAME = 'fullName',
-  CPF = 'cpf',
-  BIRTHDATE = 'birthdate',
-  EMAIL = 'email',
-  COMPANY_NAME = 'companyName',
-  START_DATE = 'startDate',
-  PARTNER_CPF = 'partnerCpf',
+  PHONE = "phone",
+  ADDRESS = "address",
+  TAX_ID = "taxId",
+  CEP = "cep",
+  CITY = "city",
+  STATE = "state",
+  STREET = "street",
+  NUMBER = "number",
+  DISTRICT = "district",
+  FULL_NAME = "fullName",
+  CPF = "cpf",
+  BIRTHDATE = "birthdate",
+  EMAIL = "email",
+  COMPANY_NAME = "companyName",
+  START_DATE = "startDate",
+  PARTNER_CPF = "partnerCpf"
 }
 
 export type BrlaFieldOptions = StandardBrlaFieldOptions | ExtendedBrlaFieldOptions;
@@ -50,28 +50,28 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
 
   return (
     <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      className={className}
       exit={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: 20 }}
       transition={{
-        duration: 0.4,
-        delay: index * 0.15,
-        type: 'spring',
-        stiffness: 300,
         damping: 15,
+        delay: index * 0.15,
+        duration: 0.4,
+        stiffness: 300,
+        type: "spring"
       }}
     >
-      <label htmlFor={id} className="block mb-1">
+      <label className="mb-1 block" htmlFor={id}>
         {label}
       </label>
       <Field
+        className={cn("w-full p-2", errors[id] && "border border-red-500")}
         id={id}
-        register={register(id, { required: true, pattern: validationPattern })}
-        className={cn('w-full p-2', errors[id] && 'border border-red-500')}
+        register={register(id, { pattern: validationPattern, required: true })}
         {...rest}
       />
-      {errorMessage && <span className="text-red-500 text-sm mt-1">{errorMessage}</span>}
+      {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
     </motion.div>
   );
 };

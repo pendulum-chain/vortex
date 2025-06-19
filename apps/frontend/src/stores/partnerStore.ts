@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface PartnerState {
   // The partner ID first has to be set from the URL parameters before it can be used.
@@ -7,10 +7,10 @@ interface PartnerState {
   setPartnerId: (partnerId: string | undefined | null) => void;
 }
 
-export const usePartnerStore = create<PartnerState>((set) => ({
+export const usePartnerStore = create<PartnerState>(set => ({
   partnerId: undefined,
-  setPartnerId: (partnerId) => set({ partnerId }),
+  setPartnerId: partnerId => set({ partnerId })
 }));
 
-export const usePartnerId = () => usePartnerStore((state) => state.partnerId);
-export const useSetPartnerId = () => usePartnerStore((state) => state.setPartnerId);
+export const usePartnerId = () => usePartnerStore(state => state.partnerId);
+export const useSetPartnerId = () => usePartnerStore(state => state.setPartnerId);

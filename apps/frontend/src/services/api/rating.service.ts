@@ -1,11 +1,11 @@
-import { RatingEndpoints } from '@packages/shared';
-import { apiRequest } from './api-client';
+import { StoreRatingRequest, StoreRatingResponse } from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Rating API endpoints
  */
 export class RatingService {
-  private static readonly BASE_PATH = '/rating';
+  private static readonly BASE_PATH = "/rating";
 
   /**
    * Store a user rating
@@ -13,12 +13,12 @@ export class RatingService {
    * @param walletAddress The user's wallet address
    * @returns Success message
    */
-  static async storeRating(rating: number, walletAddress: string): Promise<RatingEndpoints.StoreRatingResponse> {
-    const request: RatingEndpoints.StoreRatingRequest = {
-      timestamp: new Date().toISOString(),
+  static async storeRating(rating: number, walletAddress: string): Promise<StoreRatingResponse> {
+    const request: StoreRatingRequest = {
       rating,
-      walletAddress,
+      timestamp: new Date().toISOString(),
+      walletAddress
     };
-    return apiRequest<RatingEndpoints.StoreRatingResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<StoreRatingResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 }

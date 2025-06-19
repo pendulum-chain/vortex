@@ -1,12 +1,9 @@
-import { useCallback, useState } from 'react';
-import { SignInMessage } from '../helpers/siweMessageFormatter';
-
-import { useEffect } from 'react';
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
-import { SIGNING_SERVICE_URL } from '../constants/constants';
-import { storageKeys } from '../constants/localStorage';
-import { useRampActions } from '../stores/rampStore';
-import { useVortexAccount } from './useVortexAccount';
+import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
+import { storageKeys } from "../constants/localStorage";
+import { SignInMessage } from "../helpers/siweMessageFormatter";
+import { useRampActions } from "../stores/rampStore";
+import { useVortexAccount } from "./useVortexAccount";
 
 export interface SiweSignatureData {
   signatureSet: boolean;
@@ -15,11 +12,11 @@ export interface SiweSignatureData {
 
 function createSiweMessage(address: string, nonce: string) {
   const siweMessage = new SignInMessage({
-    scheme: 'https',
-    domain: window.location.host,
     address: address,
-    nonce,
+    domain: window.location.host,
     expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).getTime(), // Constructor in ms.
+    nonce,
+    scheme: "https"
   });
 
   return siweMessage.toMessage();
@@ -55,23 +52,23 @@ export function useSiweSignature() {
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
-      setSignPromise({ resolve, reject });
-      setRampSigningPhase?.('login');
+      setSignPromise({ reject, resolve });
+      setRampSigningPhase?.("login");
     });
-  }, [setRampSigningPhase, setSignPromise, signPromise]);
+  }, [setRampSigningPhase, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
 
     try {
       const messageResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ walletAddress: address }),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
       });
 
-      if (!messageResponse.ok) throw new Error('Failed to create message');
+      if (!messageResponse.ok) throw new Error("Failed to create message");
       const { nonce } = await messageResponse.json();
 
       // Message in both string and object form
@@ -81,39 +78,35 @@ export function useSiweSignature() {
       const signature = await getMessageSignature(siweMessage);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ nonce, signature, siweMessage }),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
       });
 
-      if (!validationResponse.ok) throw new Error('Failed to validate signature');
+      if (!validationResponse.ok) throw new Error("Failed to validate signature");
 
       const signatureData: SiweSignatureData = {
-        signatureSet: true,
-        // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-        expirationDate: message.expirationTime!, // Field is validated in the message. Should not be null when submitting.
+        expirationDate: message.expirationTime, // Field is validated in the message. Should not be null when submitting.
+        signatureSet: true
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
       signPromise.resolve();
-      setRampSigningPhase?.('finished');
+      setRampSigningPhase?.("finished");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setRampSigningPhase?.(undefined);
 
       // First case Assethub, second case EVM
-      if (
-        (error as Error).message.includes('User rejected the request') ||
-        (error as Error).message.includes('Cancelled')
-      ) {
-        return signPromise.reject(new Error('Signing failed: User rejected sign request'));
+      if ((error as Error).message.includes("User rejected the request") || (error as Error).message.includes("Cancelled")) {
+        return signPromise.reject(new Error("Signing failed: User rejected sign request"));
       }
-      return signPromise.reject(new Error('Signing failed: Failed to sign login challenge. ' + errorMessage));
+      return signPromise.reject(new Error("Signing failed: Failed to sign login challenge. " + errorMessage));
     } finally {
       setSignPromise(null);
     }
-  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature, setRampSigningPhase]);
+  }, [address, storageKey, signPromise, getMessageSignature, setRampSigningPhase]);
 
   useEffect(() => {
     if (signPromise) handleSign();
@@ -132,6 +125,6 @@ export function useSiweSignature() {
 
   return {
     checkAndWaitForSignature,
-    forceRefreshAndWaitForSignature,
+    forceRefreshAndWaitForSignature
   };
 }

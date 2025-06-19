@@ -1,28 +1,29 @@
 import {
+  EphemeralAccount,
   FiatToken,
   Networks,
   OnChainToken,
   PaymentData,
   PresignedTx,
-  QuoteEndpoints,
-  RampEndpoints,
-} from '@packages/shared';
-import { EphemeralAccount } from '@packages/shared';
+  QuoteResponse,
+  RampProcess,
+  UpdateRampRequest
+} from "@packages/shared";
 
-export type RampSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
+export type RampSigningPhase = "login" | "started" | "approved" | "signed" | "finished";
 
 export interface RampState {
-  quote: QuoteEndpoints.QuoteResponse;
-  ramp?: RampEndpoints.RampProcess;
+  quote: QuoteResponse;
+  ramp?: RampProcess;
   signedTransactions: PresignedTx[];
   // This is used to track if the user has completed all required actions. For offramps, it's about signing and submitting
   // transactions. For onramps, it's about acknowledging that the payment has been made.
   requiredUserActionsCompleted: boolean;
-  userSigningMeta: RampEndpoints.UpdateRampRequest['additionalData'];
+  userSigningMeta: UpdateRampRequest["additionalData"];
 }
 
 export interface RampExecutionInput {
-  quote: QuoteEndpoints.QuoteResponse;
+  quote: QuoteResponse;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   userWalletAddress: string;

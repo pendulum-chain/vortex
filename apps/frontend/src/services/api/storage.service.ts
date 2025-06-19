@@ -1,19 +1,30 @@
-import { StorageEndpoints } from '@packages/shared';
-import { apiRequest } from './api-client';
+import {
+  AssethubToBrlaStorageRequest,
+  AssethubToStellarStorageRequest,
+  BrlaToAssethubStorageRequest,
+  BrlaToEvmStorageRequest,
+  EvmToBrlaStorageRequest,
+  EvmToStellarStorageRequest,
+  OfframpHandlerType,
+  OnrampHandlerType,
+  StoreDataRequest,
+  StoreDataResponse
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Storage API endpoints
  */
 export class StorageService {
-  private static readonly BASE_PATH = '/storage';
+  private static readonly BASE_PATH = "/storage";
 
   /**
    * Store data for a specific flow type
    * @param request The storage request data
    * @returns Success message
    */
-  static async storeData(request: StorageEndpoints.StoreDataRequest): Promise<StorageEndpoints.StoreDataResponse> {
-    return apiRequest<StorageEndpoints.StoreDataResponse>('post', `${this.BASE_PATH}/create`, request);
+  static async storeData(request: StoreDataRequest): Promise<StoreDataResponse> {
+    return apiRequest<StoreDataResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -22,12 +33,12 @@ export class StorageService {
    * @returns Success message
    */
   static async storeEvmToStellarData(
-    data: Omit<StorageEndpoints.EvmToStellarStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.EvmToStellarStorageRequest = {
+    data: Omit<EvmToStellarStorageRequest, "flowType" | "timestamp">
+  ): Promise<StoreDataResponse> {
+    const request: EvmToStellarStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OfframpHandlerType.EVM_TO_STELLAR,
-      timestamp: new Date().toISOString(),
+      flowType: OfframpHandlerType.EVM_TO_STELLAR,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }
@@ -38,12 +49,12 @@ export class StorageService {
    * @returns Success message
    */
   static async storeAssethubToStellarData(
-    data: Omit<StorageEndpoints.AssethubToStellarStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.AssethubToStellarStorageRequest = {
+    data: Omit<AssethubToStellarStorageRequest, "flowType" | "timestamp">
+  ): Promise<StoreDataResponse> {
+    const request: AssethubToStellarStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OfframpHandlerType.ASSETHUB_TO_STELLAR,
-      timestamp: new Date().toISOString(),
+      flowType: OfframpHandlerType.ASSETHUB_TO_STELLAR,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }
@@ -53,13 +64,11 @@ export class StorageService {
    * @param data The EVM to BRLA flow data
    * @returns Success message
    */
-  static async storeEvmToBrlaData(
-    data: Omit<StorageEndpoints.EvmToBrlaStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.EvmToBrlaStorageRequest = {
+  static async storeEvmToBrlaData(data: Omit<EvmToBrlaStorageRequest, "flowType" | "timestamp">): Promise<StoreDataResponse> {
+    const request: EvmToBrlaStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OfframpHandlerType.EVM_TO_BRLA,
-      timestamp: new Date().toISOString(),
+      flowType: OfframpHandlerType.EVM_TO_BRLA,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }
@@ -70,12 +79,12 @@ export class StorageService {
    * @returns Success message
    */
   static async storeAssethubToBrlaData(
-    data: Omit<StorageEndpoints.AssethubToBrlaStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.AssethubToBrlaStorageRequest = {
+    data: Omit<AssethubToBrlaStorageRequest, "flowType" | "timestamp">
+  ): Promise<StoreDataResponse> {
+    const request: AssethubToBrlaStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OfframpHandlerType.ASSETHUB_TO_BRLA,
-      timestamp: new Date().toISOString(),
+      flowType: OfframpHandlerType.ASSETHUB_TO_BRLA,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }
@@ -85,13 +94,11 @@ export class StorageService {
    * @param data The BRLA to EVM flow data
    * @returns Success message
    */
-  static async storeBrlaToEvmData(
-    data: Omit<StorageEndpoints.BrlaToEvmStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.BrlaToEvmStorageRequest = {
+  static async storeBrlaToEvmData(data: Omit<BrlaToEvmStorageRequest, "flowType" | "timestamp">): Promise<StoreDataResponse> {
+    const request: BrlaToEvmStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OnrampHandlerType.BRLA_TO_EVM,
-      timestamp: new Date().toISOString(),
+      flowType: OnrampHandlerType.BRLA_TO_EVM,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }
@@ -102,12 +109,12 @@ export class StorageService {
    * @returns Success message
    */
   static async storeBrlaToAssethubData(
-    data: Omit<StorageEndpoints.BrlaToAssethubStorageRequest, 'flowType' | 'timestamp'>,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
-    const request: StorageEndpoints.BrlaToAssethubStorageRequest = {
+    data: Omit<BrlaToAssethubStorageRequest, "flowType" | "timestamp">
+  ): Promise<StoreDataResponse> {
+    const request: BrlaToAssethubStorageRequest = {
       ...data,
-      flowType: StorageEndpoints.OnrampHandlerType.BRLA_TO_ASSETHUB,
-      timestamp: new Date().toISOString(),
+      flowType: OnrampHandlerType.BRLA_TO_ASSETHUB,
+      timestamp: new Date().toISOString()
     };
     return this.storeData(request);
   }

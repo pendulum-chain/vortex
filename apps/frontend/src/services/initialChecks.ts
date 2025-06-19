@@ -1,11 +1,11 @@
-import Big from 'big.js';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { RampDirection } from '../components/RampToggle';
-import { useToastMessage } from '../helpers/notifications';
-import { useRampDirection } from '../stores/rampDirectionStore';
-import { RampExecutionInput } from '../types/phases';
-import { BrlaService } from './api';
+import Big from "big.js";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { RampDirection } from "../components/RampToggle";
+import { useToastMessage } from "../helpers/notifications";
+import { useRampDirection } from "../stores/rampDirectionStore";
+import { RampExecutionInput } from "../types/phases";
+import { BrlaService } from "./api";
 
 function useRampAmountWithinAllowedLimits() {
   const { t } = useTranslation();
@@ -32,21 +32,18 @@ function useRampAmountWithinAllowedLimits() {
         if (amountNum <= remainingLimitNum) {
           return true;
         } else {
-          showToast(
-            ToastMessage.RAMP_LIMIT_EXCEEDED,
-            t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
-          );
+          showToast(ToastMessage.RAMP_LIMIT_EXCEEDED, t("toasts.rampLimitExceeded", { remaining: remainingLimitInUnits }));
           return false;
         }
       } catch (error) {
-        if (error instanceof Error && error.message.includes('Subaccount not found')) {
+        if (error instanceof Error && error.message.includes("Subaccount not found")) {
           return true; // If the subaccount is not found, the user is not registered and allow the flow to continue.
         }
-        console.error('useRampAmountWithinAllowedLimits: Error checking ramp limits: ', error);
+        console.error("useRampAmountWithinAllowedLimits: Error checking ramp limits: ", error);
         return false;
       }
     },
-    [rampDirection, showToast, t, ToastMessage.RAMP_LIMIT_EXCEEDED],
+    [rampDirection, showToast, t, ToastMessage.RAMP_LIMIT_EXCEEDED]
   );
 }
 
@@ -56,20 +53,20 @@ export function usePreRampCheck() {
   return useCallback(
     async (executionInput: RampExecutionInput) => {
       // For BRL ramps, check if the user is within the limits
-      if (executionInput.fiatToken === 'brl') {
+      if (executionInput.fiatToken === "brl") {
         if (!executionInput.taxId) {
-          throw new Error('Tax ID is required for BRL transactions.');
+          throw new Error("Tax ID is required for BRL transactions.");
         }
 
         const isWithinLimits = await rampWithinLimits(
-          executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
-          executionInput.taxId,
+          executionInput.quote.rampType === "on" ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
+          executionInput.taxId
         );
         if (!isWithinLimits) {
-          throw new Error('Ramp amount exceeds the allowed limits.');
+          throw new Error("Ramp amount exceeds the allowed limits.");
         }
       }
     },
-    [rampWithinLimits],
+    [rampWithinLimits]
   );
 }

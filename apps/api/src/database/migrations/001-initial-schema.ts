@@ -1,195 +1,195 @@
-import { DataTypes, QueryInterface } from 'sequelize';
+import { DataTypes, QueryInterface } from "sequelize";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create quote_tickets table
-  await queryInterface.createTable('quote_tickets', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    rampType: {
-      type: DataTypes.ENUM('on', 'off'),
+  await queryInterface.createTable("quote_tickets", {
+    createdAt: {
       allowNull: false,
-      field: 'ramp_type',
-    },
-    from: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    to: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    inputAmount: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'input_amount',
-    },
-    inputCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: false,
-      field: 'input_currency',
-    },
-    outputAmount: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'output_amount',
-    },
-    outputCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: false,
-      field: 'output_currency',
-    },
-    fee: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     expiresAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'expires_at',
+      field: "expires_at",
+      type: DataTypes.DATE
     },
-    status: {
-      type: DataTypes.ENUM('pending', 'consumed', 'expired'),
+    fee: {
       allowNull: false,
-      defaultValue: 'pending',
+      type: DataTypes.DECIMAL(38, 18)
+    },
+    from: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    inputAmount: {
+      allowNull: false,
+      field: "input_amount",
+      type: DataTypes.DECIMAL(38, 18)
+    },
+    inputCurrency: {
+      allowNull: false,
+      field: "input_currency",
+      type: DataTypes.STRING(8)
     },
     metadata: {
-      type: DataTypes.JSONB,
       allowNull: false,
+      type: DataTypes.JSONB
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    outputAmount: {
       allowNull: false,
-      field: 'created_at',
+      field: "output_amount",
+      type: DataTypes.DECIMAL(38, 18)
+    },
+    outputCurrency: {
+      allowNull: false,
+      field: "output_currency",
+      type: DataTypes.STRING(8)
+    },
+    rampType: {
+      allowNull: false,
+      field: "ramp_type",
+      type: DataTypes.ENUM("on", "off")
+    },
+    status: {
+      allowNull: false,
+      defaultValue: "pending",
+      type: DataTypes.ENUM("pending", "consumed", "expired")
+    },
+    to: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'updated_at',
-    },
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
   });
 
   // Create ramp_states table with all columns (including those from the second migration)
-  await queryInterface.createTable('ramp_states', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    type: {
-      type: DataTypes.ENUM('on', 'off'),
+  await queryInterface.createTable("ramp_states", {
+    createdAt: {
       allowNull: false,
-    },
-    quoteId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: 'quote_id',
-      references: {
-        model: 'quote_tickets',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'RESTRICT',
+      field: "created_at",
+      type: DataTypes.DATE
     },
     currentPhase: {
-      type: DataTypes.STRING(32),
       allowNull: false,
-      defaultValue: 'initial',
-      field: 'current_phase',
-    },
-    from: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    to: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    state: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-    },
-    phaseHistory: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: [],
-      field: 'phase_history',
+      defaultValue: "initial",
+      field: "current_phase",
+      type: DataTypes.STRING(32)
     },
     errorLogs: {
-      type: DataTypes.JSONB,
       allowNull: false,
       defaultValue: [],
-      field: 'error_logs',
+      field: "error_logs",
+      type: DataTypes.JSONB
     },
-    processingLock: {
-      type: DataTypes.JSONB,
+    from: {
       allowNull: false,
-      defaultValue: { locked: false, lockedAt: null },
-      field: 'processing_lock',
+      type: DataTypes.STRING(20)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    phaseHistory: {
+      allowNull: false,
+      defaultValue: [],
+      field: "phase_history",
+      type: DataTypes.JSONB
     },
     postCompleteState: {
-      type: DataTypes.JSONB,
       allowNull: false,
       defaultValue: {
         cleanup: {
-          cleanupCompleted: false,
           cleanupAt: null,
-          error: null,
-        },
+          cleanupCompleted: false,
+          error: null
+        }
       },
-      field: 'post_complete_state',
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'created_at',
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'updated_at',
-    },
-    unsignedTxs: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      field: 'unsigned_txs',
+      field: "post_complete_state",
+      type: DataTypes.JSONB
     },
     presignedTxs: {
-      type: DataTypes.JSONB,
       allowNull: true,
-      field: 'presigned_txs',
+      field: "presigned_txs",
+      type: DataTypes.JSONB
     },
+    processingLock: {
+      allowNull: false,
+      defaultValue: { locked: false, lockedAt: null },
+      field: "processing_lock",
+      type: DataTypes.JSONB
+    },
+    quoteId: {
+      allowNull: false,
+      field: "quote_id",
+      onDelete: "RESTRICT",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "quote_tickets"
+      },
+      type: DataTypes.UUID
+    },
+    state: {
+      allowNull: false,
+      type: DataTypes.JSONB
+    },
+    to: {
+      allowNull: false,
+      type: DataTypes.STRING(20)
+    },
+    type: {
+      allowNull: false,
+      type: DataTypes.ENUM("on", "off")
+    },
+    unsignedTxs: {
+      allowNull: false,
+      field: "unsigned_txs",
+      type: DataTypes.JSONB
+    },
+    updatedAt: {
+      allowNull: false,
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
   });
 
   // Create all indexes
   // From first migration
-  await queryInterface.addIndex('quote_tickets', ['from', 'to', 'expires_at'], {
-    name: 'idx_quote_chain_expiry',
+  await queryInterface.addIndex("quote_tickets", ["from", "to", "expires_at"], {
+    name: "idx_quote_chain_expiry",
     where: {
-      status: 'pending',
-    },
+      status: "pending"
+    }
   });
 
   // Note: This index is replaced by the one from the second migration with the same name
   // but we'll keep it here for completeness
-  await queryInterface.addIndex('ramp_states', ['current_phase'], {
-    name: 'idx_ramp_current_phase', // Renamed to match the second migration
+  await queryInterface.addIndex("ramp_states", ["current_phase"], {
+    name: "idx_ramp_current_phase" // Renamed to match the second migration
   });
 
-  await queryInterface.addIndex('ramp_states', ['quote_id'], {
-    name: 'idx_ramp_quote',
+  await queryInterface.addIndex("ramp_states", ["quote_id"], {
+    name: "idx_ramp_quote"
   });
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Drop all indexes
-  await queryInterface.removeIndex('ramp_states', 'idx_ramp_current_phase');
-  await queryInterface.removeIndex('ramp_states', 'idx_ramp_quote');
-  await queryInterface.removeIndex('quote_tickets', 'idx_quote_chain_expiry');
+  await queryInterface.removeIndex("ramp_states", "idx_ramp_current_phase");
+  await queryInterface.removeIndex("ramp_states", "idx_ramp_quote");
+  await queryInterface.removeIndex("quote_tickets", "idx_quote_chain_expiry");
 
   // Drop tables in reverse order
-  await queryInterface.dropTable('ramp_states');
-  await queryInterface.dropTable('quote_tickets');
+  await queryInterface.dropTable("ramp_states");
+  await queryInterface.dropTable("quote_tickets");
 }

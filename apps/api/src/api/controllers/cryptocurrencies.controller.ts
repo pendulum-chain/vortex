@@ -1,12 +1,12 @@
 import {
   GetSupportedCryptocurrenciesRequest,
   GetSupportedCryptocurrenciesResponse,
-  SupportedCryptocurrencyDetails,
-} from '@packages/shared';
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { getSupportedCryptocurrencies } from '../../config/cryptocurrencies.config';
-import { APIError } from '../errors/api-error';
+  SupportedCryptocurrencyDetails
+} from "@packages/shared";
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import { getSupportedCryptocurrencies } from "../../config/cryptocurrencies.config";
+import { APIError } from "../errors/api-error";
 
 /**
  * Get supported cryptocurrencies with detailed information based on network
@@ -17,7 +17,7 @@ import { APIError } from '../errors/api-error';
 export const getSupportedCryptocurrenciesHandler = async (
   req: Request<unknown, unknown, unknown, GetSupportedCryptocurrenciesRequest>,
   res: Response<GetSupportedCryptocurrenciesResponse | { error: string }>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { network } = req.query;
@@ -25,12 +25,12 @@ export const getSupportedCryptocurrenciesHandler = async (
     const cryptocurrencies: SupportedCryptocurrencyDetails[] = getSupportedCryptocurrencies(network);
 
     res.status(httpStatus.OK).json({
-      cryptocurrencies,
+      cryptocurrencies
     });
   } catch (error) {
     if (error instanceof APIError) {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: error.message,
+        error: error.message
       });
       return;
     }

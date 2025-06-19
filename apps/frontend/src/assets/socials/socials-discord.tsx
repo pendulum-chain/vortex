@@ -1,5 +1,5 @@
 const DiscordLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg fill="none" height="18" viewBox="0 0 18 18" width="18" xmlns="http://www.w3.org/2000/svg">
     <g clipPath="url(#clip0_293_6584)">
       <path d="M8.01212 9.49433C8.01212 10.2171 7.49426 10.8053 6.84317 10.8053C6.20227 10.8053 5.67422 10.2171 5.67422 9.49433C5.67422 8.77187 6.19208 8.18335 6.84317 8.18335C7.49919 8.18335 8.02231 8.77714 8.01212 9.49433Z" />
       <path d="M12.3339 9.49433C12.3339 10.2171 11.8213 10.8053 11.1649 10.8053C10.524 10.8053 9.99597 10.2171 9.99597 9.49433C9.99597 8.77187 10.5138 8.18335 11.1649 8.18335C11.8213 8.18335 12.3441 8.77714 12.3339 9.49433Z" />
@@ -7,7 +7,7 @@ const DiscordLogo = () => (
     </g>
     <defs>
       <clipPath id="clip0_293_6584">
-        <rect width="18" height="18" fill="white" />
+        <rect fill="white" height="18" width="18" />
       </clipPath>
     </defs>
   </svg>

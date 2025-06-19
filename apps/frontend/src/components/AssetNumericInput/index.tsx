@@ -1,14 +1,14 @@
-import { ChangeEvent, FC } from 'react';
-import { UseFormRegisterReturn } from 'react-hook-form';
-import { cn } from '../../helpers/cn';
-import { RampFormValues } from '../../hooks/ramp/schema';
-import { NumericInput } from '../NumericInput';
-import { AssetButton } from '../buttons/AssetButton';
+import type { ChangeEvent, FC } from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
+import { cn } from "../../helpers/cn";
+import type { RampFormValues } from "../../hooks/ramp/schema";
+import { AssetButton } from "../buttons/AssetButton";
+import { NumericInput } from "../NumericInput";
 
 // A helper function to determine the number of decimals based on the token symbol.
 // For now, it assumes that ETH-based tokens have 6 decimals and others have 2.
 function getMaxDecimalsForToken(tokenSymbol: string): number {
-  return tokenSymbol.toLowerCase().includes('eth') ? 4 : 2;
+  return tokenSymbol.toLowerCase().includes("eth") ? 4 : 2;
 }
 
 interface AssetNumericInputProps {
@@ -32,28 +32,23 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   ...rest
 }) => (
   <div
-    aria-readonly={rest.readOnly}
     className={cn(
-      'flex pl-2 py-1 mb-2 mt-1 items-center',
-      rest.readOnly ? 'pr-0.5' : 'input-vortex-primary border-1 border-neutral-300 w-full input input-ghost',
+      "mt-1 mb-2 flex items-center py-1 pl-2",
+      rest.readOnly ? "pr-0.5" : "input-vortex-primary input input-ghost w-full border-1 border-neutral-300"
     )}
   >
     <div className="flex items-center">
-      <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
+      <AssetButton assetIcon={assetIcon} onClick={onClick} tokenSymbol={tokenSymbol} />
     </div>
 
     {loading ? (
-      <div className="loading loading-bars loading-md ml-auto mr-4"></div>
+      <div className="loading loading-bars loading-md mr-4 ml-auto"></div>
     ) : (
       <NumericInput
+        additionalStyle={cn("text-right text-lg", rest.readOnly && "text-xl", rest.disabled && "input-disabled opacity-50")}
         loading={loading}
-        register={registerInput}
         maxDecimals={getMaxDecimalsForToken(tokenSymbol)}
-        additionalStyle={cn(
-          'text-right text-lg',
-          rest.readOnly && 'text-xl',
-          rest.disabled && 'opacity-50 input-disabled',
-        )}
+        register={registerInput}
         {...rest}
       />
     )}
