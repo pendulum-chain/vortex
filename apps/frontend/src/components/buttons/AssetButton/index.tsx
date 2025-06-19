@@ -18,12 +18,12 @@ export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled }: Asset
         " mt-0.5 flex h-8 cursor-pointer items-center rounded-full border border-blue-700 px-2 py-1 pr-3 text-base",
         disabled ? "cursor-not-allowed" : "hover:bg-blue-200"
       )}
+      disabled={disabled}
       onClick={onClick}
       type="button"
-      disabled={disabled}
     >
       <span className="mr-1 h-full rounded-full p-px">
-        <img src={icon} alt={assetIcon} className="h-full min-h-5 max-w-min" />
+        <img alt={assetIcon} className="h-full min-h-5 max-w-min" src={icon} />
       </span>
       <strong className="font-bold text-black">{tokenSymbol}</strong>
       <ChevronDownIcon className="w-6" />

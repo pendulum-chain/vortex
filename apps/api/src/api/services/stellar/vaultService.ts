@@ -61,11 +61,11 @@ export class VaultService {
               .map(event => parseEventRedeemRequest(event))
               .filter(event => event.redeemer === getAddressForFormat(senderAddress, this.apiComponents?.ss58Format));
 
-            if (event.length == 0) {
+            if (event.length === 0) {
               reject(new Error(`No redeem event found for account ${senderAddress}`));
             }
             // we should only find one event corresponding to the issue request
-            if (event.length != 1) {
+            if (event.length !== 1) {
               reject(new Error("Inconsistent amount of redeem request events for account"));
             }
             resolve(event[0]);

@@ -17,14 +17,14 @@ export const SearchInput = ({ set, placeholder, ...p }: SearchInputProps) => {
     >
       <MagnifyingGlassIcon className="mr-1 size-5 text-neutral-400" />
       <input
-        className="h-[3rem] w-full "
-        type="text"
-        placeholder={placeholder || t("components.searchInput.placeholder")}
-        name="search"
-        id="search"
-        onChange={e => set((e.target as HTMLInputElement).value)}
-        role="presentation"
         autoComplete="off"
+        className="h-[3rem] w-full "
+        id="search"
+        name="search"
+        onChange={e => set((e.target as HTMLInputElement).value)}
+        placeholder={placeholder || t("components.searchInput.placeholder")}
+        role="presentation"
+        type="text"
         {...p}
       />
     </label>

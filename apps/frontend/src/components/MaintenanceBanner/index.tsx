@@ -17,12 +17,12 @@ export const MaintenanceBanner: FC = () => {
     try {
       const date = new Date(dateTimeString);
       return date.toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-        timeZoneName: "short"
+        month: "short",
+        timeZoneName: "short",
+        year: "numeric"
       });
     } catch {
       return dateTimeString;

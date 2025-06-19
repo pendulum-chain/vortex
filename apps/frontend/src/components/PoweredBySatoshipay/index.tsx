@@ -7,12 +7,12 @@ export const PoweredBySatoshipay = () => {
   return (
     <p className="mr-1 flex items-center justify-center text-gray-500">
       <a
-        href="https://satoshipay.io"
-        target="_blank"
-        rel="noopener noreferrer"
         className="flex items-center gap-1 text-sm transition hover:opacity-80"
+        href="https://satoshipay.io"
+        rel="noopener noreferrer"
+        target="_blank"
       >
-        {t("pages.swap.developedBy")} <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
+        {t("pages.swap.developedBy")} <img alt="Satoshipay" className="h-4" src={satoshipayLogo} />
       </a>
     </p>
   );

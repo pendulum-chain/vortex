@@ -6,9 +6,9 @@ export const PitchSection = () => (
     <motion.h1
       className="text-center text-4xl text-black sm:text-5xl sm:leading-[3.8rem]"
       initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
       transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+      whileInView={{ opacity: 1, y: 0 }}
     >
       <Trans i18nKey="sections.pitch.title">
         Sell <strong className="text-primary">Stablecoins</strong> and receive <br className="hidden sm:block" /> the money
@@ -18,9 +18,9 @@ export const PitchSection = () => (
     <motion.p
       className="mt-4 text-center text-black sm:mt-10 sm:text-lg"
       initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, duration: 0.5 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: 0.2 }}
+      whileInView={{ opacity: 1, y: 0 }}
     >
       <Trans i18nKey="sections.pitch.description">
         Complete everything in one simple step. With our trusted local partners, <br className="hidden sm:block" /> enjoy fast,

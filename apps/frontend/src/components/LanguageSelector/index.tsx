@@ -2,12 +2,11 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { cn } from "../../helpers/cn";
-import { Language } from "../../translations/helpers";
-
 // Import country flag images
 import brazilFlag from "../../assets/countries/brazil.png";
 import usFlag from "../../assets/countries/english.png";
+import { cn } from "../../helpers/cn";
+import { Language } from "../../translations/helpers";
 
 interface LanguageButtonProps {
   selectedLanguage: Language;
@@ -22,17 +21,17 @@ const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: Languag
       "flex items-center gap-2 rounded-full bg-base-100 px-2 py-3 sm:px-4",
       disabled && "cursor-not-allowed opacity-50"
     )}
+    disabled={disabled}
     onClick={onClick}
     whileHover={{ scale: disabled ? 1 : 1.02 }}
     whileTap={{ scale: disabled ? 1 : 0.98 }}
-    disabled={disabled}
   >
     <img
-      src={selectedLanguage === Language.English ? usFlag : brazilFlag}
       alt={selectedLanguage === Language.English ? "English" : "Português"}
       className={cn("h-5 w-5", disabled && "opacity-50")}
+      src={selectedLanguage === Language.English ? usFlag : brazilFlag}
     />
-    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className={cn(disabled && "opacity-50")}>
+    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className={cn(disabled && "opacity-50")} transition={{ duration: 0.2 }}>
       <ChevronDownIcon className="ml-1 block h-4 w-4" />
     </motion.div>
   </motion.button>
@@ -48,25 +47,25 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
   <AnimatePresence>
     {isOpen && !disabled && (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
         className="absolute z-50 mt-2 w-48 whitespace-nowrap rounded-box bg-base-100 p-2 shadow-lg"
+        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
         layout
+        transition={{ duration: 0.2 }}
       >
         <button
-          onClick={() => onLanguageSelect(Language.English)}
           className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
+          onClick={() => onLanguageSelect(Language.English)}
         >
-          <img src={usFlag} alt="English" className="h-5 w-5" />
+          <img alt="English" className="h-5 w-5" src={usFlag} />
           <span>English</span>
         </button>
         <button
-          onClick={() => onLanguageSelect(Language.Portuguese_Brazil)}
           className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
+          onClick={() => onLanguageSelect(Language.Portuguese_Brazil)}
         >
-          <img src={brazilFlag} alt="Português" className="h-5 w-5" />
+          <img alt="Português" className="h-5 w-5" src={brazilFlag} />
           <span>Português</span>
         </button>
       </motion.div>
@@ -139,12 +138,12 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
     <div {...wrapperProps}>
       <div className={cn("relative mr-2", disabled && "pointer-events-none")} ref={dropdownRef}>
         <LanguageButton
-          selectedLanguage={currentLanguage}
+          disabled={disabled}
           isOpen={isOpen}
           onClick={() => setIsOpen(!isOpen)}
-          disabled={disabled}
+          selectedLanguage={currentLanguage}
         />
-        <LanguageDropdown isOpen={isOpen} onLanguageSelect={handleLanguageSelect} disabled={disabled} />
+        <LanguageDropdown disabled={disabled} isOpen={isOpen} onLanguageSelect={handleLanguageSelect} />
       </div>
     </div>
   );

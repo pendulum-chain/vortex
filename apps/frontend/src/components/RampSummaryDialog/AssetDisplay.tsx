@@ -12,6 +12,6 @@ export const AssetDisplay: FC<AssetDisplayProps> = ({ amount, symbol, iconSrc, i
     <span className="font-bold text-lg">
       {amount} {symbol}
     </span>
-    <img src={iconSrc} alt={iconAlt} className="h-8 w-8" />
+    <img alt={iconAlt} className="h-8 w-8" src={iconSrc} />
   </div>
 );

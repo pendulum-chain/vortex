@@ -10,13 +10,13 @@ import POLKADOT from "../../assets/trusted-by/polkadot.svg";
 import WEB3 from "../../assets/trusted-by/web3.svg";
 
 const trustedByImages = [
-  { src: POLKADOT, alt: "Polkadot logo" },
-  { src: ETHEREUM, alt: "Ethereum logo" },
-  { src: METAMASK, alt: "MetaMask logo" },
-  { src: WEB3, alt: "Web3 Foundation logo" },
-  { src: COINDESK, alt: "CoinDesk logo" },
-  { src: SEPA, alt: "SEPA logo" },
-  { src: PLUGNPLAY, alt: "PlugAndPlay logo" }
+  { alt: "Polkadot logo", src: POLKADOT },
+  { alt: "Ethereum logo", src: ETHEREUM },
+  { alt: "MetaMask logo", src: METAMASK },
+  { alt: "Web3 Foundation logo", src: WEB3 },
+  { alt: "CoinDesk logo", src: COINDESK },
+  { alt: "SEPA logo", src: SEPA },
+  { alt: "PlugAndPlay logo", src: PLUGNPLAY }
 ];
 
 interface ImageProps {
@@ -31,23 +31,23 @@ const Image = ({ src, alt, comingSoon }: ImageProps) => {
   return (
     <div className="relative flex items-center pt-4">
       <motion.img
-        src={src}
         alt={alt}
         className="h-[38px] max-w-[120px]"
         initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        src={src}
+        transition={{ duration: 0.2 }}
         viewport={{ once: true }}
         whileHover={{
-          scale: 1.02,
           rotate: [0, -1, 1, -1, 0],
+          scale: 1.02,
           transition: {
             rotate: {
-              repeat: Infinity,
-              duration: 0.9
+              duration: 0.9,
+              repeat: Infinity
             }
           }
         }}
-        transition={{ duration: 0.2 }}
+        whileInView={{ opacity: 1, y: 0 }}
       />
       {comingSoon && (
         <div className="absolute top-0 right-0 text-right text-blue-700 text-xs">{t("sections.trustedBy.comingSoon")}</div>
@@ -60,11 +60,11 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
   <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-1">
     {images.map((img, index) => (
       <motion.div
-        key={img.alt}
         initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        key={img.alt}
+        transition={{ delay: index * 0.1, duration: 0.5 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: index * 0.1 }}
+        whileInView={{ opacity: 1, y: 0 }}
       >
         <Image {...img} />
       </motion.div>

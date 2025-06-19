@@ -39,10 +39,10 @@ export const FailurePage = () => {
 
             <div className="flex flex-col space-y-2">
               <a
-                href={config.supportUrl}
-                target="_blank"
-                rel="noreferrer"
                 className="w-full rounded-md bg-blue-600 px-4 py-2 text-center font-medium text-white transition-colors hover:bg-blue-700"
+                href={config.supportUrl}
+                rel="noreferrer"
+                target="_blank"
               >
                 {t("pages.failure.contactSupport.url")}
               </a>

@@ -1,5 +1,5 @@
 import { WalletAccount } from "@talismn/connect-wallets";
-import { JSX, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, JSX, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { LocalStorageKeys, useLocalStorage } from "../../hooks/useLocalStorage";
 import { storageService } from "../../services/storage/local";
 import { handleWalletConnectDisconnect, initSelectedWallet } from "./helpers";
@@ -62,9 +62,9 @@ const PolkadotWalletStateProvider = ({ children }: { children: JSX.Element }) =>
 
   const providerValue = useMemo<PolkadotWalletState>(
     () => ({
-      walletAccount,
+      removeWalletAccount,
       setWalletAccount,
-      removeWalletAccount
+      walletAccount
     }),
     [removeWalletAccount, setWalletAccount, walletAccount]
   );

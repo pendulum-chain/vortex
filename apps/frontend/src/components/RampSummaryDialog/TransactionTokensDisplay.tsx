@@ -2,11 +2,11 @@ import { ArrowDownIcon } from "@heroicons/react/20/solid";
 import {
   BaseFiatTokenDetails,
   FiatTokenDetails,
-  OnChainTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  isStellarOutputTokenDetails
+  isStellarOutputTokenDetails,
+  OnChainTokenDetails
 } from "@packages/shared";
 import Big from "big.js";
 import { FC, useEffect, useState } from "react";
@@ -124,26 +124,26 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
-        iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
-        symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         amount={executionInput.quote.inputAmount}
+        iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIcon}
+        symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
       />
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={executionInput.quote.outputAmount}
-        symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
-        iconSrc={toIcon}
         iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
+        iconSrc={toIcon}
+        symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
       />
       <FeeDetails
-        fromToken={fromToken}
-        toToken={toToken}
-        partnerUrl={getPartnerUrl()}
+        destinationAddress={destinationAddress}
+        direction={rampDirection}
         exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
         feesCost={executionInput.quote.fee}
-        direction={rampDirection}
-        destinationAddress={destinationAddress}
+        fromToken={fromToken}
+        partnerUrl={getPartnerUrl()}
+        toToken={toToken}
       />
       <BRLOnrampDetails />
       {targetTimestamp !== null && (

@@ -1,4 +1,4 @@
-import { FiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, isFiatTokenDetails } from "@packages/shared";
+import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure } from "@packages/shared";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -51,9 +51,9 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         <p>{t("components.dialogs.RampSummaryDialog.quote")}</p>
         <p>
           <ExchangeRate
+            exchangeRate={Number(exchangeRate)}
             inputToken={isOfframp ? fromToken : toToken}
             outputToken={isOfframp ? toToken : fromToken}
-            exchangeRate={Number(exchangeRate)}
           />
         </p>
       </div>
@@ -65,7 +65,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
       )}
       <div className="flex justify-between">
         <p>{t("components.dialogs.RampSummaryDialog.partner")}</p>
-        <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+        <a className="text-blue-500 hover:underline" href={partnerUrl} rel="noopener noreferrer" target="_blank">
           {partnerUrl}
         </a>
       </div>

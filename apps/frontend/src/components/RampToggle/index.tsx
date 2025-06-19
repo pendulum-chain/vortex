@@ -34,16 +34,16 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
       </button>
 
       <motion.div
-        layoutId="rampToggleIndicator"
         className="absolute bottom-0 h-0.5 bg-blue-700"
+        layoutId="rampToggleIndicator"
         style={{
-          width: "50%",
-          left: activeDirection === RampDirection.ONRAMP ? "0%" : "50%"
+          left: activeDirection === RampDirection.ONRAMP ? "0%" : "50%",
+          width: "50%"
         }}
         transition={{
-          type: "spring",
           bounce: 0.2,
-          duration: 0.6
+          duration: 0.6,
+          type: "spring"
         }}
       />
     </div>

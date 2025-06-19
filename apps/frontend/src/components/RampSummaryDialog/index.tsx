@@ -35,12 +35,12 @@ export const RampSummaryDialog: FC = () => {
   const onClose = () => {
     resetRampState();
     fetchQuote({
-      rampType: isOnramp ? "on" : "off",
+      fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),
       onChainToken,
-      fiatToken,
-      selectedNetwork,
-      partnerId: partnerId === null ? undefined : partnerId // Handle null case
+      partnerId: partnerId === null ? undefined : partnerId, // Handle null case
+      rampType: isOnramp ? "on" : "off",
+      selectedNetwork
     });
   };
 
@@ -49,7 +49,7 @@ export const RampSummaryDialog: FC = () => {
     : t("components.dialogs.RampSummaryDialog.headerText.sell");
 
   const actions = signingBoxVisible ? (
-    <SigningBoxButton signatureState={signatureState} confirmations={confirmations} />
+    <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
   ) : (
     <RampSummaryButton />
   );
@@ -66,5 +66,5 @@ export const RampSummaryDialog: FC = () => {
     </>
   );
 
-  return <Dialog content={content} visible={visible} actions={actions} headerText={headerText} onClose={onClose} />;
+  return <Dialog actions={actions} content={content} headerText={headerText} onClose={onClose} visible={visible} />;
 };

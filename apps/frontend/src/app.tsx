@@ -3,9 +3,8 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { ToastPopover } from "./components/ToastPopover";
 import { Main } from "./pages/main";
-import { Language, getLanguageFromPath } from "./translations/helpers";
-
 import enTranslations from "./translations/en.json";
+import { getLanguageFromPath, Language } from "./translations/helpers";
 import ptTranslations from "./translations/pt.json";
 import "../App.css";
 
@@ -13,8 +12,8 @@ export function App() {
   const lng = getLanguageFromPath();
 
   i18n.use(initReactI18next).init({
-    lng,
     fallbackLng: "en",
+    lng,
     resources: {
       [Language.English]: {
         translation: enTranslations
