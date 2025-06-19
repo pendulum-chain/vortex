@@ -23,16 +23,16 @@ export const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitte
       </h2>
       <form className={cn("rating rating-lg mt-2.5 flex flex-row-reverse pb-5", isFormSubmitted && "rating-checked")}>
         <AnimatePresence>
-          <input type="radio" defaultChecked name="rating" className="hidden" />
+          <input className="hidden" defaultChecked name="rating" type="radio" />
           {ratings.filter(filterRatingsBasedOnUserInput).map((ratingValue, index) => (
             <motion.input
               className={cn("mask mask-star-2 bg-orange-400 transition", index !== 0 && "mr-2.5")}
-              value={ratingValue}
+              exit={{ rotate: 360, scale: 0, y: 300 }}
               key={ratingValue}
-              type="radio"
               name="rating"
               onClick={() => onSubmit(ratingValue)}
-              exit={{ scale: 0, y: 300, rotate: 360 }}
+              type="radio"
+              value={ratingValue}
             />
           ))}
         </AnimatePresence>

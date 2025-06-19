@@ -14,15 +14,15 @@ interface ImageProps {
 }
 
 const paymentImages = [
-  { src: bank, alt: "Bank", additionalClass: "!h-5" },
-  { src: SEPA, alt: "SEPA logo", additionalClass: "!h-4" },
-  { src: MASTERCARD, alt: "Mastercard logo", comingSoon: true },
-  { src: VISA, alt: "Visa logo", comingSoon: true }
+  { additionalClass: "!h-5", alt: "Bank", src: bank },
+  { additionalClass: "!h-4", alt: "SEPA logo", src: SEPA },
+  { alt: "Mastercard logo", comingSoon: true, src: MASTERCARD },
+  { alt: "Visa logo", comingSoon: true, src: VISA }
 ];
 
 const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
   <div className="items-normal flex flex-col text-center">
-    <img src={src} alt={alt} className={cn(comingSoon ? "h-[12px]" : "h-4", additionalClass)} />
+    <img alt={alt} className={cn(comingSoon ? "h-[12px]" : "h-4", additionalClass)} src={src} />
     {comingSoon && <div className="w-12 text-[7px] text-blue-700">Coming soon</div>}
   </div>
 );
@@ -44,12 +44,12 @@ export function PoweredBy() {
       <div className="flex items-center justify-center">
         <p className="mr-1 text-gray-500 text-xs">{t("components.footer.poweredBy")}</p>
         <a
-          href="https://www.vortexfinance.co"
-          target="_blank"
-          rel="noopener noreferrer"
           className="transition hover:opacity-80"
+          href="https://www.vortexfinance.co"
+          rel="noopener noreferrer"
+          target="_blank"
         >
-          <Image src={vortexLogo} alt="Vortex" additionalClass="!h-3" />
+          <Image additionalClass="!h-3" alt="Vortex" src={vortexLogo} />
         </a>
       </div>
     </section>

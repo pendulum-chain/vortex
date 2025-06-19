@@ -3,9 +3,9 @@ import { TransactionStatus } from "../RampHistory/types";
 
 export const StatusBadge: FC<{ status: TransactionStatus }> = ({ status }) => {
   const colors = {
-    success: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
     pending: "bg-yellow-100 text-yellow-800",
-    failed: "bg-red-100 text-red-800"
+    success: "bg-green-100 text-green-800"
   };
 
   return (

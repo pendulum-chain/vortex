@@ -19,7 +19,7 @@ export function FeeComparisonTable() {
     <div className="rounded-2xl bg-white p-4 pb-8 shadow-custom transition-all duration-300 hover:scale-[101%]">
       <FeeComparisonHeader amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
 
-      <FeeComparisonProviderList sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} amount={amount} />
+      <FeeComparisonProviderList amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
     </div>
   );
 }

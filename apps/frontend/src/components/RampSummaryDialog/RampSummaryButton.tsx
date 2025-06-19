@@ -2,9 +2,9 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
-  TokenType,
   getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault
+  getOnChainTokenDetailsOrDefault,
+  TokenType
 } from "@packages/shared";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -49,64 +49,64 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
 
     if ((isOnramp && isBRCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
-        text: t("components.dialogs.RampSummaryDialog.quoteExpired"),
-        icon: null
+        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.quoteExpired")
       };
     }
 
     // Add check for signing rejection
     if (signingRejected) {
       return {
-        text: t("components.dialogs.RampSummaryDialog.tryAgain"),
-        icon: null
+        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.tryAgain")
       };
     }
 
     if (submitButtonDisabled) {
       return {
-        text: t("components.swapSubmitButton.processing"),
-        icon: <Spinner />
+        icon: <Spinner />,
+        text: t("components.swapSubmitButton.processing")
       };
     }
 
     if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
       return {
-        text: t("components.dialogs.RampSummaryDialog.confirm"),
-        icon: null
+        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.confirm")
       };
     }
 
     if (isOfframp && rampState !== undefined) {
       return {
-        text: t("components.dialogs.RampSummaryDialog.processing"),
-        icon: <Spinner />
+        icon: <Spinner />,
+        text: t("components.dialogs.RampSummaryDialog.processing")
       };
     }
 
     if (isOnramp && isBRCodeReady) {
       return {
-        text: t("components.swapSubmitButton.confirmPayment"),
-        icon: null
+        icon: null,
+        text: t("components.swapSubmitButton.confirmPayment")
       };
     }
 
     if (isOfframp && isAnchorWithRedirect) {
       if (isSubmitted) {
         return {
-          text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage"),
-          icon: <Spinner />
+          icon: <Spinner />,
+          text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage")
         };
       } else {
         return {
-          text: t("components.dialogs.RampSummaryDialog.continueWithPartner"),
-          icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
+          text: t("components.dialogs.RampSummaryDialog.continueWithPartner")
         };
       }
     }
 
     return {
-      text: t("components.swapSubmitButton.processing"),
-      icon: <Spinner />
+      icon: <Spinner />,
+      text: t("components.swapSubmitButton.processing")
     };
   }, [
     submitButtonDisabled,
@@ -170,8 +170,8 @@ export const RampSummaryButton = () => {
 
   const buttonContent = useButtonContent({
     isSubmitted,
-    toToken: toToken as FiatTokenDetails,
-    submitButtonDisabled
+    submitButtonDisabled,
+    toToken: toToken as FiatTokenDetails
   });
 
   const onSubmit = () => {
@@ -202,10 +202,10 @@ export const RampSummaryButton = () => {
 
   return (
     <button
-      disabled={submitButtonDisabled}
       className="btn-vortex-primary btn rounded-xl"
-      style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}
+      disabled={submitButtonDisabled}
       onClick={onSubmit}
+      style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}
     >
       {buttonContent.icon}
       {buttonContent.icon && " "}

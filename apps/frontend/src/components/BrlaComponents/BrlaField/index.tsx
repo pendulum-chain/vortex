@@ -50,25 +50,25 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
 
   return (
     <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      className={className}
       exit={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: 20 }}
       transition={{
-        duration: 0.4,
+        damping: 15,
         delay: index * 0.15,
-        type: "spring",
+        duration: 0.4,
         stiffness: 300,
-        damping: 15
+        type: "spring"
       }}
     >
-      <label htmlFor={id} className="mb-1 block">
+      <label className="mb-1 block" htmlFor={id}>
         {label}
       </label>
       <Field
-        id={id}
-        register={register(id, { required: true, pattern: validationPattern })}
         className={cn("w-full p-2", errors[id] && "border border-red-500")}
+        id={id}
+        register={register(id, { pattern: validationPattern, required: true })}
         {...rest}
       />
       {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}

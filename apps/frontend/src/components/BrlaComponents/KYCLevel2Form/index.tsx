@@ -21,12 +21,12 @@ async function uploadFileAsBuffer(file: File, url: string) {
   const uint8 = new Uint8Array(arrayBuffer);
 
   const res = await fetch(url, {
-    method: "PUT",
+    body: arrayBuffer,
     headers: {
-      "Content-Type": file.type,
-      "Content-Length": String(uint8.length)
+      "Content-Length": String(uint8.length),
+      "Content-Type": file.type
     },
-    body: arrayBuffer
+    method: "PUT"
   });
 
   if (!res.ok) {
@@ -107,8 +107,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
     setLoading(true);
     try {
       const response = await BrlaService.startKYC2({
-        taxId,
-        documentType: docType
+        documentType: docType,
+        taxId
       });
 
       const uploads: Promise<void>[] = [];
@@ -153,17 +153,17 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
     <label className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-blue-500">
       <Icon className="mb-2 h-12 w-12 text-gray-400" />
       <span className="mb-1 text-gray-600">{label}</span>
-      <input type="file" accept=".png,.jpeg,.jpg,.pdf" onChange={onChange} className="hidden" />
+      <input accept=".png,.jpeg,.jpg,.pdf" className="hidden" onChange={onChange} type="file" />
       {valid && <CheckCircleIcon className="absolute top-2 right-2 h-6 w-6 text-green-500" />}
     </label>
   );
 
   return (
     <motion.div
-      initial={{ scale: 0.95, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      animate={{ opacity: 1, scale: 1 }}
       className="mx-4 mt-8 mb-4 rounded-lg bg-white px-4 pt-6 pb-8 shadow-custom md:mx-auto md:w-96"
+      initial={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.3 }}
     >
       <h2 className="mb-6 text-center font-semibold text-2xl text-blue-700">{t("components.documentUpload.title")}</h2>
       <p className="mb-4 text-center text-gray-600">{t("components.documentUpload.description")}</p>
@@ -205,13 +205,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
       {error && <p className="mt-4 text-center text-red-500">{error}</p>}
 
       <div className="mt-8 flex gap-3">
-        <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick} disabled={loading}>
+        <button className="btn-vortex-primary-inverse btn flex-1" disabled={loading} onClick={onBackClick} type="button">
           {t("components.documentUpload.buttons.back")}
         </button>
         <button
-          type="button"
           className="btn-vortex-primary btn flex-1"
           onClick={handleSubmit}
+          type="button"
           {...buttonProps}
           disabled={buttonProps.disabled || isSubmitDisabled}
         >

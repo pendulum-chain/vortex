@@ -11,18 +11,18 @@ export const PolkadotConnectWallet = ({ customStyles, hideIcon }: { customStyles
   return (
     <>
       <button
+        className={cn("btn group rounded-3xl", customStyles || "btn-vortex-secondary")}
         onClick={() => {
           setShowPolkadotDialog(true);
         }}
         type="button"
-        className={cn("btn group rounded-3xl", customStyles || "btn-vortex-secondary")}
       >
         <p className="flex">
           {t("components.dialogs.connectWallet.connect")} <span className="hidden lg:ml-1 lg:block">Wallet</span>
         </p>
         {hideIcon ? <></> : <PlayCircleIcon className="w-5 group-hover:text-pink-600" />}
       </button>
-      <PolkadotWalletSelectorDialog visible={showPolkadotDialog} onClose={() => setShowPolkadotDialog(false)} />
+      <PolkadotWalletSelectorDialog onClose={() => setShowPolkadotDialog(false)} visible={showPolkadotDialog} />
     </>
   );
 };

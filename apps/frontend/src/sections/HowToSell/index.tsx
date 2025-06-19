@@ -35,7 +35,7 @@ export const HowToSell = () => {
         <div className="relative flex justify-center">
           <div className="relative grid max-w-5xl grid-cols-1 xs:grid-cols-2 gap-8 lg:grid-cols-4">
             {steps.map((step, index) => (
-              <div key={step.id} className="group relative">
+              <div className="group relative" key={step.id}>
                 {index !== 0 && (
                   <>
                     <div className="-translate-x-1/2 absolute top-1/4 z-[0] hidden h-[1px] w-full bg-primary lg:block"></div>

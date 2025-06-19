@@ -15,9 +15,9 @@ export interface ClickablePublicKeyProps {
 export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
   <button
     className={`btn btn-ghost m-0 h-1 rounded p-1 ${props.className || ""}`}
+    onClick={props.onClick}
     style={props.inline ? { height: "inherit", minHeight: "0", padding: 0 } : {}}
     type="button"
-    onClick={props.onClick}
   >
     {props.icon ? (
       <>

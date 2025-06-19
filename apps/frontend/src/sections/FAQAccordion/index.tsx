@@ -6,34 +6,34 @@ export const FAQAccordion = () => {
 
   const FAQ_ITEMS = [
     {
+      answer: t("sections.faq.items.fees.answer"),
       id: "fees",
-      question: t("sections.faq.items.fees.question"),
-      answer: t("sections.faq.items.fees.answer")
+      question: t("sections.faq.items.fees.question")
     },
     {
+      answer: t("sections.faq.items.countries.answer"),
       id: "countries",
-      question: t("sections.faq.items.countries.question"),
-      answer: t("sections.faq.items.countries.answer")
+      question: t("sections.faq.items.countries.question")
     },
     {
+      answer: t("sections.faq.items.verification.answer"),
       id: "verification",
-      question: t("sections.faq.items.verification.question"),
-      answer: t("sections.faq.items.verification.answer")
+      question: t("sections.faq.items.verification.question")
     },
     {
+      answer: t("sections.faq.items.cryptocurrencies.answer"),
       id: "cryptocurrencies",
-      question: t("sections.faq.items.cryptocurrencies.question"),
-      answer: t("sections.faq.items.cryptocurrencies.answer")
+      question: t("sections.faq.items.cryptocurrencies.question")
     },
     {
+      answer: t("sections.faq.items.timing.answer"),
       id: "timing",
-      question: t("sections.faq.items.timing.question"),
-      answer: t("sections.faq.items.timing.answer")
+      question: t("sections.faq.items.timing.question")
     },
     {
+      answer: t("sections.faq.items.business.answer"),
       id: "business",
-      question: t("sections.faq.items.business.question"),
-      answer: t("sections.faq.items.business.answer")
+      question: t("sections.faq.items.business.question")
     }
   ];
 
@@ -44,7 +44,7 @@ export const FAQAccordion = () => {
       <div className="mt-6">
         <Accordion>
           {FAQ_ITEMS.map(({ id, question, answer }) => (
-            <AccordionItem value={id} key={id}>
+            <AccordionItem key={id} value={id}>
               <AccordionTrigger value={id}>{question}</AccordionTrigger>
               <AccordionContent value={id}>{answer}</AccordionContent>
             </AccordionItem>

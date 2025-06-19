@@ -9,6 +9,7 @@ import { Dialog } from "../Dialog";
 import { ConnectModalAccountsList } from "./AccountsList";
 import { PolkadotWalletSelectorDialogLoading } from "./PolkadotWalletSelectorDialogLoading";
 import { ConnectModalWalletsList } from "./WalletsList";
+
 interface PolkadotWalletSelectorDialogProps {
   visible: boolean;
   onClose: () => void;
@@ -21,7 +22,7 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
 
   const accountsContent = (
     <div className="collapse">
-      <input type="checkbox" checked={isAccountsCollapseOpen} onChange={() => setIsAccountsCollapseOpen(prev => !prev)} />
+      <input checked={isAccountsCollapseOpen} onChange={() => setIsAccountsCollapseOpen(prev => !prev)} type="checkbox" />
       <div className="collapse-title flex items-center justify-between pr-4">
         <p>{t("components.dialogs.polkadotWalletSelectorDialog.chooseAccount")}</p>
         <motion.div animate={{ rotate: isAccountsCollapseOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -36,16 +37,16 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
 
   const walletsContent = (
     <div className="collapse-open collapse">
-      <input type="checkbox" defaultChecked />
+      <input defaultChecked type="checkbox" />
       <div className="collapse-title">{t("components.dialogs.polkadotWalletSelectorDialog.selectWallet")}</div>
       <div className="collapse-content">
         <ConnectModalWalletsList
-          wallets={wallets}
           onClick={(wallet: Wallet) => {
             selectWallet(wallet);
             setIsAccountsCollapseOpen(true);
           }}
           onClose={onClose}
+          wallets={wallets}
         />
       </div>
     </div>
@@ -60,7 +61,6 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
 
   return loading ? (
     <Dialog
-      visible={visible}
       content={
         <PolkadotWalletSelectorDialogLoading selectedWallet={selectedWallet?.title || selectedWallet?.extensionName || ""} />
       }
@@ -68,16 +68,17 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
         selectWallet(undefined);
         onClose();
       }}
+      visible={visible}
     />
   ) : (
     <Dialog
-      visible={visible}
+      content={content}
       headerText={t("components.dialogs.polkadotWalletSelectorDialog.title")}
       onClose={() => {
         selectWallet(undefined);
         onClose();
       }}
-      content={content}
+      visible={visible}
     />
   );
 };

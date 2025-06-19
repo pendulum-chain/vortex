@@ -19,11 +19,11 @@ export const RampTerms = () => {
     <section className="mt-5 w-full">
       <TermsAndConditions
         key={termsAnimationKey}
-        toggleTermsChecked={toggleTermsChecked}
-        termsChecked={termsChecked}
-        termsAccepted={termsAccepted}
-        termsError={termsError}
         setTermsError={setTermsError}
+        termsAccepted={termsAccepted}
+        termsChecked={termsChecked}
+        termsError={termsError}
+        toggleTermsChecked={toggleTermsChecked}
       />
     </section>
   );

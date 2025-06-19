@@ -10,8 +10,8 @@ import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
 import { useKYCFormLocalStorage } from "./KYCForm/useKYCFormLocalStorage";
 import { DocumentUpload } from "./KYCLevel2Form";
-import { VerificationStatus } from "./VerificationStatus";
 import { useBrlaKycTaxIdLocalStorage } from "./useBrlaKycTaxIdLocalStorage";
+import { VerificationStatus } from "./VerificationStatus";
 
 export const PIXKYCForm = () => {
   const {
@@ -58,106 +58,106 @@ export const PIXKYCForm = () => {
   const pixformFields: BrlaFieldProps[] = [
     {
       id: ExtendedBrlaFieldOptions.TAX_ID,
+      index: 0,
       label: t("components.brlaExtendedForm.form.taxId"),
-      type: "text",
       required: true,
-      index: 0
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
+      index: 1,
       label: t("components.brlaExtendedForm.form.fullName"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.fullName"),
       required: true,
-      index: 1
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.PHONE,
+      index: 2,
       label: t("components.brlaExtendedForm.form.phoneNumber"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.phoneNumber"),
       required: true,
-      index: 2
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.CEP,
+      index: 3,
       label: "CEP",
-      type: "text",
       placeholder: "CEP",
       required: true,
-      index: 3
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.CITY,
+      index: 4,
       label: t("components.brlaExtendedForm.form.city"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.city"),
       required: true,
-      index: 4
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.STATE,
+      index: 5,
       label: t("components.brlaExtendedForm.form.state"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.state"),
       required: true,
-      index: 5
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.STREET,
+      index: 6,
       label: t("components.brlaExtendedForm.form.street"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.street"),
       required: true,
-      index: 6
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.NUMBER,
+      index: 7,
       label: t("components.brlaExtendedForm.form.number"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.number"),
       required: true,
-      index: 7
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.DISTRICT,
+      index: 8,
       label: t("components.brlaExtendedForm.form.district"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.district"),
       required: true,
-      index: 8
+      type: "text"
     },
     {
       id: ExtendedBrlaFieldOptions.BIRTHDATE,
+      index: 9,
       label: t("components.brlaExtendedForm.form.birthdate"),
-      type: "date",
       required: true,
-      index: 9
+      type: "date"
     }
   ];
 
   if (isValidCnpj(taxId)) {
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.COMPANY_NAME,
+      index: 10,
       label: t("components.brlaExtendedForm.form.companyName"),
-      type: "text",
       placeholder: t("components.brlaExtendedForm.form.companyName"),
       required: true,
-      index: 10
+      type: "text"
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.START_DATE,
+      index: 11,
       label: t("components.brlaExtendedForm.form.startDate"),
-      type: "date",
       required: true,
-      index: 11
+      type: "date"
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.PARTNER_CPF,
+      index: 12,
       label: t("components.brlaExtendedForm.form.partnerCpf"),
-      type: "text",
       required: true,
-      index: 12
+      type: "text"
     });
   }
 
@@ -165,14 +165,14 @@ export const PIXKYCForm = () => {
     return (
       <div className="relative">
         <VerificationStatus
-          status={verificationStatus}
-          message={statusMessage}
           failureMessage={failureMessage}
           isLevel2={rampKycLevel2Started}
-          onContinue={proceedWithRamp}
-          onBack={handleBackClick}
-          onRetry={handleRetryDocumentUpload}
           kycVerificationError={kycVerificationError}
+          message={statusMessage}
+          onBack={handleBackClick}
+          onContinue={proceedWithRamp}
+          onRetry={handleRetryDocumentUpload}
+          status={verificationStatus}
         />
       </div>
     );
@@ -182,11 +182,11 @@ export const PIXKYCForm = () => {
     return (
       <div className="relative">
         <DocumentUpload
+          onBackClick={handleBackClick}
           onSubmitHandler={() => {
             handleDocumentUploadSubmit();
             clearTaxId();
           }}
-          onBackClick={handleBackClick}
           taxId={taxId}
         />
       </div>
@@ -198,13 +198,13 @@ export const PIXKYCForm = () => {
       <KYCForm
         fields={pixformFields}
         form={kycForm}
-        onSubmit={async formData => {
-          await handleKYCFormSubmit(formData);
-          clearStorage();
-        }}
         onBackClick={() => {
           handleBackClick();
           clearTaxId();
+          clearStorage();
+        }}
+        onSubmit={async formData => {
+          await handleKYCFormSubmit(formData);
           clearStorage();
         }}
       />

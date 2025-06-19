@@ -29,10 +29,10 @@ export const RampForm = () => {
         <PIXKYCForm />
       ) : (
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
+          animate={{ opacity: 1, scale: 1 }}
           className="relative mx-4 mt-8 mb-4 overflow-hidden rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
+          initial={{ opacity: 0, scale: 0.9 }}
+          transition={{ duration: 0.3 }}
         >
           <RampHistory />
           <section className="flex w-full justify-end pb-1">

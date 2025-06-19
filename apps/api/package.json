@@ -1,24 +1,7 @@
 {
-  "name": "vortex-backend",
-  "version": "1.0.0",
-  "description": "",
   "author": "Pendulum Chain",
-  "license": "MIT",
-  "engines": {
-    "node": ">=12"
-  },
-  "scripts": {
-    "build": "bun run swc src -d dist --strip-leading-paths",
-    "serve": "bun dist/index.js",
-    "start": "bun run build && bun run serve",
-    "dev": "bun --watch src/index.ts",
-    "test": "bun test",
-    "migrate": "bun -r @swc-node/register src/database/migrator.ts",
-    "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
-    "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
-    "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts"
-  },
   "dependencies": {
+    "@packages/shared": "workspace:*",
     "@pendulum-chain/api-solang": "^0.7.2",
     "@polkadot/api": "^13.2.1",
     "@polkadot/api-contract": "^13.2.1",
@@ -50,7 +33,6 @@
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.6",
     "sequelize-cli": "^6.6.2",
-    "@packages/shared": "workspace:*",
     "siwe": "^2.3.2",
     "stellar-sdk": "^13.1.0",
     "umzug": "^3.8.2",
@@ -59,6 +41,7 @@
     "web3": "^4.16.0",
     "winston": "^3.1.0"
   },
+  "description": "",
   "devDependencies": {
     "@pendulum-chain/types": "^1.1.1",
     "@polkadot/types": "^13.2.1",
@@ -91,5 +74,22 @@
     "nodemon": "^2.0.1",
     "prettier": "^2.8.7",
     "typescript": "^5.7.2"
-  }
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "license": "MIT",
+  "name": "vortex-backend",
+  "scripts": {
+    "build": "bun run swc src -d dist --strip-leading-paths",
+    "dev": "bun --watch src/index.ts",
+    "migrate": "bun -r @swc-node/register src/database/migrator.ts",
+    "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
+    "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
+    "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
+    "serve": "bun dist/index.js",
+    "start": "bun run build && bun run serve",
+    "test": "bun test"
+  },
+  "version": "1.0.0"
 }

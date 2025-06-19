@@ -1,8 +1,7 @@
+import { BundledPriceResult } from "@packages/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-
-import { BundledPriceResult } from "@packages/shared";
 import { RampDirection } from "../../../components/RampToggle";
 import { Skeleton } from "../../../components/Skeleton";
 import { RampParameters, useEventsContext } from "../../../contexts/events";
@@ -111,7 +110,7 @@ export function FeeProviderRow({
         <div className="ml-4 pb-1 text-green-700 text-sm italic">{t("sections.feeComparison.table.bestRate")}</div>
       )}
       <div className="flex w-full items-center justify-between">
-        <a href={provider.href} rel="noreferrer" target="_blank" className="ml-4 flex w-full grow items-center gap-4">
+        <a className="ml-4 flex w-full grow items-center gap-4" href={provider.href} rel="noreferrer" target="_blank">
           {provider.icon}
         </a>
         <div className="flex w-full grow items-center justify-center gap-4">

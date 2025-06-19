@@ -1,11 +1,10 @@
+import { KycFailureReason } from "@packages/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import { KycFailureReason } from "@packages/shared";
 import { storageKeys } from "../../../constants/localStorage";
 import { useToastMessage } from "../../../helpers/notifications";
-import { KycStatus, createSubaccount } from "../../../services/signingService";
+import { createSubaccount, KycStatus } from "../../../services/signingService";
 import { useTaxId } from "../../../stores/ramp/useRampFormStore";
 import { useRampActions, useRampKycLevel2Started } from "../../../stores/rampStore";
 import { isValidCnpj } from "../../ramp/schema";
@@ -27,10 +26,10 @@ const useStatusMessages = () => {
   const { t } = useTranslation();
   const STATUS_MESSAGES = useMemo(
     () => ({
+      ERROR: t("components.brlaExtendedForm.verificationStatus.error"),
       PENDING: t("components.brlaExtendedForm.verificationStatus.pending"),
-      SUCCESS: t("components.brlaExtendedForm.verificationStatus.success"),
       REJECTED: t("components.brlaExtendedForm.verificationStatus.rejected"),
-      ERROR: t("components.brlaExtendedForm.verificationStatus.error")
+      SUCCESS: t("components.brlaExtendedForm.verificationStatus.success")
     }),
     [t]
   );
@@ -65,7 +64,7 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
   const [verificationStatus, setVerificationStatus] = useState<{
     status: KycStatus;
     level: KycLevel;
-  }>({ status: KycStatus.PENDING, level: KycLevel.LEVEL_1 });
+  }>({ level: KycLevel.LEVEL_1, status: KycStatus.PENDING });
 
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
   const [failureMessage, setFailureMessage] = useState<string | undefined>(undefined);
@@ -77,7 +76,7 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
         if (prev.status === status && prev.level === level) {
           return prev;
         }
-        return { status, level };
+        return { level, status };
       });
       setStatusMessage(prev => (prev === message ? prev : message));
       const translatedFailureMsg = getTranslatedFailureReason(failureReason);
@@ -90,17 +89,17 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
     setVerificationStatus(prev =>
       prev.status === KycStatus.PENDING && prev.level === KycLevel.LEVEL_1
         ? prev
-        : { status: KycStatus.PENDING, level: KycLevel.LEVEL_1 }
+        : { level: KycLevel.LEVEL_1, status: KycStatus.PENDING }
     );
     setStatusMessage(prev => (prev === STATUS_MESSAGES.PENDING ? prev : STATUS_MESSAGES.PENDING));
   }, [STATUS_MESSAGES.PENDING]);
 
   return {
-    verificationStatus,
-    statusMessage,
     failureMessage,
+    resetToDefault,
+    statusMessage,
     updateStatus,
-    resetToDefault
+    verificationStatus
   };
 };
 
@@ -181,10 +180,10 @@ export function useKYCProcess() {
       const addressObject = {
         cep: formData.cep,
         city: formData.city,
-        street: formData.street,
-        number: formData.number,
         district: formData.district,
-        state: formData.state
+        number: formData.number,
+        state: formData.state,
+        street: formData.street
       };
 
       try {
@@ -196,21 +195,21 @@ export function useKYCProcess() {
 
           await createSubaccount({
             ...formData,
-            cpf: formData.partnerCpf,
-            cnpj: taxId,
             address: addressObject,
-            taxIdType: "CNPJ",
             birthdate: formData.birthdate.getTime(),
-            startDate: formData.startDate?.getTime()
+            cnpj: taxId,
+            cpf: formData.partnerCpf,
+            startDate: formData.startDate?.getTime(),
+            taxIdType: "CNPJ"
           });
         } else {
           await createSubaccount({
             ...formData,
-            cpf: taxId,
-            birthdate: formData.birthdate.getTime(),
             address: addressObject,
-            taxIdType: "CPF",
-            startDate: formData.startDate?.getTime()
+            birthdate: formData.birthdate.getTime(),
+            cpf: taxId,
+            startDate: formData.startDate?.getTime(),
+            taxIdType: "CPF"
           });
         }
 
@@ -317,17 +316,17 @@ export function useKYCProcess() {
   }, [fetchStatusError]);
 
   return {
-    verificationStatus,
-    statusMessage,
-    failureMessage,
-    kycVerificationError,
     cpfApiError,
-    handleFormSubmit,
+    failureMessage,
     handleBackClick,
+    handleFormSubmit,
+    isSubmitted,
+    kycVerificationError,
+    proceedWithRamp,
+    resetToDefault,
     setCpf,
     setIsSubmitted,
-    isSubmitted,
-    proceedWithRamp,
-    resetToDefault
+    statusMessage,
+    verificationStatus
   };
 }

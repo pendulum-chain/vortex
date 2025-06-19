@@ -60,19 +60,19 @@ export function RampFeeCollapse() {
   const quote = availableQuote
     ? availableQuote
     : {
-        rampType: "on",
-        inputAmount: 0,
-        outputAmount: 0,
-        inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
-        outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
         fee: {
-          total: "0",
-          network: "0",
-          vortex: "0",
           anchor: "0",
+          currency: fiatToken,
+          network: "0",
           partnerMarkup: "0",
-          currency: fiatToken
-        }
+          total: "0",
+          vortex: "0"
+        },
+        inputAmount: 0,
+        inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
+        outputAmount: 0,
+        outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
+        rampType: "on"
       };
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
@@ -120,11 +120,11 @@ export function RampFeeCollapse() {
         </div>
         <div className="collapse-content text-[15px]">
           {feeItems.map((item, index) => (
-            <div key={index} className="mt-2 flex justify-between">
+            <div className="mt-2 flex justify-between" key={index}>
               <div className="flex items-center ">
                 {item.label}{" "}
                 {item.tooltip && (
-                  <div data-tip={item.tooltip} className="tooltip tooltip-primary tooltip-top tooltip-sm">
+                  <div className="tooltip tooltip-primary tooltip-top tooltip-sm" data-tip={item.tooltip}>
                     <InformationCircleIcon className="ml-1 h-4 w-4" />
                   </div>
                 )}

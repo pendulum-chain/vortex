@@ -5,14 +5,14 @@ export type SpinnerTheme = "light" | "dark";
 
 export function Spinner({ size = "sm", theme = "light" }: { size?: SpinnerSize; theme?: SpinnerTheme }) {
   const sizeClasses = {
-    sm: "w-6 h-6",
+    lg: "w-10 h-10",
     md: "w-8 h-8",
-    lg: "w-10 h-10"
+    sm: "w-6 h-6"
   };
 
   const themeClasses = {
-    light: "border-white",
-    dark: "border-gray-600 "
+    dark: "border-gray-600 ",
+    light: "border-white"
   };
 
   return (

@@ -31,12 +31,12 @@ export function FeeComparisonProviderList({ sourceAssetSymbol, targetAssetSymbol
           <div key={provider.name}>
             <div className="my-4 w-full border-gray-200 border-b" />
             <FeeProviderRow
+              amountRaw={amount}
+              bestPrice={bestProvider.bestPrice}
+              isBestRate={provider.name === bestProvider.bestProvider}
+              isLoading={isLoadingPrices && provider.name !== "vortex"}
               provider={provider}
               result={providerResult}
-              isLoading={isLoadingPrices && provider.name !== "vortex"}
-              isBestRate={provider.name === bestProvider.bestProvider}
-              bestPrice={bestProvider.bestPrice}
-              amountRaw={amount}
               sourceAssetSymbol={sourceAssetSymbol}
               targetAssetSymbol={targetAssetSymbol}
             />

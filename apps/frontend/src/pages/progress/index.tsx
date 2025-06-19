@@ -1,9 +1,8 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
+import { isNetworkEVM, RampPhase } from "@packages/shared";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import { RampPhase, isNetworkEVM } from "@packages/shared";
 import { Box } from "../../components/Box";
 import { config } from "../../config";
 import { useEventsContext } from "../../contexts/events";
@@ -16,62 +15,62 @@ import { getMessageForPhase } from "./phaseMessages";
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
-  initial: 0,
-  fundEphemeral: 20,
+  assethubToPendulum: 0,
+  brlaPayoutOnMoonbeam: 0,
   brlaTeleport: 5 * 60,
-  moonbeamToPendulumXcm: 30,
-  subsidizePreSwap: 24,
-  nablaApprove: 24,
-  nablaSwap: 24,
-  distributeFees: 24,
-  subsidizePostSwap: 24,
-  pendulumToMoonbeam: 40,
-  pendulumToAssethub: 30,
-  squidRouterApprove: 10,
-  squidRouterSwap: 10,
-  squidRouterPay: 60,
 
   complete: 0,
-  timedOut: 0,
+  distributeFees: 24,
   failed: 0,
+  fundEphemeral: 20,
+  initial: 0,
 
   // The following are unused phases in the onramping process but are included for completeness.
   moonbeamToPendulum: 0,
-  assethubToPendulum: 0,
+  moonbeamToPendulumXcm: 30,
+  nablaApprove: 24,
+  nablaSwap: 24,
+  pendulumToAssethub: 30,
+  pendulumToMoonbeam: 40,
   spacewalkRedeem: 0,
+  squidRouterApprove: 10,
+  squidRouterPay: 60,
+  squidRouterSwap: 10,
+  stellarCreateAccount: 0,
   stellarPayment: 0,
-  brlaPayoutOnMoonbeam: 0,
-  stellarCreateAccount: 0
+  subsidizePostSwap: 24,
+  subsidizePreSwap: 24,
+  timedOut: 0
 };
 
 // The order of the phases is important for the progress bar.
 export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
-  initial: 0,
-  fundEphemeral: 20,
-  squidRouterApprove: 10,
-  squidRouterSwap: 10,
-  moonbeamToPendulum: 40,
   assethubToPendulum: 24,
-  distributeFees: 24,
-  subsidizePreSwap: 24,
-  nablaApprove: 24,
-  nablaSwap: 24,
-  subsidizePostSwap: 24,
-  spacewalkRedeem: 130,
-  stellarPayment: 6,
   brlaPayoutOnMoonbeam: 30,
-
-  complete: 0,
-  timedOut: 0,
-  failed: 0,
 
   // The following are unused phases in the offramping process but are included for completeness.
   brlaTeleport: 0,
+
+  complete: 0,
+  distributeFees: 24,
+  failed: 0,
+  fundEphemeral: 20,
+  initial: 0,
+  moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 0,
+  nablaApprove: 24,
+  nablaSwap: 24,
   pendulumToAssethub: 0,
   pendulumToMoonbeam: 0,
+  spacewalkRedeem: 130,
+  squidRouterApprove: 10,
+  squidRouterPay: 0,
+  squidRouterSwap: 10,
   stellarCreateAccount: 0,
-  squidRouterPay: 0
+  stellarPayment: 6,
+  subsidizePostSwap: 24,
+  subsidizePreSwap: 24,
+  timedOut: 0
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
@@ -148,51 +147,51 @@ const ProgressCircle: FC<{
   circumference: number;
 }> = ({ displayedPercentage, showCheckmark, circumference }) => (
   <motion.div
+    animate={{ opacity: 1, scale: 1 }}
     className="relative mt-12"
-    initial={{ scale: 0, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    transition={{ duration: 0.5, type: "spring", stiffness: 260, damping: 20 }}
+    initial={{ opacity: 0, scale: 0 }}
+    transition={{ damping: 20, duration: 0.5, stiffness: 260, type: "spring" }}
   >
     <svg className="h-[200px] w-[200px]" viewBox="0 0 200 200">
       <defs>
-        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="progressGradient" x1="0%" x2="100%" y1="0%" y2="0%">
           <stop offset="0%" stopColor="#60A5FA" />
           <stop offset="100%" stopColor="#3B82F6" />
         </linearGradient>
       </defs>
       <motion.circle
+        animate={{ pathLength: 1 }}
         cx="100"
         cy="100"
+        exit={{ pathLength: 0 }}
+        fill="none"
+        initial={{ pathLength: 0 }}
         r={CIRCLE_RADIUS}
         stroke="#E5E7EB"
         strokeWidth={CIRCLE_STROKE_WIDTH}
-        fill="none"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        exit={{ pathLength: 0 }}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       />
       <motion.circle
         cx="100"
         cy="100"
+        fill="none"
         r={CIRCLE_RADIUS}
         stroke="url(#progressGradient)"
-        strokeWidth={CIRCLE_STROKE_WIDTH}
-        fill="none"
-        transform="rotate(-90 100 100)"
         strokeDasharray={circumference}
         strokeDashoffset={circumference - (circumference * displayedPercentage) / 100}
+        strokeWidth={CIRCLE_STROKE_WIDTH}
         style={{ transition: "stroke-dashoffset 0.5s ease" }}
-        transition={{ duration: 0.8, ease: "easeInOut", delay: 0.2 }}
+        transform="rotate(-90 100 100)"
+        transition={{ delay: 0.2, duration: 0.8, ease: "easeInOut" }}
       />
     </svg>
     <div className="absolute top-0 left-0 flex h-full w-full items-center justify-center">
       {showCheckmark ? (
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", duration: 0.5 }}>
+        <motion.div animate={{ scale: 1 }} initial={{ scale: 0 }} transition={{ duration: 0.5, type: "spring" }}>
           <CheckIcon className="h-12 w-12 text-blue-700" />
         </motion.div>
       ) : (
-        <motion.span className="text-4xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+        <motion.span animate={{ opacity: 1 }} className="text-4xl" initial={{ opacity: 0 }} transition={{ delay: 0.5 }}>
           {Math.round(displayedPercentage)}%
         </motion.span>
       )}
@@ -215,7 +214,7 @@ const TransactionStatusBanner: FC = () => {
   return (
     <section className="flex items-center gap-4 rounded-lg border border-blue-200 bg-blue-50 p-5 shadow-sm">
       <div className="flex-shrink-0 rounded-full bg-blue-100 p-2">
-        <motion.div animate={{ opacity: [0.8, 1, 0.8] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+        <motion.div animate={{ opacity: [0.8, 1, 0.8] }} transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}>
           <ExclamationCircleIcon className="h-8 w-8 text-blue-600" />
         </motion.div>
       </div>
@@ -224,10 +223,10 @@ const TransactionStatusBanner: FC = () => {
         <p className="mt-1 text-gray-700 text-sm">
           {t("components.transactionStatusBanner.beforeUrl")}
           <a
-            href={config.supportUrl}
-            target="_blank"
-            rel="noreferrer"
             className="mx-1 font-medium text-blue-600 transition-colors hover:text-blue-800"
+            href={config.supportUrl}
+            rel="noreferrer"
+            target="_blank"
           >
             {t("components.transactionStatusBanner.url")}
           </a>
@@ -271,24 +270,24 @@ const ProgressContent: FC<ProgressContentProps> = ({
     <Box className="mt-4 flex flex-col items-center justify-center">
       <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
-        <ProgressCircle displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} circumference={circumference} />
+        <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
+          animate={{ opacity: 1, y: 0 }}
           className="my-3 font-bold text-base text-blue-700"
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
           {t("pages.progress.transactionInProgress")}
         </motion.h1>
         <motion.h1
+          animate={{ opacity: 1, y: 0 }}
           className="mb-3 text-base text-blue-700"
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
           {!isNetworkEVM(selectedNetwork) ? t("pages.progress.estimatedTimeAssetHub") : t("pages.progress.estimatedTimeEVM")}
         </motion.h1>
-        <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}>
+        <motion.p animate={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ delay: 1 }}>
           {message}
         </motion.p>
       </div>
@@ -372,8 +371,8 @@ export const ProgressPage = () => {
       <ProgressContent
         currentPhase={currentPhase}
         currentPhaseIndex={currentPhaseIndex}
-        rampPhaseRecords={rampPhaseRecords}
         message={message}
+        rampPhaseRecords={rampPhaseRecords}
         showIsDelayedWarning={showIsDelayedWarning}
       />
       <GotQuestions />
