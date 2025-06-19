@@ -11,36 +11,30 @@
     "enabled": true
   },
   "files": {
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/node_modules/",
+      "!**/lib/**",
+      "!**/types/**",
+      "!**/coverage/**",
+      "!**/gql/**",
+      "!**/signer-service/**",
+      "!**/api/dist/**",
+      "!**/apps/api/dist/**",
+      "!**/*.d.ts",
+      "!**/*.config.*",
+      "!**/apps/api/src/database/migrations/**",
+      "!**/*.test.ts",
+      "!**/*.test.tsx"
+    ],
     "maxSize": 8000000
   },
   "formatter": {
     "bracketSpacing": true,
     "enabled": true,
     "formatWithErrors": false,
-    "includes": [
-      "**",
-      "!**/dist/**",
-      "!**/build/**",
-      "!**/node_modules/",
-      "!**/docs/**/*",
-      "!**/coverage/**/*",
-      "!**/.lighthouseci/**/*",
-      "!**/*.yml",
-      "!**/*.sol",
-      "!**/bun.lockb",
-      "!**/package.json",
-      "!**/_redirects",
-      "!**/LICENSE",
-      "!**/.gitignore",
-      "!**/.prettierignore",
-      "!**/*.svg",
-      "!**/*.png",
-      "!**/*.webp",
-      "!**/*.jpg",
-      "!**/*.jpeg",
-      "!**/*.gif",
-      "!**/apps/api/src/database/migrations/**"
-    ],
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
@@ -62,22 +56,6 @@
   },
   "linter": {
     "enabled": true,
-    "includes": [
-      "**",
-      "!**/dist/**",
-      "!**/build/**",
-      "!**/node_modules/",
-      "!**/lib/**",
-      "!**/types/**",
-      "!**/coverage/**",
-      "!**/gql/**",
-      "!**/signer-service/**",
-      "!**/api/dist/**",
-      "!**/apps/api/dist/**",
-      "!**/*.d.ts",
-      "!**/*.config.*",
-      "!**/apps/api/src/database/migrations/**"
-    ],
     "rules": {
       "a11y": {
         "noRedundantAlt": "error",
@@ -144,7 +122,6 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.test.ts", "**/*.test.tsx"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -152,7 +129,6 @@
           }
         }
       }
-    },
-    { "includes": ["**/*"] }
+    }
   ]
 }
