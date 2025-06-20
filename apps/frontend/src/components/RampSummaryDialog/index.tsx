@@ -38,7 +38,7 @@ export const RampSummaryDialog: FC = () => {
       fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),
       onChainToken,
-      partnerId: partnerId === null ? undefined : partnerId, // Handle null case
+      partnerId: partnerId === null ? undefined : partnerId, // Handle null case,
       rampType: isOnramp ? "on" : "off",
       selectedNetwork
     });

@@ -1,5 +1,6 @@
 import {
   assetHubTokenConfig,
+  EvmNetworks,
   evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
@@ -168,6 +169,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
     }));
   }
 
+  selectedNetwork = selectedNetwork as EvmNetworks;
   return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
     assetIcon: value.networkAssetIcon,
     assetSymbol: value.assetSymbol,

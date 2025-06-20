@@ -9,7 +9,8 @@ import { BaseTokenDetails, PendulumDetails, TokenType } from "./base";
 export enum EvmToken {
   USDC = "usdc",
   USDT = "usdt",
-  USDCE = "usdce"
+  USDCE = "usdce",
+  ETH = "eth"
 }
 
 export enum UsdLikeEvmToken {
@@ -24,6 +25,7 @@ export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
   networkAssetIcon: string;
   network: Networks;
   erc20AddressSourceChain: EvmAddress;
+  isNative: boolean;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

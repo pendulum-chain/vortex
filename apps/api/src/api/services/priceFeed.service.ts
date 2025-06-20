@@ -251,7 +251,7 @@ export class PriceFeedService {
       MATIC: "matic-network"
     };
 
-    return tokenIdMap[currency as string] || null;
+    return tokenIdMap[currency.toUpperCase()] || null;
   }
 
   // Helper method to satisfy eslint for 'this' usage
