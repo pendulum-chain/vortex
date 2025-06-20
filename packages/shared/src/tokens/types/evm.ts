@@ -25,6 +25,7 @@ export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
   networkAssetIcon: string;
   network: Networks;
   erc20AddressSourceChain: EvmAddress;
+  isNative: boolean;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

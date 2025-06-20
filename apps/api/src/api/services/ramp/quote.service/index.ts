@@ -74,7 +74,6 @@ export class QuoteService extends BaseRampService {
         rampType: request.rampType,
         sourceOrDestination: request.from
       });
-      console.log("Bridge result for off-ramp:", bridgeQuote);
       inputAmountForNablaSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
     }
 

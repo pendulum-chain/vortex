@@ -8,6 +8,7 @@ import {
   isAssetHubTokenDetails,
   isEvmTokenDetails,
   isNetworkEVM,
+  Networks,
   nativeToDecimal,
   OnChainTokenDetails,
   OnChainTokenDetailsWithBalance
@@ -24,25 +25,8 @@ import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
 import { useVortexAccount } from "./useVortexAccount";
 
-// Native token details type
-interface NativeTokenDetails {
-  symbol: string;
-  name: string;
-  decimals: number;
-  balance: string;
-  isNative: true;
-}
-
-// Extended type that includes native tokens
-export type TokenDetailsWithBalance = OnChainTokenDetailsWithBalance | NativeTokenDetails;
-
-// Type guard to check if a token is a native token
-export function isNativeTokenDetails(token: TokenDetailsWithBalance): token is NativeTokenDetails {
-  return "isNative" in token && token.isNative === true;
-}
-
 // Hook to get EVM native token balance
-export const useEvmNativeBalance = (): NativeTokenDetails | null => {
+export const useEvmNativeBalance = (nativeToken: EvmTokenDetails | undefined): EvmTokenDetailsWithBalance | null => {
   const { address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const chainId = getNetworkId(selectedNetwork);
@@ -51,32 +35,31 @@ export const useEvmNativeBalance = (): NativeTokenDetails | null => {
     address: address as `0x${string}`,
     chainId: isNetworkEVM(selectedNetwork) ? chainId : undefined,
     query: {
-      enabled: !!address && isNetworkEVM(selectedNetwork)
+      enabled: !!nativeToken && !!address && isNetworkEVM(selectedNetwork)
     }
   });
 
   return useMemo(() => {
-    if (!balance || !isNetworkEVM(selectedNetwork)) return null;
+    if (!nativeToken || !balance || !isNetworkEVM(selectedNetwork)) return null;
 
     return {
-      balance: balance.formatted,
-      decimals: balance.decimals,
-      isNative: true as const,
-      name: balance.symbol,
-      symbol: balance.symbol
+      ...nativeToken,
+      balance: multiplyByPowerOfTen(Big(balance.value.toString()), -balance.decimals).toFixed(4, 0)
     };
-  }, [balance, selectedNetwork]);
+  }, [balance, selectedNetwork, nativeToken]);
 };
 
 // Hook to get AssetHub native DOT balance
-export const useAssetHubNativeBalance = (): NativeTokenDetails | null => {
-  const [nativeBalance, setNativeBalance] = useState<NativeTokenDetails | null>(null);
+export const useAssetHubNativeBalance = (
+  nativeToken: AssetHubTokenDetails | undefined
+): AssetHubTokenDetailsWithBalance | null => {
+  const [nativeBalance, setNativeBalance] = useState<AssetHubTokenDetailsWithBalance | null>(null);
   const { walletAccount } = usePolkadotWalletState();
   const { apiComponents: assetHubNode } = useAssetHubNode();
   const { selectedNetwork } = useNetwork();
 
   useEffect(() => {
-    if (!walletAccount || !assetHubNode || selectedNetwork !== "assethub") {
+    if (!nativeToken || !walletAccount || !assetHubNode || selectedNetwork !== "assethub") {
       setNativeBalance(null);
       return;
     }
@@ -94,14 +77,11 @@ export const useAssetHubNativeBalance = (): NativeTokenDetails | null => {
         };
 
         const freeBalance = accountData.data.free || 0;
-        const formattedBalance = nativeToDecimal(freeBalance, 10).toFixed(4, 0).toString();
+        const formattedBalance = nativeToDecimal(freeBalance, -nativeToken.decimals).toFixed(4, 0).toString();
 
         setNativeBalance({
-          balance: formattedBalance,
-          decimals: 10,
-          isNative: true as const,
-          name: "Polkadot",
-          symbol: "DOT"
+          ...nativeToken,
+          balance: formattedBalance
         });
       } catch (error) {
         console.error("Error fetching AssetHub native balance:", error);
@@ -110,7 +90,7 @@ export const useAssetHubNativeBalance = (): NativeTokenDetails | null => {
     };
 
     getNativeBalance();
-  }, [assetHubNode, walletAccount, selectedNetwork]);
+  }, [assetHubNode, walletAccount, selectedNetwork, nativeToken]);
 
   return nativeBalance;
 };
@@ -192,24 +172,28 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   return balances;
 };
 
-export const useOnchainTokenBalances = (tokens: (FiatTokenDetails | OnChainTokenDetails)[]): TokenDetailsWithBalance[] => {
+export const useOnchainTokenBalances = (
+  tokens: (FiatTokenDetails | OnChainTokenDetails)[]
+): OnChainTokenDetailsWithBalance[] => {
   const { selectedNetwork } = useNetwork();
 
   const evmTokens = useMemo(() => tokens.filter(isEvmTokenDetails) as EvmTokenDetailsWithBalance[], [tokens]);
+  const nativeEvmToken = useMemo(() => evmTokens.find(token => token.isNative), [evmTokens]);
   const substrateTokens = useMemo(() => tokens.filter(isAssetHubTokenDetails) as AssetHubTokenDetailsWithBalance[], [tokens]);
+  const nativeSubstrateToken = useMemo(() => substrateTokens.find(token => token.isNative), [substrateTokens]);
 
   const evmBalances = useEvmBalances(evmTokens);
   const substrateBalances = useAssetHubBalances(substrateTokens);
-  const evmNativeBalance = useEvmNativeBalance();
-  const assetHubNativeBalance = useAssetHubNativeBalance();
+  const evmNativeBalance = useEvmNativeBalance(nativeEvmToken);
+  const assetHubNativeBalance = useAssetHubNativeBalance(nativeSubstrateToken);
 
   return useMemo(() => {
-    const tokenBalances: TokenDetailsWithBalance[] = evmBalances.length ? evmBalances : substrateBalances;
+    const tokenBalances: OnChainTokenDetailsWithBalance[] = evmBalances.length ? evmBalances : substrateBalances;
 
     // Add native token balance based on the selected network
     if (isNetworkEVM(selectedNetwork) && evmNativeBalance) {
       return [evmNativeBalance, ...tokenBalances];
-    } else if (selectedNetwork === "assethub" && assetHubNativeBalance) {
+    } else if (selectedNetwork === Networks.AssetHub && assetHubNativeBalance) {
       return [assetHubNativeBalance, ...tokenBalances];
     }
 

@@ -1,6 +1,6 @@
 import { OnChainTokenDetails, OnChainTokenDetailsWithBalance } from "@packages/shared";
 import { useMemo } from "react";
-import { TokenDetailsWithBalance, useOnchainTokenBalances } from "./useOnchainTokenBalances";
+import { useOnchainTokenBalances } from "./useOnchainTokenBalances";
 
 export const useOnchainTokenBalance = ({ token }: { token: OnChainTokenDetails }): OnChainTokenDetailsWithBalance => {
   const tokens = useMemo(() => [token], [token]);

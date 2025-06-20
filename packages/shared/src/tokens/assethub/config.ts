@@ -11,6 +11,7 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
   [AssetHubToken.USDC]: {
     assetSymbol: "USDC",
     decimals: 6,
+    isNative: false,
     network: Networks.AssetHub,
     networkAssetIcon: "assethubUSDC",
     type: TokenType.AssetHub,
