@@ -1,4 +1,11 @@
-import { AccountMeta, FiatToken, getAddressForFormat, Networks, signUnsignedTransactions } from "@packages/shared";
+import {
+  AccountMeta,
+  FiatToken,
+  getAddressForFormat,
+  getOnChainTokenDetails,
+  Networks,
+  signUnsignedTransactions
+} from "@packages/shared";
 import { useCallback, useEffect } from "react";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
@@ -197,9 +204,7 @@ export const useRegisterRamp = () => {
               walletAddress: address
             };
 
-      console.log("Registering ramp with additional data:", additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-      console.log("Ramp process registered:", rampProcess);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
         if (!address) {
@@ -264,9 +269,7 @@ export const useRegisterRamp = () => {
   useEffect(() => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
-      !rampState?.userSigningMeta?.squidRouterApproveHash &&
-      !rampState?.userSigningMeta?.squidRouterSwapHash &&
-      !rampState?.userSigningMeta?.assetHubToPendulumHash;
+      !rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash;
 
     const shouldRequestSignatures =
       Boolean(rampState?.ramp) && // Ramp process data exists
@@ -324,8 +327,19 @@ export const useRegisterRamp = () => {
         throw new Error("Missing sorted transactions");
       }
 
+      const isNativeTokenTransfer = Boolean(
+        executionInput?.onChainToken && getOnChainTokenDetails(executionInput.network, executionInput.onChainToken)?.isNative
+      );
+
       for (const tx of sortedTxs) {
+        // Approve is not necessary when transferring the native token
         if (tx.phase === "squidRouterApprove") {
+          if (isNativeTokenTransfer) {
+            // We don't care about the approve transaction when transferring native tokens
+            // We set the signing phase to "login" as a hacky workaround to make sure that 1/1 is shown in the UI
+            setRampSigningPhase("login");
+            continue;
+          }
           setRampSigningPhase("started");
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase("signed");
@@ -405,7 +419,9 @@ export const useRegisterRamp = () => {
     showToast,
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
-    setSigningRejected
+    setSigningRejected,
+    executionInput?.network,
+    executionInput?.onChainToken
   ]);
 
   return {
