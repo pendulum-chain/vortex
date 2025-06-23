@@ -1,26 +1,24 @@
-import { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-
 import {
+  assetHubTokenConfig,
+  evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
+  getEnumKeyByStringValue,
+  moonbeamTokenConfig,
   Networks,
   OnChainToken,
   OnChainTokenDetails,
-  assetHubTokenConfig,
-  evmTokenConfig,
-  getEnumKeyByStringValue,
-  moonbeamTokenConfig,
   stellarTokenConfig
 } from "@packages/shared";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { isFiatTokenDisabled } from "../../config/tokenAvailability";
 
 import { useNetwork } from "../../contexts/network";
 import { useOnchainTokenBalances } from "../../hooks/useOnchainTokenBalances";
 import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampModalActions } from "../../stores/rampModalStore";
-import { useRampModalState } from "../../stores/rampModalStore";
+import { useRampModalActions, useRampModalState } from "../../stores/rampModalStore";
 import { Dialog } from "../Dialog";
 import { RampDirection } from "../RampToggle";
 import { SearchInput } from "../SearchInput";
@@ -46,10 +44,10 @@ export function PoolSelectorModal() {
 
   return (
     <Dialog
-      visible={isOpen}
-      onClose={closeTokenSelectModal}
-      headerText={t("components.dialogs.selectionModal.title")}
       content={content}
+      headerText={t("components.dialogs.selectionModal.title")}
+      onClose={closeTokenSelectModal}
+      visible={isOpen}
     />
   );
 }
@@ -102,10 +100,10 @@ function TokenSelectionList() {
 
   return (
     <div className="relative">
-      <SearchInput set={setFilter} placeholder={t("components.dialogs.selectionModal.searchPlaceholder")} />
+      <SearchInput placeholder={t("components.dialogs.selectionModal.searchPlaceholder")} set={setFilter} />
       <div className="mt-5 flex flex-col gap-2">
         {filteredDefinitions.map(token => (
-          <PoolListItem key={token.type} isSelected={selectedToken === token.type} onSelect={handleTokenSelect} token={token} />
+          <PoolListItem isSelected={selectedToken === token.type} key={token.type} onSelect={handleTokenSelect} token={token} />
         ))}
       </div>
     </div>
@@ -163,18 +161,18 @@ function useTokenDefinitions(filter: string) {
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
   if (selectedNetwork === Networks.AssetHub) {
     return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
-      type: key as OnChainToken,
-      assetSymbol: value.assetSymbol,
       assetIcon: value.networkAssetIcon,
-      details: value as OnChainTokenDetails
+      assetSymbol: value.assetSymbol,
+      details: value as OnChainTokenDetails,
+      type: key as OnChainToken
     }));
   }
 
   return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-    type: key as OnChainToken,
-    assetSymbol: value.assetSymbol,
     assetIcon: value.networkAssetIcon,
-    details: value as OnChainTokenDetails
+    assetSymbol: value.assetSymbol,
+    details: value as OnChainTokenDetails,
+    type: key as OnChainToken
   }));
 }
 
@@ -189,11 +187,11 @@ const getTokenDefinitionsForNetwork = (
     if (type === "from") {
       // @TODO: RESTRICT IT TO BRLA ONLY
       return Object.entries(moonbeamTokenConfig).map(([key, value]) => ({
-        type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
-        assetSymbol: value.fiat.symbol,
         assetIcon: value.fiat.assetIcon,
+        assetSymbol: value.fiat.symbol,
+        details: value as FiatTokenDetails,
         name: value.fiat.name,
-        details: value as FiatTokenDetails
+        type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
       }));
     }
 
@@ -204,11 +202,11 @@ const getTokenDefinitionsForNetwork = (
     return getOnChainTokensDefinitionsForNetwork(selectedNetwork);
   } else {
     return [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
-      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
-      assetSymbol: value.fiat.symbol,
       assetIcon: value.fiat.assetIcon,
+      assetSymbol: value.fiat.symbol,
+      details: value as FiatTokenDetails,
       name: value.fiat.name,
-      details: value as FiatTokenDetails
+      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
     }));
   }
 };

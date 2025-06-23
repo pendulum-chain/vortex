@@ -28,7 +28,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   <div
     className={cn(
       "mt-1 mb-2 flex items-center py-1 pl-2",
-      rest.readOnly ? "pr-0.5" : "input-vortex-primary input input-ghost w-full border-1 border-neutral-300"
+      rest.readOnly ? "pr-0.5" : "input-vortex-primary input input-ghost w-full border-1 border-neutral-300 hover:bg-gray-50"
     )}
   >
     <div className="flex items-center">

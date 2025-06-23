@@ -16,7 +16,7 @@ export const InterbankExchangeRate: FC<InterbankExchangeRateProps> = ({
   rate,
   inputCurrency,
   outputCurrency,
-  className = "text-center text-gray-600 text-sm",
+  className = "text-center text-gray-600 text-[15px]",
   asSpan = false
 }) => {
   const content = formatExchangeRateString(rate, inputCurrency, outputCurrency);

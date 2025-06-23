@@ -41,27 +41,27 @@ export const NumericInput = ({
     <div className="relative flex-grow">
       <input
         {...register}
+        autoCapitalize="none"
         autoComplete="off"
         autoCorrect="off"
-        autoCapitalize="none"
+        autoFocus={autoFocus}
         className={cn(
           "input h-full w-full border-0 bg-transparent px-4 focus:shadow-none focus:outline-none",
           additionalStyle,
           disabled && "opacity-0"
         )}
+        disabled={disabled}
+        inputMode="decimal"
         minLength={1}
         onChange={handleOnChange}
         onPaste={handleOnPaste}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"
         readOnly={readOnly}
-        disabled={disabled}
         spellCheck={false}
         step="any"
         type="text"
-        inputMode="decimal"
         value={defaultValue}
-        autoFocus={autoFocus}
       />
       {loading && (
         <span className="-translate-y-1/2 loading loading-bars loading-sm absolute top-1/2 right-3 text-primary"></span>
