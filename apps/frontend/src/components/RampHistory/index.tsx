@@ -5,9 +5,8 @@ import { useEffect } from "react";
 import { useRampHistory } from "../../hooks/useRampHistory";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useRampHistoryStore } from "../../stores/rampHistoryStore";
-
-import { TransactionItem } from "./TransactionItem";
 import { groupRampHistoryByMonth } from "./helpers";
+import { TransactionItem } from "./TransactionItem";
 import { TransactionGroup } from "./types";
 
 export function RampHistory() {
@@ -27,17 +26,17 @@ export function RampHistory() {
     <AnimatePresence>
       {isActive && (
         <motion.section
-          initial={{ x: "100%" }}
           animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ duration: 0.5 }}
           className="absolute top-0 right-0 bottom-0 left-0 z-50 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
+          exit={{ x: "100%" }}
+          initial={{ x: "100%" }}
+          transition={{ duration: 0.5 }}
         >
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <h1 className="font-bold text-3xl">History</h1>
             </div>
-            <button onClick={actions.toggleHistory} className="btn-vortex-accent cursor-pointer rounded-full p-2">
+            <button className="btn-vortex-accent cursor-pointer rounded-full p-2" onClick={actions.toggleHistory}>
               <XMarkIcon className="h-4 w-4" tabIndex={1} />
             </button>
           </div>
@@ -53,7 +52,7 @@ export function RampHistory() {
               </div>
             ) : (
               rampHistoryGroups.map(group => (
-                <div key={group.month} className="mb-6">
+                <div className="mb-6" key={group.month}>
                   <h2 className="mb-2 font-semibold text-gray-700 text-lg">{group.month}</h2>
                   {group.transactions.map(transaction => (
                     <TransactionItem key={transaction.id} transaction={transaction} />

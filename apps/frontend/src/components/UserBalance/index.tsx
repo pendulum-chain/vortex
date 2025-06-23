@@ -9,13 +9,7 @@ interface UserBalanceProps {
   className?: string;
 }
 
-const SimpleBalance = ({
-  token,
-  className
-}: {
-  token: OnChainTokenDetails;
-  className?: string;
-}) => {
+const SimpleBalance = ({ token, className }: { token: OnChainTokenDetails; className?: string }) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
   const onchainTokenBalance = onchainTokenBalanceRaw?.balance || "0";
 
@@ -26,13 +20,7 @@ const SimpleBalance = ({
   );
 };
 
-const FullBalance = ({
-  token,
-  onClick
-}: {
-  token: OnChainTokenDetails;
-  onClick: (amount: string) => void;
-}) => {
+const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: (amount: string) => void }) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
   const onchainTokenBalance = onchainTokenBalanceRaw?.balance || "0";
 
@@ -41,14 +29,14 @@ const FullBalance = ({
   if (!hasBalance) return null;
   return (
     <div className="mt-1 mr-0.5 flex items-center justify-end">
-      <img src={wallet} alt="Available" className="mr-0.5 h-5 w-5" />
+      <img alt="Available" className="mr-0.5 h-5 w-5" src={wallet} />
       <p>
         {onchainTokenBalance} {token.assetSymbol}
       </p>
       <button
-        className="ml-1 rounded-md bg-blue-100 px-1 text-primary hover:underline"
-        type="button"
+        className="ml-1 cursor-pointer rounded-md bg-blue-100 px-1 text-primary hover:underline"
         onClick={() => onClick(onchainTokenBalance)}
+        type="button"
       >
         Max
       </button>
@@ -60,5 +48,5 @@ export const UserBalance = ({ token, onClick, className }: UserBalanceProps) => 
   const { isDisconnected } = useVortexAccount();
 
   if (isDisconnected) return null;
-  return onClick ? <FullBalance token={token} onClick={onClick} /> : <SimpleBalance token={token} className={className} />;
+  return onClick ? <FullBalance onClick={onClick} token={token} /> : <SimpleBalance className={className} token={token} />;
 };

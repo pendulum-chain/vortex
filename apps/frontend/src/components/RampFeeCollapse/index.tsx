@@ -105,8 +105,10 @@ export function RampFeeCollapse() {
 
   return (
     <div className="flex flex-col gap-2 overflow-hidden">
-      <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
-      <QuoteRefreshProgress />
+      <div className="flex items-center justify-center px-4">
+        <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
+        <QuoteRefreshProgress />
+      </div>
       <div className="collapse-arrow collapse overflow-visible border border-blue-700">
         <input type="checkbox" />
         <div className="collapse-title min-h-0 px-4 py-2">
