@@ -21,6 +21,7 @@ import { SubaccountData } from '../brla/types';
 import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareMoneriumEvmOfframpTransactions } from '../transactions/moneriumEvmOfframpTransactions';
+import { prepareMoneriumEvmOnrampTransactions } from '../transactions/moneriumEvmOnrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { BaseRampService } from './base.service';
@@ -125,13 +126,28 @@ export class RampService extends BaseRampService {
         } else {
           ({ unsignedTxs, stateMeta } = await prepareMoneriumEvmOfframpTransactions({
             quote,
-            signingAccounts: normalizedSigningAccounts,
             userAddress: additionalData?.walletAddress,
             moneriumAuthToken: additionalData?.moneriumAuthToken,
           }));
         }
+      } else if (additionalData?.moneriumAuthToken) {
+        // If the property moneriumAuthToken is provided, this is a Monerium onramp.
+
+        if (!additionalData || additionalData.destinationAddress === undefined) {
+          throw new APIError({
+            status: httpStatus.BAD_REQUEST,
+            message: 'Parameter destinationAddress is required for Monerium onramp',
+          });
+        }
+
+        ({ unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+          quote,
+          signingAccounts: normalizedSigningAccounts,
+          destinationAddress: additionalData.destinationAddress,
+          moneriumAuthToken: additionalData?.moneriumAuthToken,
+        }));
       } else {
-        // validate we have the destination address
+        // validate we have the destination address and taxId
         if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
           throw new APIError({
             status: httpStatus.BAD_REQUEST,

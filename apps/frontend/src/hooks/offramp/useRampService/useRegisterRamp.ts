@@ -1,5 +1,7 @@
 import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from '@packages/shared';
+import { getWalletClient } from '@wagmi/core';
 import { useCallback, useEffect } from 'react';
+import { signTransaction } from 'viem/accounts';
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { useToastMessage } from '../../../helpers/notifications';
@@ -12,6 +14,7 @@ import {
 import { useMoneriumStore } from '../../../stores/moneriumStore';
 import { useRampExecutionInput, useRampStore, useSigningRejected } from '../../../stores/rampStore'; // Import useSigningRejected
 import { RampExecutionInput } from '../../../types/phases';
+import { wagmiConfig } from '../../../wagmiConfig';
 import { useVortexAccount } from '../../useVortexAccount';
 import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
 import { useSubmitRamp } from '../useSubmitRamp';
@@ -348,6 +351,7 @@ export const useRegisterRamp = () => {
       let squidRouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
       let moneriumOfframpSignature: string | undefined = undefined;
+      let moneriumOnrampSignature: string | undefined = undefined;
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
@@ -357,14 +361,17 @@ export const useRegisterRamp = () => {
         return;
       }
 
-      // If Monerium, prompt offramp message signature
-      if (authToken) {
+      // Monerium signatures.
+      // If Monerium offramp, prompt offramp message signature
+      if (authToken && rampState?.ramp?.type === 'off') {
         const offrampMessage = await MoneriumService.createRampMessage(
           rampState.quote.outputAmount,
           'THIS WILL BE THE IBAN',
         );
         moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
+
+      const walletClient = await getWalletClient(wagmiConfig);
 
       for (const tx of sortedTxs!) {
         if (tx.phase === 'squidRouterApprove') {
@@ -388,6 +395,11 @@ export const useRegisterRamp = () => {
             substrateWalletAccount,
           );
           setRampSigningPhase('finished');
+        } else if (tx.phase === 'moneriumOnrampInitialTransfer') {
+          setRampSigningPhase('started');
+          console.log(`Signing Monerium onramp transaction:`, tx);
+          moneriumOnrampSignature = await walletClient.signTransaction(tx.txData as any);
+          setRampSigningPhase('signed');
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
         }
@@ -399,6 +411,7 @@ export const useRegisterRamp = () => {
         squidRouterSwapHash,
         assetHubToPendulumHash,
         moneriumOfframpSignature,
+        moneriumOnrampSignature,
       };
 
       const updatedRampProcess = await RampService.updateRamp(

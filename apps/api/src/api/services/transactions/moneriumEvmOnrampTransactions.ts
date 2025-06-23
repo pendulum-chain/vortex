@@ -24,9 +24,13 @@ import {
   isOnChainTokenDetails,
 } from '@packages/shared';
 import Big from 'big.js';
+import { http, createPublicClient, encodeFunctionData } from 'viem';
+import { polygon } from 'viem/chains';
 import logger from '../../../config/logger';
+import erc20ABI from '../../../contracts/ERC20';
 import Partner from '../../../models/partner.model';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
+import { getMoneriumEvmDefaultMintAddress } from '../monerium';
 import { ApiManager } from '../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { StateMetadata } from '../phases/meta-state-types';
@@ -41,11 +45,19 @@ import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 
+const ERC20_EURE_POLYGON = '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6'; // EUR.e on Polygon
 /**
  * TODO: implement for Monerium prototype?
  */
 async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
   return '';
+}
+
+export interface MoneriumOnrampTransactionParams {
+  quote: QuoteTicketAttributes;
+  signingAccounts: AccountMeta[];
+  destinationAddress: string;
+  moneriumAuthToken: string;
 }
 
 /**
@@ -83,12 +95,12 @@ async function addFeeDistributionTransaction(
  * Main function to prepare all transactions for an on-ramp operation
  * Creates and signs all required transactions so they are ready to be submitted.
  */
-export async function prepareOnrampTransactions(
-  quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
-  destinationAddress: string,
-  taxId: string,
-): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+export async function prepareMoneriumEvmOnrampTransactions({
+  quote,
+  signingAccounts,
+  destinationAddress,
+  moneriumAuthToken,
+}: MoneriumOnrampTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -116,6 +128,11 @@ export async function prepareOnrampTransactions(
   }
   if (isAssetHubTokenDetails(outputTokenDetails)) {
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
+  }
+
+  const userMintAddress = await getMoneriumEvmDefaultMintAddress(moneriumAuthToken);
+  if (!userMintAddress) {
+    throw new Error('User mint address not found for Monerium onramp');
   }
 
   // Find required ephemeral accounts
@@ -151,6 +168,17 @@ export async function prepareOnrampTransactions(
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
   };
 
+  // Create initial user transaction that sends minted funds to ephemerals.
+  const initialTransferTxData = createOnrampUserTransaction(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
+
+  unsignedTxs.push({
+    txData: encodeEvmTransactionData(initialTransferTxData) as any,
+    phase: 'moneriumOnrampInitialTransfer',
+    network: Networks.Polygon,
+    nonce: 0,
+    signer: userMintAddress,
+  });
+
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
@@ -164,7 +192,7 @@ export async function prepareOnrampTransactions(
         rawAmount: inputAmountPostAnchorFeeRaw,
         outputTokenDetails,
         inputTokenDetails: {
-          erc20AddressSourceChain: '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6',
+          erc20AddressSourceChain: ERC20_EURE_POLYGON,
         } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp.
         fromNetwork: Networks.Polygon, // By design, EURC onramp starts from Polygon.
         toNetwork,
@@ -190,4 +218,30 @@ export async function prepareOnrampTransactions(
   }
 
   return { unsignedTxs, stateMeta };
+}
+
+async function createOnrampUserTransaction(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
+  const publicClient = createPublicClient({
+    chain: polygon,
+    transport: http(),
+  });
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    functionName: 'transfer',
+    args: [toAddress, amountRaw],
+  });
+
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    to: ERC20_EURE_POLYGON as `0x${string}`,
+    data: transferCallData as `0x${string}`,
+    value: '0',
+    gas: '100000',
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+  };
+
+  return txData;
 }

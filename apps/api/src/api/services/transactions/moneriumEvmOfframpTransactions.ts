@@ -29,7 +29,6 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
 export interface MoneriumOfframpTransactionParams {
   quote: QuoteTicketAttributes;
-  signingAccounts: AccountMeta[];
   userAddress?: string;
   moneriumAuthToken?: string;
 }
