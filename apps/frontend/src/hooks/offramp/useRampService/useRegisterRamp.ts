@@ -19,46 +19,28 @@ import { useVortexAccount } from '../../useVortexAccount';
 import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
 import { useSubmitRamp } from '../useSubmitRamp';
 
-const REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey';
-const START_KEY_LOCAL_STORAGE = 'rampStartKey';
+const RAMP_REGISTER_TRACE_KEY = 'rampRegisterTrace';
+const RAMP_SIGNING_TRACE_KEY = 'rampSigningTrace';
 
 /**
- * A utility hook to manage process locks using localStorage
- * Prevents multiple processes from running simultaneously
+ * A utility hook to manage signature traces using localStorage.
+ * This prevents a process from running more than once.
  */
-const useProcessLock = (lockKey: string) => {
-  // Checks if a lock exists and returns true if the process can proceed
-  const checkLock = useCallback(() => {
-    const existingLock = localStorage.getItem(lockKey);
-    if (existingLock !== null) {
-      console.log(`Process for ${lockKey} already started, skipping...`);
+const useSignatureTrace = (traceKey: string) => {
+  // Checks if a trace exists. If not, it creates one and allows the process to proceed.
+  const checkAndSetTrace = useCallback(() => {
+    const existingTrace = localStorage.getItem(traceKey);
+    if (existingTrace !== null) {
       return { canProceed: false };
     }
 
-    const processRef = new Date().toISOString();
-    localStorage.setItem(lockKey, processRef);
-    return { canProceed: true, processRef };
-  }, [lockKey]);
+    const traceRef = new Date().toISOString();
+    localStorage.setItem(traceKey, traceRef);
+    console.log(`Signature trace for ${traceKey} created.`);
+    return { canProceed: true };
+  }, [traceKey]);
 
-  // Verifies that the current process still owns the lock
-  const verifyLock = useCallback(
-    (processRef?: string) => {
-      const currentLock = localStorage.getItem(lockKey);
-      if (currentLock && currentLock !== processRef) {
-        console.log(`Process for ${lockKey} taken over by another process, skipping...`);
-        return false;
-      }
-      return true;
-    },
-    [lockKey],
-  );
-
-  // Releases the lock when the process is complete
-  const releaseLock = useCallback(() => {
-    localStorage.removeItem(lockKey);
-  }, [lockKey]);
-
-  return { checkLock, verifyLock, releaseLock };
+  return { checkAndSetTrace };
 };
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
@@ -109,26 +91,11 @@ export const useRegisterRamp = () => {
     }
   };
 
-  // Create a process lock for the registration process
-  const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
-
-  // Create a process lock for the signing process
-  const {
-    checkLock: checkSigningLock,
-    verifyLock: verifySigningLock,
-    releaseLock: releaseSigningLock,
-  } = useProcessLock(START_KEY_LOCAL_STORAGE);
+  const { checkAndSetTrace: checkAndSetRegisterTrace } = useSignatureTrace(RAMP_REGISTER_TRACE_KEY);
+  const { checkAndSetTrace: checkAndSetSigningTrace } = useSignatureTrace(RAMP_SIGNING_TRACE_KEY);
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
-    // Check if we can proceed with the registration process
-    const lockResult = checkLock();
-    if (!lockResult.canProceed) {
-      return;
-    }
-
-    const { processRef } = lockResult;
-
     const registerRampProcess = async () => {
       if (rampRegistered) {
         return;
@@ -144,11 +111,6 @@ export const useRegisterRamp = () => {
 
       if (!canRegisterRamp) {
         throw new Error('Cannot proceed with ramp registration, canRegisterRamp is false');
-      }
-
-      // Verify we still own the lock before proceeding
-      if (!verifyLock(processRef)) {
-        return;
       }
 
       if (!executionInput) {
@@ -183,6 +145,12 @@ export const useRegisterRamp = () => {
         },
       ];
 
+      if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.EURC && !authToken) {
+        // If this is an onramp with Monerium EURC, we need to wait for the auth token
+        console.log('Waiting for Monerium auth token before proceeding with ramp registration');
+        return; // Exit early, we will retry once the auth token is available
+      }
+
       if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
@@ -197,12 +165,18 @@ export const useRegisterRamp = () => {
 
       let additionalData: any = {};
 
-      if (executionInput.quote.rampType === 'on') {
+      if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           destinationAddress: address,
           taxId: executionInput.taxId,
         };
-      } else {
+      } else if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.EURC) {
+        additionalData = {
+          destinationAddress: address,
+          taxId: executionInput.taxId,
+          moneriumAuthToken: authToken,
+        };
+      } else if (executionInput.quote.rampType === 'off' && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           walletAddress: address,
           paymentData: executionInput.paymentData,
@@ -210,17 +184,22 @@ export const useRegisterRamp = () => {
           receiverTaxId: executionInput.taxId,
           pixDestination: executionInput.taxId,
         };
+      } else {
+        // For other ramps, we can use the address directly
+        additionalData = {
+          walletAddress: address,
+          paymentData: executionInput.paymentData,
+          taxId: executionInput.taxId,
+          receiverTaxId: executionInput.taxId,
+          moneriumAuthToken: authToken,
+        };
       }
 
-      // Add Monerium auth data if using Monerium for EUR
-      if (executionInput.fiatToken === FiatToken.EURC && authToken) {
-        additionalData.moneriumAuthToken = authToken;
-
-        // TODO: handle the additionalData object better
-        delete additionalData.paymentData;
+      // Create a signature trace for the registration process
+      const traceResult = checkAndSetRegisterTrace();
+      if (!traceResult.canProceed) {
+        return;
       }
-
-      console.log(`Registering ramp with additional data:`, additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
       console.log(`Ramp process registered:`, rampProcess);
 
@@ -258,28 +237,21 @@ export const useRegisterRamp = () => {
       });
     };
 
-    registerRampProcess()
-      .catch((error) => {
-        console.error(`Error registering ramp:`, error);
-      })
-      .finally(() => {
-        releaseLock();
-      });
+    registerRampProcess().catch((error) => {
+      console.error(`Error registering ramp:`, error);
+    });
   }, [
     address,
     canRegisterRamp,
     chainId,
-    checkLock,
+    checkAndSetRegisterTrace,
     executionInput,
     moonbeamApiComponents?.api,
     pendulumApiComponents?.api,
-    releaseLock,
     setRampRegistered,
     setRampState,
-    verifyLock,
     rampKycStarted,
     rampStarted,
-    releaseSigningLock,
     setSigningRejected,
     showToast,
     signingRejected,
@@ -308,22 +280,19 @@ export const useRegisterRamp = () => {
 
     if (
       !rampState ||
-      rampState?.ramp?.type === 'on' ||
       !shouldRequestSignatures ||
-      signingRejected ||
+      //signingRejected || //Testing remove
       waitForAuthToken
     ) {
       return; // Exit early if conditions aren't met
     }
 
-    // Check if we can proceed with the signing process
-    const lockResult = checkSigningLock();
-
-    if (!lockResult.canProceed) {
+    // Create a signature trace for the signing process
+    const traceResult = checkAndSetSigningTrace();
+    if (!traceResult.canProceed) {
+      console.log(`Ramp signing trace already exists, skipping user signing process.`);
       return;
     }
-
-    const { processRef } = lockResult;
     console.log(`Starting user signing process at ${new Date().toISOString()}`);
 
     // Now filter the transactions after passing the main guard
@@ -356,11 +325,6 @@ export const useRegisterRamp = () => {
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
-      // Verify we still own the lock
-      if (!verifySigningLock(processRef)) {
-        return;
-      }
-
       // Monerium signatures.
       // If Monerium offramp, prompt offramp message signature
       if (authToken && rampState?.ramp?.type === 'off') {
@@ -372,7 +336,7 @@ export const useRegisterRamp = () => {
       }
 
       const walletClient = await getWalletClient(wagmiConfig);
-
+      console.log(`Wallet client for signing:`, walletClient.account);
       for (const tx of sortedTxs!) {
         if (tx.phase === 'squidRouterApprove') {
           setRampSigningPhase('started');
@@ -398,7 +362,13 @@ export const useRegisterRamp = () => {
         } else if (tx.phase === 'moneriumOnrampInitialTransfer') {
           setRampSigningPhase('started');
           console.log(`Signing Monerium onramp transaction:`, tx);
-          moneriumOnrampSignature = await walletClient.signTransaction(tx.txData as any);
+
+          try {
+            moneriumOnrampSignature = await walletClient.signTransaction(tx.txData as any);
+          } catch (error) {
+            console.error(`Error signing Monerium onramp transaction:`, error);
+            throw new Error(`Failed to sign Monerium onramp transaction: ${error}`);
+          }
           setRampSigningPhase('signed');
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
@@ -440,20 +410,17 @@ export const useRegisterRamp = () => {
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
         setSigningRejected(true);
-      })
-      .finally(() => releaseSigningLock());
+      });
   }, [
     address,
     assethubApiComponents?.api,
     chainId,
-    checkSigningLock,
+    checkAndSetSigningTrace,
     rampStarted,
     rampState,
-    releaseSigningLock,
     setRampSigningPhase,
     setRampState,
     substrateWalletAccount,
-    verifySigningLock,
     showToast,
     signingRejected,
     ToastMessage.SIGNING_REJECTED,

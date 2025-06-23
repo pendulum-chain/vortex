@@ -136,7 +136,8 @@ export async function prepareMoneriumEvmOnrampTransactions({
   }
 
   // Find required ephemeral accounts
-  const polygonEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Pendulum);
+  // We use Moonbeam as the generic EVM chain.
+  const polygonEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
   if (!polygonEphemeralEntry) {
     throw new Error('Polygon ephemeral not found');
   }
@@ -169,7 +170,10 @@ export async function prepareMoneriumEvmOnrampTransactions({
   };
 
   // Create initial user transaction that sends minted funds to ephemerals.
-  const initialTransferTxData = createOnrampUserTransaction(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
+  const initialTransferTxData = await createOnrampUserTransaction(
+    inputAmountPostAnchorFeeRaw,
+    polygonEphemeralEntry.address,
+  );
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(initialTransferTxData) as any,
@@ -178,12 +182,11 @@ export async function prepareMoneriumEvmOnrampTransactions({
     nonce: 0,
     signer: userMintAddress,
   });
-
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     // Create transactions for ephemeral account where Monerium minting takes place
-    if (accountNetworkId === getNetworkId(Networks.Polygon)) {
+    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       // Initialize nonce counter for Polygon transactions
       let polygonAccountNonce = 0;
 
@@ -202,7 +205,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
       unsignedTxs.push({
         txData: encodeEvmTransactionData(approveData) as any,
         phase: 'squidRouterApprove',
-        network: Networks.Polygon,
+        network: Networks.Moonbeam,
         nonce: 0,
         signer: account.address,
       });
@@ -210,7 +213,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
       unsignedTxs.push({
         txData: encodeEvmTransactionData(swapData) as any,
         phase: 'squidRouterSwap',
-        network: Networks.Polygon,
+        network: Networks.Moonbeam,
         nonce: 1,
         signer: account.address,
       });

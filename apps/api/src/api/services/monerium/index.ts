@@ -17,7 +17,7 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
     const data: MoneriumResponse = await response.json();
 
     if (data.addresses && data.addresses.length > 0) {
-      const firstAddress = data.addresses[0].address;
+      const firstAddress = data.addresses[data.addresses.length - 1].address; // Ordered by creation date, so last is the most recent.
       return firstAddress;
     } else {
       console.log('No addresses found in the response.');

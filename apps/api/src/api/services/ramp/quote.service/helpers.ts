@@ -14,7 +14,7 @@ export const SUPPORTED_CHAINS: {
     to: ['pix', 'sepa', 'cbu'],
   },
   on: {
-    from: ['pix'],
+    from: ['pix', 'sepa'],
     to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
   },
 };
