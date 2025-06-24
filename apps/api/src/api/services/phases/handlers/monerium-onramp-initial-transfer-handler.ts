@@ -1,0 +1,116 @@
+import { Networks, RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
+import { getChainId } from '@wagmi/core';
+import { http, createPublicClient } from 'viem';
+import { polygon } from 'viem/chains';
+import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { BasePhaseHandler } from '../base-phase-handler';
+
+/**
+ * Handler for the squidRouter phase
+ */
+export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
+  private publicClient: ReturnType<typeof createPublicClient>;
+
+  constructor() {
+    super();
+    this.publicClient = createPublicClient({
+      chain: polygon,
+      transport: http(),
+    });
+  }
+
+  /**
+   * Get the phase name
+   */
+  public getPhaseName(): RampPhase {
+    return 'moneriumOnrampInitialTransfer';
+  }
+
+  /**
+   * Execute the phase
+   * @param state The current ramp state
+   * @returns The updated ramp state
+   */
+  protected async executePhase(state: RampState): Promise<RampState> {
+    logger.info(`Executing moneriumOnrampInitialTransfer phase for ramp ${state.id}`);
+
+    if (state.type === 'off') {
+      logger.info(`MoneriumOnrampInitialTransfer phase is not supported for off-ramp`);
+      return state;
+    }
+
+    try {
+      // Get the presigned transactions for this phase
+      const transferTransaction = this.getPresignedTransaction(state, 'moneriumOnrampInitialTransfer');
+
+      if (!transferTransaction) {
+        throw new Error('Missing presigned transactions for moneriumOnrampInitialTransfer phase');
+      }
+
+      // Under our current implementation, funds are transferred to an Ephemeral also on Polygon.
+      const chainId = getNetworkId(Networks.Polygon);
+
+      // Execute the transfer transaction
+      const transferHash = await this.executeTransaction(transferTransaction.txData as string);
+      logger.info(`Transfer transaction executed with hash: ${transferHash}`);
+
+      // Wait for the transfer transaction to be confirmed
+      await this.waitForTransactionConfirmation(transferHash, chainId);
+      logger.info(`Transfer transaction confirmed: ${transferHash}`);
+
+      // Transition to the next phase
+      return this.transitionToNextPhase(state, 'squidRouterSwap');
+    } catch (error: any) {
+      logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a transaction
+   * @param txData The transaction data
+   * @returns The transaction hash
+   */
+  private async executeTransaction(txData: string): Promise<string> {
+    try {
+      const txHash = await this.publicClient.sendRawTransaction({
+        serializedTransaction: txData as `0x${string}`,
+      });
+      return txHash;
+    } catch (error) {
+      logger.error('Error sending raw transaction', error);
+      throw new Error('Failed to send transaction');
+    }
+  }
+
+  /**
+   * Wait for a transaction to be confirmed
+   * @param txHash The transaction hash
+   * @param chainId The chain ID
+   */
+  private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
+    try {
+      const receipt = await this.publicClient.waitForTransactionReceipt({
+        hash: txHash as `0x${string}`,
+      });
+      if (!receipt || receipt.status !== 'success') {
+        throw new Error(`MoneriumOnrampInitialTransferHandler: Transaction ${txHash} failed or was not found`);
+      }
+    } catch (error) {
+      throw new Error(`MoneriumOnrampInitialTransferHandler: Error waiting for transaction confirmation: ${error}`);
+    }
+  }
+
+  private async getNonce(address: `0x${string}`): Promise<number> {
+    try {
+      // List all transactions for the address to get the nonce
+      return await this.publicClient.getTransactionCount({ address });
+    } catch (error) {
+      logger.error('Error getting nonce', error);
+      throw new Error('Failed to get transaction nonce');
+    }
+  }
+}
+
+export default new MonenriumOnrampInitialTransferHandler();

@@ -1,5 +1,13 @@
-import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from '@packages/shared';
-import { getWalletClient } from '@wagmi/core';
+import {
+  AccountMeta,
+  EvmTransactionData,
+  FiatToken,
+  Networks,
+  PresignedTx,
+  getAddressForFormat,
+  signUnsignedTransactions,
+} from '@packages/shared';
+import { getAccount, getWalletClient } from '@wagmi/core';
 import { useCallback, useEffect } from 'react';
 import { signTransaction } from 'viem/accounts';
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
@@ -320,7 +328,7 @@ export const useRegisterRamp = () => {
       let squidRouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
       let moneriumOfframpSignature: string | undefined = undefined;
-      let moneriumOnrampSignature: string | undefined = undefined;
+      let moneriumOnrampSignedTransaction: PresignedTx | undefined = undefined;
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
@@ -364,7 +372,19 @@ export const useRegisterRamp = () => {
           console.log(`Signing Monerium onramp transaction:`, tx);
 
           try {
-            moneriumOnrampSignature = await walletClient.signTransaction(tx.txData as any);
+            const evmTransaction = tx.txData as EvmTransactionData;
+            console.log(`EVM Transaction to sign:`, evmTransaction);
+            const signedTxData = await walletClient.signTransaction({
+              to: evmTransaction.to as `0x${string}`,
+              from: walletClient.account.address,
+              data: evmTransaction.data,
+              value: BigInt(evmTransaction.value),
+            });
+
+            moneriumOnrampSignedTransaction = {
+              ...tx,
+              txData: signedTxData,
+            };
           } catch (error) {
             console.error(`Error signing Monerium onramp transaction:`, error);
             throw new Error(`Failed to sign Monerium onramp transaction: ${error}`);
@@ -381,14 +401,12 @@ export const useRegisterRamp = () => {
         squidRouterSwapHash,
         assetHubToPendulumHash,
         moneriumOfframpSignature,
-        moneriumOnrampSignature,
       };
 
-      const updatedRampProcess = await RampService.updateRamp(
-        rampState.ramp!.id,
-        [], // No additional presigned transactions at this point
-        additionalData,
-      );
+      // Only additional presigned transaction if Monerium onramp
+      const extraPresignedTxs: PresignedTx[] = moneriumOnrampSignedTransaction ? [moneriumOnrampSignedTransaction] : [];
+
+      const updatedRampProcess = await RampService.updateRamp(rampState.ramp!.id, extraPresignedTxs, additionalData);
 
       setRampState({
         ...rampState,

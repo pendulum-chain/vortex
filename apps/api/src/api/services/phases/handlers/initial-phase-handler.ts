@@ -37,7 +37,10 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       }
     }
 
-    if (state.type === 'on') {
+    // State with a polygonEphemeralAddress indicates a monerium onramp.
+    if (state.type === 'on' && state.state.polygonEphemeralAddress) {
+      return this.transitionToNextPhase(state, 'brlaTeleport');
+    } else if (state.type === 'on') {
       return this.transitionToNextPhase(state, 'brlaTeleport');
     }
 
