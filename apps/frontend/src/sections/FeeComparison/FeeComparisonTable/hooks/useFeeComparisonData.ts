@@ -46,18 +46,14 @@ export function useFeeComparisonData(
     ...(activeOptions["1m"] as Omit<UseQueryOptions<AllPricesResponse, Error>, "queryKey" | "queryFn">)
   });
 
-  // Process provider prices
   const providerPrices = useMemo(() => {
     const prices: Record<string, Big> = {};
-
     prices["vortex"] = vortexPrice;
 
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
-        const typedResult = result as BundledPriceResult | undefined;
-        if (typedResult?.status === "fulfilled" && typedResult.value.quoteAmount) {
-          // Use quoteAmount which represents what the user will receive
-          prices[provider] = Big(typedResult.value.quoteAmount.toString());
+        if (result?.status === "fulfilled" && result.value.quoteAmount) {
+          prices[provider] = Big(result.value.quoteAmount.toString());
         }
       });
     }
