@@ -227,20 +227,9 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
-  // For offramps, all fees except for the anchor fee are paid out (-> deducted) before the swap.
-  // Thus, we need to adjust the input amount to account for all deducted fees.
-  const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.anchor,
-    quote.outputCurrency,
-    quote.inputCurrency
-  );
-  const totalFeeInInputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.total,
-    quote.outputCurrency,
-    quote.inputCurrency
-  );
-  const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-    new Big(quote.inputAmount).minus(totalFeeInInputCurrency).plus(anchorFeeInInputCurrency),
+  // The input amount for the Nabla swap was already calculated in the quote
+  const inputAmountForNablaSwapRaw = multiplyByPowerOfTen(
+    new Big(quote.metadata.inputAmountForNablaSwapDecimal),
     inputTokenPendulumDetails.pendulumDecimals
   ).toFixed(0, 0);
 
@@ -260,7 +249,7 @@ async function createNablaSwapTransactions(
   ).toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
-    inputAmountBeforeSwapRaw,
+    inputAmountForNablaSwapRaw,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
@@ -290,7 +279,7 @@ async function createNablaSwapTransactions(
   return {
     nextNonce,
     stateMeta: {
-      inputAmountBeforeSwapRaw,
+      inputAmountBeforeSwapRaw: inputAmountForNablaSwapRaw,
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions

@@ -65,6 +65,7 @@ export class QuoteService extends BaseRampService {
     );
 
     let inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+    console.log("inputAmountForNablaSwap after pre-Nabla fees:", inputAmountForNablaSwap.toFixed(4, 0));
 
     if (request.rampType === "off" && request.from !== "assethub") {
       // Check squidrouter rate and adjust the input amount accordingly
@@ -76,6 +77,7 @@ export class QuoteService extends BaseRampService {
       });
       inputAmountForNablaSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
     }
+    console.log("inputAmountForNablaSwap after squidrouter rate adjustment:", inputAmountForNablaSwap.toFixed(4, 0));
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -123,6 +125,7 @@ export class QuoteService extends BaseRampService {
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
+    console.log("Nabla swap output amount:", outputAmountOfframp);
 
     const {
       vortexFee,
@@ -173,10 +176,6 @@ export class QuoteService extends BaseRampService {
 
     if (request.rampType === "on" && request.to !== "assethub") {
       // Do a first call to get a rough estimate of network fees
-      console.log(
-        "Calculating EVM bridge and network fee for on-ramp to EVM... for amount",
-        nablaSwapResult.nablaOutputAmountRaw
-      );
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         finalEvmDestination: request.to,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
@@ -303,6 +302,7 @@ export class QuoteService extends BaseRampService {
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
       metadata: {
+        inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
         usdFeeStructure
