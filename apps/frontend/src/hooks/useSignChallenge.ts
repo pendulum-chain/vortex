@@ -1,10 +1,7 @@
-import { useCallback, useState } from "react";
-import { SignInMessage } from "../helpers/siweMessageFormatter";
-
-import { useEffect } from "react";
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../constants/constants";
-import { SIGNING_SERVICE_URL } from "../constants/constants";
+import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
 import { storageKeys } from "../constants/localStorage";
+import { SignInMessage } from "../helpers/siweMessageFormatter";
 import { useRampActions } from "../stores/rampStore";
 import { useVortexAccount } from "./useVortexAccount";
 
@@ -15,11 +12,11 @@ export interface SiweSignatureData {
 
 function createSiweMessage(address: string, nonce: string) {
   const siweMessage = new SignInMessage({
-    scheme: "https",
-    domain: window.location.host,
     address: address,
+    domain: window.location.host,
+    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).getTime(), // Constructor in ms.
     nonce,
-    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).getTime() // Constructor in ms.
+    scheme: "https"
   });
 
   return siweMessage.toMessage();
@@ -55,7 +52,7 @@ export function useSiweSignature() {
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
-      setSignPromise({ resolve, reject });
+      setSignPromise({ reject, resolve });
       setRampSigningPhase?.("login");
     });
   }, [setRampSigningPhase, signPromise]);
@@ -65,10 +62,10 @@ export function useSiweSignature() {
 
     try {
       const messageResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: address }),
         credentials: "include",
-        body: JSON.stringify({ walletAddress: address })
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
       });
 
       if (!messageResponse.ok) throw new Error("Failed to create message");
@@ -81,17 +78,17 @@ export function useSiweSignature() {
       const signature = await getMessageSignature(siweMessage);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nonce, signature, siweMessage }),
         credentials: "include",
-        body: JSON.stringify({ nonce, signature, siweMessage })
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
       });
 
       if (!validationResponse.ok) throw new Error("Failed to validate signature");
 
       const signatureData: SiweSignatureData = {
-        signatureSet: true,
-        expirationDate: message.expirationTime // Field is validated in the message. Should not be null when submitting.
+        expirationDate: message.expirationTime, // Field is validated in the message. Should not be null when submitting.
+        signatureSet: true
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));

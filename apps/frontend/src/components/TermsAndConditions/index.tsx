@@ -12,8 +12,8 @@ interface TermsAndConditionsProps {
 }
 
 const fadeOutAnimation = {
-  scale: [1, 1.05, 0],
   opacity: [1, 1, 0],
+  scale: [1, 1.05, 0],
   transition: { duration: 0.3 }
 };
 
@@ -29,17 +29,17 @@ const TermsAndConditionsContent = ({
   termsChecked,
   termsError
 }: TermsAndConditionsProps) => (
-  <motion.div key="terms-conditions" exit={fadeOutAnimation}>
+  <motion.div exit={fadeOutAnimation} key="terms-conditions">
     <div className="mb-5 text-sm" />
     <div className="flex text-sm">
       <input
-        type="checkbox"
-        className="checkbox checkbox-primary checkbox-sm"
         checked={termsChecked}
+        className="checkbox checkbox-primary checkbox-sm"
         onChange={() => {
           toggleTermsChecked();
           setTermsError(false);
         }}
+        type="checkbox"
       />
       <TermsText error={termsError} />
     </div>
@@ -51,16 +51,16 @@ const TermsText = ({ error }: { error: boolean }) => {
 
   return (
     <motion.span
-      className={cn("pl-2", error && "text-red-600")}
       animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
+      className={cn("pl-2", error && "text-red-600")}
     >
       {t("components.termsAndConditions.text")}{" "}
       <a
-        href="https://www.vortexfinance.co/terms-conditions"
         className={cn("link link-accent transition-all duration-300", error && "font-bold text-red-600")}
-        target="_blank"
+        href="https://www.vortexfinance.co/terms-conditions"
         rel="noreferrer"
         style={{ textDecoration: "underline" }}
+        target="_blank"
       >
         {t("components.termsAndConditions.link")}
       </a>

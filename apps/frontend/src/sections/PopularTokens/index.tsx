@@ -1,7 +1,6 @@
+import { getNetworkDisplayName, Networks } from "@packages/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-
-import { Networks, getNetworkDisplayName } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../../helpers/cn";
@@ -10,12 +9,12 @@ import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
 import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompatibility";
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
-  { name: "USDC", assetIcon: "usdc" },
-  { name: "USDC.e", assetIcon: "usdc" },
-  { name: "USDT", assetIcon: "usdt" },
-  { name: "BRLA", assetIcon: "brl" },
-  { name: "ARS", assetIcon: "ars" },
-  { name: "EURC", assetIcon: "eurc" }
+  { assetIcon: "usdc", name: "USDC" },
+  { assetIcon: "usdc", name: "USDC.e" },
+  { assetIcon: "usdt", name: "USDT" },
+  { assetIcon: "brl", name: "BRLA" },
+  { assetIcon: "ars", name: "ARS" },
+  { assetIcon: "eurc", name: "EURC" }
 ];
 
 const networks = Object.values(Networks).filter(
@@ -36,62 +35,50 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
 
   return (
     <motion.li
+      animate={{ scale }}
       className={cn(
         "flex items-center justify-center rounded-full px-4 py-2 shadow-lg",
         bgColor,
         onClick && "cursor-pointer active:scale-95 active:bg-gray-400"
       )}
+      onClick={onClick}
+      transition={{ duration: 1 }}
       whileHover={{
-        scale: 1.05,
         rotate: [0, -1, 1, -1, 0],
+        scale: 1.05,
         transition: {
           rotate: {
-            repeat: Infinity,
-            duration: rotationDuration
+            duration: rotationDuration,
+            repeat: Infinity
           }
         }
       }}
       whileTap={{ scale: 0.95 }}
-      animate={{ scale }}
-      transition={{ duration: 1 }}
-      onClick={onClick}
     >
-      <img src={icon} alt={label} className="mr-2 h-6 w-6" />
+      <img alt={label} className="mr-2 h-6 w-6" src={icon} />
       <span className="font-medium text-gray-900">{label}</span>
     </motion.li>
   );
 };
 
-const NetworkBadge = ({
-  network,
-  isAnimating
-}: {
-  network: Networks;
-  isAnimating: boolean;
-}) => {
+const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
   const networkIcon = useGetNetworkIcon(network);
   const { handleNetworkSelect } = useNetworkTokenCompatibility();
 
   return (
     <Badge
       icon={networkIcon}
-      label={getNetworkDisplayName(network)}
       isAnimating={isAnimating}
-      rotationDuration={0.5}
+      label={getNetworkDisplayName(network)}
       onClick={() => handleNetworkSelect(network, true)}
+      rotationDuration={0.5}
     />
   );
 };
 
-const TokenBadge = ({
-  token,
-  isAnimating
-}: {
-  token: { name: string; assetIcon: string };
-  isAnimating: boolean;
-}) => {
+const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
   const icon = useGetAssetIcon(token.assetIcon);
-  return <Badge icon={icon} label={token.name} isAnimating={isAnimating} rotationDuration={0.3} />;
+  return <Badge icon={icon} isAnimating={isAnimating} label={token.name} rotationDuration={0.3} />;
 };
 
 export function PopularTokens() {
@@ -101,8 +88,8 @@ export function PopularTokens() {
     type: "network" | "token";
     index: number;
   }>({
-    type: "network",
-    index: 0
+    index: 0,
+    type: "network"
   });
 
   useEffect(() => {
@@ -112,8 +99,8 @@ export function PopularTokens() {
       const newIndex = Math.floor(Math.random() * maxIndex);
 
       setAnimatingIndex({
-        type: isNetwork ? "network" : "token",
-        index: newIndex
+        index: newIndex,
+        type: isNetwork ? "network" : "token"
       });
     }, 2000);
 
@@ -129,9 +116,9 @@ export function PopularTokens() {
         <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {networks.map((network, index) => (
             <NetworkBadge
+              isAnimating={animatingIndex.type === "network" && index === animatingIndex.index}
               key={network}
               network={network}
-              isAnimating={animatingIndex.type === "network" && index === animatingIndex.index}
             />
           ))}
         </ul>
@@ -141,16 +128,16 @@ export function PopularTokens() {
         <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.tokens.title")}</h2>
         <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.tokens.description")}</p>
         <motion.ul
+          animate={{ opacity: 1, y: 0 }}
           className="mt-4 flex flex-wrap items-center justify-center gap-2"
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {tokens.map((token, index) => (
             <TokenBadge
+              isAnimating={animatingIndex.type === "token" && index === animatingIndex.index}
               key={index}
               token={token}
-              isAnimating={animatingIndex.type === "token" && index === animatingIndex.index}
             />
           ))}
         </motion.ul>

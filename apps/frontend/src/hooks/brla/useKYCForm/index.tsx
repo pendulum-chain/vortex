@@ -1,9 +1,8 @@
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
-
-import { useEffect } from "react";
 import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
 import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
 import { useRampStore } from "../../../stores/rampStore";
@@ -108,12 +107,12 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const kycFormSchema = createKycFormSchema(t);
 
   const kycForm = useForm<KYCFormData>({
-    resolver: yupResolver(kycFormSchema),
-    mode: "onBlur",
     defaultValues: {
       ...getEnumInitialValues(ExtendedBrlaFieldOptions),
       [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || ""
-    }
+    },
+    mode: "onBlur",
+    resolver: yupResolver(kycFormSchema)
   });
 
   const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
@@ -128,8 +127,8 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   useEffect(() => {
     if (cpfApiError) {
       kycForm.setError(ExtendedBrlaFieldOptions.TAX_ID, {
-        type: "invalidTaxId",
-        message: t("components.brlaExtendedForm.kycFailureReasons.invalidTaxId")
+        message: t("components.brlaExtendedForm.kycFailureReasons.invalidTaxId"),
+        type: "invalidTaxId"
       });
     } else {
       if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === "invalidTaxId") {

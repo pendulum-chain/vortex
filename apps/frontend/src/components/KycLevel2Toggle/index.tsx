@@ -1,5 +1,6 @@
 import { BrlaKYCDocType } from "@packages/shared";
 import { motion } from "motion/react";
+
 interface KycLevel2ToggleProps {
   activeDocType: BrlaKYCDocType;
   onToggle: (docType: BrlaKYCDocType) => void;
@@ -27,16 +28,16 @@ export const KycLevel2Toggle = ({ activeDocType, onToggle }: KycLevel2ToggleProp
       </button>
 
       <motion.div
-        layoutId="kycLevel2ToggleIndicator"
         className="absolute bottom-0 h-0.5 bg-blue-700"
+        layoutId="kycLevel2ToggleIndicator"
         style={{
-          width: "50%",
-          left: activeDocType === BrlaKYCDocType.RG ? "0%" : "50%"
+          left: activeDocType === BrlaKYCDocType.RG ? "0%" : "50%",
+          width: "50%"
         }}
         transition={{
-          type: "spring",
           bounce: 0.2,
-          duration: 0.6
+          duration: 0.6,
+          type: "spring"
         }}
       />
     </div>

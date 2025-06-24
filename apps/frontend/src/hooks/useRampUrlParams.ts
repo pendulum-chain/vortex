@@ -112,12 +112,12 @@ export const useRampUrlParams = (): RampUrlParams => {
       ramp === RampDirection.OFFRAMP ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
 
     return {
-      ramp,
-      network: getNetworkFromParam(networkParam),
       from,
-      to,
       fromAmount: inputAmountParam || fromAmount || undefined,
-      partnerId: partnerIdParam || undefined
+      network: getNetworkFromParam(networkParam),
+      partnerId: partnerIdParam || undefined,
+      ramp,
+      to
     };
   }, [params, rampDirection, selectedNetwork]);
 

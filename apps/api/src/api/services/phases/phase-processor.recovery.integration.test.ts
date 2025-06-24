@@ -32,12 +32,12 @@ const filePath = path.join(__dirname, "failedRampStateRecovery.json");
 beforeAll(() => {
   rampState = {
     ...RAMP_STATE_RECOVERY,
+    reload: async function () {
+      return rampState;
+    },
     update: async function (updateData: RampStateUpdateData, _options?: unknown) {
       rampState = { ...rampState, ...updateData } as unknown as RampState;
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
-      return rampState;
-    },
-    reload: async function () {
       return rampState;
     }
   } as unknown as RampState;
@@ -53,12 +53,12 @@ RampState.update = mock(async function (updateData: RampStateUpdateData, _option
 RampState.findByPk = mock(async (_id: string) => {
   return {
     ...rampState,
+    reload: async function (_options?: unknown) {
+      return rampState;
+    },
     update: async function (updateData: RampStateUpdateData, _options?: unknown) {
       rampState = { ...rampState, ...updateData } as unknown as RampState;
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
-      return rampState;
-    },
-    reload: async function (_options?: unknown) {
       return rampState;
     }
   };
@@ -67,16 +67,16 @@ RampState.findByPk = mock(async (_id: string) => {
 RampState.create = mock(async (data: RampStateCreationAttributes) => {
   rampState = {
     ...data,
-    id: data.id || "test-recovery-id",
     createdAt: new Date(),
-    updatedAt: new Date(),
+    id: data.id || "test-recovery-id",
+    reload: async function (_options?: unknown) {
+      return rampState;
+    },
     update: async function (updateData: RampStateUpdateData, _options?: unknown) {
       rampState = { ...rampState, ...updateData } as unknown as RampState;
       return rampState;
     },
-    reload: async function (_options?: unknown) {
-      return rampState;
-    }
+    updatedAt: new Date()
   } as unknown as RampState;
   return rampState;
 }) as typeof RampState.create;

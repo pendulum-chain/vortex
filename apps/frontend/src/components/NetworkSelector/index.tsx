@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { Networks, getNetworkDisplayName, getNetworkId } from "@packages/shared";
+import { getNetworkDisplayName, getNetworkId, Networks } from "@packages/shared";
 import { AnimatePresence, motion } from "motion/react";
 import { RefObject, useEffect, useRef, useState } from "react";
 import { useNetwork } from "../../contexts/network";
@@ -24,14 +24,14 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkBu
       "flex items-center gap-2 rounded-full bg-base-100 px-2 py-3 sm:px-4",
       disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     )}
+    disabled={disabled}
     onClick={onClick}
     whileHover={{ scale: disabled ? 1 : 1.02 }}
     whileTap={{ scale: disabled ? 1 : 0.98 }}
-    disabled={disabled}
   >
-    <NetworkIcon network={selectedNetwork} className={cn("h-5 w-5", disabled && "opacity-50")} />
+    <NetworkIcon className={cn("h-5 w-5", disabled && "opacity-50")} network={selectedNetwork} />
     <span className={cn("hidden sm:block", disabled && "opacity-50")}>{getNetworkDisplayName(selectedNetwork)}</span>
-    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className={cn(disabled && "opacity-50")}>
+    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className={cn(disabled && "opacity-50")} transition={{ duration: 0.2 }}>
       <ChevronDownIcon className="ml-1 block h-4 w-4" />
     </motion.div>
   </motion.button>
@@ -47,23 +47,23 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
   <AnimatePresence>
     {isOpen && !disabled && (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
         className="absolute z-50 mt-2 w-48 whitespace-nowrap rounded-box bg-base-100 p-2 shadow-lg"
+        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
         layout
+        transition={{ duration: 0.2 }}
       >
         {supportedNetworks.map(network => {
           const networkId = getNetworkId(network);
           return (
             <button
+              className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
               key={networkId}
               onClick={() => onNetworkSelect(network)}
-              className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
               translate="no"
             >
-              <NetworkIcon network={network} className="h-5 w-5" />
+              <NetworkIcon className="h-5 w-5" network={network} />
               <span>{getNetworkDisplayName(network)}</span>
             </button>
           );
@@ -110,12 +110,12 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
     <div {...wrapperProps}>
       <div className={cn("relative mr-2", disabled && "pointer-events-none")} ref={dropdownRef}>
         <NetworkButton
-          selectedNetwork={selectedNetwork}
+          disabled={disabled}
           isOpen={isOpen}
           onClick={() => setIsOpen(!isOpen)}
-          disabled={disabled}
+          selectedNetwork={selectedNetwork}
         />
-        <NetworkDropdown isOpen={isOpen} onNetworkSelect={handleNetworkChange} disabled={disabled} />
+        <NetworkDropdown disabled={disabled} isOpen={isOpen} onNetworkSelect={handleNetworkChange} />
       </div>
     </div>
   );

@@ -12,18 +12,18 @@ import { useToastMessage } from "../../../helpers/notifications";
 import { walletConnectService } from "./WalletConnectService";
 
 export const walletConnectConfig = {
-  requiredNamespaces: {
-    polkadot: {
-      methods: ["polkadot_signTransaction", "polkadot_signMessage"],
-      events: ["chainChanged", "accountsChanged"],
-      chains: [WALLETCONNECT_ASSETHUB_ID]
-    }
-  },
   optionalNamespaces: {
     polkadot: {
-      methods: ["polkadot_signTransaction", "polkadot_signMessage"],
+      chains: [WALLETCONNECT_ASSETHUB_ID],
       events: ["chainChanged", "accountsChanged"],
-      chains: [WALLETCONNECT_ASSETHUB_ID]
+      methods: ["polkadot_signTransaction", "polkadot_signMessage"]
+    }
+  },
+  requiredNamespaces: {
+    polkadot: {
+      chains: [WALLETCONNECT_ASSETHUB_ID],
+      events: ["chainChanged", "accountsChanged"],
+      methods: ["polkadot_signTransaction", "polkadot_signMessage"]
     }
   }
 };
@@ -53,7 +53,7 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   const handleModal = useCallback(
     (uri?: string) => {
       if (uri) {
-        modal?.openModal({ uri, onclose: () => setLoading(false) });
+        modal?.openModal({ onclose: () => setLoading(false), uri });
       }
     },
     [modal]
@@ -104,10 +104,10 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   return (
     <button
       className="btn flex w-full justify-center border-0 shadow-xs outline-primary md:justify-start"
-      onClick={walletConnectClick}
       disabled={loading}
+      onClick={walletConnectClick}
     >
-      <img src={logo} alt="WalletConnect connect button" width={32} height={32} />
+      <img alt="WalletConnect connect button" height={32} src={logo} width={32} />
       <p className="ml-2">{loading ? "Loading..." : "Wallet Connect"}</p>
     </button>
   );

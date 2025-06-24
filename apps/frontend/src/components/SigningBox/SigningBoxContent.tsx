@@ -36,7 +36,7 @@ export const SigningBoxContent: React.FC<SigningBoxContentProps> = ({ progress, 
       <main className="bg-white px-8">
         <motion.div className="flex items-center justify-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-primary">
-            <img src={accountBalanceWalletIcon} alt="wallet account button" />
+            <img alt="wallet account button" src={accountBalanceWalletIcon} />
           </div>
           <div className="mx-4 my-5 text-black text-xs">
             <p>{t("components.signingBox.pleaseSignTransaction")}</p>
@@ -47,9 +47,9 @@ export const SigningBoxContent: React.FC<SigningBoxContentProps> = ({ progress, 
         <motion.div className="w-full pb-2.5">
           <div className="h-4 w-full overflow-hidden rounded-full border border-primary bg-white">
             <motion.div
+              animate={{ width: `${progress}%` }}
               className="h-full rounded-full bg-primary"
               initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
               transition={{ duration: 0.5, ease: "linear" }}
             />
           </div>

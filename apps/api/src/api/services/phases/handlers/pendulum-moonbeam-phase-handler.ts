@@ -1,19 +1,18 @@
 import {
   AXL_USDC_MOONBEAM,
-  FiatToken,
-  RampPhase,
   decodeSubmittableExtrinsic,
+  FiatToken,
   getAddressForFormat,
-  getAnyFiatTokenDetailsMoonbeam
+  getAnyFiatTokenDetailsMoonbeam,
+  RampPhase
 } from "@packages/shared";
-import RampState from "../../../../models/rampState.model";
-import { BasePhaseHandler } from "../base-phase-handler";
-
 import Big from "big.js";
 import { moonbeam } from "viem/chains";
+import RampState from "../../../../models/rampState.model";
 import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
 import { submitXTokens } from "../../xcm/send";
+import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
@@ -46,9 +45,9 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         state.type === "off" && state.state.outputTokenType === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
-        tokenAddress: tokenAddress as `0x${string}`,
+        chain: moonbeam,
         ownerAddress: ownerAddress as `0x${string}`,
-        chain: moonbeam
+        tokenAddress: tokenAddress as `0x${string}`
       });
 
       return balance.gte(Big(outputAmountBeforeFinalStep.raw));

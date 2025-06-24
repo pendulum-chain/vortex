@@ -419,7 +419,7 @@ export class PriceFeedService {
       if (outdatedPrices.length > 0) {
         const slackNotifier = new SlackNotifier();
         await slackNotifier.sendMessage({
-          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.join(", ")}`
+          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.map(price => price.name).join(", ")}`
         });
       } else {
         logger.info("All onchain oracle prices are up to date.");

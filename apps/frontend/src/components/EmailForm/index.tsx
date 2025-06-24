@@ -59,7 +59,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
       <>
         <div className="mt-2 flex items-center">
           <div className="mr-3 grow">
-            <TextInput type="email" placeholder="example@mail.com" register={register("email")} />
+            <TextInput placeholder="example@mail.com" register={register("email")} type="email" />
           </div>
           <button
             className="rounded bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
@@ -78,7 +78,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   };
 
   return (
-    <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? "request-error-message" : undefined}>
+    <form aria-errormessage={isError ? "request-error-message" : undefined} className="w-full" onSubmit={onSubmit}>
       <div className="mb-4">
         <p className="mb-2 font-bold text-gray-700">{t("components.emailForm.title")}</p>{" "}
         {/* Changed text-blue-700 to text-gray-700 */}

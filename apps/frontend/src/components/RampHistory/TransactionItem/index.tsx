@@ -1,8 +1,7 @@
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
+import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@packages/shared";
 import Big from "big.js";
 import { FC } from "react";
-
-import { Networks, getNetworkDisplayName, roundDownToSignificantDecimals } from "@packages/shared";
 import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
 import { StatusBadge } from "../../StatusBadge";
 import { Transaction } from "../types";
@@ -13,19 +12,19 @@ interface TransactionItemProps {
 
 const formatDate = (date: Date) =>
   date.toLocaleString("default", {
-    month: "long",
-    day: "numeric"
+    day: "numeric",
+    month: "long"
   });
 
 const formatTooltipDate = (date: Date) =>
   date.toLocaleString("default", {
-    month: "long",
     day: "numeric",
-    year: "numeric",
     hour: "2-digit",
+    hour12: true,
     minute: "2-digit",
+    month: "long",
     second: "2-digit",
-    hour12: true
+    year: "numeric"
   });
 
 const getNetworkName = (network: Transaction["fromNetwork"] | Transaction["toNetwork"]) => {
@@ -44,8 +43,8 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
       <div className="flex items-center space-x-4">
         <div>
           <div className="relative h-8 w-16">
-            <img src={fromIcon} alt={transaction.fromCurrency} className="absolute top-0 left-0 h-8 w-8" />
-            <img src={toIcon} alt={transaction.toCurrency} className="absolute top-0 left-5 h-8 w-8" />
+            <img alt={transaction.fromCurrency} className="absolute top-0 left-0 h-8 w-8" src={fromIcon} />
+            <img alt={transaction.toCurrency} className="absolute top-0 left-5 h-8 w-8" src={toIcon} />
           </div>
         </div>
         <div>

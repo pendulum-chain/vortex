@@ -31,7 +31,7 @@ export const BRLOnrampDetails: FC = () => {
         </div>
       </div>
       <p className="text-center">{t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.copyCode")}</p>
-      <CopyButton text={rampState.ramp?.brCode} className="mt-4 w-full py-10" />
+      <CopyButton className="mt-4 w-full py-10" text={rampState.ramp?.brCode} />
     </section>
   );
 };

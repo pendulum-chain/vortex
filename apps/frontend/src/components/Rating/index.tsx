@@ -49,12 +49,12 @@ export function Rating() {
     <AnimatePresence>
       {isConnectedAndIsVisible && (
         <motion.div
-          key="rating-toast"
-          initial={{ y: 200 }}
           animate={{ y: 0 }}
-          exit={{ y: 200 }}
-          whileHover={{ scale: 1.02 }}
           className="toast right-0 left-0 transition"
+          exit={{ y: 200 }}
+          initial={{ y: 200 }}
+          key="rating-toast"
+          whileHover={{ scale: 1.02 }}
         >
           <div className="mx-auto w-full max-w-[800px] sm:w-3/4">
             <div className="rounded border border-neutral-200 bg-white shadow-2xl">
@@ -64,7 +64,7 @@ export function Rating() {
                   <CloseButton onClick={onClose} />
                 </div>
                 <div className="mt-10 flex w-full flex-wrap items-center justify-center">
-                  <RatingForm onSubmit={onSubmit} isFormSubmitted={isPending || isSuccess || isError} rating={rating} />
+                  <RatingForm isFormSubmitted={isPending || isSuccess || isError} onSubmit={onSubmit} rating={rating} />
                 </div>
               </section>
             </div>
