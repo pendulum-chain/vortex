@@ -1,4 +1,4 @@
-import { NABLA_ROUTER, PendulumDetails } from "@packages/shared";
+import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import Big from "big.js";
 import BigNumber from "big.js";
@@ -21,11 +21,11 @@ export interface TokenOutData {
 export async function getTokenOutAmount(params: {
   api: ApiPromise;
   fromAmountString: string;
-  inputTokenDetails: PendulumDetails;
-  outputTokenDetails: PendulumDetails;
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
   maximumFromAmount?: BigNumber;
 }): Promise<TokenOutData> {
-  const { api, fromAmountString, inputTokenDetails, outputTokenDetails, maximumFromAmount } = params;
+  const { api, fromAmountString, inputTokenPendulumDetails, outputTokenPendulumDetails, maximumFromAmount } = params;
 
   let amountBig: Big;
   try {
@@ -34,7 +34,7 @@ export async function getTokenOutAmount(params: {
     throw new Error("Invalid amount string provided");
   }
 
-  const fromTokenDecimals = inputTokenDetails.pendulumDecimals;
+  const fromTokenDecimals = inputTokenPendulumDetails.decimals;
   if (fromTokenDecimals === undefined) {
     throw new Error("Input token decimals not defined");
   }
@@ -48,7 +48,7 @@ export async function getTokenOutAmount(params: {
     abi: routerAbi,
     address: NABLA_ROUTER,
     api,
-    args: [amountIn, [inputTokenDetails.pendulumErc20WrapperAddress, outputTokenDetails.pendulumErc20WrapperAddress]],
+    args: [amountIn, [inputTokenPendulumDetails.erc20WrapperAddress, outputTokenPendulumDetails.erc20WrapperAddress]],
     method: "getAmountOut",
     noWalletAddressRequired: true,
     parseError: error => {
@@ -66,8 +66,8 @@ export async function getTokenOutAmount(params: {
       }
     },
     parseSuccessOutput: (data: bigint[]) => {
-      const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenDetails.pendulumDecimals, data[0]);
-      const swapFee = parseContractBalanceResponse(outputTokenDetails.pendulumDecimals, data[1]);
+      const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[0]);
+      const swapFee = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[1]);
       return {
         effectiveExchangeRate: stringifyBigWithSignificantDecimals(preciseQuotedAmountOut.preciseBigDecimal.div(amountBig), 4),
         preciseQuotedAmountOut,

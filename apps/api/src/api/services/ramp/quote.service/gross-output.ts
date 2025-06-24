@@ -66,14 +66,14 @@ export interface EvmBridgeResult {
 async function getNablaSwapOutAmount(
   apiInstance: { api: ApiPromise },
   fromAmountString: string,
-  inputTokenDetails: PendulumTokenDetails,
-  outputTokenDetails: PendulumTokenDetails
+  inputTokenPendulumDetails: PendulumTokenDetails,
+  outputTokenPendulumDetails: PendulumTokenDetails
 ): Promise<TokenOutData> {
   return await getTokenOutAmount({
     api: apiInstance.api,
     fromAmountString,
-    inputTokenDetails,
-    outputTokenDetails
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails
   });
 }
 

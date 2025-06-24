@@ -1,4 +1,4 @@
-import { NABLA_ROUTER, PendulumDetails } from "@packages/shared";
+import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { createExecuteMessageExtrinsic, Extrinsic, ReadMessageResult, readMessage } from "@pendulum-chain/api-solang";
 import { ApiPromise } from "@polkadot/api";
 import { Abi } from "@polkadot/api-contract";
@@ -15,7 +15,7 @@ import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";
 
 export interface PrepareNablaApproveParams {
-  inputTokenDetails: PendulumDetails;
+  inputTokenDetails: PendulumTokenDetails;
   amountRaw: string;
   pendulumEphemeralAddress: string;
   pendulumNode: API;
@@ -80,7 +80,7 @@ export async function prepareNablaApproveTransaction({
     abi: erc20ContractAbi,
     api,
     callerAddress: pendulumEphemeralAddress,
-    contractDeploymentAddress: inputTokenDetails.pendulumErc20WrapperAddress,
+    contractDeploymentAddress: inputTokenDetails.erc20WrapperAddress,
     limits: defaultReadLimits,
     messageArguments: [pendulumEphemeralAddress, NABLA_ROUTER],
     messageName: "allowance"
@@ -92,19 +92,19 @@ export async function prepareNablaApproveTransaction({
     throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(inputTokenDetails.pendulumDecimals, response.value);
+  const currentAllowance = parseContractBalanceResponse(inputTokenDetails.decimals, response.value);
 
   // maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
     try {
-      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol}`);
+      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.assetSymbol}`);
       return createApproveExtrinsic({
         amount: amountRaw,
         api,
         callerAddress: pendulumEphemeralAddress,
         contractAbi: erc20ContractAbi,
         spender: NABLA_ROUTER,
-        token: inputTokenDetails.pendulumErc20WrapperAddress
+        token: inputTokenDetails.erc20WrapperAddress
       });
     } catch (e) {
       logger.info(`Could not approve token: ${e}`);

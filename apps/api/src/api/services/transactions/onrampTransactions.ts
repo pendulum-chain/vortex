@@ -91,8 +91,8 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   // Select stablecoin based on destination network
   const isAssetHubDestination = toNetwork === Networks.AssetHub;
   const stablecoinDetails = isAssetHubDestination ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
-  const stablecoinCurrencyId = stablecoinDetails.pendulumCurrencyId;
-  const stablecoinDecimals = stablecoinDetails.pendulumDecimals;
+  const stablecoinCurrencyId = stablecoinDetails.currencyId;
+  const stablecoinDecimals = stablecoinDetails.decimals;
 
   // Convert USD fees to stablecoin raw units
   const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
@@ -264,34 +264,46 @@ async function createNablaSwapTransactions(
   // The input amount for the swap was already calculated in the quote.
   const inputAmountForNablaSwapRaw = multiplyByPowerOfTen(
     new Big(quote.metadata.inputAmountForNablaSwapDecimal),
-    inputTokenPendulumDetails.pendulumDecimals
+    inputTokenPendulumDetails.decimals
   ).toFixed(0, 0);
 
   // For these minimums, we use the output amount after anchor fee deduction but before the other fees are deducted.
   // This is because for onramps, the anchor fee is deducted before the nabla swap.
-  const anchorFeeInOutputCurrency = await priceFeedService.convertCurrency(
+  const anchorFeeInSwapOutputCurrency = await priceFeedService.convertCurrency(
     quote.fee.anchor,
     quote.inputCurrency,
-    quote.outputCurrency
+    outputTokenPendulumDetails.currency // Use the currency of the output token's pendulum representative
   );
-  const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
+  const totalFeeInSwapOutputCurrency = await priceFeedService.convertCurrency(
     quote.fee.total,
     quote.inputCurrency,
-    quote.outputCurrency
+    outputTokenPendulumDetails.currency // Use the currency of the output token's pendulum representative
   );
-  const outputAfterAnchorFee = new Big(quote.outputAmount).plus(totalFeeInOutputCurrency).minus(anchorFeeInOutputCurrency);
+  const outputAfterAnchorFee = new Big(quote.outputAmount)
+    .plus(totalFeeInSwapOutputCurrency)
+    .minus(anchorFeeInSwapOutputCurrency);
+  console.log(
+    "inputAmountForNablaSwapRaw",
+    inputAmountForNablaSwapRaw,
+    "outputAfterAnchorFee",
+    outputAfterAnchorFee.toFixed(),
+    "anchorFeeInOutputCurrency",
+    anchorFeeInSwapOutputCurrency,
+    "totalFeeInOutputCurrency",
+    totalFeeInSwapOutputCurrency
+  );
 
   const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
-    nablaSoftMinimumOutput,
-    outputTokenPendulumDetails.pendulumDecimals
-  ).toFixed(0, 0);
+  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenPendulumDetails.decimals).toFixed(
+    0,
+    0
+  );
 
   const nablaHardMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
-  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
-    nablaHardMinimumOutput,
-    outputTokenPendulumDetails.pendulumDecimals
-  ).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenPendulumDetails.decimals).toFixed(
+    0,
+    0
+  );
 
   const { approve, swap } = await createNablaTransactionsForOnramp(
     inputAmountForNablaSwapRaw,
@@ -383,8 +395,8 @@ async function createPendulumCleanupTx(params: {
   const { inputTokenPendulumDetails, outputTokenPendulumDetails, account } = params;
 
   const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-    inputTokenPendulumDetails.pendulumCurrencyId,
-    outputTokenPendulumDetails.pendulumCurrencyId
+    inputTokenPendulumDetails.currencyId,
+    outputTokenPendulumDetails.currencyId
   );
 
   return {
@@ -418,14 +430,14 @@ async function createAssetHubDestinationTransactions(
   const { destinationAddress, outputTokenDetails, quote, account } = params;
 
   // Use the final output amount (net of all fees) for the final transfer
-  const finalOutputAmountRaw = multiplyByPowerOfTen(new Big(quote.outputAmount), outputTokenDetails.pendulumDecimals).toFixed(
-    0,
-    0
-  );
+  const finalOutputAmountRaw = multiplyByPowerOfTen(
+    new Big(quote.outputAmount),
+    outputTokenDetails.pendulumRepresentative.decimals
+  ).toFixed(0, 0);
 
   const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
     destinationAddress,
-    outputTokenDetails.pendulumCurrencyId,
+    outputTokenDetails.pendulumRepresentative.currencyId,
     finalOutputAmountRaw
   );
 
@@ -473,7 +485,7 @@ async function createEvmDestinationTransactions(
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     moonbeamEphemeralAddress,
     quote.metadata.onrampOutputAmountMoonbeamRaw,
-    outputTokenDetails.pendulumCurrencyId
+    outputTokenDetails.pendulumRepresentative.currencyId
   );
 
   unsignedTxs.push({

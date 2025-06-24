@@ -208,8 +208,8 @@ export class PriceFeedService {
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
         fromAmountString: inputAmount,
-        inputTokenDetails: inputTokenPendulumDetails,
-        outputTokenDetails: outputTokenPendulumDetails
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails
       });
 
       const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
