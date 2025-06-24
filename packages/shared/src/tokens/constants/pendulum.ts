@@ -2,8 +2,9 @@
  * Pendulum-specific constants for token configuration
  */
 
-import { EvmToken, PendulumTokenDetails } from "@packages/shared/tokens";
 import { FiatToken } from "../types/base";
+import { EvmToken } from "../types/evm";
+import { PendulumTokenDetails } from "../types/pendulum";
 
 export const PENDULUM_USDC_AXL: PendulumTokenDetails = {
   assetSymbol: "USDC.axl",
