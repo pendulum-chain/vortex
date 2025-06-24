@@ -299,12 +299,7 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (
-      !rampState ||
-      !shouldRequestSignatures ||
-      //signingRejected || //Testing remove
-      waitForAuthToken
-    ) {
+    if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken) {
       return; // Exit early if conditions aren't met
     }
 
