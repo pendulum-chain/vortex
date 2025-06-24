@@ -50,12 +50,14 @@ export const useRefreshTimer = (DEFAULT_DURATION: number): UseRefreshTimerReturn
   const stop = useCallback(() => {
     setIsActive(false);
     clearTimer();
+    onCompleteCallbackRef.current = null;
   }, [clearTimer]);
 
   const reset = useCallback(() => {
     setTimeRemaining(DEFAULT_DURATION);
     setIsActive(false);
     clearTimer();
+    onCompleteCallbackRef.current = null;
   }, [clearTimer, DEFAULT_DURATION]);
 
   useEffect(() => {
