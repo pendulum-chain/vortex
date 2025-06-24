@@ -4,10 +4,12 @@ import {
   FiatToken,
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
+  PENDULUM_USDC_AXL,
   RampPhase
 } from "@packages/shared";
 import Big from "big.js";
 import { moonbeam } from "viem/chains";
+import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
@@ -37,7 +39,20 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       );
     }
 
-    const didInputTokenArrivedOnMoonbeam = async () => {
+    const didTokensLeavePendulum = async () => {
+      // Token is always either axlUSDC or BRL.
+      const tokenDetails = state.type === "off" ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL) : PENDULUM_USDC_AXL;
+      const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+        pendulumEphemeralAddress,
+        tokenDetails.pendulumCurrencyId
+      );
+
+      // @ts-ignore
+      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      return currentBalance.eq(0);
+    };
+
+    const didTokensArriveOnMoonbeam = async () => {
       // Token is always either axlUSDC or BRL.
       const tokenAddress =
         state.type === "off" ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address : AXL_USDC_MOONBEAM;
@@ -54,7 +69,12 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     };
 
     try {
-      if (await didInputTokenArrivedOnMoonbeam()) {
+      // We have to check if the input token already arrived on Moonbeam and if it left Pendulum.
+      // If we'd only check if it arrived on Moonbeam, we might miss transferring them if the target account already has some tokens.
+      if ((await didTokensLeavePendulum()) && (await didTokensArriveOnMoonbeam())) {
+        logger.info(
+          `PendulumToMoonbeamPhaseHandler: Input token already arrived on Moonbeam, skipping XCM transfer for ramp ${state.id}.`
+        );
         return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
       }
 
@@ -65,10 +85,16 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       }
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToMoonbeamTransaction, pendulumNode.api);
+      logger.info(`PendulumToMoonbeamPhaseHandler: Submitting XCM transfer to Moonbeam for ramp ${state.id}`);
       const { hash } = await submitXTokens(
         getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format),
         xcmExtrinsic
       );
+
+      logger.info(
+        `PendulumToMoonbeamPhaseHandler: XCM transfer submitted with hash ${hash} for ramp ${state.id}. Waiting for the token to arrive on Moonbeam...`
+      );
+      await didTokensArriveOnMoonbeam();
 
       state.state = {
         ...state.state,
