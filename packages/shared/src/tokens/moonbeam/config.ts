@@ -23,8 +23,8 @@ export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails
     onrampFeesBasisPoints: 0, // 150,000 BRL. We put this as an artificial limit to avoid too high amounts.
     onrampFeesFixedComponent: 0.75,
     partnerUrl: "https://brla.digital", // 0.75 BRL
-    polygonErc20Address: "0xe6a537a407488807f0bbeb0038b79004f19dddfb",
-    type: TokenType.Moonbeam, // 0.75 BRL
-    ...PENDULUM_BRLA_MOONBEAM
+    pendulumRepresentative: PENDULUM_BRLA_MOONBEAM,
+    polygonErc20Address: "0xe6a537a407488807f0bbeb0038b79004f19dddfb", // 0.75 BRL
+    type: TokenType.Moonbeam
   }
 };

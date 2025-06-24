@@ -16,8 +16,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Ethereum,
       networkAssetIcon: "ethereumUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -26,8 +26,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Ethereum,
       networkAssetIcon: "ethereumUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.ETH]: {
       assetSymbol: "ETH",
@@ -36,8 +36,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: true,
       network: Networks.Ethereum,
       networkAssetIcon: "ethereumETH",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Polygon]: {
@@ -48,8 +48,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Polygon,
       networkAssetIcon: "polygonUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDCE]: {
       assetSymbol: "USDC.e",
@@ -58,8 +58,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Polygon,
       networkAssetIcon: "polygonUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -68,8 +68,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Polygon,
       networkAssetIcon: "polygonUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.BSC]: {
@@ -80,8 +80,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.BSC,
       networkAssetIcon: "bscUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -90,8 +90,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.BSC,
       networkAssetIcon: "bscUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.ETH]: {
       assetSymbol: "ETH",
@@ -100,8 +100,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: true,
       network: Networks.BSC,
       networkAssetIcon: "bscETH",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Arbitrum]: {
@@ -112,8 +112,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Arbitrum,
       networkAssetIcon: "arbitrumUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -122,8 +122,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Arbitrum,
       networkAssetIcon: "arbitrumUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.ETH]: {
       assetSymbol: "ETH",
@@ -132,8 +132,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: true,
       network: Networks.Arbitrum,
       networkAssetIcon: "arbitrumETH",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Base]: {
@@ -144,8 +144,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Base,
       networkAssetIcon: "baseUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -154,8 +154,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Base,
       networkAssetIcon: "baseUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.ETH]: {
       assetSymbol: "ETH",
@@ -164,8 +164,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: true,
       network: Networks.Base,
       networkAssetIcon: "baseETH",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Avalanche]: {
@@ -176,8 +176,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Avalanche,
       networkAssetIcon: "avalancheUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
@@ -186,8 +186,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Avalanche,
       networkAssetIcon: "avalancheUSDT",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Moonbeam]: {
@@ -198,8 +198,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Moonbeam,
       networkAssetIcon: "moonbeamUSDC",
-      type: TokenType.Evm,
-      ...PENDULUM_USDC_AXL
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   }
 };

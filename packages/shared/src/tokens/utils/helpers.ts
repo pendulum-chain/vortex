@@ -120,7 +120,7 @@ export function isFiatTokenEnum(token: string): token is FiatToken {
  */
 export function getPendulumCurrencyId(fiatToken: FiatToken) {
   const tokenDetails = getAnyFiatTokenDetails(fiatToken);
-  return tokenDetails.pendulumCurrencyId;
+  return tokenDetails.pendulumRepresentative.currencyId;
 }
 
 /**
@@ -137,10 +137,5 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks):
     throw new Error("Invalid token provided for pendulum details.");
   }
 
-  return {
-    pendulumAssetSymbol: tokenDetails.pendulumAssetSymbol,
-    pendulumCurrencyId: tokenDetails.pendulumCurrencyId,
-    pendulumDecimals: tokenDetails.pendulumDecimals,
-    pendulumErc20WrapperAddress: tokenDetails.pendulumErc20WrapperAddress
-  };
+  return tokenDetails.pendulumRepresentative;
 }

@@ -1,4 +1,4 @@
-import { PendulumDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 import { ExtrinsicOptions } from "../transactions/nabla";
 
 export interface StateMetadata {
@@ -8,8 +8,8 @@ export interface StateMetadata {
   outputCurrency: RampCurrency;
   nablaSoftMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
-  inputTokenPendulumDetails: PendulumDetails;
-  outputTokenPendulumDetails: PendulumDetails;
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenType: RampCurrency;
   inputAmountBeforeSwapRaw: string;
   // The final step for onramp is the squidRouterSwap or XCM transfer, for offramps it's the anchor payout

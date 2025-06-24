@@ -2,9 +2,10 @@
  * Stellar token types
  */
 
-import { BaseFiatTokenDetails, BaseTokenDetails, PendulumDetails, TokenType } from "./base";
+import { BaseFiatTokenDetails, BaseTokenDetails, TokenType } from "./base";
+import {PendulumTokenDetails} from "@packages/shared/tokens";
 
-export interface StellarTokenDetails extends BaseTokenDetails, PendulumDetails, BaseFiatTokenDetails {
+export interface StellarTokenDetails extends BaseTokenDetails, BaseFiatTokenDetails {
   type: TokenType.Stellar;
   stellarAsset: {
     code: {
@@ -21,4 +22,5 @@ export interface StellarTokenDetails extends BaseTokenDetails, PendulumDetails, 
   anchorHomepageUrl: string;
   tomlFileUrl: string;
   usesMemo: boolean;
+  pendulumRepresentative: PendulumTokenDetails;
 }

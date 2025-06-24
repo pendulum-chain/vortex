@@ -11,10 +11,11 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
   [AssetHubToken.USDC]: {
     assetSymbol: "USDC",
     decimals: 6,
+    foreignAssetId: PENDULUM_USDC_ASSETHUB.foreignAssetId,
     isNative: false,
     network: Networks.AssetHub,
     networkAssetIcon: "assethubUSDC",
-    type: TokenType.AssetHub,
-    ...PENDULUM_USDC_ASSETHUB
+    pendulumRepresentative: PENDULUM_USDC_ASSETHUB,
+    type: TokenType.AssetHub
   }
 };

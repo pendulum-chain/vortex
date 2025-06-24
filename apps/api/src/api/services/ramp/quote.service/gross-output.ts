@@ -6,7 +6,7 @@ import {
   getPendulumDetails,
   isEvmTokenDetails,
   OnChainToken,
-  PendulumDetails,
+  PendulumTokenDetails,
   RampCurrency
 } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
@@ -66,8 +66,8 @@ export interface EvmBridgeResult {
 async function getNablaSwapOutAmount(
   apiInstance: { api: ApiPromise },
   fromAmountString: string,
-  inputTokenDetails: PendulumDetails,
-  outputTokenDetails: PendulumDetails
+  inputTokenDetails: PendulumTokenDetails,
+  outputTokenDetails: PendulumTokenDetails
 ): Promise<TokenOutData> {
   return await getTokenOutAmount({
     api: apiInstance.api,

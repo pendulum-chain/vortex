@@ -2,9 +2,9 @@
  * EVM token types
  */
 
-import { EvmAddress } from "../..";
+import {EvmAddress, PendulumTokenDetails} from "../..";
 import { Networks } from "../../helpers";
-import { BaseTokenDetails, PendulumDetails, TokenType } from "./base";
+import { BaseTokenDetails, TokenType } from "./base";
 
 export enum EvmToken {
   USDC = "usdc",
@@ -19,13 +19,16 @@ export enum UsdLikeEvmToken {
   USDCE = EvmToken.USDCE
 }
 
-export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
+export interface EvmTokenDetails extends BaseTokenDetails {
   type: TokenType.Evm;
   assetSymbol: string;
   networkAssetIcon: string;
   network: Networks;
   erc20AddressSourceChain: EvmAddress;
   isNative: boolean;
+  /// The metadata about the token when it's used in Pendulum.
+  /// For now, all EVM tokens are represented by axlUSDC on Pendulum.
+  pendulumRepresentative: PendulumTokenDetails
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

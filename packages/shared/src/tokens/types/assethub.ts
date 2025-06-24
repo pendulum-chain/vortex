@@ -2,16 +2,18 @@
  * AssetHub token types
  */
 
-import { Networks } from "../../helpers";
-import { BaseTokenDetails, PendulumDetails, TokenType } from "./base";
+import {Networks} from "../../helpers";
+import {BaseTokenDetails, TokenType} from "./base";
+import {PendulumTokenDetails} from "../types/pendulum";
 
-export interface AssetHubTokenDetails extends BaseTokenDetails, PendulumDetails {
+export interface AssetHubTokenDetails extends BaseTokenDetails {
   type: TokenType.AssetHub;
   assetSymbol: string;
   networkAssetIcon: string;
   network: Networks;
   foreignAssetId: number;
   isNative: boolean;
+  pendulumRepresentative: PendulumTokenDetails;
 }
 
 export interface AssetHubTokenDetailsWithBalance extends AssetHubTokenDetails {
