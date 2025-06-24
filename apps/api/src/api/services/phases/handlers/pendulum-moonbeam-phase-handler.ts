@@ -26,8 +26,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, brlaEvmAddress, outputAmountBeforeFinalStep } =
-      state.state as StateMetadata;
+    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, brlaEvmAddress, outputAmountBeforeFinalStep } = state.state;
 
     if (!pendulumEphemeralAddress) {
       throw new Error("Ephemeral address not defined in the state. This is a bug.");
@@ -41,15 +40,15 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
 
     const didTokensLeavePendulum = async () => {
       // Token is always either axlUSDC or BRL.
-      const tokenDetails = state.type === "off" ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL) : PENDULUM_USDC_AXL;
-      const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-        pendulumEphemeralAddress,
-        tokenDetails.pendulumCurrencyId
-      );
+      const currencyId =
+        state.type === "off"
+          ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).pendulumRepresentative.currencyId
+          : PENDULUM_USDC_AXL.currencyId;
+      const balanceResponse = await pendulumNode.api.query.tokens.accounts(pendulumEphemeralAddress, currencyId);
 
       // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
-      return currentBalance.eq(0);
+      return currentBalance.lt(outputAmountBeforeFinalStep.raw);
     };
 
     const didTokensArriveOnMoonbeam = async () => {
