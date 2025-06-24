@@ -48,7 +48,12 @@ const useSignatureTrace = (traceKey: string) => {
     return { canProceed: true };
   }, [traceKey]);
 
-  return { checkAndSetTrace };
+  // Releases the lock when the process is complete
+  const releaseTrace = useCallback(() => {
+    localStorage.removeItem(traceKey);
+  }, [traceKey]);
+
+  return { checkAndSetTrace, releaseTrace };
 };
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
@@ -99,8 +104,10 @@ export const useRegisterRamp = () => {
     }
   };
 
-  const { checkAndSetTrace: checkAndSetRegisterTrace } = useSignatureTrace(RAMP_REGISTER_TRACE_KEY);
-  const { checkAndSetTrace: checkAndSetSigningTrace } = useSignatureTrace(RAMP_SIGNING_TRACE_KEY);
+  const { checkAndSetTrace: checkAndSetRegisterTrace, releaseTrace: releaseRegisterTrace } =
+    useSignatureTrace(RAMP_REGISTER_TRACE_KEY);
+  const { checkAndSetTrace: checkAndSetSigningTrace, releaseTrace: releaseSigningTrace } =
+    useSignatureTrace(RAMP_SIGNING_TRACE_KEY);
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
@@ -245,14 +252,20 @@ export const useRegisterRamp = () => {
       });
     };
 
-    registerRampProcess().catch((error) => {
-      console.error(`Error registering ramp:`, error);
-    });
+    registerRampProcess()
+      .catch((error) => {
+        console.error(`Error registering ramp:`, error);
+      })
+      .finally(() => {
+        // Release the registration trace lock
+        releaseRegisterTrace();
+      });
   }, [
     address,
     canRegisterRamp,
     chainId,
     checkAndSetRegisterTrace,
+    releaseRegisterTrace,
     executionInput,
     moonbeamApiComponents?.api,
     pendulumApiComponents?.api,
@@ -376,9 +389,11 @@ export const useRegisterRamp = () => {
             console.log(`EVM Transaction to sign:`, evmTransaction);
             const signedTxData = await walletClient.signTransaction({
               to: evmTransaction.to as `0x${string}`,
-              from: walletClient.account.address,
+              account: walletClient.account,
               data: evmTransaction.data,
               value: BigInt(evmTransaction.value),
+              nonce: 0,
+              chain: walletClient.chain,
             });
 
             moneriumOnrampSignedTransaction = {
@@ -428,7 +443,8 @@ export const useRegisterRamp = () => {
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
         setSigningRejected(true);
-      });
+      })
+      .finally(() => releaseSigningTrace());
   }, [
     address,
     assethubApiComponents?.api,
@@ -443,6 +459,7 @@ export const useRegisterRamp = () => {
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
+    releaseSigningTrace,
     authToken,
   ]);
 

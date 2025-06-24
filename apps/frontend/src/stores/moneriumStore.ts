@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
-
-export enum MoneriumLocalStorageKeys {
-  MONERIUM_STATE = 'MONERIUM_STATE',
-}
 
 interface MoneriumStore {
   // Triggered when user starts Monerium auth flow
@@ -57,7 +54,7 @@ export const useMoneriumStore = create<MoneriumStore>()(
         }),
     }),
     {
-      name: MoneriumLocalStorageKeys.MONERIUM_STATE,
+      name: LocalStorageKeys.MONERIUM_STATE,
       storage: {
         getItem: (name) => {
           const value = storageService.get(name);

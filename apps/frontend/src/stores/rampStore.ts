@@ -11,6 +11,7 @@ const clearRampingState = () => {
   storageService.remove(LocalStorageKeys.RAMPING_STATE);
   storageService.remove(LocalStorageKeys.REGISTER_KEY_LOCAL_STORAGE);
   storageService.remove(LocalStorageKeys.START_KEY_LOCAL_STORAGE);
+  storageService.remove(LocalStorageKeys.MONERIUM_STATE);
 };
 
 // Load initial state from localStorage

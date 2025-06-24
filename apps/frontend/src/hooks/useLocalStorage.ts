@@ -14,6 +14,7 @@ export enum LocalStorageKeys {
   RAMPING_STATE = 'RAMPING_STATE',
   REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey',
   START_KEY_LOCAL_STORAGE = 'rampStartKey',
+  MONERIUM_STATE = 'MONERIUM_STATE',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
