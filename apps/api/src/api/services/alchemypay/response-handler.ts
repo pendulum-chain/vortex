@@ -14,6 +14,7 @@ export interface AlchemyPayResponse {
     rampFee: string;
     networkFee: string;
     fiatQuantity: string;
+    cryptoQuantity: string;
   };
 }
 
@@ -85,13 +86,13 @@ function parseSuccessResponse(
     throw new ProviderInternalError("AlchemyPay response data is undefined");
   }
 
-  const { rampFee, networkFee, fiatQuantity } = data;
+  const { rampFee, networkFee, fiatQuantity, cryptoQuantity } = data;
 
   const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
   // According to a comment in the response sample, the `fiatQuantity` does not yet include the fees
   // so we need to subtract them.
-  const fiatAmount = Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
-  const cryptoAmount = Number(requestedAmount);
+  const fiatAmount = direction === "onramp" ? Number(requestedAmount) : Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
+  const cryptoAmount = direction === "onramp" ? Number(cryptoQuantity) : Number(requestedAmount);
 
   return {
     direction,
