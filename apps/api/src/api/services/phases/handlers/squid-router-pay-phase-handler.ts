@@ -1,4 +1,4 @@
-import { Networks, OnChainToken, RampPhase, getOnChainTokenDetails } from '@packages/shared';
+import { Networks, OnChainToken, RampPhase, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
 import Big from 'big.js';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -10,7 +10,12 @@ import RampState, { RampStateAttributes } from '../../../../models/rampState.mod
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { getTokenDetailsForEvmDestination } from '../../ramp/quote.service/gross-output';
-import { createOnrampRouteParams, getRoute, getStatus } from '../../transactions/squidrouter/route';
+import {
+  SquidRouterPayResponse,
+  createOnrampRouteParams,
+  getRoute,
+  getStatus,
+} from '../../transactions/squidrouter/route';
 import { BasePhaseHandler } from '../base-phase-handler';
 
 interface GpmFeeResult {
@@ -126,11 +131,27 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async checkStatus(state: RampState, swapHash: string): Promise<void> {
     try {
-      // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
-
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
+        const squidrouterStatus = await this.getSquidrouterStatus(swapHash, state);
+        console.log(`SquidRouterPayPhaseHandler: Squidrouter status for swap hash ${swapHash}:`, squidrouterStatus);
+
+        if (squidrouterStatus.status === 'success') {
+          isExecuted = true;
+          logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
+          break;
+        }
+        if (!squidrouterStatus) {
+          logger.warn(`SquidRouterPayPhaseHandler: No squidrouter status found for swap hash ${swapHash}.`);
+          throw this.createRecoverableError('No squidrouter status found for swap hash.');
+        }
+
+        // If route is on the same chain, we must skip the Axelar check.
+        if (!squidrouterStatus.isGMPTransaction) {
+          await new Promise((resolve) => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+        }
+
         const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
 
         //no status found is considered a recoverable error.
@@ -250,6 +271,25 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       logger.error('SquidRouterPayPhaseHandler: Error fetching fresh route:', error);
       throw new Error('SquidRouterPayPhaseHandler: Failed to fetch fresh route');
+    }
+  }
+
+  private async getSquidrouterStatus(swapHash: string, state: RampState): Promise<SquidRouterPayResponse> {
+    try {
+      const fromChainId = getNetworkId(Networks.Polygon)?.toString(); // Always Polygon for Monerium onramp.
+      const toChainId = getNetworkId(state.to)?.toString();
+
+      if (!fromChainId || !toChainId) {
+        throw new Error('SquidRouterPayPhaseHandler: Invalid from or to network for Squidrouter status check');
+      }
+
+      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId);
+      return squidrouterStatus;
+    } catch (error) {
+      logger.error(`SquidRouterPayPhaseHandler: Error fetching Squidrouter status for swap hash ${swapHash}:`, error);
+      throw this.createRecoverableError(
+        `SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`,
+      );
     }
   }
 }

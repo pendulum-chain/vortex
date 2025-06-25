@@ -1,7 +1,8 @@
-import { RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
+import { FiatToken, RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
 import { http, createPublicClient } from 'viem';
-import { moonbeam } from 'viem/chains';
+import { moonbeam, polygon } from 'viem/chains';
 import logger from '../../../../config/logger';
+import QuoteTicket from '../../../../models/quoteTicket.model';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
 
@@ -9,12 +10,17 @@ import { BasePhaseHandler } from '../base-phase-handler';
  * Handler for the squidRouter phase
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
-  private publicClient: ReturnType<typeof createPublicClient>;
+  private moonbeamClient: ReturnType<typeof createPublicClient>;
+  private polygonClient: ReturnType<typeof createPublicClient>;
 
   constructor() {
     super();
-    this.publicClient = createPublicClient({
+    this.moonbeamClient = createPublicClient({
       chain: moonbeam,
+      transport: http(),
+    });
+    this.polygonClient = createPublicClient({
+      chain: polygon,
       transport: http(),
     });
   }
@@ -24,6 +30,35 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    */
   public getPhaseName(): RampPhase {
     return 'squidRouterSwap';
+  }
+
+  /**
+   * Get the appropriate public client based on the input token
+   * Monerium's EUR uses polygon, BRL uses moonbeam
+   * @param state The current ramp state
+   * @returns The appropriate public client
+   */
+  private async getPublicClient(state: RampState): Promise<ReturnType<typeof createPublicClient>> {
+    try {
+      const quote = await QuoteTicket.findByPk(state.quoteId);
+      if (!quote) {
+        throw new Error(`Quote not found for ramp ${state.id}`);
+      }
+
+      if (quote.inputCurrency === FiatToken.EURC) {
+        return this.polygonClient;
+      } else if (quote.inputCurrency === FiatToken.BRL) {
+        return this.moonbeamClient;
+      } else {
+        logger.info(
+          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`,
+        );
+        return this.moonbeamClient;
+      }
+    } catch (error) {
+      logger.error('SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam', error);
+      return this.moonbeamClient;
+    }
   }
 
   /**
@@ -48,7 +83,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error('Missing presigned transactions for squidRouter phase');
       }
 
-      const accountNonce = await this.getNonce(approveTransaction.signer as `0x${string}`);
+      const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
       if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
         logger.warn(
           `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`,
@@ -62,19 +97,19 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
 
       // Execute the approve transaction
-      const approveHash = await this.executeTransaction(approveTransaction.txData as string);
+      const approveHash = await this.executeTransaction(state, approveTransaction.txData as string);
       logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
       // Wait for the approve transaction to be confirmed
-      await this.waitForTransactionConfirmation(approveHash, chainId);
+      await this.waitForTransactionConfirmation(state, approveHash, chainId);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
-      const swapHash = await this.executeTransaction(swapTransaction.txData as string);
+      const swapHash = await this.executeTransaction(state, swapTransaction.txData as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Wait for the swap transaction to be confirmed
-      await this.waitForTransactionConfirmation(swapHash, chainId);
+      await this.waitForTransactionConfirmation(state, swapHash, chainId);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
 
       // Update the state with the transaction hashes
@@ -96,12 +131,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
   /**
    * Execute a transaction
+   * @param state The current ramp state
    * @param txData The transaction data
    * @returns The transaction hash
    */
-  private async executeTransaction(txData: string): Promise<string> {
+  private async executeTransaction(state: RampState, txData: string): Promise<string> {
     try {
-      const txHash = await this.publicClient.sendRawTransaction({
+      const publicClient = await this.getPublicClient(state);
+      const txHash = await publicClient.sendRawTransaction({
         serializedTransaction: txData as `0x${string}`,
       });
       return txHash;
@@ -113,12 +150,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
   /**
    * Wait for a transaction to be confirmed
+   * @param state The current ramp state
    * @param txHash The transaction hash
    * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
+  private async waitForTransactionConfirmation(state: RampState, txHash: string, _chainId: number): Promise<void> {
     try {
-      const receipt = await this.publicClient.waitForTransactionReceipt({
+      const publicClient = await this.getPublicClient(state);
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`,
       });
       if (!receipt || receipt.status !== 'success') {
@@ -129,10 +168,11 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async getNonce(address: `0x${string}`): Promise<number> {
+  private async getNonce(state: RampState, address: `0x${string}`): Promise<number> {
     try {
+      const publicClient = await this.getPublicClient(state);
       // List all transactions for the address to get the nonce
-      return await this.publicClient.getTransactionCount({ address });
+      return await publicClient.getTransactionCount({ address });
     } catch (error) {
       logger.error('Error getting nonce', error);
       throw new Error('Failed to get transaction nonce');

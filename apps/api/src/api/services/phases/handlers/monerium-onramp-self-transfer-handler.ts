@@ -9,7 +9,7 @@ import { BasePhaseHandler } from '../base-phase-handler';
 /**
  * Handler for the squidRouter phase
  */
-export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
+export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
 
   constructor() {
@@ -24,7 +24,7 @@ export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'moneriumOnrampInitialTransfer';
+    return 'moneriumOnrampSelfTransfer';
   }
 
   /**
@@ -33,19 +33,18 @@ export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
    * @returns The updated ramp state
    */
   protected async executePhase(state: RampState): Promise<RampState> {
-    logger.info(`Executing moneriumOnrampInitialTransfer phase for ramp ${state.id}`);
+    logger.info(`Executing moneriumOnrampSelfTransfer phase for ramp ${state.id}`);
 
     if (state.type === 'off') {
-      logger.info(`MoneriumOnrampInitialTransfer phase is not supported for off-ramp`);
+      logger.info(`moneriumOnrampSelfTransfer phase is not supported for off-ramp`);
       return state;
     }
 
     try {
-      // Get the presigned transactions for this phase
-      const transferTransaction = this.getPresignedTransaction(state, 'moneriumOnrampInitialTransfer');
+      const transferTransaction = this.getPresignedTransaction(state, 'moneriumOnrampSelfTransfer');
 
       if (!transferTransaction) {
-        throw new Error('Missing presigned transactions for moneriumOnrampInitialTransfer phase');
+        throw new Error('Missing presigned transactions for moneriumOnrampSelfTransfer phase');
       }
 
       // Under our current implementation, funds are transferred to an Ephemeral also on Polygon.
@@ -95,10 +94,10 @@ export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
         hash: txHash as `0x${string}`,
       });
       if (!receipt || receipt.status !== 'success') {
-        throw new Error(`MoneriumOnrampInitialTransferHandler: Transaction ${txHash} failed or was not found`);
+        throw new Error(`moneriumOnrampSelfTransferHandler: Transaction ${txHash} failed or was not found`);
       }
     } catch (error) {
-      throw new Error(`MoneriumOnrampInitialTransferHandler: Error waiting for transaction confirmation: ${error}`);
+      throw new Error(`moneriumOnrampSelfTransferHandler: Error waiting for transaction confirmation: ${error}`);
     }
   }
 
@@ -113,4 +112,4 @@ export class MonenriumOnrampInitialTransferHandler extends BasePhaseHandler {
   }
 }
 
-export default new MonenriumOnrampInitialTransferHandler();
+export default new MonenriumOnrampSelfTransferHandler();

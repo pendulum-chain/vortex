@@ -6,7 +6,7 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Keypair, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
 import { http, createWalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
+import { moonbeam, polygon } from 'viem/chains';
 import { EphemeralAccount, PresignedTx, UnsignedTx, decodeSubmittableExtrinsic, isEvmTransactionData } from '../index';
 
 // Number of transactions to pre-sign for each transaction
@@ -211,6 +211,7 @@ export async function signUnsignedTransactions(
     const stellarTxs = unsignedTxs.filter((tx) => tx.network === 'stellar').sort((a, b) => a.nonce - b.nonce);
     const pendulumTxs = unsignedTxs.filter((tx) => tx.network === 'pendulum');
     const moonbeamTxs = unsignedTxs.filter((tx) => tx.network === 'moonbeam');
+    const polygonTxs = unsignedTxs.filter((tx) => tx.network === 'polygon');
 
     // Process Stellar transactions first in sequence order
     if (stellarTxs.length > 0) {
@@ -295,6 +296,31 @@ export async function signUnsignedTransactions(
 
         signedTxs.push(txWithMeta);
       }
+    }
+
+    for (const tx of polygonTxs) {
+      if (!ephemerals.moonbeamEphemeral) {
+        throw new Error('Missing EVM ephemeral account');
+      }
+
+      const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+
+      const privateKey = u8aToHex(
+        hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, '', false, 64), ethDerPath).secretKey,
+      );
+      const evmAccount = privateKeyToAccount(privateKey);
+
+      const walletClient = createWalletClient({
+        account: evmAccount,
+        chain: polygon,
+        transport: http(),
+      });
+
+      const multiSignedTxs = await signMultipleEvmTransactions(tx, walletClient, tx.nonce);
+      const primaryTx = multiSignedTxs[0];
+      const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
+
+      signedTxs.push(txWithMeta);
     }
   } catch (error) {
     console.error('Error signing transactions:', error);

@@ -1,11 +1,12 @@
 import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from '@packages/shared';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
-import { moonbeam } from 'viem/chains';
+import { moonbeam, polygon } from 'viem/chains';
 import { createGenericRouteParams, createOnrampRouteParams, getRoute } from './route';
 
 import Big from 'big.js';
 import erc20ABI from '../../../../contracts/ERC20';
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
+import { ERC20_EURE_POLYGON } from '../moneriumEvmOnrampTransactions';
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -123,7 +124,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
   }
 
   const publicClient = createPublicClient({
-    chain: moonbeam,
+    chain: polygon,
     transport: http(),
   });
 
@@ -153,7 +154,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
 
     // Create transaction data objects
     const approveData = {
-      to: AXL_USDC_MOONBEAM as `0x${string}`,
+      to: ERC20_EURE_POLYGON,
       data: approveTransactionData,
       value: '0',
       //nonce: params.moonbeamEphemeralStartingNonce, needed only if ephemeral solution.
@@ -165,7 +166,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+      value: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),

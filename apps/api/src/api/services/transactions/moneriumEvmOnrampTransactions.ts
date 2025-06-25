@@ -45,7 +45,7 @@ import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 
-const ERC20_EURE_POLYGON = '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6'; // EUR.e on Polygon
+export const ERC20_EURE_POLYGON: `0x${string}` = '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6'; // EUR.e on Polygon
 /**
  * TODO: implement for Monerium prototype?
  */
@@ -146,10 +146,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(
-    inputAmountPostAnchorFeeUnits,
-    inputTokenDetails.decimals,
-  ).toFixed(0, 0);
+  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, 18).toFixed(0, 0);
 
   const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
   const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
@@ -169,26 +166,41 @@ export async function prepareMoneriumEvmOnrampTransactions({
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
   };
 
-  // Create initial user transaction that sends minted funds to ephemerals.
-  const initialTransferTxData = await createOnrampUserTransaction(
+  // Create initial user transaction that approves minted funds to ephemeral.
+  const initialTransferTxData = await createOnrampUserApprove(
     inputAmountPostAnchorFeeRaw,
     polygonEphemeralEntry.address,
   );
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(initialTransferTxData) as any,
-    phase: 'moneriumOnrampInitialTransfer',
+    phase: 'moneriumOnrampSelfTransfer',
     network: Networks.Polygon,
     nonce: 0,
     signer: userMintAddress,
   });
+
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     // Create transactions for ephemeral account where Monerium minting takes place
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       // Initialize nonce counter for Polygon transactions
-      let polygonAccountNonce = 0;
+      let polygonAccountNonce = 3; // TODO TESTING, should be 0.
+
+      const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
+        inputAmountPostAnchorFeeRaw,
+        userMintAddress,
+        polygonEphemeralEntry.address,
+      );
+
+      unsignedTxs.push({
+        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as any,
+        phase: 'moneriumOnrampSelfTransfer',
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        signer: account.address,
+      });
 
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
         fromAddress: account.address,
@@ -205,16 +217,16 @@ export async function prepareMoneriumEvmOnrampTransactions({
       unsignedTxs.push({
         txData: encodeEvmTransactionData(approveData) as any,
         phase: 'squidRouterApprove',
-        network: Networks.Moonbeam,
-        nonce: 0,
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
         signer: account.address,
       });
 
       unsignedTxs.push({
         txData: encodeEvmTransactionData(swapData) as any,
         phase: 'squidRouterSwap',
-        network: Networks.Moonbeam,
-        nonce: 1,
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
         signer: account.address,
       });
     }
@@ -223,7 +235,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
   return { unsignedTxs, stateMeta };
 }
 
-async function createOnrampUserTransaction(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
+async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const publicClient = createPublicClient({
     chain: polygon,
     transport: http(),
@@ -231,8 +243,38 @@ async function createOnrampUserTransaction(amountRaw: string, toAddress: string)
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
-    functionName: 'transfer',
+    functionName: 'approve',
     args: [toAddress, amountRaw],
+  });
+
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    to: ERC20_EURE_POLYGON,
+    data: transferCallData as `0x${string}`,
+    value: '0',
+    gas: '100000',
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+  };
+
+  return txData;
+}
+
+async function createOnrampEphemeralSelfTransfer(
+  amountRaw: string,
+  fromAddress: string,
+  toAddress: string,
+): Promise<EvmTransactionData> {
+  const publicClient = createPublicClient({
+    chain: polygon,
+    transport: http(),
+  });
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    functionName: 'transferFrom',
+    args: [fromAddress, toAddress, amountRaw],
   });
 
   const { maxFeePerGas } = await publicClient.estimateFeesPerGas();

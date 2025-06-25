@@ -29,6 +29,20 @@ export interface RouteParams {
   };
 }
 
+interface RouteStatus {
+  chainId: string;
+  txHash: string;
+  status: string;
+  action: string;
+}
+
+export interface SquidRouterPayResponse {
+  id: string;
+  status: string;
+  squidTransactionStatus: string;
+  isGMPTransaction: boolean;
+  routeStatus: RouteStatus[];
+}
 // This function creates the parameters for the Squidrouter API to get a route for onramping.
 // This route will always be from Moonbeam to another EVM chain.
 export function createOnrampRouteParams(
@@ -81,7 +95,11 @@ export async function getRoute(params: RouteParams) {
 }
 
 // Function to get the status of the transaction using Squid API
-export async function getStatus(transactionId: string | undefined) {
+export async function getStatus(
+  transactionId: string | undefined,
+  fromChainId?: string,
+  toChainId?: string,
+): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
     throw new Error('Transaction ID is undefined');
@@ -90,11 +108,12 @@ export async function getStatus(transactionId: string | undefined) {
   logger.debug(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`,
   );
-
   try {
     const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
       params: {
         transactionId,
+        fromChainId,
+        toChainId,
       },
       headers: {
         'x-integrator-id': integratorId,

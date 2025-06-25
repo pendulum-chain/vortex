@@ -9,13 +9,14 @@ import { RampDirection } from '../RampToggle';
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();
-  const rampDirection = useRampDirection();
   const rampState = useRampState();
+  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
 
-  if (rampDirection !== RampDirection.ONRAMP) return null;
+  //if (rampDirection !== RampDirection.ONRAMP) return null;
   if (!rampState?.ramp?.brCode) return null;
   if (isQuoteExpired) return null;
+  //mock the br code
 
   return (
     <section>

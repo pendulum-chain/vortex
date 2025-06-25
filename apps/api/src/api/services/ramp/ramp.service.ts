@@ -146,6 +146,9 @@ export class RampService extends BaseRampService {
           destinationAddress: additionalData.destinationAddress,
           moneriumAuthToken: additionalData?.moneriumAuthToken,
         }));
+
+        // Mock the onramp transfer code
+        brCode = 'mocked-br-code-for-onramp'; // This should be replaced with actual logic to generate a BR code if needed
       } else {
         // validate we have the destination address and taxId
         if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {

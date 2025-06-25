@@ -35,6 +35,8 @@ function validateOnramp(
     trackEvent: (event: TrackableEvent) => void;
   },
 ): string | null {
+  // Monerium EUR has no minimum
+
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
@@ -48,6 +50,11 @@ function validateOnramp(
       maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
       assetSymbol: fromToken.fiat.symbol,
     });
+  }
+
+  // TODO remove once Token selection is improved.
+  if (fromToken.assetSymbol === 'EURC') {
+    return null;
   }
 
   if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {

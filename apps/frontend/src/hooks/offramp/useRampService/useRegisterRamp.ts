@@ -375,31 +375,10 @@ export const useRegisterRamp = () => {
             substrateWalletAccount,
           );
           setRampSigningPhase('finished');
-        } else if (tx.phase === 'moneriumOnrampInitialTransfer') {
+        } else if (tx.phase === 'moneriumOnrampSelfTransfer') {
           setRampSigningPhase('started');
-          console.log(`Signing Monerium onramp transaction:`, tx);
-
-          try {
-            const evmTransaction = tx.txData as EvmTransactionData;
-            console.log(`EVM Transaction to sign:`, evmTransaction);
-            const signedTxData = await walletClient.signTransaction({
-              to: evmTransaction.to as `0x${string}`,
-              account: walletClient.account,
-              data: evmTransaction.data,
-              value: BigInt(evmTransaction.value),
-              nonce: 0,
-              chain: walletClient.chain,
-            });
-
-            moneriumOnrampSignedTransaction = {
-              ...tx,
-              txData: signedTxData,
-            };
-          } catch (error) {
-            console.error(`Error signing Monerium onramp transaction:`, error);
-            throw new Error(`Failed to sign Monerium onramp transaction: ${error}`);
-          }
-          setRampSigningPhase('signed');
+          squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
+          setRampSigningPhase('finished');
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
         }

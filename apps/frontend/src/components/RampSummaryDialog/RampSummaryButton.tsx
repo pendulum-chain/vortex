@@ -33,7 +33,7 @@ interface UseButtonContentProps {
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const rampState = useRampState();
   const { t } = useTranslation();
-  const rampDirection = useRampDirection();
+  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
   const canRegisterRamp = useCanRegisterRamp();
   const signingRejected = useSigningRejected();
@@ -41,7 +41,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.ONRAMP;
     const isOfframp = rampDirection === RampDirection.OFFRAMP;
-    const isBRCodeReady = Boolean(rampState?.ramp?.brCode);
+    const isBRCodeReady = Boolean(true);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
@@ -63,6 +63,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (submitButtonDisabled) {
+      console.log('here 6');
       return {
         text: t('components.swapSubmitButton.processing'),
         icon: <Spinner />,
@@ -70,6 +71,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
+      console.log('here 5');
       return {
         text: t('components.dialogs.RampSummaryDialog.confirm'),
         icon: null,
@@ -77,6 +79,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && rampState !== undefined) {
+      console.log('here 4');
       return {
         text: t('components.dialogs.RampSummaryDialog.processing'),
         icon: <Spinner />,
@@ -84,6 +87,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOnramp && isBRCodeReady) {
+      console.log('here 3');
       return {
         text: t('components.swapSubmitButton.confirmPayment'),
         icon: null,
@@ -92,18 +96,20 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
 
     if (isOfframp && isAnchorWithRedirect) {
       if (isSubmitted) {
+        console.log('here 2');
         return {
           text: t('components.dialogs.RampSummaryDialog.continueOnPartnersPage'),
           icon: <Spinner />,
         };
       } else {
+        console.log('here 1');
         return {
           text: t('components.dialogs.RampSummaryDialog.continueWithPartner'),
           icon: <ArrowTopRightOnSquareIcon className="w-4 h-4" />,
         };
       }
     }
-
+    console.log('here');
     return {
       text: t('components.swapSubmitButton.processing'),
       icon: <Spinner />,
@@ -128,7 +134,7 @@ export const RampSummaryButton = () => {
   const signingRejected = useSigningRejected();
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
-  const rampDirection = useRampDirection();
+  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isOfframp = rampDirection === RampDirection.OFFRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const { isQuoteExpired } = useRampSummaryStore();
