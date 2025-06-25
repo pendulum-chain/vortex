@@ -1,4 +1,4 @@
-import { HORIZON_URL, RampPhase } from '@packages/shared';
+import { FiatToken, HORIZON_URL, RampPhase } from '@packages/shared';
 import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
@@ -38,9 +38,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
     }
 
     // State with a polygonEphemeralAddress indicates a monerium onramp.
-    if (state.type === 'on' && state.state.polygonEphemeralAddress) {
-      return this.transitionToNextPhase(state, 'moneriumOnrampSelfTransfer');
-    } else if (state.type === 'on') {
+    if (state.type === 'on' && state.state.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, 'brlaTeleport');
     }
 

@@ -63,7 +63,6 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (submitButtonDisabled) {
-      console.log('here 6');
       return {
         text: t('components.swapSubmitButton.processing'),
         icon: <Spinner />,
@@ -71,7 +70,6 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
-      console.log('here 5');
       return {
         text: t('components.dialogs.RampSummaryDialog.confirm'),
         icon: null,
@@ -79,7 +77,6 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && rampState !== undefined) {
-      console.log('here 4');
       return {
         text: t('components.dialogs.RampSummaryDialog.processing'),
         icon: <Spinner />,
@@ -87,7 +84,6 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOnramp && isBRCodeReady) {
-      console.log('here 3');
       return {
         text: t('components.swapSubmitButton.confirmPayment'),
         icon: null,
@@ -96,20 +92,17 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
 
     if (isOfframp && isAnchorWithRedirect) {
       if (isSubmitted) {
-        console.log('here 2');
         return {
           text: t('components.dialogs.RampSummaryDialog.continueOnPartnersPage'),
           icon: <Spinner />,
         };
       } else {
-        console.log('here 1');
         return {
           text: t('components.dialogs.RampSummaryDialog.continueWithPartner'),
           icon: <ArrowTopRightOnSquareIcon className="w-4 h-4" />,
         };
       }
     }
-    console.log('here');
     return {
       text: t('components.swapSubmitButton.processing'),
       icon: <Spinner />,

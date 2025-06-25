@@ -1,8 +1,14 @@
 import { HORIZON_URL, StellarTokenDetails } from '@packages/shared';
 import Big from 'big.js';
 import { Horizon, Networks } from 'stellar-sdk';
+import { http, createPublicClient } from 'viem';
+import { polygon } from 'viem/chains';
 import logger from '../../../../config/logger';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
+import {
+  GLMR_FUNDING_AMOUNT_RAW,
+  PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
+} from '../../../../constants/constants';
 import { API } from '../../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 
@@ -46,4 +52,20 @@ export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string
 export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
   const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
   return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
+}
+
+export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
+  const publicClient = createPublicClient({
+    chain: polygon,
+    transport: http(),
+  });
+
+  const balance = await publicClient.getBalance({
+    address: polygonEphemeralAddress as `0x${string}`,
+  });
+  const fundingAmountRaw = new Big(
+    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed(),
+  );
+
+  return Big(balance.toString()).gte(fundingAmountRaw);
 }

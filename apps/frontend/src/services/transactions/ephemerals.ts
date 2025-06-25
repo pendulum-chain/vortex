@@ -10,8 +10,8 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
   const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   return {
-    secret: 'photo vague later expose moral clinic exhaust gift trend obtain credit giggle',
-    address: '0x1135AA344AF3f80Ebd1d8F5B8Dedb4795Dc474D0',
+    secret: seedPhrase,
+    address: ephemeralAccountKeypair.address,
   };
 }
 

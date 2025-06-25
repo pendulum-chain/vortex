@@ -186,7 +186,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
     // Create transactions for ephemeral account where Monerium minting takes place
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       // Initialize nonce counter for Polygon transactions
-      let polygonAccountNonce = 3; // TODO TESTING, should be 0.
+      let polygonAccountNonce = 0;
 
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,

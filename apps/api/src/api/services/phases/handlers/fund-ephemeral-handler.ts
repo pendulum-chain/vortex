@@ -1,9 +1,17 @@
 import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
 import { NetworkError, Transaction } from 'stellar-sdk';
+import { http, createPublicClient, createWalletClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { polygon } from 'viem/chains';
 import logger from '../../../../config/logger';
+import {
+  MOONBEAM_FUNDING_PRIVATE_KEY,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
+} from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';
 import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
 import { ApiManager } from '../../pendulum/apiManager';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { StateMetadata } from '../meta-state-types';
@@ -12,6 +20,7 @@ import {
   horizonServer,
   isMoonbeamEphemeralFunded,
   isPendulumEphemeralFunded,
+  isPolygonEphemeralFunded,
   isStellarEphemeralFunded,
 } from './helpers';
 
@@ -25,21 +34,41 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     const pendulumNode = await apiManager.getApi('pendulum');
     const moonbeamNode = await apiManager.getApi('moonbeam');
 
-    const { moonbeamEphemeralAddress, pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { moonbeamEphemeralAddress, pendulumEphemeralAddress, polygonEphemeralAddress } =
+      state.state as StateMetadata;
+    const requiresPendulumEphemeralAddress = !(state.type === 'on' && state.state.inputCurrency === FiatToken.EURC);
 
-    if (!pendulumEphemeralAddress) {
-      throw new Error('FundEphemeralPhaseHandler: State metadata corrupted. This is a bug.');
+    // Ephemeral checks.
+    if (!pendulumEphemeralAddress && requiresPendulumEphemeralAddress) {
+      throw new Error(
+        'FundEphemeralPhaseHandler: State metadata corrupted, missing pendulumEphemeralAddress. This is a bug.',
+      );
     }
-    if (state.type === 'on' && !moonbeamEphemeralAddress) {
-      throw new Error('FundEphemeralPhaseHandler: State metadata corrupted. This is a bug.');
+    if (state.type === 'on' && state.state.inputCurrency === FiatToken.BRL && !moonbeamEphemeralAddress) {
+      throw new Error(
+        'FundEphemeralPhaseHandler: State metadata corrupted, missing moonbeamEphemeralAddress. This is a bug.',
+      );
+    }
+    if (state.type === 'on' && state.state.inputCurrency === FiatToken.EURC && !polygonEphemeralAddress) {
+      throw new Error(
+        'FundEphemeralPhaseHandler: State metadata corrupted, missing polygonEphemeralAddress. This is a bug.',
+      );
     }
 
     try {
-      const isPendulumFunded = await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode);
+      let isPendulumFunded = true;
+      if (state.type === 'on' && requiresPendulumEphemeralAddress) {
+        isPendulumFunded = await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode);
+      }
 
       let isMoonbeamFunded = true;
       if (state.type === 'on' && moonbeamEphemeralAddress) {
         isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode);
+      }
+
+      let isPolygonFunded = true;
+      if (state.type === 'on' && polygonEphemeralAddress) {
+        isPolygonFunded = await isPolygonEphemeralFunded(polygonEphemeralAddress);
       }
 
       if (state.state.stellarTarget) {
@@ -76,6 +105,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
         await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
+
+      if (state.type === 'on' && !isPolygonFunded) {
+        logger.info(`Funding polygon ephemeral accout ${polygonEphemeralAddress}`);
+        await this.fundPolygonEphemeralAccount(state);
+      } else {
+        logger.info('Polygon ephemeral address already funded.');
+      }
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
       const recoverableError = this.createRecoverableError('Error funding ephemeral account');
@@ -86,9 +122,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState): RampPhase {
-    // onramp case
-    if (state.type === 'on') {
+    // brla onramp case
+    if (state.type === 'on' && state.state.inputCurrency === FiatToken.BRL) {
       return 'moonbeamToPendulumXcm';
+    }
+    // monerium onramp case
+    if (state.type === 'on' && state.state.inputCurrency === FiatToken.EURC) {
+      return 'moneriumOnrampSelfTransfer';
     }
 
     // off ramp cases
@@ -132,6 +172,45 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data}`);
         throw new Error('Could not submit the stellar creation transaction');
       }
+    }
+  }
+
+  protected async fundPolygonEphemeralAccount(state: RampState): Promise<void> {
+    try {
+      const ephmeralAddress = state.state.polygonEphemeralAddress;
+      const fundingAmountRaw = multiplyByPowerOfTen(
+        POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
+        polygon.nativeCurrency.decimals,
+      ).toFixed();
+
+      // We use Moonbeam's funding account to fund the ephemeral account on Polygon.
+      const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const walletClient = createWalletClient({
+        account: fundingAccount,
+        chain: polygon,
+        transport: http(),
+      });
+
+      const publicClient = createPublicClient({
+        chain: polygon,
+        transport: http(),
+      });
+
+      const txHash = await walletClient.sendTransaction({
+        to: ephmeralAddress as `0x${string}`,
+        value: BigInt(fundingAmountRaw),
+      });
+
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash as `0x${string}`,
+      });
+
+      if (!receipt || receipt.status !== 'success') {
+        throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found`);
+      }
+    } catch (error) {
+      console.error('FundEphemeralPhaseHandler: Error during funding Polygon ephemeral:', error);
+      throw new Error('FundEphemeralPhaseHandler: Error during funding Polygon ephemeral: ' + error);
     }
   }
 }
