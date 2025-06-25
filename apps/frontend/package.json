@@ -14,6 +14,7 @@
     "@fontsource/roboto": "^5.0.8",
     "@heroicons/react": "^2.1.3",
     "@hookform/resolvers": "^3.4.2",
+    "@monerium/sdk": "^3.4.2",
     "@packages/shared": "workspace:*",
     "@pendulum-chain/api": "^1.1.1",
     "@pendulum-chain/api-solang": "^0.7.2",
