@@ -65,7 +65,6 @@ export class QuoteService extends BaseRampService {
     );
 
     let inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
-    console.log("inputAmountForNablaSwap after pre-Nabla fees:", inputAmountForNablaSwap.toFixed(4, 0));
 
     if (request.rampType === "off" && request.from !== "assethub") {
       // Check squidrouter rate and adjust the input amount accordingly
@@ -77,7 +76,6 @@ export class QuoteService extends BaseRampService {
       });
       inputAmountForNablaSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
     }
-    console.log("inputAmountForNablaSwap after squidrouter rate adjustment:", inputAmountForNablaSwap.toFixed(4, 0));
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -125,7 +123,6 @@ export class QuoteService extends BaseRampService {
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
-    console.log("Nabla swap output amount:", outputAmountOfframp);
 
     const {
       vortexFee,

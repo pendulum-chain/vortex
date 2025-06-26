@@ -282,16 +282,6 @@ async function createNablaSwapTransactions(
   const outputAfterAnchorFee = new Big(quote.outputAmount)
     .plus(totalFeeInSwapOutputCurrency)
     .minus(anchorFeeInSwapOutputCurrency);
-  console.log(
-    "inputAmountForNablaSwapRaw",
-    inputAmountForNablaSwapRaw,
-    "outputAfterAnchorFee",
-    outputAfterAnchorFee.toFixed(),
-    "anchorFeeInOutputCurrency",
-    anchorFeeInSwapOutputCurrency,
-    "totalFeeInOutputCurrency",
-    totalFeeInSwapOutputCurrency
-  );
 
   const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenPendulumDetails.decimals).toFixed(
