@@ -53,7 +53,9 @@ export const createQuote = async (
 
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
-    logger.error("Error creating quote:", error);
+    logger.error(
+      `Error creating quote: ${error && typeof error === "object" && "message" in error ? error.message : String(error)}`
+    );
     next(error);
   }
 };
