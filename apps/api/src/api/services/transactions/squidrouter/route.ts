@@ -95,9 +95,11 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
       logger.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
+      throw new Error(`Failed to fetch route: ${error.response?.data?.message || "Unknown error"}`);
+    } else {
+      logger.error(`Error with parameters: ${JSON.stringify(params)}`);
+      throw error;
     }
-    logger.error(`Error with parameters: ${JSON.stringify(params)}`);
-    throw error;
   }
 }
 
@@ -126,7 +128,7 @@ export async function getStatus(transactionId: string | undefined) {
     if (error instanceof AxiosError && error.response) {
       console.error("API error:", error.response.data);
     }
-    logger.error(error);
+    logger.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }
