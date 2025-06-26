@@ -15,7 +15,7 @@ import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";
 
 export interface PrepareNablaApproveParams {
-  inputTokenDetails: PendulumTokenDetails;
+  inputTokenPendulumDetails: PendulumTokenDetails;
   amountRaw: string;
   pendulumEphemeralAddress: string;
   pendulumNode: API;
@@ -63,7 +63,7 @@ async function createApproveExtrinsic({
 }
 
 export async function prepareNablaApproveTransaction({
-  inputTokenDetails,
+  inputTokenPendulumDetails,
   amountRaw,
   pendulumEphemeralAddress,
   pendulumNode
@@ -80,7 +80,7 @@ export async function prepareNablaApproveTransaction({
     abi: erc20ContractAbi,
     api,
     callerAddress: pendulumEphemeralAddress,
-    contractDeploymentAddress: inputTokenDetails.erc20WrapperAddress,
+    contractDeploymentAddress: inputTokenPendulumDetails.erc20WrapperAddress,
     limits: defaultReadLimits,
     messageArguments: [pendulumEphemeralAddress, NABLA_ROUTER],
     messageName: "allowance"
@@ -92,19 +92,19 @@ export async function prepareNablaApproveTransaction({
     throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(inputTokenDetails.decimals, response.value);
+  const currentAllowance = parseContractBalanceResponse(inputTokenPendulumDetails.decimals, response.value);
 
   // maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
     try {
-      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.assetSymbol}`);
+      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol}`);
       return createApproveExtrinsic({
         amount: amountRaw,
         api,
         callerAddress: pendulumEphemeralAddress,
         contractAbi: erc20ContractAbi,
         spender: NABLA_ROUTER,
-        token: inputTokenDetails.erc20WrapperAddress
+        token: inputTokenPendulumDetails.erc20WrapperAddress
       });
     } catch (e) {
       logger.info(`Could not approve token: ${e}`);
