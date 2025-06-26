@@ -5,5 +5,5 @@ export type PendulumTokenDetails = {
   currencyId: PendulumCurrencyId;
   assetSymbol: string;
   decimals: number;
-  currency: RampCurrency; // Used for price conversins
+  currency: RampCurrency; // Used for price conversions
 };
