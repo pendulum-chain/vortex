@@ -118,8 +118,8 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
     const tokenBalance = balances[index]?.result;
 
-    // If we are dealing with a stablecoin, we show 2 decimals, otherwise 6
-    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
+    // If we are dealing with a stablecoin, we show 2 decimals, otherwise 4
+    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 4;
     const balance = tokenBalance
       ? multiplyByPowerOfTen(Big(tokenBalance.toString()), -curr.decimals).toFixed(showDecimals, 0)
       : "0.00";
