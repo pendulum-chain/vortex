@@ -84,6 +84,7 @@ async function addFeeDistributionTransaction(
       network: account.network,
       nonce: nextNonce,
       signer: account.address,
+      meta: {}
     });
     nextNonce++;
   }
@@ -178,6 +179,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
     network: Networks.Polygon,
     nonce: 0,
     signer: userMintAddress,
+    meta: {}
   });
 
   for (const account of signingAccounts) {
@@ -200,6 +202,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
         signer: account.address,
+        meta: {},
       });
 
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
@@ -220,6 +223,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
         signer: account.address,
+        meta: {},
       });
 
       unsignedTxs.push({
@@ -228,6 +232,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
         signer: account.address,
+        meta: {},
       });
     }
   }

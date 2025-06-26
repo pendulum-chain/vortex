@@ -16,6 +16,7 @@ import squidRouterPhaseHandler from "./handlers/squid-router-phase-handler";
 import stellarPaymentHandler from "./handlers/stellar-payment-handler";
 import subsidizePostSwapPhaseHandler from "./handlers/subsidize-post-swap-handler";
 import subsidizePreSwapPhaseHandler from "./handlers/subsidize-pre-swap-handler";
+import monenriumOnrampSelfTransferHandler from "./handlers/monerium-onramp-self-transfer-handler";
 import phaseRegistry from "./phase-registry";
 /**
  * Register all phase handlers
