@@ -97,7 +97,7 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       assetSymbol: "ETH",
       decimals: 18, // ETH on BSC
       erc20AddressSourceChain: "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
-      isNative: true,
+      isNative: false,
       network: Networks.BSC,
       networkAssetIcon: "bscETH",
       pendulumRepresentative: PENDULUM_USDC_AXL,
