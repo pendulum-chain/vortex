@@ -2,8 +2,8 @@
  * Moonbeam token types
  */
 
+import { PendulumTokenDetails } from "../types/pendulum";
 import { BaseFiatTokenDetails, BaseTokenDetails, TokenType } from "./base";
-import {PendulumTokenDetails} from "../types/pendulum";
 
 export interface MoonbeamTokenDetails extends BaseTokenDetails, BaseFiatTokenDetails {
   type: TokenType.Moonbeam;

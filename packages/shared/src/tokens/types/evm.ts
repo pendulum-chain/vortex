@@ -2,7 +2,7 @@
  * EVM token types
  */
 
-import {EvmAddress, PendulumTokenDetails} from "../..";
+import { EvmAddress, PendulumTokenDetails } from "../..";
 import { Networks } from "../../helpers";
 import { BaseTokenDetails, TokenType } from "./base";
 
@@ -28,7 +28,7 @@ export interface EvmTokenDetails extends BaseTokenDetails {
   isNative: boolean;
   /// The metadata about the token when it's used in Pendulum.
   /// For now, all EVM tokens are represented by axlUSDC on Pendulum.
-  pendulumRepresentative: PendulumTokenDetails
+  pendulumRepresentative: PendulumTokenDetails;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {
