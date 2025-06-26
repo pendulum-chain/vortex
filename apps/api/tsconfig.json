@@ -1,18 +1,22 @@
 {
   "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "outDir": "dist",
     "paths": {
       "@packages/*": ["../../packages/*/src"]
     },
-    "module": "esnext",
-    "target": "esnext",
-    "moduleResolution": "node",
-    "outDir": "dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "esnext",
     "types": ["bun-types"]
   },
-  "include": ["src"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules"],
+  "include": [
+    "src",
+    // Include the Pendulum types so we can use them in our code
+    "node_modules/@pendulum-chain/types"
+  ]
 }

@@ -1,7 +1,7 @@
 // BCP 47 language codes
 export enum Language {
-  English = 'en',
-  Portuguese_Brazil = 'pt-BR',
+  English = "en",
+  Portuguese_Brazil = "pt-BR"
 }
 
 const DEFAULT_LANGUAGE = Language.English;
@@ -11,7 +11,7 @@ const DEFAULT_LANGUAGE = Language.English;
  * @returns The detected language code or default language
  */
 const getLanguageFromPath = (): Language => {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return DEFAULT_LANGUAGE;
   }
 

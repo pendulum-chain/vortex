@@ -121,6 +121,7 @@ export async function prepareMoneriumEvmOfframpTransactions({
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
+    meta: {}
   });
 
   unsignedTxs.push({
@@ -129,6 +130,7 @@ export async function prepareMoneriumEvmOfframpTransactions({
     network: fromNetwork,
     nonce: 1,
     signer: userAddress,
+    meta: {}
   });
 
   return { unsignedTxs, stateMeta }; // Return the unsigned transactions and state meta

@@ -1,6 +1,6 @@
-import { RampCurrency } from '@packages/shared';
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
+import { RampCurrency } from "@packages/shared";
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
 
 // Define the attributes of the Partner model
 export interface PartnerAttributes {
@@ -8,12 +8,12 @@ export interface PartnerAttributes {
   name: string;
   displayName: string;
   logoUrl: string | null;
-  markupType: 'absolute' | 'relative' | 'none';
+  markupType: "absolute" | "relative" | "none";
   markupValue: number;
   markupCurrency: RampCurrency;
   payoutAddress: string;
-  rampType: 'on' | 'off';
-  vortexFeeType: 'absolute' | 'relative' | 'none';
+  rampType: "on" | "off";
+  vortexFeeType: "absolute" | "relative" | "none";
   vortexFeeValue: number;
   isActive: boolean;
   createdAt: Date;
@@ -21,7 +21,7 @@ export interface PartnerAttributes {
 }
 
 // Define the attributes that can be set during creation
-type PartnerCreationAttributes = Optional<PartnerAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+type PartnerCreationAttributes = Optional<PartnerAttributes, "id" | "createdAt" | "updatedAt">;
 
 // Define the Partner model
 class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implements PartnerAttributes {
@@ -33,7 +33,7 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare logoUrl: string | null;
 
-  declare markupType: 'absolute' | 'relative' | 'none';
+  declare markupType: "absolute" | "relative" | "none";
 
   declare markupValue: number;
 
@@ -41,9 +41,9 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare payoutAddress: string;
 
-  declare rampType: 'on' | 'off';
+  declare rampType: "on" | "off";
 
-  declare vortexFeeType: 'absolute' | 'relative' | 'none';
+  declare vortexFeeType: "absolute" | "relative" | "none";
 
   declare vortexFeeValue: number;
 
@@ -57,95 +57,95 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 // Initialize the model
 Partner.init(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    name: {
-      type: DataTypes.STRING(100),
+    createdAt: {
       allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     displayName: {
-      type: DataTypes.STRING(100),
       allowNull: false,
-      field: 'display_name',
+      field: "display_name",
+      type: DataTypes.STRING(100)
     },
-    logoUrl: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      field: 'logo_url',
-    },
-    markupType: {
-      type: DataTypes.ENUM('absolute', 'relative', 'none'),
-      allowNull: false,
-      defaultValue: 'none',
-      field: 'markup_type',
-    },
-    markupValue: {
-      type: DataTypes.DECIMAL(10, 4),
-      allowNull: false,
-      defaultValue: 0,
-      field: 'markup_value',
-    },
-    markupCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: true,
-      field: 'markup_currency',
-    },
-    payoutAddress: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      field: 'payout_address',
-    },
-    rampType: {
-      type: DataTypes.ENUM('on', 'off'),
-      allowNull: false,
-      field: 'ramp_type',
-    },
-    vortexFeeType: {
-      type: DataTypes.ENUM('absolute', 'relative', 'none'),
-      allowNull: false,
-      defaultValue: 'none',
-      field: 'vortex_fee_type',
-    },
-    vortexFeeValue: {
-      type: DataTypes.DECIMAL(10, 4),
-      allowNull: false,
-      defaultValue: 0,
-      field: 'vortex_fee_value',
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
     },
     isActive: {
-      type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
-      field: 'is_active',
+      field: "is_active",
+      type: DataTypes.BOOLEAN
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    logoUrl: {
+      allowNull: true,
+      field: "logo_url",
+      type: DataTypes.STRING(255)
+    },
+    markupCurrency: {
+      allowNull: true,
+      field: "markup_currency",
+      type: DataTypes.STRING(8)
+    },
+    markupType: {
       allowNull: false,
-      field: 'created_at',
-      defaultValue: DataTypes.NOW,
+      defaultValue: "none",
+      field: "markup_type",
+      type: DataTypes.ENUM("absolute", "relative", "none")
+    },
+    markupValue: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "markup_value",
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    name: {
+      allowNull: false,
+      type: DataTypes.STRING(100)
+    },
+    payoutAddress: {
+      allowNull: true,
+      field: "payout_address",
+      type: DataTypes.STRING(255)
+    },
+    rampType: {
+      allowNull: false,
+      field: "ramp_type",
+      type: DataTypes.ENUM("on", "off")
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'updated_at',
       defaultValue: DataTypes.NOW,
+      field: "updated_at",
+      type: DataTypes.DATE
     },
+    vortexFeeType: {
+      allowNull: false,
+      defaultValue: "none",
+      field: "vortex_fee_type",
+      type: DataTypes.ENUM("absolute", "relative", "none")
+    },
+    vortexFeeValue: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "vortex_fee_value",
+      type: DataTypes.DECIMAL(10, 4)
+    }
   },
   {
-    sequelize,
-    modelName: 'Partner',
-    tableName: 'partners',
-    timestamps: true,
     indexes: [
       {
-        name: 'idx_partners_name_ramp_type',
-        fields: ['name', 'ramp_type'],
-      },
+        fields: ["name", "ramp_type"],
+        name: "idx_partners_name_ramp_type"
+      }
     ],
-  },
+    modelName: "Partner",
+    sequelize,
+    tableName: "partners",
+    timestamps: true
+  }
 );
 
 export default Partner;

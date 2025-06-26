@@ -10,23 +10,23 @@ import {
   RegisterSubaccountPayload,
   SubaccountData,
   SwapPayload,
-  UsedLimitData,
-} from './types';
-import { Event } from './webhooks';
+  UsedLimitData
+} from "./types";
+import { Event } from "./webhooks";
 
 export enum Endpoint {
-  Subaccounts = '/subaccounts',
-  PayOut = '/pay-out',
-  BrCode = '/pay-in/br-code',
-  UsedLimit = '/used-limit',
-  WebhookEvents = '/webhooks/events',
-  PixInfo = '/pay-out/pix-info',
-  PixHistory = '/pay-in/pix/history',
-  FastQuote = '/fast-quote',
-  Swap = '/swap',
-  OnChainHistoryOut = '/on-chain/history/out',
-  KycLevel2 = '/kyc/level2',
-  KycRetry = '/kyc/retry',
+  Subaccounts = "/subaccounts",
+  PayOut = "/pay-out",
+  BrCode = "/pay-in/br-code",
+  UsedLimit = "/used-limit",
+  WebhookEvents = "/webhooks/events",
+  PixInfo = "/pay-out/pix-info",
+  PixHistory = "/pay-in/pix/history",
+  FastQuote = "/fast-quote",
+  Swap = "/swap",
+  OnChainHistoryOut = "/on-chain/history/out",
+  KycLevel2 = "/kyc/level2",
+  KycRetry = "/kyc/retry"
 }
 
 export interface EndpointMapping {

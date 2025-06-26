@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { debounce } from '../../helpers/function';
+import { useEffect, useRef } from "react";
+import { debounce } from "../../helpers/function";
 
 /**
  * Hook to debounce form value updates to a store

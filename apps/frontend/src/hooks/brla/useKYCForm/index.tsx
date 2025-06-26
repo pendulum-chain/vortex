@@ -1,13 +1,12 @@
-import { yupResolver } from '@hookform/resolvers/yup';
-import { useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
-import * as yup from 'yup';
-
-import { useEffect } from 'react';
-import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/BrlaField';
-import { useRampFormStore, useRampFormStoreActions } from '../../../stores/ramp/useRampFormStore';
-import { useRampStore } from '../../../stores/rampStore';
-import { isValidCnpj, isValidCpf } from '../../ramp/schema';
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import * as yup from "yup";
+import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
+import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
+import { useRampStore } from "../../../stores/rampStore";
+import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
 export interface UseKYCFormProps {
   cpfApiError: string | null;
@@ -22,8 +21,8 @@ const createKycFormSchema = (t: (key: string) => string) =>
     .object({
       [ExtendedBrlaFieldOptions.TAX_ID]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.taxId.required'))
-        .test('is-valid-tax-id', t('components.brlaExtendedForm.validation.taxId.format'), (value) => {
+        .required(t("components.brlaExtendedForm.validation.taxId.required"))
+        .test("is-valid-tax-id", t("components.brlaExtendedForm.validation.taxId.format"), value => {
           if (!value) {
             return false;
           }
@@ -31,68 +30,66 @@ const createKycFormSchema = (t: (key: string) => string) =>
         }),
       [ExtendedBrlaFieldOptions.PHONE]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.phone.required'))
-        .matches(/^\+?[1-9]\d{9,14}$/, t('components.brlaExtendedForm.validation.phone.format')),
+        .required(t("components.brlaExtendedForm.validation.phone.required"))
+        .matches(/^\+?[1-9]\d{9,14}$/, t("components.brlaExtendedForm.validation.phone.format")),
 
       [ExtendedBrlaFieldOptions.FULL_NAME]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.fullName.required'))
-        .min(3, t('components.brlaExtendedForm.validation.fullName.minLength'))
-        .matches(/^[a-zA-Z\s]*$/, t('components.brlaExtendedForm.validation.fullName.format')),
+        .required(t("components.brlaExtendedForm.validation.fullName.required"))
+        .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
+        .matches(/^[a-zA-Z\s]*$/, t("components.brlaExtendedForm.validation.fullName.format")),
 
       [ExtendedBrlaFieldOptions.CEP]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.cep.required'))
-        .min(3, t('components.brlaExtendedForm.validation.cep.minLength')),
+        .required(t("components.brlaExtendedForm.validation.cep.required"))
+        .min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
 
       [ExtendedBrlaFieldOptions.CITY]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.city.required'))
-        .min(5, t('components.brlaExtendedForm.validation.city.minLength')),
+        .required(t("components.brlaExtendedForm.validation.city.required"))
+        .min(5, t("components.brlaExtendedForm.validation.city.minLength")),
 
       [ExtendedBrlaFieldOptions.STATE]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.state.required'))
-        .min(3, t('components.brlaExtendedForm.validation.state.minLength')),
+        .required(t("components.brlaExtendedForm.validation.state.required"))
+        .min(3, t("components.brlaExtendedForm.validation.state.minLength")),
 
       [ExtendedBrlaFieldOptions.STREET]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.street.required'))
-        .min(5, t('components.brlaExtendedForm.validation.street.minLength')),
+        .required(t("components.brlaExtendedForm.validation.street.required"))
+        .min(5, t("components.brlaExtendedForm.validation.street.minLength")),
 
-      [ExtendedBrlaFieldOptions.NUMBER]: yup
-        .string()
-        .required(t('components.brlaExtendedForm.validation.number.required')),
+      [ExtendedBrlaFieldOptions.NUMBER]: yup.string().required(t("components.brlaExtendedForm.validation.number.required")),
 
       [ExtendedBrlaFieldOptions.DISTRICT]: yup
         .string()
-        .required(t('components.brlaExtendedForm.validation.district.required'))
-        .min(3, t('components.brlaExtendedForm.validation.district.minLength')),
+        .required(t("components.brlaExtendedForm.validation.district.required"))
+        .min(3, t("components.brlaExtendedForm.validation.district.minLength")),
 
       [ExtendedBrlaFieldOptions.BIRTHDATE]: yup
         .date()
         .transform((value, originalValue) => {
-          return originalValue === '' ? undefined : value;
+          return originalValue === "" ? undefined : value;
         })
-        .required(t('components.brlaExtendedForm.validation.birthdate.required'))
-        .max(new Date(), t('components.brlaExtendedForm.validation.birthdate.future'))
-        .min(new Date(1900, 0, 1), t('components.brlaExtendedForm.validation.birthdate.tooOld')),
+        .required(t("components.brlaExtendedForm.validation.birthdate.required"))
+        .max(new Date(), t("components.brlaExtendedForm.validation.birthdate.future"))
+        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.birthdate.tooOld")),
 
       [ExtendedBrlaFieldOptions.COMPANY_NAME]: yup
         .string()
-        .min(3, t('components.brlaExtendedForm.validation.companyName.minLength')),
+        .min(3, t("components.brlaExtendedForm.validation.companyName.minLength")),
 
       [ExtendedBrlaFieldOptions.START_DATE]: yup
         .date()
         .transform((value, originalValue) => {
-          return originalValue === '' ? undefined : value;
+          return originalValue === "" ? undefined : value;
         })
-        .max(new Date(), t('components.brlaExtendedForm.validation.startDate.future'))
-        .min(new Date(1900, 0, 1), t('components.brlaExtendedForm.validation.startDate.tooOld')),
+        .max(new Date(), t("components.brlaExtendedForm.validation.startDate.future"))
+        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.startDate.tooOld")),
 
       [ExtendedBrlaFieldOptions.PARTNER_CPF]: yup
         .string()
-        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t('components.brlaExtendedForm.validation.partnerCpf.format')),
+        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format"))
     })
     .required();
 
@@ -103,25 +100,25 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { taxId: taxIdFromStore } = useRampFormStore();
   const {
     rampExecutionInput: executionInput,
-    actions: { setRampExecutionInput },
+    actions: { setRampExecutionInput }
   } = useRampStore();
   const { setTaxId } = useRampFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
 
   const kycForm = useForm<KYCFormData>({
-    resolver: yupResolver(kycFormSchema),
-    mode: 'onBlur',
     defaultValues: {
       ...getEnumInitialValues(ExtendedBrlaFieldOptions),
-      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || '',
+      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || ""
     },
+    mode: "onBlur",
+    resolver: yupResolver(kycFormSchema)
   });
 
   const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
 
   useEffect(() => {
-    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== '') {
+    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
       setTaxId(watchedCpf);
       if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
     }
@@ -130,15 +127,15 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   useEffect(() => {
     if (cpfApiError) {
       kycForm.setError(ExtendedBrlaFieldOptions.TAX_ID, {
-        type: 'invalidTaxId',
-        message: t('components.brlaExtendedForm.kycFailureReasons.invalidTaxId'),
+        message: t("components.brlaExtendedForm.kycFailureReasons.invalidTaxId"),
+        type: "invalidTaxId"
       });
     } else {
-      if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === 'invalidTaxId') {
+      if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === "invalidTaxId") {
         kycForm.clearErrors(ExtendedBrlaFieldOptions.TAX_ID);
       }
     }
-  }, [cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
+  }, [t, cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
 
   return { kycForm };
 };

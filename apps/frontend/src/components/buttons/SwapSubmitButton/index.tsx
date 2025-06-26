@@ -1,11 +1,11 @@
-import { isNetworkEVM } from '@packages/shared';
-import { useAppKitAccount } from '@reown/appkit/react';
-import { FC } from 'react';
-import { useNetwork } from '../../../contexts/network';
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { useMaintenanceAwareButton } from '../../../hooks/useMaintenanceAware';
-import { Spinner } from '../../Spinner';
-import { ConnectWalletButton } from '../ConnectWalletButton';
+import { isNetworkEVM } from "@packages/shared";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { FC } from "react";
+import { useNetwork } from "../../../contexts/network";
+import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
+import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
+import { Spinner } from "../../Spinner";
+import { ConnectWalletButton } from "../ConnectWalletButton";
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -22,7 +22,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   if (!isNetworkEVM(selectedNetwork) && !walletAccount) {
     return (
-      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
+      <div style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />
       </div>
     );
@@ -30,15 +30,15 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   if (isNetworkEVM(selectedNetwork) && !isConnected) {
     return (
-      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
+      <div style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />
       </div>
     );
   }
 
   return (
-    <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
-      <button className="w-full btn-vortex-primary btn" {...buttonProps}>
+    <div style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}>
+      <button className="btn-vortex-primary btn w-full" {...buttonProps}>
         {pending && <Spinner />}
         {isMaintenanceDisabled ? buttonProps.title : text}
       </button>

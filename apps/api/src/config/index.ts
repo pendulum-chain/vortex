@@ -2,8 +2,8 @@
  * Configuration index
  */
 
+export * from "./database";
+export * from "./express";
+export * from "./logger";
 // Re-export existing configuration
-export * from './vars';
-export * from './logger';
-export * from './express';
-export * from './database';
+export * from "./vars";

@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { LocalStorageKeys, useLocalStorage } from '../../hooks/useLocalStorage';
+import { useCallback, useEffect, useState } from "react";
+import { LocalStorageKeys, useLocalStorage } from "../../hooks/useLocalStorage";
 
 export function useRatingVisibility() {
   const {
     set: setTimestamp,
     state: timestamp,
-    clear,
+    clear
   } = useLocalStorage<string | undefined>({
-    key: LocalStorageKeys.RATING,
+    key: LocalStorageKeys.RATING
   });
   const [isVisible, setIsVisible] = useState(false);
 
@@ -27,10 +27,10 @@ export function useRatingVisibility() {
   const onClose = useCallback(() => {
     setIsVisible(false);
     setTimestamp(Date.now().toString());
-  }, [setIsVisible, setTimestamp]);
+  }, [setTimestamp]);
 
   return {
     isVisible,
-    onClose,
+    onClose
   };
 }

@@ -1,11 +1,18 @@
-import { FiatToken, StellarEndpoints } from '@packages/shared';
-import { apiRequest } from './api-client';
+import {
+  CreateStellarTransactionRequest,
+  CreateStellarTransactionResponse,
+  FiatToken,
+  GetSep10MasterPKResponse,
+  SignSep10ChallengeRequest,
+  SignSep10ChallengeResponse
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Stellar API endpoints
  */
 export class StellarService {
-  private static readonly BASE_PATH = '/stellar';
+  private static readonly BASE_PATH = "/stellar";
 
   /**
    * Create a Stellar transaction
@@ -19,15 +26,15 @@ export class StellarService {
     accountId: string,
     maxTime: number,
     assetCode: string,
-    baseFee: string,
-  ): Promise<StellarEndpoints.CreateStellarTransactionResponse> {
-    const request: StellarEndpoints.CreateStellarTransactionRequest = {
+    baseFee: string
+  ): Promise<CreateStellarTransactionResponse> {
+    const request: CreateStellarTransactionRequest = {
       accountId,
-      maxTime,
       assetCode,
       baseFee,
+      maxTime
     };
-    return apiRequest<StellarEndpoints.CreateStellarTransactionResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<CreateStellarTransactionResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -42,22 +49,22 @@ export class StellarService {
     challengeXDR: string,
     outToken: FiatToken,
     clientPublicKey: string,
-    derivedMemo?: string,
-  ): Promise<StellarEndpoints.SignSep10ChallengeResponse> {
-    const request: StellarEndpoints.SignSep10ChallengeRequest = {
+    derivedMemo?: string
+  ): Promise<SignSep10ChallengeResponse> {
+    const request: SignSep10ChallengeRequest = {
       challengeXDR,
-      outToken,
       clientPublicKey,
       derivedMemo,
+      outToken
     };
-    return apiRequest<StellarEndpoints.SignSep10ChallengeResponse>('post', `${this.BASE_PATH}/sep10`, request);
+    return apiRequest<SignSep10ChallengeResponse>("post", `${this.BASE_PATH}/sep10`, request);
   }
 
   /**
    * Get the SEP-10 master public key
    * @returns The master public key
    */
-  static async getSep10MasterPK(): Promise<StellarEndpoints.GetSep10MasterPKResponse> {
-    return apiRequest<StellarEndpoints.GetSep10MasterPKResponse>('get', `${this.BASE_PATH}/sep10`);
+  static async getSep10MasterPK(): Promise<GetSep10MasterPKResponse> {
+    return apiRequest<GetSep10MasterPKResponse>("get", `${this.BASE_PATH}/sep10`);
   }
 }

@@ -1,15 +1,4 @@
 {
-  "name": "vortex-frontend",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "bun x --bun vite --host",
-    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' bun x --bun vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
-    "preview": "bun x --bun vite preview",
-    "test": "vitest",
-    "verify": "bun test"
-  },
   "dependencies": {
     "@fontsource/roboto": "^5.0.8",
     "@heroicons/react": "^2.1.3",
@@ -96,5 +85,16 @@
     "vite": "^6.2.6",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.1.1"
-  }
+  },
+  "name": "vortex-frontend",
+  "private": true,
+  "scripts": {
+    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' bun x --bun vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
+    "dev": "bun x --bun vite --host",
+    "preview": "bun x --bun vite preview",
+    "test": "vitest",
+    "verify": "bun test"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

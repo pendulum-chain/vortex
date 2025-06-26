@@ -1,14 +1,13 @@
-import { PlayCircleIcon } from '@heroicons/react/20/solid';
-import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
-import { ReactNode } from 'react';
-import { cn } from '../../../helpers/cn';
-
-import { useTranslation } from 'react-i18next';
-import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
-import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
-import { trimAddress } from '../../../helpers/addressFormatter';
-import { useVortexAccount } from '../../../hooks/useVortexAccount';
-import { wagmiConfig } from '../../../wagmiConfig';
+import { PlayCircleIcon } from "@heroicons/react/20/solid";
+import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import accountBalanceWalletIcon from "../../../assets/account-balance-wallet.svg";
+import accountBalanceWalletIconPink from "../../../assets/account-balance-wallet-pink.svg";
+import { trimAddress } from "../../../helpers/addressFormatter";
+import { cn } from "../../../helpers/cn";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { wagmiConfig } from "../../../wagmiConfig";
 
 const WalletButton = ({
   onClick,
@@ -17,7 +16,7 @@ const WalletButton = ({
   hideIcon = false,
   showPlayIcon = false,
   showWalletIcons = false,
-  address,
+  address
 }: {
   onClick: () => void;
   children?: ReactNode;
@@ -27,20 +26,12 @@ const WalletButton = ({
   showWalletIcons?: boolean;
   address?: string;
 }) => (
-  <button
-    onClick={onClick}
-    type="button"
-    className={cn(customStyles || 'btn-vortex-secondary', 'btn rounded-3xl group')}
-  >
+  <button className={cn(customStyles || "btn-vortex-secondary", "btn group rounded-3xl")} onClick={onClick} type="button">
     {showWalletIcons ? (
       <>
-        <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />
-        <img
-          src={accountBalanceWalletIconPink}
-          className="hidden group-hover:block"
-          alt="wallet account button hovered"
-        />
-        <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ''}</p>
+        <img alt="wallet account button" className="block group-hover:hidden" src={accountBalanceWalletIcon} />
+        <img alt="wallet account button hovered" className="hidden group-hover:block" src={accountBalanceWalletIconPink} />
+        <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ""}</p>
       </>
     ) : (
       <>
@@ -57,20 +48,20 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
   const { t } = useTranslation();
-  const isOnSupportedNetwork = wagmiConfig.chains.find((chain) => chain.id === walletChainId) !== undefined;
+  const isOnSupportedNetwork = wagmiConfig.chains.find(chain => chain.id === walletChainId) !== undefined;
 
   if (!isConnected) {
     return (
       <WalletButton
-        onClick={() => {
-          open({ view: 'Connect' });
-        }}
         customStyles={customStyles}
         hideIcon={hideIcon}
+        onClick={() => {
+          open({ view: "Connect" });
+        }}
         showPlayIcon
       >
         <p className="flex">
-          {t('components.dialogs.connectWallet.connect')} <span className="hidden lg:block lg:ml-1">Wallet</span>
+          {t("components.dialogs.connectWallet.connect")} <span className="hidden lg:ml-1 lg:block">Wallet</span>
         </p>
       </WalletButton>
     );
@@ -79,26 +70,26 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   if (!isOnSupportedNetwork) {
     return (
       <WalletButton
+        hideIcon={hideIcon}
         onClick={() => {
           if (appkitNetwork) {
             switchNetwork(appkitNetwork);
           }
         }}
-        hideIcon={hideIcon}
         showPlayIcon
       >
-        {t('components.dialogs.connectWallet.wrongNetwork')}
+        {t("components.dialogs.connectWallet.wrongNetwork")}
       </WalletButton>
     );
   }
 
   return (
     <WalletButton
+      address={address}
       onClick={() => {
-        open({ view: 'Account' });
+        open({ view: "Account" });
       }}
       showWalletIcons
-      address={address}
     />
   );
 }

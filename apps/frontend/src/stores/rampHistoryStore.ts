@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface RampHistoryState {
   isActive: boolean;
@@ -8,10 +8,10 @@ interface RampHistoryState {
   };
 }
 
-export const useRampHistoryStore = create<RampHistoryState>((set) => ({
-  isActive: false,
+export const useRampHistoryStore = create<RampHistoryState>(set => ({
   actions: {
-    toggleHistory: () => set((state) => ({ isActive: !state.isActive })),
     setHistoryActive: (active: boolean) => set({ isActive: active }),
+    toggleHistory: () => set(state => ({ isActive: !state.isActive }))
   },
+  isActive: false
 }));

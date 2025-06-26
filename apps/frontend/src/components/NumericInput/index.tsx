@@ -1,7 +1,7 @@
-import { ChangeEvent, ClipboardEvent } from 'react';
-import { UseFormRegisterReturn } from 'react-hook-form';
-import { cn } from '../../helpers/cn';
-import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
+import { ChangeEvent, ClipboardEvent } from "react";
+import { UseFormRegisterReturn } from "react-hook-form";
+import { cn } from "../../helpers/cn";
+import { handleOnChangeNumericInput, handleOnPasteNumericInput } from "./helpers";
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;
@@ -24,7 +24,7 @@ export const NumericInput = ({
   autoFocus,
   onChange,
   loading = false,
-  disabled = false,
+  disabled = false
 }: NumericInputProps) => {
   function handleOnChange(e: ChangeEvent): void {
     handleOnChangeNumericInput(e, maxDecimals);
@@ -41,30 +41,30 @@ export const NumericInput = ({
     <div className="relative flex-grow">
       <input
         {...register}
+        autoCapitalize="none"
         autoComplete="off"
         autoCorrect="off"
-        autoCapitalize="none"
+        autoFocus={autoFocus}
         className={cn(
-          'input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full',
+          "input h-full w-full border-0 bg-transparent px-4 focus:shadow-none focus:outline-none",
           additionalStyle,
-          disabled && 'opacity-0',
+          disabled && "opacity-0"
         )}
+        disabled={disabled}
+        inputMode="decimal"
         minLength={1}
         onChange={handleOnChange}
         onPaste={handleOnPaste}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"
         readOnly={readOnly}
-        disabled={disabled}
         spellCheck={false}
         step="any"
         type="text"
-        inputMode="decimal"
         value={defaultValue}
-        autoFocus={autoFocus}
       />
       {loading && (
-        <span className="absolute top-1/2 right-3 -translate-y-1/2 loading loading-bars loading-sm text-primary"></span>
+        <span className="-translate-y-1/2 loading loading-bars loading-sm absolute top-1/2 right-3 text-primary"></span>
       )}
     </div>
   );

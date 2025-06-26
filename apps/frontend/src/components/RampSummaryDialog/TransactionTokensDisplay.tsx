@@ -1,28 +1,28 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { ArrowDownIcon } from "@heroicons/react/20/solid";
 import {
   BaseFiatTokenDetails,
   FiatTokenDetails,
-  OnChainTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-} from '@packages/shared';
-import Big from 'big.js';
-import { FC, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNetwork } from '../../contexts/network';
-import { useAssetHubNode } from '../../contexts/polkadotNode';
-import { trimAddress } from '../../helpers/addressFormatter';
-import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { useRampState } from '../../stores/rampStore';
-import { useRampSummaryActions } from '../../stores/rampSummary';
-import { RampExecutionInput } from '../../types/phases';
-import { RampDirection } from '../RampToggle';
-import { AssetDisplay } from './AssetDisplay';
-import { BRLOnrampDetails } from './BRLOnrampDetails';
-import { FeeDetails } from './FeeDetails';
+  OnChainTokenDetails
+} from "@packages/shared";
+import Big from "big.js";
+import { FC, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNetwork } from "../../contexts/network";
+import { useAssetHubNode } from "../../contexts/polkadotNode";
+import { trimAddress } from "../../helpers/addressFormatter";
+import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useVortexAccount } from "../../hooks/useVortexAccount";
+import { useRampState } from "../../stores/rampStore";
+import { useRampSummaryActions } from "../../stores/rampSummary";
+import { RampExecutionInput } from "../../types/phases";
+import { RampDirection } from "../RampToggle";
+import { AssetDisplay } from "./AssetDisplay";
+import { BRLOnrampDetails } from "./BRLOnrampDetails";
+import { FeeDetails } from "./FeeDetails";
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
 const ONRAMP_EXPIRY_MINUTES = 5;
@@ -33,11 +33,7 @@ interface TransactionTokensDisplayProps {
   rampDirection: RampDirection;
 }
 
-export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
-  executionInput,
-  isOnramp,
-  rampDirection,
-}) => {
+export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ executionInput, isOnramp, rampDirection }) => {
   const { t } = useTranslation();
   const rampState = useRampState();
 
@@ -47,7 +43,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
 
   const [timeLeft, setTimeLeft] = useState({
     minutes: ONRAMP_EXPIRY_MINUTES,
-    seconds: 0,
+    seconds: 0
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
@@ -96,7 +92,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     return () => clearInterval(intervalId);
   }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, setIsQuoteExpired]);
 
-  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? '0' : ''}${timeLeft.seconds}`;
+  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
 
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(executionInput.fiatToken)
@@ -107,11 +103,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     : getAnyFiatTokenDetails(executionInput.fiatToken);
 
   const fromIcon = useGetAssetIcon(
-    isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : (fromToken as OnChainTokenDetails).networkAssetIcon,
+    isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : (fromToken as OnChainTokenDetails).networkAssetIcon
   );
 
   const toIcon = useGetAssetIcon(
-    isOnramp ? (toToken as OnChainTokenDetails).networkAssetIcon : (toToken as BaseFiatTokenDetails).fiat.assetIcon,
+    isOnramp ? (toToken as OnChainTokenDetails).networkAssetIcon : (toToken as BaseFiatTokenDetails).fiat.assetIcon
   );
 
   const getPartnerUrl = (): string => {
@@ -121,44 +117,38 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
 
   const destinationAddress = isOnramp
     ? chainId && chainId > 0
-      ? trimAddress(address || '')
-      : trimAddress(getAddressForFormat(address || '', apiComponents ? apiComponents.ss58Format : 42))
+      ? trimAddress(address || "")
+      : trimAddress(getAddressForFormat(address || "", apiComponents ? apiComponents.ss58Format : 42))
     : undefined;
 
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
-        iconAlt={
-          isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol
-        }
-        symbol={
-          isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol
-        }
         amount={executionInput.quote.inputAmount}
+        iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIcon}
+        symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
       />
-      <ArrowDownIcon className="w-4 h-4 my-2" />
+      <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={executionInput.quote.outputAmount}
-        symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
+        iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
         iconSrc={toIcon}
-        iconAlt={
-          isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol
-        }
+        symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
       />
       <FeeDetails
-        fromToken={fromToken}
-        toToken={toToken}
-        partnerUrl={getPartnerUrl()}
+        destinationAddress={destinationAddress}
+        direction={rampDirection}
         exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
         feesCost={executionInput.quote.fee}
-        direction={rampDirection}
-        destinationAddress={destinationAddress}
+        fromToken={fromToken}
+        partnerUrl={getPartnerUrl()}
+        toToken={toToken}
       />
       <BRLOnrampDetails />
       {targetTimestamp !== null && (
-        <div className="text-center text-gray-600 font-semibold my-4">
-          {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} <span>{formattedTime}</span>
+        <div className="my-4 text-center font-semibold text-gray-600">
+          {t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>
       )}
     </div>

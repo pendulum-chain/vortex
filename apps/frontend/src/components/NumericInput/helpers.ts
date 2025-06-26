@@ -1,19 +1,19 @@
-import { ChangeEvent, ClipboardEvent } from 'react';
+import { ChangeEvent, ClipboardEvent } from "react";
 
-const removeNonNumericCharacters = (value: string): string => value.replace(/[^0-9.]/g, '');
+const removeNonNumericCharacters = (value: string): string => value.replace(/[^0-9.]/g, "");
 
-const removeExtraDots = (value: string): string => value.replace(/(\..*?)\./g, '$1');
+const removeExtraDots = (value: string): string => value.replace(/(\..*?)\./g, "$1");
 
 function sanitizeNumericInput(value: string): string {
   return removeExtraDots(removeNonNumericCharacters(value));
 }
 
 export function trimToMaxDecimals(value: string, maxDecimals: number): string {
-  const [integer, decimal] = value.split('.');
+  const [integer, decimal] = value.split(".");
   return decimal ? `${integer}.${decimal.slice(0, maxDecimals)}` : value;
 }
 
-const replaceCommasWithDots = (value: string): string => value.replace(/,/g, '.');
+const replaceCommasWithDots = (value: string): string => value.replace(/,/g, ".");
 
 /**
  * Handles the input change event to ensure the value does not exceed the maximum number of decimal places,
@@ -37,24 +37,24 @@ export function handleOnChangeNumericInput(e: ChangeEvent, maxDecimals: number):
 }
 
 function replaceInvalidOrEmptyString(value: string): string {
-  if (value === '' || value === '.') {
-    return '0';
+  if (value === "" || value === ".") {
+    return "0";
   }
   return value;
 }
 
 function handleLeadingZeros(value: string): string {
   if (Number(value) >= 1) {
-    return value.replace(/^0+/, '');
+    return value.replace(/^0+/, "");
   }
 
   // Add leading zeros for numbers < 1 that don't start with '0'
-  if (Number(value) < 1 && value[0] !== '0') {
-    return '0' + value;
+  if (Number(value) < 1 && value[0] !== "0") {
+    return "0" + value;
   }
 
   // No more than one leading zero
-  return value.replace(/^0+/, '0');
+  return value.replace(/^0+/, "0");
 }
 
 /**
@@ -70,19 +70,18 @@ export function handleOnPasteNumericInput(e: ClipboardEvent, maxDecimals: number
   const inputElement = e.target as HTMLInputElement;
   const { value, selectionStart, selectionEnd } = inputElement;
 
-  const clipboardData = sanitizeNumericInput(e.clipboardData?.getData('text/plain') || '');
+  const clipboardData = sanitizeNumericInput(e.clipboardData?.getData("text/plain") || "");
 
   const combinedValue = value.slice(0, selectionStart || 0) + clipboardData + value.slice(selectionEnd || 0);
 
-  const [integerPart, ...decimalParts] = combinedValue.split('.');
-  const sanitizedValue = integerPart + (decimalParts.length > 0 ? '.' + decimalParts.join('') : '');
+  const [integerPart, ...decimalParts] = combinedValue.split(".");
+  const sanitizedValue = integerPart + (decimalParts.length > 0 ? "." + decimalParts.join("") : "");
 
   e.preventDefault();
   inputElement.value = trimToMaxDecimals(sanitizedValue, maxDecimals);
   inputElement.value = handleLeadingZeros(inputElement.value);
 
-  const newCursorPosition =
-    (selectionStart || 0) + clipboardData.length - (combinedValue.length - sanitizedValue.length);
+  const newCursorPosition = (selectionStart || 0) + clipboardData.length - (combinedValue.length - sanitizedValue.length);
   inputElement.setSelectionRange(newCursorPosition, newCursorPosition);
 
   return trimToMaxDecimals(sanitizedValue, maxDecimals);

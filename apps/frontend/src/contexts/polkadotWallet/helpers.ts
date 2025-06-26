@@ -1,10 +1,10 @@
-import { WalletAccount, getWalletBySource } from '@talismn/connect-wallets';
-import { getSdkError } from '@walletconnect/utils';
+import { getWalletBySource, WalletAccount } from "@talismn/connect-wallets";
+import { getSdkError } from "@walletconnect/utils";
 
-import { walletConnectService } from '../../components/PolkadotWalletSelectorDialog/WalletConnect/WalletConnectService';
-import { WALLETCONNECT_ASSETHUB_ID } from '../../constants/constants';
-import { LocalStorageKeys } from '../../hooks/useLocalStorage';
-import { storageService } from '../../services/storage/local';
+import { walletConnectService } from "../../components/PolkadotWalletSelectorDialog/WalletConnect/WalletConnectService";
+import { WALLETCONNECT_ASSETHUB_ID } from "../../constants/constants";
+import { LocalStorageKeys } from "../../hooks/useLocalStorage";
+import { storageService } from "../../services/storage/local";
 
 const initTalisman = async (dAppName: string, selected?: string) => {
   const name = storageService.get(LocalStorageKeys.SELECTED_POLKADOT_WALLET);
@@ -13,7 +13,7 @@ const initTalisman = async (dAppName: string, selected?: string) => {
   if (!wallet) return;
   await wallet.enable(dAppName);
   const accounts = await wallet.getAccounts();
-  return accounts.find((a) => a.address === selected) || accounts[0];
+  return accounts.find(a => a.address === selected) || accounts[0];
 };
 
 const initWalletConnect = async (chainId: string) => {
@@ -23,17 +23,17 @@ const initWalletConnect = async (chainId: string) => {
 };
 
 export const initSelectedWallet = async (storageAddress: string) => {
-  const appName = 'Vortex';
+  const appName = "Vortex";
   return (await initTalisman(appName, storageAddress)) || (await initWalletConnect(WALLETCONNECT_ASSETHUB_ID));
 };
 
 export const handleWalletConnectDisconnect = async (walletAccount: WalletAccount | undefined) => {
-  if (walletAccount?.wallet?.extensionName === 'WalletConnect') {
+  if (walletAccount?.wallet?.extensionName === "WalletConnect") {
     const topic = walletConnectService.session?.topic;
     if (topic) {
       await walletConnectService.provider?.client.disconnect({
-        topic,
-        reason: getSdkError('USER_DISCONNECTED'),
+        reason: getSdkError("USER_DISCONNECTED"),
+        topic
       });
     }
   }

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { storageService } from '../services/storage/local';
-import { Storage } from '../services/storage/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { storageService } from "../services/storage/local";
+import { Storage } from "../services/storage/types";
 
 export enum LocalStorageKeys {
   RATING = 'RATING',
@@ -17,8 +17,7 @@ export enum LocalStorageKeys {
   MONERIUM_STATE = 'MONERIUM_STATE',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
+export const debounce = <T extends unknown[]>(func: (...args: T) => void, timeout = 300) => {
   let timer: NodeJS.Timeout | undefined;
   return (...args: T) => {
     clearTimeout(timer);
@@ -71,7 +70,7 @@ const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: numb
   return defaultValue !== undefined
     ? ({
         ...defaultValue,
-        ...parsed,
+        ...parsed
       } as T)
     : parsed;
 };
@@ -81,11 +80,11 @@ export const useLocalStorage = <T>({
   defaultValue,
   debounce: debounceTime,
   parse,
-  expire,
+  expire
 }: UseLocalStorageProps<T>): UseLocalStorageResponse<T> => {
   type TResponse = UseLocalStorageResponse<T>;
   const firstRef = useRef(false);
-  const storageSet = useMemo<Storage['set']>(() => {
+  const storageSet = useMemo<Storage["set"]>(() => {
     const internalSet = (key: string, value: unknown) => {
       storageService.set(key, value);
       if (expire !== undefined) storageService.set(`${key}_`, Date.now());
@@ -95,27 +94,27 @@ export const useLocalStorage = <T>({
 
   const [state, setState] = useState<T>(() => getState<T>(key, defaultValue as T, !!parse, expire));
 
-  const set = useCallback<TResponse['set']>(
-    (value) => {
+  const set = useCallback<TResponse["set"]>(
+    value => {
       storageSet(key, value);
       setState(value);
     },
-    [key, storageSet],
+    [key, storageSet]
   );
-  const clear = useCallback<TResponse['clear']>(() => {
+  const clear = useCallback<TResponse["clear"]>(() => {
     storageService.remove(key);
     storageService.remove(`${key}_`);
     setState(defaultValue as T);
   }, [defaultValue, key]);
-  const merge = useCallback<TResponse['merge']>(
-    (value) => {
-      setState((prev) => {
-        const newVal = typeof value === 'function' ? value(prev) : ({ ...prev, ...value } as T);
+  const merge = useCallback<TResponse["merge"]>(
+    value => {
+      setState(prev => {
+        const newVal = typeof value === "function" ? value(prev) : ({ ...prev, ...value } as T);
         storageSet(key, newVal);
         return newVal;
       });
     },
-    [key, storageSet],
+    [key, storageSet]
   );
 
   useEffect(() => {
@@ -125,5 +124,5 @@ export const useLocalStorage = <T>({
     firstRef.current = true;
   }, [defaultValue, key, expire, parse]);
 
-  return { state, set, merge, clear };
+  return { clear, merge, set, state };
 };

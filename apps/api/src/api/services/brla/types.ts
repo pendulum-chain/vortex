@@ -1,3 +1,5 @@
+import { BrlaKYCDocType } from "@packages/shared";
+
 export interface TriggerOfframpRequest {
   taxId: string;
   pixKey: string;
@@ -30,7 +32,7 @@ export interface KYCData {
   };
 }
 
-type TaxIdType = 'CPF' | 'CNPJ';
+type TaxIdType = "CPF" | "CNPJ";
 
 type BrlaAddress = {
   cep: string;
@@ -131,12 +133,12 @@ interface MintOp {
 
 // /fast-quote endpoint related types
 
-export type FastQuoteOperationType = 'swap';
+export type FastQuoteOperationType = "swap";
 
-export type FastQuoteCoin = 'BRLA';
+export type FastQuoteCoin = "BRLA";
 
-export const enum BrlaSupportedChain {
-  BRLA = 'Moonbeam',
+export enum BrlaSupportedChain {
+  BRLA = "Moonbeam"
   // etc
 }
 
@@ -205,22 +207,17 @@ export interface SwapPayload {
 }
 
 // Other nested types
-export const enum SmartContractOperationType {
-  MINT = 'MINT',
-  BURN = 'BURN',
+export enum SmartContractOperationType {
+  MINT = "MINT",
+  BURN = "BURN"
 }
 
-export enum KYCDocType {
-  RG = 'RG',
-  CNH = 'CNH',
-}
-
-export function isValidKYCDocType(value: string): value is KYCDocType {
-  return Object.values(KYCDocType).includes(value as unknown as KYCDocType);
+export function isValidKYCDocType(value: string): value is BrlaKYCDocType {
+  return Object.values(BrlaKYCDocType).includes(value as unknown as BrlaKYCDocType);
 }
 
 export interface KycLevel2Payload {
-  documentType: KYCDocType;
+  documentType: BrlaKYCDocType;
 }
 
 export interface KycLevel2Response {

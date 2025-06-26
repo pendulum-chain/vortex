@@ -1,15 +1,15 @@
-import Big from 'big.js';
-import { Horizon } from 'stellar-sdk';
+import Big from "big.js";
+import { Horizon } from "stellar-sdk";
 
-import logger from '../../../config/logger';
-import { HORIZON_URL } from '../../../constants/constants';
+import logger from "../../../config/logger";
+import { HORIZON_URL } from "../../../constants/constants";
 
 export function checkBalancePeriodically(
   stellarTargetAccountId: string,
   stellarAssetCode: string,
   amountDesiredUnitsBig: Big,
   intervalMs: number,
-  timeoutMs: number,
+  timeoutMs: number
 ) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
@@ -26,7 +26,7 @@ export function checkBalancePeriodically(
           reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
         }
       } catch (error) {
-        console.error('Error checking balance:', error);
+        console.error("Error checking balance:", error);
         // Don't clear the interval here, allow it to continue checking
       }
     }, intervalMs);
@@ -43,9 +43,9 @@ const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Pro
   try {
     const server = new Horizon.Server(HORIZON_URL);
     const account = await server.loadAccount(publicKey);
-    let balanceUnits = '0';
-    account.balances.forEach((balance) => {
-      if (balance.asset_type === 'credit_alphanum4' && balance.asset_code === assetCode) {
+    let balanceUnits = "0";
+    account.balances.forEach(balance => {
+      if (balance.asset_type === "credit_alphanum4" && balance.asset_code === assetCode) {
         balanceUnits = balance.balance;
       }
     });
@@ -53,6 +53,6 @@ const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Pro
     return new Big(balanceUnits);
   } catch (error) {
     logger.error(error);
-    throw new Error('Error Reading Stellar Balance');
+    throw new Error("Error Reading Stellar Balance");
   }
 };

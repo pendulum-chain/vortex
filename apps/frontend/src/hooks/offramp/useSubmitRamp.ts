@@ -1,7 +1,7 @@
-import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
-import Big from 'big.js';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import Big from "big.js";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { RampDirection } from '../../components/RampToggle';
 import { useNetwork } from '../../contexts/network';
@@ -49,7 +49,7 @@ export const useSubmitRamp = () => {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
     setUrlInterval: setUrlIntervalSEP24,
-    cleanup: cleanupSEP24,
+    cleanup: cleanupSEP24
   } = useSep24Actions();
   const { chainId } = useVortexAccount();
 
@@ -69,11 +69,11 @@ export const useSubmitRamp = () => {
           await setSelectedNetwork(selectedNetwork);
 
           if (!address) {
-            throw new Error('Address must be defined at this stage');
+            throw new Error("Address must be defined at this stage");
           }
 
           if (!chainId) {
-            throw new Error('ChainId must be defined at this stage');
+            throw new Error("ChainId must be defined at this stage");
           }
 
           // @TODO: BRL-related logic should be in a separate function/hook
@@ -96,9 +96,7 @@ export const useSubmitRamp = () => {
                   : remainingLimitResponse.remainingLimitOnramp;
 
               const amountNum = Number(
-                rampDirection === RampDirection.OFFRAMP
-                  ? executionInput.quote.outputAmount
-                  : executionInput.quote.inputAmount,
+                rampDirection === RampDirection.OFFRAMP ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
               );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
@@ -111,27 +109,27 @@ export const useSubmitRamp = () => {
               // append EVM address to execution input
               const updatedBrlaRampExecution = {
                 ...executionInput,
-                brlaEvmAddress,
+                brlaEvmAddress
               };
               setRampExecutionInput(updatedBrlaRampExecution);
 
               setRampSummaryVisible(true);
             } catch (err) {
-              const errorResponse = err as BrlaEndpoints.BrlaErrorResponse;
+              const errorResponse = err as BrlaErrorResponse;
 
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (isValidCpf(taxId) || isValidCnpj(taxId)) {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
-              } else if (errorResponse.error.includes('KYC invalid')) {
-                setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
+              } else if (errorResponse.error.includes("KYC invalid")) {
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.kycInvalid"));
                 setRampStarted(false);
                 setRampInitiating(false);
                 cleanupSEP24();
                 return;
               }
-              throw new Error('Error while fetching BRLA user');
+              throw new Error("Error while fetching BRLA user");
             }
           } else if (executionInput.fiatToken === FiatToken.EURC) {
             // Check if backend should route to Monerium or Stellar anchor
@@ -231,19 +229,17 @@ export const useSubmitRamp = () => {
               executionInput.fiatToken,
               address,
               checkAndWaitForSignature,
-              forceRefreshAndWaitForSignature,
+              forceRefreshAndWaitForSignature
             );
 
             // We have to add the fee to the amount we are going to send to the anchor. It will be deducted from the amount we are going to receive.
-            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(
-              executionInput.quote.fee.anchor,
-            );
+            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);
 
             const anchorSessionParams = {
-              token: sep10Token,
-              tomlValues,
-              tokenConfig: outputToken,
               offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),
+              token: sep10Token,
+              tokenConfig: outputToken,
+              tomlValues
             };
 
             setAnchorSessionParams(anchorSessionParams);
@@ -251,7 +247,7 @@ export const useSubmitRamp = () => {
             const fetchAndUpdateSep24Url = async () => {
               const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, executionInput.fiatToken);
               const url = new URL(firstSep24Response.url);
-              url.searchParams.append('callback', 'postMessage');
+              url.searchParams.append("callback", "postMessage");
               firstSep24Response.url = url.toString();
               setInitialResponseSEP24(firstSep24Response);
             };
@@ -260,7 +256,7 @@ export const useSubmitRamp = () => {
             try {
               await fetchAndUpdateSep24Url();
             } catch (error) {
-              console.error('Error finalizing the initial state of the offramping process', error);
+              console.error("Error finalizing the initial state of the offramping process", error);
               executionInput.setInitializeFailed();
               setRampStarted(false);
               resetRampState();
@@ -270,9 +266,9 @@ export const useSubmitRamp = () => {
             }
           }
         } catch (error) {
-          console.error('Error initializing the offramping process', (error as Error).message);
-          if ((error as Error).message.includes('User rejected')) {
-            showToast(ToastMessage.ERROR, 'You must sign the login request to be able to sell Argentine Peso');
+          console.error("Error initializing the offramping process", (error as Error).message);
+          if ((error as Error).message.includes("User rejected")) {
+            showToast(ToastMessage.ERROR, "You must sign the login request to be able to sell Argentine Peso");
           } else {
             executionInput.setInitializeFailed();
           }

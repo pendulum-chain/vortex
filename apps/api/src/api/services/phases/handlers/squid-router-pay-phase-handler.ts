@@ -1,15 +1,17 @@
-import { FiatToken, Networks, OnChainToken, RampPhase, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
+import { FiatToken, Networks, OnChainToken, getNetworkId, getOnChainTokenDetails,  RampPhase } from "@packages/shared";
+import { createPublicClient, encodeFunctionData, http, createWalletClient } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { moonbeam, polygon } from "viem/chains";
+import logger from "../../../../config/logger";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
+import RampState from "../../../../models/rampState.model";
+import { PhaseError } from "../../../errors/phase-error";
+import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
+import { BasePhaseHandler } from "../base-phase-handler";
 import Big from 'big.js';
-import { http, createPublicClient, createWalletClient, encodeFunctionData } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam, polygon } from 'viem/chains';
-import logger from '../../../../config/logger';
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
-import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
-import RampState from '../../../../models/rampState.model';
-import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import { SquidRouterPayResponse } from '../../transactions/squidrouter/route';
-import { BasePhaseHandler } from '../base-phase-handler';
+import { getStatus } from "../../transactions/squidrouter/route";
 
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
@@ -56,7 +58,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     super();
     this.moonbeamPublicClient = createPublicClient({
       chain: moonbeam,
-      transport: http(),
+      transport: http()
     });
     this.polygonPublicClient = createPublicClient({
       chain: polygon,
@@ -79,7 +81,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'squidRouterPay';
+    return "squidRouterPay";
   }
 
   /**
@@ -90,8 +92,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
 
-    if (state.type === 'off') {
-      logger.info(`squidRouterPay phase is not supported for off-ramp`);
+    if (state.type === "off") {
+      logger.info("squidRouterPay phase is not supported for off-ramp");
       return state;
     }
 
@@ -99,16 +101,14 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Get the bridge hash
       const bridgeCallHash = state.state.squidRouterSwapHash;
       if (!bridgeCallHash) {
-        throw new Error(
-          'SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.',
-        );
+        throw new Error("SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.");
       }
 
       // Enter check status loop
       await this.checkStatus(state, bridgeCallHash);
 
-      return this.transitionToNextPhase(state, 'complete');
-    } catch (error: any) {
+      return this.transitionToNextPhase(state, "complete");
+    } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
       throw error;
     }
@@ -147,9 +147,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         //no status found is considered a recoverable error.
         if (!axelarScanStatus) {
           logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
-          throw this.createRecoverableError('No status found for swap hash.');
+          throw this.createRecoverableError("No status found for swap hash.");
         }
-        if (axelarScanStatus.status === 'executed' || axelarScanStatus.status === 'express_executed') {
+        if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
           isExecuted = true;
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
           break;
@@ -165,15 +165,15 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           await state.update({
             state: {
               ...state.state,
-              squidRouterPayTxHash: payTxHash,
-            },
+              squidRouterPayTxHash: payTxHash
+            }
           });
         }
 
-        await new Promise((resolve) => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+        await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
       }
     } catch (error) {
-      if (error && (error as any).isRecoverable) {
+      if (error && error instanceof PhaseError && error.isRecoverable) {
         throw error;
       }
       throw new Error(`SquidRouterPayPhaseHandler: Error waiting checking for Axelar bridge transaction: ${error}`);
@@ -296,24 +296,24 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private async getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {
     try {
       // POST call, https://api.axelarscan.io/gmp/searchGMP
-      const response = await fetch(`https://api.axelarscan.io/gmp/searchGMP`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {
         body: JSON.stringify({
-          txHash: swapHash,
+          txHash: swapHash
         }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
       });
 
       if (!response.ok) {
         throw new Error(`Error fetching status from axelar scan API: ${response.statusText}`);
       }
       const responseData = await response.json();
-      return (responseData as any).data[0] as AxelarScanStatusResponse;
+      return (responseData as { data: unknown[] }).data[0] as AxelarScanStatusResponse;
     } catch (error) {
-      if ((error as any).response) {
-        console.error('API error:', (error as any).response);
+      if ((error as { response: unknown }).response) {
+        console.error("API error:", (error as { response: unknown }).response);
       }
       throw error;
     }

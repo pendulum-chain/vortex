@@ -7,7 +7,7 @@
 // https://martijnhols.nl/blog/everything-about-google-translate-crashing-react
 // https://github.com/facebook/react/issues/11538#issuecomment-417504600
 
-if (typeof Node === 'function' && Node.prototype) {
+if (typeof Node === "function" && Node.prototype) {
   const originalRemoveChild = Node.prototype.removeChild;
   Node.prototype.removeChild = function <T extends Node>(child: T): T {
     if (child.parentNode !== this) {

@@ -1,4 +1,4 @@
-import { DestinationType, Networks } from '../index';
+import { DestinationType, EvmAddress, Networks } from "../index";
 
 export type RampPhase =
   | 'initial'
@@ -27,7 +27,7 @@ export type RampPhase =
   | 'timedOut'
   | 'complete';
 
-export type CleanupPhase = 'moonbeamCleanup' | 'pendulumCleanup' | 'stellarCleanup';
+export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
 
 export interface AccountMeta {
   address: string;
@@ -35,8 +35,8 @@ export interface AccountMeta {
 }
 
 export interface EvmTransactionData {
-  to: `0x${string}`;
-  data: `0x${string}`;
+  to: EvmAddress;
+  data: EvmAddress;
   value: string;
   gas: string;
   maxFeePerGas?: string;
@@ -44,7 +44,7 @@ export interface EvmTransactionData {
 }
 
 export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
-  return typeof data === 'object' && data !== null && 'to' in data && 'data' in data;
+  return typeof data === "object" && data !== null && "to" in data && "data" in data;
 }
 
 export interface UnsignedTx {
@@ -53,29 +53,30 @@ export interface UnsignedTx {
   network: Networks;
   nonce: number;
   signer: string;
-  meta?: any;
+  meta: {
+    expectedSequenceNumber?: string;
+    additionalTxs?: Record<string, PresignedTx>;
+  };
 }
 
-export type PresignedTx = UnsignedTx & {};
+export type PresignedTx = UnsignedTx;
 
 export interface RampErrorLog {
   timestamp: string;
   phase: RampPhase;
   error: string;
-  details?: Record<string, unknown>;
+  details?: string;
   recoverable?: boolean;
 }
 
 export interface PaymentData {
   amount: string;
   memo: string;
-  memoType: 'text' | 'hash';
+  memoType: "text" | "hash";
   anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
-export namespace RampEndpoints {
-  // POST /ramp/register
-  export interface RegisterRampRequest {
+export interface RegisterRampRequest {
     quoteId: string;
     signingAccounts: AccountMeta[];
     additionalData?: {
@@ -90,10 +91,16 @@ export namespace RampEndpoints {
     };
   }
 
-  export type RegisterRampResponse = RampProcess;
+export type UpdateRampResponse = RampProcess;
 
-  // POST /ramp/:rampId/update
-  export interface UpdateRampRequest {
+// POST /ramp/start
+export interface StartRampRequest {
+  rampId: string;
+}
+
+export type RegisterRampResponse = RampProcess;
+
+export interface UpdateRampRequest {
     rampId: string;
     presignedTxs: PresignedTx[];
     additionalData?: {
@@ -105,61 +112,48 @@ export namespace RampEndpoints {
     };
   }
 
-  export type UpdateRampResponse = RampProcess;
+export type StartRampResponse = RampProcess;
 
-  // POST /ramp/start
-  export interface StartRampRequest {
-    rampId: string;
-  }
-
-  // The response is the same as RampProcess
-  export type StartRampResponse = RampProcess;
-
-  export interface RampProcess {
-    id: string;
-    quoteId: string;
-    type: 'on' | 'off';
-    currentPhase: RampPhase;
-    from: DestinationType;
-    to: DestinationType;
-    createdAt: string;
-    updatedAt: string;
-    unsignedTxs: UnsignedTx[]; // Array of unsigned txs that need to be signed
-    brCode?: string;
-  }
-
-  // GET /ramp/:id
-  export interface GetRampStatusRequest {
-    id: string;
-  }
-
-  // The response is the same as RampProcess
-  export type GetRampStatusResponse = RampProcess;
-
-  // GET /ramp/:id/errors
-  export interface GetRampErrorLogsRequest {
-    id: string;
-  }
-
-  export type GetRampErrorLogsResponse = RampErrorLog[];
-
-  // GET /ramp/history/:walletAddress
-  export interface GetRampHistoryRequest {
-    walletAddress: string;
-  }
-
-  export type GetRampHistoryResponse = {
-    transactions: {
-      id: string;
-      type: 'on' | 'off';
-      fromNetwork: string;
-      toNetwork: string;
-      fromAmount: string;
-      toAmount: string;
-      fromCurrency: string;
-      toCurrency: string;
-      status: string;
-      date: string;
-    }[];
-  };
+export interface RampProcess {
+  id: string;
+  quoteId: string;
+  type: "on" | "off";
+  currentPhase: RampPhase;
+  from: DestinationType;
+  to: DestinationType;
+  createdAt: string;
+  updatedAt: string;
+  unsignedTxs: UnsignedTx[];
+  brCode?: string;
 }
+
+export interface GetRampStatusRequest {
+  id: string;
+}
+
+export type GetRampStatusResponse = RampProcess;
+
+export interface GetRampErrorLogsRequest {
+  id: string;
+}
+
+export type GetRampErrorLogsResponse = RampErrorLog[];
+
+export interface GetRampHistoryRequest {
+  walletAddress: string;
+}
+
+export type GetRampHistoryResponse = {
+  transactions: {
+    id: string;
+    type: "on" | "off";
+    fromNetwork: string;
+    toNetwork: string;
+    fromAmount: string;
+    toAmount: string;
+    fromCurrency: string;
+    toCurrency: string;
+    status: string;
+    date: string;
+  }[];
+};
