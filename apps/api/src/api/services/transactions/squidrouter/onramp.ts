@@ -157,7 +157,6 @@ export async function createOnrampSquidrouterTransactionsToEvm(
       to: ERC20_EURE_POLYGON,
       data: approveTransactionData,
       value: '0',
-      //nonce: params.moonbeamEphemeralStartingNonce, needed only if ephemeral solution.
       gas: '150000',
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
@@ -170,7 +169,6 @@ export async function createOnrampSquidrouterTransactionsToEvm(
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-      //nonce: params.moonbeamEphemeralStartingNonce + 1,
     };
 
     return {

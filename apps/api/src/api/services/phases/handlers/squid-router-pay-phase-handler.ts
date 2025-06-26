@@ -1,89 +1,78 @@
-import { Networks, OnChainToken, RampPhase, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
+import { FiatToken, Networks, OnChainToken, RampPhase, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
 import Big from 'big.js';
-import { http, createPublicClient, encodeFunctionData } from 'viem';
+import { http, createPublicClient, createWalletClient, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
+import { moonbeam, polygon } from 'viem/chains';
 import logger from '../../../../config/logger';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
-import RampState, { RampStateAttributes } from '../../../../models/rampState.model';
+import RampState from '../../../../models/rampState.model';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { getTokenDetailsForEvmDestination } from '../../ramp/quote.service/gross-output';
-import {
-  SquidRouterPayResponse,
-  createOnrampRouteParams,
-  getRoute,
-  getStatus,
-} from '../../transactions/squidrouter/route';
+import { SquidRouterPayResponse } from '../../transactions/squidrouter/route';
 import { BasePhaseHandler } from '../base-phase-handler';
 
-interface GpmFeeResult {
-  result: {
-    source_base_fee: number;
-    source_express_fee: {
-      express_gas_overhead_fee: number;
-      relayer_fee: number;
-      relayer_fee_usd: number;
-      express_gas_overhead_fee_usd: number;
-      total: number;
-      total_usd: number;
-    };
-    base_fee: number;
-    base_fee_usd: number;
-    execute_gas_multiplier: number;
-    execute_min_gas_price: string;
-    source_base_fee_string: string;
-    source_base_fee_usd: number;
-    destination_base_fee: number;
-    destination_base_fee_string: string;
-    destination_base_fee_usd: number;
-    source_confirm_fee: number;
-    destination_confirm_fee: number;
-    express_supported: boolean;
-    express_fee: number;
-    express_fee_string: string;
-    express_fee_usd: number;
-    express_execute_gas_multiplier: number;
-  };
-}
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
   status: string; // executed or express_executed (for complete).
-  fees: {
-    base_fee: number; // in units of the native token.
-    source_base_fee: number;
-    destination_base_fee: number;
-    source_express_fee: {
-      total: number;
-    };
-    source_confirm_fee: number;
-    destination_express_fee: {
-      total: number;
-    };
-  };
-
+  fees: AxelarScanStatusFees; // the fees for the swap.
   id: string; // the id of the swap.
 }
 
+interface AxelarScanStatusFees {
+  base_fee: number; // in units of the native token.
+  source_base_fee: number;
+  destination_base_fee: number;
+  source_express_fee: {
+    total: number;
+  };
+  source_confirm_fee: number;
+  destination_express_fee: {
+    total: number;
+  };
+  source_token: {
+    gas_price: string;
+    gas_price_in_units: {
+      decimals: number;
+      value: string;
+    };
+  };
+  execute_gas_multiplier: number;
+}
+
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
-const AXL_GAS_SERVICE_MOONBEAM = '0x2d5d7d31F671F86C782533cc367F14109a082712';
+const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
+const AXL_GAS_SERVICE_EVM = '0x2d5d7d31F671F86C782533cc367F14109a082712';
+const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = '800000'; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
-  private publicClient: ReturnType<typeof createPublicClient>;
-  private walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
+  private moonbeamPublicClient: ReturnType<typeof createPublicClient>;
+  private polygonPublicClient: ReturnType<typeof createPublicClient>;
+  private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
+  private polygonWalletClient: ReturnType<typeof createWalletClient>;
 
   constructor() {
     super();
-    this.publicClient = createPublicClient({
+    this.moonbeamPublicClient = createPublicClient({
       chain: moonbeam,
       transport: http(),
     });
+    this.polygonPublicClient = createPublicClient({
+      chain: polygon,
+      transport: http(),
+    });
+
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
     const { walletClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
-    this.walletClient = walletClient;
+    this.moonbeamWalletClient = walletClient;
+
+    const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+    this.polygonWalletClient = createWalletClient({
+      account: fundingAccount,
+      chain: polygon,
+      transport: http(),
+    });
   }
 
   /**
@@ -133,9 +122,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     try {
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
+      // initial delay to allow for API indexing.
+      await new Promise((resolve) => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
       while (!isExecuted) {
         const squidrouterStatus = await this.getSquidrouterStatus(swapHash, state);
-        console.log(`SquidRouterPayPhaseHandler: Squidrouter status for swap hash ${swapHash}:`, squidrouterStatus);
 
         if (squidrouterStatus.status === 'success') {
           isExecuted = true;
@@ -166,10 +156,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         }
 
         if (!payTxHash) {
-          const glmrToFundRaw = await this.fetchFreshRouteValue(state);
-
+          const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+          logger.info(`SquidRouterPayPhaseHandler: Native token to fund: ${nativeToFundRaw}`);
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
-          payTxHash = await this.executeFundTransaction(glmrToFundRaw, swapHash as `0x${string}`, logIndex);
+
+          payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state);
 
           await state.update({
             state: {
@@ -191,35 +182,114 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
   /**
    * Execute a call to the Axelar gas service and fund the bridge process.
-   * @param glmrUnits The amount of GLMR to fund the transaction with.
+   * Routes to the appropriate network-specific method based on input currency.
+   * @param tokenValueRaw The amount of native token to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @param state The current ramp state.
    * @returns Hash of the transaction that funds the Axelar gas service.
    */
   private async executeFundTransaction(
-    gmlrValueRaw: string,
+    tokenValueRaw: string,
+    swapHash: `0x${string}`,
+    logIndex: number,
+    state: RampState,
+  ): Promise<string> {
+    if (state.state.inputCurrency === FiatToken.BRL) {
+      return this.executeFundTransactionOnMoonbeam(tokenValueRaw, swapHash, logIndex);
+    } else {
+      return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
+    }
+  }
+
+  /**
+   * Execute a call to the Axelar gas service on Moonbeam network.
+   * @param tokenValueRaw The amount of GLMR to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @returns Hash of the transaction that funds the Axelar gas service.
+   */
+  private async executeFundTransactionOnMoonbeam(
+    tokenValueRaw: string,
     swapHash: `0x${string}`,
     logIndex: number,
   ): Promise<string> {
     try {
-      // Create addNativeGas transaction data
-      const refundAddress = this.walletClient.account.address;
+      const walletClientAccount = this.moonbeamWalletClient.account;
+
+      if (!walletClientAccount) {
+        throw new Error('SquidRouterPayPhaseHandler: Moonbeam wallet client account not found.');
+      }
+
       const transactionData = encodeFunctionData({
         abi: axelarGasServiceAbi,
         functionName: 'addNativeGas',
-        args: [swapHash, logIndex, refundAddress],
+        args: [swapHash, logIndex, walletClientAccount.address],
       });
-      const { maxFeePerGas, maxPriorityFeePerGas } = await this.publicClient.estimateFeesPerGas();
-      const gasPaymentHash = await this.walletClient.sendTransaction({
-        to: AXL_GAS_SERVICE_MOONBEAM as `0x${string}`,
-        value: BigInt(gmlrValueRaw),
+
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.moonbeamPublicClient.estimateFeesPerGas();
+
+      const gasPaymentHash = await this.moonbeamWalletClient.sendTransaction({
+        account: walletClientAccount,
+        chain: moonbeam,
+        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+        value: BigInt(tokenValueRaw),
         data: transactionData,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-      logger.info(`SquidRouterPayPhaseHandler: Fund transaction sent with hash: ${gasPaymentHash}`);
+
+      logger.info(`SquidRouterPayPhaseHandler: Moonbeam fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;
     } catch (error) {
-      logger.error('SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service: ', error);
-      throw new Error('SquidRouterPayPhaseHandler: Failed to send transaction');
+      logger.error('SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Moonbeam: ', error);
+      throw new Error('SquidRouterPayPhaseHandler: Failed to send Moonbeam transaction');
+    }
+  }
+
+  /**
+   * Execute a call to the Axelar gas service on Polygon network.
+   * @param tokenValueRaw The amount of MATIC to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @returns Hash of the transaction that funds the Axelar gas service.
+   */
+  private async executeFundTransactionOnPolygon(
+    tokenValueRaw: string,
+    swapHash: `0x${string}`,
+    logIndex: number,
+  ): Promise<string> {
+    try {
+      const walletClientAccount = this.polygonWalletClient.account;
+
+      if (!walletClientAccount) {
+        throw new Error('SquidRouterPayPhaseHandler: Polygon wallet client account not found.');
+      }
+
+      // Create addNativeGas transaction data
+      const transactionData = encodeFunctionData({
+        abi: axelarGasServiceAbi,
+        functionName: 'addNativeGas',
+        args: [swapHash, logIndex, walletClientAccount.address],
+      });
+
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.polygonPublicClient.estimateFeesPerGas();
+
+      const gasPaymentHash = await this.polygonWalletClient.sendTransaction({
+        account: walletClientAccount,
+        chain: polygon,
+        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+        value: BigInt(tokenValueRaw),
+        data: transactionData,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+
+      logger.info(`SquidRouterPayPhaseHandler: Polygon fund transaction sent with hash: ${gasPaymentHash}`);
+      return gasPaymentHash;
+    } catch (error) {
+      logger.error('SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Polygon: ', error);
+      throw new Error('SquidRouterPayPhaseHandler: Failed to send Polygon transaction');
     }
   }
 
@@ -249,31 +319,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async fetchFreshRouteValue(ramp: RampState): Promise<string> {
-    const toNetwork = ramp.to as Networks; // Safe casting. There is no other option for onramp.
-    const stateMeta = ramp.state;
-    const outputTokenDetails = getTokenDetailsForEvmDestination(stateMeta.outputTokenType as OnChainToken, toNetwork);
-
-    try {
-      const routeParams = createOnrampRouteParams(
-        stateMeta.moonbeamEphemeralAddress,
-        stateMeta.outputAmountBeforeFinalStep.raw,
-        outputTokenDetails,
-        toNetwork,
-        ramp.state.destinationAddress,
-      );
-      const routeResult = await getRoute(routeParams);
-
-      const { route } = routeResult.data;
-      const feeValue = route.transactionRequest.value;
-      console.log(`SquidRouterPayPhaseHandler: Fresh route value fetched: ${feeValue}`);
-      return feeValue;
-    } catch (error) {
-      logger.error('SquidRouterPayPhaseHandler: Error fetching fresh route:', error);
-      throw new Error('SquidRouterPayPhaseHandler: Failed to fetch fresh route');
-    }
-  }
-
   private async getSquidrouterStatus(swapHash: string, state: RampState): Promise<SquidRouterPayResponse> {
     try {
       const fromChainId = getNetworkId(Networks.Polygon)?.toString(); // Always Polygon for Monerium onramp.
@@ -291,6 +336,33 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         `SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`,
       );
     }
+  }
+
+  private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {
+    const baseFeeInUnitsBig = Big(feeResponse.source_base_fee);
+
+    // Calculate the Execution Fee (with multiplier) in native units
+    // This is the cost to execute the transaction on the destination chain.
+    const estimatedGasBig = Big(estimatedGas);
+    const sourceGasPriceBig = Big(feeResponse.source_token.gas_price);
+
+    // Calculate base execution fee: gasLimit * gasPrice
+    const executionFeeUnits = estimatedGasBig.mul(sourceGasPriceBig);
+
+    // Apply the gas multiplier.
+    const multiplier = feeResponse.execute_gas_multiplier;
+    const executionFeeWithMultiplier = executionFeeUnits.mul(multiplier);
+
+    // L1 data fee??
+
+    const totalGasFee = baseFeeInUnitsBig.add(executionFeeWithMultiplier);
+    //  .add(l1ExecutionFeeWithMultiplier);
+
+    // Convert to raw, using source decimals
+    const sourceDecimals = feeResponse.source_token.gas_price_in_units.decimals;
+    const totalGasFeeRaw = totalGasFee.mul(Big(10).pow(sourceDecimals));
+
+    return totalGasFeeRaw.lt(0) ? '0' : totalGasFeeRaw.toFixed(0, 0);
   }
 }
 
