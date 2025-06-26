@@ -2,8 +2,8 @@
  * Stellar token types
  */
 
-import { BaseFiatTokenDetails, BaseTokenDetails, TokenType } from "./base";
-import {PendulumTokenDetails} from "@packages/shared/tokens";
+import {BaseFiatTokenDetails, BaseTokenDetails, TokenType} from "./base";
+import {PendulumTokenDetails} from "../types/pendulum";
 
 export interface StellarTokenDetails extends BaseTokenDetails, BaseFiatTokenDetails {
   type: TokenType.Stellar;
