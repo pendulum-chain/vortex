@@ -8,8 +8,8 @@ interface UseRefreshTimerReturn {
   reset: () => void;
 }
 
-export const useRefreshTimer = (DEFAULT_DURATION: number): UseRefreshTimerReturn => {
-  const [timeRemaining, setTimeRemaining] = useState(DEFAULT_DURATION);
+export const useRefreshTimer = (duration: number = 30): UseRefreshTimerReturn => {
+  const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isActive, setIsActive] = useState(false);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -26,7 +26,7 @@ export const useRefreshTimer = (DEFAULT_DURATION: number): UseRefreshTimerReturn
     (onComplete?: () => void) => {
       clearTimer();
       setIsActive(true);
-      setTimeRemaining(DEFAULT_DURATION);
+      setTimeRemaining(duration);
       onCompleteCallbackRef.current = onComplete || null;
 
       intervalRef.current = setInterval(() => {
@@ -38,13 +38,13 @@ export const useRefreshTimer = (DEFAULT_DURATION: number): UseRefreshTimerReturn
               callback();
             }
 
-            return DEFAULT_DURATION; // Reset for next cycle and continue
+            return duration; // Reset for next cycle and continue
           }
           return newTime;
         });
       }, 1000);
     },
-    [clearTimer, DEFAULT_DURATION]
+    [clearTimer, duration]
   );
 
   const stop = useCallback(() => {
@@ -54,11 +54,11 @@ export const useRefreshTimer = (DEFAULT_DURATION: number): UseRefreshTimerReturn
   }, [clearTimer]);
 
   const reset = useCallback(() => {
-    setTimeRemaining(DEFAULT_DURATION);
+    setTimeRemaining(duration);
     setIsActive(false);
     clearTimer();
     onCompleteCallbackRef.current = null;
-  }, [clearTimer, DEFAULT_DURATION]);
+  }, [clearTimer, duration]);
 
   useEffect(() => {
     return () => {

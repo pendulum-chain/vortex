@@ -1,6 +1,9 @@
 import { motion } from "motion/react";
+import { useCallback, useEffect } from "react";
 
-import { useQuoteRefresh } from "../../hooks/ramp/useQuoteRefresh";
+import { useCircularProgressAnimation } from "../../hooks/ramp/quote-refresh/useCircularProgressAnimation";
+import { useQuoteRefreshData } from "../../hooks/ramp/quote-refresh/useQuoteRefreshData";
+import { useRefreshTimer } from "../../hooks/ramp/quote-refresh/useRefreshTimer";
 
 export function QuoteRefreshProgress() {
   const radius = 12;
@@ -9,7 +12,29 @@ export function QuoteRefreshProgress() {
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDasharray = `${circumference} ${circumference}`;
 
-  const { timeRemaining, animationControls } = useQuoteRefresh(circumference);
+  const { shouldRefresh, performRefresh } = useQuoteRefreshData();
+  const { timeRemaining, start, stop } = useRefreshTimer(30);
+  const { animationControls, startAnimation, stopAnimation } = useCircularProgressAnimation(circumference);
+
+  const handleRefreshComplete = useCallback(async () => {
+    await performRefresh();
+    startAnimation(30);
+  }, [performRefresh, startAnimation]);
+
+  const startRefreshCycle = useCallback(() => {
+    startAnimation(30);
+    start(handleRefreshComplete);
+  }, [start, handleRefreshComplete, startAnimation]);
+
+  // Effect to handle starting/stopping the refresh cycle
+  useEffect(() => {
+    if (shouldRefresh) {
+      startRefreshCycle();
+    } else {
+      stop();
+      stopAnimation();
+    }
+  }, [shouldRefresh, startRefreshCycle, stop, stopAnimation]);
 
   return (
     <div className="flex items-center justify-center gap-1">

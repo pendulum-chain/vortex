@@ -1,13 +1,13 @@
 import Big from "big.js";
 import { useCallback } from "react";
 
-import { RampDirection } from "../../components/RampToggle";
-import { useNetwork } from "../../contexts/network";
-import { usePartnerId } from "../../stores/partnerStore";
-import { useQuote, useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampSummaryVisible } from "../../stores/rampStore";
+import { RampDirection } from "../../../components/RampToggle";
+import { useNetwork } from "../../../contexts/network";
+import { usePartnerId } from "../../../stores/partnerStore";
+import { useQuote, useQuoteStore } from "../../../stores/ramp/useQuoteStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../../stores/rampDirectionStore";
+import { useRampSummaryVisible } from "../../../stores/rampStore";
 
 interface UseQuoteRefreshDataReturn {
   hasValidQuote: boolean;
