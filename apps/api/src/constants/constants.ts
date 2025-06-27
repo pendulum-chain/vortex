@@ -19,7 +19,16 @@ const STELLAR_BASE_FEE = "1000000";
 
 // Expiration and timeout values
 const SEQUENCE_TIME_WINDOW_IN_SECONDS = 600; // 10 minutes. Marks the MAXIMUM window between creating the stellar ephemeral transactions and it's creation on chain.
+
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
+
+const SEQUENCE_TIME_WINDOWS = {
+  FIFTH_TX: 90 * 24 * 60 * 60,
+  FIRST_TX: 5 * 60,
+  FOURTH_TX: 30 * 24 * 60 * 60,
+  SECOND_TX: 24 * 60 * 60,
+  THIRD_TX: 7 * 24 * 60 * 60
+};
 
 const { PENDULUM_FUNDING_SEED } = process.env;
 const { FUNDING_SECRET } = process.env;
@@ -34,6 +43,7 @@ const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
 export {
   ASSETHUB_XCM_FEE_USDC_UNITS,
   SEQUENCE_TIME_WINDOW_IN_SECONDS,
+  SEQUENCE_TIME_WINDOWS,
   BACKEND_TEST_STARTER_ACCOUNT,
   GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,
