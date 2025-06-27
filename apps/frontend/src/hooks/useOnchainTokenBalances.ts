@@ -202,16 +202,27 @@ export const useOnchainTokenBalances = (
   const evmNativeBalance = useEvmNativeBalance();
   const assetHubNativeBalance = useAssetHubNativeBalance();
 
+  const shouldIncludeEvmNativeBalance = evmTokens.some(token => token.isNative);
+  const shouldIncludeAssetHubNativeBalance = substrateTokens.some(token => token.isNative);
+
   return useMemo(() => {
     const tokenBalances: OnChainTokenDetailsWithBalance[] = evmBalances.length ? evmBalances : substrateBalances;
 
     // Add native token balance based on the selected network
-    if (isNetworkEVM(selectedNetwork) && evmNativeBalance) {
+    if (isNetworkEVM(selectedNetwork) && shouldIncludeEvmNativeBalance && evmNativeBalance) {
       return [evmNativeBalance, ...tokenBalances];
-    } else if (selectedNetwork === Networks.AssetHub && assetHubNativeBalance) {
+    } else if (selectedNetwork === Networks.AssetHub && shouldIncludeAssetHubNativeBalance && assetHubNativeBalance) {
       return [assetHubNativeBalance, ...tokenBalances];
     }
 
     return tokenBalances;
-  }, [evmBalances, substrateBalances, evmNativeBalance, assetHubNativeBalance, selectedNetwork]);
+  }, [
+    evmBalances,
+    substrateBalances,
+    evmNativeBalance,
+    assetHubNativeBalance,
+    selectedNetwork,
+    shouldIncludeAssetHubNativeBalance,
+    shouldIncludeEvmNativeBalance
+  ]);
 };
