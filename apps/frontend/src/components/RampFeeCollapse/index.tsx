@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/20/solid";
-import { QuoteFeeStructure } from "@packages/shared";
+import { QuoteFeeStructure, roundDownToSignificantDecimals } from "@packages/shared";
 import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { useQuote } from "../../stores/ramp/useQuoteStore";
@@ -45,7 +45,9 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
 
 // Helper function to format exchange rate strings
 function formatExchangeRateString(rate: number, input: string, output: string) {
-  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
+  // Check the rate to determine how many decimal places to show
+  // Always show at least 3 significant decimal places
+  return `1 ${input} ≈ ${roundDownToSignificantDecimals(rate, 3)} ${output}`;
 }
 
 export function RampFeeCollapse() {

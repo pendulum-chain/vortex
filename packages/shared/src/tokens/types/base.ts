@@ -31,13 +31,6 @@ export interface BaseTokenDetails {
   assetSymbol: string;
 }
 
-export interface PendulumDetails {
-  pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: PendulumCurrencyId;
-  pendulumAssetSymbol: string;
-  pendulumDecimals: number;
-}
-
 export interface FiatDetails {
   assetIcon: string;
   symbol: string;
@@ -48,7 +41,6 @@ export interface BaseFiatTokenDetails {
   fiat: FiatDetails;
   minWithdrawalAmountRaw: string;
   maxWithdrawalAmountRaw: string;
-  pendulumErc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
   onrampFeesBasisPoints?: number;

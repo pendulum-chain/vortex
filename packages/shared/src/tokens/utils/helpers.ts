@@ -2,12 +2,12 @@
  * Helper functions for token configuration
  */
 
-import { Networks } from "../../helpers";
+import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
-import { AssetHubToken, FiatToken, OnChainToken, PendulumDetails, RampCurrency } from "../types/base";
+import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
 import { EvmToken } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
@@ -22,7 +22,9 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
     if (network === Networks.AssetHub) {
       return assetHubTokenConfig[onChainToken as AssetHubToken];
     } else {
-      return evmTokenConfig[network][onChainToken as EvmToken];
+      if (isNetworkEVM(network)) {
+        return evmTokenConfig[network][onChainToken as EvmToken];
+      } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
@@ -47,11 +49,14 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
     }
     return firstAvailableToken;
   } else {
-    const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
-    if (!firstAvailableToken) {
-      throw new Error(`No tokens configured for network ${network}`);
-    }
-    return firstAvailableToken;
+    if (isNetworkEVM(network)) {
+      const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
+      if (!firstAvailableToken) {
+        throw new Error(`No tokens configured for network ${network}`);
+      }
+
+      return firstAvailableToken;
+    } else throw new Error(`Network ${network} is not a valid EVM origin network`);
   }
 }
 
@@ -113,7 +118,7 @@ export function isFiatTokenEnum(token: string): token is FiatToken {
  */
 export function getPendulumCurrencyId(fiatToken: FiatToken) {
   const tokenDetails = getAnyFiatTokenDetails(fiatToken);
-  return tokenDetails.pendulumCurrencyId;
+  return tokenDetails.pendulumRepresentative.currencyId;
 }
 
 /**
@@ -130,10 +135,5 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks):
     throw new Error("Invalid token provided for pendulum details.");
   }
 
-  return {
-    pendulumAssetSymbol: tokenDetails.pendulumAssetSymbol,
-    pendulumCurrencyId: tokenDetails.pendulumCurrencyId,
-    pendulumDecimals: tokenDetails.pendulumDecimals,
-    pendulumErc20WrapperAddress: tokenDetails.pendulumErc20WrapperAddress
-  };
+  return tokenDetails.pendulumRepresentative;
 }

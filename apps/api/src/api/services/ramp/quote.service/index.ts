@@ -1,10 +1,7 @@
 import {
   CreateQuoteRequest,
-  DestinationType,
   EvmToken,
   FiatToken,
-  getOnChainTokenDetailsOrDefault,
-  Networks,
   OnChainToken,
   QuoteFeeStructure,
   QuoteResponse,
@@ -20,9 +17,28 @@ import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
-import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput } from "./gross-output";
+import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
+
+async function calculateInputAmountForNablaSwap(
+  request: CreateQuoteRequest,
+  preNablaDeductibleFeeInInputCurrency: Big.BigSource,
+  preNablaDeductibleFeeAmount: Big.BigSource
+) {
+  if (request.rampType === "off" && request.from !== "assethub") {
+    // Check squidrouter rate and adjust the input amount accordingly
+    const bridgeQuote = await getEvmBridgeQuote({
+      amountDecimal: request.inputAmount,
+      inputOrOutputCurrency: request.inputCurrency as OnChainToken,
+      rampType: request.rampType,
+      sourceOrDestination: request.from
+    });
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
+  } else {
+    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+  }
+}
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
@@ -67,12 +83,16 @@ export class QuoteService extends BaseRampService {
       request.inputCurrency
     );
 
-    const inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(
+      request,
+      preNablaDeductibleFeeInInputCurrency,
+      preNablaDeductibleFeeAmount
+    );
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover pre-Nabla deductible fees",
+        message: "Input amount too low to cover fees.",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -80,16 +100,13 @@ export class QuoteService extends BaseRampService {
     // d. Perform Nabla Swap
     // Determine nablaOutputCurrency based on ramp type and destination
     let nablaOutputCurrency: RampCurrency;
-    let toPolkadotDestination: DestinationType;
 
     if (request.rampType === "on") {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
       if (request.to === "assethub") {
         nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
-        toPolkadotDestination = Networks.AssetHub;
       } else {
         nablaOutputCurrency = EvmToken.USDC; // Use USDC as intermediate for EVM destinations
-        toPolkadotDestination = Networks.Moonbeam;
       }
     } else {
       // Off-Ramp: fiat-representative token on Pendulum
@@ -105,17 +122,15 @@ export class QuoteService extends BaseRampService {
           status: httpStatus.BAD_REQUEST
         });
       }
-      toPolkadotDestination = Networks.Pendulum;
     }
 
     const nablaSwapResult = await calculateNablaSwapOutput({
-      fromPolkadotDestination:
-        request.rampType === "on" ? request.from : request.from === "assethub" ? Networks.AssetHub : Networks.Moonbeam,
+      fromPolkadotDestination: request.from,
       inputAmountForSwap: inputAmountForNablaSwap.toString(),
       inputCurrency: request.inputCurrency,
       nablaOutputCurrency,
       rampType: request.rampType,
-      toPolkadotDestination
+      toPolkadotDestination: request.to
     });
 
     // e. Calculate Full Fee Breakdown
@@ -174,8 +189,8 @@ export class QuoteService extends BaseRampService {
         finalEvmDestination: request.to,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
-        intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString()
+        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        rampType: request.rampType
       });
       squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
@@ -184,18 +199,16 @@ export class QuoteService extends BaseRampService {
         .minus(vortexFeeUsd)
         .minus(partnerMarkupFeeUsd)
         .minus(squidRouterNetworkFeeUSD);
-      outputAmountMoonbeamRaw = multiplyByPowerOfTen(
-        outputAmountMoonbeamDecimal,
-        getOnChainTokenDetailsOrDefault(Networks.Moonbeam, usdCurrency).pendulumDecimals
-      ).toString();
+      // axlUSDC on Moonbeam is 6 decimals
+      outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
 
       // Do a second call with all fees deducted to get the final gross output amount
       const evmBridgeResult = await calculateEvmBridgeAndNetworkFee({
         finalEvmDestination: request.to,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         intermediateAmountRaw: outputAmountMoonbeamRaw,
-        intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString()
+        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        rampType: request.rampType
       });
 
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
@@ -255,7 +268,7 @@ export class QuoteService extends BaseRampService {
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover calculated fees",
+        message: "Input amount too low to cover calculated fees.",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -298,6 +311,7 @@ export class QuoteService extends BaseRampService {
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
       metadata: {
+        inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
         usdFeeStructure

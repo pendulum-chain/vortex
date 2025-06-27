@@ -22,6 +22,8 @@ export interface QuoteTicketAttributes {
 }
 
 export interface QuoteTicketMetadata {
+  // The input amount to be used for the nabla swap transaction.
+  inputAmountForNablaSwapDecimal: string;
   onrampOutputAmountMoonbeamRaw: string;
   offrampAmountBeforeAnchorFees?: string;
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like

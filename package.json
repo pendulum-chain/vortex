@@ -16,6 +16,7 @@
     ]
   },
   "name": "vortex-monorepo",
+  "packageManager": "bun@1.1.26",
   "private": true,
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",

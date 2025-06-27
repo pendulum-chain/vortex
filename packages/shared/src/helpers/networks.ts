@@ -16,6 +16,16 @@ export enum Networks {
   Stellar = "stellar"
 }
 
+// This type is used to represent all networks that can be used as a source or destination in the system.
+export type EvmNetworks =
+  | Networks.Arbitrum
+  | Networks.Avalanche
+  | Networks.Base
+  | Networks.BSC
+  | Networks.Ethereum
+  | Networks.Moonbeam
+  | Networks.Polygon;
+
 /**
  * Checks if a destination is a network and returns the network if it is.
  * Returns undefined if the destination is a payment method or not a valid network.
@@ -33,8 +43,6 @@ export function getNetworkFromDestination(destination: DestinationType): Network
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const STELLAR_CHAIN_ID = -99;
-
-type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
 
 interface NetworkMetadata {
   id: number;
@@ -105,7 +113,7 @@ export function getNetworkMetadata(network: string): NetworkMetadata | undefined
   return normalizedNetwork ? NETWORK_METADATA[normalizedNetwork] : undefined;
 }
 
-export function isNetworkEVM(network: Networks): network is EVMNetworks {
+export function isNetworkEVM(network: Networks): network is EvmNetworks {
   return getNetworkMetadata(network)?.isEVM ?? false;
 }
 

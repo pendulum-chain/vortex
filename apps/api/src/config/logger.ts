@@ -2,7 +2,7 @@ import { StreamOptions } from "morgan";
 import winston, { format } from "winston";
 
 const customFormat = winston.format.printf(
-  ({ timestamp, level, message, label = "" }) => `[${timestamp}] ${level}\t ${label} ${message} }`
+  ({ timestamp, level, message, label = "" }) => `[${timestamp}] ${level}\t ${label} ${message}`
 );
 
 const logger = winston.createLogger({

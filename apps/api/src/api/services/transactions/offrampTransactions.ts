@@ -20,7 +20,6 @@ import {
   PaymentData,
   PENDULUM_USDC_ASSETHUB,
   PENDULUM_USDC_AXL,
-  PendulumDetails,
   PendulumTokenDetails,
   StellarTokenDetails,
   UnsignedTx
@@ -33,7 +32,6 @@ import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quot
 import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
-import { priceFeedService } from "../priceFeed.service";
 import { encodeEvmTransactionData } from "./index";
 import { createNablaTransactionsForOfframp } from "./nabla";
 import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
@@ -93,8 +91,8 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   // Select stablecoin based on source network
   const isAssetHubSource = fromNetwork === Networks.AssetHub;
   const stablecoinDetails = isAssetHubSource ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
-  const stablecoinCurrencyId = stablecoinDetails.pendulumCurrencyId;
-  const stablecoinDecimals = stablecoinDetails.pendulumDecimals;
+  const stablecoinCurrencyId = stablecoinDetails.currencyId;
+  const stablecoinDecimals = stablecoinDetails.decimals;
 
   // Convert USD fees to stablecoin raw units
   const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
@@ -227,40 +225,26 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
-  // For offramps, all fees except for the anchor fee are paid out (-> deducted) before the swap.
-  // Thus, we need to adjust the input amount to account for all deducted fees.
-  const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.anchor,
-    quote.outputCurrency,
-    quote.inputCurrency
-  );
-  const totalFeeInInputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.total,
-    quote.outputCurrency,
-    quote.inputCurrency
-  );
-  const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-    new Big(quote.inputAmount).minus(totalFeeInInputCurrency).plus(anchorFeeInInputCurrency),
-    inputTokenPendulumDetails.pendulumDecimals
+  // The input amount for the Nabla swap was already calculated in the quote
+  const inputAmountForNablaSwapRaw = multiplyByPowerOfTen(
+    new Big(quote.metadata.inputAmountForNablaSwapDecimal),
+    inputTokenPendulumDetails.decimals
   ).toFixed(0, 0);
 
   // For these minimums, we use the output amount after all fees have been deducted except for the anchor fee.
   const anchorFeeInOutputCurrency = quote.fee.anchor; // No conversion needed, already in output currency
   const outputBeforeAnchorFee = new Big(quote.outputAmount).minus(anchorFeeInOutputCurrency);
   const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
-    nablaSoftMinimumOutput,
-    outputTokenPendulumDetails.pendulumDecimals
-  ).toFixed();
+  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenPendulumDetails.decimals).toFixed();
 
   const nablaHardMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
     new Big(nablaHardMinimumOutput),
-    outputTokenPendulumDetails.pendulumDecimals
+    outputTokenPendulumDetails.decimals
   ).toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
-    inputAmountBeforeSwapRaw,
+    inputAmountForNablaSwapRaw,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
@@ -290,7 +274,7 @@ async function createNablaSwapTransactions(
   return {
     nextNonce,
     stateMeta: {
-      inputAmountBeforeSwapRaw,
+      inputAmountBeforeSwapRaw: inputAmountForNablaSwapRaw,
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions
@@ -343,7 +327,7 @@ async function createBRLTransactions(
   params: {
     brlaEvmAddress: string;
     outputAmountRaw: string;
-    outputTokenDetails: PendulumDetails;
+    outputTokenPendulumDetails: PendulumTokenDetails;
     account: AccountMeta;
     taxId: string;
     pixDestination: string;
@@ -353,12 +337,12 @@ async function createBRLTransactions(
   pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
   nextNonce: number
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { brlaEvmAddress, outputAmountRaw, outputTokenDetails, account, taxId, pixDestination, receiverTaxId } = params;
+  const { brlaEvmAddress, outputAmountRaw, outputTokenPendulumDetails, account, taxId, pixDestination, receiverTaxId } = params;
 
   const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
     brlaEvmAddress,
     outputAmountRaw,
-    outputTokenDetails.pendulumCurrencyId
+    outputTokenPendulumDetails.currencyId
   );
 
   unsignedTxs.push({
@@ -695,8 +679,8 @@ export async function prepareOfframpTransactions({
 
       // Prepare cleanup transaction to be added later with the correct nonce
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-        inputTokenPendulumDetails.pendulumCurrencyId,
-        outputTokenPendulumDetails.pendulumCurrencyId
+        inputTokenPendulumDetails.currencyId,
+        outputTokenPendulumDetails.currencyId
       );
 
       const pendulumCleanupTx: Omit<UnsignedTx, "nonce"> = {
@@ -719,7 +703,7 @@ export async function prepareOfframpTransactions({
             account,
             brlaEvmAddress,
             outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
-            outputTokenDetails,
+            outputTokenPendulumDetails: outputTokenDetails.pendulumRepresentative,
             pixDestination,
             receiverTaxId,
             taxId

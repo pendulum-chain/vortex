@@ -373,6 +373,7 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
           "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
           "noAddress": "Nenhum endereço encontrado.",

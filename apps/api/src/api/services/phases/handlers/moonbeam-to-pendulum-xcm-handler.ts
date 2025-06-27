@@ -25,10 +25,10 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
-    const didInputTokenArrivedOnPendulum = async () => {
+    const didInputTokenArriveOnPendulum = async () => {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.pendulumCurrencyId
+        inputTokenPendulumDetails.currencyId
       );
 
       // @ts-ignore
@@ -37,7 +37,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     };
 
     try {
-      if (!(await didInputTokenArrivedOnPendulum())) {
+      if (!(await didInputTokenArriveOnPendulum())) {
         const { txData: moonbeamToPendulumXcmTransaction } = this.getPresignedTransaction(state, "moonbeamToPendulumXcm");
 
         const xcmTransaction = decodeSubmittableExtrinsic(moonbeamToPendulumXcmTransaction as string, moonbeamNode.api);
@@ -61,7 +61,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
 
     try {
       logger.info("waiting for token to arrive on pendulum...");
-      await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
+      await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
       console.error("Error while waiting for transaction receipt:", e);
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");

@@ -29,7 +29,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
         throw new Error("InitialPhaseHandler: No signed transactions found. Cannot proceed.");
       } else if (state.from === "assethub" && !state.state.assetHubToPendulumHash) {
         throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
-      } else if (state.from !== "assethub" && (!state.state.squidRouterApproveHash || !state.state.squidRouterSwapHash)) {
+      } else if (state.from !== "assethub" && !state.state.squidRouterSwapHash) {
         throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
       }
     }

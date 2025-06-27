@@ -1,4 +1,4 @@
-import { AccountMeta, encodeSubmittableExtrinsic, Networks, PendulumDetails } from "@packages/shared";
+import { AccountMeta, encodeSubmittableExtrinsic, Networks, PendulumTokenDetails } from "@packages/shared";
 import { CreateExecuteMessageExtrinsicOptions } from "@pendulum-chain/api-solang";
 import { ApiManager } from "../../pendulum/apiManager";
 import { prepareNablaApproveTransaction } from "./approve";
@@ -9,8 +9,8 @@ export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, "abi" 
 export async function createNablaTransactionsForOfframp(
   amountRaw: string,
   ephemeral: AccountMeta,
-  inputTokenPendulumDetails: PendulumDetails,
-  outputTokenPendulumDetails: PendulumDetails,
+  inputTokenPendulumDetails: PendulumTokenDetails,
+  outputTokenPendulumDetails: PendulumTokenDetails,
   nablaHardMinimumOutputRaw: string
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
@@ -25,16 +25,16 @@ export async function createNablaTransactionsForOfframp(
 
   const approveTransaction = await prepareNablaApproveTransaction({
     amountRaw,
-    inputTokenDetails: inputTokenPendulumDetails,
+    inputTokenPendulumDetails,
     pendulumEphemeralAddress,
     pendulumNode
   });
 
   const swapTransaction = await prepareNablaSwapTransaction({
     amountRaw,
-    inputTokenDetails: inputTokenPendulumDetails,
+    inputTokenPendulumDetails,
     nablaHardMinimumOutputRaw,
-    outputTokenDetails: outputTokenPendulumDetails,
+    outputTokenPendulumDetails,
     pendulumEphemeralAddress,
     pendulumNode
   });
@@ -54,8 +54,8 @@ export async function createNablaTransactionsForOfframp(
 export async function createNablaTransactionsForOnramp(
   amountRaw: string,
   ephemeral: AccountMeta,
-  inputTokenPendulumDetails: PendulumDetails,
-  outputTokenPendulumDetails: PendulumDetails,
+  inputTokenPendulumDetails: PendulumTokenDetails,
+  outputTokenPendulumDetails: PendulumTokenDetails,
   nablaHardMinimumOutputRaw: string
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
@@ -70,16 +70,16 @@ export async function createNablaTransactionsForOnramp(
 
   const approveTransaction = await prepareNablaApproveTransaction({
     amountRaw,
-    inputTokenDetails: inputTokenPendulumDetails,
+    inputTokenPendulumDetails,
     pendulumEphemeralAddress,
     pendulumNode
   });
 
   const swapTransaction = await prepareNablaSwapTransaction({
     amountRaw,
-    inputTokenDetails: inputTokenPendulumDetails,
+    inputTokenPendulumDetails,
     nablaHardMinimumOutputRaw,
-    outputTokenDetails: outputTokenPendulumDetails,
+    outputTokenPendulumDetails,
     pendulumEphemeralAddress,
     pendulumNode
   });
