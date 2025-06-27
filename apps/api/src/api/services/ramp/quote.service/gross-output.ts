@@ -133,22 +133,6 @@ function prepareSquidrouterRouteParams(
 }
 
 /**
- * Helper to execute Squidrouter route and validate response
- */
-async function getSquidrouterRouteData(routeParams: RouteParams): Promise<SquidrouterRoute> {
-  const routeResult = await getRoute(routeParams);
-
-  if (!routeResult?.data?.route?.estimate) {
-    throw new APIError({
-      message: "Invalid Squidrouter response",
-      status: httpStatus.SERVICE_UNAVAILABLE
-    });
-  }
-
-  return routeResult.data;
-}
-
-/**
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
  */
 async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
@@ -248,6 +232,35 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
   }
 }
 
+function buildRouteRequest(request: EvmBridgeQuoteRequest) {
+  const token = getTokenDetailsForEvmDestination(request.inputOrOutputCurrency, request.sourceOrDestination);
+  const amountRaw = multiplyByPowerOfTen(request.amountDecimal, token.decimals).toFixed(0, 0);
+  return prepareSquidrouterRouteParams(request.rampType, amountRaw, token, request.sourceOrDestination);
+}
+
+async function getSquidrouterRouteData(routeParams: RouteParams) {
+  const routeResult = await getRoute(routeParams);
+
+  if (!routeResult?.data?.route?.estimate) {
+    throw new APIError({
+      message: "Invalid Squidrouter response",
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
+
+  const routeData = routeResult.data;
+  const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
+  const outputAmountRaw = routeData.route.estimate.toAmount;
+  const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData);
+
+  return {
+    networkFeeUSD,
+    outputAmountDecimal,
+    routeData
+  };
+}
+
 /**
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
@@ -262,13 +275,11 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     const routeParams = prepareSquidrouterRouteParams(rampType, intermediateAmountRaw, tokenDetails, finalEvmDestination);
 
     // Execute Squidrouter route and validate response
-    const routeResult = await getSquidrouterRouteData(routeParams);
+    const { networkFeeUSD, routeData } = await getSquidrouterRouteData(routeParams);
 
     // Calculate network fee (Squidrouter fee)
-    const networkFeeUSD = await calculateSquidrouterNetworkFee(routeResult);
-
     // Parse final gross output amount
-    const finalGrossOutputAmount = routeResult.route.estimate.toAmountMin;
+    const finalGrossOutputAmount = routeData.route.estimate.toAmountMin;
     const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
       tokenDetails.decimals,
       BigInt(finalGrossOutputAmount)
@@ -297,19 +308,6 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
 }
 
 export async function getEvmBridgeQuote(request: EvmBridgeQuoteRequest) {
-  const tokenDetails = getTokenDetailsForEvmDestination(request.inputOrOutputCurrency, request.sourceOrDestination);
-  const amountRaw = multiplyByPowerOfTen(request.amountDecimal, tokenDetails.decimals).toFixed(0, 0);
-
-  const routeParams = prepareSquidrouterRouteParams(request.rampType, amountRaw, tokenDetails, request.sourceOrDestination);
-
-  const result = await getSquidrouterRouteData(routeParams);
-  const outputTokenDecimals = result.route.estimate.toToken.decimals;
-  const outputAmountRaw = result.route.estimate.toAmount;
-  const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
-  const networkFeeUSD = await calculateSquidrouterNetworkFee(result);
-
-  return {
-    networkFeeUSD,
-    outputAmountDecimal
-  };
+  const routeParams = buildRouteRequest(request);
+  return getSquidrouterRouteData(routeParams);
 }
