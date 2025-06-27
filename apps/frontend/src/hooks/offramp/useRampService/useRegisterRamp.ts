@@ -159,7 +159,6 @@ export const useRegisterRamp = () => {
 
       if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
         // If this is an onramp with Monerium EURC, we need to wait for the auth token
-        console.log("Waiting for Monerium auth token before proceeding with ramp registration");
         return; // Exit early, we will retry once the auth token is available
       }
 
@@ -243,6 +242,7 @@ export const useRegisterRamp = () => {
         signedTransactions,
         userSigningMeta: {
           assetHubToPendulumHash: undefined,
+          moneriumOnrampApproveHash: undefined,
           squidRouterApproveHash: undefined,
           squidRouterSwapHash: undefined
         }
@@ -283,10 +283,10 @@ export const useRegisterRamp = () => {
   useEffect(() => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
-      !rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash;
+      (!rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash && !authToken) ||
+      (!rampState?.userSigningMeta?.moneriumOnrampApproveHash && authToken);
 
     // If this is a Monerium offramp, we need to wait for a page refresh and the corresponding auth token.
-    console.log(`Monerium triggered: ${moneriumTriggered}, authToken: ${authToken}`);
     const waitForAuthToken = moneriumTriggered && !authToken;
 
     const shouldRequestSignatures =
@@ -294,13 +294,8 @@ export const useRegisterRamp = () => {
       !rampStarted && // Ramp hasn't been started yet
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
-    console.log(
-      `Should request signatures: ${shouldRequestSignatures}, rampStarted: ${rampStarted}, requiredMetaIsEmpty: ${requiredMetaIsEmpty}, chainId: ${chainId}, rampState: ${rampState}`
-    );
+
     if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken) {
-      console.log(
-        `Conditions not met for user signing process. rampState: ${rampState}, rampStarted: ${rampStarted}, signingRejected: ${signingRejected}, waitForAuthToken: ${waitForAuthToken}`
-      );
       return; // Exit early if conditions aren't met
     }
 
@@ -337,7 +332,7 @@ export const useRegisterRamp = () => {
       let squidRouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
       let moneriumOfframpSignature: string | undefined = undefined;
-      let moneriumOnrampSignedTransaction: PresignedTx | undefined = undefined;
+      let moneriumOnrampApproveHash: string | undefined = undefined;
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
@@ -391,7 +386,7 @@ export const useRegisterRamp = () => {
           setRampSigningPhase("finished");
         } else if (tx.phase === "moneriumOnrampSelfTransfer") {
           setRampSigningPhase("started");
-          squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
+          moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase("finished");
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
@@ -404,16 +399,14 @@ export const useRegisterRamp = () => {
         moneriumOfframpSignature
       };
 
-      // Only additional presigned transaction if Monerium onramp
-      const extraPresignedTxs: PresignedTx[] = moneriumOnrampSignedTransaction ? [moneriumOnrampSignedTransaction] : [];
-
-      const updatedRampProcess = await RampService.updateRamp(rampState.ramp!.id, extraPresignedTxs, additionalData);
+      const updatedRampProcess = await RampService.updateRamp(rampState.ramp!.id, [], additionalData);
 
       setRampState({
         ...rampState,
         ramp: updatedRampProcess,
         userSigningMeta: {
           assetHubToPendulumHash,
+          moneriumOnrampApproveHash,
           squidRouterApproveHash,
           squidRouterSwapHash
         }

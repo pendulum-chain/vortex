@@ -8,7 +8,6 @@ export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampState = useRampState();
   const isQuoteExpired = useIsQuoteExpired();
-
   if (!rampState?.ramp?.ibanPaymentData) return null;
   if (isQuoteExpired) return null;
 
@@ -28,14 +27,12 @@ export const EUROnrampDetails: FC = () => {
         <div className="mt-2 flex justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.iban")}</span>
           <div className="flex items-center">
-            <strong>{iban}</strong>
             <CopyButton text={iban} />
           </div>
         </div>
         <div className="mt-2 flex justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.bic")}</span>
           <div className="flex items-center">
-            <strong>{bic}</strong>
             <CopyButton text={bic} />
           </div>
         </div>

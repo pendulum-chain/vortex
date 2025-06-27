@@ -373,6 +373,7 @@ export class RampService extends BaseRampService {
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
         from: rampState.from,
+        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
         quoteId: rampState.quoteId,
         to: rampState.to,
