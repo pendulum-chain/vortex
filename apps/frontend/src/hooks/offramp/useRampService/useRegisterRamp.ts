@@ -41,11 +41,9 @@ const useSignatureTrace = (traceKey: string) => {
 
     const traceRef = new Date().toISOString();
     localStorage.setItem(traceKey, traceRef);
-    console.log(`Signature trace for ${traceKey} created.`);
     return { canProceed: true };
   }, [traceKey]);
 
-  // Releases the lock when the process is complete
   const releaseTrace = useCallback(() => {
     localStorage.removeItem(traceKey);
   }, [traceKey]);
@@ -62,7 +60,7 @@ export const useRegisterRamp = () => {
     rampStarted,
     canRegisterRamp,
     rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected }
+    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
 
@@ -422,6 +420,7 @@ export const useRegisterRamp = () => {
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
         setSigningRejected(true);
+        resetRampState();
       })
       .finally(() => releaseSigningTrace());
   }, [

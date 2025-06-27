@@ -33,7 +33,7 @@ interface UseButtonContentProps {
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const rampState = useRampState();
   const { t } = useTranslation();
-  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
   const canRegisterRamp = useCanRegisterRamp();
   const signingRejected = useSigningRejected();
@@ -41,7 +41,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.ONRAMP;
     const isOfframp = rampDirection === RampDirection.OFFRAMP;
-    const isDepositQrCodeReady = Boolean(true);
+    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
@@ -127,7 +127,7 @@ export const RampSummaryButton = () => {
   const signingRejected = useSigningRejected();
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
-  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isOfframp = rampDirection === RampDirection.OFFRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const { isQuoteExpired } = useRampSummaryStore();

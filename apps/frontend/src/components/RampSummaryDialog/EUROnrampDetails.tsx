@@ -1,3 +1,4 @@
+import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampState } from "../../stores/rampStore";
@@ -37,6 +38,13 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       </div>
+      {rampState.ramp?.depositQrCode && (
+        <div className="my-6 flex justify-center">
+          <div className="rounded-lg border-1 border-gray-300 p-4">
+            <QRCodeSVG value={rampState.ramp?.depositQrCode} />
+          </div>
+        </div>
+      )}
       <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.footer")}</p>
     </section>
   );

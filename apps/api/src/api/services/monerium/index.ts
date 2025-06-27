@@ -69,3 +69,21 @@ export const getMoneriumUserIban = async ({ authToken }: FetchIbansParams): Prom
     throw error;
   }
 };
+
+interface BeneficiaryDetails {
+  name: string;
+  iban: string;
+  bic: string;
+}
+
+export function createEpcQrCodeData(details: BeneficiaryDetails): string {
+  const { name, iban, bic } = details;
+
+  if (!name || !iban || !bic) {
+    throw new Error("Beneficiary name, IBAN, and BIC are required to create EPC QR code data.");
+  }
+
+  const data = ["BCD", "001", "1", "SCT", bic, name, iban];
+
+  return data.join("\n");
+}
