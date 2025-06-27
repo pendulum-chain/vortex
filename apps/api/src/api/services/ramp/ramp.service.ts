@@ -179,7 +179,7 @@ export class RampService extends BaseRampService {
       }
 
       if (new Date(quote.expiresAt) < new Date()) {
-        await quote.update({ status: "expired" }, { transaction });
+        await quote.destroy({ transaction });
 
         throw new APIError({
           message: "Quote has expired",

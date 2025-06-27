@@ -6,7 +6,7 @@ import { postProcessHandlers } from "../services/phases/post-process";
 import { BaseRampService } from "../services/ramp/base.service";
 
 /**
- * Worker to clean up expired quotes and post-process completed ramps
+ * Worker to delete expired quotes and post-process completed ramps
  */
 class CleanupWorker {
   private job: CronJob;
@@ -51,10 +51,10 @@ class CleanupWorker {
   private async cleanup(): Promise<void> {
     logger.info("Running cleanup worker cycle");
     try {
-      // Clean up expired quotes
+      // Delete expired quotes
       const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
       if (expiredQuotesCount > 0) {
-        logger.info(`Cleaned up ${expiredQuotesCount} expired quotes`);
+        logger.info(`Deleted ${expiredQuotesCount} expired quotes`);
       }
 
       // Post-process completed RampStates
@@ -64,7 +64,6 @@ class CleanupWorker {
     } catch (error) {
       logger.error("Error during cleanup worker cycle:", error);
     }
-    // TODO should we remove expired quotes from the database eventually? Maybe after 1 day or so?
   }
 
   /**
