@@ -53,7 +53,7 @@ function validateOnramp(
   }
 
   // TODO remove once Token selection is improved.
-  if (fromToken.assetSymbol === 'EURC') {
+  if (fromToken.assetSymbol === "EURC") {
     return null;
   }
 
@@ -90,19 +90,22 @@ function validateOfframp(
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  if (typeof userInputTokenBalance === 'string') {
-    // TODO testing, remove.
-    // if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-    //   trackEvent({
-    //     event: 'form_error',
-    //     error_message: 'insufficient_balance',
-    //     input_amount: inputAmount ? inputAmount.toString() : '0',
-    //   });
-    //   return t('pages.swap.error.insufficientFunds', {
-    //     userInputTokenBalance,
-    //     assetSymbol: fromToken?.assetSymbol,
-    //   });
-    // }
+  if (typeof userInputTokenBalance === "string") {
+    const isNativeToken = fromToken.isNative;
+    if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
+      trackEvent({
+        error_message: "insufficient_balance",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
+      });
+      return t("pages.swap.error.insufficientFunds", {
+        assetSymbol: fromToken?.assetSymbol,
+        userInputTokenBalance
+      });
+      // If the user chose the max amount, show a warning for native tokens due to gas fees
+    } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
+      return t("pages.swap.error.gasWarning");
+    }
   }
 
   const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);

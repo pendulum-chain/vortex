@@ -73,6 +73,8 @@ export function createOnrampRouteParams(
 export interface SquidrouterRoute {
   route: {
     estimate: {
+      toToken: { decimals: number };
+      toAmount: string;
       toAmountMin: string;
     };
     transactionRequest: {
@@ -106,10 +108,12 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      logger.error(`Error fetching route from Squidrouter API: ${error.response?.data}}`);
+      logger.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
+      throw new Error(`Failed to fetch route: ${error.response?.data?.message || "Unknown error"}`);
+    } else {
+      logger.error(`Error with parameters: ${JSON.stringify(params)}`);
+      throw error;
     }
-    logger.error(`Error with parameters: ${JSON.stringify(params)}`);
-    throw error;
   }
 }
 
@@ -117,7 +121,7 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 export async function getStatus(
   transactionId: string | undefined,
   fromChainId?: string,
-  toChainId?: string,
+  toChainId?: string
 ): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
@@ -128,22 +132,22 @@ export async function getStatus(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`
   );
   try {
-    const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, { 
+    const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
       headers: {
         "x-integrator-id": integratorId
       },
       params: {
-        transactionId,
         fromChainId,
         toChainId,
-      },
+        transactionId
+      }
     });
     return result.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
       console.error("API error:", error.response.data);
     }
-    logger.error(error);
+    logger.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }
@@ -233,23 +237,23 @@ export function createGenericRouteParams(
   outputTokenDetails: EvmTokenDetails,
   fromNetwork: Networks,
   toNetwork: Networks,
-  destinationAddress: string,
+  destinationAddress: string
 ): RouteParams {
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    enableExpress: true,
     fromAddress,
+    fromAmount: amount,
     fromChain: fromChainId.toString(),
     fromToken: inputTokenDetails.erc20AddressSourceChain,
-    fromAmount: amount,
-    toChain: toChainId.toString(),
-    toToken: outputTokenDetails.erc20AddressSourceChain,
-    toAddress: destinationAddress,
     slippageConfig: {
-      autoMode: 1,
+      autoMode: 1
     },
-    enableExpress: true,
+    toAddress: destinationAddress,
+    toChain: toChainId.toString(),
+    toToken: outputTokenDetails.erc20AddressSourceChain
   };
 }
 

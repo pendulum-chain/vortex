@@ -18,17 +18,20 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     maxWithdrawalAmountRaw: "10000000000000000",
     minWithdrawalAmountRaw: "10000000000000",
     offrampFeesBasisPoints: 25,
-    pendulumAssetSymbol: "EURC",
-    pendulumCurrencyId: {
-      Stellar: {
-        AlphaNum4: {
-          code: "0x45555243",
-          issuer: "0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136"
+    pendulumRepresentative: {
+      assetSymbol: "EURC",
+      currency: FiatToken.EURC,
+      currencyId: {
+        Stellar: {
+          AlphaNum4: {
+            code: "0x45555243",
+            issuer: "0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136"
+          }
         }
-      }
+      },
+      decimals: 12,
+      erc20WrapperAddress: "6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5"
     },
-    pendulumDecimals: 12,
-    pendulumErc20WrapperAddress: "6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5",
     stellarAsset: {
       code: {
         hex: "0x45555243",
@@ -58,17 +61,20 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     minWithdrawalAmountRaw: "11000000000000",
     offrampFeesBasisPoints: 200,
     offrampFeesFixedComponent: 10,
-    pendulumAssetSymbol: "ARS",
-    pendulumCurrencyId: {
-      Stellar: {
-        AlphaNum4: {
-          code: "0x41525300",
-          issuer: "0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1"
+    pendulumRepresentative: {
+      assetSymbol: "ARS",
+      currency: FiatToken.ARS,
+      currencyId: {
+        Stellar: {
+          AlphaNum4: {
+            code: "0x41525300",
+            issuer: "0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1"
+          }
         }
-      }
+      },
+      decimals: 12,
+      erc20WrapperAddress: "6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj"
     },
-    pendulumDecimals: 12,
-    pendulumErc20WrapperAddress: "6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj",
     stellarAsset: {
       code: {
         hex: "0x41525300",

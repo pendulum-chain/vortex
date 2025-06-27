@@ -1,8 +1,8 @@
 import {
   AccountMeta,
-  EvmTransactionData,
   FiatToken,
   getAddressForFormat,
+  getOnChainTokenDetails,
   Networks,
   PresignedTx,
   signUnsignedTransactions
@@ -213,7 +213,6 @@ export const useRegisterRamp = () => {
         return;
       }
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-      console.log("Ramp process registered:", rampProcess);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
         if (!address) {
@@ -284,9 +283,7 @@ export const useRegisterRamp = () => {
   useEffect(() => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
-      !rampState?.userSigningMeta?.squidRouterApproveHash &&
-      !rampState?.userSigningMeta?.squidRouterSwapHash &&
-      !rampState?.userSigningMeta?.assetHubToPendulumHash;
+      !rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash;
 
     // If this is a Monerium offramp, we need to wait for a page refresh and the corresponding auth token.
     console.log(`Monerium triggered: ${moneriumTriggered}, authToken: ${authToken}`);
@@ -354,8 +351,24 @@ export const useRegisterRamp = () => {
 
       const walletClient = await getWalletClient(wagmiConfig);
       console.log(`Wallet client for signing:`, walletClient.account);
-      for (const tx of sortedTxs!) {
+
+      if (!sortedTxs) {
+        throw new Error("Missing sorted transactions");
+      }
+
+      const isNativeTokenTransfer = Boolean(
+        executionInput?.onChainToken && getOnChainTokenDetails(executionInput.network, executionInput.onChainToken)?.isNative
+      );
+
+      for (const tx of sortedTxs) {
+        // Approve is not necessary when transferring the native token
         if (tx.phase === "squidRouterApprove") {
+          if (isNativeTokenTransfer) {
+            // We don't care about the approve transaction when transferring native tokens
+            // We set the signing phase to "login" as a hacky workaround to make sure that 1/1 is shown in the UI
+            setRampSigningPhase("login");
+            continue;
+          }
           setRampSigningPhase("started");
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase("signed");
@@ -433,7 +446,9 @@ export const useRegisterRamp = () => {
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
     releaseSigningTrace,
-    authToken
+    authToken,
+    executionInput?.network,
+    executionInput?.onChainToken
   ]);
 
   return {

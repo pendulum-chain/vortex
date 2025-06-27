@@ -76,7 +76,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         limits: defaultReadLimits,
         messageArguments: [
           inputAmountBeforeSwapRaw,
-          [inputTokenPendulumDetails.pendulumErc20WrapperAddress, outputTokenPendulumDetails.pendulumErc20WrapperAddress]
+          [inputTokenPendulumDetails.erc20WrapperAddress, outputTokenPendulumDetails.erc20WrapperAddress]
         ],
         messageName: "getAmountOut"
       });

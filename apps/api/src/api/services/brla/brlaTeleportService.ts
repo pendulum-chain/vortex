@@ -84,7 +84,7 @@ export class BrlaTeleportService {
       status: "claimed",
       subaccountId
     };
-    logger.info(`Requesting teleport ${compositeKey}: ${teleport}`);
+    logger.info(`Requesting teleport ${compositeKey}: ${JSON.stringify(teleport)}`);
     this.teleports.set(compositeKey, teleport);
     this.maybeStartPeriodicChecks();
   }

@@ -86,7 +86,7 @@ router.get("/quotes/:id", quoteController.getQuote);
 router.post("/register", rampController.registerRamp);
 
 /**
- * @api {post} v1/ramp/:rampId/update Update ramping process
+ * @api {post} v1/ramp/update Update ramping process
  * @apiDescription Update a ramping process with presigned transactions and additional data
  * @apiVersion 1.0.0
  * @apiName UpdateRamp
@@ -110,7 +110,7 @@ router.post("/register", rampController.registerRamp);
  * @apiError (Not Found 404) NotFound Ramp does not exist
  * @apiError (Conflict 409) ConflictError Ramp is not in a state that allows updates
  */
-router.post("/:rampId/update", rampController.updateRamp);
+router.post("/update", rampController.updateRamp);
 
 /**
  * @api {post} v1/ramp/start Start ramping process

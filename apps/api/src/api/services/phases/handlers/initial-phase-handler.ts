@@ -28,14 +28,14 @@ export class InitialPhaseHandler extends BasePhaseHandler {
         throw new Error("InitialPhaseHandler: No signed transactions found. Cannot proceed.");
       } else if (state.from === "assethub" && !state.state.assetHubToPendulumHash) {
         throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
-      } else if (state.from !== "assethub" && (!state.state.squidRouterApproveHash || !state.state.squidRouterSwapHash)) {
+      } else if (state.from !== "assethub" && !state.state.squidRouterSwapHash) {
         throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
       }
     }
 
     // State with a polygonEphemeralAddress indicates a monerium onramp.
-    if (state.type === 'on' && state.state.inputCurrency === FiatToken.BRL) {
-      return this.transitionToNextPhase(state, 'brlaTeleport');
+    if (state.type === "on" && state.state.inputCurrency === FiatToken.BRL) {
+      return this.transitionToNextPhase(state, "brlaTeleport");
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");

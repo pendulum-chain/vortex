@@ -27,7 +27,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        outputTokenPendulumDetails.pendulumCurrencyId
+        outputTokenPendulumDetails.currencyId
       );
 
       // @ts-ignore
@@ -44,7 +44,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         );
         const fundingAccountKeypair = getFundingAccount();
         await pendulumNode.api.tx.tokens
-          .transfer(pendulumEphemeralAddress, outputTokenPendulumDetails.pendulumCurrencyId, requiredAmount.toFixed(0, 0))
+          .transfer(pendulumEphemeralAddress, outputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
       }
 

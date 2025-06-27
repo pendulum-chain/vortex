@@ -51,7 +51,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const didInputTokenArrivedOnPendulum = async () => {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.pendulumCurrencyId
+        inputTokenPendulumDetails.currencyId
       );
 
       // @ts-ignore

@@ -208,8 +208,8 @@ export class PriceFeedService {
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
         fromAmountString: inputAmount,
-        inputTokenDetails: inputTokenPendulumDetails,
-        outputTokenDetails: outputTokenPendulumDetails
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails
       });
 
       const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
@@ -251,7 +251,7 @@ export class PriceFeedService {
       MATIC: "matic-network"
     };
 
-    return tokenIdMap[currency as string] || null;
+    return tokenIdMap[currency.toUpperCase()] || null;
   }
 
   // Helper method to satisfy eslint for 'this' usage

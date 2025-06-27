@@ -88,9 +88,7 @@ export class RampService extends BaseRampService {
       userAddress: additionalData.walletAddress
     });
 
-    const brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
-
-    return { depositQrCode: brCode, stateMeta, unsignedTxs };
+    return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
   }
 
   private async prepareOfframpNonBrlTransactions(
