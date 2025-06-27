@@ -1,7 +1,7 @@
 import { ChangeEvent, ClipboardEvent, useEffect, useRef } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
 import { cn } from "../../helpers/cn";
-import { handleOnChangeNumericInput, handleOnPasteNumericInput } from "./helpers";
+import { handleOnChangeNumericInput, handleOnPasteNumericInput, trimToMaxDecimals } from "./helpers";
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;
@@ -13,16 +13,6 @@ interface NumericInputProps {
   disabled?: boolean;
   loading?: boolean;
   onChange?: (e: ChangeEvent) => void;
-}
-
-function trimToMaxDecimals(value: string, decimals: number) {
-  if (!value) return value;
-  const [intPart, decPart] = value.replace(",", ".").split(".");
-  let trimmed = value;
-  if (decPart && decPart.length > decimals) {
-    trimmed = `${intPart}.${decPart.slice(0, decimals)}`;
-  }
-  return trimmed;
 }
 
 export const NumericInput = ({
@@ -46,20 +36,6 @@ export const NumericInput = ({
     setValue(fieldName, value, { shouldDirty: true, shouldValidate: true });
     if (onChange) onChange(e);
     register.onChange(e);
-  }
-
-  function handleOnPaste(e: ClipboardEvent<HTMLInputElement>): void {
-    handleOnPasteNumericInput(e, maxDecimals);
-    // After paste, update value from event
-    const pasted = e.clipboardData.getData("Text");
-    const trimmed = trimToMaxDecimals(pasted, maxDecimals);
-    setValue(fieldName, trimmed, { shouldDirty: true, shouldValidate: true });
-    // Create a synthetic event for register.onChange
-    const syntheticEvent = {
-      ...e,
-      target: { ...e.target, value: trimmed }
-    } as unknown as ChangeEvent<HTMLInputElement>;
-    register.onChange(syntheticEvent);
   }
 
   // Watch for maxDecimals changes and trim value if needed
@@ -94,7 +70,7 @@ export const NumericInput = ({
         inputMode="decimal"
         minLength={1}
         onChange={handleOnChange}
-        onPaste={handleOnPaste}
+        onPaste={event => handleOnPasteNumericInput(event, maxDecimals)}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"
         readOnly={readOnly}
