@@ -21,6 +21,25 @@ import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridge
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 
+async function calculateInputAmountForNablaSwap(
+  request: CreateQuoteRequest,
+  preNablaDeductibleFeeInInputCurrency: Big.BigSource,
+  preNablaDeductibleFeeAmount: Big.BigSource
+) {
+  if (request.rampType === "off" && request.from !== "assethub") {
+    // Check squidrouter rate and adjust the input amount accordingly
+    const bridgeQuote = await getEvmBridgeQuote({
+      amountDecimal: request.inputAmount,
+      inputOrOutputCurrency: request.inputCurrency as OnChainToken,
+      rampType: request.rampType,
+      sourceOrDestination: request.from
+    });
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
+  } else {
+    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+  }
+}
+
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
     // a. Initial Setup
@@ -64,18 +83,11 @@ export class QuoteService extends BaseRampService {
       request.inputCurrency
     );
 
-    let inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
-
-    if (request.rampType === "off" && request.from !== "assethub") {
-      // Check squidrouter rate and adjust the input amount accordingly
-      const bridgeQuote = await getEvmBridgeQuote({
-        amountDecimal: request.inputAmount,
-        inputOrOutputCurrency: request.inputCurrency as OnChainToken,
-        rampType: request.rampType,
-        sourceOrDestination: request.from
-      });
-      inputAmountForNablaSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
-    }
+    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(
+      request,
+      preNablaDeductibleFeeInInputCurrency,
+      preNablaDeductibleFeeAmount
+    );
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
