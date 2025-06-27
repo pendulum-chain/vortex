@@ -6,7 +6,7 @@ import { AssetButton } from "../buttons/AssetButton";
 import { NumericInput } from "../NumericInput";
 
 // A helper function to determine the number of decimals based on the token symbol.
-// For now, it assumes that ETH-based tokens have 6 decimals and others have 2.
+// For now, it assumes that ETH-based tokens have 4 decimals and others have 2.
 function getMaxDecimalsForToken(tokenSymbol: string): number {
   return tokenSymbol.toLowerCase().includes("eth") ? 4 : 2;
 }
