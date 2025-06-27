@@ -48,11 +48,11 @@ const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrenc
 };
 
 const getEvmNetworkTokens = (network: Networks): SupportedCryptocurrencyDetails[] => {
-  if (!isNetworkEVM(network)) {
-    throwInvalidNetworkError(network);
+  if (isNetworkEVM(network)) {
+    return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
+  } else {
+    return throwInvalidNetworkError(network);
   }
-  network = network as EvmNetworks;
-  return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
 };
 
 const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {

@@ -5,6 +5,7 @@ import {
   FiatToken,
   FiatTokenDetails,
   getEnumKeyByStringValue,
+  isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
   OnChainToken,
@@ -167,15 +168,14 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
       details: value as OnChainTokenDetails,
       type: key as OnChainToken
     }));
-  }
-
-  selectedNetwork = selectedNetwork as EvmNetworks;
-  return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-    assetIcon: value.networkAssetIcon,
-    assetSymbol: value.assetSymbol,
-    details: value as OnChainTokenDetails,
-    type: key as OnChainToken
-  }));
+  } else if (isNetworkEVM(selectedNetwork)) {
+    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
+      assetIcon: value.networkAssetIcon,
+      assetSymbol: value.assetSymbol,
+      details: value as OnChainTokenDetails,
+      type: key as OnChainToken
+    }));
+  } else throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
 }
 
 const getTokenDefinitionsForNetwork = (

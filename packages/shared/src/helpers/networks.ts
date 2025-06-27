@@ -44,8 +44,6 @@ export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const STELLAR_CHAIN_ID = -99;
 
-type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
-
 interface NetworkMetadata {
   id: number;
   displayName: string;
@@ -115,7 +113,7 @@ export function getNetworkMetadata(network: string): NetworkMetadata | undefined
   return normalizedNetwork ? NETWORK_METADATA[normalizedNetwork] : undefined;
 }
 
-export function isNetworkEVM(network: Networks): network is EVMNetworks {
+export function isNetworkEVM(network: Networks): network is EvmNetworks {
   return getNetworkMetadata(network)?.isEVM ?? false;
 }
 
