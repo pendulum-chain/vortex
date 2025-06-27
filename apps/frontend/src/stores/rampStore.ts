@@ -8,6 +8,7 @@ interface RampStore extends RampZustand {
 }
 
 const clearRampingState = () => {
+  console.log("Clearing ramping state from localStorage");
   storageService.remove(LocalStorageKeys.RAMPING_STATE);
   storageService.remove(LocalStorageKeys.REGISTER_KEY_LOCAL_STORAGE);
   storageService.remove(LocalStorageKeys.START_KEY_LOCAL_STORAGE);

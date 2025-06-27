@@ -2,33 +2,30 @@ import {
   AccountMeta,
   EvmTransactionData,
   FiatToken,
+  getAddressForFormat,
   Networks,
   PresignedTx,
-  getAddressForFormat,
-  signUnsignedTransactions,
-} from '@packages/shared';
-import { getAccount, getWalletClient } from '@wagmi/core';
-import { useCallback, useEffect } from 'react';
-import { signTransaction } from 'viem/accounts';
-import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { useToastMessage } from '../../../helpers/notifications';
-import { RampService } from '../../../services/api';
-import { MoneriumService } from '../../../services/api/monerium.service';
-import {
-  signAndSubmitEvmTransaction,
-  signAndSubmitSubstrateTransaction,
-} from '../../../services/transactions/userSigning';
-import { useMoneriumStore } from '../../../stores/moneriumStore';
-import { useRampExecutionInput, useRampStore, useSigningRejected } from '../../../stores/rampStore'; // Import useSigningRejected
-import { RampExecutionInput } from '../../../types/phases';
-import { wagmiConfig } from '../../../wagmiConfig';
-import { useVortexAccount } from '../../useVortexAccount';
-import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
-import { useSubmitRamp } from '../useSubmitRamp';
+  signUnsignedTransactions
+} from "@packages/shared";
+import { getAccount, getWalletClient } from "@wagmi/core";
+import { useCallback, useEffect } from "react";
+import { signTransaction } from "viem/accounts";
+import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
+import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
+import { useToastMessage } from "../../../helpers/notifications";
+import { RampService } from "../../../services/api";
+import { MoneriumService } from "../../../services/api/monerium.service";
+import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../services/transactions/userSigning";
+import { useMoneriumStore } from "../../../stores/moneriumStore";
+import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
+import { RampExecutionInput } from "../../../types/phases";
+import { wagmiConfig } from "../../../wagmiConfig";
+import { useVortexAccount } from "../../useVortexAccount";
+import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
+import { useSubmitRamp } from "../useSubmitRamp";
 
-const RAMP_REGISTER_TRACE_KEY = 'rampRegisterTrace';
-const RAMP_SIGNING_TRACE_KEY = 'rampSigningTrace';
+const RAMP_REGISTER_TRACE_KEY = "rampRegisterTrace";
+const RAMP_SIGNING_TRACE_KEY = "rampSigningTrace";
 
 /**
  * A utility hook to manage signature traces using localStorage.
@@ -160,13 +157,13 @@ export const useRegisterRamp = () => {
         }
       ];
 
-      if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.EURC && !authToken) {
+      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
         // If this is an onramp with Monerium EURC, we need to wait for the auth token
-        console.log('Waiting for Monerium auth token before proceeding with ramp registration');
+        console.log("Waiting for Monerium auth token before proceeding with ramp registration");
         return; // Exit early, we will retry once the auth token is available
       }
 
-      if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
+      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
           throw new Error("Missing Stellar ephemeral secret");
@@ -180,33 +177,33 @@ export const useRegisterRamp = () => {
 
       let additionalData: any = {};
 
-      if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.BRL) {
+      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           destinationAddress: address,
-          taxId: executionInput.taxId,
+          taxId: executionInput.taxId
         };
-      } else if (executionInput.quote.rampType === 'on' && executionInput.fiatToken === FiatToken.EURC) {
+      } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
         additionalData = {
           destinationAddress: address,
-          taxId: executionInput.taxId,
           moneriumAuthToken: authToken,
+          taxId: executionInput.taxId
         };
-      } else if (executionInput.quote.rampType === 'off' && executionInput.fiatToken === FiatToken.BRL) {
+      } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
-          walletAddress: address,
           paymentData: executionInput.paymentData,
-          taxId: executionInput.taxId,
-          receiverTaxId: executionInput.taxId,
           pixDestination: executionInput.taxId,
+          receiverTaxId: executionInput.taxId,
+          taxId: executionInput.taxId,
+          walletAddress: address
         };
       } else {
         // For other ramps, we can use the address directly
         additionalData = {
-          walletAddress: address,
-          paymentData: executionInput.paymentData,
-          taxId: executionInput.taxId,
-          receiverTaxId: executionInput.taxId,
           moneriumAuthToken: authToken,
+          paymentData: executionInput.paymentData,
+          receiverTaxId: executionInput.taxId,
+          taxId: executionInput.taxId,
+          walletAddress: address
         };
       }
 
@@ -239,6 +236,7 @@ export const useRegisterRamp = () => {
       const updatedRampProcess = await RampService.updateRamp(rampProcess.id, signedTransactions);
 
       setRampRegistered(true);
+      console.log("Ramp process set to registered:", updatedRampProcess);
       setRampState({
         quote: executionInput.quote,
         ramp: updatedRampProcess,
@@ -278,7 +276,7 @@ export const useRegisterRamp = () => {
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
     authToken,
-    codeVerifier,
+    codeVerifier
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
@@ -291,6 +289,7 @@ export const useRegisterRamp = () => {
       !rampState?.userSigningMeta?.assetHubToPendulumHash;
 
     // If this is a Monerium offramp, we need to wait for a page refresh and the corresponding auth token.
+    console.log(`Monerium triggered: ${moneriumTriggered}, authToken: ${authToken}`);
     const waitForAuthToken = moneriumTriggered && !authToken;
 
     const shouldRequestSignatures =
@@ -298,8 +297,13 @@ export const useRegisterRamp = () => {
       !rampStarted && // Ramp hasn't been started yet
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
-
+    console.log(
+      `Should request signatures: ${shouldRequestSignatures}, rampStarted: ${rampStarted}, requiredMetaIsEmpty: ${requiredMetaIsEmpty}, chainId: ${chainId}, rampState: ${rampState}`
+    );
     if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken) {
+      console.log(
+        `Conditions not met for user signing process. rampState: ${rampState}, rampStarted: ${rampStarted}, signingRejected: ${signingRejected}, waitForAuthToken: ${waitForAuthToken}`
+      );
       return; // Exit early if conditions aren't met
     }
 
@@ -343,19 +347,16 @@ export const useRegisterRamp = () => {
 
       // Monerium signatures.
       // If Monerium offramp, prompt offramp message signature
-      if (authToken && rampState?.ramp?.type === 'off') {
-        const offrampMessage = await MoneriumService.createRampMessage(
-          rampState.quote.outputAmount,
-          'THIS WILL BE THE IBAN',
-        );
+      if (authToken && rampState?.ramp?.type === "off") {
+        const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
         moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
 
       const walletClient = await getWalletClient(wagmiConfig);
       console.log(`Wallet client for signing:`, walletClient.account);
       for (const tx of sortedTxs!) {
-        if (tx.phase === 'squidRouterApprove') {
-          setRampSigningPhase('started');
+        if (tx.phase === "squidRouterApprove") {
+          setRampSigningPhase("started");
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase("signed");
         } else if (tx.phase === "squidRouterSwap") {
@@ -374,11 +375,11 @@ export const useRegisterRamp = () => {
             assethubApiComponents.api,
             substrateWalletAccount
           );
-          setRampSigningPhase('finished');
-        } else if (tx.phase === 'moneriumOnrampSelfTransfer') {
-          setRampSigningPhase('started');
+          setRampSigningPhase("finished");
+        } else if (tx.phase === "moneriumOnrampSelfTransfer") {
+          setRampSigningPhase("started");
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
-          setRampSigningPhase('finished');
+          setRampSigningPhase("finished");
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
         }
@@ -387,7 +388,7 @@ export const useRegisterRamp = () => {
       // Update ramp with user-signed transactions and additional data
       const additionalData = {
         assetHubToPendulumHash,
-        moneriumOfframpSignature,
+        moneriumOfframpSignature
       };
 
       // Only additional presigned transaction if Monerium onramp
@@ -432,7 +433,7 @@ export const useRegisterRamp = () => {
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
     releaseSigningTrace,
-    authToken,
+    authToken
   ]);
 
   return {

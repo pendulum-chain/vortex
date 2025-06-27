@@ -156,6 +156,14 @@
         "continueOnPartnersPage": "Continue on Partner's page",
         "continueWithPartner": "Continue with Partner",
         "destination": "Destination Account",
+        "EUROnrampDetails": {
+          "amount": "Amount",
+          "bic": "BIC",
+          "description": "Please make a bank transfer with the following details.",
+          "footer": "Please ensure the amount is exact.",
+          "iban": "IBAN",
+          "title": "Bank Transfer Details"
+        },
         "headerText": {
           "buy": "You're buying",
           "sell": "You're selling"

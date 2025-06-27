@@ -1,22 +1,17 @@
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
-import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useRampState } from "../../stores/rampStore";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { CopyButton } from "../CopyButton";
-import { RampDirection } from "../RampToggle";
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampState = useRampState();
-  const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
 
-  if (rampDirection !== RampDirection.ONRAMP) return null;
   if (!rampState?.ramp?.depositQrCode) return null;
   if (isQuoteExpired) return null;
-  //mock the br code
 
   return (
     <section>

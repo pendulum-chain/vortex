@@ -135,7 +135,7 @@ async function signMultipleEvmTransactions(
 
     const txData = {
       account: walletClient.account,
-      chain: moonbeam,
+      chain: walletClient.chain,
       data: tx.txData.data,
       gas: BigInt(tx.txData.gas),
       maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 5n : BigInt(187500000000),
@@ -212,10 +212,10 @@ export async function signUnsignedTransactions(
   const signedTxs: PresignedTx[] = [];
 
   try {
-    const stellarTxs = unsignedTxs.filter((tx) => tx.network === 'stellar').sort((a, b) => a.nonce - b.nonce);
-    const pendulumTxs = unsignedTxs.filter((tx) => tx.network === 'pendulum');
-    const moonbeamTxs = unsignedTxs.filter((tx) => tx.network === 'moonbeam');
-    const polygonTxs = unsignedTxs.filter((tx) => tx.network === 'polygon');
+    const stellarTxs = unsignedTxs.filter(tx => tx.network === "stellar").sort((a, b) => a.nonce - b.nonce);
+    const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");
+    const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
+    const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
 
     // Process Stellar transactions first in sequence order
     if (stellarTxs.length > 0) {
@@ -304,20 +304,20 @@ export async function signUnsignedTransactions(
 
     for (const tx of polygonTxs) {
       if (!ephemerals.moonbeamEphemeral) {
-        throw new Error('Missing EVM ephemeral account');
+        throw new Error("Missing EVM ephemeral account");
       }
 
       const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
 
       const privateKey = u8aToHex(
-        hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, '', false, 64), ethDerPath).secretKey,
+        hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey
       );
       const evmAccount = privateKeyToAccount(privateKey);
 
       const walletClient = createWalletClient({
         account: evmAccount,
         chain: polygon,
-        transport: http(),
+        transport: http()
       });
 
       const multiSignedTxs = await signMultipleEvmTransactions(tx, walletClient, tx.nonce);
