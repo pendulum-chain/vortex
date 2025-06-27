@@ -1,9 +1,9 @@
 import { isNetworkEVM } from "@packages/shared";
 import { useEffect, useState } from "react";
 import { useNetwork } from "../contexts/network";
-import { useRampSigningPhase, useSigningRejected } from "../stores/rampStore";
+import { useRampExecutionInput, useRampSigningPhase, useSigningRejected } from "../stores/rampStore";
 import { useSafeWalletSignatureStore } from "../stores/safeWalletSignaturesStore";
-import { RampSigningPhase } from "../types/phases";
+import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 
 const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, number>> = {
   EVM: {
@@ -22,9 +22,10 @@ const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, numbe
   }
 };
 
-const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
+const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean, executionInput: RampExecutionInput | undefined) => {
   if (!isEVM) return { current: 1, max: 1 };
   if (step === "login") return { current: 1, max: 1 };
+  if (step === "started" && executionInput?.quote.from === "sepa") return { current: 1, max: 1 };
   if (step === "started") return { current: 1, max: 2 };
   return { current: 2, max: 2 };
 };
@@ -49,6 +50,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
   const [shouldExit, setShouldExit] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [shouldDisplay, setShouldDisplay] = useState(false);
+  const executionInput = useRampExecutionInput();
 
   useEffect(() => {
     if (!isValidStep(step, isEVM) || signingRejected) {
@@ -72,7 +74,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
     }
 
     setProgress(progressConfig[step]);
-    setSignatureState(getSignatureDetails(step, isEVM));
+    setSignatureState(getSignatureDetails(step, isEVM, executionInput));
   }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay]);
 
   useEffect(() => {
