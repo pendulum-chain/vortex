@@ -46,7 +46,7 @@ export interface StateMetadata {
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
-  brCode: string | undefined;
+  depositQrCode: string | undefined;
   // Only used in onramp - monerium
   polygonEphemeralAddress: string;
 }

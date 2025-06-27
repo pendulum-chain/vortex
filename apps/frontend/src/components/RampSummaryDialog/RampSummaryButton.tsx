@@ -41,13 +41,13 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.ONRAMP;
     const isOfframp = rampDirection === RampDirection.OFFRAMP;
-    const isBRCodeReady = Boolean(true);
+    const isDepositQrCodeReady = Boolean(true);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
-    if ((isOnramp && isBRCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
+    if ((isOnramp && isDepositQrCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
         icon: null,
         text: t("components.dialogs.RampSummaryDialog.quoteExpired")
@@ -83,7 +83,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       };
     }
 
-    if (isOnramp && isBRCodeReady) {
+    if (isOnramp && isDepositQrCodeReady) {
       return {
         icon: null,
         text: t("components.swapSubmitButton.confirmPayment")
@@ -147,8 +147,8 @@ export const RampSummaryButton = () => {
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
-    const isBRCodeReady = Boolean(isOnramp && rampState?.ramp?.brCode);
-    if (isOnramp && !isBRCodeReady) return true;
+    const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
+    if (isOnramp && !isDepositQrCodeReady) return true;
 
     if (signingRejected) {
       return false;
@@ -160,7 +160,7 @@ export const RampSummaryButton = () => {
     isQuoteExpired,
     isOfframp,
     isOnramp,
-    rampState?.ramp?.brCode,
+    rampState?.ramp?.depositQrCode,
     isSubmitted,
     anchorUrl,
     fiatToken,

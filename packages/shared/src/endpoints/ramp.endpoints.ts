@@ -124,7 +124,7 @@ export interface RampProcess {
   createdAt: string;
   updatedAt: string;
   unsignedTxs: UnsignedTx[];
-  brCode?: string;
+  depositQrCode?: string;
 }
 
 export interface GetRampStatusRequest {

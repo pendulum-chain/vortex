@@ -63,7 +63,7 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
     if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
       throw new Error("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL");
     }
@@ -88,14 +88,14 @@ export class RampService extends BaseRampService {
 
     const brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
 
-    return { brCode, stateMeta, unsignedTxs };
+    return { depositQrCode: brCode, stateMeta, unsignedTxs };
   }
 
   private async prepareOfframpNonBrlTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       quote,
       signingAccounts: normalizedSigningAccounts,
@@ -103,7 +103,7 @@ export class RampService extends BaseRampService {
       userAddress: additionalData?.walletAddress
     });
 
-    return { brCode: undefined, stateMeta, unsignedTxs };
+    return { depositQrCode: undefined, stateMeta, unsignedTxs };
   }
 
   private async prepareOnrampTransactionsMethod(
@@ -111,7 +111,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
     if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
       throw new APIError({
         message: "Parameters destinationAddress and taxId are required for onramp",
@@ -136,14 +136,14 @@ export class RampService extends BaseRampService {
       additionalData.taxId
     );
 
-    return { brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    return { depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareMoneriumOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
 
       if (!additionalData || additionalData.moneriumAuthToken === undefined || additionalData.destinationAddress === undefined) {
         throw new APIError({
@@ -160,15 +160,15 @@ export class RampService extends BaseRampService {
       });
 
       // Mock the onramp transfer code
-      const brCode = 'mocked-br-code-for-onramp'; // This should be replaced with actual logic to generate a BR code if needed
-      return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, brCode };
+      const ibanCode = 'mocked-iban-code-for-onramp'; 
+      return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, depositQrCode: ibanCode };
   }
 
   private async prepareMoneriumOfframpTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
   
      if (!additionalData || additionalData.walletAddress === undefined || additionalData.moneriumAuthToken === undefined) {
       throw new APIError({
@@ -181,7 +181,7 @@ export class RampService extends BaseRampService {
       userAddress: additionalData.walletAddress,
       moneriumAuthToken: additionalData.moneriumAuthToken,
     });
-    return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, brCode: undefined };
+    return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, depositQrCode: undefined };
     
   }
 
@@ -190,7 +190,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
     if (quote.rampType === "off" ) {
       if (quote.outputCurrency === FiatToken.BRL) {
         
@@ -245,7 +245,7 @@ export class RampService extends BaseRampService {
 
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      const { unsignedTxs, stateMeta, brCode } = await this.prepareRampTransactions(
+      const { unsignedTxs, stateMeta, depositQrCode } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
@@ -265,7 +265,7 @@ export class RampService extends BaseRampService {
         processingLock: { locked: false, lockedAt: null },
         quoteId: quote.id,
         state: {
-          brCode,
+          depositQrCode,
           inputAmount: quote.inputAmount,
           inputCurrency: quote.inputCurrency,
           outputAmount: quote.outputAmount,
@@ -279,7 +279,7 @@ export class RampService extends BaseRampService {
       });
 
       const response: RegisterRampResponse = {
-        brCode: rampState.state.brCode,
+        depositQrCode: rampState.state.depositQrCode,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         from: rampState.from,
@@ -354,7 +354,7 @@ export class RampService extends BaseRampService {
 
       // Create response
       const response: UpdateRampResponse = {
-        brCode: rampState.state.brCode,
+        depositQrCode: rampState.state.depositQrCode,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         from: rampState.from,

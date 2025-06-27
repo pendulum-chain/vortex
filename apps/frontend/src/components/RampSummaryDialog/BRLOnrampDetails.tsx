@@ -13,8 +13,8 @@ export const BRLOnrampDetails: FC = () => {
   const rampDirection = rampState?.ramp?.type === 'on' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
 
-  //if (rampDirection !== RampDirection.ONRAMP) return null;
-  if (!rampState?.ramp?.brCode) return null;
+  if (rampDirection !== RampDirection.ONRAMP) return null;
+  if (!rampState?.ramp?.depositQrCode) return null;
   if (isQuoteExpired) return null;
   //mock the br code
 
@@ -28,11 +28,11 @@ export const BRLOnrampDetails: FC = () => {
       <p className="pt-2 text-center">{t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.qrCode")}</p>
       <div className="my-6 flex justify-center">
         <div className="rounded-lg border-1 border-gray-300 p-4">
-          <QRCodeSVG value={rampState.ramp?.brCode} />
+          <QRCodeSVG value={rampState.ramp?.depositQrCode} />
         </div>
       </div>
       <p className="text-center">{t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.copyCode")}</p>
-      <CopyButton className="mt-4 w-full py-10" text={rampState.ramp?.brCode} />
+      <CopyButton className="mt-4 w-full py-10" text={rampState.ramp?.depositQrCode} />
     </section>
   );
 };
