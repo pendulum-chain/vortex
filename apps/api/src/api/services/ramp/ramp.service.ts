@@ -3,6 +3,7 @@ import {
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
+  IbanPaymentData,
   Networks,
   RampErrorLog,
   RampPhase,
@@ -26,14 +27,15 @@ import { APIError } from "../../errors/api-error";
 import { BrlaApiService } from "../brla/brlaApiService";
 import { generateReferenceLabel } from "../brla/helpers";
 import { SubaccountData } from "../brla/types";
+import { getMoneriumUserIban } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
+import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumEvmOfframpTransactions";
+import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
 import { BaseRampService } from "./base.service";
-import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
-import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumEvmOfframpTransactions";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -142,47 +144,56 @@ export class RampService extends BaseRampService {
   private async prepareMoneriumOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-
-      if (!additionalData || additionalData.moneriumAuthToken === undefined || additionalData.destinationAddress === undefined) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp',
-        });
-      } 
-
-      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
-        quote,
-        signingAccounts: normalizedSigningAccounts,
-        destinationAddress: additionalData.destinationAddress,
-        moneriumAuthToken: additionalData.moneriumAuthToken,
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    depositQrCode?: string;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (!additionalData || additionalData.moneriumAuthToken === undefined || additionalData.destinationAddress === undefined) {
+      throw new APIError({
+        message: "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp",
+        status: httpStatus.BAD_REQUEST
       });
+    }
 
-      // Mock the onramp transfer code
-      const ibanCode = 'mocked-iban-code-for-onramp'; 
-      return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, depositQrCode: ibanCode };
+    const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      moneriumAuthToken: additionalData.moneriumAuthToken,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    });
+
+    const ibanData = await getMoneriumUserIban({
+      authToken: additionalData.moneriumAuthToken
+    });
+    const ibanPaymentData = {
+      bic: ibanData.bic,
+      iban: ibanData.iban
+    };
+    // Mock the onramp transfer code
+    const ibanCode = "mocked-iban-code-for-onramp";
+    return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareMoneriumOfframpTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
+    additionalData: RegisterRampRequest["additionalData"]
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-  
-     if (!additionalData || additionalData.walletAddress === undefined || additionalData.moneriumAuthToken === undefined) {
+    if (!additionalData || additionalData.walletAddress === undefined || additionalData.moneriumAuthToken === undefined) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Parameters walletAddress and moneriumAuthToken is required for Monerium onramp',
+        message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
+        status: httpStatus.BAD_REQUEST
       });
     }
     const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOfframpTransactions({
-      quote,
-      userAddress: additionalData.walletAddress,
       moneriumAuthToken: additionalData.moneriumAuthToken,
+      quote,
+      userAddress: additionalData.walletAddress
     });
-    return { unsignedTxs, stateMeta: stateMeta as Partial<StateMetadata>, depositQrCode: undefined };
-    
+    return { depositQrCode: undefined, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareRampTransactions(
@@ -190,10 +201,14 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (quote.rampType === "off" ) {
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    depositQrCode?: string;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (quote.rampType === "off") {
       if (quote.outputCurrency === FiatToken.BRL) {
-        
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -203,9 +218,9 @@ export class RampService extends BaseRampService {
         return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
       }
     } else {
-        if (quote.inputCurrency === FiatToken.EURC) {
-          return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-        }
+      if (quote.inputCurrency === FiatToken.EURC) {
+        return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+      }
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -245,7 +260,7 @@ export class RampService extends BaseRampService {
 
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      const { unsignedTxs, stateMeta, depositQrCode } = await this.prepareRampTransactions(
+      const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
@@ -266,6 +281,7 @@ export class RampService extends BaseRampService {
         quoteId: quote.id,
         state: {
           depositQrCode,
+          ibanPaymentData,
           inputAmount: quote.inputAmount,
           inputCurrency: quote.inputCurrency,
           outputAmount: quote.outputAmount,
@@ -279,10 +295,11 @@ export class RampService extends BaseRampService {
       });
 
       const response: RegisterRampResponse = {
-        depositQrCode: rampState.state.depositQrCode,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
+        depositQrCode: rampState.state.depositQrCode,
         from: rampState.from,
+        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
         quoteId: rampState.quoteId,
         to: rampState.to,
@@ -354,9 +371,9 @@ export class RampService extends BaseRampService {
 
       // Create response
       const response: UpdateRampResponse = {
-        depositQrCode: rampState.state.depositQrCode,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
+        depositQrCode: rampState.state.depositQrCode,
         from: rampState.from,
         id: rampState.id,
         quoteId: rampState.quoteId,

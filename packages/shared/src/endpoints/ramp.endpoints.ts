@@ -1,31 +1,31 @@
 import { DestinationType, EvmAddress, Networks } from "../index";
 
 export type RampPhase =
-  | 'initial'
-  | 'moneriumOnrampSelfTransfer'
-  | 'timedOut'
-  | 'stellarCreateAccount'
-  | 'squidRouterApprove'
-  | 'squidRouterSwap'
-  | 'squidRouterPay'
-  | 'fundEphemeral'
-  | 'nablaApprove'
-  | 'nablaSwap'
-  | 'moonbeamToPendulum'
-  | 'moonbeamToPendulumXcm'
-  | 'pendulumToMoonbeam'
-  | 'assethubToPendulum'
-  | 'pendulumToAssethub'
-  | 'spacewalkRedeem'
-  | 'stellarPayment'
-  | 'subsidizePreSwap'
-  | 'subsidizePostSwap'
-  | 'distributeFees'
-  | 'brlaTeleport'
-  | 'brlaPayoutOnMoonbeam'
-  | 'failed'
-  | 'timedOut'
-  | 'complete';
+  | "initial"
+  | "moneriumOnrampSelfTransfer"
+  | "timedOut"
+  | "stellarCreateAccount"
+  | "squidRouterApprove"
+  | "squidRouterSwap"
+  | "squidRouterPay"
+  | "fundEphemeral"
+  | "nablaApprove"
+  | "nablaSwap"
+  | "moonbeamToPendulum"
+  | "moonbeamToPendulumXcm"
+  | "pendulumToMoonbeam"
+  | "assethubToPendulum"
+  | "pendulumToAssethub"
+  | "spacewalkRedeem"
+  | "stellarPayment"
+  | "subsidizePreSwap"
+  | "subsidizePostSwap"
+  | "distributeFees"
+  | "brlaTeleport"
+  | "brlaPayoutOnMoonbeam"
+  | "failed"
+  | "timedOut"
+  | "complete";
 
 export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
 
@@ -76,20 +76,25 @@ export interface PaymentData {
   anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
+export interface IbanPaymentData {
+  iban: string;
+  bic: string;
+}
+
 export interface RegisterRampRequest {
-    quoteId: string;
-    signingAccounts: AccountMeta[];
-    additionalData?: {
-      walletAddress?: string; // Wallet address initiating the offramp.
-      destinationAddress?: string; // Destination address, used for onramp.
-      paymentData?: PaymentData;
-      pixDestination?: string;
-      receiverTaxId?: string;
-      taxId?: string;
-      moneriumAuthToken?: string; // Monerium authentication code for Monerium offramps.
-      [key: string]: unknown;
-    };
-  }
+  quoteId: string;
+  signingAccounts: AccountMeta[];
+  additionalData?: {
+    walletAddress?: string; // Wallet address initiating the offramp.
+    destinationAddress?: string; // Destination address, used for onramp.
+    paymentData?: PaymentData;
+    pixDestination?: string;
+    receiverTaxId?: string;
+    taxId?: string;
+    moneriumAuthToken?: string; // Monerium authentication code for Monerium offramps.
+    [key: string]: unknown;
+  };
+}
 
 export type UpdateRampResponse = RampProcess;
 
@@ -101,16 +106,16 @@ export interface StartRampRequest {
 export type RegisterRampResponse = RampProcess;
 
 export interface UpdateRampRequest {
-    rampId: string;
-    presignedTxs: PresignedTx[];
-    additionalData?: {
-      squidRouterApproveHash?: string;
-      squidRouterSwapHash?: string;
-      assetHubToPendulumHash?: string;
-      moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
-      [key: string]: unknown;
-    };
-  }
+  rampId: string;
+  presignedTxs: PresignedTx[];
+  additionalData?: {
+    squidRouterApproveHash?: string;
+    squidRouterSwapHash?: string;
+    assetHubToPendulumHash?: string;
+    moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
+    [key: string]: unknown;
+  };
+}
 
 export type StartRampResponse = RampProcess;
 
@@ -125,6 +130,7 @@ export interface RampProcess {
   updatedAt: string;
   unsignedTxs: UnsignedTx[];
   depositQrCode?: string;
+  ibanPaymentData?: IbanPaymentData;
 }
 
 export interface GetRampStatusRequest {

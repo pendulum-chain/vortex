@@ -1,4 +1,4 @@
-import { PendulumDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { IbanPaymentData, PendulumDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 import { ExtrinsicOptions } from "../transactions/nabla";
 
 export interface StateMetadata {
@@ -49,4 +49,5 @@ export interface StateMetadata {
   depositQrCode: string | undefined;
   // Only used in onramp - monerium
   polygonEphemeralAddress: string;
+  ibanPaymentData: IbanPaymentData;
 }
