@@ -6,6 +6,7 @@ import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
 import {
   horizonServer,
@@ -113,6 +114,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`
       );
       await horizonServer.submitTransaction(stellarCreationTransaction);
+
+      logger.info("Validating stellar payment sequence number after account creation");
+      await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
     } catch (e) {
       const horizonError = e as NetworkError;
       if (horizonError.response.data?.status === 400) {
@@ -125,6 +129,14 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
         if (horizonError.response.data.extras.result_codes.transaction === "tx_bad_seq") {
           logger.info("Recovery mode: Creation already performed.");
+
+          try {
+            logger.info("Validating stellar payment sequence number in recovery mode");
+            await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+          } catch (validationError) {
+            logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
+            throw new Error("Stellar payment sequence validation failed after account creation recovery");
+          }
         }
         logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data.extras}`);
         throw new Error("Could not submit the stellar creation transaction");
