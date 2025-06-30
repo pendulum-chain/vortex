@@ -16,7 +16,7 @@ import Big from "big.js";
 import { createPublicClient, encodeFunctionData, http } from "viem";
 import { polygon } from "viem/chains";
 import erc20ABI from "../../../contracts/ERC20";
-import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
+import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -118,8 +118,6 @@ export async function prepareMoneriumEvmOnrampTransactions({
   if (!polygonEphemeralEntry) {
     throw new Error("Polygon ephemeral not found");
   }
-  // Cast metadata to the correct type for better type safety
-  const metadata = quote.metadata as QuoteTicketMetadata;
 
   // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);

@@ -54,7 +54,6 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
         ownerAddress: polygonEphemeralAddress as `0x${string}`,
         tokenAddress: ERC20_EURE_POLYGON
       });
-      console.log(`Balance on Polygon ephemeral address ${polygonEphemeralAddress}: ${balance.toString()}`);
       return balance.gte(Big(inputAmountBeforeSwapRaw));
     };
 

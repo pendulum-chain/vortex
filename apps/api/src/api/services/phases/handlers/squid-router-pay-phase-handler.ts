@@ -156,7 +156,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
         if (!payTxHash) {
           const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
-          logger.info(`SquidRouterPayPhaseHandler: Native token to fund: ${nativeToFundRaw}`);
           const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
           payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state);
