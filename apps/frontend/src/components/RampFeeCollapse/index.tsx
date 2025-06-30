@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useQuote } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
+import { InterbankExchangeRate } from "../InterbankExchangeRate";
+import { QuoteRefreshProgress } from "../QuoteRefreshProgress";
 import { RampDirection } from "../RampToggle";
 
 interface FeeItem {
@@ -41,13 +43,6 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
   const outputAmount = Big(outputAmountString);
 
   return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
-}
-
-// Helper function to format exchange rate strings
-function formatExchangeRateString(rate: number, input: string, output: string) {
-  // Check the rate to determine how many decimal places to show
-  // Always show at least 3 significant decimal places
-  return `1 ${input} ≈ ${roundDownToSignificantDecimals(rate, 3)} ${output}`;
 }
 
 export function RampFeeCollapse() {
@@ -110,8 +105,9 @@ export function RampFeeCollapse() {
 
   return (
     <div className="flex flex-col gap-2 overflow-hidden">
-      <div className="text-center text-gray-600 text-sm">
-        {formatExchangeRateString(interbankExchangeRate, inputCurrency, outputCurrency)}
+      <div className="flex items-center justify-center px-4">
+        <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
+        <QuoteRefreshProgress />
       </div>
       <div className="collapse-arrow collapse overflow-visible border border-blue-700">
         <input type="checkbox" />
@@ -156,7 +152,13 @@ export function RampFeeCollapse() {
               </div>
             </strong>
             <div className="flex">
-              <span>{formatExchangeRateString(netExchangeRate, inputCurrency, outputCurrency)}</span>
+              <InterbankExchangeRate
+                asSpan={true}
+                className=""
+                inputCurrency={inputCurrency}
+                outputCurrency={outputCurrency}
+                rate={netExchangeRate}
+              />
             </div>
           </div>
         </div>

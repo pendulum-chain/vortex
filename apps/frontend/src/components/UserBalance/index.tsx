@@ -34,7 +34,7 @@ const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: 
         {onchainTokenBalance} {token.assetSymbol}
       </p>
       <button
-        className="ml-1 rounded-md bg-blue-100 px-1 text-primary hover:underline"
+        className="ml-1 cursor-pointer rounded-md bg-blue-100 px-1 text-primary hover:underline"
         onClick={() => onClick(onchainTokenBalance)}
         type="button"
       >
