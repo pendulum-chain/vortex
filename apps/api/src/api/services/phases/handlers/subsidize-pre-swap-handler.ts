@@ -27,7 +27,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.pendulumCurrencyId
+        inputTokenPendulumDetails.currencyId
       );
 
       // @ts-ignore
@@ -45,7 +45,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         const fundingAccountKeypair = getFundingAccount();
         // TODO this and other calls, add to executeApiCall to avoid low priority errors.
         await pendulumNode.api.tx.tokens
-          .transfer(pendulumEphemeralAddress, inputTokenPendulumDetails.pendulumCurrencyId, requiredAmount.toFixed(0, 0))
+          .transfer(pendulumEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
       }
 

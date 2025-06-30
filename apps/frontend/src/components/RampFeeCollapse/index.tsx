@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/20/solid";
-import { QuoteFeeStructure } from "@packages/shared";
+import { QuoteFeeStructure, roundDownToSignificantDecimals } from "@packages/shared";
 import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { useQuote } from "../../stores/ramp/useQuoteStore";

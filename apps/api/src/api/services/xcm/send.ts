@@ -203,6 +203,11 @@ export const submitMoonbeamXcm = async (
           reject("Xcm transaction failed");
         }
 
+        if (status.isInvalid) {
+          logger.error(`XCM transfer failed with status: ${status.type}`);
+          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
 

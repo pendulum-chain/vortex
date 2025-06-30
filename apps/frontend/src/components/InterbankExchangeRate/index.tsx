@@ -1,3 +1,4 @@
+import { roundDownToSignificantDecimals } from "@packages/shared";
 import { FC } from "react";
 
 interface InterbankExchangeRateProps {
@@ -9,7 +10,9 @@ interface InterbankExchangeRateProps {
 }
 
 function formatExchangeRateString(rate: number, input: string, output: string) {
-  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
+  // Check the rate to determine how many decimal places to show
+  // Always show at least 3 significant decimal places
+  return `1 ${input} ≈ ${roundDownToSignificantDecimals(rate, 3)} ${output}`;
 }
 
 export const InterbankExchangeRate: FC<InterbankExchangeRateProps> = ({

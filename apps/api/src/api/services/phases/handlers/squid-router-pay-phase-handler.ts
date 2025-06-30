@@ -10,7 +10,7 @@ import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
 import { getTokenDetailsForEvmDestination } from "../../ramp/quote.service/gross-output";
-import { createOnrampRouteParams, getRoute } from "../../transactions/squidrouter/route";
+import { createOnrampRouteParams, getRoute, getStatus } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 interface AxelarScanStatusResponse {
@@ -95,7 +95,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async checkStatus(state: RampState, swapHash: string): Promise<void> {
     try {
-      // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
+      // Found to be unreliable. We call it anyway so that squidrouter can log the status.
+      getStatus(swapHash).catch(error => logger.error(`Couldn't fetch status for ${swapHash} from squidrouter`, error.message));
 
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
@@ -152,6 +153,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         functionName: "addNativeGas"
       });
       const { maxFeePerGas, maxPriorityFeePerGas } = await this.publicClient.estimateFeesPerGas();
+      logger.info(
+        `SquidRouterPayPhaseHandler: Funding Axelar gas service for swap hash ${swapHash} with GLMR: ${gmlrValueRaw}`
+      );
       const gasPaymentHash = await this.walletClient.sendTransaction({
         data: transactionData,
         maxFeePerGas,
@@ -187,7 +191,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       return (responseData as { data: unknown[] }).data[0] as AxelarScanStatusResponse;
     } catch (error) {
       if ((error as { response: unknown }).response) {
-        console.error("API error:", (error as { response: unknown }).response);
+        logger.error(
+          `SquidRouterPayPhaseHandler: Couldn't get status for ${swapHash} from AxelarScan:`,
+          (error as { response: unknown }).response
+        );
       }
       throw error;
     }
@@ -210,7 +217,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
       const { route } = routeResult.data;
       const feeValue = route.transactionRequest.value;
-      console.log(`SquidRouterPayPhaseHandler: Fresh route value fetched: ${feeValue}`);
+      logger.info(`SquidRouterPayPhaseHandler: Fresh route value fetched: ${feeValue}`);
       return feeValue;
     } catch (error) {
       logger.error("SquidRouterPayPhaseHandler: Error fetching fresh route:", error);
