@@ -33,9 +33,10 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       }
     }
 
-    // State with a polygonEphemeralAddress indicates a monerium onramp.
     if (state.type === "on" && state.state.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, "brlaTeleport");
+    } else if (state.type === "on" && state.state.inputCurrency === FiatToken.EURC) {
+      return this.transitionToNextPhase(state, "moneriumOnrampMint");
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");

@@ -56,6 +56,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     failed: "",
     fundEphemeral: t("pages.progress.fundEphemeral"),
     initial: t("pages.progress.initial"),
+    moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
+    moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     nablaApprove: getSwappingMessage(),
@@ -72,13 +74,12 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterApprove: getSquidrouterSwapMessage(),
     squidRouterPay: getSquidrouterSwapMessage(),
     squidRouterSwap: getSquidrouterSwapMessage(),
-    stellarCreateAccount: t("pages.progress.createStellarAccount"),
+    stellarCreateAccount: t("pages.progress.createStellarAccount"), // Not relevant for progress page
     stellarPayment: t("pages.progress.stellarPayment", {
       assetSymbol: outputAssetSymbol
-    }),
-    subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
-    subsidizePreSwap: getSwappingMessage(), // Not relevant for progress page
-    moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
+    }), // Not relevant for progress page
+    subsidizePostSwap: getSwappingMessage(),
+    subsidizePreSwap: getSwappingMessage(),
     timedOut: "" // Not relevant for progress page
   };
 

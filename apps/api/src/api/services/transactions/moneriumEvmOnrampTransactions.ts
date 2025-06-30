@@ -141,7 +141,8 @@ export async function prepareMoneriumEvmOnrampTransactions({
       units: outputAmountBeforeFinalStepUnits
     },
     outputTokenType: quote.outputCurrency,
-    polygonEphemeralAddress: polygonEphemeralEntry.address
+    polygonEphemeralAddress: polygonEphemeralEntry.address,
+    walletAddress: userMintAddress
   };
 
   // Create initial user transaction that approves minted funds to ephemeral.

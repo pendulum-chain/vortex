@@ -350,6 +350,7 @@
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "fundEphemeral": "Funding ephemeral accounts",
       "initial": "Starting process",
+      "moneriumOnrampMint": "Minting EUR.e",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",

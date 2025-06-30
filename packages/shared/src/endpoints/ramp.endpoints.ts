@@ -3,6 +3,7 @@ import { DestinationType, EvmAddress, Networks } from "../index";
 export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
+  | "moneriumOnrampMint"
   | "timedOut"
   | "stellarCreateAccount"
   | "squidRouterApprove"
