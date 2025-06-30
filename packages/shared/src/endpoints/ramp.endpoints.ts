@@ -87,8 +87,8 @@ export interface RegisterRampRequest {
   quoteId: string;
   signingAccounts: AccountMeta[];
   additionalData?: {
-    walletAddress?: string; // Wallet address initiating the offramp.
-    destinationAddress?: string; // Destination address, used for onramp.
+    walletAddress?: string;
+    destinationAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;

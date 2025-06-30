@@ -23,8 +23,8 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   distributeFees: 24,
   failed: 0,
   fundEphemeral: 20,
-  initial: 0, // TODO we need to profile this value.
-  moneriumOnrampMint: 60,
+  initial: 0,
+  moneriumOnrampMint: 60, // TODO we need to profile this value.
   moneriumOnrampSelfTransfer: 20,
 
   // The following are unused phases in the onramping process but are included for completeness.
