@@ -374,6 +374,7 @@
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "fetchingQuote": "Failed to get quote",
         "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",
         "initializeFailed": {
           "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
@@ -383,6 +384,7 @@
         },
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
+        "invalidInputAmount": "Invalid input amount",
         "lessThanMinimumWithdrawal": {
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."

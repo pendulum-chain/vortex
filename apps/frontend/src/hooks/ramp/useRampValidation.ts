@@ -178,7 +178,7 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
-    if (quoteError) return quoteError;
+    if (quoteError) return t(quoteError);
 
     if (isDisconnected) return;
 
