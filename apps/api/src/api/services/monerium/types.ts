@@ -24,3 +24,12 @@ export interface IbanData {
 export interface IbanDataResponse {
   ibans: IbanData[];
 }
+
+export interface MoneriumTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+}
+
+export type AddressExistsResponse = MoneriumAddress;

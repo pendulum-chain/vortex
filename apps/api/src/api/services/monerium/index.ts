@@ -1,6 +1,68 @@
-import { FetchIbansParams, IbanData, IbanDataResponse, MoneriumResponse } from "./types";
+import { Networks } from "@packages/shared";
+import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
+import {
+  AddressExistsResponse,
+  FetchIbansParams,
+  IbanData,
+  IbanDataResponse,
+  MoneriumResponse,
+  MoneriumTokenResponse
+} from "./types";
 
 const MONERIOUM_API_URL = `https://api.monerium.app`;
+
+const authorize = async (): Promise<MoneriumTokenResponse> => {
+  const url = `${MONERIOUM_API_URL}/auth/token`;
+  const headers = {
+    "Content-Type": "application/x-www-form-urlencoded"
+  };
+  const body = new URLSearchParams({
+    client_id: MONERIUM_CLIENT_ID_APP || "",
+    client_secret: MONERIUM_CLIENT_SECRET || "",
+    grant_type: "client_credentials"
+  });
+
+  const response = await fetch(url, {
+    body,
+    headers,
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+export const checkAddressExists = async (address: string, network: Networks): Promise<AddressExistsResponse | null> => {
+  const { access_token } = await authorize();
+  const url = `${MONERIOUM_API_URL}/addresses/${address}`;
+  const headers = {
+    Accept: "application/vnd.monerium.api-v2+json",
+    Authorization: `Bearer ${access_token}`
+  };
+
+  try {
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data: AddressExistsResponse = await response.json();
+    console.log("Monerium address data:", data);
+    if (data.chains.includes(network)) {
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error("Failed to fetch address:", error);
+    return null;
+  }
+};
 
 export const getFirstMoneriumLinkedAddress = async (token: string): Promise<string | null> => {
   const url = "https://api.monerium.app/addresses";
