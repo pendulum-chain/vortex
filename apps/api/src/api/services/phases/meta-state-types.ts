@@ -47,7 +47,7 @@ export interface StateMetadata {
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
   depositQrCode: string | undefined;
-  // Only used in onramp - monerium
+  // Only used in onramp, offramp - monerium
   polygonEphemeralAddress: string;
   ibanPaymentData: IbanPaymentData;
 }

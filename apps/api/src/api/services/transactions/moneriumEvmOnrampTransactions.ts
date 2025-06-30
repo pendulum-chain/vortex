@@ -1,56 +1,34 @@
 import {
-  AMM_MINIMUM_OUTPUT_HARD_MARGIN,
-  AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   AccountMeta,
   EvmTokenDetails,
   EvmTransactionData,
   FiatToken,
-  Networks,
-  PENDULUM_USDC_ASSETHUB,
-  PENDULUM_USDC_AXL,
-  UnsignedTx,
-  encodeSubmittableExtrinsic,
-  getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
-  getPendulumDetails,
-  isAssetHubToken,
   isAssetHubTokenDetails,
-  isEvmTokenDetails,
-  isFiatToken,
-  isMoonbeamTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
-} from '@packages/shared';
-import Big from 'big.js';
-import { http, createPublicClient, encodeFunctionData } from 'viem';
-import { polygon } from 'viem/chains';
-import logger from '../../../config/logger';
-import erc20ABI from '../../../contracts/ERC20';
-import Partner from '../../../models/partner.model';
-import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
-import { getMoneriumEvmDefaultMintAddress } from '../monerium';
-import { ApiManager } from '../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { StateMetadata } from '../phases/meta-state-types';
-import { priceFeedService } from '../priceFeed.service';
-import { encodeEvmTransactionData } from './index';
-import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
-import { createNablaTransactionsForOnramp } from './nabla';
-import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
-import { createOfframpSquidrouterTransactionsToEvm } from './squidrouter/offramp';
-import { createOnrampSquidrouterTransactions, createOnrampSquidrouterTransactionsToEvm } from './squidrouter/onramp';
-import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
-import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
-import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+  Networks,
+  UnsignedTx
+} from "@packages/shared";
+import Big from "big.js";
+import { createPublicClient, encodeFunctionData, http } from "viem";
+import { polygon } from "viem/chains";
+import erc20ABI from "../../../contracts/ERC20";
+import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
+import { getMoneriumEvmDefaultMintAddress } from "../monerium";
+import { multiplyByPowerOfTen } from "../pendulum/helpers";
+import { StateMetadata } from "../phases/meta-state-types";
+import { encodeEvmTransactionData } from "./index";
+import { createOnrampSquidrouterTransactionsToEvm } from "./squidrouter/onramp";
 
-export const ERC20_EURE_POLYGON: `0x${string}` = '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6'; // EUR.e on Polygon
+export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
 /**
  * TODO: implement for Monerium prototype?
  */
 async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  return '';
+  return "";
 }
 
 export interface MoneriumOnrampTransactionParams {
@@ -72,19 +50,19 @@ async function addFeeDistributionTransaction(
   quote: QuoteTicketAttributes,
   account: AccountMeta,
   unsignedTxs: UnsignedTx[],
-  nextNonce: number,
+  nextNonce: number
 ): Promise<number> {
   // Generate the fee distribution transaction
   const feeDistributionTx = await createFeeDistributionTransaction(quote);
 
   if (feeDistributionTx) {
     unsignedTxs.push({
-      txData: feeDistributionTx,
-      phase: 'distributeFees',
+      meta: {},
       network: account.network,
       nonce: nextNonce,
+      phase: "distributeFees",
       signer: account.address,
-      meta: {}
+      txData: feeDistributionTx
     });
     nextNonce++;
   }
@@ -100,7 +78,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
   quote,
   signingAccounts,
   destinationAddress,
-  moneriumAuthToken,
+  moneriumAuthToken
 }: MoneriumOnrampTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
@@ -110,13 +88,11 @@ export async function prepareMoneriumEvmOnrampTransactions({
   if (!toNetwork) {
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
-  const toNetworkId = getNetworkId(toNetwork);
 
   // Validate input token. Only EURC is allowed for onramp, through Monerium.
   if (quote.inputCurrency !== FiatToken.EURC) {
     throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
-  const inputTokenDetails = getAnyFiatTokenDetails(quote.inputCurrency);
 
   // Validate output token
   if (!isOnChainToken(quote.outputCurrency)) {
@@ -133,14 +109,14 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   const userMintAddress = await getMoneriumEvmDefaultMintAddress(moneriumAuthToken);
   if (!userMintAddress) {
-    throw new Error('User mint address not found for Monerium onramp');
+    throw new Error("User mint address not found for Monerium onramp");
   }
 
   // Find required ephemeral accounts
   // We use Moonbeam as the generic EVM chain.
-  const polygonEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
+  const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
   if (!polygonEphemeralEntry) {
-    throw new Error('Polygon ephemeral not found');
+    throw new Error("Polygon ephemeral not found");
   }
   // Cast metadata to the correct type for better type safety
   const metadata = quote.metadata as QuoteTicketMetadata;
@@ -152,34 +128,32 @@ export async function prepareMoneriumEvmOnrampTransactions({
   const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
   const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
     outputAmountBeforeFinalStepRaw,
-    -outputTokenDetails.decimals,
+    -outputTokenDetails.decimals
   ).toFixed();
 
   // Initialize state metadata
   stateMeta = {
-    outputTokenType: quote.outputCurrency,
-    outputAmountBeforeFinalStep: {
-      units: outputAmountBeforeFinalStepUnits,
-      raw: outputAmountBeforeFinalStepRaw,
-    },
-    polygonEphemeralAddress: polygonEphemeralEntry.address,
     destinationAddress,
+    inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
+    outputAmountBeforeFinalStep: {
+      raw: outputAmountBeforeFinalStepRaw,
+      units: outputAmountBeforeFinalStepUnits
+    },
+    outputTokenType: quote.outputCurrency,
+    polygonEphemeralAddress: polygonEphemeralEntry.address
   };
 
   // Create initial user transaction that approves minted funds to ephemeral.
-  const initialTransferTxData = await createOnrampUserApprove(
-    inputAmountPostAnchorFeeRaw,
-    polygonEphemeralEntry.address,
-  );
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(initialTransferTxData) as any,
-    phase: 'moneriumOnrampSelfTransfer',
+    meta: {},
     network: Networks.Polygon,
     nonce: 0,
+    phase: "moneriumOnrampSelfTransfer",
     signer: userMintAddress,
-    meta: {}
+    txData: encodeEvmTransactionData(initialTransferTxData) as any
   });
 
   for (const account of signingAccounts) {
@@ -193,74 +167,74 @@ export async function prepareMoneriumEvmOnrampTransactions({
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,
         userMintAddress,
-        polygonEphemeralEntry.address,
+        polygonEphemeralEntry.address
       );
 
       unsignedTxs.push({
-        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as any,
-        phase: 'moneriumOnrampSelfTransfer',
+        meta: {},
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
+        phase: "moneriumOnrampSelfTransfer",
         signer: account.address,
-        meta: {},
+        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as any
       });
 
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
-        fromAddress: account.address,
-        rawAmount: inputAmountPostAnchorFeeRaw,
-        outputTokenDetails,
-        inputTokenDetails: {
-          erc20AddressSourceChain: ERC20_EURE_POLYGON,
-        } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp.
-        fromNetwork: Networks.Polygon, // By design, EURC onramp starts from Polygon.
-        toNetwork,
         destinationAddress,
+        fromAddress: account.address,
+        fromNetwork: Networks.Polygon,
+        inputTokenDetails: {
+          erc20AddressSourceChain: ERC20_EURE_POLYGON
+        } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp.
+        outputTokenDetails, // By design, EURC onramp starts from Polygon.
+        rawAmount: inputAmountPostAnchorFeeRaw,
+        toNetwork
       });
 
       unsignedTxs.push({
-        txData: encodeEvmTransactionData(approveData) as any,
-        phase: 'squidRouterApprove',
+        meta: {},
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
+        phase: "squidRouterApprove",
         signer: account.address,
-        meta: {},
+        txData: encodeEvmTransactionData(approveData) as any
       });
 
       unsignedTxs.push({
-        txData: encodeEvmTransactionData(swapData) as any,
-        phase: 'squidRouterSwap',
+        meta: {},
         network: Networks.Polygon,
         nonce: polygonAccountNonce++,
+        phase: "squidRouterSwap",
         signer: account.address,
-        meta: {},
+        txData: encodeEvmTransactionData(swapData) as any
       });
     }
   }
 
-  return { unsignedTxs, stateMeta };
+  return { stateMeta, unsignedTxs };
 }
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http(),
+    transport: http()
   });
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
-    functionName: 'approve',
     args: [toAddress, amountRaw],
+    functionName: "approve"
   });
 
   const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
-    to: ERC20_EURE_POLYGON,
     data: transferCallData as `0x${string}`,
-    value: '0',
-    gas: '100000',
+    gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON,
+    value: "0"
   };
 
   return txData;
@@ -269,28 +243,28 @@ async function createOnrampUserApprove(amountRaw: string, toAddress: string): Pr
 async function createOnrampEphemeralSelfTransfer(
   amountRaw: string,
   fromAddress: string,
-  toAddress: string,
+  toAddress: string
 ): Promise<EvmTransactionData> {
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http(),
+    transport: http()
   });
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
-    functionName: 'transferFrom',
     args: [fromAddress, toAddress, amountRaw],
+    functionName: "transferFrom"
   });
 
   const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
-    to: ERC20_EURE_POLYGON as `0x${string}`,
     data: transferCallData as `0x${string}`,
-    value: '0',
-    gas: '100000',
+    gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON as `0x${string}`,
+    value: "0"
   };
 
   return txData;
