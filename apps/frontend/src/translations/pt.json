@@ -373,6 +373,7 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "fetchingQuote": "Falha ao obter cotação",
         "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
           "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
@@ -382,6 +383,7 @@
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
+        "invalidInputAmount": "Valor de entrada inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
