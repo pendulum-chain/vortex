@@ -1,7 +1,7 @@
-import logger from '../../../config/logger';
-import { BrlaApiService } from './brlaApiService';
-import { verifyReferenceLabel } from './helpers';
-import { BrlaSupportedChain, FastQuoteQueryParams, OnchainLog, SmartContractOperationType } from './types';
+import logger from "../../../config/logger";
+import { BrlaApiService } from "./brlaApiService";
+import { verifyReferenceLabel } from "./helpers";
+import { BrlaSupportedChain, FastQuoteQueryParams, OnchainLog, SmartContractOperationType } from "./types";
 
 // This service is used to request and keep tracks of teleports (transfers) from BRLA's
 // controlled accounts.
@@ -13,7 +13,7 @@ import { BrlaSupportedChain, FastQuoteQueryParams, OnchainLog, SmartContractOper
 
 export type EvmAddress = `0x${string}`;
 
-type TeleportStatus = 'claimed' | 'arrived' | 'quoted' | 'started' | 'completed' | 'failed';
+type TeleportStatus = "claimed" | "arrived" | "quoted" | "started" | "completed" | "failed";
 
 type Teleport = {
   amount: number;
@@ -55,16 +55,11 @@ export class BrlaTeleportService {
   }
 
   private getCompositeKey(subaccountId: string, memo: string): string {
-    const safeMemo = typeof memo === 'string' ? memo : '';
+    const safeMemo = typeof memo === "string" ? memo : "";
     return `${subaccountId}:${safeMemo}`;
   }
 
-  public async requestTeleport(
-    subaccountId: string,
-    amount: number,
-    receiverAddress: EvmAddress,
-    memo: string,
-  ): Promise<void> {
+  public async requestTeleport(subaccountId: string, amount: number, receiverAddress: EvmAddress, memo: string): Promise<void> {
     const compositeKey = this.getCompositeKey(subaccountId, memo);
     const existing = this.teleports.get(compositeKey);
 
@@ -72,24 +67,24 @@ export class BrlaTeleportService {
       existing &&
       existing.amount === amount &&
       existing.receiverAddress === receiverAddress &&
-      (existing.status === 'claimed' || existing.status === 'started')
+      (existing.status === "claimed" || existing.status === "started")
     ) {
       logger.info(
         `Skipping duplicate teleport request for subaccount ${subaccountId}, memo "${memo}" ` +
-          `(amount=${amount}, receiver=${receiverAddress}). Current status: ${existing.status}.`,
+          `(amount=${amount}, receiver=${receiverAddress}). Current status: ${existing.status}.`
       );
       return;
     }
 
     const teleport: Teleport = {
       amount,
-      subaccountId,
       dateRequested: new Date().toISOString(),
-      status: 'claimed',
-      receiverAddress,
       memo,
+      receiverAddress,
+      status: "claimed",
+      subaccountId
     };
-    logger.info(`Requesting teleport ${compositeKey}: ${teleport}`);
+    logger.info(`Requesting teleport ${compositeKey}: ${JSON.stringify(teleport)}`);
     this.teleports.set(compositeKey, teleport);
     this.maybeStartPeriodicChecks();
   }
@@ -102,7 +97,7 @@ export class BrlaTeleportService {
       logger.info(`Cancelled pending teleport for key "${compositeKey}" (subaccount ${subaccountId}, memo "${memo}").`);
     } else {
       logger.info(
-        `No pending teleport found to cancel for key "${compositeKey}" (subaccount ${subaccountId}, memo "${memo}").`,
+        `No pending teleport found to cancel for key "${compositeKey}" (subaccount ${subaccountId}, memo "${memo}").`
       );
     }
   }
@@ -115,53 +110,53 @@ export class BrlaTeleportService {
       return;
     }
 
-    if (teleport.status !== 'arrived') {
+    if (teleport.status !== "arrived") {
       logger.warn(`Teleport "${compositeKey}" not in 'arrived' state.`);
       return;
     }
 
     logger.info(`Starting teleport "${compositeKey}":`, teleport);
     const fastQuoteParams: FastQuoteQueryParams = {
-      subaccountId: teleport.subaccountId,
-      operation: 'swap',
       amount: Number(teleport.amount),
-      inputCoin: 'BRLA',
-      outputCoin: 'BRLA',
       chain: BrlaSupportedChain.BRLA,
       fixOutput: true,
+      inputCoin: "BRLA",
+      operation: "swap",
+      outputCoin: "BRLA",
+      subaccountId: teleport.subaccountId
     };
 
     try {
       const { token: quoteToken } = await this.brlaApiService.createFastQuote(fastQuoteParams);
-      const quotedTeleportState: Teleport = { ...teleport, status: 'quoted' };
+      const quotedTeleportState: Teleport = { ...teleport, status: "quoted" };
       this.teleports.set(compositeKey, quotedTeleportState);
       logger.info(`Teleport ${compositeKey} status: quoted`);
 
       const { id } = await this.brlaApiService.swapRequest({
-        token: quoteToken,
         receiverAddress: quotedTeleportState.receiverAddress,
+        token: quoteToken
       });
 
-      const startedTeleportState: Teleport = { ...quotedTeleportState, status: 'started', id };
+      const startedTeleportState: Teleport = { ...quotedTeleportState, id, status: "started" };
       this.teleports.set(compositeKey, startedTeleportState);
       logger.info(`Teleport ${compositeKey} status: started, API operationId: ${id}`);
 
       this.maybeStartPeriodicChecks();
     } catch (e) {
       logger.error(`Error starting teleport "${compositeKey}":`, e);
-      this.teleports.set(compositeKey, { ...teleport, status: 'failed' });
+      this.teleports.set(compositeKey, { ...teleport, status: "failed" });
     }
   }
 
   private maybeStartPeriodicChecks(): void {
     const pendingTeleports = [...this.teleports.values()].filter(
-      (teleport) => teleport.status === 'claimed' || teleport.status === 'started',
+      teleport => teleport.status === "claimed" || teleport.status === "started"
     ).length;
 
     if (this.checkInterval === null && pendingTeleports > 0) {
       this.checkInterval = setInterval(() => {
-        this.checkPendingTeleports().catch((err) => {
-          logger.error('Error in periodic teleport check:', err);
+        this.checkPendingTeleports().catch(err => {
+          logger.error("Error in periodic teleport check:", err);
         });
       }, this.intervalMs);
     }
@@ -176,7 +171,7 @@ export class BrlaTeleportService {
 
     // Process 'started' teleports first
     for (const [compositeKey, teleport] of this.teleports) {
-      if (teleport.status === 'started') {
+      if (teleport.status === "started") {
         try {
           const onChainOuts = await this.brlaApiService.getOnChainHistoryOut(teleport.subaccountId);
           const relevantOut = onChainOuts.find((out: OnchainLog) => out.id === teleport.id);
@@ -194,7 +189,7 @@ export class BrlaTeleportService {
             lastContractOp.operationName === SmartContractOperationType.MINT &&
             lastContractOp.executed === true
           ) {
-            const completedTeleport = { ...teleport, status: 'completed' as TeleportStatus };
+            const completedTeleport = { ...teleport, status: "completed" as TeleportStatus };
             this.completedTeleports.set(compositeKey, completedTeleport);
             logger.info(`Teleport completed "${compositeKey}":`, completedTeleport);
             this.teleports.delete(compositeKey);
@@ -207,7 +202,7 @@ export class BrlaTeleportService {
 
     // Process 'claimed' teleports
     for (const [compositeKey, teleport] of this.teleports) {
-      if (teleport.status === 'claimed') {
+      if (teleport.status === "claimed") {
         try {
           const payIns = await this.brlaApiService.getPayInHistory(teleport.subaccountId);
           if (payIns.length === 0) {
@@ -216,21 +211,17 @@ export class BrlaTeleportService {
 
           // Must be the last one, if any.
           const matchingPayIn = payIns.find(
-            (payIn) =>
-              verifyReferenceLabel(payIn.referenceLabel, teleport.memo) &&
-              Number(payIn.amount) >= Number(teleport.amount),
+            payIn =>
+              verifyReferenceLabel(payIn.referenceLabel, teleport.memo) && Number(payIn.amount) >= Number(teleport.amount)
           );
 
           if (matchingPayIn) {
             logger.info(`Matching PayIn found for teleport "${compositeKey}". Status changing to 'arrived'.`);
-            this.teleports.set(compositeKey, { ...teleport, status: 'arrived' });
+            this.teleports.set(compositeKey, { ...teleport, status: "arrived" });
             // Intentionally not awaiting startTeleport to allow checkPendingTeleports to complete its iteration.
             // startTeleport is async and will handle its own errors.
-            this.startTeleport(compositeKey).catch((err) => {
-              logger.error(
-                `Error occurred during startTeleport called for ${compositeKey} from checkPendingTeleports:`,
-                err,
-              );
+            this.startTeleport(compositeKey).catch(err => {
+              logger.error(`Error occurred during startTeleport called for ${compositeKey} from checkPendingTeleports:`, err);
             });
           } // Deletion of teleports is handled by the phase processor.
         } catch (error) {

@@ -2,17 +2,17 @@
  * Helper functions for token configuration
  */
 
-import { Networks } from '../../helpers';
-import { assetHubTokenConfig } from '../assethub/config';
-import { evmTokenConfig } from '../evm/config';
-import { moonbeamTokenConfig } from '../moonbeam/config';
-import { stellarTokenConfig } from '../stellar/config';
-import { FiatToken, OnChainToken, PendulumDetails, RampCurrency } from '../types/base';
-import { AssetHubToken } from '../types/base';
-import { EvmToken } from '../types/evm';
-import { MoonbeamTokenDetails } from '../types/moonbeam';
-import { StellarTokenDetails } from '../types/stellar';
-import { FiatTokenDetails, OnChainTokenDetails } from './typeGuards';
+import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
+import { assetHubTokenConfig } from "../assethub/config";
+import { evmTokenConfig } from "../evm/config";
+import { moonbeamTokenConfig } from "../moonbeam/config";
+import { stellarTokenConfig } from "../stellar/config";
+import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
+import { EvmToken } from "../types/evm";
+import { MoonbeamTokenDetails } from "../types/moonbeam";
+import { PendulumTokenDetails } from "../types/pendulum";
+import { StellarTokenDetails } from "../types/stellar";
+import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
 
 /**
  * Get token details for a specific network and token
@@ -22,7 +22,9 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
     if (network === Networks.AssetHub) {
       return assetHubTokenConfig[onChainToken as AssetHubToken];
     } else {
-      return evmTokenConfig[network][onChainToken as EvmToken];
+      if (isNetworkEVM(network)) {
+        return evmTokenConfig[network][onChainToken as EvmToken];
+      } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
@@ -47,11 +49,14 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
     }
     return firstAvailableToken;
   } else {
-    const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
-    if (!firstAvailableToken) {
-      throw new Error(`No tokens configured for network ${network}`);
-    }
-    return firstAvailableToken;
+    if (isNetworkEVM(network)) {
+      const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
+      if (!firstAvailableToken) {
+        throw new Error(`No tokens configured for network ${network}`);
+      }
+
+      return firstAvailableToken;
+    } else throw new Error(`Network ${network} is not a valid EVM origin network`);
   }
 }
 
@@ -83,7 +88,11 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
  * Get any fiat token details (Stellar or Moonbeam)
  */
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
-  return (stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken])!;
+  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken];
+  if (!tokenDetails) {
+    throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar or Moonbeam.`);
+  }
+  return tokenDetails;
 }
 
 /**
@@ -91,9 +100,9 @@ export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
  */
 export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
   enumObj: T,
-  value: string,
+  value: string
 ): T[keyof T] | undefined {
-  const key = Object.keys(enumObj).find((k) => enumObj[k as keyof T] === value) as keyof T | undefined;
+  const key = Object.keys(enumObj).find(k => enumObj[k as keyof T] === value) as keyof T | undefined;
   return key ? enumObj[key] : undefined;
 }
 
@@ -109,13 +118,13 @@ export function isFiatTokenEnum(token: string): token is FiatToken {
  */
 export function getPendulumCurrencyId(fiatToken: FiatToken) {
   const tokenDetails = getAnyFiatTokenDetails(fiatToken);
-  return tokenDetails.pendulumCurrencyId;
+  return tokenDetails.pendulumRepresentative.currencyId;
 }
 
 /**
  * Get Pendulum details for a token
  */
-export function getPendulumDetails(tokenType: RampCurrency, network?: Networks): PendulumDetails {
+export function getPendulumDetails(tokenType: RampCurrency, network?: Networks): PendulumTokenDetails {
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
     : network
@@ -123,13 +132,8 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks):
       : undefined;
 
   if (!tokenDetails) {
-    throw new Error('Invalid token provided for pendulum details.');
+    throw new Error("Invalid token provided for pendulum details.");
   }
 
-  return {
-    pendulumErc20WrapperAddress: tokenDetails.pendulumErc20WrapperAddress,
-    pendulumCurrencyId: tokenDetails.pendulumCurrencyId,
-    pendulumAssetSymbol: tokenDetails.pendulumAssetSymbol,
-    pendulumDecimals: tokenDetails.pendulumDecimals,
-  };
+  return tokenDetails.pendulumRepresentative;
 }

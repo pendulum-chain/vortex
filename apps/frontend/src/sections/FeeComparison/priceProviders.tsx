@@ -1,36 +1,34 @@
-import vortexIcon from '../../assets/logo/blue.svg';
-import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
-import moonpayIcon from '../../assets/offramp/moonpay.svg';
-import transakIcon from '../../assets/offramp/transak.svg';
-
-import { PriceEndpoints } from '@packages/shared';
-import { JSX } from 'react';
-
-export interface PriceProvider {
-  name: PriceEndpoints.Provider | 'vortex';
+import { PriceProvider } from "@packages/shared";
+import { JSX } from "react";
+import vortexIcon from "../../assets/logo/blue.svg";
+import alchemyPayIcon from "../../assets/offramp/alchemypay.svg";
+import moonpayIcon from "../../assets/offramp/moonpay.svg";
+import transakIcon from "../../assets/offramp/transak.svg";
+export interface PriceProviderDetails {
+  name: PriceProvider | "vortex";
   icon?: JSX.Element;
   href: string;
 }
 
-export const priceProviders: PriceProvider[] = [
+export const priceProviders: PriceProviderDetails[] = [
   {
-    name: 'alchemypay',
-    icon: <img src={alchemyPayIcon} className="w-40 ml-1" alt="AlchemyPay" />,
-    href: 'https://alchemypay.org',
+    href: "https://alchemypay.org",
+    icon: <img alt="AlchemyPay" className="ml-1 w-40" src={alchemyPayIcon} />,
+    name: "alchemypay"
   },
   {
-    name: 'moonpay',
-    icon: <img src={moonpayIcon} className="w-40 ml-1" alt="Moonpay" />,
-    href: 'https://moonpay.com',
+    href: "https://moonpay.com",
+    icon: <img alt="Moonpay" className="ml-1 w-40" src={moonpayIcon} />,
+    name: "moonpay"
   },
   {
-    name: 'transak',
-    icon: <img src={transakIcon} className="h-10 w-30" alt="Transak" />,
-    href: 'https://transak.com',
+    href: "https://transak.com",
+    icon: <img alt="Transak" className="h-10 w-30" src={transakIcon} />,
+    name: "transak"
   },
   {
-    name: 'vortex',
-    icon: <img src={vortexIcon} className="h-10 w-36" alt="Vortex" />,
-    href: '',
-  },
+    href: "",
+    icon: <img alt="Vortex" className="h-10 w-36" src={vortexIcon} />,
+    name: "vortex"
+  }
 ];

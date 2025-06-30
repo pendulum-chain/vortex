@@ -1,10 +1,9 @@
-import { EvmToken, RampCurrency, UsdLikeEvmToken, getPendulumDetails, isFiatToken } from '@packages/shared';
-import { PENDULUM_USDC_AXL } from '@packages/shared';
-import Big from 'big.js';
-import logger from '../../config/logger';
-import { getTokenOutAmount } from './nablaReads/outAmount';
-import { ApiManager } from './pendulum/apiManager';
-import { SlackNotifier } from './slack.service';
+import { EvmToken, getPendulumDetails, isFiatToken, PENDULUM_USDC_AXL, RampCurrency, UsdLikeEvmToken } from "@packages/shared";
+import Big from "big.js";
+import logger from "../../config/logger";
+import { getTokenOutAmount } from "./nablaReads/outAmount";
+import { ApiManager } from "./pendulum/apiManager";
+import { SlackNotifier } from "./slack.service";
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -43,30 +42,30 @@ export class PriceFeedService {
   private constructor() {
     // Read configuration from environment variables
     this.coingeckoApiKey = process.env.COINGECKO_API_KEY;
-    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || 'https://pro-api.coingecko.com/api/v3';
+    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3";
 
     // Read cache TTL configuration with defaults (5 minutes = 300000 ms)
-    this.cryptoCacheTtlMs = parseInt(process.env.CRYPTO_CACHE_TTL_MS || '300000', 10);
-    this.fiatCacheTtlMs = parseInt(process.env.FIAT_CACHE_TTL_MS || '300000', 10);
+    this.cryptoCacheTtlMs = parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10);
+    this.fiatCacheTtlMs = parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10);
 
     if (!this.coingeckoApiKey) {
-      logger.warn('COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.');
+      logger.warn("COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.");
     }
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
 
     // Start cron job to check onchain oracle prices
-    this.checkOnchainOraclePricesUpToDate().catch((error) => {
+    this.checkOnchainOraclePricesUpToDate().catch(error => {
       logger.error(`Error checking onchain oracle prices: ${error.message}`);
     });
     setInterval(
       () => {
-        this.checkOnchainOraclePricesUpToDate().catch((error) => {
+        this.checkOnchainOraclePricesUpToDate().catch(error => {
           logger.error(`Error checking onchain oracle prices: ${error.message}`);
         });
       },
-      24 * 60 * 60 * 1000,
+      24 * 60 * 60 * 1000
     ); // Check every 24 hours
   }
 
@@ -90,7 +89,7 @@ export class PriceFeedService {
    */
   public async getCryptoPrice(tokenId: string, vsCurrency: string): Promise<number> {
     if (!tokenId || !vsCurrency) {
-      throw new Error('Token ID and currency are required');
+      throw new Error("Token ID and currency are required");
     }
 
     // Create a cache key for this request
@@ -112,17 +111,17 @@ export class PriceFeedService {
 
       // Construct the API URL
       const url = new URL(`${this.coingeckoApiBaseUrl}/simple/price`);
-      url.searchParams.append('ids', tokenId);
-      url.searchParams.append('vs_currencies', vsCurrency);
+      url.searchParams.append("ids", tokenId);
+      url.searchParams.append("vs_currencies", vsCurrency);
 
       // Prepare headers for the request
       const headers: HeadersInit = {
-        Accept: 'application/json',
+        Accept: "application/json"
       };
 
       // Add API key if available
       if (this.coingeckoApiKey) {
-        headers['x-cg-pro-api-key'] = this.coingeckoApiKey;
+        headers["x-cg-pro-api-key"] = this.coingeckoApiKey;
       }
 
       // Make the API request
@@ -154,8 +153,8 @@ export class PriceFeedService {
 
       // Cache the result with expiration time
       this.cryptoPriceCache.set(cacheKey, {
-        value: price,
         expiresAt: now + this.cryptoCacheTtlMs,
+        value: price
       });
 
       return price;
@@ -179,8 +178,8 @@ export class PriceFeedService {
    * @param inputAmount - The amount to convert (default is '1.0')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency, inputAmount = '1.0'): Promise<number> {
-    const fromCurrency = 'USD';
+  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency, inputAmount = "1.0"): Promise<number> {
+    const fromCurrency = "USD";
 
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
@@ -194,12 +193,10 @@ export class PriceFeedService {
     logger.debug(`Cache miss for ${cacheKey}. Fetching from Nabla.`);
 
     try {
-      logger.debug(
-        `Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`,
-      );
+      logger.debug(`Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`);
 
       const apiManager = ApiManager.getInstance();
-      const networkName = 'pendulum';
+      const networkName = "pendulum";
       const apiInstance = await apiManager.getApi(networkName);
 
       // We assume that the exchange rate from axlUSDC to the target currency in the Forex AMM
@@ -211,8 +208,8 @@ export class PriceFeedService {
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
         fromAmountString: inputAmount,
-        inputTokenDetails: inputTokenPendulumDetails,
-        outputTokenDetails: outputTokenPendulumDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails
       });
 
       const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
@@ -220,8 +217,8 @@ export class PriceFeedService {
       logger.debug(`Exchange rate from ${fromCurrency} to ${toCurrency}: ${exchangeRate}`);
 
       this.fiatExchangeRateCache.set(cacheKey, {
-        value: exchangeRate,
         expiresAt: now + this.fiatCacheTtlMs,
+        value: exchangeRate
       });
 
       return exchangeRate;
@@ -247,14 +244,14 @@ export class PriceFeedService {
     this.logger(`Getting CoinGecko token ID for ${currency}`);
 
     const tokenIdMap: Record<string, string> = {
-      GLMR: 'moonbeam',
-      ETH: 'ethereum',
-      AVAX: 'avalanche-2',
-      MATIC: 'matic-network',
-      BNB: 'binancecoin',
+      AVAX: "avalanche-2",
+      BNB: "binancecoin",
+      ETH: "ethereum",
+      GLMR: "moonbeam",
+      MATIC: "matic-network"
     };
 
-    return tokenIdMap[currency as string] || null;
+    return tokenIdMap[currency.toUpperCase()] || null;
   }
 
   // Helper method to satisfy eslint for 'this' usage
@@ -264,9 +261,7 @@ export class PriceFeedService {
   }
 
   private convertUsdLikeToUsdLike(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency): string {
-    logger.debug(
-      `Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`,
-    );
+    logger.debug(`Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`);
     return amount;
   }
 
@@ -293,7 +288,7 @@ export class PriceFeedService {
       throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
     }
 
-    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
     if (cryptoPriceUSD <= 0) {
       throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
     }
@@ -309,7 +304,7 @@ export class PriceFeedService {
       throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
     }
 
-    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
     const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
     logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using price: ${cryptoPriceUSD}`);
     return result;
@@ -334,7 +329,7 @@ export class PriceFeedService {
     amount: string,
     fromCurrency: RampCurrency,
     toCurrency: RampCurrency,
-    decimals = 6,
+    decimals = 6
   ): Promise<string> {
     fromCurrency = fromCurrency.toLowerCase() as RampCurrency;
     toCurrency = toCurrency.toLowerCase() as RampCurrency;
@@ -388,21 +383,21 @@ export class PriceFeedService {
 
   // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
   async checkOnchainOraclePricesUpToDate(): Promise<void> {
-    logger.info('Performing onchain oracle prices check...');
+    logger.info("Performing onchain oracle prices check...");
 
     const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi('pendulum');
+    const pendulumApi = await apiManager.getApi("pendulum");
     const pendulumApiInstance = pendulumApi.api;
 
     try {
       // Check if the oracle prices are up to date
       const allPricesEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap.entries();
 
-      const prices = allPricesEncoded.map(([key, priceData]) => {
+      const prices = allPricesEncoded.map(([_, priceData]) => {
         const price = priceData.toHuman() as { name: string; lastUpdateTimestamp: string };
         return {
-          name: price.name,
-          lastUpdateTimestamp: price.lastUpdateTimestamp.replaceAll(',', ''),
+          lastUpdateTimestamp: price.lastUpdateTimestamp.replaceAll(",", ""),
+          name: price.name
         };
       });
 
@@ -414,7 +409,7 @@ export class PriceFeedService {
 
         if (!isPriceUpToDate) {
           logger.warn(
-            `Onchain oracle price for ${price.name} is not up to date. Last update: ${lastUpdateTimestamp}, Current time: ${currentTime}`,
+            `Onchain oracle price for ${price.name} is not up to date. Last update: ${lastUpdateTimestamp}, Current time: ${currentTime}`
           );
 
           outdatedPrices.push(price);
@@ -424,15 +419,13 @@ export class PriceFeedService {
       if (outdatedPrices.length > 0) {
         const slackNotifier = new SlackNotifier();
         await slackNotifier.sendMessage({
-          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.join(
-            ', ',
-          )}`,
+          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.map(price => price.name).join(", ")}`
         });
       } else {
-        logger.info('All onchain oracle prices are up to date.');
+        logger.info("All onchain oracle prices are up to date.");
       }
     } catch (error) {
-      logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 }

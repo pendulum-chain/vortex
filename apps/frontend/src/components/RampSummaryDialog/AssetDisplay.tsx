@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC } from "react";
 
 interface AssetDisplayProps {
   amount: string;
@@ -8,10 +8,10 @@ interface AssetDisplayProps {
 }
 
 export const AssetDisplay: FC<AssetDisplayProps> = ({ amount, symbol, iconSrc, iconAlt }) => (
-  <div className="flex items-center justify-between w-full">
-    <span className="text-lg font-bold">
+  <div className="flex w-full items-center justify-between">
+    <span className="font-bold text-lg">
       {amount} {symbol}
     </span>
-    <img src={iconSrc} alt={iconAlt} className="w-8 h-8" />
+    <img alt={iconAlt} className="h-8 w-8" src={iconSrc} />
   </div>
 );

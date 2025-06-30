@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import * as quoteController from '../../controllers/quote.controller';
-import * as rampController from '../../controllers/ramp.controller';
+import { Router } from "express";
+import * as quoteController from "../../controllers/quote.controller";
+import * as rampController from "../../controllers/ramp.controller";
 
 const router = Router();
 
@@ -31,7 +31,7 @@ const router = Router();
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  */
-router.post('/quotes', quoteController.createQuote);
+router.post("/quotes", quoteController.createQuote);
 
 /**
  * @api {get} v1/ramp/quotes/:id Get quote
@@ -55,7 +55,7 @@ router.post('/quotes', quoteController.createQuote);
  *
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
-router.get('/quotes/:id', quoteController.getQuote);
+router.get("/quotes/:id", quoteController.getQuote);
 
 /**
  * @api {post} v1/ramp/register Register ramping process
@@ -83,10 +83,10 @@ router.get('/quotes/:id', quoteController.getQuote);
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
 
-router.post('/register', rampController.registerRamp);
+router.post("/register", rampController.registerRamp);
 
 /**
- * @api {post} v1/ramp/:rampId/update Update ramping process
+ * @api {post} v1/ramp/update Update ramping process
  * @apiDescription Update a ramping process with presigned transactions and additional data
  * @apiVersion 1.0.0
  * @apiName UpdateRamp
@@ -110,7 +110,7 @@ router.post('/register', rampController.registerRamp);
  * @apiError (Not Found 404) NotFound Ramp does not exist
  * @apiError (Conflict 409) ConflictError Ramp is not in a state that allows updates
  */
-router.post('/:rampId/update', rampController.updateRamp);
+router.post("/update", rampController.updateRamp);
 
 /**
  * @api {post} v1/ramp/start Start ramping process
@@ -136,7 +136,7 @@ router.post('/:rampId/update', rampController.updateRamp);
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
-router.post('/start', rampController.startRamp);
+router.post("/start", rampController.startRamp);
 
 /**
  * @api {get} v1/ramp/:id Get ramp status
@@ -159,7 +159,7 @@ router.post('/start', rampController.startRamp);
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get('/:id', rampController.getRampStatus);
+router.get("/:id", rampController.getRampStatus);
 
 /**
  * @api {get} v1/ramp/:id/errors Get error logs
@@ -175,7 +175,7 @@ router.get('/:id', rampController.getRampStatus);
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get('/:id/errors', rampController.getErrorLogs);
+router.get("/:id/errors", rampController.getErrorLogs);
 
 /**
  * @api {get} v1/ramp/history/:walletAddress Get transaction history
@@ -191,6 +191,6 @@ router.get('/:id/errors', rampController.getErrorLogs);
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  */
-router.get('/history/:walletAddress', rampController.getRampHistory);
+router.get("/history/:walletAddress", rampController.getRampHistory);
 
 export default router;

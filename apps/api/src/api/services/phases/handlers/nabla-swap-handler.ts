@@ -1,30 +1,29 @@
-import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
+import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
 import {
+  createExecuteMessageExtrinsic,
   ExecuteMessageResult,
   ReadMessageResult,
-  createExecuteMessageExtrinsic,
   readMessage,
-  submitExtrinsic,
-} from '@pendulum-chain/api-solang';
-import Big from 'big.js';
-import RampState from '../../../../models/rampState.model';
-import { BasePhaseHandler } from '../base-phase-handler';
-
-import { Abi } from '@polkadot/api-contract';
-import logger from '../../../../config/logger';
-import { routerAbi } from '../../../../contracts/Router';
-import { defaultReadLimits } from '../../../helpers/contracts';
-import { ApiManager } from '../../pendulum/apiManager';
-import { StateMetadata } from '../meta-state-types';
+  submitExtrinsic
+} from "@pendulum-chain/api-solang";
+import { Abi } from "@polkadot/api-contract";
+import Big from "big.js";
+import logger from "../../../../config/logger";
+import { routerAbi } from "../../../../contracts/Router";
+import RampState from "../../../../models/rampState.model";
+import { defaultReadLimits } from "../../../helpers/contracts";
+import { ApiManager } from "../../pendulum/apiManager";
+import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return 'nablaSwap';
+    return "nablaSwap";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
-    const networkName = 'pendulum';
+    const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
     const {
@@ -32,7 +31,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       pendulumEphemeralAddress,
       inputAmountBeforeSwapRaw,
       inputTokenPendulumDetails,
-      outputTokenPendulumDetails,
+      outputTokenPendulumDetails
     } = state.state as StateMetadata;
 
     if (
@@ -42,11 +41,11 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       !inputTokenPendulumDetails ||
       !outputTokenPendulumDetails
     ) {
-      throw new Error('State metadata is corrupt, missing values. This is a bug.');
+      throw new Error("State metadata is corrupt, missing values. This is a bug.");
     }
 
     try {
-      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
       // This is a new item that might not be available on old states.
       const swapExtrinsicOptions = state.state.nabla?.swapExtrinsicOptions;
 
@@ -54,17 +53,17 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         // Do a dry-run with the extrinsic options we used to create the presigned extrinsic.
         const { result: readMessageResult } = await createExecuteMessageExtrinsic({
           ...swapExtrinsicOptions,
-          api: pendulumNode.api,
           abi: new Abi(routerAbi),
-          skipDryRunning: false,
+          api: pendulumNode.api,
+          skipDryRunning: false
         });
 
         if (!readMessageResult) {
-          throw new Error('Could not dry-run nabla swap transaction. Missing result.');
+          throw new Error("Could not dry-run nabla swap transaction. Missing result.");
         }
-        if (readMessageResult.type !== 'success') {
+        if (readMessageResult.type !== "success") {
           const errorMessage = this.parseContractMessageResultError(readMessageResult);
-          throw new Error('Could not dry-run nabla swap transaction: ' + errorMessage);
+          throw new Error("Could not dry-run nabla swap transaction: " + errorMessage);
         }
       }
 
@@ -72,49 +71,44 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const response = await readMessage({
         abi: new Abi(routerAbi),
         api: pendulumNode.api,
-        contractDeploymentAddress: NABLA_ROUTER,
         callerAddress: pendulumEphemeralAddress,
-        messageName: 'getAmountOut',
+        contractDeploymentAddress: NABLA_ROUTER,
+        limits: defaultReadLimits,
         messageArguments: [
           inputAmountBeforeSwapRaw,
-          [
-            inputTokenPendulumDetails.pendulumErc20WrapperAddress,
-            outputTokenPendulumDetails.pendulumErc20WrapperAddress,
-          ],
+          [inputTokenPendulumDetails.erc20WrapperAddress, outputTokenPendulumDetails.erc20WrapperAddress]
         ],
-        limits: defaultReadLimits,
+        messageName: "getAmountOut"
       });
-      if (response.type !== 'success') {
+      if (response.type !== "success") {
         throw new Error("Couldn't get a quote from the AMM");
       }
 
       const ouputAmountQuoteRaw = Big(response.value[0].toString());
       if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
         logger.info(
-          `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`,
+          `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`
         );
         throw new Error("Won't execute the swap now. The estimated output amount is too low.");
       }
 
-      if (typeof nablaSwapTransaction !== 'string') {
-        throw new Error(
-          'NablaSwapPhaseHandler: Presigned transaction is not a string -> not an encoded Nabla transaction.',
-        );
+      if (typeof nablaSwapTransaction !== "string") {
+        throw new Error("NablaSwapPhaseHandler: Presigned transaction is not a string -> not an encoded Nabla transaction.");
       }
 
       const swapExtrinsic = decodeSubmittableExtrinsic(nablaSwapTransaction, pendulumNode.api);
       const result = await submitExtrinsic(swapExtrinsic);
 
-      if (result.status.type === 'error') {
+      if (result.status.type === "error") {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
-        throw new Error('Could not swap token');
+        throw new Error("Could not swap token");
       }
     } catch (e) {
-      let errorMessage = '';
+      let errorMessage = "";
       const { result } = e as ExecuteMessageResult;
-      if (result?.type === 'reverted') {
+      if (result?.type === "reverted") {
         errorMessage = result.description;
-      } else if (result?.type === 'error') {
+      } else if (result?.type === "error") {
         errorMessage = result.error;
       } else {
         errorMessage = (e as string).toString();
@@ -123,7 +117,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
-    const nextPhase = state.type === 'on' ? 'distributeFees' : 'subsidizePostSwap';
+    const nextPhase = state.type === "on" ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

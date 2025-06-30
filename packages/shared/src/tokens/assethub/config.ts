@@ -2,18 +2,20 @@
  * AssetHub token configuration
  */
 
-import { Networks } from '../../helpers';
-import { PENDULUM_USDC_ASSETHUB } from '../constants/pendulum';
-import { AssetHubTokenDetails } from '../types/assethub';
-import { AssetHubToken, TokenType } from '../types/base';
+import { Networks } from "../../helpers";
+import { PENDULUM_USDC_ASSETHUB } from "../constants/pendulum";
+import { AssetHubTokenDetails } from "../types/assethub";
+import { AssetHubToken, TokenType } from "../types/base";
 
 export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = {
   [AssetHubToken.USDC]: {
-    assetSymbol: 'USDC',
-    networkAssetIcon: 'assethubUSDC',
+    assetSymbol: "USDC",
     decimals: 6,
+    foreignAssetId: PENDULUM_USDC_ASSETHUB.foreignAssetId,
+    isNative: false,
     network: Networks.AssetHub,
-    type: TokenType.AssetHub,
-    ...PENDULUM_USDC_ASSETHUB,
-  },
+    networkAssetIcon: "assethubUSDC",
+    pendulumRepresentative: PENDULUM_USDC_ASSETHUB,
+    type: TokenType.AssetHub
+  }
 };

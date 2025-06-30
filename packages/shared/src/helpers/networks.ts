@@ -1,20 +1,30 @@
-import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from 'viem/chains';
-import { PaymentMethod } from '../endpoints/payment-methods.endpoints';
+import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from "viem/chains";
+import { PaymentMethod } from "../endpoints/payment-methods.endpoints";
 
 export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
-  AssetHub = 'assethub',
-  Arbitrum = 'arbitrum',
-  Avalanche = 'avalanche',
-  Base = 'base',
-  BSC = 'bsc',
-  Ethereum = 'ethereum',
-  Polygon = 'polygon',
-  Moonbeam = 'moonbeam',
-  Pendulum = 'pendulum',
-  Stellar = 'stellar',
+  AssetHub = "assethub",
+  Arbitrum = "arbitrum",
+  Avalanche = "avalanche",
+  Base = "base",
+  BSC = "bsc",
+  Ethereum = "ethereum",
+  Polygon = "polygon",
+  Moonbeam = "moonbeam",
+  Pendulum = "pendulum",
+  Stellar = "stellar"
 }
+
+// This type is used to represent all networks that can be used as a source or destination in the system.
+export type EvmNetworks =
+  | Networks.Arbitrum
+  | Networks.Avalanche
+  | Networks.Base
+  | Networks.BSC
+  | Networks.Ethereum
+  | Networks.Moonbeam
+  | Networks.Polygon;
 
 /**
  * Checks if a destination is a network and returns the network if it is.
@@ -34,8 +44,6 @@ export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const STELLAR_CHAIN_ID = -99;
 
-type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
-
 interface NetworkMetadata {
   id: number;
   displayName: string;
@@ -44,60 +52,60 @@ interface NetworkMetadata {
 
 const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.AssetHub]: {
+    displayName: "Polkadot AssetHub",
     id: ASSETHUB_CHAIN_ID,
-    displayName: 'Polkadot AssetHub',
-    isEVM: false,
+    isEVM: false
   },
   [Networks.Polygon]: {
+    displayName: "Polygon",
     id: polygon.id,
-    displayName: 'Polygon',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Ethereum]: {
+    displayName: "Ethereum",
     id: ethereum.id,
-    displayName: 'Ethereum',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.BSC]: {
+    displayName: "BNB Smart Chain",
     id: bsc.id,
-    displayName: 'BNB Smart Chain',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Arbitrum]: {
+    displayName: "Arbitrum One",
     id: arbitrum.id,
-    displayName: 'Arbitrum One',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Base]: {
+    displayName: "Base",
     id: base.id,
-    displayName: 'Base',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Avalanche]: {
+    displayName: "Avalanche",
     id: avalanche.id,
-    displayName: 'Avalanche',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Moonbeam]: {
+    displayName: "Moonbeam",
     id: moonbeam.id,
-    displayName: 'Moonbeam',
-    isEVM: true,
+    isEVM: true
   },
   [Networks.Pendulum]: {
+    displayName: "Pendulum",
     id: PENDULUM_CHAIN_ID,
-    displayName: 'Pendulum',
-    isEVM: false,
+    isEVM: false
   },
   [Networks.Stellar]: {
+    displayName: "Stellar",
     id: STELLAR_CHAIN_ID,
-    displayName: 'Stellar',
-    isEVM: false,
-  },
+    isEVM: false
+  }
 };
 
 export function getCaseSensitiveNetwork(network: string): Networks | undefined {
   const normalized = network.toLowerCase();
-  return Object.values(Networks).find((n) => n.toLowerCase() === normalized);
+  return Object.values(Networks).find(n => n.toLowerCase() === normalized);
 }
 
 export function getNetworkMetadata(network: string): NetworkMetadata | undefined {
@@ -105,7 +113,7 @@ export function getNetworkMetadata(network: string): NetworkMetadata | undefined
   return normalizedNetwork ? NETWORK_METADATA[normalizedNetwork] : undefined;
 }
 
-export function isNetworkEVM(network: Networks): network is EVMNetworks {
+export function isNetworkEVM(network: Networks): network is EvmNetworks {
   return getNetworkMetadata(network)?.isEVM ?? false;
 }
 

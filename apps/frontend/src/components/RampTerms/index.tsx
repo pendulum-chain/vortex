@@ -3,9 +3,9 @@ import {
   useTermsActions,
   useTermsAnimationKey,
   useTermsChecked,
-  useTermsError,
-} from '../../stores/termsStore';
-import { TermsAndConditions } from '../TermsAndConditions';
+  useTermsError
+} from "../../stores/termsStore";
+import { TermsAndConditions } from "../TermsAndConditions";
 
 export const RampTerms = () => {
   const termsChecked = useTermsChecked();
@@ -16,14 +16,14 @@ export const RampTerms = () => {
   const { toggleTermsChecked, setTermsError } = useTermsActions();
 
   return (
-    <section className="w-full mt-5">
+    <section className="mt-5 w-full">
       <TermsAndConditions
         key={termsAnimationKey}
-        toggleTermsChecked={toggleTermsChecked}
-        termsChecked={termsChecked}
-        termsAccepted={termsAccepted}
-        termsError={termsError}
         setTermsError={setTermsError}
+        termsAccepted={termsAccepted}
+        termsChecked={termsChecked}
+        termsError={termsError}
+        toggleTermsChecked={toggleTermsChecked}
       />
     </section>
   );

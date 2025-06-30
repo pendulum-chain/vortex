@@ -1,10 +1,10 @@
-import { Networks } from '@packages/shared';
-import { useNetwork } from '../contexts/network';
-import { useRampFormStore } from '../stores/ramp/useRampFormStore';
+import { Networks } from "@packages/shared";
+import { useNetwork } from "../contexts/network";
+import { useRampFormStore } from "../stores/ramp/useRampFormStore";
 
 export function useNetworkTokenCompatibility() {
   const {
-    actions: { handleNetworkChange },
+    actions: { handleNetworkChange }
   } = useRampFormStore();
   const { setSelectedNetwork } = useNetwork();
 

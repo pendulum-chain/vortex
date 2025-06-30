@@ -1,12 +1,10 @@
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { validateSignatureAndGetMemo } from '../services/siwe.service';
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import { validateSignatureAndGetMemo } from "../services/siwe.service";
 
-declare global {
-  namespace Express {
-    interface Request {
-      derivedMemo: string | null;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    derivedMemo: string | null;
   }
 }
 
@@ -23,7 +21,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
   try {
     const {
       cookies,
-      body: { address },
+      body: { address }
     } = req;
 
     const cookieKey = `authToken_${address}`;
@@ -32,7 +30,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     // Check if matches the address requested by client, otherwise ignore cookie
     if (!authToken?.signature || !authToken?.nonce) {
       res.status(httpStatus.UNAUTHORIZED).json({
-        error: 'Missing or invalid authentication token',
+        error: "Missing or invalid authentication token"
       });
       return;
     }
@@ -42,7 +40,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     // Client declared usage of memo, but it could not be derived from provided signatures
     if (!memo) {
       res.status(httpStatus.UNAUTHORIZED).json({
-        error: 'Missing or invalid authentication token',
+        error: "Missing or invalid authentication token"
       });
       return;
     }
@@ -52,18 +50,18 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
   } catch (error) {
     const err = error as Error;
     // Distinguish between failed signature check and other errors
-    if (err.message.includes('Could not verify signature')) {
+    if (err.message.includes("Could not verify signature")) {
       res.status(httpStatus.UNAUTHORIZED).json({
-        error: 'Signature validation failed.',
         details: err.message,
+        error: "Signature validation failed."
       });
       return;
     }
 
     console.error(`Error in getMemoFromCookiesMiddleware: ${err.message}`);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Error while verifying signature',
       details: err.message,
+      error: "Error while verifying signature"
     });
   }
 }

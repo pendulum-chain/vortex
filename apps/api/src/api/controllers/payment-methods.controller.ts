@@ -4,12 +4,12 @@ import {
   GetSupportedPaymentMethodsResponse,
   PaymentMethodConfig,
   PaymentMethodType,
-  PaymentMethodTypes,
-} from '@packages/shared';
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { PAYMENT_METHODS_CONFIG } from '../../config/payment-methods.config';
-import { APIError } from '../errors/api-error';
+  PaymentMethodTypes
+} from "@packages/shared";
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import { PAYMENT_METHODS_CONFIG } from "../../config/payment-methods.config";
+import { APIError } from "../errors/api-error";
 
 /**
  * Gets payment methods based on type (buy/sell)
@@ -27,27 +27,27 @@ function getPaymentMethodsByType(type: PaymentMethodType): PaymentMethodConfig[]
  * @returns Filtered payment methods that support the specified fiat
  */
 function getPaymentMethodsByFiat(paymentMethods: PaymentMethodConfig[], fiatId: FiatToken): PaymentMethodConfig[] {
-  return paymentMethods.filter((method) => method.supportedFiats.some((supportedFiat) => supportedFiat.id === fiatId));
+  return paymentMethods.filter(method => method.supportedFiats.some(supportedFiat => supportedFiat.id === fiatId));
 }
 
 export const getSupportedPaymentMethods = async (
   req: Request<unknown, unknown, unknown, GetSupportedPaymentMethodsRequest>,
   res: Response<GetSupportedPaymentMethodsResponse | { error: string }>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { type, fiat } = req.query;
 
     if (type && !Object.values(PaymentMethodTypes).includes(type as PaymentMethodTypes)) {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: `Invalid type: '${type}'. Supported types are: '${Object.values(PaymentMethodTypes).join("', '")}'`,
+        error: `Invalid type: '${type}'. Supported types are: '${Object.values(PaymentMethodTypes).join("', '")}'`
       });
       return;
     }
 
     if (fiat && !Object.values(FiatToken).includes(fiat)) {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: `Invalid fiat: '${fiat}'. Supported fiats are: '${Object.values(FiatToken).join("', '")}'`,
+        error: `Invalid fiat: '${fiat}'. Supported fiats are: '${Object.values(FiatToken).join("', '")}'`
       });
       return;
     }
@@ -56,12 +56,12 @@ export const getSupportedPaymentMethods = async (
     const paymentMethodsByFiat = getPaymentMethodsByFiat(paymentMethodsByType, fiat);
 
     res.status(httpStatus.OK).json({
-      paymentMethods: fiat ? paymentMethodsByFiat : paymentMethodsByType,
+      paymentMethods: fiat ? paymentMethodsByFiat : paymentMethodsByType
     });
   } catch (error) {
     if (error instanceof APIError) {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: error.message,
+        error: error.message
       });
       return;
     }

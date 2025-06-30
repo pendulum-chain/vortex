@@ -1,16 +1,11 @@
-import {
-  XTokensEvent,
-  XcmSentEvent,
-  parseEventMoonbeamXcmSent,
-  parseEventXTokens,
-  parseEventXcmSent,
-} from '@packages/shared';
-import { ApiPromise } from '@polkadot/api';
-import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { SignedBlock } from '@polkadot/types/interfaces';
-import { ISubmittableResult, Signer } from '@polkadot/types/types';
-import { encodeAddress } from '@polkadot/util-crypto';
-import logger from '../../../config/logger';
+import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from "@packages/shared";
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
+import { ISubmittableResult, Signer } from "@polkadot/types/types";
+import { encodeAddress } from "@polkadot/util-crypto";
+import { Web3BaseWalletAccount } from "web3";
+import logger from "../../../config/logger";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -37,9 +32,9 @@ function substrateAddressEqual(a: string, b: string): boolean {
 }
 
 export const signAndSubmitXcm = async (
-  walletAccount: WalletAccount,
-  extrinsic: SubmittableExtrinsic<'promise'>,
-  afterSignCallback: () => void,
+  walletAccount: Web3BaseWalletAccount,
+  extrinsic: SubmittableExtrinsic<"promise">,
+  afterSignCallback: () => void
 ): Promise<{ event: XcmSentEvent; hash: string }> => {
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
@@ -61,40 +56,40 @@ export const signAndSubmitXcm = async (
 
             // Try to find a 'system.ExtrinsicFailed' event
             if (dispatchError) {
-              reject('Xcm transaction failed');
+              reject("Xcm transaction failed");
             }
 
             // Try to find 'polkadotXcm.Sent' events
-            const xcmSentEvents = events.filter((record) => {
-              return record.event.section === 'polkadotXcm' && record.event.method === 'Sent';
+            const xcmSentEvents = events.filter(record => {
+              return record.event.section === "polkadotXcm" && record.event.method === "Sent";
             });
 
             const event = xcmSentEvents
-              .map((event) => parseEventXcmSent(event))
-              .filter((event) => {
+              .map(event => parseEventXcmSent(event))
+              .filter(event => {
                 return substrateAddressEqual(event.originAddress, walletAccount.address);
               });
 
-            if (event.length == 0) {
+            if (event.length === 0) {
               reject(new Error(`No XcmSent event found for account ${walletAccount.address}`));
             }
             resolve({ event: event[0], hash });
           }
-        },
+        }
       )
-      .catch((error) => {
+      .catch(error => {
         afterSignCallback();
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-        if (error?.message.includes('1012:')) {
-          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+        if (error?.message.includes("1012:")) {
+          reject(new TransactionTemporarilyBannedError("Transaction for xcm transfer is temporarily banned."));
         }
 
         if (inBlockHash) {
           return reject(
             new TransactionInclusionError(
               inBlockHash,
-              `Transaction may have been included in block ${inBlockHash} despite error: ${error}`,
-            ),
+              `Transaction may have been included in block ${inBlockHash} despite error: ${error}`
+            )
           );
         }
 
@@ -117,7 +112,7 @@ async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 6000
     } catch (error) {
       logger.error(error);
     }
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
   }
   throw new Error(`Block ${blockHash} not found after ${timeoutMs}ms`);
 }
@@ -125,7 +120,7 @@ async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 6000
 export async function verifyXcmSentEvent(
   api: ApiPromise,
   blockHash: string,
-  address: string,
+  address: string
 ): Promise<{ event: XcmSentEvent; hash: string }> {
   try {
     await waitForBlock(api, blockHash);
@@ -136,10 +131,10 @@ export async function verifyXcmSentEvent(
   const apiAt = await api.at(blockHash);
   const events = await apiAt.query.system.events();
 
-  const xcmSentEvent = events
-    .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent') // TODO why is this broken?? filter method not part of codec?
+  const xcmSentEvent = (events as unknown as EventRecord[])
+    .filter(record => record.event.section === "polkadotXcm" && record.event.method === "Sent")
     .map(parseEventXcmSent)
-    .find((event) => substrateAddressEqual(event.originAddress, address));
+    .find(event => substrateAddressEqual(event.originAddress, address));
 
   if (!xcmSentEvent) {
     throw new Error(`No XcmSent event found for account ${address}`);
@@ -150,7 +145,7 @@ export async function verifyXcmSentEvent(
 
 export const submitXcm = async (
   address: string,
-  extrinsic: SubmittableExtrinsic<'promise'>,
+  extrinsic: SubmittableExtrinsic<"promise">
 ): Promise<{ event: XcmSentEvent; hash: string | undefined }> =>
   new Promise((resolve, reject) => {
     extrinsic
@@ -162,30 +157,30 @@ export const submitXcm = async (
 
           // Try to find a 'system.ExtrinsicFailed' event
           if (dispatchError) {
-            reject('Xcm transaction failed');
+            reject("Xcm transaction failed");
           }
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
-            (record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent',
+            record => record.event.section === "polkadotXcm" && record.event.method === "Sent"
           );
 
           const event = xcmSentEvents
-            .map((event) => parseEventXcmSent(event))
-            .filter((event) => {
+            .map(event => parseEventXcmSent(event))
+            .filter(event => {
               return substrateAddressEqual(event.originAddress, address);
             });
 
-          if (event.length == 0) {
+          if (event.length === 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
           }
           resolve({ event: event[0], hash });
         }
       })
-      .catch((error) => {
+      .catch(error => {
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-        if (error?.message.includes('1012:')) {
-          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+        if (error?.message.includes("1012:")) {
+          reject(new TransactionTemporarilyBannedError("Transaction for xcm transfer is temporarily banned."));
         }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
@@ -193,7 +188,7 @@ export const submitXcm = async (
 
 export const submitMoonbeamXcm = async (
   address: string,
-  extrinsic: SubmittableExtrinsic<'promise'>,
+  extrinsic: SubmittableExtrinsic<"promise">
 ): Promise<{ event: XcmSentEvent; hash: string }> =>
   new Promise((resolve, reject) => {
     logger.info(`Submitting XCM transfer for address ${address}`);
@@ -205,7 +200,12 @@ export const submitMoonbeamXcm = async (
 
         // Try to find a 'system.ExtrinsicFailed' event
         if (dispatchError) {
-          reject('Xcm transaction failed');
+          reject("Xcm transaction failed");
+        }
+
+        if (status.isInvalid) {
+          logger.error(`XCM transfer failed with status: ${status.type}`);
+          reject(new Error(`XCM transfer failed with status: ${status.type}`));
         }
 
         if (status.isFinalized) {
@@ -213,11 +213,11 @@ export const submitMoonbeamXcm = async (
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
-            (record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent',
+            record => record.event.section === "polkadotXcm" && record.event.method === "Sent"
           );
           const event = xcmSentEvents
-            .map((event) => parseEventMoonbeamXcmSent(event))
-            .filter((event) => event.originAddress == address);
+            .map(event => parseEventMoonbeamXcmSent(event))
+            .filter(event => event.originAddress === address);
 
           if (!event) {
             reject(new Error(`No XcmSent event found for account ${address}`));
@@ -225,14 +225,14 @@ export const submitMoonbeamXcm = async (
           resolve({ event: event[0], hash });
         }
       })
-      .catch((error) => {
+      .catch(error => {
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
 
 export const submitXTokens = async (
   address: string,
-  extrinsic: SubmittableExtrinsic<'promise'>,
+  extrinsic: SubmittableExtrinsic<"promise">
 ): Promise<{ event: XTokensEvent; hash: string | undefined }> =>
   new Promise((resolve, reject) => {
     return extrinsic
@@ -244,30 +244,30 @@ export const submitXTokens = async (
 
           // Try to find a 'system.ExtrinsicFailed' event
           if (dispatchError) {
-            reject('Xcm transaction failed');
+            reject("Xcm transaction failed");
           }
 
           // Try to find 'xTokens.TransferredMultiAssets' events
           const xTokenEvents = events.filter(
-            (record) => record.event.section === 'xTokens' && record.event.method === 'TransferredMultiAssets',
+            record => record.event.section === "xTokens" && record.event.method === "TransferredMultiAssets"
           );
 
           const event = xTokenEvents
-            .map((event) => parseEventXTokens(event))
-            .filter((event) => {
+            .map(event => parseEventXTokens(event))
+            .filter(event => {
               return substrateAddressEqual(event.sender, address);
             });
 
-          if (event.length == 0) {
+          if (event.length === 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
           }
           resolve({ event: event[0], hash });
         }
       })
-      .catch((error) => {
+      .catch(error => {
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-        if (error?.message.includes('1012:')) {
-          reject(new TransactionTemporarilyBannedError('Transaction for xtokens transfer is temporarily banned.'));
+        if (error?.message.includes("1012:")) {
+          reject(new TransactionTemporarilyBannedError("Transaction for xtokens transfer is temporarily banned."));
         }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });

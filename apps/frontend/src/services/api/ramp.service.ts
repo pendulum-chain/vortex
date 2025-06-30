@@ -1,11 +1,23 @@
-import { AccountMeta, PresignedTx, RampEndpoints } from '@packages/shared';
-import { apiRequest } from './api-client';
+import {
+  AccountMeta,
+  GetRampErrorLogsResponse,
+  GetRampHistoryResponse,
+  GetRampStatusResponse,
+  PresignedTx,
+  RampProcess,
+  RegisterRampRequest,
+  RegisterRampResponse,
+  StartRampRequest,
+  StartRampResponse,
+  UpdateRampRequest
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Ramp API endpoints
  */
 export class RampService {
-  private static readonly BASE_PATH = '/ramp';
+  private static readonly BASE_PATH = "/ramp";
 
   /**
    * Register a new ramping process
@@ -17,14 +29,14 @@ export class RampService {
   static async registerRamp(
     quoteId: string,
     signingAccounts: AccountMeta[],
-    additionalData?: RampEndpoints.RegisterRampRequest['additionalData'],
-  ): Promise<RampEndpoints.RegisterRampResponse> {
-    const request: RampEndpoints.RegisterRampRequest = {
-      quoteId,
-      signingAccounts,
+    additionalData?: RegisterRampRequest["additionalData"]
+  ): Promise<RegisterRampResponse> {
+    const request: RegisterRampRequest = {
       additionalData,
+      quoteId,
+      signingAccounts
     };
-    return apiRequest<RampEndpoints.RegisterRampResponse>('post', `${this.BASE_PATH}/register`, request);
+    return apiRequest<RegisterRampResponse>("post", `${this.BASE_PATH}/register`, request);
   }
 
   /**
@@ -37,14 +49,14 @@ export class RampService {
   static async updateRamp(
     rampId: string,
     presignedTxs: PresignedTx[],
-    additionalData?: RampEndpoints.UpdateRampRequest['additionalData'],
-  ): Promise<RampEndpoints.UpdateRampResponse> {
-    const request: RampEndpoints.UpdateRampRequest = {
-      rampId,
-      presignedTxs,
+    additionalData?: UpdateRampRequest["additionalData"]
+  ): Promise<StartRampResponse> {
+    const request: UpdateRampRequest = {
       additionalData,
+      presignedTxs,
+      rampId
     };
-    return apiRequest<RampEndpoints.UpdateRampResponse>('post', `${this.BASE_PATH}/${rampId}/update`, request);
+    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/update`, request);
   }
 
   /**
@@ -52,11 +64,11 @@ export class RampService {
    * @param rampId The ramp ID
    * @returns The started ramp process
    */
-  static async startRamp(rampId: string): Promise<RampEndpoints.StartRampResponse> {
-    const request: RampEndpoints.StartRampRequest = {
-      rampId,
+  static async startRamp(rampId: string): Promise<StartRampResponse> {
+    const request: StartRampRequest = {
+      rampId
     };
-    return apiRequest<RampEndpoints.StartRampResponse>('post', `${this.BASE_PATH}/start`, request);
+    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/start`, request);
   }
 
   /**
@@ -64,8 +76,8 @@ export class RampService {
    * @param id The ramp ID
    * @returns The ramp process status
    */
-  static async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse> {
-    return apiRequest<RampEndpoints.GetRampStatusResponse>('get', `${this.BASE_PATH}/${id}`);
+  static async getRampStatus(id: string): Promise<GetRampStatusResponse> {
+    return apiRequest<GetRampStatusResponse>("get", `${this.BASE_PATH}/${id}`);
   }
 
   /**
@@ -73,8 +85,8 @@ export class RampService {
    * @param id The ramp ID
    * @returns The error logs
    */
-  static async getRampErrorLogs(id: string): Promise<RampEndpoints.GetRampErrorLogsResponse> {
-    return apiRequest<RampEndpoints.GetRampErrorLogsResponse>('get', `${this.BASE_PATH}/${id}/errors`);
+  static async getRampErrorLogs(id: string): Promise<GetRampErrorLogsResponse> {
+    return apiRequest<GetRampErrorLogsResponse>("get", `${this.BASE_PATH}/${id}/errors`);
   }
 
   /**
@@ -87,15 +99,15 @@ export class RampService {
    */
   static async pollRampStatus(
     id: string,
-    onUpdate?: (status: RampEndpoints.RampProcess) => void,
+    onUpdate?: (status: RampProcess) => void,
     intervalMs = 3000,
-    maxAttempts = 100,
-  ): Promise<RampEndpoints.RampProcess> {
+    maxAttempts = 100
+  ): Promise<RampProcess> {
     let attempts = 0;
 
-    const poll = async (): Promise<RampEndpoints.RampProcess> => {
+    const poll = async (): Promise<RampProcess> => {
       if (attempts >= maxAttempts) {
-        throw new Error('Maximum polling attempts reached');
+        throw new Error("Maximum polling attempts reached");
       }
 
       attempts++;
@@ -105,11 +117,11 @@ export class RampService {
         onUpdate(status);
       }
 
-      if (status.currentPhase === 'complete' || status.currentPhase === 'failed') {
+      if (status.currentPhase === "complete" || status.currentPhase === "failed") {
         return status;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
       return poll();
     };
 
@@ -121,7 +133,7 @@ export class RampService {
    * @param walletAddress The wallet address
    * @returns The transaction history
    */
-  static async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
-    return apiRequest<RampEndpoints.GetRampHistoryResponse>('get', `${this.BASE_PATH}/history/${walletAddress}`);
+  static async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
+    return apiRequest<GetRampHistoryResponse>("get", `${this.BASE_PATH}/history/${walletAddress}`);
   }
 }

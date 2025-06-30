@@ -6,12 +6,12 @@
 export function removeEmptyKeys(map: Record<string, unknown>): Record<string, unknown> {
   return Object.entries(map).reduce(
     (acc, [key, value]) => {
-      if (value !== null && value !== '') {
+      if (value !== null && value !== "") {
         acc[key] = value;
       }
       return acc;
     },
-    {} as Record<string, unknown>,
+    {} as Record<string, unknown>
   );
 }
 
@@ -21,7 +21,7 @@ export function removeEmptyKeys(map: Record<string, unknown>): Record<string, un
  * @returns The sorted object
  */
 export function sortObject(obj: unknown): Record<string, unknown> | unknown[] | unknown {
-  if (typeof obj !== 'object' || obj === null) {
+  if (typeof obj !== "object" || obj === null) {
     return obj;
   }
 
@@ -31,14 +31,14 @@ export function sortObject(obj: unknown): Record<string, unknown> | unknown[] | 
     const stringList: string[] = [];
     const jsonArray: object[] = [];
 
-    obj.forEach((item) => {
-      if (typeof item === 'object' && item !== null) {
+    obj.forEach(item => {
+      if (typeof item === "object" && item !== null) {
         jsonArray.push(item as object);
       } else if (Number.isInteger(item)) {
         intList.push(item as number);
-      } else if (typeof item === 'number') {
+      } else if (typeof item === "number") {
         floatList.push(item);
-      } else if (typeof item === 'string') {
+      } else if (typeof item === "string") {
         stringList.push(item);
       } else {
         intList.push(Number(item));
@@ -50,15 +50,15 @@ export function sortObject(obj: unknown): Record<string, unknown> | unknown[] | 
     stringList.sort();
 
     const newList = [...intList, ...floatList, ...stringList, ...jsonArray];
-    return newList.map((item) => (typeof item === 'object' ? sortObject(item) : item));
+    return newList.map(item => (typeof item === "object" ? sortObject(item) : item));
   }
 
   const sortedMap = new Map(
-    Object.entries(removeEmptyKeys(obj as Record<string, unknown>)).sort(([aKey], [bKey]) => aKey.localeCompare(bKey)),
+    Object.entries(removeEmptyKeys(obj as Record<string, unknown>)).sort(([aKey], [bKey]) => aKey.localeCompare(bKey))
   );
 
   return Object.fromEntries(
-    Array.from(sortedMap.entries()).map(([key, value]) => [key, typeof value === 'object' ? sortObject(value) : value]),
+    Array.from(sortedMap.entries()).map(([key, value]) => [key, typeof value === "object" ? sortObject(value) : value])
   );
 }
 
@@ -76,7 +76,7 @@ export function getPath(requestUrl: string): string {
     return path;
   }
   const sortedParams = [...params].sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
-  const queryString = sortedParams.map(([key, value]) => `${key}=${value}`).join('&');
+  const queryString = sortedParams.map(([key, value]) => `${key}=${value}`).join("&");
   return `${path}?${queryString}`;
 }
 
@@ -96,7 +96,7 @@ export function getJsonBody(body: string): string {
   }
 
   if (Object.keys(map).length === 0) {
-    return '';
+    return "";
   }
 
   map = removeEmptyKeys(map);

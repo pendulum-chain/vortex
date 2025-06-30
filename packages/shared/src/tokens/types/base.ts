@@ -1,20 +1,20 @@
-import { EvmToken } from './evm';
+import { EvmToken } from "./evm";
 
 export enum TokenType {
-  Evm = 'evm',
-  AssetHub = 'assethub',
-  Stellar = 'stellar',
-  Moonbeam = 'moonbeam',
+  Evm = "evm",
+  AssetHub = "assethub",
+  Stellar = "stellar",
+  Moonbeam = "moonbeam"
 }
 
 export enum FiatToken {
-  EURC = 'eur',
-  ARS = 'ars',
-  BRL = 'brl',
+  EURC = "eur",
+  ARS = "ars",
+  BRL = "brl"
 }
 
 export enum AssetHubToken {
-  USDC = 'usdc',
+  USDC = "usdc"
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;
@@ -31,13 +31,6 @@ export interface BaseTokenDetails {
   assetSymbol: string;
 }
 
-export interface PendulumDetails {
-  pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: PendulumCurrencyId;
-  pendulumAssetSymbol: string;
-  pendulumDecimals: number;
-}
-
 export interface FiatDetails {
   assetIcon: string;
   symbol: string;
@@ -48,7 +41,6 @@ export interface BaseFiatTokenDetails {
   fiat: FiatDetails;
   minWithdrawalAmountRaw: string;
   maxWithdrawalAmountRaw: string;
-  pendulumErc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
   onrampFeesBasisPoints?: number;

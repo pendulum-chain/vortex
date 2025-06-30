@@ -1,4 +1,4 @@
-import { Wallet } from '@talismn/connect-wallets';
+import { Wallet } from "@talismn/connect-wallets";
 
 interface WalletsListItemProps {
   wallet: Wallet;
@@ -8,16 +8,16 @@ interface WalletsListItemProps {
 function buttonOnClick(props: WalletsListItemProps) {
   const { wallet, onClick } = props;
 
-  return wallet.installed ? onClick?.(wallet) : window.open(wallet.installUrl, '_blank', 'noopener,noreferrer');
+  return wallet.installed ? onClick?.(wallet) : window.open(wallet.installUrl, "_blank", "noopener,noreferrer");
 }
 
 export const WalletsListItem = (props: WalletsListItemProps) => (
   <button
+    className="btn flex w-full justify-center border-0 shadow-xs outline-primary md:justify-start"
     key={props.wallet.extensionName}
-    className="flex justify-center w-full border-0 shadow-xs btn outline-primary md:justify-start"
     onClick={() => buttonOnClick(props)}
   >
-    <img src={props.wallet.logo.src} alt={props.wallet.logo.alt} width={32} height={32} />
+    <img alt={props.wallet.logo.alt} height={32} src={props.wallet.logo.src} width={32} />
     <p className="ml-2">{props.wallet.title}</p>
   </button>
 );

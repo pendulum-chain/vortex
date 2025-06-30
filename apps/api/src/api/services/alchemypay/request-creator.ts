@@ -1,7 +1,7 @@
-import crypto from 'node:crypto';
-import { PriceEndpoints } from '@packages/shared';
-import { config } from '../../../config/vars';
-import { getJsonBody, getPath } from './helpers';
+import crypto from "node:crypto";
+import { Direction } from "@packages/shared";
+import { config } from "../../../config/vars";
+import { getJsonBody, getPath } from "./helpers";
 
 const { priceProviders } = config;
 
@@ -16,11 +16,11 @@ const { priceProviders } = config;
  */
 function apiSign(timestamp: string, method: string, requestUrl: string, body: string, secretKey: string): string {
   const content = timestamp + method.toUpperCase() + getPath(requestUrl) + getJsonBody(body);
-  return crypto.createHmac('sha256', secretKey).update(content).digest('base64');
+  return crypto.createHmac("sha256", secretKey).update(content).digest("base64");
 }
 
 const PAYMENT_METHODS = {
-  DEBIT_CARD: '10001',
+  DEBIT_CARD: "10001"
 } as const;
 
 type RequestConfig = {
@@ -43,20 +43,20 @@ function createBuyQuoteRequest(
   network: string,
   appId: string,
   secretKey: string,
-  baseUrl: string,
+  baseUrl: string
 ): RequestConfig {
-  const httpMethod = 'POST';
-  const requestPath = '/open/api/v4/merchant/order/quote';
+  const httpMethod = "POST";
+  const requestPath = "/open/api/v4/merchant/order/quote";
   const requestUrl = baseUrl + requestPath;
   const timestamp = String(Date.now());
 
   const requestBody: Record<string, string> = {
-    crypto: cryptoCurrency,
-    network,
-    fiat,
     amount,
-    side: 'BUY',
+    crypto: cryptoCurrency,
+    fiat,
+    network,
     payWayCode: PAYMENT_METHODS.DEBIT_CARD,
+    side: "BUY"
   };
 
   const bodyString = JSON.stringify(requestBody);
@@ -65,19 +65,19 @@ function createBuyQuoteRequest(
   const signature = apiSign(timestamp, httpMethod, requestUrl, sortedBody, secretKey.trim());
 
   const headers = {
-    'Content-Type': 'application/json',
     appId,
-    timestamp,
+    "Content-Type": "application/json",
     sign: signature,
+    timestamp
   } as const;
 
   return {
-    requestUrl,
     request: {
-      method: httpMethod,
-      headers,
       body: sortedBody,
+      headers,
+      method: httpMethod
     },
+    requestUrl
   };
 }
 
@@ -96,19 +96,19 @@ function createSellQuoteRequest(
   network: string,
   appId: string,
   secretKey: string,
-  baseUrl: string,
+  baseUrl: string
 ): RequestConfig {
-  const httpMethod = 'POST';
-  const requestPath = '/open/api/v4/merchant/order/quote';
+  const httpMethod = "POST";
+  const requestPath = "/open/api/v4/merchant/order/quote";
   const requestUrl = baseUrl + requestPath;
   const timestamp = String(Date.now());
 
   const requestBody: Record<string, string> = {
-    crypto: cryptoCurrency,
-    network,
-    fiat,
     amount,
-    side: 'SELL',
+    crypto: cryptoCurrency,
+    fiat,
+    network,
+    side: "SELL"
   };
 
   const bodyString = JSON.stringify(requestBody);
@@ -117,19 +117,19 @@ function createSellQuoteRequest(
   const signature = apiSign(timestamp, httpMethod, requestUrl, sortedBody, secretKey.trim());
 
   const headers = {
-    'Content-Type': 'application/json',
     appId,
-    timestamp,
+    "Content-Type": "application/json",
     sign: signature,
+    timestamp
   } as const;
 
   return {
-    requestUrl,
     request: {
-      method: httpMethod,
-      headers,
       body: sortedBody,
+      headers,
+      method: httpMethod
     },
+    requestUrl
   };
 }
 
@@ -143,16 +143,16 @@ function createSellQuoteRequest(
  * @returns Request configuration
  */
 export function createQuoteRequest(
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,
-  network: string,
+  network: string
 ): RequestConfig {
   const { secretKey, baseUrl, appId } = priceProviders.alchemyPay;
-  if (!secretKey || !appId) throw new Error('AlchemyPay configuration missing');
+  if (!secretKey || !appId) throw new Error("AlchemyPay configuration missing");
 
-  return direction === 'onramp'
+  return direction === "onramp"
     ? createBuyQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network, appId, secretKey, baseUrl)
     : createSellQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network, appId, secretKey, baseUrl);
 }

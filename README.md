@@ -15,18 +15,18 @@ Vortex is a gateway for cross-border payments. It is built on top of the Pendulu
 
 In the project directory, you can run:
 
-### `yarn install`
+### `bun install`
 
 Install dependencies
 
-### `yarn dev`
+### `bun dev`
 
 Runs the app in development mode.\
 Open [http://127.0.0.1:5173/](http://127.0.0.1:5173) to view it in the browser.
 
 ## Build
 
-### `yarn build`
+### `bun build`
 
 Builds the app for production to the `dist` folder.\
 It transpiles TypeScript, bundles React in production mode, splits and optimizes the builds for the best performance.
@@ -55,12 +55,3 @@ matter what URL the browser requests.
 If you encounter issues with the IDE not detecting the type overwrites of the `@pendulum-chain/types` package properly,
 make sure that all the `@polkadot/xxx` packages match the same version used in the types package. It is also important
 to make sure that peer dependencies have the same version as this might also cause issues.
-
-## Troubleshooting
-
-### 'Shared' directory
-
-If you have troubles with setting up the links between the signer-service and the shared directory, try the following:
-- Run `yarn build` in the `shared` directory
-- Run `bun link` in the `shared` directory
-- Run `bun link shared` in the `signer-service` directory

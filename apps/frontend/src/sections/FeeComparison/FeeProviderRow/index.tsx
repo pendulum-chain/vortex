@@ -1,24 +1,23 @@
-import { PriceEndpoints } from '@packages/shared';
-import Big from 'big.js';
-import { useEffect, useMemo, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-
-import { RampDirection } from '../../../components/RampToggle';
-import { Skeleton } from '../../../components/Skeleton';
-import { RampParameters, useEventsContext } from '../../../contexts/events';
-import { cn } from '../../../helpers/cn';
-import { useQuote } from '../../../stores/ramp/useQuoteStore';
-import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { formatPrice } from '../helpers';
-import { PriceProvider } from '../priceProviders';
-import { MINIMUM_BRL_BUY_AMOUNT } from './utils';
+import { BundledPriceResult } from "@packages/shared";
+import Big from "big.js";
+import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { RampDirection } from "../../../components/RampToggle";
+import { Skeleton } from "../../../components/Skeleton";
+import { RampParameters, useEventsContext } from "../../../contexts/events";
+import { cn } from "../../../helpers/cn";
+import { useQuote } from "../../../stores/ramp/useQuoteStore";
+import { useRampDirection } from "../../../stores/rampDirectionStore";
+import { formatPrice } from "../helpers";
+import { PriceProviderDetails } from "../priceProviders";
+import { MINIMUM_BRL_BUY_AMOUNT } from "./utils";
 
 interface FeeProviderRowProps {
-  provider: PriceProvider;
+  provider: PriceProviderDetails;
   isBestRate: boolean;
   bestPrice: Big;
   isLoading: boolean;
-  result?: PriceEndpoints.BundledPriceResult;
+  result?: BundledPriceResult;
   amountRaw: string;
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
@@ -32,11 +31,11 @@ export function FeeProviderRow({
   result,
   amountRaw,
   sourceAssetSymbol,
-  targetAssetSymbol,
+  targetAssetSymbol
 }: FeeProviderRowProps) {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
-  const isBRLOnramp = rampDirection === RampDirection.ONRAMP && sourceAssetSymbol === 'BRL';
+  const isBRLOnramp = rampDirection === RampDirection.ONRAMP && sourceAssetSymbol === "BRL";
 
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
@@ -47,16 +46,16 @@ export function FeeProviderRow({
 
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
-  const amount = useMemo(() => Big(amountRaw || '0'), [amountRaw]);
+  const amount = useMemo(() => Big(amountRaw || "0"), [amountRaw]);
 
   // Determine if there's an error from the result
-  const error = result?.status === 'rejected' ? result.reason : undefined;
+  const error = result?.status === "rejected" ? result.reason : undefined;
 
   // Calculate provider price based on the result or vortex price
   const providerPrice = useMemo(() => {
-    if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
+    if (provider.name === "vortex") return vortexPrice.gt(0) ? vortexPrice : undefined;
 
-    if (result?.status === 'fulfilled' && result.value.quoteAmount) {
+    if (result?.status === "fulfilled" && result.value.quoteAmount) {
       // Use quoteAmount which represents what the user will receive
       return Big(result.value.quoteAmount.toString());
     }
@@ -88,7 +87,7 @@ export function FeeProviderRow({
       from_amount: amount.toFixed(2),
       from_asset: sourceAssetSymbol,
       to_amount: vortexPrice.toFixed(2),
-      to_asset: targetAssetSymbol,
+      to_asset: targetAssetSymbol
     };
 
     schedulePrice(provider.name, providerPrice.toFixed(2, 0), parameters, true);
@@ -102,24 +101,24 @@ export function FeeProviderRow({
     sourceAssetSymbol,
     targetAssetSymbol,
     provider.name,
-    schedulePrice,
+    schedulePrice
   ]);
 
   return (
-    <div className={cn(isBestRate && 'bg-green-500/10 rounded-md py-1')}>
+    <div className={cn(isBestRate && "rounded-md bg-green-500/10 py-1")}>
       {isBestRate && (
-        <div className="pb-1 ml-4 text-sm italic text-green-700">{t('sections.feeComparison.table.bestRate')}</div>
+        <div className="ml-4 pb-1 text-green-700 text-sm italic">{t("sections.feeComparison.table.bestRate")}</div>
       )}
-      <div className="flex items-center justify-between w-full">
-        <a href={provider.href} rel="noreferrer" target="_blank" className="flex items-center w-full gap-4 ml-4 grow">
+      <div className="flex w-full items-center justify-between">
+        <a className="ml-4 flex w-full grow items-center gap-4" href={provider.href} rel="noreferrer" target="_blank">
           {provider.icon}
         </a>
-        <div className="flex items-center justify-center w-full gap-4 grow">
+        <div className="flex w-full grow items-center justify-center gap-4">
           {isLoading ? (
-            <Skeleton className="w-20 h-10 mb-2" />
+            <Skeleton className="mb-2 h-10 w-20" />
           ) : (
             <div className="flex flex-col items-center">
-              <div className="flex justify-end w-full">
+              <div className="flex w-full justify-end">
                 {error || !providerPrice ? (
                   <>
                     <span className="font-bold text-md">N/A</span>
@@ -127,14 +126,12 @@ export function FeeProviderRow({
                   </>
                 ) : (
                   <>
-                    <span className="font-bold text-md text-right">
-                      {`${formatPrice(providerPrice)} ${targetAssetSymbol}`}
-                    </span>
+                    <span className="text-right font-bold text-md">{`${formatPrice(providerPrice)} ${targetAssetSymbol}`}</span>
                   </>
                 )}
               </div>
               {priceDiff && priceDiff.lt(0) && (
-                <div className="flex justify-end w-full text-red-600">
+                <div className="flex w-full justify-end text-red-600">
                   <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
                 </div>
               )}

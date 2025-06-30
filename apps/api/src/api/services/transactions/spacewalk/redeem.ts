@@ -1,8 +1,8 @@
-import { StellarTokenDetails } from '@packages/shared';
-import { SubmittableExtrinsic } from '@polkadot/api/types';
-import { ISubmittableResult } from '@polkadot/types/types';
-import { ApiManager } from '../../pendulum/apiManager';
-import { createVaultService } from '../../stellar/vaultService';
+import { StellarTokenDetails } from "@packages/shared";
+import { SubmittableExtrinsic } from "@polkadot/api/types";
+import { ISubmittableResult } from "@polkadot/types/types";
+import { ApiManager } from "../../pendulum/apiManager";
+import { createVaultService } from "../../stellar/vaultService";
 
 interface SpacewalkRedeemParams {
   outputAmountRaw: string;
@@ -14,10 +14,10 @@ interface SpacewalkRedeemParams {
 export async function prepareSpacewalkRedeemTransaction({
   outputAmountRaw,
   stellarEphemeralAccountRaw,
-  outputTokenDetails,
-}: SpacewalkRedeemParams): Promise<SubmittableExtrinsic<'promise', ISubmittableResult>> {
+  outputTokenDetails
+}: SpacewalkRedeemParams): Promise<SubmittableExtrinsic<"promise", ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();
-  const networkName = 'pendulum';
+  const networkName = "pendulum";
   const pendulumNode = await apiManager.getApi(networkName);
 
   try {
@@ -25,13 +25,10 @@ export async function prepareSpacewalkRedeemTransaction({
       pendulumNode,
       outputTokenDetails.stellarAsset.code.hex,
       outputTokenDetails.stellarAsset.issuer.hex,
-      outputAmountRaw,
+      outputAmountRaw
     );
 
-    const redeemExtrinsic = await vaultService.createRequestRedeemExtrinsic(
-      outputAmountRaw,
-      stellarEphemeralAccountRaw,
-    );
+    const redeemExtrinsic = await vaultService.createRequestRedeemExtrinsic(outputAmountRaw, stellarEphemeralAccountRaw);
 
     return redeemExtrinsic;
   } catch (_e) {

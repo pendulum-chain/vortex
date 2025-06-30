@@ -1,10 +1,10 @@
-import { PriceEndpoints } from '@packages/shared';
+import { AlchemyPayPriceResponse, Direction } from "@packages/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,
   ProviderInternalError,
-  UnsupportedPairError,
-} from '../../errors/providerErrors';
+  UnsupportedPairError
+} from "../../errors/providerErrors";
 
 export interface AlchemyPayResponse {
   success: boolean;
@@ -14,6 +14,7 @@ export interface AlchemyPayResponse {
     rampFee: string;
     networkFee: string;
     fiatQuantity: string;
+    cryptoQuantity: string;
   };
 }
 
@@ -32,10 +33,10 @@ function handleHttpError(response: Response, body: AlchemyPayResponse): never {
   } else if (response.status >= 400) {
     // Try to map 4xx errors based on message
     const lowerErrorMessage = errorMessage.toLowerCase();
-    if (lowerErrorMessage.includes('minimum') || lowerErrorMessage.includes('maximum')) {
+    if (lowerErrorMessage.includes("minimum") || lowerErrorMessage.includes("maximum")) {
       throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
     }
-    if (lowerErrorMessage.includes('unsupported') || lowerErrorMessage.includes('invalid currency')) {
+    if (lowerErrorMessage.includes("unsupported") || lowerErrorMessage.includes("invalid currency")) {
       throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
     }
     // Default 4xx to InvalidParameterError
@@ -52,18 +53,18 @@ function handleHttpError(response: Response, body: AlchemyPayResponse): never {
  * @returns Never returns, always throws an appropriate error
  */
 function handleLogicError(body: AlchemyPayResponse): never {
-  const errorMessage = body.returnMsg || 'AlchemyPay API returned success=false with no message';
+  const errorMessage = body.returnMsg || "AlchemyPay API returned success=false with no message";
   console.error(`AlchemyPay API Logic Error: ${errorMessage}`);
 
   // Analyze returnMsg for specific errors
   const lowerErrorMessage = errorMessage.toLowerCase();
-  if (lowerErrorMessage.includes('minimum') || lowerErrorMessage.includes('maximum')) {
+  if (lowerErrorMessage.includes("minimum") || lowerErrorMessage.includes("maximum")) {
     throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
   }
-  if (lowerErrorMessage.includes('unsupported') || lowerErrorMessage.includes('invalid currency')) {
+  if (lowerErrorMessage.includes("unsupported") || lowerErrorMessage.includes("invalid currency")) {
     throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
   }
-  if (lowerErrorMessage.includes('invalid parameter')) {
+  if (lowerErrorMessage.includes("invalid parameter")) {
     throw new InvalidParameterError(`AlchemyPay: ${errorMessage}`);
   }
   throw new ProviderInternalError(`AlchemyPay API logic error: ${errorMessage}`);
@@ -77,28 +78,28 @@ function handleLogicError(body: AlchemyPayResponse): never {
  * @returns Standardized price response
  */
 function parseSuccessResponse(
-  data: AlchemyPayResponse['data'],
+  data: AlchemyPayResponse["data"],
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.AlchemyPayPriceResponse {
+  direction: Direction
+): AlchemyPayPriceResponse {
   if (!data) {
-    throw new ProviderInternalError('AlchemyPay response data is undefined');
+    throw new ProviderInternalError("AlchemyPay response data is undefined");
   }
 
-  const { rampFee, networkFee, fiatQuantity } = data;
+  const { rampFee, networkFee, fiatQuantity, cryptoQuantity } = data;
 
   const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
   // According to a comment in the response sample, the `fiatQuantity` does not yet include the fees
   // so we need to subtract them.
-  const fiatAmount = Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
-  const cryptoAmount = Number(requestedAmount);
+  const fiatAmount = direction === "onramp" ? Number(requestedAmount) : Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
+  const cryptoAmount = direction === "onramp" ? Number(cryptoQuantity) : Number(requestedAmount);
 
   return {
-    provider: 'alchemypay',
-    requestedAmount: Number(requestedAmount),
-    quoteAmount: direction === 'onramp' ? cryptoAmount : fiatAmount,
-    totalFee,
     direction,
+    provider: "alchemypay",
+    quoteAmount: direction === "onramp" ? cryptoAmount : fiatAmount,
+    requestedAmount: Number(requestedAmount),
+    totalFee
   };
 }
 
@@ -114,8 +115,8 @@ export function processAlchemyPayResponse(
   response: Response,
   body: AlchemyPayResponse,
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.AlchemyPayPriceResponse {
+  direction: Direction
+): AlchemyPayPriceResponse {
   if (!response.ok) {
     // Handle HTTP errors (4xx, 5xx)
     return handleHttpError(response, body);
@@ -127,7 +128,7 @@ export function processAlchemyPayResponse(
   }
 
   if (!body.data) {
-    throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
+    throw new ProviderInternalError("AlchemyPay API returned success=true but no data field");
   }
 
   return parseSuccessResponse(body.data, requestedAmount, direction);

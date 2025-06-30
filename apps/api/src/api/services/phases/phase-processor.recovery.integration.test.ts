@@ -1,150 +1,99 @@
-// eslint-disable-next-line import/no-unresolved
-import { afterAll, beforeAll, describe, it, mock } from 'bun:test';
-import fs from 'node:fs';
+import { beforeAll, describe, it, mock } from "bun:test";
+import fs from "node:fs";
+import path from "node:path";
 
-import QuoteTicket from '../../../models/quoteTicket.model';
-import RampState from '../../../models/rampState.model';
-import { BrlaApiService } from '../brla/brlaApiService';
-import { SubaccountData } from '../brla/types';
-import { RampService } from '../ramp/ramp.service';
-import { PhaseProcessor } from './phase-processor';
+import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../../../models/rampState.model";
+import { PhaseProcessor } from "./phase-processor";
+import registerPhaseHandlers from "./register-handlers";
 
-import path from 'node:path';
-import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
-import RAMP_STATE_RECOVERY from './failedRampStateRecovery.json';
-import registerPhaseHandlers from './register-handlers';
-//import { RAMP_STATE_RECOVERY } from './ramp-state-recovery';
+const RAMP_STATE_RECOVERY = {
+  // ...
+};
+
+// Mock the RampRecoveryWorker
+mock.module("../../workers/ramp-recovery.worker", () => ({
+  default: class MockRampRecoveryWorker {
+    start = mock(() => {
+      // Mock implementation
+    });
+    stop = mock(() => {
+      // Mock implementation
+    });
+  }
+}));
 
 let rampState: RampState;
 
-const filePath = path.join(__dirname, 'failedRampStateRecovery.json');
+// Proper Sequelize types
+type RampStateUpdateData = Partial<RampStateAttributes>;
+
+const filePath = path.join(__dirname, "failedRampStateRecovery.json");
 
 beforeAll(() => {
   rampState = {
     ...RAMP_STATE_RECOVERY,
-    update: async function (updateData: any, _options?: any) {
-      rampState = { ...rampState, ...updateData };
+    reload: async function () {
+      return rampState;
+    },
+    update: async function (updateData: RampStateUpdateData, _options?: unknown) {
+      rampState = { ...rampState, ...updateData } as unknown as RampState;
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
-    },
-    reload: async function (_options?: any) {
-      return rampState;
-    },
+    }
   } as unknown as RampState;
 });
 
-RampState.update = mock(async function (updateData: any, _options?: any) {
-  rampState = { ...rampState, ...updateData };
+// Mock RampState.update - static method returns [affectedCount, affectedRows]
+RampState.update = mock(async function (updateData: RampStateUpdateData, _options?: unknown) {
+  rampState = { ...rampState, ...updateData } as unknown as RampState;
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
-  return rampState;
-}) as any;
+  return [1, [rampState]]; // Return tuple as expected by Sequelize
+}) as unknown as typeof RampState.update;
 
 RampState.findByPk = mock(async (_id: string) => {
   return {
     ...rampState,
-    update: async function (updateData: any, _options?: any) {
-      rampState = { ...rampState, ...updateData };
+    reload: async function (_options?: unknown) {
+      return rampState;
+    },
+    update: async function (updateData: RampStateUpdateData, _options?: unknown) {
+      rampState = { ...rampState, ...updateData } as unknown as RampState;
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
-    },
-    reload: async function (_options?: any) {
-      return rampState;
-    },
+    }
   };
-});
+}) as typeof RampState.findByPk;
 
-RampState.create = mock(async (data: any) => {
+RampState.create = mock(async (data: RampStateCreationAttributes) => {
   rampState = {
     ...data,
     createdAt: new Date(),
-    updatedAt: new Date(),
-    update: async function (updateData: any, _options?: any) {
-      rampState = { ...rampState, ...updateData };
+    id: data.id || "test-recovery-id",
+    reload: async function (_options?: unknown) {
       return rampState;
     },
-    reload: async function (_options?: any) {
+    update: async function (updateData: RampStateUpdateData, _options?: unknown) {
+      rampState = { ...rampState, ...updateData } as unknown as RampState;
       return rampState;
     },
-  };
+    updatedAt: new Date()
+  } as unknown as RampState;
   return rampState;
-}) as any;
+}) as typeof RampState.create;
 
-// // Mock the BrlaApiService
-// const mockSubaccountData: SubaccountData = {
-//   id: 'subaccount123',
-//   fullName: 'Test User',
-//   phone: '+1234567890',
-//   kyc: {
-//     level: 2,
-//     documentData: 'document123',
-//     documentType: 'CPF',
-//     limits: {
-//       limitMint: 10000,
-//       limitBurn: 10000,
-//       limitSwapBuy: 10000,
-//       limitSwapSell: 10000,
-//       limitBRLAOutOwnAccount: 10000,
-//       limitBRLAOutThirdParty: 10000,
-//     },
-//   },
-//   address: {
-//     cep: '12345-678',
-//     city: 'Test City',
-//     state: 'TS',
-//     street: 'Test Street',
-//     number: '123',
-//     district: 'Test District',
-//   },
-//   createdAt: new Date().toISOString(),
-//   wallets: {
-//     evm: '0xbrla123',
-//     tron: 'tron123',
-//   },
-//   brCode: 'brcode123',
-// };
-
-// const mockBrlaApiService = {
-//   getSubaccount: mock(async () => mockSubaccountData),
-//   validatePixKey: mock(async () => ({
-//     name: 'Test Receiver',
-//     taxId: 'receiver123',
-//     bankName: 'Test Bank',
-//   })),
-//   sendRequest: mock(async () => ({})),
-//   login: mock(async () => {}),
-//   triggerOfframp: mock(async () => ({ id: 'offramp123' })),
-//   createSubaccount: mock(async () => ({ id: 'subaccount123' })),
-//   getAllEventsByUser: mock(async () => []),
-//   acknowledgeEvents: mock(async () => {}),
-//   generateBrCode: mock(async () => ({ brCode: 'brcode123' })),
-//   getPayInHistory: mock(async () => []),
-//   createFastQuote: mock(async () => ({ basePrice: '100' })),
-//   swapRequest: mock(async () => ({ id: 'swap123' })),
-//   getOnChainHistoryOut: mock(async () => []),
-// };
-
-// BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApiService);
-
-//RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccountData);
-
-rampRecoveryWorker.start = mock(async () => ({}));
-
-describe('Restart PhaseProcessor Integration Test', () => {
-  it('should re-start an offramp (evm -> sepa) through multiple phases until completion', async () => {
+describe("Restart PhaseProcessor Integration Test", () => {
+  it("should re-start an offramp (evm -> sepa) through multiple phases until completion", async () => {
     try {
       const processor = new PhaseProcessor();
 
       // wait for handlers to be registered
       registerPhaseHandlers();
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await processor.processRamp(rampState.id);
 
-      await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
-
-      // expect(rampState.currentPhase).toBe('complete');
-      // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+      await new Promise(resolve => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
     } catch (error) {
-      const filePath = path.join(__dirname, 'failedRampStateRecovery.json');
+      const filePath = path.join(__dirname, "failedRampStateRecovery.json");
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       throw error;
     }

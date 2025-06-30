@@ -1,133 +1,133 @@
-import { DataTypes, Op, QueryInterface } from 'sequelize';
+import { DataTypes, Op, QueryInterface } from "sequelize";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create anchors table
-  await queryInterface.createTable('anchors', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    rampType: {
-      type: DataTypes.ENUM('on', 'off'),
+  await queryInterface.createTable("anchors", {
+    createdAt: {
       allowNull: false,
-      field: 'ramp_type',
-    },
-    identifier: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
-      comment: 'Optional context, e.g., network name, anchor name, or "default"',
-    },
-    valueType: {
-      type: DataTypes.ENUM('absolute', 'relative'),
-      allowNull: false,
-      field: 'value_type',
-    },
-    value: {
-      type: DataTypes.DECIMAL(10, 4),
-      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     currency: {
-      type: DataTypes.STRING(8),
       allowNull: false,
-      defaultValue: 'USD',
+      defaultValue: "USD",
+      type: DataTypes.STRING(8)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    identifier: {
+      allowNull: true,
+      comment: 'Optional context, e.g., network name, anchor name, or "default"',
+      type: DataTypes.STRING(100)
     },
     isActive: {
-      type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
-      field: 'is_active',
+      field: "is_active",
+      type: DataTypes.BOOLEAN
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    rampType: {
       allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at',
+      field: "ramp_type",
+      type: DataTypes.ENUM("on", "off")
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at',
+      field: "updated_at",
+      type: DataTypes.DATE
     },
+    value: {
+      allowNull: false,
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    valueType: {
+      allowNull: false,
+      field: "value_type",
+      type: DataTypes.ENUM("absolute", "relative")
+    }
   });
 
   // Add index for faster lookups
-  await queryInterface.addIndex('anchors', ['ramp_type', 'identifier', 'is_active'], {
-    name: 'idx_anchors_lookup',
+  await queryInterface.addIndex("anchors", ["ramp_type", "identifier", "is_active"], {
+    name: "idx_anchors_lookup"
   });
 
   // Insert initial data for fees
-  await queryInterface.bulkInsert('anchors', [
+  await queryInterface.bulkInsert("anchors", [
     {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      ramp_type: 'on',
-      identifier: 'moonbeam_brla',
-      value_type: 'absolute',
-      value: 0.75, // 0.75 BRL
-      currency: 'BRL',
-      is_active: true,
       created_at: new Date(),
+      currency: "BRL",
+      id: queryInterface.sequelize.literal("uuid_generate_v4()"),
+      identifier: "moonbeam_brla",
+      is_active: true, // 0.75 BRL
+      ramp_type: "on",
       updated_at: new Date(),
+      value: 0.75,
+      value_type: "absolute"
     },
     {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      ramp_type: 'off',
-      identifier: 'moonbeam_brla',
-      value_type: 'absolute',
-      value: 0.75, // 0.75 BRL
-      currency: 'BRL',
-      is_active: true,
       created_at: new Date(),
+      currency: "BRL",
+      id: queryInterface.sequelize.literal("uuid_generate_v4()"),
+      identifier: "moonbeam_brla",
+      is_active: true, // 0.75 BRL
+      ramp_type: "off",
       updated_at: new Date(),
+      value: 0.75,
+      value_type: "absolute"
     },
     {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      ramp_type: 'off',
-      identifier: 'stellar_eurc',
-      value_type: 'relative',
-      value: 0.0025, // 0.25% (represented as decimal)
-      currency: 'EUR',
-      is_active: true,
       created_at: new Date(),
+      currency: "EUR",
+      id: queryInterface.sequelize.literal("uuid_generate_v4()"),
+      identifier: "stellar_eurc",
+      is_active: true, // 0.25% (represented as decimal)
+      ramp_type: "off",
       updated_at: new Date(),
+      value: 0.0025,
+      value_type: "relative"
     },
     {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      ramp_type: 'off',
-      identifier: 'stellar_ars',
-      value_type: 'relative',
-      value: 0.02, // 2% (represented as decimal)
-      currency: 'ARS',
-      is_active: true,
       created_at: new Date(),
+      currency: "ARS",
+      id: queryInterface.sequelize.literal("uuid_generate_v4()"),
+      identifier: "stellar_ars",
+      is_active: true, // 2% (represented as decimal)
+      ramp_type: "off",
       updated_at: new Date(),
+      value: 0.02,
+      value_type: "relative"
     },
     {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      ramp_type: 'off',
-      identifier: 'stellar_ars',
-      value_type: 'absolute',
-      value: 10.0, // 10 ARS
-      currency: 'ARS',
-      is_active: true,
       created_at: new Date(),
+      currency: "ARS",
+      id: queryInterface.sequelize.literal("uuid_generate_v4()"),
+      identifier: "stellar_ars",
+      is_active: true, // 10 ARS
+      ramp_type: "off",
       updated_at: new Date(),
-    },
+      value: 10.0,
+      value_type: "absolute"
+    }
   ]);
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Remove the initial data
-  await queryInterface.bulkDelete('anchors', {
+  await queryInterface.bulkDelete("anchors", {
     identifier: {
-      [Op.in]: ['moonbeam_brla', 'stellar_eurc', 'stellar_ars'],
-    },
+      [Op.in]: ["moonbeam_brla", "stellar_eurc", "stellar_ars"]
+    }
   });
 
   // Remove the index
-  await queryInterface.removeIndex('anchors', 'idx_anchors_lookup');
+  await queryInterface.removeIndex("anchors", "idx_anchors_lookup");
 
   // Drop the anchors table
-  await queryInterface.dropTable('anchors');
+  await queryInterface.dropTable("anchors");
 }

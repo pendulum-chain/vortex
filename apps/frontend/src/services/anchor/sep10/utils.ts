@@ -1,17 +1,17 @@
-import { Keyring } from '@polkadot/api';
-import { keccak256 } from 'viem/utils';
-
-import { config } from '../../../config';
-import { SIGNING_SERVICE_URL } from '../../../constants/constants';
-import { SignerServiceSep10Request, fetchSep10Signatures } from '../../signingService';
+import { EvmAddress } from "@packages/shared";
+import { Keyring } from "@polkadot/api";
+import { keccak256 } from "viem/utils";
+import { config } from "../../../config";
+import { SIGNING_SERVICE_URL } from "../../../constants/constants";
+import { fetchSep10Signatures, SignerServiceSep10Request } from "../../signingService";
 
 // Returns the hash value for the address.
 // If it's a polkadot address, it will return raw data of the address.
 function getHashValueForAddress(address: string) {
-  if (address.startsWith('0x')) {
-    return address as `0x${string}`;
+  if (address.startsWith("0x")) {
+    return address as EvmAddress;
   } else {
-    const keyring = new Keyring({ type: 'sr25519' });
+    const keyring = new Keyring({ type: "sr25519" });
     return keyring.decodeAddress(address);
   }
 }
@@ -25,18 +25,15 @@ async function deriveMemoFromAddress(address: string) {
 
 export const exists = (value?: string | null): value is string => !!value && value?.length > 0;
 
-export async function sep10SignaturesWithLoginRefresh(
-  refreshFunction: () => Promise<void>,
-  args: SignerServiceSep10Request,
-) {
+export async function sep10SignaturesWithLoginRefresh(refreshFunction: () => Promise<void>, args: SignerServiceSep10Request) {
   try {
     return await fetchSep10Signatures(args);
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === 'Invalid signature') {
+    if (error instanceof Error && error.message === "Invalid signature") {
       await refreshFunction();
       return await fetchSep10Signatures(args);
     }
-    throw new Error('Could not fetch sep 10 signatures from backend');
+    throw new Error("Could not fetch sep 10 signatures from backend");
   }
 }
 
@@ -45,7 +42,7 @@ export async function getUrlParams(
   ephemeralAccount: string,
   usesMemo: boolean,
   supportsClientDomain: boolean,
-  address: string,
+  address: string
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
   let sep10Account: string;
   const params = new URLSearchParams();
@@ -53,25 +50,25 @@ export async function getUrlParams(
   if (usesMemo) {
     const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
     if (!response.ok) {
-      throw new Error('Failed to fetch client master SEP-10 public account.');
+      throw new Error("Failed to fetch client master SEP-10 public account.");
     }
 
     const { masterSep10Public } = await response.json();
     if (!masterSep10Public) {
-      throw new Error('masterSep10Public not found in response.');
+      throw new Error("masterSep10Public not found in response.");
     }
 
     sep10Account = masterSep10Public;
-    params.append('account', sep10Account);
-    params.append('memo', await deriveMemoFromAddress(address));
+    params.append("account", sep10Account);
+    params.append("memo", await deriveMemoFromAddress(address));
   } else {
     sep10Account = ephemeralAccount;
-    params.append('account', sep10Account);
+    params.append("account", sep10Account);
   }
 
   if (supportsClientDomain) {
-    params.append('client_domain', config.applicationClientDomain);
+    params.append("client_domain", config.applicationClientDomain);
   }
 
-  return { urlParams: params, sep10Account };
+  return { sep10Account, urlParams: params };
 }

@@ -1,11 +1,13 @@
-import { InformationCircleIcon } from '@heroicons/react/20/solid';
-import { QuoteEndpoints } from '@packages/shared';
-import Big from 'big.js';
-import { useTranslation } from 'react-i18next';
-import { useQuote } from '../../stores/ramp/useQuoteStore';
-import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../RampToggle';
+import { InformationCircleIcon } from "@heroicons/react/20/solid";
+import { QuoteFeeStructure, roundDownToSignificantDecimals } from "@packages/shared";
+import Big from "big.js";
+import { useTranslation } from "react-i18next";
+import { useQuote } from "../../stores/ramp/useQuoteStore";
+import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { InterbankExchangeRate } from "../InterbankExchangeRate";
+import { QuoteRefreshProgress } from "../QuoteRefreshProgress";
+import { RampDirection } from "../RampToggle";
 
 interface FeeItem {
   label: string;
@@ -18,7 +20,7 @@ function calculateInterbankExchangeRate(
   rampType: string,
   inputAmountString: Big.BigSource,
   outputAmountString: Big.BigSource,
-  fee: QuoteEndpoints.FeeStructure,
+  fee: QuoteFeeStructure
 ) {
   const inputAmount = Big(inputAmountString);
   const outputAmount = Big(outputAmountString);
@@ -26,7 +28,7 @@ function calculateInterbankExchangeRate(
   let effectiveInputAmount = inputAmount;
   let effectiveOutputAmount = outputAmount;
 
-  if (rampType === 'on') {
+  if (rampType === "on") {
     effectiveInputAmount = inputAmount.minus(fee.total);
   } else {
     effectiveOutputAmount = outputAmount.plus(fee.total);
@@ -43,11 +45,6 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
   return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
 }
 
-// Helper function to format exchange rate strings
-function formatExchangeRateString(rate: number, input: string, output: string) {
-  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
-}
-
 export function RampFeeCollapse() {
   const { t } = useTranslation();
 
@@ -60,19 +57,19 @@ export function RampFeeCollapse() {
   const quote = availableQuote
     ? availableQuote
     : {
-        rampType: 'on',
-        inputAmount: 0,
-        outputAmount: 0,
-        inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
-        outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
         fee: {
-          total: '0',
-          network: '0',
-          vortex: '0',
-          anchor: '0',
-          partnerMarkup: '0',
+          anchor: "0",
           currency: fiatToken,
+          network: "0",
+          partnerMarkup: "0",
+          total: "0",
+          vortex: "0"
         },
+        inputAmount: 0,
+        inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
+        outputAmount: 0,
+        outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
+        rampType: "on"
       };
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
@@ -81,7 +78,7 @@ export function RampFeeCollapse() {
     quote.rampType,
     quote.inputAmount,
     quote.outputAmount,
-    quote.fee,
+    quote.fee
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
 
@@ -92,40 +89,41 @@ export function RampFeeCollapse() {
   const processingFee = Big(quote.fee.vortex).plus(quote.fee.anchor).plus(quote.fee.partnerMarkup);
   if (processingFee.gt(0)) {
     feeItems.push({
-      label: t('components.feeCollapse.processingFee.label'),
-      tooltip: t('components.feeCollapse.processingFee.tooltip'),
-      value: `${processingFee.toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
+      label: t("components.feeCollapse.processingFee.label"),
+      tooltip: t("components.feeCollapse.processingFee.tooltip"),
+      value: `${processingFee.toFixed(2)} ${quote.fee.currency.toUpperCase()}`
     });
   }
 
   if (Big(quote.fee.network).gt(0)) {
     feeItems.push({
-      label: t('components.feeCollapse.networkFee.label'),
-      tooltip: t('components.feeCollapse.networkFee.tooltip'),
-      value: `${Big(quote.fee.network).toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
+      label: t("components.feeCollapse.networkFee.label"),
+      tooltip: t("components.feeCollapse.networkFee.tooltip"),
+      value: `${Big(quote.fee.network).toFixed(2)} ${quote.fee.currency.toUpperCase()}`
     });
   }
 
   return (
     <div className="flex flex-col gap-2 overflow-hidden">
-      <div className="text-center text-sm text-gray-600">
-        {formatExchangeRateString(interbankExchangeRate, inputCurrency, outputCurrency)}
+      <div className="flex items-center justify-center px-4">
+        <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
+        <QuoteRefreshProgress />
       </div>
-      <div className="border border-blue-700 collapse-arrow collapse overflow-visible">
+      <div className="collapse-arrow collapse overflow-visible border border-blue-700">
         <input type="checkbox" />
-        <div className="min-h-0 px-4 py-2 collapse-title">
+        <div className="collapse-title min-h-0 px-4 py-2">
           <div className="flex items-center justify-between">
-            <p>{t('components.feeCollapse.details')}</p>
+            <p>{t("components.feeCollapse.details")}</p>
           </div>
         </div>
-        <div className="text-[15px] collapse-content">
+        <div className="collapse-content text-[15px]">
           {feeItems.map((item, index) => (
-            <div key={index} className="flex justify-between mt-2">
+            <div className="mt-2 flex justify-between" key={index}>
               <div className="flex items-center ">
-                {item.label}{' '}
+                {item.label}{" "}
                 {item.tooltip && (
-                  <div data-tip={item.tooltip} className="tooltip tooltip-primary tooltip-top tooltip-sm">
-                    <InformationCircleIcon className="w-4 h-4 ml-1" />
+                  <div className="tooltip tooltip-primary tooltip-top tooltip-sm" data-tip={item.tooltip}>
+                    <InformationCircleIcon className="ml-1 h-4 w-4" />
                   </div>
                 )}
               </div>
@@ -135,8 +133,8 @@ export function RampFeeCollapse() {
             </div>
           ))}
 
-          <div className="flex justify-between mt-2 pt-2 border-t">
-            <strong className="font-bold">{t('components.feeCollapse.totalFee')}</strong>
+          <div className="mt-2 flex justify-between border-t pt-2">
+            <strong className="font-bold">{t("components.feeCollapse.totalFee")}</strong>
             <div className="flex">
               <span>
                 {quote.fee.total} {quote.fee.currency.toUpperCase()}
@@ -145,16 +143,22 @@ export function RampFeeCollapse() {
           </div>
           <div className="flex justify-between pt-2">
             <strong className="flex items-center font-bold">
-              {t('components.feeCollapse.netRate.label')}
+              {t("components.feeCollapse.netRate.label")}
               <div
                 className="tooltip tooltip-primary tooltip-top tooltip-sm font-normal"
-                data-tip={t('components.feeCollapse.netRate.tooltip')}
+                data-tip={t("components.feeCollapse.netRate.tooltip")}
               >
-                <InformationCircleIcon className="w-4 h-4 ml-1" />
+                <InformationCircleIcon className="ml-1 h-4 w-4" />
               </div>
             </strong>
             <div className="flex">
-              <span>{formatExchangeRateString(netExchangeRate, inputCurrency, outputCurrency)}</span>
+              <InterbankExchangeRate
+                asSpan={true}
+                className=""
+                inputCurrency={inputCurrency}
+                outputCurrency={outputCurrency}
+                rate={netExchangeRate}
+              />
             </div>
           </div>
         </div>

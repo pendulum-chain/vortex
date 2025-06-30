@@ -1,10 +1,10 @@
-import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from '../../../constants/constants';
-import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
+import { BrlaKYCDocType } from "@packages/shared";
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from "../../../constants/constants";
+import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
-  KYCDocType,
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
@@ -14,9 +14,9 @@ import {
   RegisterSubaccountPayload,
   SubaccountData,
   SwapPayload,
-  UsedLimitData,
-} from './types';
-import { Event } from './webhooks';
+  UsedLimitData
+} from "./types";
+import { Event } from "./webhooks";
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
@@ -31,7 +31,7 @@ export class BrlaApiService {
 
   private constructor() {
     if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
-      throw new Error('BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined');
+      throw new Error("BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined");
     }
     this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
     this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
@@ -46,12 +46,15 @@ export class BrlaApiService {
 
   private async login(): Promise<void> {
     const response = await fetch(this.loginUrl, {
-      method: 'POST',
+      body: JSON.stringify({
+        email: this.brlaBusinessUsername,
+        password: this.brlaBusinessPassword
+      }),
       headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
+        Accept: "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({ email: this.brlaBusinessUsername, password: this.brlaBusinessPassword }),
+      method: "POST"
     });
 
     if (!response.ok) {
@@ -61,7 +64,7 @@ export class BrlaApiService {
     const token = (await response.json()).accessToken;
 
     if (!token) {
-      throw new Error('No token returned from login.');
+      throw new Error("No token returned from login.");
     }
 
     this.token = token;
@@ -71,8 +74,8 @@ export class BrlaApiService {
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]['body'],
-  ): Promise<EndpointMapping[E][M]['response']> {
+    payload?: EndpointMapping[E][M]["body"]
+  ): Promise<EndpointMapping[E][M]["response"]> {
     if (!this.token) {
       await this.login();
     }
@@ -83,12 +86,12 @@ export class BrlaApiService {
     }
     const buildOptions = () => {
       const options: RequestInit = {
-        method,
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: "application/json",
           Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json"
         },
+        method
       };
 
       if (payload !== undefined) {
@@ -104,7 +107,7 @@ export class BrlaApiService {
       response = await fetch(fullUrl, buildOptions());
 
       if (response.status === 401) {
-        throw new Error('Authorization error after re-login.');
+        throw new Error("Authorization error after re-login.");
       }
     }
 
@@ -121,22 +124,22 @@ export class BrlaApiService {
 
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const query = `taxId=${encodeURIComponent(taxId)}`;
-    const response = await this.sendRequest(Endpoint.Subaccounts, 'GET', query);
+    const response = await this.sendRequest(Endpoint.Subaccounts, "GET", query);
     return response.subaccounts[0];
   }
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.UsedLimit, 'GET', query);
+    return await this.sendRequest(Endpoint.UsedLimit, "GET", query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.PayOut, 'POST', query, offrampParams);
+    return await this.sendRequest(Endpoint.PayOut, "POST", query, offrampParams);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
-    return await this.sendRequest(Endpoint.Subaccounts, 'POST', undefined, registerSubaccountPayload);
+    return await this.sendRequest(Endpoint.Subaccounts, "POST", undefined, registerSubaccountPayload);
   }
 
   public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
@@ -144,30 +147,30 @@ export class BrlaApiService {
     if (subscription) {
       query += `&subscription=${encodeURIComponent(subscription)}`;
     }
-    const response = await this.sendRequest(Endpoint.WebhookEvents, 'GET', query);
+    const response = await this.sendRequest(Endpoint.WebhookEvents, "GET", query);
     return response.events;
   }
 
   public async acknowledgeEvents(ids: string[]): Promise<void> {
-    return await this.sendRequest(Endpoint.WebhookEvents, 'PATCH', undefined, { ids });
+    return await this.sendRequest(Endpoint.WebhookEvents, "PATCH", undefined, { ids });
   }
 
   public async generateBrCode(onrampPayload: OnrampPayload): Promise<{ brCode: string }> {
     const query = `subaccountId=${encodeURIComponent(onrampPayload.subaccountId)}&amount=${
       onrampPayload.amount
     }&referenceLabel=${onrampPayload.referenceLabel}`;
-    return await this.sendRequest(Endpoint.BrCode, 'GET', query);
+    return await this.sendRequest(Endpoint.BrCode, "GET", query);
   }
 
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
     // const query = `pixKey=${encodeURIComponent(pixKey)}`;
-    return { name: '', bankName: '', taxId: pixKey };
+    return { bankName: "", name: "", taxId: pixKey };
     // return await this.sendRequest(Endpoint.PixInfo, 'GET', query);
   }
 
   public async getPayInHistory(userId: string): Promise<DepositLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
-    return (await this.sendRequest(Endpoint.PixHistory, 'GET', query)).depositsLogs;
+    return (await this.sendRequest(Endpoint.PixHistory, "GET", query)).depositsLogs;
   }
 
   public async createFastQuote(fastQuoteParams: FastQuoteQueryParams): Promise<FastQuoteResponse> {
@@ -178,27 +181,27 @@ export class BrlaApiService {
       `inputCoin=${fastQuoteParams.inputCoin}`,
       `outputCoin=${fastQuoteParams.outputCoin}`,
       `chain=${fastQuoteParams.chain}`,
-      `fixOutput=${fastQuoteParams.fixOutput.toString()}`,
-    ].join('&');
-    return await this.sendRequest(Endpoint.FastQuote, 'GET', query);
+      `fixOutput=${fastQuoteParams.fixOutput.toString()}`
+    ].join("&");
+    return await this.sendRequest(Endpoint.FastQuote, "GET", query);
   }
 
   public async swapRequest(swapPayload: SwapPayload): Promise<{ id: string }> {
-    return await this.sendRequest(Endpoint.Swap, 'POST', undefined, swapPayload);
+    return await this.sendRequest(Endpoint.Swap, "POST", undefined, swapPayload);
   }
 
   public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
-    return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
+    return (await this.sendRequest(Endpoint.OnChainHistoryOut, "GET", query)).onchainLogs;
   }
 
-  public async startKYC2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+  public async startKYC2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel2, 'POST', query, { documentType });
+    return await this.sendRequest(Endpoint.KycLevel2, "POST", query, { documentType });
   }
 
-  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<any> {
+  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.KycRetry, 'POST', query, retryKycPayload);
+    return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
   }
 }

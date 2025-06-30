@@ -1,27 +1,23 @@
-import { cn } from '../../helpers/cn';
+import { cn } from "../../helpers/cn";
 
-export type SpinnerSize = 'sm' | 'md' | 'lg';
-export type SpinnerTheme = 'light' | 'dark';
+export type SpinnerSize = "sm" | "md" | "lg";
+export type SpinnerTheme = "light" | "dark";
 
-export function Spinner({ size = 'sm', theme = 'light' }: { size?: SpinnerSize; theme?: SpinnerTheme }) {
+export function Spinner({ size = "sm", theme = "light" }: { size?: SpinnerSize; theme?: SpinnerTheme }) {
   const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10',
+    lg: "w-10 h-10",
+    md: "w-8 h-8",
+    sm: "w-6 h-6"
   };
 
   const themeClasses = {
-    light: 'border-white',
-    dark: 'border-gray-600 ',
+    dark: "border-gray-600 ",
+    light: "border-white"
   };
 
   return (
     <div
-      className={cn(
-        themeClasses[theme],
-        'border-t-transparent rounded-full animate-spin border-[2.5px]',
-        sizeClasses[size],
-      )}
+      className={cn(themeClasses[theme], "animate-spin rounded-full border-[2.5px] border-t-transparent", sizeClasses[size])}
     />
   );
 }

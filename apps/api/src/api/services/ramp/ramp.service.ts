@@ -1,40 +1,55 @@
 import {
   AccountMeta,
   FiatToken,
+  GetRampHistoryResponse,
+  GetRampStatusResponse,
   Networks,
-  RampEndpoints,
   RampErrorLog,
   RampPhase,
+  RampProcess,
+  RegisterRampRequest,
+  RegisterRampResponse,
+  StartRampRequest,
+  StartRampResponse,
   UnsignedTx,
-  validateMaskedNumber,
-} from '@packages/shared';
-import httpStatus from 'http-status';
-import { Op } from 'sequelize';
-import logger from '../../../config/logger';
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../constants/constants';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import RampState from '../../../models/rampState.model';
-import { APIError } from '../../errors/api-error';
-import { BrlaApiService } from '../brla/brlaApiService';
-import { generateReferenceLabel } from '../brla/helpers';
-import { SubaccountData } from '../brla/types';
-import phaseProcessor from '../phases/phase-processor';
-import { validatePresignedTxs } from '../transactions';
-import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
-import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
-import { BaseRampService } from './base.service';
+  UpdateRampRequest,
+  UpdateRampResponse,
+  validateMaskedNumber
+} from "@packages/shared";
+import httpStatus from "http-status";
+import { Op } from "sequelize";
+import logger from "../../../config/logger";
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import QuoteTicket from "../../../models/quoteTicket.model";
+import RampState from "../../../models/rampState.model";
+import { APIError } from "../../errors/api-error";
+import { BrlaApiService } from "../brla/brlaApiService";
+import { generateReferenceLabel } from "../brla/helpers";
+import { SubaccountData } from "../brla/types";
+import { StateMetadata } from "../phases/meta-state-types";
+import phaseProcessor from "../phases/phase-processor";
+import { validatePresignedTxs } from "../transactions";
+import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
+import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
-  const allowedNetworks = new Set(Object.values(Networks).map((network) => network.toLowerCase()));
+  const allowedNetworks = new Set(Object.values(Networks).map(network => network.toLowerCase()));
 
-  accounts.forEach((account) => {
+  accounts.forEach(account => {
     if (!allowedNetworks.has(account.network.toLowerCase())) {
       throw new Error(`Invalid network: "${account.network}" provided.`);
     }
+
+    const network = Object.values(Networks).find(network => network.toLowerCase() === account.network.toLowerCase());
+    if (!network) {
+      throw new Error(`Invalid network: "${account.network}" provided.`);
+    }
+
     normalizedAccounts.push({
-      network: Object.values(Networks).find((network) => network.toLowerCase() === account.network.toLowerCase())!, // We know it exists given the check above
       address: account.address,
+      network
     });
   });
 
@@ -42,149 +57,187 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): Ac
 }
 
 export class RampService extends BaseRampService {
+  private async prepareOfframpBrlTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+    if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
+      throw new Error("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL");
+    }
+
+    const subaccount = await this.validateBrlaOfframpRequest(
+      additionalData.taxId,
+      additionalData.pixDestination,
+      additionalData.receiverTaxId,
+      quote.outputAmount
+    );
+
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      brlaEvmAddress: subaccount.wallets.evm,
+      pixDestination: additionalData.pixDestination,
+      quote,
+      receiverTaxId: additionalData.receiverTaxId,
+      signingAccounts: normalizedSigningAccounts,
+      stellarPaymentData: additionalData.paymentData,
+      taxId: additionalData.taxId,
+      userAddress: additionalData.walletAddress
+    });
+
+    await this.validateBrlaOfframpRequest(
+      additionalData.taxId,
+      additionalData.pixDestination,
+      additionalData.receiverTaxId,
+      quote.inputAmount
+    );
+
+    return { stateMeta, unsignedTxs };
+  }
+
+  private async prepareOfframpNonBrlTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      stellarPaymentData: additionalData?.paymentData,
+      userAddress: additionalData?.walletAddress
+    });
+
+    return { brCode: undefined, stateMeta, unsignedTxs };
+  }
+
+  private async prepareOnrampTransactionsMethod(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    signingAccounts: AccountMeta[]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+    if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
+      throw new APIError({
+        message: "Parameters destinationAddress and taxId are required for onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
+    if (!moonbeamEphemeralEntry) {
+      throw new APIError({
+        message: "Moonbeam ephemeral not found",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(
+      quote,
+      normalizedSigningAccounts,
+      additionalData.destinationAddress,
+      additionalData.taxId
+    );
+
+    return { brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
+  private async prepareRampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    signingAccounts: AccountMeta[]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; brCode?: string }> {
+    if (quote.rampType === "off") {
+      if (quote.outputCurrency === FiatToken.BRL) {
+        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+      } else {
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+      }
+    } else {
+      return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
-  public async registerRamp(request: RampEndpoints.RegisterRampRequest): Promise<RampEndpoints.RegisterRampResponse> {
-    return this.withTransaction(async (transaction) => {
+  public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+    return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
-      // Get and validate the quote
       const quote = await QuoteTicket.findByPk(quoteId, { transaction });
 
       if (!quote) {
         throw new APIError({
-          status: httpStatus.NOT_FOUND,
-          message: 'Quote not found',
+          message: "Quote not found",
+          status: httpStatus.NOT_FOUND
         });
       }
 
-      if (quote.status !== 'pending') {
+      if (quote.status !== "pending") {
         throw new APIError({
-          status: httpStatus.BAD_REQUEST,
           message: `Quote is ${quote.status}`,
+          status: httpStatus.BAD_REQUEST
         });
       }
 
       if (new Date(quote.expiresAt) < new Date()) {
-        // Update the quote status to expired
-        await quote.update({ status: 'expired' }, { transaction });
+        await quote.destroy({ transaction });
 
         throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Quote has expired',
+          message: "Quote has expired",
+          status: httpStatus.BAD_REQUEST
         });
       }
 
-      // Normalize to lower case the networks entry of signingAccounts, and compare with allowed ones.
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      // Create to-be-signed transactions
-      let unsignedTxs: UnsignedTx[] = [];
-      let stateMeta: any = {};
-      let brCode: string | undefined;
-      if (quote.rampType === 'off') {
-        if (quote.outputCurrency === FiatToken.BRL) {
-          if (
-            !additionalData ||
-            !additionalData.pixDestination ||
-            !additionalData.taxId ||
-            !additionalData.receiverTaxId
-          ) {
-            throw new Error('receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL');
-          }
-          // Validate BRLA off-ramp request
-          const subaccount = await this.validateBrlaOfframpRequest(
-            additionalData.taxId,
-            additionalData.pixDestination,
-            additionalData.receiverTaxId,
-            quote.outputAmount,
-          );
+      const { unsignedTxs, stateMeta, brCode } = await this.prepareRampTransactions(
+        quote,
+        normalizedSigningAccounts,
+        additionalData,
+        signingAccounts
+      );
 
-          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-            quote,
-            signingAccounts: normalizedSigningAccounts,
-            stellarPaymentData: additionalData.paymentData,
-            userAddress: additionalData.walletAddress,
-            pixDestination: additionalData.pixDestination,
-            taxId: additionalData.taxId,
-            receiverTaxId: additionalData.receiverTaxId,
-            brlaEvmAddress: subaccount.wallets.evm,
-          }));
-        } else {
-          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-            quote,
-            signingAccounts: normalizedSigningAccounts,
-            stellarPaymentData: additionalData?.paymentData,
-            userAddress: additionalData?.walletAddress,
-          }));
-        }
-      } else {
-        // validate we have the destination address
-        if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
-          throw new APIError({
-            status: httpStatus.BAD_REQUEST,
-            message: 'Parameters destinationAddress and taxId are required for onramp',
-          });
-        }
-
-        const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
-        if (!moonbeamEphemeralEntry) {
-          throw new APIError({
-            status: httpStatus.BAD_REQUEST,
-            message: 'Moonbeam ephemeral not found',
-          });
-        }
-
-        brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
-        ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
-          quote,
-          normalizedSigningAccounts,
-          additionalData?.destinationAddress,
-          additionalData?.taxId,
-        ));
-      }
-
-      // Mark the quote as consumed
       await this.consumeQuote(quote.id, transaction);
 
       // Create initial ramp state
       const rampState = await this.createRampState({
-        type: quote.rampType,
-        currentPhase: 'initial' as RampPhase,
-        unsignedTxs,
-        presignedTxs: null, // There are no presigned transactions at this point
+        currentPhase: "initial" as RampPhase,
         from: quote.from,
-        to: quote.to,
+        postCompleteState: {
+          cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null }
+        },
+        presignedTxs: null,
+        processingLock: { locked: false, lockedAt: null },
+        quoteId: quote.id,
         state: {
+          brCode,
           inputAmount: quote.inputAmount,
           inputCurrency: quote.inputCurrency,
           outputAmount: quote.outputAmount,
           outputCurrency: quote.outputCurrency,
-          brCode,
           ...request.additionalData,
-          ...stateMeta,
-        },
-        processingLock: { locked: false, lockedAt: null },
-        postCompleteState: {
-          cleanup: { cleanupCompleted: false, cleanupAt: null, errors: null },
-        },
-        quoteId: quote.id,
+          ...stateMeta
+        } as StateMetadata,
+        to: quote.to,
+        type: quote.rampType,
+        unsignedTxs
       });
 
-      // Create response
-      const response: RampEndpoints.RegisterRampResponse = {
+      const response: RegisterRampResponse = {
+        brCode: rampState.state.brCode,
+        createdAt: rampState.createdAt.toISOString(),
+        currentPhase: rampState.currentPhase,
+        from: rampState.from,
         id: rampState.id,
         quoteId: rampState.quoteId,
-        type: rampState.type,
-        currentPhase: rampState.currentPhase,
-        unsignedTxs: rampState.unsignedTxs,
-        from: rampState.from,
         to: rampState.to,
-        createdAt: rampState.createdAt.toISOString(),
-        updatedAt: rampState.updatedAt.toISOString(),
-        brCode: rampState.state.brCode,
+        type: rampState.type,
+        unsignedTxs: rampState.unsignedTxs,
+        updatedAt: rampState.updatedAt.toISOString()
       };
 
       return response;
@@ -194,24 +247,24 @@ export class RampService extends BaseRampService {
   /**
    * Update a ramping process with presigned transactions and additional data
    */
-  public async updateRamp(request: RampEndpoints.UpdateRampRequest): Promise<RampEndpoints.UpdateRampResponse> {
-    return this.withTransaction(async (transaction) => {
+  public async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
+    return this.withTransaction(async transaction => {
       const { rampId, presignedTxs, additionalData } = request;
 
       const rampState = await RampState.findByPk(rampId, { transaction });
 
       if (!rampState) {
         throw new APIError({
-          status: httpStatus.NOT_FOUND,
-          message: 'Ramp not found',
+          message: "Ramp not found",
+          status: httpStatus.NOT_FOUND
         });
       }
 
       // Check if the ramp is in a state that allows updates
-      if (rampState.currentPhase !== 'initial') {
+      if (rampState.currentPhase !== "initial") {
         throw new APIError({
-          status: httpStatus.CONFLICT,
-          message: 'Ramp is not in a state that allows updates',
+          message: "Ramp is not in a state that allows updates",
+          status: httpStatus.CONFLICT
         });
       }
 
@@ -224,9 +277,9 @@ export class RampService extends BaseRampService {
       const existingTxs = rampState.presignedTxs || [];
       const updatedTxs = [...existingTxs];
 
-      presignedTxs.forEach((newTx) => {
+      presignedTxs.forEach((newTx: UnsignedTx) => {
         const existingIndex = updatedTxs.findIndex(
-          (tx) => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer,
+          tx => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer
         );
         if (existingIndex >= 0) {
           updatedTxs[existingIndex] = newTx;
@@ -243,23 +296,23 @@ export class RampService extends BaseRampService {
       await rampState.update(
         {
           presignedTxs: updatedTxs,
-          state: mergedAdditionalData,
+          state: mergedAdditionalData
         },
-        { transaction },
+        { transaction }
       );
 
       // Create response
-      const response: RampEndpoints.UpdateRampResponse = {
+      const response: UpdateRampResponse = {
+        brCode: rampState.state.brCode,
+        createdAt: rampState.createdAt.toISOString(),
+        currentPhase: rampState.currentPhase,
+        from: rampState.from,
         id: rampState.id,
         quoteId: rampState.quoteId,
-        type: rampState.type,
-        currentPhase: rampState.currentPhase,
-        unsignedTxs: rampState.unsignedTxs,
-        from: rampState.from,
         to: rampState.to,
-        createdAt: rampState.createdAt.toISOString(),
-        updatedAt: new Date().toISOString(), // Use current time since we just updated
-        brCode: rampState.state.brCode,
+        type: rampState.type,
+        unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
+        updatedAt: new Date().toISOString()
       };
 
       return response;
@@ -269,24 +322,24 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(request: RampEndpoints.StartRampRequest): Promise<RampEndpoints.StartRampResponse> {
-    return this.withTransaction(async (transaction) => {
+  public async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
+    return this.withTransaction(async transaction => {
       const rampState = await RampState.findByPk(request.rampId, {
-        transaction,
+        transaction
       });
 
       if (!rampState) {
         throw new APIError({
-          status: httpStatus.NOT_FOUND,
-          message: 'Ramp not found',
+          message: "Ramp not found",
+          status: httpStatus.NOT_FOUND
         });
       }
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
         throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'No presigned transactions found. Please call updateRamp first.',
+          message: "No presigned transactions found. Please call updateRamp first.",
+          status: httpStatus.BAD_REQUEST
         });
       }
 
@@ -301,28 +354,28 @@ export class RampService extends BaseRampService {
       if (timeDifferenceSeconds > SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8) {
         this.cancelRamp(rampState.id);
         throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Maximum time window to start process exceeded. Ramp invalidated.',
+          message: "Maximum time window to start process exceeded. Ramp invalidated.",
+          status: httpStatus.BAD_REQUEST
         });
       }
 
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
-      phaseProcessor.processRamp(rampState.id).catch((error) => {
+      phaseProcessor.processRamp(rampState.id).catch(error => {
         logger.error(`Error processing ramp ${rampState.id}:`, error);
       });
 
       // Create response
-      const response: RampEndpoints.StartRampResponse = {
-        id: rampState.id,
-        quoteId: rampState.quoteId,
-        type: rampState.type,
+      const response: StartRampResponse = {
+        createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         from: rampState.from,
+        id: rampState.id,
+        quoteId: rampState.quoteId,
         to: rampState.to,
+        type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        createdAt: rampState.createdAt.toISOString(),
-        updatedAt: rampState.updatedAt.toISOString(),
+        updatedAt: rampState.updatedAt.toISOString()
       };
 
       return response;
@@ -332,7 +385,7 @@ export class RampService extends BaseRampService {
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse | null> {
+  public async getRampStatus(id: string): Promise<GetRampStatusResponse | null> {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
@@ -340,15 +393,15 @@ export class RampService extends BaseRampService {
     }
 
     return {
+      createdAt: rampState.createdAt.toISOString(),
+      currentPhase: rampState.currentPhase,
+      from: rampState.from,
       id: rampState.id,
       quoteId: rampState.quoteId,
-      type: rampState.type,
-      currentPhase: rampState.currentPhase,
-      unsignedTxs: rampState.unsignedTxs,
-      from: rampState.from,
       to: rampState.to,
-      createdAt: rampState.createdAt.toISOString(),
-      updatedAt: rampState.updatedAt.toISOString(),
+      type: rampState.type,
+      unsignedTxs: rampState.unsignedTxs,
+      updatedAt: rampState.updatedAt.toISOString()
     };
   }
 
@@ -368,28 +421,28 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
+  public async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
     const rampStates = await RampState.findAll({
+      order: [["createdAt", "DESC"]],
       where: {
-        [Op.or]: [{ 'state.walletAddress': walletAddress }, { 'state.destinationAddress': walletAddress }],
+        [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
         currentPhase: {
-          [Op.ne]: 'initial',
-        },
-      },
-      order: [['createdAt', 'DESC']],
+          [Op.ne]: "initial"
+        }
+      }
     });
 
-    const transactions = rampStates.map((ramp) => ({
-      id: ramp.id,
-      type: ramp.type,
-      fromNetwork: ramp.from,
-      toNetwork: ramp.to,
-      fromAmount: ramp.state.inputAmount,
-      toAmount: ramp.state.outputAmount,
-      fromCurrency: ramp.state.inputCurrency,
-      toCurrency: ramp.state.outputCurrency,
-      status: this.mapPhaseToStatus(ramp.currentPhase),
+    const transactions = rampStates.map(ramp => ({
       date: ramp.createdAt.toISOString(),
+      fromAmount: ramp.state.inputAmount || "",
+      fromCurrency: ramp.state.inputCurrency || "",
+      fromNetwork: ramp.from,
+      id: ramp.id,
+      status: this.mapPhaseToStatus(ramp.currentPhase),
+      toAmount: ramp.state.outputAmount || "",
+      toCurrency: ramp.state.outputCurrency || "",
+      toNetwork: ramp.to,
+      type: ramp.type
     }));
 
     return { transactions };
@@ -399,9 +452,9 @@ export class RampService extends BaseRampService {
    * Map ramp phase to a user-friendly status
    */
   private mapPhaseToStatus(phase: RampPhase): string {
-    if (phase === 'complete') return 'success';
-    if (phase === 'failed' || phase === 'timedOut') return 'failed';
-    return 'pending';
+    if (phase === "complete") return "success";
+    if (phase === "failed" || phase === "timedOut") return "failed";
+    return "pending";
   }
 
   /**
@@ -415,15 +468,15 @@ export class RampService extends BaseRampService {
 
     if (!rampState) {
       throw new APIError({
-        status: httpStatus.NOT_FOUND,
-        message: 'Ramp not found',
+        message: "Ramp not found",
+        status: httpStatus.NOT_FOUND
       });
     }
 
     // Limit the number of error logs to 100
     const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
     await rampState.update({
-      errorLogs: updatedErrorLogs,
+      errorLogs: updatedErrorLogs
     });
   }
 
@@ -431,11 +484,11 @@ export class RampService extends BaseRampService {
     const rampState = await RampState.findByPk(id);
 
     if (!rampState) {
-      throw new Error('Ramp not found.');
+      throw new Error("Ramp not found.");
     }
 
     await this.updateRampState(id, {
-      currentPhase: 'timedOut',
+      currentPhase: "timedOut"
     });
   }
 
@@ -446,15 +499,15 @@ export class RampService extends BaseRampService {
     taxId: string,
     pixKey: string,
     receiverTaxId: string,
-    amount: string,
+    amount: string
   ): Promise<SubaccountData> {
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
     if (!subaccount) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Subaccount not found.`,
+        message: "Subaccount not found.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
@@ -465,14 +518,14 @@ export class RampService extends BaseRampService {
       //validate the recipient's taxId with partial information
       if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
         throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: `Invalid pixKey or receiverTaxId.`,
+          message: "Invalid pixKey or receiverTaxId.",
+          status: httpStatus.BAD_REQUEST
         });
       }
     } catch (_error) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Invalid pixKey or receiverTaxId.`,
+        message: "Invalid pixKey or receiverTaxId.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
@@ -480,8 +533,8 @@ export class RampService extends BaseRampService {
 
     if (Number(amount) > limitBurn) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Amount exceeds limit.`,
+        message: "Amount exceeds limit.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
@@ -496,15 +549,15 @@ export class RampService extends BaseRampService {
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Subaccount not found.`,
+        message: "Subaccount not found.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     if (subaccount.kyc.level < 1) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `KYC invalid.`,
+        message: "KYC invalid.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
@@ -512,15 +565,15 @@ export class RampService extends BaseRampService {
 
     if (Number(amount) > limitMint) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Amount exceeds KYC limits.`,
+        message: "Amount exceeds KYC limits.",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     const brCode = await brlaApiService.generateBrCode({
-      subaccountId: subaccount.id,
       amount: String(amount),
       referenceLabel: generateReferenceLabel(quote),
+      subaccountId: subaccount.id
     });
 
     return brCode.brCode;

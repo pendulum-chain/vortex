@@ -1,508 +1,511 @@
 {
-  "pages": {
-    "failure": {
-      "title": "Transaction Interrupted",
-      "recoverable": {
-        "description": "Your withdrawal request could not be completed. This is usually due to a temporary network issue or timeout.",
-        "cta": "Please contact our support team and we'll ensure this issue is resolved.",
-        "retry": "Retry"
-      },
-      "copyTransactionId": "Please reference this ID when contacting support",
-      "contactSupport": {
-        "beforeUrl": "",
-        "url": "Contact Support Team",
-        "afterUrl": ""
-      },
-      "contactedSupport": "Ready to try again?",
-      "tapToReset": "",
-      "resetAndRestart": "Start New Transaction"
-    },
-    "progress": {
-      "initial": "Starting process",
-      "createStellarAccount": "Creating Stellar account",
-      "fundEphemeral": "Funding ephemeral accounts",
-      "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
-      "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
-      "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
-      "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",
-      "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
-      "transferringToLocalPartner": "Transferring to local partner for bank transfer",
-      "success": "Transaction completed successfully!",
-      "transactionInProgress": "Your transaction is in progress.",
-      "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
-      "estimatedTimeEVM": "This usually takes 6-8 minutes.",
-      "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
-      "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
-      "squidRouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
-      "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
-      "brlaTeleport": "Your payment is being processed. This can take up to 5 minutes."
-    },
-    "success": {
-      "title": {
-        "buy": "All set! Your tokens are on their way.",
-        "sell": "All set! The withdrawal has been sent to your bank."
-      },
-      "returnHome": "Return Home",
-      "arrivalText": {
-        "buy": "The tokens will arrive in your wallet in a few minutes.",
-        "sell": {
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
-          "ARS": "Your funds will arrive in your bank account in a few minutes.",
-          "BRL": "Your funds were sent via PIX and are now in your bank account.",
-          "default": "Your funds will arrive in your bank account soon."
-        }
-      }
-    },
-    "swap": {
-      "error": {
-        "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
-        "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
-        "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
-        "initializeFailed": {
-          "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-          "noAddress": "No address found.",
-          "noApiComponents": "No API components found.",
-          "noApi": "No API found."
-        },
-        "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": {
-          "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
-          "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
-        },
-        "lessThanMinimumWithdrawal": {
-          "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
-          "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
-        },
-        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
-      },
-      "developedBy": "Developed by"
-    }
-  },
-  "sections": {
-    "whyVortex": {
-      "title": "Buy & Sell Crypto the secure Way",
-      "description": "Vortex is a non-custodial exchange that allows you to swap between different cryptocurrencies. It is built on top of the Stellar blockchain and uses the Stellar SDK to interact with the Stellar network.",
-      "features": {
-        "lowFees": {
-          "title": "Lower Fees, Better Value",
-          "description": "Fees are at just 0.25%, far below the market average. There are no hidden fees in the exchange rates."
-        },
-        "easyToUse": {
-          "title": "Easy to Use",
-          "description": "Buy & Sell your crypto easily without the need for a centralized exchange."
-        },
-        "securityFirst": {
-          "title": "Security First, Always",
-          "description": "Vortex is non-custodial by design. Your assets are handled with care and security."
-        },
-        "smartKYC": {
-          "title": "Smart KYC",
-          "description": "Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process."
-        }
-      },
-      "withVortexFinance": "with <1>Vortex Finance</1>?"
-    },
-    "trustedBy": {
-      "title": "Trusted by",
-      "comingSoon": "Coming soon"
-    },
-    "popularTokens": {
-      "networks": {
-        "title": "Supported Networks",
-        "description": "Trade across multiple blockchain networks"
-      },
-      "tokens": {
-        "title": "Supported Tokens",
-        "description": "Trade these popular stablecoins"
-      }
-    },
-    "pitch": {
-      "title": "Buy & Sell <1>Stablecoins</1> - <br class='hidden sm:block' /> directly with your Bank Account",
-      "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market."
-    },
-    "howToSell": {
-      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance",
-      "steps": {
-        "1": "Connect your wallet and enter the amount in cryptocurrency you wish to sell.",
-        "2": "Continue to the partner site and provide your email and payment details.",
-        "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
-        "4": "Wait for the funds to arrive in your account."
-      }
-    },
-    "gotQuestions": {
-      "title": "Got Questions? We're here to help!",
-      "description": "Get in touch with us for answers and support.",
-      "contactUs": "Contact Us"
-    },
-    "faq": {
-      "title": "Frequently asked questions",
-      "learnMore": "LEARN MORE",
-      "items": {
-        "fees": {
-          "question": "How much does Vortex charge in fees?",
-          "answer": "Vortex's fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim \"no fees\" but hide extra costs in inflated exchange rates, Vortex ensures you're never overcharged. Our fees are shown upfront so you always know exactly what you're paying."
-        },
-        "countries": {
-          "question": "Which countries and currencies does Vortex support?",
-          "answer": "Vortex is available in all 44 European countries and also supports users in Brazil and Argentina. Our service coverage is constantly expanding, with new countries being added every few weeks. As we grow, we aim to provide access to even more regions and currencies to better serve our global users."
-        },
-        "verification": {
-          "question": "How long does verification take?",
-          "answer": "Our KYC process is designed to be as fast and seamless as possible, usually taking less than six minutes to complete. In rare cases where additional checks are necessary, verification may take until the next business day. The time required largely depends on the validity and completeness of the documents provided. We recommend double-checking your submission to ensure a smooth process."
-        },
-        "cryptocurrencies": {
-          "question": "What cryptocurrencies are supported?",
-          "answer": "Vortex supports a range of stablecoins, including USDC and USDT. These stablecoins are available on multiple blockchain networks, such as Polkadot, Arbitrum, Avalanche, Base, BNB, Ethereum, and Polygon. We are constantly working to expand our offerings and will add additional cryptocurrencies and networks in the future to meet growing user demands."
-        },
-        "timing": {
-          "question": "How long does it take to sell crypto (for the money to arrive)?",
-          "answer": "The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you'll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive."
-        },
-        "business": {
-          "question": "Does Vortex offer solutions for businesses?",
-          "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex's competitive rates, ease of use, and seamless transactions. If you're interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business."
-        }
-      }
-    },
-    "feeComparison": {
-      "title": "<0>Save</0> on exchange rate markups",
-      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>\"no fee\"</1>, while hiding a markup in the exchange rate, making you pay more.",
-      "description2": "At Vortex, we'll never do that and show our fees upfront.",
-      "table": {
-        "sending": "Sending",
-        "with": "with",
-        "recipientGets": "Recipient gets",
-        "totalAfterFees": "Total after fees",
-        "bestRate": "Best rate",
-        "tooltip": "Quotes are for Polygon, as the providers don't support {{network}}."
-      }
-    }
-  },
   "components": {
     "airdropBanner": {
-      "title": "Special offer until 27 May",
-      "description": "Buy or sell USDT/C from just R$5 or €10 - get 20 USDT for FREE",
       "button": "More info",
+      "description": "Buy or sell USDT/C from just R$5 or €10 - get 20 USDT for FREE",
       "list": {
         "1": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT.",
         "2": "Earned rewards are sent directly to your wallet. <1>No need to claim!</1>",
         "3": "One reward per person, paid out every day - <1>check your status</1> <2>here</2>.",
         "4": "Your trust matters - <1>Vortex is</1> <2>open source</2> for full transparency."
+      },
+      "title": "Special offer until 27 May"
+    },
+    "benefitsList": {
+      "noHiddenFees": "No hidden fees",
+      "takes5Minutes": "Takes <1>5 minutes</1>"
+    },
+    "brlaExtendedForm": {
+      "buttons": {
+        "back": "Back",
+        "continue": "Continue",
+        "tryAgain": "Try Again"
+      },
+      "form": {
+        "birthdate": "Birthdate",
+        "city": "City",
+        "companyName": "Company Name",
+        "district": "District",
+        "fullName": "Full Name",
+        "number": "Number",
+        "partnerCpf": "Partner CPF",
+        "phoneNumber": "Phone Number",
+        "startDate": "Company Start Date",
+        "state": "State",
+        "street": "Street",
+        "taxId": "CPF or CNPJ"
+      },
+      "kycFailureReasons": {
+        "face": "Face verification failed. Please ensure your selfie is clear and matches your ID.",
+        "invalidTaxId": "Please ensure your CPF or CNPJ is correct.",
+        "name": "Name verification failed. Please ensure your name matches the ID provided.",
+        "UNKNOWN": "KYC verification failed. Please try again or contact support."
+      },
+      "messageDisplay": {
+        "networkError": "Network error, please try again later."
+      },
+      "validation": {
+        "birthdate": {
+          "future": "Birthdate cannot be in the future",
+          "required": "Birthdate is required",
+          "tooOld": "Invalid birthdate"
+        },
+        "cep": {
+          "minLength": "CEP must be at least 3 characters",
+          "required": "CEP is required"
+        },
+        "city": {
+          "minLength": "City must be at least 5 characters",
+          "required": "City is required"
+        },
+        "companyName": {
+          "format": "Company name can only contain letters and spaces",
+          "minLength": "Company name must be at least 3 characters",
+          "required": "Company name is required"
+        },
+        "district": {
+          "minLength": "District must be at least 3 characters",
+          "required": "District is required"
+        },
+        "fullName": {
+          "format": "Name can only contain letters and spaces",
+          "minLength": "Name must be at least 3 characters",
+          "required": "Full name is required"
+        },
+        "number": {
+          "required": "Number is required"
+        },
+        "partnerCpf": {
+          "format": "Invalid Partner CPF format",
+          "required": "Partner CPF is required"
+        },
+        "phone": {
+          "format": "Invalid phone number format",
+          "required": "Phone number is required"
+        },
+        "startDate": {
+          "future": "Company start date cannot be in the future",
+          "required": "Company start date is required",
+          "tooOld": "Invalid company start date"
+        },
+        "state": {
+          "minLength": "State must be at least 3 characters",
+          "required": "State is required"
+        },
+        "street": {
+          "minLength": "Street must be at least 5 characters",
+          "required": "Street is required"
+        },
+        "taxId": {
+          "format": "Invalid Tax ID format",
+          "required": "Tax ID is required"
+        }
+      },
+      "verificationStatus": {
+        "error": "Verification error",
+        "pending": "Verifying your data, please wait",
+        "rejected": "KYC verification rejected",
+        "success": "Verification successful"
       }
     },
-    "emailForm": {
-      "success": "Successfully saved!",
-      "loading": "Loading...",
-      "error": "Error while saving your email. Please try again.",
-      "title": "Thank you for using our new product!",
-      "description": "We're always looking to improve, and we'd greatly appreciate your feedback. If you're willing, please leave your email below so we can reach out for a quick chat about your experience.",
-      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
-      "submit": "Submit"
+    "brlaKYCForm": {
+      "buttons": {
+        "back": "Back",
+        "compareFees": "Compare Fees",
+        "finish": "Finish"
+      },
+      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
+      "title": "Fast-Track Verification"
     },
-    "termsAndConditions": {
-      "text": "I have read and accept the",
-      "link": "Terms and Conditions"
-    },
-    "searchInput": {
-      "placeholder": "Search"
+    "brlaSwapField": {
+      "cpfOrCnpj": "CPF or CNPJ",
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "pixKey": "Pix key",
+      "placeholder": "Enter your {{label}}"
     },
     "dialogs": {
+      "connectWallet": {
+        "connect": "Connect",
+        "wrongNetwork": "Wrong network"
+      },
+      "polkadotDisconnectWallet": {
+        "disconnect": "Disconnect"
+      },
+      "polkadotWalletSelectorDialog": {
+        "chooseAccount": "Choose Account",
+        "noWalletInstalled": "No wallet installed",
+        "selectWallet": "Select Wallet",
+        "title": "Connect wallet"
+      },
+      "polkadotWalletSelectorDialogLoading": {
+        "description": "Please approve {selectedWallet} and approve the transaction.",
+        "title": "Connecting wallet"
+      },
       "RampSummaryDialog": {
         "BRLOnrampDetails": {
-          "title": "Pay with Pix",
-          "description": "Continue in your bank's app",
-          "qrCode": "Select Pix in your bank's app and scan the QR code below.",
           "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
+          "description": "Continue in your bank's app",
           "pixCode": "Pix code",
-          "timerLabel": "Quote expires in:"
+          "qrCode": "Select Pix in your bank's app and scan the QR code below.",
+          "timerLabel": "Quote expires in:",
+          "title": "Pay with Pix"
         },
+        "confirm": "Confirm",
+        "continue": "Continue",
+        "continueOnPartnersPage": "Continue on Partner's page",
+        "continueWithPartner": "Continue with Partner",
+        "destination": "Destination Account",
         "headerText": {
           "buy": "You're buying",
           "sell": "You're selling"
         },
         "offrampFee": "Offramp fee",
         "onrampFee": "Onramp fee",
-        "continueWithPartner": "Continue with Partner",
-        "continueOnPartnersPage": "Continue on Partner's page",
-        "quoteExpired": "Quote expired. Please close the dialog and try again.",
-        "processing": "Processing",
-        "continue": "Continue",
-        "quote": "Quote",
         "partner": "Partner",
-        "destination": "Destination Account",
-        "confirm": "Confirm",
+        "processing": "Processing",
+        "quote": "Quote",
+        "quoteExpired": "Quote expired. Please close the dialog and try again.",
         "tryAgain": "Try again"
       },
       "selectionModal": {
-        "title": "Select a token",
-        "searchPlaceholder": "Find by name or address"
-      },
-      "polkadotDisconnectWallet": {
-        "disconnect": "Disconnect"
-      },
-      "polkadotWalletSelectorDialog": {
-        "title": "Connect wallet",
-        "selectWallet": "Select Wallet",
-        "chooseAccount": "Choose Account",
-        "noWalletInstalled": "No wallet installed"
-      },
-      "polkadotWalletSelectorDialogLoading": {
-        "title": "Connecting wallet",
-        "description": "Please approve {selectedWallet} and approve the transaction."
-      },
-      "connectWallet": {
-        "connect": "Connect",
-        "wrongNetwork": "Wrong network"
+        "searchPlaceholder": "Find by name or address",
+        "title": "Select a token"
       }
     },
-    "signingBox": {
-      "actionRequired": "Action Required",
-      "pleaseSignTransaction": "Please sign the transaction in",
-      "yourConnectedWallet": "your connected wallet to proceed",
-      "waitingForSignature": "Waiting for signature",
-      "signatures": "Signatures"
-    },
-    "navbar": {
-      "sellCrypto": "Sell Crypto",
-      "howItWorks": "How it works",
-      "community": "Community"
-    },
-    "swap": {
-      "buyButton": "Buy",
-      "sellButton": "Sell",
-      "firstInputLabel": {
-        "buy": "You pay",
-        "sell": "You sell"
+    "documentUpload": {
+      "buttons": {
+        "back": "Back",
+        "finish": "Finish",
+        "uploading": "Uploading..."
       },
-      "secondInputLabel": "You receive",
-      "compareFees": "Compare fees",
+      "description": "To ensure a safe and seamless experience, we need a quick ID verification. Please upload a clear image of your document.",
+      "fields": {
+        "cnhDocument": "CNH Document",
+        "rgBack": "RG Back",
+        "rgFront": "RG Front",
+        "uploadSelfie": "Upload Selfie"
+      },
+      "title": "Fast-Track Verification",
+      "uploadBug": "There was an error uploading the files for verification. Please try again later.",
+      "uploadFailed": "Upload failed. Please try again.",
       "validation": {
-        "taxId": {
-          "required": "CPF or CNPJ is required when transferring BRL",
-          "format": "Invalid CPF or CNPJ format"
-        },
-        "pixId": {
-          "required": "PIX key is required when transferring BRL",
-          "format": "PIX key does not match any of the valid formats"
-        },
-        "inputAmount": {
-          "required": "Amount is required",
-          "format": "Invalid amount format"
-        },
-        "onChainToken": {
-          "required": "Token is required"
-        },
-        "fiatToken": {
-          "required": "Fiat token is required"
-        },
-        "calculatingQuote": "Calculating quote...",
-        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
+        "fileSizeExceeded": "File size exceeds {{max}} limit.",
+        "invalidFileType": "Invalid file type. Only PNG, JPEG, or PDF allowed.",
+        "validationError": "All files must be valid before submitting."
       }
     },
-    "benefitsList": {
-      "noHiddenFees": "No hidden fees",
-      "takes5Minutes": "Takes <1>5 minutes</1>"
-    },
-    "brlaSwapField": {
-      "placeholder": "Enter your {{label}}",
-      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
-      "cpfOrCnpj": "CPF or CNPJ",
-      "pixKey": "Pix key"
-    },
-    "swapSubmitButton": {
-      "confirming": "Confirming",
-      "processing": "Processing",
-      "confirm": "Confirm",
-      "confirmPayment": "I have made the payment"
+    "emailForm": {
+      "description": "We're always looking to improve, and we'd greatly appreciate your feedback. If you're willing, please leave your email below so we can reach out for a quick chat about your experience.",
+      "error": "Error while saving your email. Please try again.",
+      "loading": "Loading...",
+      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
+      "submit": "Submit",
+      "success": "Successfully saved!",
+      "title": "Thank you for using our new product!"
     },
     "feeCollapse": {
       "details": "Details",
-      "yourQuote": "Your quote",
-      "processingFee": {
-        "label": "Processing fee",
-        "tooltip": "This fee covers partner and Vortex platform costs."
+      "finalAmount": "Final Amount",
+      "netRate": {
+        "label": "Effective Rate",
+        "tooltip": "This is the exchange rate you receive after all processing and network fees have been deducted."
       },
       "networkFee": {
         "label": "Network fee",
         "tooltip": "The cost to transfer funds to your wallet, which varies with selected network and network congestion."
       },
+      "processingFee": {
+        "label": "Processing fee",
+        "tooltip": "This fee covers partner and Vortex platform costs."
+      },
       "totalFee": "Total Fee",
-      "netRate": {
-        "label": "Effective Rate",
-        "tooltip": "This is the exchange rate you receive after all processing and network fees have been deducted."
-      },
-      "finalAmount": "Final Amount"
-    },
-    "transactionStatusBanner": {
-      "title": "Transaction Status",
-      "beforeUrl": "Your transaction is still processing but taking longer than expected. If not completed within 30 minutes, please contact our ",
-      "url": "support team",
-      "afterUrl": " for assistance. We're actively monitoring your transaction.",
-      "transactionId": "Transaction ID"
-    },
-    "brlaKYCForm": {
-      "title": "Fast-Track Verification",
-      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
-      "buttons": {
-        "back": "Back",
-        "finish": "Finish",
-        "compareFees": "Compare Fees"
-      }
-    },
-    "brlaExtendedForm": {
-      "form": {
-        "taxId": "CPF or CNPJ",
-        "fullName": "Full Name",
-        "phoneNumber": "Phone Number",
-        "city": "City",
-        "state": "State",
-        "street": "Street",
-        "number": "Number",
-        "district": "District",
-        "birthdate": "Birthdate",
-        "companyName": "Company Name",
-        "startDate": "Company Start Date",
-        "partnerCpf": "Partner CPF"
-      },
-      "verificationStatus": {
-        "pending": "Verifying your data, please wait",
-        "success": "Verification successful",
-        "rejected": "KYC verification rejected",
-        "error": "Verification error"
-      },
-      "validation": {
-        "taxId": {
-          "required": "Tax ID is required",
-          "format": "Invalid Tax ID format"
-        },
-        "phone": {
-          "required": "Phone number is required",
-          "format": "Invalid phone number format"
-        },
-        "fullName": {
-          "required": "Full name is required",
-          "minLength": "Name must be at least 3 characters",
-          "format": "Name can only contain letters and spaces"
-        },
-        "cep": {
-          "required": "CEP is required",
-          "minLength": "CEP must be at least 3 characters"
-        },
-        "city": {
-          "required": "City is required",
-          "minLength": "City must be at least 5 characters"
-        },
-        "state": {
-          "required": "State is required",
-          "minLength": "State must be at least 3 characters"
-        },
-        "street": {
-          "required": "Street is required",
-          "minLength": "Street must be at least 5 characters"
-        },
-        "number": {
-          "required": "Number is required"
-        },
-        "district": {
-          "required": "District is required",
-          "minLength": "District must be at least 3 characters"
-        },
-        "birthdate": {
-          "required": "Birthdate is required",
-          "future": "Birthdate cannot be in the future",
-          "tooOld": "Invalid birthdate"
-        },
-        "companyName": {
-          "required": "Company name is required",
-          "minLength": "Company name must be at least 3 characters",
-          "format": "Company name can only contain letters and spaces"
-        },
-        "startDate": {
-          "required": "Company start date is required",
-          "future": "Company start date cannot be in the future",
-          "tooOld": "Invalid company start date"
-        },
-        "partnerCpf": {
-          "required": "Partner CPF is required",
-          "format": "Invalid Partner CPF format"
-        }
-      },
-      "kycFailureReasons": {
-        "face": "Face verification failed. Please ensure your selfie is clear and matches your ID.",
-        "name": "Name verification failed. Please ensure your name matches the ID provided.",
-        "invalidTaxId": "Please ensure your CPF or CNPJ is correct.",
-        "UNKNOWN": "KYC verification failed. Please try again or contact support."
-      },
-      "messageDisplay": {
-        "networkError": "Network error, please try again later."
-      },
-      "buttons": {
-        "back": "Back",
-        "continue": "Continue",
-        "tryAgain": "Try Again"
-      }
-    },
-    "maintenance": {
-      "button": "Maintenance Mode",
-      "banner": {
-        "started": "Started",
-        "ends": "Expected end",
-        "estimatedTimeRemaining": "Estimated time remaining"
-      }
-    },
-    "rating": {
-      "title": "Your opinion matters!",
-      "howWouldYouRateYourExperience": "How would you rate your experience?",
-      "thankYou": "Thank you!"
+      "yourQuote": "Your quote"
     },
     "footer": {
-      "poweredBy": "Powered by",
-      "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
+      "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
+      "poweredBy": "Powered by"
     },
-    "documentUpload": {
-      "title": "Fast-Track Verification",
-      "description": "To ensure a safe and seamless experience, we need a quick ID verification. Please upload a clear image of your document.",
+    "maintenance": {
+      "banner": {
+        "ends": "Expected end",
+        "estimatedTimeRemaining": "Estimated time remaining",
+        "started": "Started"
+      },
+      "button": "Maintenance Mode"
+    },
+    "navbar": {
+      "community": "Community",
+      "howItWorks": "How it works",
+      "sellCrypto": "Sell Crypto"
+    },
+    "rating": {
+      "howWouldYouRateYourExperience": "How would you rate your experience?",
+      "thankYou": "Thank you!",
+      "title": "Your opinion matters!"
+    },
+    "searchInput": {
+      "placeholder": "Search"
+    },
+    "signingBox": {
+      "actionRequired": "Action Required",
+      "pleaseSignTransaction": "Please sign the transaction in",
+      "signatures": "Signatures",
+      "waitingForSignature": "Waiting for signature",
+      "yourConnectedWallet": "your connected wallet to proceed"
+    },
+    "swap": {
+      "buyButton": "Buy",
+      "compareFees": "Compare fees",
+      "firstInputLabel": {
+        "buy": "You pay",
+        "sell": "You sell"
+      },
+      "secondInputLabel": "You receive",
+      "sellButton": "Sell",
       "validation": {
-        "invalidFileType": "Invalid file type. Only PNG, JPEG, or PDF allowed.",
-        "fileSizeExceeded": "File size exceeds {{max}} limit.",
-        "validationError": "All files must be valid before submitting."
-      },
-      "uploadBug": "There was an error uploading the files for verification. Please try again later.",
-      "uploadFailed": "Upload failed. Please try again.",
-      "fields": {
-        "uploadSelfie": "Upload Selfie",
-        "rgFront": "RG Front",
-        "rgBack": "RG Back",
-        "cnhDocument": "CNH Document"
-      },
-      "buttons": {
-        "back": "Back",
-        "uploading": "Uploading...",
-        "finish": "Finish"
+        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub.",
+        "calculatingQuote": "Calculating quote...",
+        "fiatToken": {
+          "required": "Fiat token is required"
+        },
+        "inputAmount": {
+          "format": "Invalid amount format",
+          "required": "Amount is required"
+        },
+        "onChainToken": {
+          "required": "Token is required"
+        },
+        "pixId": {
+          "format": "PIX key does not match any of the valid formats",
+          "required": "PIX key is required when transferring BRL"
+        },
+        "taxId": {
+          "format": "Invalid CPF or CNPJ format",
+          "required": "CPF or CNPJ is required when transferring BRL"
+        }
       }
+    },
+    "swapSubmitButton": {
+      "confirm": "Confirm",
+      "confirming": "Confirming",
+      "confirmPayment": "I have made the payment",
+      "processing": "Processing"
+    },
+    "termsAndConditions": {
+      "link": "Terms and Conditions",
+      "text": "I have read and accept the"
+    },
+    "transactionStatusBanner": {
+      "afterUrl": " for assistance. We're actively monitoring your transaction.",
+      "beforeUrl": "Your transaction is still processing but taking longer than expected. If not completed within 30 minutes, please contact our ",
+      "title": "Transaction Status",
+      "transactionId": "Transaction ID",
+      "url": "support team"
     }
   },
   "hooks": {
-    "useTokenAmountOut": {
-      "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later.",
-      "default": "Something went wrong"
-    },
     "useSubmitOfframp": {
-      "kycInvalid": "Your KYC level is invalid. Please contact support.",
-      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user."
+      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
+      "kycInvalid": "Your KYC level is invalid. Please contact support."
+    },
+    "useTokenAmountOut": {
+      "default": "Something went wrong",
+      "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later."
+    }
+  },
+  "pages": {
+    "failure": {
+      "contactedSupport": "Ready to try again?",
+      "contactSupport": {
+        "afterUrl": "",
+        "beforeUrl": "",
+        "url": "Contact Support Team"
+      },
+      "copyTransactionId": "Please reference this ID when contacting support",
+      "recoverable": {
+        "cta": "Please contact our support team and we'll ensure this issue is resolved.",
+        "description": "Your withdrawal request could not be completed. This is usually due to a temporary network issue or timeout.",
+        "retry": "Retry"
+      },
+      "resetAndRestart": "Start New Transaction",
+      "tapToReset": "",
+      "title": "Transaction Interrupted"
+    },
+    "progress": {
+      "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
+      "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
+      "brlaTeleport": "Your payment is being processed. This can take up to 5 minutes.",
+      "createStellarAccount": "Creating Stellar account",
+      "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
+      "estimatedTimeEVM": "This usually takes 6-8 minutes.",
+      "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
+      "fundEphemeral": "Funding ephemeral accounts",
+      "initial": "Starting process",
+      "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
+      "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "squidRouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
+      "success": "Transaction completed successfully!",
+      "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",
+      "transactionInProgress": "Your transaction is in progress.",
+      "transferringToLocalPartner": "Transferring to local partner for bank transfer"
+    },
+    "success": {
+      "arrivalText": {
+        "buy": "The tokens will arrive in your wallet in a few minutes.",
+        "sell": {
+          "ARS": "Your funds will arrive in your bank account in a few minutes.",
+          "BRL": "Your funds were sent via PIX and are now in your bank account.",
+          "default": "Your funds will arrive in your bank account soon.",
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days."
+        }
+      },
+      "returnHome": "Return Home",
+      "title": {
+        "buy": "All set! Your tokens are on their way.",
+        "sell": "All set! The withdrawal has been sent to your bank."
+      }
+    },
+    "swap": {
+      "developedBy": "Developed by",
+      "error": {
+        "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
+        "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "fetchingQuote": "Failed to get quote",
+        "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",
+        "initializeFailed": {
+          "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+          "noAddress": "No address found.",
+          "noApi": "No API found.",
+          "noApiComponents": "No API components found."
+        },
+        "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
+        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
+        "invalidInputAmount": "Invalid input amount",
+        "lessThanMinimumWithdrawal": {
+          "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
+        },
+        "moreThanMaximumWithdrawal": {
+          "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
+        }
+      }
+    }
+  },
+  "sections": {
+    "faq": {
+      "items": {
+        "business": {
+          "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex's competitive rates, ease of use, and seamless transactions. If you're interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business.",
+          "question": "Does Vortex offer solutions for businesses?"
+        },
+        "countries": {
+          "answer": "Vortex is available in all 44 European countries and also supports users in Brazil and Argentina. Our service coverage is constantly expanding, with new countries being added every few weeks. As we grow, we aim to provide access to even more regions and currencies to better serve our global users.",
+          "question": "Which countries and currencies does Vortex support?"
+        },
+        "cryptocurrencies": {
+          "answer": "Vortex supports a range of stablecoins, including USDC and USDT. These stablecoins are available on multiple blockchain networks, such as Polkadot, Arbitrum, Avalanche, Base, BNB, Ethereum, and Polygon. We are constantly working to expand our offerings and will add additional cryptocurrencies and networks in the future to meet growing user demands.",
+          "question": "What cryptocurrencies are supported?"
+        },
+        "fees": {
+          "answer": "Vortex's fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim \"no fees\" but hide extra costs in inflated exchange rates, Vortex ensures you're never overcharged. Our fees are shown upfront so you always know exactly what you're paying.",
+          "question": "How much does Vortex charge in fees?"
+        },
+        "timing": {
+          "answer": "The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you'll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive.",
+          "question": "How long does it take to sell crypto (for the money to arrive)?"
+        },
+        "verification": {
+          "answer": "Our KYC process is designed to be as fast and seamless as possible, usually taking less than six minutes to complete. In rare cases where additional checks are necessary, verification may take until the next business day. The time required largely depends on the validity and completeness of the documents provided. We recommend double-checking your submission to ensure a smooth process.",
+          "question": "How long does verification take?"
+        }
+      },
+      "learnMore": "LEARN MORE",
+      "title": "Frequently asked questions"
+    },
+    "feeComparison": {
+      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>\"no fee\"</1>, while hiding a markup in the exchange rate, making you pay more.",
+      "description2": "At Vortex, we'll never do that and show our fees upfront.",
+      "table": {
+        "bestRate": "Best rate",
+        "recipientGets": "Recipient gets",
+        "sending": "Sending",
+        "tooltip": "Quotes are for Polygon, as the providers don't support {{network}}.",
+        "totalAfterFees": "Total after fees",
+        "with": "with"
+      },
+      "title": "<0>Save</0> on exchange rate markups"
+    },
+    "gotQuestions": {
+      "contactUs": "Contact Us",
+      "description": "Get in touch with us for answers and support.",
+      "title": "Got Questions? We're here to help!"
+    },
+    "howToSell": {
+      "steps": {
+        "1": "Connect your wallet and enter the amount in cryptocurrency you wish to sell.",
+        "2": "Continue to the partner site and provide your email and payment details.",
+        "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
+        "4": "Wait for the funds to arrive in your account."
+      },
+      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance"
+    },
+    "pitch": {
+      "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market.",
+      "title": "Buy & Sell <1>Stablecoins</1> - <br class='hidden sm:block' /> directly with your Bank Account"
+    },
+    "popularTokens": {
+      "networks": {
+        "description": "Trade across multiple blockchain networks",
+        "title": "Supported Networks"
+      },
+      "tokens": {
+        "description": "Trade these popular stablecoins",
+        "title": "Supported Tokens"
+      }
+    },
+    "trustedBy": {
+      "comingSoon": "Coming soon",
+      "title": "Trusted by"
+    },
+    "whyVortex": {
+      "description": "Vortex is a non-custodial exchange that allows you to swap between different cryptocurrencies. It is built on top of the Stellar blockchain and uses the Stellar SDK to interact with the Stellar network.",
+      "features": {
+        "easyToUse": {
+          "description": "Buy & Sell your crypto easily without the need for a centralized exchange.",
+          "title": "Easy to Use"
+        },
+        "lowFees": {
+          "description": "Fees are at just 0.25%, far below the market average. There are no hidden fees in the exchange rates.",
+          "title": "Lower Fees, Better Value"
+        },
+        "securityFirst": {
+          "description": "Vortex is non-custodial by design. Your assets are handled with care and security.",
+          "title": "Security First, Always"
+        },
+        "smartKYC": {
+          "description": "Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process.",
+          "title": "Smart KYC"
+        }
+      },
+      "title": "Buy & Sell Crypto the secure Way",
+      "withVortexFinance": "with <1>Vortex Finance</1>?"
     }
   },
   "toasts": {
-    "copyText": "Copied to clipboard",
     "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
+    "copyText": "Copied to clipboard",
+    "genericError": "An error occurred. Please try again.",
     "kycCompleted": "Success! Get ready to off-ramp.",
     "kycVerificationFailed": "Could not verify KYC status. Please try again.",
-    "signingFailed": "Signing failed. Please try again.",
-    "walletAlreadyOpen": "Wallet already open pending connection. Please try again.",
     "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
-    "genericError": "An error occurred. Please try again.",
     "rampLimitExceeded": "This amount exceeds the remaining limit of {{remaining}} BRL for your account.",
-    "signingRejected": "Request cancelled"
+    "signingFailed": "Signing failed. Please try again.",
+    "signingRejected": "Request cancelled",
+    "walletAlreadyOpen": "Wallet already open pending connection. Please try again."
   }
 }
