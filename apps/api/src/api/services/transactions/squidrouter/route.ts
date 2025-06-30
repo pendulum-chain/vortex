@@ -1,6 +1,6 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from "@packages/shared";
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "@packages/shared";
 import axios, { AxiosError } from "axios";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, PublicClient } from "viem";
 import squidReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
 import logger from "../../../../config/logger";
 import erc20ABI from "../../../../contracts/ERC20";
@@ -281,4 +281,61 @@ export async function testRoute(
 
   // will throw if no route is found
   await getRoute(sharedRouteParams);
+}
+
+export async function createTransactionDataFromRoute({
+  route,
+  rawAmount,
+  inputTokenErc20Address,
+  publicClient,
+  swapValue,
+  nonce
+}: {
+  route: SquidrouterRoute["route"];
+  rawAmount: string;
+  inputTokenErc20Address: string;
+  publicClient: PublicClient;
+  swapValue?: string;
+  nonce?: number;
+}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData }> {
+  const { transactionRequest } = route;
+
+  const approveTransactionData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [transactionRequest?.target, rawAmount],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const approveData: EvmTransactionData = {
+    data: approveTransactionData as `0x${string}`,
+    gas: "150000",
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: inputTokenErc20Address as `0x${string}`,
+    value: "0"
+  };
+
+  if (nonce !== undefined) {
+    approveData.nonce = nonce;
+  }
+
+  const swapData: EvmTransactionData = {
+    data: transactionRequest.data as `0x${string}`,
+    gas: transactionRequest.gasLimit,
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: transactionRequest.target as `0x${string}`,
+    value: swapValue ?? transactionRequest.value
+  };
+
+  if (nonce !== undefined) {
+    swapData.nonce = nonce + 1;
+  }
+
+  return {
+    approveData,
+    swapData
+  };
 }

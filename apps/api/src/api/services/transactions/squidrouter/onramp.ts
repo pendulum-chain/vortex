@@ -1,10 +1,9 @@
 import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
-import { createPublicClient, encodeFunctionData, http } from "viem";
+import { createPublicClient, http } from "viem";
 import { moonbeam, polygon } from "viem/chains";
-import erc20ABI from "../../../../contracts/ERC20";
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
-import { createGenericRouteParams, createOnrampRouteParams, getRoute } from "./route";
 import { ERC20_EURE_POLYGON } from "../moneriumEvmOnrampTransactions";
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
+import { createGenericRouteParams, createOnrampRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -66,58 +65,31 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
 
   try {
     const routeResult = await getRoute(routeParams);
-
     const { route } = routeResult.data;
-    const { transactionRequest } = route;
 
-    const approveTransactionData = encodeFunctionData({
-      abi: erc20ABI,
-      args: [transactionRequest?.target, params.rawAmount],
-      functionName: "approve"
-    });
-
-    const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-    // Create transaction data objects
-    const approveData = {
-      data: approveTransactionData,
-      gas: "150000",
-      maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+    return await createTransactionDataFromRoute({
+      inputTokenErc20Address: AXL_USDC_MOONBEAM,
       nonce: params.moonbeamEphemeralStartingNonce,
-      to: AXL_USDC_MOONBEAM as EvmAddress,
-      value: "0"
-    };
-
-    const swapData = {
-      data: transactionRequest.data as EvmAddress,
-      gas: transactionRequest.gasLimit,
-      maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-      nonce: params.moonbeamEphemeralStartingNonce + 1,
-      to: transactionRequest.target as EvmAddress,
-      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
-    };
-
-    return {
-      approveData,
-      swapData
-    };
+      publicClient,
+      rawAmount: params.rawAmount,
+      route,
+      swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+    });
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
   }
 }
 
 export async function createOnrampSquidrouterTransactionsToEvm(
-  params: OnrampSquidrouterParamsToEvm,
+  params: OnrampSquidrouterParamsToEvm
 ): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
-    throw new Error('AssetHub is not supported for Squidrouter onramp');
+    throw new Error("AssetHub is not supported for Squidrouter onramp");
   }
 
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http(),
+    transport: http()
   });
 
   const routeParams = createGenericRouteParams(
@@ -127,46 +99,20 @@ export async function createOnrampSquidrouterTransactionsToEvm(
     params.outputTokenDetails,
     params.fromNetwork,
     params.toNetwork,
-    params.destinationAddress,
+    params.destinationAddress
   );
 
   try {
     const routeResult = await getRoute(routeParams);
-
     const { route } = routeResult.data;
-    const { transactionRequest } = route;
 
-    const approveTransactionData = encodeFunctionData({
-      abi: erc20ABI,
-      functionName: 'approve',
-      args: [transactionRequest?.target, params.rawAmount],
+    return await createTransactionDataFromRoute({
+      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      publicClient,
+      rawAmount: params.rawAmount,
+      route,
+      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
     });
-
-    const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-    // Create transaction data objects
-    const approveData = {
-      to: ERC20_EURE_POLYGON,
-      data: approveTransactionData,
-      value: '0',
-      gas: '150000',
-      maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-    };
-
-    const swapData = {
-      to: transactionRequest.target as `0x${string}`,
-      data: transactionRequest.data as `0x${string}`,
-      value: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
-      gas: transactionRequest.gasLimit,
-      maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-    };
-
-    return {
-      approveData,
-      swapData,
-    };
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
   }

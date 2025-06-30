@@ -42,6 +42,7 @@ export interface EvmTransactionData {
   gas: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+  nonce?: number;
 }
 
 export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
