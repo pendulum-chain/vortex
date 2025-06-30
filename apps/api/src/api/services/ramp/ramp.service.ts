@@ -174,7 +174,7 @@ export class RampService extends BaseRampService {
     const ibanCode = createEpcQrCodeData({
       bic: ibanData.bic,
       iban: ibanData.iban,
-      name: "" // TODO. Fetch from Monerium API or UI.
+      name: " " // TODO. Fetch from Monerium API or UI.
     });
     return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }

@@ -81,7 +81,6 @@ export const handleMoneriumSiweAuth = async (address: string, signMessage: (mess
 
 export const exchangeMoneriumCode = async (code: string) => {
   const { codeVerifier, setAuthToken, setFlowState } = useMoneriumStore.getState();
-
   if (!codeVerifier) {
     throw new Error("No code verifier found");
   }
