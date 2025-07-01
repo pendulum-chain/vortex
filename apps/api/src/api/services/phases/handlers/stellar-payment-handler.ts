@@ -3,6 +3,7 @@ import { Horizon, NetworkError, Networks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { verifyStellarPaymentSuccess } from "../helpers/stellar-payment-verifier";
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -32,8 +33,26 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
         );
         // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
         if (horizonError.response.data.extras.result_codes.transaction === "tx_bad_seq") {
-          logger.info("Assuming offramp was already performed.");
-          return this.transitionToNextPhase(state, "complete");
+          logger.info("tx_bad_seq error detected. Verifying if payment was actually successful...");
+
+          try {
+            const paymentSuccessful = await verifyStellarPaymentSuccess(state);
+
+            if (paymentSuccessful) {
+              logger.info(
+                "Payment verification confirmed: all tokens transferred from ephemeral account. Proceeding to complete."
+              );
+              return this.transitionToNextPhase(state, "complete");
+            } else {
+              logger.error(
+                "Payment verification failed: tokens are still present in ephemeral account. Payment did not succeed."
+              );
+              throw new Error("Stellar payment failed - tokens still present in ephemeral account despite tx_bad_seq error");
+            }
+          } catch (verificationError) {
+            logger.error(`Failed to verify payment success: ${verificationError}`);
+            throw new Error(`Could not verify stellar payment success: ${verificationError}`);
+          }
         }
 
         console.error(horizonError.response.data.extras);
