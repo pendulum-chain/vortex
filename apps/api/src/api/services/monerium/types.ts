@@ -13,6 +13,10 @@ export interface FetchIbansParams {
   authToken: string;
 }
 
+export interface FetchProfileParams extends FetchIbansParams {
+  profileId: string;
+}
+
 export interface IbanData {
   iban: string;
   bic: string;
@@ -30,6 +34,19 @@ export interface MoneriumTokenResponse {
   token_type: string;
   expires_in: number;
   scope: string;
+}
+
+export interface MoneriumUserProfile {
+  id: string;
+  kind: string;
+  name: string;
+  state: string;
+}
+
+export interface BeneficiaryDetails {
+  name: string;
+  iban: string;
+  bic: string;
 }
 
 export type AddressExistsResponse = MoneriumAddress;

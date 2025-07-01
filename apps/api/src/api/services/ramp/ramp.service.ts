@@ -27,7 +27,7 @@ import { APIError } from "../../errors/api-error";
 import { BrlaApiService } from "../brla/brlaApiService";
 import { generateReferenceLabel } from "../brla/helpers";
 import { SubaccountData } from "../brla/types";
-import { createEpcQrCodeData, getMoneriumUserIban } from "../monerium";
+import { createEpcQrCodeData, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
@@ -171,10 +171,15 @@ export class RampService extends BaseRampService {
       iban: ibanData.iban
     };
 
+    const userProfile = await getMoneriumUserProfile({
+      authToken: additionalData.moneriumAuthToken,
+      profileId: ibanData.profile
+    });
+
     const ibanCode = createEpcQrCodeData({
       bic: ibanData.bic,
       iban: ibanData.iban,
-      name: " " // TODO. Fetch from Monerium API or UI.
+      name: userProfile.name
     });
     return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }

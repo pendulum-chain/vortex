@@ -2,11 +2,14 @@ import { Networks } from "@packages/shared";
 import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 import {
   AddressExistsResponse,
+  BeneficiaryDetails,
   FetchIbansParams,
+  FetchProfileParams,
   IbanData,
   IbanDataResponse,
   MoneriumResponse,
-  MoneriumTokenResponse
+  MoneriumTokenResponse,
+  MoneriumUserProfile
 } from "./types";
 
 const MONERIOUM_API_URL = `https://api.monerium.app`;
@@ -131,11 +134,30 @@ export const getMoneriumUserIban = async ({ authToken }: FetchIbansParams): Prom
   }
 };
 
-interface BeneficiaryDetails {
-  name: string;
-  iban: string;
-  bic: string;
-}
+export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProfileParams): Promise<MoneriumUserProfile> => {
+  const profileUrl = `${MONERIOUM_API_URL}/profiles/${profileId}`;
+  const headers = new Headers({
+    Accept: "application/vnd.monerium.api-v2+json",
+    Authorization: `Bearer ${authToken}`
+  });
+
+  try {
+    const profileResponse = await fetch(profileUrl, {
+      headers: headers,
+      method: "GET"
+    });
+
+    if (!profileResponse.ok) {
+      throw new Error(`Profile API request failed with status ${profileResponse.status}: ${profileResponse.statusText}`);
+    }
+
+    const profileData: MoneriumUserProfile = await profileResponse.json();
+    return profileData;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    throw error;
+  }
+};
 
 export function createEpcQrCodeData(details: BeneficiaryDetails): string {
   const { name, iban, bic } = details;
