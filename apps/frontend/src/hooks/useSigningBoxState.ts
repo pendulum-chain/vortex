@@ -25,7 +25,6 @@ const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, numbe
 const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean, executionInput: RampExecutionInput | undefined) => {
   if (!isEVM) return { current: 1, max: 1 };
   if (step === "login") return { current: 1, max: 1 };
-  if (step === "started" && executionInput?.quote.from === "sepa") return { current: 1, max: 1 };
   if (step === "started") return { current: 1, max: 2 };
   return { current: 2, max: 2 };
 };

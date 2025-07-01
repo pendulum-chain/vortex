@@ -70,7 +70,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (targetTimestamp === null) {
       // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
-      setIsQuoteExpired(true);
+      //setIsQuoteExpired(true);
       return;
     }
 

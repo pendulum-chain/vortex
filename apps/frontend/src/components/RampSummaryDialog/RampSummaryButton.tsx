@@ -47,6 +47,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
+    console.log("isQuoteExpired:", isQuoteExpired);
     if ((isOnramp && isDepositQrCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
         icon: null,

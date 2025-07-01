@@ -53,7 +53,6 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
     }
 
     const data: AddressExistsResponse = await response.json();
-    console.log("Monerium address data:", data);
     if (data.chains.includes(network)) {
       return data;
     }

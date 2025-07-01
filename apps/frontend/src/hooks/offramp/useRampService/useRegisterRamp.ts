@@ -108,6 +108,7 @@ export const useRegisterRamp = () => {
   useEffect(() => {
     const registerRampProcess = async () => {
       if (rampRegistered) {
+        console.log("Ramp process already registered, skipping registration.");
         return;
       }
 
@@ -120,18 +121,22 @@ export const useRegisterRamp = () => {
       }
 
       if (!canRegisterRamp) {
+        console.log("Cannot register ramp, canRegisterRamp is false");
         throw new Error("Cannot proceed with ramp registration, canRegisterRamp is false");
       }
 
       if (!executionInput) {
+        console.error("Missing execution input for ramp registration");
         throw new Error("Missing execution input");
       }
 
       if (!chainId) {
+        console.error("Missing chain ID for ramp registration");
         throw new Error("Missing chainId");
       }
 
       if (!pendulumApiComponents?.api) {
+        console.error("Missing Pendulum API components for ramp registration");
         throw new Error("Missing pendulumApiComponents");
       }
 
@@ -156,6 +161,7 @@ export const useRegisterRamp = () => {
       ];
 
       if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
+        console.log("Waiting for Monerium auth token to be available for EURC onramp");
         // If this is an onramp with Monerium EURC, we need to wait for the auth token
         return; // Exit early, we will retry once the auth token is available
       }
@@ -207,6 +213,7 @@ export const useRegisterRamp = () => {
       // Create a signature trace for the registration process
       const traceResult = checkAndSetRegisterTrace();
       if (!traceResult.canProceed) {
+        console.log(`Ramp registration trace already exists, skipping registration.`);
         return;
       }
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
@@ -383,7 +390,6 @@ export const useRegisterRamp = () => {
           );
           setRampSigningPhase("finished");
         } else if (tx.phase === "moneriumOnrampSelfTransfer") {
-          setRampSigningPhase("started");
           moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase("finished");
         } else {
