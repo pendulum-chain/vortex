@@ -299,11 +299,8 @@ export const useSubmitRamp = () => {
 // Helper function to determine if EUR flow should use Monerium
 async function shouldRouteToMonerium(executionInput: RampExecutionInput): Promise<boolean> {
   try {
-    // TODO: Replace with actual backend routing logic
-    if (executionInput.quote.rampType === "off") {
-      return true; // Offramp should not use Monerium
-    }
-    return executionInput.quote.rampType === "on";
+    // BY default, we don't use Monerium for EUR offramps
+    return false;
   } catch (error) {
     console.error("Error determining EUR anchor routing:", error);
     return false;
