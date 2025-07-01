@@ -147,8 +147,7 @@ export const useSubmitRamp = () => {
               } else {
                 // SIWE login for existing users
                 try {
-                  const code = await handleMoneriumSiweAuth(address, getMessageSignature);
-                  //await exchangeMoneriumCode(code);
+                  await handleMoneriumSiweAuth(address, getMessageSignature);
                 } catch (error) {
                   console.error("Error with Monerium SIWE auth:", error);
                   showToast(ToastMessage.ERROR, "Failed to authenticate with Monerium");

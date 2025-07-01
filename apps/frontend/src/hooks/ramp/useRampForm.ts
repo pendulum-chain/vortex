@@ -56,10 +56,6 @@ export const useRampForm = (): {
 
   const enforceTokenConstraints = useCallback(
     (token: FiatToken): FiatToken => {
-      // For onramp, we only allow BRL
-      // if (direction === RampDirection.ONRAMP && token !== FiatToken.BRL) {
-      //   return FiatToken.BRL;
-      // }
       return token;
     },
     [direction]

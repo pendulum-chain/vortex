@@ -54,7 +54,3 @@
    - Test ramp registration with Monerium auth data
    - Verify proper routing between Monerium and Stellar anchors
 
-## Open Questions/Issues
-- Need to implement actual backend routing logic to determine when to use Monerium
-- Backend endpoints for Monerium user status and auth validation need to be created
-- Offramp execution logic needs to be implemented on the backend
