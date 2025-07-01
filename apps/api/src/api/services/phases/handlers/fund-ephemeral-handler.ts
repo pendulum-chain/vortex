@@ -4,7 +4,11 @@ import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import {
+  ALCHEMY_API_KEY,
+  MOONBEAM_FUNDING_PRIVATE_KEY,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+} from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
@@ -181,12 +185,12 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       const walletClient = createWalletClient({
         account: fundingAccount,
         chain: polygon,
-        transport: http()
+        transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
       });
 
       const publicClient = createPublicClient({
         chain: polygon,
-        transport: http()
+        transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
       });
 
       const txHash = await walletClient.sendTransaction({

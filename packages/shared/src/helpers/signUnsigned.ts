@@ -204,7 +204,8 @@ export async function signUnsignedTransactions(
     moonbeamEphemeral?: EphemeralAccount;
   },
   pendulumApi: ApiPromise,
-  moonbeamApi: ApiPromise
+  moonbeamApi: ApiPromise,
+  alchemyApiKey?: string
 ): Promise<PresignedTx[]> {
   // Wait for initialization of crypto libraries
   await cryptoWaitReady();
@@ -314,10 +315,12 @@ export async function signUnsignedTransactions(
       );
       const evmAccount = privateKeyToAccount(privateKey);
 
+      const transport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();
+
       const walletClient = createWalletClient({
         account: evmAccount,
         chain: polygon,
-        transport: http()
+        transport
       });
 
       const multiSignedTxs = await signMultipleEvmTransactions(tx, walletClient, tx.nonce);

@@ -10,6 +10,7 @@ import {
 import { getAccount, getWalletClient } from "@wagmi/core";
 import { useCallback, useEffect } from "react";
 import { signTransaction } from "viem/accounts";
+import { config } from "../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
 import { useToastMessage } from "../../../helpers/notifications";
@@ -232,7 +233,8 @@ export const useRegisterRamp = () => {
         ephemeralTxs,
         executionInput.ephemerals,
         pendulumApiComponents.api,
-        moonbeamApiComponents.api
+        moonbeamApiComponents.api,
+        config.alchemyApiKey
       );
 
       // Update ramp with ephemeral signed transactions

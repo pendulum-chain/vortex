@@ -2,7 +2,7 @@ import { signatureVerify } from "@polkadot/util-crypto";
 import { generateNonce } from "siwe";
 import { createPublicClient, http } from "viem";
 import { polygon } from "viem/chains";
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
+import { ALCHEMY_API_KEY, DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
 import { deriveMemoFromAddress } from "../helpers/memoDerivation";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
 
@@ -57,7 +57,7 @@ export const verifySiweMessage = async (
   if (address.startsWith("0x")) {
     const publicClient = createPublicClient({
       chain: polygon,
-      transport: http()
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
     });
     valid = await publicClient.verifyMessage({
       address: address as `0x${string}`,

@@ -15,6 +15,7 @@ import {
 import Big from "big.js";
 import { createPublicClient, encodeFunctionData, http } from "viem";
 import { polygon } from "viem/chains";
+import { ALCHEMY_API_KEY } from "../../../constants/constants";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { getMoneriumEvmDefaultMintAddress } from "../monerium";
@@ -216,7 +217,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http()
+    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
   });
 
   const transferCallData = encodeFunctionData({
@@ -246,7 +247,7 @@ async function createOnrampEphemeralSelfTransfer(
 ): Promise<EvmTransactionData> {
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http()
+    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
   });
 
   const transferCallData = encodeFunctionData({

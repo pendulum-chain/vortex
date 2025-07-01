@@ -4,7 +4,7 @@ import { createPublicClient, createWalletClient, encodeFunctionData, http } from
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { ALCHEMY_API_KEY, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -61,7 +61,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     });
     this.polygonPublicClient = createPublicClient({
       chain: polygon,
-      transport: http()
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
     });
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
@@ -72,7 +72,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     this.polygonWalletClient = createWalletClient({
       account: fundingAccount,
       chain: polygon,
-      transport: http()
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
     });
   }
 

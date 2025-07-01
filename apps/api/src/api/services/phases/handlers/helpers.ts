@@ -1,16 +1,17 @@
-import { HORIZON_URL, StellarTokenDetails } from '@packages/shared';
-import Big from 'big.js';
-import { Horizon, Networks } from 'stellar-sdk';
-import { http, createPublicClient } from 'viem';
-import { polygon } from 'viem/chains';
-import logger from '../../../../config/logger';
+import { HORIZON_URL, StellarTokenDetails } from "@packages/shared";
+import Big from "big.js";
+import { Horizon, Networks } from "stellar-sdk";
+import { createPublicClient, http } from "viem";
+import { polygon } from "viem/chains";
+import logger from "../../../../config/logger";
 import {
+  ALCHEMY_API_KEY,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
-} from '../../../../constants/constants';
-import { API } from '../../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+} from "../../../../constants/constants";
+import { API } from "../../pendulum/apiManager";
+import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 export const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -56,14 +57,14 @@ export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string
 export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http(),
+    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
   });
 
   const balance = await publicClient.getBalance({
-    address: polygonEphemeralAddress as `0x${string}`,
+    address: polygonEphemeralAddress as `0x${string}`
   });
   const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed(),
+    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed()
   );
 
   return Big(balance.toString()).gte(fundingAmountRaw);

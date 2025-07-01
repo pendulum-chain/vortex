@@ -4,6 +4,7 @@ import Big from "big.js";
 import { createPublicClient, http } from "viem";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
+import { ALCHEMY_API_KEY } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { ERC20_EURE_POLYGON } from "../../transactions/moneriumEvmOnrampTransactions";
@@ -19,7 +20,7 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
     super();
     this.publicClient = createPublicClient({
       chain: polygon,
-      transport: http()
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
     });
   }
 
@@ -127,16 +128,6 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
       }
     } catch (error) {
       throw new Error(`moneriumOnrampSelfTransferHandler: Error waiting for transaction confirmation: ${error}`);
-    }
-  }
-
-  private async getNonce(address: `0x${string}`): Promise<number> {
-    try {
-      // List all transactions for the address to get the nonce
-      return await this.publicClient.getTransactionCount({ address });
-    } catch (error) {
-      logger.error("Error getting nonce", error);
-      throw new Error("Failed to get transaction nonce");
     }
   }
 }

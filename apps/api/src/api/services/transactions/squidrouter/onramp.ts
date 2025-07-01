@@ -1,6 +1,7 @@
 import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
 import { createPublicClient, http } from "viem";
 import { moonbeam, polygon } from "viem/chains";
+import { ALCHEMY_API_KEY } from "../../../../constants/constants";
 import { ERC20_EURE_POLYGON } from "../moneriumEvmOnrampTransactions";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createOnrampRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
@@ -89,7 +90,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
 
   const publicClient = createPublicClient({
     chain: polygon,
-    transport: http()
+    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
   });
 
   const routeParams = createGenericRouteParams(

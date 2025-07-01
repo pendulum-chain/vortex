@@ -3,9 +3,10 @@ import { createPublicClient, http } from "viem";
 import { moonbeam, polygon } from "viem/chains";
 
 import logger from "../../../../config/logger";
+import { ALCHEMY_API_KEY } from "../../../../constants/constants";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
-import QuoteTicket from "../../../../models/quoteTicket.model";
 
 /**
  * Handler for the squidRouter phase
@@ -22,7 +23,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     });
     this.polygonClient = createPublicClient({
       chain: polygon,
-      transport: http(),
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
     });
   }
 
@@ -52,12 +53,12 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         return this.moonbeamClient;
       } else {
         logger.info(
-          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`,
+          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
         );
         return this.moonbeamClient;
       }
     } catch (error) {
-      logger.error('SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam', error);
+      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
       return this.moonbeamClient;
     }
   }
@@ -140,7 +141,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     try {
       const publicClient = await this.getPublicClient(state);
       const txHash = await publicClient.sendRawTransaction({
-        serializedTransaction: txData as `0x${string}`,
+        serializedTransaction: txData as `0x${string}`
       });
       return txHash;
     } catch (error) {
@@ -159,7 +160,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     try {
       const publicClient = await this.getPublicClient(state);
       const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash as `0x${string}`,
+        hash: txHash as `0x${string}`
       });
       if (!receipt || receipt.status !== "success") {
         throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
