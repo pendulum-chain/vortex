@@ -89,7 +89,9 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, "squidRouterSwap");
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
-      throw error;
+      throw this.createRecoverableError(
+        `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`
+      );
     }
   }
 
