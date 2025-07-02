@@ -1,30 +1,25 @@
 import { FiatToken, getNetworkFromDestination, getNetworkId, RampPhase } from "@packages/shared";
-import { createPublicClient, http } from "viem";
+import { PublicClient } from "viem";
 import { moonbeam, polygon } from "viem/chains";
 
 import logger from "../../../../config/logger";
-import { ALCHEMY_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { EvmClientManager } from "../../evm/clientManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
  * Handler for the squidRouter phase
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
-  private moonbeamClient: ReturnType<typeof createPublicClient>;
-  private polygonClient: ReturnType<typeof createPublicClient>;
+  private moonbeamClient: PublicClient;
+  private polygonClient: PublicClient;
 
   constructor() {
     super();
-    this.moonbeamClient = createPublicClient({
-      chain: moonbeam,
-      transport: http()
-    });
-    this.polygonClient = createPublicClient({
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-    });
+    const evmClientManager = EvmClientManager.getInstance();
+    this.moonbeamClient = evmClientManager.getClient("moonbeam");
+    this.polygonClient = evmClientManager.getClient("polygon");
   }
 
   /**
@@ -40,7 +35,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * @param state The current ramp state
    * @returns The appropriate public client
    */
-  private async getPublicClient(state: RampState): Promise<ReturnType<typeof createPublicClient>> {
+  private async getPublicClient(state: RampState): Promise<PublicClient> {
     try {
       const quote = await QuoteTicket.findByPk(state.quoteId);
       if (!quote) {

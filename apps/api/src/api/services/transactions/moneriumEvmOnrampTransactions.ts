@@ -13,11 +13,10 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import { createPublicClient, encodeFunctionData, http } from "viem";
-import { polygon } from "viem/chains";
-import { ALCHEMY_API_KEY } from "../../../constants/constants";
+import { encodeFunctionData, PublicClient } from "viem";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
+import { EvmClientManager } from "../evm/clientManager";
 import { getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -215,10 +214,8 @@ export async function prepareMoneriumEvmOnrampTransactions({
 }
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
-  const publicClient = createPublicClient({
-    chain: polygon,
-    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("polygon");
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -245,10 +242,8 @@ async function createOnrampEphemeralSelfTransfer(
   fromAddress: string,
   toAddress: string
 ): Promise<EvmTransactionData> {
-  const publicClient = createPublicClient({
-    chain: polygon,
-    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("polygon");
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,

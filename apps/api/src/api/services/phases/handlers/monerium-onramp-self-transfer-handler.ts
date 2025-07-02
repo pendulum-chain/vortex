@@ -1,11 +1,11 @@
 import { getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
 import { getChainId } from "@wagmi/core";
 import Big from "big.js";
-import { createPublicClient, http } from "viem";
+import { PublicClient } from "viem";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { ALCHEMY_API_KEY } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
+import { EvmClientManager } from "../../evm/clientManager";
 import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { ERC20_EURE_POLYGON } from "../../transactions/moneriumEvmOnrampTransactions";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -14,14 +14,12 @@ import { BasePhaseHandler } from "../base-phase-handler";
  * Handler for the squidRouter phase
  */
 export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
-  private publicClient: ReturnType<typeof createPublicClient>;
+  private publicClient: PublicClient;
 
   constructor() {
     super();
-    this.publicClient = createPublicClient({
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-    });
+    const evmClientManager = EvmClientManager.getInstance();
+    this.publicClient = evmClientManager.getClient("polygon");
   }
 
   /**
@@ -51,7 +49,7 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({
-        chain: polygon,
+        chain: "polygon",
         ownerAddress: polygonEphemeralAddress as `0x${string}`,
         tokenAddress: ERC20_EURE_POLYGON
       });

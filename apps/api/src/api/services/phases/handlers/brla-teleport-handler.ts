@@ -75,7 +75,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        moonbeam
+        "moonbeam"
       );
 
       // Add delay to ensure the transaction is settled

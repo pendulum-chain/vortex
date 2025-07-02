@@ -1,13 +1,14 @@
 import { FiatToken, getNetworkId, getOnChainTokenDetails, Networks, OnChainToken, RampPhase } from "@packages/shared";
 import Big from "big.js";
-import { createPublicClient, createWalletClient, encodeFunctionData, http } from "viem";
+import { createWalletClient, encodeFunctionData, http, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { ALCHEMY_API_KEY, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
+import { EvmClientManager } from "../../evm/clientManager";
 import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
 import { getStatus, SquidRouterPayResponse } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -48,21 +49,16 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "800000"; // Estimate used to calculate
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
-  private moonbeamPublicClient: ReturnType<typeof createPublicClient>;
-  private polygonPublicClient: ReturnType<typeof createPublicClient>;
+  private moonbeamPublicClient: PublicClient;
+  private polygonPublicClient: PublicClient;
   private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
   private polygonWalletClient: ReturnType<typeof createWalletClient>;
 
   constructor() {
     super();
-    this.moonbeamPublicClient = createPublicClient({
-      chain: moonbeam,
-      transport: http()
-    });
-    this.polygonPublicClient = createPublicClient({
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-    });
+    const evmClientManager = EvmClientManager.getInstance();
+    this.moonbeamPublicClient = evmClientManager.getClient("moonbeam");
+    this.polygonPublicClient = evmClientManager.getClient("polygon");
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
     const { walletClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
@@ -72,7 +68,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     this.polygonWalletClient = createWalletClient({
       account: fundingAccount,
       chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
+      transport: http()
     });
   }
 

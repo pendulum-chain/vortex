@@ -1,7 +1,6 @@
 import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
-import { createPublicClient, http } from "viem";
 import { moonbeam, polygon } from "viem/chains";
-import { ALCHEMY_API_KEY } from "../../../../constants/constants";
+import { EvmClientManager } from "../../evm/clientManager";
 import { ERC20_EURE_POLYGON } from "../moneriumEvmOnrampTransactions";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createOnrampRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
@@ -51,10 +50,8 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
     throw new Error("AssetHub is not supported for Squidrouter onramp");
   }
 
-  const publicClient = createPublicClient({
-    chain: moonbeam,
-    transport: http()
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("moonbeam");
 
   const routeParams = createOnrampRouteParams(
     params.fromAddress,
@@ -88,10 +85,8 @@ export async function createOnrampSquidrouterTransactionsToEvm(
     throw new Error("AssetHub is not supported for Squidrouter onramp");
   }
 
-  const publicClient = createPublicClient({
-    chain: polygon,
-    transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("polygon");
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,

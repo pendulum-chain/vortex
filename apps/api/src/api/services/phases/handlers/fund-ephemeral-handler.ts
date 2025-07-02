@@ -1,15 +1,12 @@
 import { FiatToken, getNetworkFromDestination, RampPhase } from "@packages/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
-import { createPublicClient, createWalletClient, http } from "viem";
+import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import {
-  ALCHEMY_API_KEY,
-  MOONBEAM_FUNDING_PRIVATE_KEY,
-  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
-} from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
+import { EvmClientManager } from "../../evm/clientManager";
 import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
@@ -185,13 +182,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       const walletClient = createWalletClient({
         account: fundingAccount,
         chain: polygon,
-        transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
+        transport: http()
       });
 
-      const publicClient = createPublicClient({
-        chain: polygon,
-        transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`)
-      });
+      const evmClientManager = EvmClientManager.getInstance();
+      const publicClient = evmClientManager.getClient("polygon");
 
       const txHash = await walletClient.sendTransaction({
         to: ephmeralAddress as `0x${string}`,

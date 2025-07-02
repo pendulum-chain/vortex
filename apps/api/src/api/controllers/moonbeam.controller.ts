@@ -2,7 +2,7 @@ import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { Address, createPublicClient, createWalletClient, encodeFunctionData, http } from "viem";
+import { Address, createWalletClient, encodeFunctionData, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
 import splitReceiverABI from "../../../mooncontracts/splitReceiverABI.json";
@@ -11,6 +11,7 @@ import {
   MOONBEAM_FUNDING_AMOUNT_UNITS,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS
 } from "../../constants/constants";
+import { EvmClientManager } from "../services/evm/clientManager";
 import { SlackNotifier } from "../services/slack.service";
 
 interface StatusResponse {
@@ -25,10 +26,8 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
     transport: http()
   });
 
-  const publicClient = createPublicClient({
-    chain: moonbeam,
-    transport: http()
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("moonbeam");
 
   return { publicClient, walletClient };
 };

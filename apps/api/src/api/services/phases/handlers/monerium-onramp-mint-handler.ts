@@ -32,7 +32,7 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
         inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        polygon
+        "polygon"
       );
 
       // Add delay to ensure the transaction is settled

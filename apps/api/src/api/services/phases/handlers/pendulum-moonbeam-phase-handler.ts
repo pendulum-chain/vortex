@@ -59,7 +59,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         state.type === "off" && state.state.outputTokenType === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
-        chain: moonbeam,
+        chain: "moonbeam",
         ownerAddress: ownerAddress as `0x${string}`,
         tokenAddress: tokenAddress as `0x${string}`
       });

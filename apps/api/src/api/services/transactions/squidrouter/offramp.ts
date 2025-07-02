@@ -1,9 +1,8 @@
 import { EvmTokenDetails, EvmTransactionData, Networks } from "@packages/shared";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
-import { createPublicClient, http } from "viem";
-import { moonbeam } from "viem/chains";
 import { createRandomString, createSquidRouterHash } from "../../../helpers/squidrouter";
+import { EvmClientManager } from "../../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import encodePayload from "./payload";
 import { createGenericRouteParams, createOfframpRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
@@ -43,10 +42,8 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
     throw new Error("AssetHub is not supported for Squidrouter offramp");
   }
 
-  const publicClient = createPublicClient({
-    chain: moonbeam,
-    transport: http()
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("moonbeam");
 
   const squidRouterReceiverId = createRandomString(32);
   const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.pendulumAddressDestination));
@@ -88,10 +85,8 @@ export async function createOfframpSquidrouterTransactionsToEvm(
     throw new Error("AssetHub is not supported for Squidrouter offramp");
   }
 
-  const publicClient = createPublicClient({
-    chain: moonbeam,
-    transport: http()
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient("moonbeam");
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,
