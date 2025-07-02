@@ -6,14 +6,14 @@ import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { EvmClientManager } from "../../evm/clientManager";
+import { ERC20_EURE_POLYGON } from "../../monerium";
 import { getEvmTokenBalance } from "../../moonbeam/balance";
-import { ERC20_EURE_POLYGON } from "../../transactions/moneriumEvmOnrampTransactions";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
- * Handler for the squidRouter phase
+ * Handler for the monerium self-transfer phase
  */
-export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
+export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   private publicClient: PublicClient;
 
   constructor() {
@@ -130,4 +130,4 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
   }
 }
 
-export default new MonenriumOnrampSelfTransferHandler();
+export default new MoneriumOnrampSelfTransferHandler();

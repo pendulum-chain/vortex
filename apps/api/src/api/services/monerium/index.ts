@@ -1,4 +1,5 @@
 import { Networks } from "@packages/shared";
+import logger from "../../../config/logger";
 import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 import {
   AddressExistsResponse,
@@ -12,10 +13,11 @@ import {
   MoneriumUserProfile
 } from "./types";
 
-const MONERIOUM_API_URL = "https://api.monerium.app";
+const MONERIUM_API_URL = "https://api.monerium.app";
+export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
 
 const authorize = async (): Promise<MoneriumTokenResponse> => {
-  const url = `${MONERIOUM_API_URL}/auth/token`;
+  const url = `${MONERIUM_API_URL}/auth/token`;
   const headers = {
     "Content-Type": "application/x-www-form-urlencoded"
   };
@@ -40,7 +42,7 @@ const authorize = async (): Promise<MoneriumTokenResponse> => {
 
 export const checkAddressExists = async (address: string, network: Networks): Promise<AddressExistsResponse | null> => {
   const { access_token } = await authorize();
-  const url = `${MONERIOUM_API_URL}/addresses/${address}`;
+  const url = `${MONERIUM_API_URL}/addresses/${address}`;
   const headers = {
     Accept: "application/vnd.monerium.api-v2+json",
     Authorization: `Bearer ${access_token}`
@@ -86,7 +88,7 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
       const firstAddress = data.addresses[data.addresses.length - 1].address; // Ordered by creation date, so last is the most recent.
       return firstAddress;
     } else {
-      console.log("No addresses found in the response.");
+      logger.info("No addresses found in the response.");
       return null;
     }
   } catch (error) {
@@ -102,7 +104,7 @@ export const getMoneriumEvmDefaultMintAddress = async (token: string): Promise<s
 };
 
 export const getMoneriumUserIban = async ({ authToken }: FetchIbansParams): Promise<IbanData> => {
-  const baseUrl = `${MONERIOUM_API_URL}/ibans`;
+  const baseUrl = `${MONERIUM_API_URL}/ibans`;
   const url = new URL(baseUrl);
 
   const headers = new Headers({
@@ -135,7 +137,7 @@ export const getMoneriumUserIban = async ({ authToken }: FetchIbansParams): Prom
 };
 
 export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProfileParams): Promise<MoneriumUserProfile> => {
-  const profileUrl = `${MONERIOUM_API_URL}/profiles/${profileId}`;
+  const profileUrl = `${MONERIUM_API_URL}/profiles/${profileId}`;
   const headers = new Headers({
     Accept: "application/vnd.monerium.api-v2+json",
     Authorization: `Bearer ${authToken}`

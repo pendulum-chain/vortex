@@ -17,14 +17,11 @@ import { encodeFunctionData, PublicClient } from "viem";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { EvmClientManager } from "../evm/clientManager";
-import { getMoneriumEvmDefaultMintAddress } from "../monerium";
+import { ERC20_EURE_POLYGON, getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
 import { createOnrampSquidrouterTransactionsToEvm } from "./squidrouter/onramp";
-
-export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
-
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];
@@ -223,7 +220,7 @@ async function createOnrampEphemeralSelfTransfer(
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxFeePerGas),
-    to: ERC20_EURE_POLYGON as `0x${string}`,
+    to: ERC20_EURE_POLYGON,
     value: "0"
   };
 

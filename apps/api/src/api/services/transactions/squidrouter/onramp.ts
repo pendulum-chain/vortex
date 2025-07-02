@@ -1,6 +1,6 @@
 import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
 import { EvmClientManager } from "../../evm/clientManager";
-import { ERC20_EURE_POLYGON } from "../moneriumEvmOnrampTransactions";
+import { ERC20_EURE_POLYGON } from "../../monerium";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createOnrampRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 

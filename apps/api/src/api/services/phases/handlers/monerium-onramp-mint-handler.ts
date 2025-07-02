@@ -1,10 +1,9 @@
-import { FiatToken, getAnyFiatTokenDetailsMoonbeam, RampPhase } from "@packages/shared";
+import { RampPhase } from "@packages/shared";
 
-import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import { ERC20_EURE_POLYGON } from "../../monerium";
 import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from "../../moonbeam/balance";
-import { ERC20_EURE_POLYGON } from "../../transactions/moneriumEvmOnrampTransactions";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
