@@ -311,7 +311,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
   private async getSquidrouterStatus(swapHash: string, state: RampState): Promise<SquidRouterPayResponse> {
     try {
-      const fromChainId = getNetworkId(Networks.Polygon)?.toString(); // Always Polygon for Monerium onramp.
+      // Always Polygon for Monerium onramp, Moonbeam for BRL
+      const fromChain = state.state.inputCurrency === FiatToken.EURC ? Networks.Polygon : Networks.Moonbeam;
+      const fromChainId = getNetworkId(fromChain)?.toString();
       const toChainId = getNetworkId(state.to)?.toString();
 
       if (!fromChainId || !toChainId) {
