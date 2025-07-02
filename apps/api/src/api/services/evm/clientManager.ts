@@ -1,4 +1,4 @@
-import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, WalletClient } from "viem";
+import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../config/logger";
 import { ALCHEMY_API_KEY } from "../../../constants/constants";
@@ -28,7 +28,7 @@ const EVM_NETWORKS: EvmNetworkConfig[] = [
 export class EvmClientManager {
   private static instance: EvmClientManager;
   private clientInstances: Map<string, PublicClient> = new Map();
-  private walletClientInstances: Map<string, WalletClient> = new Map(); // We keep a map of clients for each account on each network.
+  private walletClientInstances: Map<string, WalletClient<Transport, Chain, Account>> = new Map(); // We keep a map of clients for each account on each network.
   private networks: EvmNetworkConfig[] = [];
 
   private constructor() {
@@ -67,7 +67,7 @@ export class EvmClientManager {
     return `${networkName}-${accountAddress.toLowerCase()}`;
   }
 
-  private createWalletClient(networkName: EvmNetwork, account: Account): WalletClient {
+  private createWalletClient(networkName: EvmNetwork, account: Account): WalletClient<Transport, Chain, Account> {
     const network = this.getNetworkConfig(networkName);
 
     const transport = network.rpcUrl ? http(network.rpcUrl) : http(); // Uses default RPC from chain config
@@ -93,7 +93,7 @@ export class EvmClientManager {
     return client;
   }
 
-  public getWalletClient(networkName: EvmNetwork, account: Account): WalletClient {
+  public getWalletClient(networkName: EvmNetwork, account: Account): WalletClient<Transport, Chain, Account> {
     const key = this.generateWalletClientKey(networkName, account.address);
     let walletClient = this.walletClientInstances.get(key);
 

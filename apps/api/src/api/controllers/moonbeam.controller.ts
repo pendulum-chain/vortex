@@ -2,9 +2,8 @@ import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { Address, createWalletClient, encodeFunctionData, http } from "viem";
+import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { moonbeam } from "viem/chains";
 import splitReceiverABI from "../../../mooncontracts/splitReceiverABI.json";
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
@@ -20,14 +19,9 @@ interface StatusResponse {
 }
 
 const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
-  const walletClient = createWalletClient({
-    account: executorAccount,
-    chain: moonbeam,
-    transport: http()
-  });
-
   const evmClientManager = EvmClientManager.getInstance();
   const publicClient = evmClientManager.getClient("moonbeam");
+  const walletClient = evmClientManager.getWalletClient("moonbeam", executorAccount);
 
   return { publicClient, walletClient };
 };
