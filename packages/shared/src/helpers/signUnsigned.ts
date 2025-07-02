@@ -106,6 +106,38 @@ async function signMultipleSubstrateTransactions(
 }
 
 /**
+ * Creates wallet clients for both Moonbeam and Polygon networks using the same ephemeral secret
+ *
+ * @param moonbeamEphemeral - The ephemeral account containing the secret
+ * @param alchemyApiKey - Optional Alchemy API key for Polygon transport
+ * @returns Object containing both wallet clients
+ */
+function createEvmWalletClients(
+  moonbeamEphemeral: EphemeralAccount,
+  alchemyApiKey?: string
+): { moonbeamClient: WalletClient; polygonClient: WalletClient } {
+  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+
+  const privateKey = u8aToHex(hdEthereum(mnemonicToLegacySeed(moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey);
+  const evmAccount = privateKeyToAccount(privateKey);
+
+  const moonbeamClient = createWalletClient({
+    account: evmAccount,
+    chain: moonbeam,
+    transport: http()
+  });
+
+  const polygonTransport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();
+  const polygonClient = createWalletClient({
+    account: evmAccount,
+    chain: polygon,
+    transport: polygonTransport
+  });
+
+  return { moonbeamClient, polygonClient };
+}
+
+/**
  * Signs multiple EVM (Moonbeam) transactions with increasing nonces
  *
  * @param tx - The original unsigned transaction
@@ -212,11 +244,18 @@ export async function signUnsignedTransactions(
 
   const signedTxs: PresignedTx[] = [];
 
+  // Create EVM wallet clients once at the beginning if needed
+  let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
+  const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
+  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
+
+  if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
+    evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);
+  }
+
   try {
     const stellarTxs = unsignedTxs.filter(tx => tx.network === "stellar").sort((a, b) => a.nonce - b.nonce);
     const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");
-    const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
-    const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
 
     // Process Stellar transactions first in sequence order
     if (stellarTxs.length > 0) {
@@ -268,21 +307,14 @@ export async function signUnsignedTransactions(
         throw new Error("Missing EVM ephemeral account");
       }
 
+      if (!evmClients) {
+        throw new Error("EVM clients not initialized");
+      }
+
       const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
 
       if (isEvmTransactionData(tx.txData)) {
-        const privateKey = u8aToHex(
-          hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey
-        );
-        const evmAccount = privateKeyToAccount(privateKey);
-
-        const walletClient = createWalletClient({
-          account: evmAccount,
-          chain: moonbeam,
-          transport: http()
-        });
-
-        const multiSignedTxs = await signMultipleEvmTransactions(tx, walletClient, tx.nonce);
+        const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.moonbeamClient, tx.nonce);
 
         const primaryTx = multiSignedTxs[0];
 
@@ -303,27 +335,17 @@ export async function signUnsignedTransactions(
       }
     }
 
+    // Process Polygon transactions
     for (const tx of polygonTxs) {
       if (!ephemerals.moonbeamEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
 
-      const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+      if (!evmClients) {
+        throw new Error("EVM clients not initialized");
+      }
 
-      const privateKey = u8aToHex(
-        hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey
-      );
-      const evmAccount = privateKeyToAccount(privateKey);
-
-      const transport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();
-
-      const walletClient = createWalletClient({
-        account: evmAccount,
-        chain: polygon,
-        transport
-      });
-
-      const multiSignedTxs = await signMultipleEvmTransactions(tx, walletClient, tx.nonce);
+      const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.polygonClient, tx.nonce);
       const primaryTx = multiSignedTxs[0];
       const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 

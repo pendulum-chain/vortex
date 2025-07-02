@@ -183,7 +183,8 @@ export class QuoteService extends BaseRampService {
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    if (request.rampType === "on" && request.to !== "assethub") {
+    // If onramp, EURC does not collect fees for now.
+    if (request.rampType === "on" && request.inputCurrency === FiatToken.BRL && request.to !== "assethub") {
       // Do a first call to get a rough estimate of network fees
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         finalEvmDestination: request.to,

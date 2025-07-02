@@ -146,22 +146,55 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Wait for a transaction to be confirmed
+   * Wait for a transaction to be confirmed with exponential backoff
    * @param state The current ramp state
    * @param txHash The transaction hash
    * @param chainId The chain ID
    */
   private async waitForTransactionConfirmation(state: RampState, txHash: string, _chainId: number): Promise<void> {
-    try {
-      const publicClient = await this.getPublicClient(state);
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash as `0x${string}`
-      });
-      if (!receipt || receipt.status !== "success") {
-        throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
+    const maxRetries = 3;
+    const baseDelay = 5000; // 5 seconds
+    const maxDelay = 30000; // 30 seconds
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const publicClient = await this.getPublicClient(state);
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: txHash as `0x${string}`
+        });
+
+        if (!receipt || receipt.status !== "success") {
+          throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
+        }
+
+        return;
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries;
+        // Based on error message returned by the client.
+        const isTransactionNotFoundError =
+          error instanceof Error &&
+          (error.message.includes("TransactionReceiptNotFoundError") ||
+            error.message.includes("could not be found") ||
+            error.message.includes("Transaction may not be processed"));
+
+        if (isLastAttempt) {
+          throw new Error(
+            `SquidRouterPhaseHandler: Error waiting for transaction confirmation after ${maxRetries + 1} attempts: ${error}`
+          );
+        }
+
+        if (isTransactionNotFoundError) {
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+
+          logger.info(
+            `SquidRouterPhaseHandler: Transaction ${txHash} not found on attempt ${attempt + 1}/${maxRetries + 1}. Retrying in ${delay}ms...`
+          );
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw new Error(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
+        }
       }
-    } catch (error) {
-      throw new Error(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
     }
   }
 
