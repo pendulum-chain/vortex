@@ -13,11 +13,11 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import { encodeFunctionData, PublicClient } from "viem";
+import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { EvmClientManager } from "../evm/clientManager";
-import { ERC20_EURE_POLYGON, getMoneriumEvmDefaultMintAddress } from "../monerium";
+import { ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
@@ -83,7 +83,10 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, 18).toFixed(0, 0);
+  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
+    0,
+    0
+  );
 
   const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
   const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(

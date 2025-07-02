@@ -15,7 +15,7 @@ import {
 
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { getFirstMoneriumLinkedAddress } from "../monerium";
+import { ERC20_EURE_POLYGON, getFirstMoneriumLinkedAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
@@ -106,7 +106,7 @@ export async function prepareMoneriumEvmOfframpTransactions({
     fromNetwork, // By design, EUR.e offramp starts from Polygon.
     inputTokenDetails, // Always EUR.e for Monerium offramp.
     outputTokenDetails: {
-      erc20AddressSourceChain: "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"
+      erc20AddressSourceChain: ERC20_EURE_POLYGON
     } as unknown as EvmTokenDetails,
     rawAmount: inputAmountRaw,
     toNetwork: Networks.Polygon
