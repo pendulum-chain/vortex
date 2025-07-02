@@ -160,13 +160,13 @@ export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProf
 };
 
 export function createEpcQrCodeData(details: BeneficiaryDetails): string {
-  const { name, iban, bic } = details;
+  const { name, iban, bic, amount } = details;
 
-  if (!name || !iban || !bic) {
+  if (!name || !iban || !bic || !amount) {
     throw new Error("Beneficiary name, IBAN, and BIC are required to create EPC QR code data.");
   }
 
-  const data = ["BCD", "001", "1", "SCT", bic, name, iban];
+  const data = ["BCD", "001", "1", "SCT", bic, name, iban, `EUR${amount}`];
 
   return data.join("\n");
 }

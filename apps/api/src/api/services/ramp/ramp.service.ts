@@ -177,6 +177,7 @@ export class RampService extends BaseRampService {
     });
 
     const ibanCode = createEpcQrCodeData({
+      amount: quote.inputAmount,
       bic: ibanData.bic,
       iban: ibanData.iban,
       name: userProfile.name

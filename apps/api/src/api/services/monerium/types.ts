@@ -47,6 +47,7 @@ export interface BeneficiaryDetails {
   name: string;
   iban: string;
   bic: string;
+  amount: string;
 }
 
 export type AddressExistsResponse = MoneriumAddress;
