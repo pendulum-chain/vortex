@@ -5,6 +5,7 @@ import {
   getOnChainTokenDetails,
   Networks,
   PresignedTx,
+  RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
 import { getAccount, getWalletClient } from "@wagmi/core";
@@ -77,7 +78,7 @@ export const useRegisterRamp = () => {
   const signingRejected = useSigningRejected();
 
   // Get Monerium auth data
-  const { authToken, codeVerifier, triggered: moneriumTriggered } = useMoneriumStore();
+  const { authToken, triggered: moneriumTriggered } = useMoneriumStore();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -179,7 +180,7 @@ export const useRegisterRamp = () => {
 
       // Build additional data based on ramp type and currency
 
-      let additionalData: any = {};
+      let additionalData: RegisterRampRequest["additionalData"] = {};
 
       if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
@@ -214,7 +215,7 @@ export const useRegisterRamp = () => {
       // Create a signature trace for the registration process
       const traceResult = checkAndSetRegisterTrace();
       if (!traceResult.canProceed) {
-        console.log(`Ramp registration trace already exists, skipping registration.`);
+        console.log("Ramp registration trace already exists, skipping registration.");
         return;
       }
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
@@ -276,13 +277,9 @@ export const useRegisterRamp = () => {
     setRampRegistered,
     setRampState,
     rampKycStarted,
-    rampStarted,
-    setSigningRejected,
-    showToast,
     signingRejected,
-    ToastMessage.SIGNING_REJECTED,
     authToken,
-    codeVerifier
+    rampRegistered
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
@@ -309,7 +306,7 @@ export const useRegisterRamp = () => {
     // Create a signature trace for the signing process
     const traceResult = checkAndSetSigningTrace();
     if (!traceResult.canProceed) {
-      console.log(`Ramp signing trace already exists, skipping user signing process.`);
+      console.log("Ramp signing trace already exists, skipping user signing process.");
       return;
     }
     console.log(`Starting user signing process at ${new Date().toISOString()}`);
@@ -352,7 +349,7 @@ export const useRegisterRamp = () => {
       }
 
       const walletClient = await getWalletClient(wagmiConfig);
-      console.log(`Wallet client for signing:`, walletClient.account);
+      console.log("Wallet client for signing: ", walletClient.account);
 
       if (!sortedTxs) {
         throw new Error("Missing sorted transactions");
@@ -405,7 +402,12 @@ export const useRegisterRamp = () => {
         moneriumOfframpSignature
       };
 
-      const updatedRampProcess = await RampService.updateRamp(rampState.ramp!.id, [], additionalData);
+      // Ramp must exist at this point.
+      if (!rampState.ramp) {
+        console.error("Ramp state is missing, cannot update ramp with user signatures.");
+        throw new Error("Ramp state is missing, cannot update ramp with user signatures.");
+      }
+      const updatedRampProcess = await RampService.updateRamp(rampState.ramp.id, [], additionalData);
 
       setRampState({
         ...rampState,
@@ -448,7 +450,10 @@ export const useRegisterRamp = () => {
     releaseSigningTrace,
     authToken,
     executionInput?.network,
-    executionInput?.onChainToken
+    executionInput?.onChainToken,
+    moneriumTriggered,
+    getMessageSignature,
+    resetRampState
   ]);
 
   return {

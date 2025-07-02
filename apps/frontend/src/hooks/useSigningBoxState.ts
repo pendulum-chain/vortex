@@ -74,7 +74,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
 
     setProgress(progressConfig[step]);
     setSignatureState(getSignatureDetails(step, isEVM, executionInput));
-  }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay]);
+  }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay, executionInput]);
 
   useEffect(() => {
     let timeoutId: number;

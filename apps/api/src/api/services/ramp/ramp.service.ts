@@ -149,7 +149,7 @@ export class RampService extends BaseRampService {
     depositQrCode?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (!additionalData || additionalData.moneriumAuthToken === undefined || additionalData.destinationAddress === undefined) {
+    if (!additionalData || !additionalData.moneriumAuthToken || additionalData.destinationAddress === undefined) {
       throw new APIError({
         message: "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp",
         status: httpStatus.BAD_REQUEST
@@ -190,7 +190,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"]
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (!additionalData || additionalData.walletAddress === undefined || additionalData.moneriumAuthToken === undefined) {
+    if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
       throw new APIError({
         message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
         status: httpStatus.BAD_REQUEST

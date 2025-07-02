@@ -12,7 +12,7 @@ import {
   MoneriumUserProfile
 } from "./types";
 
-const MONERIOUM_API_URL = `https://api.monerium.app`;
+const MONERIOUM_API_URL = "https://api.monerium.app";
 
 const authorize = async (): Promise<MoneriumTokenResponse> => {
   const url = `${MONERIOUM_API_URL}/auth/token`;

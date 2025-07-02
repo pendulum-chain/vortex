@@ -7,8 +7,13 @@ import { useRampActions } from "../../stores/rampStore";
  * Hook to manage Monerium authentication flow state and handle redirects
  */
 export const useMoneriumFlow = () => {
-  const { triggered, flowState, codeVerifier, authToken, setFlowState, reset } = useMoneriumStore();
+  const { triggered, flowState, codeVerifier, authToken, reset } = useMoneriumStore();
   const { resetRampState } = useRampActions();
+
+  // Reset function for cleanup
+  const resetFlow = useCallback(() => {
+    reset();
+  }, [reset]);
 
   // Handle redirect from Monerium
   useEffect(() => {
@@ -20,7 +25,6 @@ export const useMoneriumFlow = () => {
     const handleRedirect = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
-      const state = urlParams.get("state");
 
       if (code && codeVerifier) {
         try {
@@ -38,12 +42,7 @@ export const useMoneriumFlow = () => {
     };
 
     handleRedirect();
-  }, [triggered, codeVerifier, flowState, setFlowState]);
-
-  // Reset function for cleanup
-  const resetFlow = useCallback(() => {
-    reset();
-  }, [reset]);
+  }, [triggered, codeVerifier, flowState, resetRampState, resetFlow]);
 
   return {
     authToken,

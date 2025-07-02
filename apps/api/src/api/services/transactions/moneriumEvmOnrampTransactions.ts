@@ -24,50 +24,12 @@ import { encodeEvmTransactionData } from "./index";
 import { createOnrampSquidrouterTransactionsToEvm } from "./squidrouter/onramp";
 
 export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
-/**
- * TODO: implement for Monerium prototype?
- */
-async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  return "";
-}
 
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];
   destinationAddress: string;
   moneriumAuthToken: string;
-}
-
-/**
- * Adds fee distribution transaction if available
- * @param quote Quote ticket
- * @param account Account metadata
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-async function addFeeDistributionTransaction(
-  quote: QuoteTicketAttributes,
-  account: AccountMeta,
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  // Generate the fee distribution transaction
-  const feeDistributionTx = await createFeeDistributionTransaction(quote);
-
-  if (feeDistributionTx) {
-    unsignedTxs.push({
-      meta: {},
-      network: account.network,
-      nonce: nextNonce,
-      phase: "distributeFees",
-      signer: account.address,
-      txData: feeDistributionTx
-    });
-    nextNonce++;
-  }
-
-  return nextNonce;
 }
 
 /**
@@ -98,7 +60,10 @@ export async function prepareMoneriumEvmOnrampTransactions({
   if (!isOnChainToken(quote.outputCurrency)) {
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
   }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency)!;
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+  if (!outputTokenDetails) {
+    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
+  }
 
   if (!isOnChainTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
@@ -152,7 +117,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
     nonce: 0,
     phase: "moneriumOnrampSelfTransfer",
     signer: userMintAddress,
-    txData: encodeEvmTransactionData(initialTransferTxData) as any
+    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
   for (const account of signingAccounts) {
@@ -175,7 +140,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         nonce: polygonAccountNonce++,
         phase: "moneriumOnrampSelfTransfer",
         signer: account.address,
-        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as any
+        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
@@ -196,7 +161,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         nonce: polygonAccountNonce++,
         phase: "squidRouterApprove",
         signer: account.address,
-        txData: encodeEvmTransactionData(approveData) as any
+        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
       });
 
       unsignedTxs.push({
@@ -205,7 +170,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         nonce: polygonAccountNonce++,
         phase: "squidRouterSwap",
         signer: account.address,
-        txData: encodeEvmTransactionData(swapData) as any
+        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
       });
     }
   }

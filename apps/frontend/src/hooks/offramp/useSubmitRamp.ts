@@ -290,7 +290,10 @@ export const useSubmitRamp = () => {
       setRampKycLevel2Started,
       ToastMessage.ERROR,
       setIsNewUser,
-      getMessageSignature
+      getMessageSignature,
+      setRampSigningPhase,
+      setMoneriumTriggered,
+      resetRampState
     ]
   );
 };

@@ -38,7 +38,7 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
     logger.info(`Executing moneriumOnrampSelfTransfer phase for ramp ${state.id}`);
 
     if (state.type === "off") {
-      logger.info(`MoneriumOnrampSelfTransfer phase is not supported for off-ramp`);
+      logger.info("MoneriumOnrampSelfTransfer phase is not supported for off-ramp");
       return state;
     }
 
@@ -86,7 +86,7 @@ export class MonenriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
       // Transition to the next phase
       return this.transitionToNextPhase(state, "squidRouterSwap");
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw this.createRecoverableError(
         `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`

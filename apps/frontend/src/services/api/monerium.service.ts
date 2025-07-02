@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "./api-client";
 
 export interface MoneriumUserStatus {
@@ -10,19 +11,22 @@ export const MoneriumService = {
    */
   async checkUserStatus(address: string): Promise<MoneriumUserStatus> {
     try {
-      await apiClient.get(`/monerium/address-exists`, {
+      await apiClient.get("/monerium/address-exists", {
         params: { address, network: "polygon" }
       });
       return {
         isNewUser: false
       };
-    } catch (error: any) {
-      if (error.response && error.response.status === 404) {
-        return {
-          isNewUser: true
-        };
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        if (error.response && error.response.status === 404) {
+          return {
+            isNewUser: true
+          };
+        }
+        throw new Error(`Error checking Monerium user status: ${error.message}`);
       }
-      throw new Error(`Error checking Monerium user status: ${error.message}`);
+      throw new Error(`An unexpected error occurred: ${error}`);
     }
   },
 

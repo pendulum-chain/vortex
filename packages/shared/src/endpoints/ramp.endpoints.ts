@@ -93,7 +93,7 @@ export interface RegisterRampRequest {
     pixDestination?: string;
     receiverTaxId?: string;
     taxId?: string;
-    moneriumAuthToken?: string; // Monerium authentication code for Monerium offramps.
+    moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     [key: string]: unknown;
   };
 }

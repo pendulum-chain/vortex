@@ -24,17 +24,17 @@ export const EUROnrampDetails: FC = () => {
       <h1 className="text-center font-bold text-lg">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.title")}</h1>
       <p className="pt-2 text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.description")}</p>
       <div className="my-4 rounded-lg border-1 border-gray-300 p-3">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.amount")}</span>
           <strong>{amount} EUR</strong>
         </div>
-        <div className="mt-2 flex justify-between items-center">
+        <div className="mt-2 flex items-center justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.iban")}</span>
           <div className="flex items-center">
             <CopyButton text={iban} />
           </div>
         </div>
-        <div className="mt-2 flex justify-between items-center">
+        <div className="mt-2 flex items-center justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.bic")}</span>
           <div className="flex items-center">
             <CopyButton text={bic} />

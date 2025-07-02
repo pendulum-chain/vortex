@@ -54,12 +54,9 @@ export const useRampForm = (): {
     reset: resetStore
   } = useRampFormStoreActions();
 
-  const enforceTokenConstraints = useCallback(
-    (token: FiatToken): FiatToken => {
-      return token;
-    },
-    [direction]
-  );
+  const enforceTokenConstraints = useCallback((token: FiatToken): FiatToken => {
+    return token;
+  }, []);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {

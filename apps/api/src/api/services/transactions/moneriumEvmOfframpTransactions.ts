@@ -1,8 +1,7 @@
 import {
   AccountMeta,
   EvmTokenDetails,
-  Networks,
-  UnsignedTx,
+  EvmTransactionData,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -10,22 +9,17 @@ import {
   isEvmTokenDetails,
   isFiatToken,
   isOnChainToken,
-} from '@packages/shared';
+  Networks,
+  UnsignedTx
+} from "@packages/shared";
 
-import Big from 'big.js';
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { getFirstMoneriumLinkedAddress } from '../monerium';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { StateMetadata } from '../phases/meta-state-types';
-import { encodeEvmTransactionData } from './index';
-import { createOfframpSquidrouterTransactionsToEvm } from './squidrouter/offramp';
-
-/**
- * TODO: implement for Monerium prototype?
- */
-async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  return '';
-}
+import Big from "big.js";
+import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
+import { getFirstMoneriumLinkedAddress } from "../monerium";
+import { multiplyByPowerOfTen } from "../pendulum/helpers";
+import { StateMetadata } from "../phases/meta-state-types";
+import { encodeEvmTransactionData } from "./index";
+import { createOfframpSquidrouterTransactionsToEvm } from "./squidrouter/offramp";
 
 export interface MoneriumOfframpTransactionParams {
   quote: QuoteTicketAttributes;
@@ -36,7 +30,7 @@ export interface MoneriumOfframpTransactionParams {
 export async function prepareMoneriumEvmOfframpTransactions({
   quote,
   userAddress,
-  moneriumAuthToken,
+  moneriumAuthToken
 }: MoneriumOfframpTransactionParams): Promise<{
   unsignedTxs: UnsignedTx[];
   stateMeta: Partial<StateMetadata>;
@@ -53,7 +47,10 @@ export async function prepareMoneriumEvmOfframpTransactions({
     throw new Error(`Input currency must be on-chain token for offramp, got ${quote.inputCurrency}`);
   }
 
-  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
+  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
+  if (!inputTokenDetails) {
+    throw new Error(`Input token details not found for ${quote.inputCurrency} on network ${fromNetwork}`);
+  }
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 
   if (!isFiatToken(quote.outputCurrency)) {
@@ -62,13 +59,13 @@ export async function prepareMoneriumEvmOfframpTransactions({
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
   if (!quote.metadata?.offrampAmountBeforeAnchorFees) {
-    throw new Error('Quote metadata is missing offrampAmountBeforeAnchorFees');
+    throw new Error("Quote metadata is missing offrampAmountBeforeAnchorFees");
   }
 
   const offrampAmountBeforeAnchorFeesUnits = new Big(quote.metadata.offrampAmountBeforeAnchorFees);
   const offrampAmountBeforeAnchorFeesRaw = multiplyByPowerOfTen(
     offrampAmountBeforeAnchorFeesUnits,
-    outputTokenDetails.decimals,
+    outputTokenDetails.decimals
   ).toFixed(0, 0);
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
@@ -76,62 +73,62 @@ export async function prepareMoneriumEvmOfframpTransactions({
 
   // Initialize state metadata
   stateMeta = {
-    outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
-    outputTokenPendulumDetails,
     outputAmountBeforeFinalStep: {
-      units: offrampAmountBeforeAnchorFeesUnits.toFixed(),
       raw: offrampAmountBeforeAnchorFeesRaw,
+      units: offrampAmountBeforeAnchorFeesUnits.toFixed()
     },
+    outputTokenPendulumDetails,
+    outputTokenType: quote.outputCurrency
   };
 
   if (!userAddress) {
-    throw new Error('User address must be provided for offramping.');
+    throw new Error("User address must be provided for offramping.");
   }
 
   if (!isEvmTokenDetails(inputTokenDetails)) {
-    throw new Error('Offramp from Assethub not supported for Monerium');
+    throw new Error("Offramp from Assethub not supported for Monerium");
   }
 
   if (!moneriumAuthToken) {
-    throw new Error('Monerium Offramp requires a valid authorization token');
+    throw new Error("Monerium Offramp requires a valid authorization token");
   }
 
   const moneriumEvmAddress = await getFirstMoneriumLinkedAddress(moneriumAuthToken);
 
   if (!moneriumEvmAddress) {
-    throw new Error('No Address linked for Monerium.');
+    throw new Error("No Address linked for Monerium.");
   }
 
   const { approveData, swapData } = await createOfframpSquidrouterTransactionsToEvm({
-    inputTokenDetails,
-    fromNetwork,
-    toNetwork: Networks.Polygon, // By design, EUR.e offramp starts from Polygon.
-    outputTokenDetails: {
-      erc20AddressSourceChain: '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6',
-    } as unknown as EvmTokenDetails, // Always EUR.e for Monerium offramp.
-    rawAmount: inputAmountRaw,
     destinationAddress: moneriumEvmAddress,
     fromAddress: userAddress,
+    fromNetwork, // By design, EUR.e offramp starts from Polygon.
+    inputTokenDetails, // Always EUR.e for Monerium offramp.
+    outputTokenDetails: {
+      erc20AddressSourceChain: "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"
+    } as unknown as EvmTokenDetails,
+    rawAmount: inputAmountRaw,
+    toNetwork: Networks.Polygon
   });
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(approveData) as any,
-    phase: 'squidRouterApprove',
+    meta: {},
     network: fromNetwork,
     nonce: 0,
+    phase: "squidRouterApprove",
     signer: userAddress,
-    meta: {}
+    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
   });
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(swapData) as any,
-    phase: 'squidRouterSwap',
+    meta: {},
     network: fromNetwork,
     nonce: 1,
+    phase: "squidRouterSwap",
     signer: userAddress,
-    meta: {}
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
-  return { unsignedTxs, stateMeta }; // Return the unsigned transactions and state meta
+  return { stateMeta, unsignedTxs }; // Return the unsigned transactions and state meta
 }
