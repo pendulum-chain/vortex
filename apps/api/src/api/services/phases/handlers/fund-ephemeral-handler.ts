@@ -181,7 +181,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       // We use Moonbeam's funding account to fund the ephemeral account on Polygon.
       const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-      const walletClient = evmClientManager.getWalletClient("moonbeam", fundingAccount);
+      const walletClient = evmClientManager.getWalletClient("polygon", fundingAccount);
 
       const txHash = await walletClient.sendTransaction({
         to: ephmeralAddress as `0x${string}`,
