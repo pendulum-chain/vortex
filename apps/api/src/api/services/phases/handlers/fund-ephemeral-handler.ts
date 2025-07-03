@@ -47,20 +47,18 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      let isPendulumFunded = true;
-      if (state.type === "on" && requiresPendulumEphemeralAddress) {
-        isPendulumFunded = await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode);
-      }
+      const isPendulumFunded =
+        state.type === "on" && requiresPendulumEphemeralAddress
+          ? await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode)
+          : true;
 
-      let isMoonbeamFunded = true;
-      if (state.type === "on" && moonbeamEphemeralAddress) {
-        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode);
-      }
+      const isMoonbeamFunded =
+        state.type === "on" && moonbeamEphemeralAddress
+          ? await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode)
+          : true;
 
-      let isPolygonFunded = true;
-      if (state.type === "on" && polygonEphemeralAddress) {
-        isPolygonFunded = await isPolygonEphemeralFunded(polygonEphemeralAddress);
-      }
+      const isPolygonFunded =
+        state.type === "on" && polygonEphemeralAddress ? await isPolygonEphemeralFunded(polygonEphemeralAddress) : true;
 
       if (state.state.stellarTarget) {
         const isFunded = await isStellarEphemeralFunded(
