@@ -1,4 +1,4 @@
-import { RampPhase } from "@packages/shared";
+import { Networks, RampPhase } from "@packages/shared";
 
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
@@ -31,7 +31,7 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
         inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        "polygon"
+        Networks.Polygon
       );
 
       // Add delay to ensure the transaction is settled

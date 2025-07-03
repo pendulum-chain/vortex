@@ -1,10 +1,9 @@
-import { EvmAddress } from "@packages/shared";
+import { EvmAddress, EvmNetworks } from "@packages/shared";
 import Big from "big.js";
-import { Chain, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../constants/constants";
 import erc20ABI from "../../../contracts/ERC20";
-import { EvmClientManager, EvmNetwork } from "../evm/clientManager";
+import { EvmClientManager } from "../evm/clientManager";
 import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { createMoonbeamClientsAndConfig } from "./createServices";
@@ -27,7 +26,7 @@ export class BalanceCheckError extends Error {
 interface GetBalanceParams {
   tokenAddress: EvmAddress;
   ownerAddress: EvmAddress;
-  chain: EvmNetwork;
+  chain: EvmNetworks;
 }
 
 export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
@@ -54,7 +53,7 @@ export function checkEvmBalancePeriodically(
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: EvmNetwork
+  chain: EvmNetworks
 ): Promise<Big> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();

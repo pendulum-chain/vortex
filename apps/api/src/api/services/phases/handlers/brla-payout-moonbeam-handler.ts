@@ -1,4 +1,4 @@
-import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, RampPhase } from "@packages/shared";
+import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, Networks, RampPhase } from "@packages/shared";
 import Big from "big.js";
 
 import logger from "../../../../config/logger";
@@ -37,7 +37,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
-        "polygon"
+        Networks.Polygon
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {

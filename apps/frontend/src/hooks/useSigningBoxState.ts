@@ -49,7 +49,6 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
   const [shouldExit, setShouldExit] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [shouldDisplay, setShouldDisplay] = useState(false);
-  const executionInput = useRampExecutionInput();
 
   useEffect(() => {
     if (!isValidStep(step, isEVM) || signingRejected) {
@@ -74,7 +73,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
 
     setProgress(progressConfig[step]);
     setSignatureState(getSignatureDetails(step, isEVM));
-  }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay, executionInput]);
+  }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay]);
 
   useEffect(() => {
     let timeoutId: number;

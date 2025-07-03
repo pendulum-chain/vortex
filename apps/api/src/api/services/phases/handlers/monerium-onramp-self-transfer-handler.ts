@@ -47,7 +47,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({
-        chain: "polygon",
+        chain: Networks.Polygon,
         ownerAddress: polygonEphemeralAddress as `0x${string}`,
         tokenAddress: ERC20_EURE_POLYGON
       });
