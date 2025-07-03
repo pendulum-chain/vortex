@@ -1,7 +1,13 @@
 import {
   CreateQuoteRequest,
   EvmToken,
+  EvmTokenDetails,
   FiatToken,
+  getNetworkFromDestination,
+  getOnChainTokenDetails,
+  isAssetHubTokenDetails,
+  isOnChainToken,
+  Networks,
   OnChainToken,
   QuoteFeeStructure,
   QuoteResponse,
@@ -14,8 +20,11 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
 import { APIError } from "../../../errors/api-error";
+import { parseContractBalanceResponse } from "../../../helpers/contracts";
+import { ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS } from "../../monerium";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
+import { createGenericRouteParams, getRoute } from "../../transactions/squidrouter/route";
 import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
@@ -124,6 +133,107 @@ export class QuoteService extends BaseRampService {
       }
     }
 
+    if (request.rampType === "on" && request.inputCurrency === FiatToken.EURC) {
+      const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(request.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
+      const inputTokenDetails = { erc20AddressSourceChain: ERC20_EURE_POLYGON } as unknown as EvmTokenDetails;
+      const fromNetwork = Networks.Polygon; // Always Polygon for EUR onramp
+      const toNetwork = getNetworkFromDestination(request.to);
+      // validate networks, tokens.
+      if (!toNetwork) {
+        throw new APIError({
+          message: `Invalid network for destination: ${request.to} `,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      if (!isOnChainToken(request.outputCurrency)) {
+        throw new APIError({
+          message: `Output currency cannot be fiat token ${request.outputCurrency} for EUR onramp.`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const outputTokenDetails = getOnChainTokenDetails(toNetwork, request.outputCurrency);
+      if (!outputTokenDetails) {
+        throw new APIError({
+          message: `Output token details not found for ${request.outputCurrency} on network ${toNetwork}`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      if (isAssetHubTokenDetails(outputTokenDetails)) {
+        throw new APIError({
+          message: `AssetHub token ${request.outputCurrency} is not supported for onramp.`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const routeParams = createGenericRouteParams(
+        "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // Placeholder address
+        inputAmountPostAnchorFeeRaw,
+        inputTokenDetails,
+        outputTokenDetails,
+        fromNetwork,
+        toNetwork,
+        "0x30a300612ab372cc73e53ffe87fb73d62ed68da3" // Also placeholder address
+      );
+
+      const routeResult = await getRoute(routeParams);
+      const { route } = routeResult.data;
+      const finalGrossOutputAmount = route.estimate.toAmountMin;
+      const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
+        outputTokenDetails.decimals,
+        BigInt(finalGrossOutputAmount)
+      ).preciseBigDecimal;
+
+      const feeToStore: QuoteFeeStructure = {
+        anchor: "0",
+        currency: targetFeeFiatCurrency,
+        network: "0",
+        partnerMarkup: "0",
+        total: "0",
+        vortex: "0"
+      };
+
+      const quote = await QuoteTicket.create({
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        fee: feeToStore,
+        from: request.from,
+        id: uuidv4(),
+        inputAmount: request.inputAmount,
+        inputCurrency: request.inputCurrency,
+        metadata: {} as QuoteTicketMetadata,
+        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
+        outputCurrency: request.outputCurrency,
+        partnerId: partner?.id || null,
+        rampType: request.rampType,
+        status: "pending",
+        to: request.to
+      });
+
+      const responseFeeStructure: QuoteFeeStructure = {
+        anchor: "0",
+        currency: targetFeeFiatCurrency,
+        network: "0",
+        partnerMarkup: "0",
+        total: "0",
+        vortex: "0"
+      };
+
+      return {
+        expiresAt: quote.expiresAt,
+        fee: responseFeeStructure,
+        from: quote.from,
+        id: quote.id,
+        inputAmount: trimTrailingZeros(quote.inputAmount),
+        inputCurrency: quote.inputCurrency,
+        outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
+        outputCurrency: quote.outputCurrency,
+        rampType: quote.rampType,
+        to: quote.to
+      };
+    }
+
     const nablaSwapResult = await calculateNablaSwapOutput({
       fromPolkadotDestination: request.from,
       inputAmountForSwap: inputAmountForNablaSwap.toString(),
@@ -177,14 +287,12 @@ export class QuoteService extends BaseRampService {
       targetFeeFiatCurrency,
       usdCurrency
     );
-
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
     let squidRouterNetworkFeeUSD = "0";
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    // If onramp, EURC does not collect fees for now.
-    if (request.rampType === "on" && request.inputCurrency === FiatToken.BRL && request.to !== "assethub") {
+    if (request.rampType === "on" && request.to !== "assethub") {
       // Do a first call to get a rough estimate of network fees
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         finalEvmDestination: request.to,

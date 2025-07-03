@@ -36,13 +36,16 @@ export const initiateMoneriumAuth = async (address: string, signMessage: (messag
 };
 
 export const createMoneriumSiweMessage = (address: string) => {
+  const currentUrl = window.location.origin;
+  const domain = window.location.hostname;
+
   return siweMessage({
     address: address,
     appName: "Vortex",
     chainId: 137,
-    domain: "localhost",
+    domain: domain,
     privacyPolicyUrl: "https://example.com/privacy-policy",
-    redirectUri: "http://localhost:5173",
+    redirectUri: currentUrl,
     termsOfServiceUrl: "https://example.com/terms-of-service"
   });
 };
