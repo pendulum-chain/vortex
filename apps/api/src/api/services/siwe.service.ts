@@ -1,3 +1,4 @@
+import { Networks } from "@packages/shared";
 import { signatureVerify } from "@polkadot/util-crypto";
 import { generateNonce } from "siwe";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
@@ -55,7 +56,7 @@ export const verifySiweMessage = async (
   let valid = false;
   if (address.startsWith("0x")) {
     const evmClientManager = EvmClientManager.getInstance();
-    const publicClient = evmClientManager.getClient("polygon");
+    const publicClient = evmClientManager.getClient(Networks.Polygon);
     valid = await publicClient.verifyMessage({
       address: address as `0x${string}`,
       message: siweMessage.toMessage(), // Validation must be done on the message as string

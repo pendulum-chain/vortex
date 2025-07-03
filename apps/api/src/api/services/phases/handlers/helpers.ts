@@ -1,4 +1,4 @@
-import { HORIZON_URL, StellarTokenDetails } from "@packages/shared";
+import { HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@packages/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { polygon } from "viem/chains";
@@ -55,7 +55,7 @@ export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string
 
 export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("polygon");
+  const publicClient = evmClientManager.getClient(VortexNetworks.Polygon);
 
   const balance = await publicClient.getBalance({
     address: polygonEphemeralAddress as `0x${string}`

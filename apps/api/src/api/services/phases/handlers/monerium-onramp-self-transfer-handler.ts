@@ -1,8 +1,6 @@
-import { getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
-import { getChainId } from "@wagmi/core";
+import { getNetworkId, Networks, RampPhase } from "@packages/shared";
 import Big from "big.js";
 import { PublicClient } from "viem";
-import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { EvmClientManager } from "../../evm/clientManager";
@@ -19,7 +17,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
-    this.publicClient = evmClientManager.getClient("polygon");
+    this.publicClient = evmClientManager.getClient(Networks.Polygon);
   }
 
   /**

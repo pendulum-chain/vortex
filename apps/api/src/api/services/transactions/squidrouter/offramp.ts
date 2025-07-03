@@ -43,7 +43,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("moonbeam");
+  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const squidRouterReceiverId = createRandomString(32);
   const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.pendulumAddressDestination));
@@ -86,7 +86,7 @@ export async function createOfframpSquidrouterTransactionsToEvm(
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("moonbeam");
+  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,

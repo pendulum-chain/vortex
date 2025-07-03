@@ -1,4 +1,4 @@
-import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages/shared";
+import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse, Networks } from "@packages/shared";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
@@ -20,8 +20,8 @@ interface StatusResponse {
 
 const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("moonbeam");
-  const walletClient = evmClientManager.getWalletClient("moonbeam", executorAccount);
+  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, executorAccount);
 
   return { publicClient, walletClient };
 };

@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkFromDestination, getNetworkId, RampPhase } from "@packages/shared";
+import { FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
 import { PublicClient } from "viem";
 import { moonbeam, polygon } from "viem/chains";
 
@@ -18,8 +18,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
-    this.moonbeamClient = evmClientManager.getClient("moonbeam");
-    this.polygonClient = evmClientManager.getClient("polygon");
+    this.moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
+    this.polygonClient = evmClientManager.getClient(Networks.Polygon);
   }
 
   /**

@@ -22,7 +22,7 @@ const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, numbe
   }
 };
 
-const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean, executionInput: RampExecutionInput | undefined) => {
+const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
   if (!isEVM) return { current: 1, max: 1 };
   if (step === "login") return { current: 1, max: 1 };
   if (step === "started") return { current: 1, max: 2 };
@@ -73,7 +73,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
     }
 
     setProgress(progressConfig[step]);
-    setSignatureState(getSignatureDetails(step, isEVM, executionInput));
+    setSignatureState(getSignatureDetails(step, isEVM));
   }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay, executionInput]);
 
   useEffect(() => {

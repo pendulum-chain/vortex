@@ -170,7 +170,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("polygon");
+  const publicClient = evmClientManager.getClient(Networks.Polygon);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -198,7 +198,7 @@ async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("polygon");
+  const publicClient = evmClientManager.getClient(Networks.Polygon);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,

@@ -57,12 +57,12 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
-    this.moonbeamPublicClient = evmClientManager.getClient("moonbeam");
-    this.polygonPublicClient = evmClientManager.getClient("polygon");
+    this.moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
+    this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-    this.moonbeamWalletClient = evmClientManager.getWalletClient("moonbeam", moonbeamExecutorAccount);
-    this.polygonWalletClient = evmClientManager.getWalletClient("polygon", moonbeamExecutorAccount);
+    this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
+    this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkFromDestination, RampPhase } from "@packages/shared";
+import { FiatToken, getNetworkFromDestination, Networks, RampPhase } from "@packages/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
@@ -171,7 +171,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected async fundPolygonEphemeralAccount(state: RampState): Promise<void> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
-      const publicClient = evmClientManager.getClient("polygon");
+      const publicClient = evmClientManager.getClient(Networks.Polygon);
 
       const ephmeralAddress = state.state.polygonEphemeralAddress;
       const fundingAmountRaw = multiplyByPowerOfTen(
@@ -181,7 +181,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       // We use Moonbeam's funding account to fund the ephemeral account on Polygon.
       const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-      const walletClient = evmClientManager.getWalletClient("polygon", fundingAccount);
+      const walletClient = evmClientManager.getWalletClient(Networks.Polygon, fundingAccount);
 
       const txHash = await walletClient.sendTransaction({
         to: ephmeralAddress as `0x${string}`,

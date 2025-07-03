@@ -50,7 +50,7 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("moonbeam");
+  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const routeParams = createOnrampRouteParams(
     params.fromAddress,
@@ -85,7 +85,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient("polygon");
+  const publicClient = evmClientManager.getClient(Networks.Polygon);
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,

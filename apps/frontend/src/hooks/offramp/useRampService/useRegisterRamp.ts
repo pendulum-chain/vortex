@@ -4,13 +4,11 @@ import {
   getAddressForFormat,
   getOnChainTokenDetails,
   Networks,
-  PresignedTx,
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
-import { getAccount, getWalletClient } from "@wagmi/core";
+import { getWalletClient } from "@wagmi/core";
 import { useCallback, useEffect } from "react";
-import { signTransaction } from "viem/accounts";
 import { config } from "../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
