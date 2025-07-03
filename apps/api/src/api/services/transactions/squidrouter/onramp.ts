@@ -86,7 +86,6 @@ export async function createOnrampSquidrouterTransactionsToEvm(
 
   const evmClientManager = EvmClientManager.getInstance();
   const publicClient = evmClientManager.getClient("polygon");
-  console.log("input amount to squidyrouter", params.rawAmount);
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,

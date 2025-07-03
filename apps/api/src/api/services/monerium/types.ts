@@ -11,6 +11,7 @@ export interface MoneriumResponse {
 
 export interface FetchIbansParams {
   authToken: string;
+  profileId: string;
 }
 
 export interface FetchProfileParams extends FetchIbansParams {
@@ -51,3 +52,15 @@ export interface BeneficiaryDetails {
 }
 
 export type AddressExistsResponse = MoneriumAddress;
+
+export interface AuthContextProfile {
+  id: string;
+  name: string;
+  state: string;
+  kind: string;
+}
+
+export interface AuthContext {
+  defaultProfile: string;
+  profiles: AuthContextProfile[];
+}

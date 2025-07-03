@@ -27,7 +27,7 @@ import { APIError } from "../../errors/api-error";
 import { BrlaApiService } from "../brla/brlaApiService";
 import { generateReferenceLabel } from "../brla/helpers";
 import { SubaccountData } from "../brla/types";
-import { createEpcQrCodeData, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
+import { createEpcQrCodeData, getAuthContext, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
@@ -163,8 +163,10 @@ export class RampService extends BaseRampService {
       signingAccounts: normalizedSigningAccounts
     });
 
+    const userContext = await getAuthContext(additionalData.moneriumAuthToken);
     const ibanData = await getMoneriumUserIban({
-      authToken: additionalData.moneriumAuthToken
+      authToken: additionalData.moneriumAuthToken,
+      profileId: userContext.defaultProfile
     });
     const ibanPaymentData = {
       bic: ibanData.bic,
