@@ -88,21 +88,11 @@ export async function prepareMoneriumEvmOnrampTransactions({
     0
   );
 
-  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
-  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
-    outputAmountBeforeFinalStepRaw,
-    -outputTokenDetails.decimals
-  ).toFixed();
-
   // Initialize state metadata
   stateMeta = {
     destinationAddress,
     inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
-    outputAmountBeforeFinalStep: {
-      raw: outputAmountBeforeFinalStepRaw,
-      units: outputAmountBeforeFinalStepUnits
-    },
     outputTokenType: quote.outputCurrency,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: userMintAddress
