@@ -42,7 +42,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
    */
   public async process(state: RampState): Promise<[boolean, Error | null]> {
     try {
-      const expectedLedgerTimeMs = state.createdAt.getTime() + SEQUENCE_TIME_WINDOWS.FIFTH_TX * 1.1 * 1000; // Add some safety margin in case ledger production was slower. - Use the longest timeframe (90 days)
+      const expectedLedgerTimeMs = state.createdAt.getTime() + SEQUENCE_TIME_WINDOWS.FIRST_TX * 1.1 * 1000; // Add some safety margin in case ledger production was slower.
       if (expectedLedgerTimeMs > Date.now()) {
         return [false, this.createErrorObject(`Stellar cleanup for ramp state ${state.id} cannot be processed yet.`)];
       }

@@ -14,7 +14,6 @@ type HorizonServer = Horizon.Server;
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
-const MAX_TIME = Date.now() + 1000 * 60 * 10;
 const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7;
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
