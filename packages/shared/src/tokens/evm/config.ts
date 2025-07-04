@@ -115,6 +115,16 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
     },
+    [EvmToken.USDCE]: {
+      assetSymbol: "USDC.e",
+      decimals: 6, // USDC.e on Arbitrum
+      erc20AddressSourceChain: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+      isNative: false,
+      network: Networks.Arbitrum,
+      networkAssetIcon: "arbitrumUSDC",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
     [EvmToken.USDT]: {
       assetSymbol: "USDT",
       decimals: 6, // USDT on Arbitrum
@@ -186,6 +196,16 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Avalanche,
       networkAssetIcon: "avalancheUSDT",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.USDCE]: {
+      assetSymbol: "USDC.e",
+      decimals: 6, // USDC.e on Avalanche
+      erc20AddressSourceChain: "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664",
+      isNative: false,
+      network: Networks.Avalanche,
+      networkAssetIcon: "avalancheUSDC",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
     }
