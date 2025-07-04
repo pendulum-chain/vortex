@@ -20,10 +20,10 @@ interface StatusResponse {
 
 const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
   const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, executorAccount);
 
-  return { publicClient, walletClient };
+  return { moonbeamClient, walletClient };
 };
 
 export const executeXcmController = async (
@@ -34,7 +34,7 @@ export const executeXcmController = async (
 
   try {
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, publicClient } = createClients(moonbeamExecutorAccount);
+    const { walletClient, moonbeamClient } = createClients(moonbeamExecutorAccount);
 
     const data = encodeFunctionData({
       abi: splitReceiverABI,
@@ -43,7 +43,7 @@ export const executeXcmController = async (
     });
 
     try {
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+      const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamClient.estimateFeesPerGas();
       const hash = await walletClient.sendTransaction({
         data,
         maxFeePerGas,
@@ -70,9 +70,9 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
 
   try {
     moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { publicClient } = createClients(moonbeamExecutorAccount);
+    const { moonbeamClient } = createClients(moonbeamExecutorAccount);
 
-    const balance = await publicClient.getBalance({
+    const balance = await moonbeamClient.getBalance({
       address: moonbeamExecutorAccount.address
     });
     const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toString());

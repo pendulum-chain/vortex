@@ -50,7 +50,7 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const routeParams = createOnrampRouteParams(
     params.fromAddress,
@@ -67,7 +67,7 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
     return await createTransactionDataFromRoute({
       inputTokenErc20Address: AXL_USDC_MOONBEAM,
       nonce: params.moonbeamEphemeralStartingNonce,
-      publicClient,
+      publicClient: moonbeamClient,
       rawAmount: params.rawAmount,
       route,
       swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
@@ -85,7 +85,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Polygon);
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,
@@ -103,7 +103,7 @@ export async function createOnrampSquidrouterTransactionsToEvm(
 
     return await createTransactionDataFromRoute({
       inputTokenErc20Address: ERC20_EURE_POLYGON,
-      publicClient,
+      publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
       swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW

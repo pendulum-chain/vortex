@@ -222,6 +222,7 @@ export class RampService extends BaseRampService {
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
+        // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
       } else if (!additionalData?.moneriumAuthToken) {
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData);
       } else {

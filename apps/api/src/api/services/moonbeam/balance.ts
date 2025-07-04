@@ -97,14 +97,14 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi("moonbeam");
 
-    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
+    const { walletClient, fundingAmountRaw, moonbeamClient } = getMoonbeamFundingData(apiData.decimals);
 
     const txHash = await walletClient.sendTransaction({
       to: ephemeralAddress as `0x${string}`,
       value: BigInt(fundingAmountRaw)
     });
 
-    const receipt = await publicClient.waitForTransactionReceipt({
+    const receipt = await moonbeamClient.waitForTransactionReceipt({
       hash: txHash as `0x${string}`
     });
     if (!receipt || receipt.status !== "success") {
@@ -119,12 +119,12 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
 export function getMoonbeamFundingData(decimals: number): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>["walletClient"];
-  publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>["publicClient"];
+  moonbeamClient: ReturnType<typeof createMoonbeamClientsAndConfig>["moonbeamClient"];
 } {
   const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as EvmAddress);
-  const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+  const { walletClient, moonbeamClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
 
-  return { fundingAmountRaw, publicClient, walletClient };
+  return { fundingAmountRaw, moonbeamClient, walletClient };
 }

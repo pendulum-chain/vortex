@@ -43,7 +43,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const squidRouterReceiverId = createRandomString(32);
   const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.pendulumAddressDestination));
@@ -65,7 +65,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
 
   const { approveData, swapData } = await createTransactionDataFromRoute({
     inputTokenErc20Address: params.inputTokenDetails.erc20AddressSourceChain,
-    publicClient,
+    publicClient: moonbeamClient,
     rawAmount: params.rawAmount,
     route
   });
@@ -86,7 +86,7 @@ export async function createOfframpSquidrouterTransactionsToEvm(
   }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
 
   const routeParams = createGenericRouteParams(
     params.fromAddress,
@@ -103,7 +103,7 @@ export async function createOfframpSquidrouterTransactionsToEvm(
 
   return createTransactionDataFromRoute({
     inputTokenErc20Address: params.inputTokenDetails.erc20AddressSourceChain,
-    publicClient,
+    publicClient: moonbeamClient,
     rawAmount: params.rawAmount,
     route
   });

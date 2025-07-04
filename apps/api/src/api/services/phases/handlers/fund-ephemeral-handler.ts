@@ -169,7 +169,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected async fundPolygonEphemeralAccount(state: RampState): Promise<void> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
-      const publicClient = evmClientManager.getClient(Networks.Polygon);
+      const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
       const ephmeralAddress = state.state.polygonEphemeralAddress;
       const fundingAmountRaw = multiplyByPowerOfTen(
@@ -186,7 +186,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         value: BigInt(fundingAmountRaw)
       });
 
-      const receipt = await publicClient.waitForTransactionReceipt({
+      const receipt = await polygonClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`
       });
 

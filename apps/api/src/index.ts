@@ -61,7 +61,7 @@ const initializeApp = async () => {
     await apiManager.populateAllApis();
 
     // Initialize EVM clients
-    const evmClientManager = EvmClientManager.getInstance();
+    const _evmClientManager = EvmClientManager.getInstance();
 
     // Start background workers
     new CleanupWorker().start();

@@ -55,9 +55,9 @@ export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string
 
 export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(VortexNetworks.Polygon);
+  const polygonClient = evmClientManager.getClient(VortexNetworks.Polygon);
 
-  const balance = await publicClient.getBalance({
+  const balance = await polygonClient.getBalance({
     address: polygonEphemeralAddress as `0x${string}`
   });
   const fundingAmountRaw = new Big(

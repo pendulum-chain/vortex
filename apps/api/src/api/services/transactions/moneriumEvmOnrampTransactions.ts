@@ -170,7 +170,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Polygon);
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -178,7 +178,7 @@ async function createOnrampUserApprove(amountRaw: string, toAddress: string): Pr
     functionName: "approve"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
@@ -198,7 +198,7 @@ async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Polygon);
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -206,7 +206,7 @@ async function createOnrampEphemeralSelfTransfer(
     functionName: "transferFrom"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,

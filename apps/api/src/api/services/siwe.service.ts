@@ -56,8 +56,8 @@ export const verifySiweMessage = async (
   let valid = false;
   if (address.startsWith("0x")) {
     const evmClientManager = EvmClientManager.getInstance();
-    const publicClient = evmClientManager.getClient(Networks.Polygon);
-    valid = await publicClient.verifyMessage({
+    const polygonClient = evmClientManager.getClient(Networks.Polygon);
+    valid = await polygonClient.verifyMessage({
       address: address as `0x${string}`,
       message: siweMessage.toMessage(), // Validation must be done on the message as string
       signature: signature as `0x${string}`

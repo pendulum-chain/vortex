@@ -7,7 +7,7 @@ import { EvmClientManager } from "../evm/clientManager";
 
 export const createMoonbeamClientsAndConfig = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
   const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
   const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, executorAccount);
 
   const moonbeamConfig = createConfig({
@@ -17,5 +17,5 @@ export const createMoonbeamClientsAndConfig = (executorAccount: ReturnType<typeo
     }
   });
 
-  return { moonbeamConfig, publicClient, walletClient };
+  return { moonbeamClient, moonbeamConfig, walletClient };
 };

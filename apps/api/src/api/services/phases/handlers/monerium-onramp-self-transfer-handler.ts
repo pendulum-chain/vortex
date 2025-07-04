@@ -12,12 +12,12 @@ import { BasePhaseHandler } from "../base-phase-handler";
  * Handler for the monerium self-transfer phase
  */
 export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
-  private publicClient: PublicClient;
+  private polygonClient: PublicClient;
 
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
-    this.publicClient = evmClientManager.getClient(Networks.Polygon);
+    this.polygonClient = evmClientManager.getClient(Networks.Polygon);
   }
 
   /**
@@ -99,7 +99,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    */
   private async executeTransaction(txData: string): Promise<string> {
     try {
-      const txHash = await this.publicClient.sendRawTransaction({
+      const txHash = await this.polygonClient.sendRawTransaction({
         serializedTransaction: txData as `0x${string}`
       });
       return txHash;
@@ -116,7 +116,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    */
   private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
     try {
-      const receipt = await this.publicClient.waitForTransactionReceipt({
+      const receipt = await this.polygonClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`
       });
       if (!receipt || receipt.status !== "success") {
