@@ -128,15 +128,4 @@ export class EvmClientManager {
 
     return walletClient;
   }
-
-  // For initializing the public clients on application startup
-  public getAllClients(): Map<string, PublicClient> {
-    this.networks.forEach(network => {
-      if (!this.clientInstances.has(network.name)) {
-        this.getClient(network.name);
-      }
-    });
-
-    return this.clientInstances;
-  }
 }

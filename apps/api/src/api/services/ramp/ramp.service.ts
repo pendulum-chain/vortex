@@ -95,7 +95,7 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       quote,
       signingAccounts: normalizedSigningAccounts,
@@ -103,7 +103,7 @@ export class RampService extends BaseRampService {
       userAddress: additionalData?.walletAddress
     });
 
-    return { depositQrCode: undefined, stateMeta, unsignedTxs };
+    return { stateMeta, unsignedTxs };
   }
 
   private async prepareOnrampTransactionsMethod(
@@ -111,7 +111,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string }> {
     if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
       throw new APIError({
         message: "Parameters destinationAddress and taxId are required for onramp",
@@ -146,7 +146,7 @@ export class RampService extends BaseRampService {
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
-    depositQrCode?: string;
+    depositQrCode: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
     if (!additionalData || !additionalData.moneriumAuthToken || additionalData.destinationAddress === undefined) {
@@ -191,7 +191,7 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
       throw new APIError({
         message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
@@ -203,7 +203,7 @@ export class RampService extends BaseRampService {
       quote,
       userAddress: additionalData.walletAddress
     });
-    return { depositQrCode: undefined, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareRampTransactions(

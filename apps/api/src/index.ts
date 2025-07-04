@@ -62,7 +62,6 @@ const initializeApp = async () => {
 
     // Initialize EVM clients
     const evmClientManager = EvmClientManager.getInstance();
-    evmClientManager.getAllClients();
 
     // Start background workers
     new CleanupWorker().start();
