@@ -11,10 +11,11 @@ import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompati
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { assetIcon: "usdc", name: "USDC" },
   { assetIcon: "usdc", name: "USDC.e" },
+  { assetIcon: "eth", name: "ETH" },
   { assetIcon: "usdt", name: "USDT" },
   { assetIcon: "brl", name: "BRLA" },
   { assetIcon: "ars", name: "ARS" },
-  { assetIcon: "eurc", name: "EURC" }
+  { assetIcon: "eur", name: "EUR" }
 ];
 
 const networks = Object.values(Networks).filter(
