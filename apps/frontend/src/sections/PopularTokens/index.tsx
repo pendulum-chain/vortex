@@ -13,7 +13,7 @@ const tokens: Array<{ name: string; assetIcon: string }> = [
   { assetIcon: "usdc", name: "USDC.e" },
   { assetIcon: "eth", name: "ETH" },
   { assetIcon: "usdt", name: "USDT" },
-  { assetIcon: "brl", name: "BRLA" },
+  { assetIcon: "brl", name: "BRL" },
   { assetIcon: "ars", name: "ARS" },
   { assetIcon: "eur", name: "EUR" }
 ];
