@@ -6,7 +6,7 @@ import ETH_BASE from "../assets/coins/ETH_BASE.svg";
 import ETH_BSC from "../assets/coins/ETH_BSC.svg";
 import ETH_ETHEREUM from "../assets/coins/ETH_ETHEREUM.svg";
 import EUR from "../assets/coins/EUR.svg";
-import EURC from "../assets/coins/EURC.svg";
+import EURC from "../assets/coins/EURC.png";
 import USDC from "../assets/coins/USDC.png";
 import USDC_ARBITRUM from "../assets/coins/USDC_ARBITRUM.svg";
 import USDC_ASSETHUB from "../assets/coins/USDC_ASSETHUB.svg";
