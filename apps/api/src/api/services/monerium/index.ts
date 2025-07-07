@@ -148,6 +148,9 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     }
 
     const data: IbanDataResponse = await response.json();
+    // Look for the IBAN data specifically for the Polygon chain.
+    // We choose Polygon as the default chain for Monerium EUR minting,
+    // so user registered with us should always have a Polygon-linked  address.
     const ibanData = data.ibans.find(item => item.chain === "polygon");
     if (!ibanData) {
       throw new Error("No IBAN found for the specified chain (polygon)");
@@ -192,6 +195,7 @@ export function createEpcQrCodeData(details: BeneficiaryDetails): string {
     throw new Error("Beneficiary name, IBAN, and BIC are required to create EPC QR code data.");
   }
 
+  // EPC QR code data format; https://en.wikipedia.org/wiki/EPC_QR_code.
   const data = ["BCD", "001", "1", "SCT", bic, name, iban, `EUR${amount}`];
 
   return data.join("\n");

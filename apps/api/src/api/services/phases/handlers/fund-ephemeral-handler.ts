@@ -22,6 +22,10 @@ import {
   NETWORK_PASSPHRASE
 } from "./helpers";
 
+function isOnramp(state: RampState): boolean {
+  return state.type === "on";
+}
+
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "fundEphemeral";
@@ -29,7 +33,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
   protected getRequiresPendulumEphemeralAddress(state: RampState): boolean {
     // Pendulum ephemeral address is required for all onramp cases except when the input currency is EURC.
-    return !(state.type === "on" && state.state.inputCurrency === FiatToken.EURC);
+    return !(isOnramp(state) && state.state.inputCurrency === FiatToken.EURC);
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -44,26 +48,26 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (!pendulumEphemeralAddress && requiresPendulumEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing pendulumEphemeralAddress. This is a bug.");
     }
-    if (state.type === "on" && state.state.inputCurrency === FiatToken.BRL && !moonbeamEphemeralAddress) {
+    if (isOnramp(state) && state.state.inputCurrency === FiatToken.BRL && !moonbeamEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing moonbeamEphemeralAddress. This is a bug.");
     }
-    if (state.type === "on" && state.state.inputCurrency === FiatToken.EURC && !polygonEphemeralAddress) {
+    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC && !polygonEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing polygonEphemeralAddress. This is a bug.");
     }
 
     try {
       const isPendulumFunded =
-        state.type === "on" && requiresPendulumEphemeralAddress
+        isOnramp(state) && requiresPendulumEphemeralAddress
           ? await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode)
           : true;
 
       const isMoonbeamFunded =
-        state.type === "on" && moonbeamEphemeralAddress
+        isOnramp(state) && moonbeamEphemeralAddress
           ? await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode)
           : true;
 
       const isPolygonFunded =
-        state.type === "on" && polygonEphemeralAddress ? await isPolygonEphemeralFunded(polygonEphemeralAddress) : true;
+        isOnramp(state) && polygonEphemeralAddress ? await isPolygonEphemeralFunded(polygonEphemeralAddress) : true;
 
       if (state.state.stellarTarget) {
         const isFunded = await isStellarEphemeralFunded(
@@ -77,7 +81,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${pendulumEphemeralAddress}`);
-        if (state.type === "on" && state.to !== "assethub") {
+        if (isOnramp(state) && state.to !== "assethub") {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
@@ -88,7 +92,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.info("Pendulum ephemeral address already funded.");
       }
 
-      if (state.type === "on" && !isMoonbeamFunded) {
+      if (isOnramp(state) && !isMoonbeamFunded) {
         logger.info(`Funding moonbeam ephemeral accout ${moonbeamEphemeralAddress}`);
 
         const destinationNetwork = getNetworkFromDestination(state.to);
@@ -100,7 +104,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
 
-      if (state.type === "on" && !isPolygonFunded) {
+      if (isOnramp(state) && !isPolygonFunded) {
         logger.info(`Funding polygon ephemeral accout ${polygonEphemeralAddress}`);
         await this.fundPolygonEphemeralAccount(state);
       } else {
@@ -119,11 +123,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     // brla onramp case
-    if (state.type === "on" && state.state.inputCurrency === FiatToken.BRL) {
+    if (isOnramp(state) && state.state.inputCurrency === FiatToken.BRL) {
       return "moonbeamToPendulumXcm";
     }
     // monerium onramp case
-    if (state.type === "on" && state.state.inputCurrency === FiatToken.EURC) {
+    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC) {
       return "moneriumOnrampSelfTransfer";
     }
 
