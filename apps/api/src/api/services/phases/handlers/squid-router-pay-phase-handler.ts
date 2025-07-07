@@ -344,8 +344,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     const multiplier = feeResponse.execute_gas_multiplier;
     const executionFeeWithMultiplier = executionFeeUnits.mul(multiplier);
 
-    // L1 data fee??
-
     const totalGasFee = baseFeeInUnitsBig.add(executionFeeWithMultiplier);
     //  .add(l1ExecutionFeeWithMultiplier);
 
