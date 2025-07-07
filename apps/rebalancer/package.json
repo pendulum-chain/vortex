@@ -1,0 +1,46 @@
+{
+  "dependencies": {
+    "@packages/shared": "workspace:*",
+    "@pendulum-chain/api-solang": "^0.7.2",
+    "@polkadot/api": "^13.2.1",
+    "@polkadot/api-contract": "^13.2.1",
+    "@types/big.js": "^6.2.2",
+    "big.js": "^7.0.1",
+    "graphql": "~16.9.0",
+    "graphql-request": "~6.1.0",
+    "viem": "^2.31.6",
+    "vortex-backend": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.0.0",
+    "@graphql-codegen/cli": "^5.0.2",
+    "@graphql-codegen/client-preset": "^4.2.6",
+    "@types/bun": "latest",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.0",
+    "typescript": "^5"
+  },
+  "lint-staged": {
+    "*": [
+      "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false"
+    ],
+    "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
+      "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false"
+    ]
+  },
+  "module": "index.ts",
+  "name": "vortex-rebalancer",
+  "peerDependencies": {},
+  "private": true,
+  "scripts": {
+    "build": "bun run swc src -d dist --strip-leading-paths",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "dev": "bun --watch src/index.ts",
+    "format": "biome check --write --unsafe --no-errors-on-unmatched",
+    "prepare": "husky",
+    "serve": "bun dist/index.js",
+    "start": "bun run build && bun run serve",
+    "test": "bun test"
+  },
+  "type": "module"
+}

@@ -25,6 +25,7 @@
     "dev": "concurrently -n 'backend,frontend' -c '#007755,#2f6da3,#550077' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
     "dev:backend": "bun run --cwd apps/api dev",
     "dev:frontend": "bun run --cwd apps/frontend dev",
+    "dev:rebalancer": "bun run --cwd apps/rebalancer dev",
     "format": "biome check --write --unsafe --no-errors-on-unmatched",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
