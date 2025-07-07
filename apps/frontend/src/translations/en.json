@@ -392,7 +392,8 @@
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "The amount is too small. Please try again with a larger amount."
       }
     }
   },

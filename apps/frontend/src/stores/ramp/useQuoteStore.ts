@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse } from "@packages/shared";
 import Big from "big.js";
 import { create } from "zustand";
 
@@ -48,6 +48,19 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 
   return destinationMap[fiatToken] || "sepa";
 };
+
+const friendlyErrorMessages: Record<QuoteError, string> = {
+  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.preNablaDeductibleFees"
+};
+
+function getFriendlyErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    const friendlyErrorMessage = friendlyErrorMessages[error.message as QuoteError];
+    return friendlyErrorMessage || error.message;
+  }
+
+  return "pages.swap.error.fetchingQuote";
+}
 
 /**
  * Creates a quote payload based on ramp parameters
@@ -128,10 +141,8 @@ export const useQuoteStore = create<QuoteState>(set => ({
         quote: quoteResponse
       });
     } catch (error) {
-      console.error("Error fetching quote:", error);
-      const errorMessage = error instanceof Error ? error.message : "pages.swap.error.fetchingQuote";
       set({
-        error: errorMessage,
+        error: getFriendlyErrorMessage(error),
         loading: false,
         outputAmount: undefined,
         quote: undefined

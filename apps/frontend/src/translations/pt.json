@@ -391,7 +391,8 @@
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "O valor é muito pequeno. Por favor, tente novamente com um valor maior."
       }
     }
   },

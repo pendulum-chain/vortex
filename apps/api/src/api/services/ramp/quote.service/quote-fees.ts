@@ -1,4 +1,4 @@
-import { DestinationType, RampCurrency } from "@packages/shared";
+import { DestinationType, QuoteError, RampCurrency } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
@@ -311,8 +311,9 @@ export async function calculatePreNablaDeductibleFees(
     };
   } catch (error) {
     logger.error("Error calculating pre-Nabla deductible fees:", error);
+
     throw new APIError({
-      message: "Failed to calculate pre-Nabla deductible fees",
+      message: QuoteError.FailedToCalculatePreNablaDeductibleFees,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }

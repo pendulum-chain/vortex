@@ -38,3 +38,7 @@ export interface QuoteResponse {
 export interface GetQuoteRequest {
   id: string;
 }
+
+export enum QuoteError {
+  FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees"
+}
