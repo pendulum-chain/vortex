@@ -330,7 +330,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {
-    console.log("fee response object", feeResponse);
     const baseFeeInUnitsBig = Big(feeResponse.source_base_fee);
 
     // Calculate the Execution Fee (with multiplier) in native units
