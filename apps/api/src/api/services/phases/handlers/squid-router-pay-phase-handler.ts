@@ -1,6 +1,6 @@
-import { FiatToken, getNetworkId, getOnChainTokenDetails, Networks, OnChainToken, RampPhase } from "@packages/shared";
+import { FiatToken, getNetworkId, Networks, RampPhase } from "@packages/shared";
 import Big from "big.js";
-import { createWalletClient, encodeFunctionData, http, PublicClient } from "viem";
+import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
@@ -9,7 +9,6 @@ import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { EvmClientManager } from "../../evm/clientManager";
-import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
 import { getStatus, SquidRouterPayResponse } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
 
@@ -181,7 +180,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     swapHash: `0x${string}`,
     logIndex: number,
     state: RampState
-  ): Promise<string> {
+  ): Promise<Hash> {
     if (state.state.inputCurrency === FiatToken.BRL) {
       return this.executeFundTransactionOnMoonbeam(tokenValueRaw, swapHash, logIndex);
     } else {
@@ -200,7 +199,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     tokenValueRaw: string,
     swapHash: `0x${string}`,
     logIndex: number
-  ): Promise<string> {
+  ): Promise<Hash> {
     try {
       const walletClientAccount = this.moonbeamWalletClient.account;
 
@@ -245,7 +244,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     tokenValueRaw: string,
     swapHash: `0x${string}`,
     logIndex: number
-  ): Promise<string> {
+  ): Promise<Hash> {
     try {
       const walletClientAccount = this.polygonWalletClient.account;
 
@@ -331,6 +330,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {
+    console.log("fee response object", feeResponse);
     const baseFeeInUnitsBig = Big(feeResponse.source_base_fee);
 
     // Calculate the Execution Fee (with multiplier) in native units
