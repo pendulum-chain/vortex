@@ -36,7 +36,11 @@ function validateOnramp(
   }
 ): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
+  // Set minimum amount for EURC to 1 unit as an arbitrary limit.
+  const minAmountUnits =
+    fromToken.assetSymbol === "EURC"
+      ? new Big(1)
+      : multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
   if (inputAmount && maxAmountUnits.lt(inputAmount)) {
     trackEvent({

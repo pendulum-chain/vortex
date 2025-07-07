@@ -22,7 +22,7 @@ export const SUPPORTED_CHAINS: {
     to: ["pix", "sepa", "cbu"]
   },
   on: {
-    from: ["pix"],
+    from: ["pix", "sepa"],
     to: [
       Networks.AssetHub,
       Networks.Avalanche,

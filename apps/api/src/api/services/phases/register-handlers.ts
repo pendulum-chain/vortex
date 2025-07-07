@@ -4,6 +4,8 @@ import brlaTeleportHandler from "./handlers/brla-teleport-handler";
 import distributeFeesHandler from "./handlers/distribute-fees-handler";
 import fundEphemeralHandler from "./handlers/fund-ephemeral-handler";
 import initialPhaseHandler from "./handlers/initial-phase-handler";
+import moneriumOnrampMintPhaseHandler from "./handlers/monerium-onramp-mint-handler";
+import moneriumOnrampSelfTransferHandler from "./handlers/monerium-onramp-self-transfer-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
@@ -41,6 +43,8 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPayPhaseHandler);
   phaseRegistry.registerHandler(distributeFeesHandler);
+  phaseRegistry.registerHandler(moneriumOnrampSelfTransferHandler);
+  phaseRegistry.registerHandler(moneriumOnrampMintPhaseHandler);
 
   logger.info("Phase handlers registered");
 }
