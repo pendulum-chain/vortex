@@ -40,7 +40,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const getSquidrouterSwapMessage = () =>
     t("pages.progress.squidRouterSwap", {
       assetSymbol: outputAssetSymbol,
-      network: toNetwork
+      fromNetwork: quote.inputCurrency === FiatToken.EURC ? "Polygon" : "Moonbeam",
+      toNetwork: toNetwork
     });
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");

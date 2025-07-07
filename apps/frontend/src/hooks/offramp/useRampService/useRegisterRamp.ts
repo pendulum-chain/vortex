@@ -297,7 +297,7 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken) {
+    if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken || !rampRegistered) {
       return; // Exit early if conditions aren't met
     }
 
@@ -451,7 +451,8 @@ export const useRegisterRamp = () => {
     executionInput?.onChainToken,
     moneriumTriggered,
     getMessageSignature,
-    resetRampState
+    resetRampState,
+    rampRegistered
   ]);
 
   return {
