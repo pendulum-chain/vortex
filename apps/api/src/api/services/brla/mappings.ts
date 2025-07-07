@@ -5,6 +5,7 @@ import {
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
+  OnChainOutPayload,
   OnchainLog,
   PixKeyData,
   RegisterSubaccountPayload,
@@ -26,7 +27,8 @@ export enum Endpoint {
   Swap = "/swap",
   OnChainHistoryOut = "/on-chain/history/out",
   KycLevel2 = "/kyc/level2",
-  KycRetry = "/kyc/retry"
+  KycRetry = "/kyc/retry",
+  OnChainOut = "/on-chain/transfer"
 }
 
 export interface EndpointMapping {
@@ -188,6 +190,20 @@ export interface EndpointMapping {
     POST: {
       body: KycRetryPayload;
       response: unknown; // Doesn't return anything. 201.
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.OnChainOut]: {
+    POST: {
+      body: OnChainOutPayload;
+      response: { id: string };
     };
     GET: {
       body: undefined;

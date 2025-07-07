@@ -1,20 +1,23 @@
 import {
+  decodeSubmittableExtrinsic,
   FiatToken,
   getAnyFiatTokenDetails,
   getAnyFiatTokenDetailsMoonbeam,
+  Networks,
   PENDULUM_USDC_AXL,
   type PendulumTokenDetails
 } from "@packages/shared";
+import { KeyPairSigner, signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
 import Big from "big.js";
 import { polygon } from "viem/chains";
-import { checkEvmBalancePeriodically } from "../helpers/evm/balance.ts";
-import { signAndSubmitSubstrateTransaction } from "../helpers/signing.ts";
-import { BrlaApiService } from "../services/brla/brlaApiService.ts";
-import { createNablaTransactions } from "../services/nabla";
-import { multiplyByPowerOfTen } from "../services/nabla/helpers.ts";
-import { getTokenOutAmount } from "../services/nabla/outAmount.ts";
-import { createPendulumToMoonbeamTransfer } from "../services/xcm/pendulumToMoonbeam.ts";
-import ApiManager from "../utils/api-manager.ts";
+import { multiplyByPowerOfTen } from "vortex-backend/src/api/helpers/contracts.ts";
+import { BrlaApiService } from "vortex-backend/src/api/services/brla/brlaApiService";
+import { checkEvmBalancePeriodically } from "vortex-backend/src/api/services/moonbeam/balance";
+import { getTokenOutAmount } from "vortex-backend/src/api/services/nablaReads/outAmount.ts";
+import { ApiManager } from "vortex-backend/src/api/services/pendulum/apiManager.ts";
+import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/services/transactions/nabla";
+import { createPendulumToMoonbeamTransfer } from "vortex-backend/src/api/services/transactions/xcm/pendulumToMoonbeam";
+import { submitXcm } from "vortex-backend/src/api/services/xcm/send.ts";
 import { getConfig, getPendulumAccount, getPolygonAccount } from "../utils/config.ts";
 
 const usdcTokenDetails = PENDULUM_USDC_AXL;
@@ -79,7 +82,8 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
 async function swapAxlusdcToBrla(amount: string) {
   console.log(`Swapping ${amount} USDC.axl to BRLA...`);
 
-  const api = await ApiManager.getApi("pendulum");
+  const apiManager = await ApiManager.getInstance();
+  const { api } = await apiManager.getApi("pendulum");
 
   const expectedAmountOut = await getTokenOutAmount({
     api,
@@ -102,20 +106,30 @@ async function swapAxlusdcToBrla(amount: string) {
   const amountRaw = multiplyByPowerOfTen(amount, usdcTokenDetails.decimals).toFixed(0, 0);
   const minOutputRaw = expectedAmountOut.preciseQuotedAmountOut.rawBalance.times(0.95).toFixed(0, 0); // 5% slippage tolerance
 
-  const { approve, swap } = await createNablaTransactions(
+  const { approve, swap } = await createNablaTransactionsForOfframp(
     amountRaw,
-    callerAddress,
+    { address: callerAddress, network: Networks.Pendulum },
     usdcTokenDetails,
     brlaFiatTokenDetails.pendulumRepresentative,
     minOutputRaw
   );
 
   console.log("Approving USDC.axl for swap...");
-  await signAndSubmitSubstrateTransaction(approve.transaction, pendulumAccount, api);
+  const approvalExtrinsic = decodeSubmittableExtrinsic(approve.transaction, api);
+  await signExtrinsic(approvalExtrinsic, pendulumAccount as unknown as KeyPairSigner);
+  const approvalResult = await submitExtrinsic(approvalExtrinsic);
+  if (approvalResult.status.type === "error") {
+    throw new Error("Failed to approve USDC.axl for swap.");
+  }
   console.log("USDC.axl approved for swap.");
 
   console.log("Swapping USDC.axl to BRLA...");
-  await signAndSubmitSubstrateTransaction(swap.transaction, pendulumAccount, api);
+  const swapExtrinsic = decodeSubmittableExtrinsic(swap.transaction, api);
+  await signExtrinsic(swapExtrinsic, pendulumAccount as unknown as KeyPairSigner);
+  const swapResult = await submitExtrinsic(swapExtrinsic);
+  if (swapResult.status.type === "error") {
+    throw new Error("Failed to swap USDC.axl to BRLA.");
+  }
   console.log("USDC.axl swapped to BRLA successfully.");
 
   return expectedAmountOut.preciseQuotedAmountOut.preciseBigDecimal;
@@ -133,6 +147,5 @@ async function sendBrlaToMoonbeam(brlaAmount: Big, brlaTokenDetails: PendulumTok
     brlaTokenDetails.currencyId
   );
 
-  const api = await ApiManager.getApi("pendulum");
-  return signAndSubmitSubstrateTransaction(xcmTransfer, getPendulumAccount(), api);
+  return submitXcm(getPendulumAccount().address, xcmTransfer);
 }

@@ -1,22 +1,7 @@
 import { Keyring } from "@polkadot/api";
-import { type Chain, createPublicClient, createWalletClient, http } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
-
-const createEvmClientsAndConfig = (executorAccount: ReturnType<typeof mnemonicToAccount>, chain: Chain) => {
-  const walletClient = createWalletClient({
-    account: executorAccount,
-    chain,
-    transport: http()
-  });
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http()
-  });
-
-  return { publicClient, walletClient };
-};
+import { createEvmClientsAndConfig } from "vortex-backend/src/api/services/moonbeam/createServices";
 
 export function getConfig() {
   if (!process.env.PENDULUM_ACCOUNT_SECRET) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");

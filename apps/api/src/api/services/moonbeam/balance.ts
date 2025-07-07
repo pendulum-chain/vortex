@@ -1,4 +1,5 @@
 import { EvmAddress } from "@packages/shared";
+import { moonbeam } from "@wagmi/core/chains";
 import Big from "big.js";
 import { Chain, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -6,7 +7,7 @@ import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY
 import erc20ABI from "../../../contracts/ERC20";
 import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
-import { createMoonbeamClientsAndConfig } from "./createServices";
+import { createEvmClientsAndConfig } from "./createServices";
 
 export enum BalanceCheckErrorType {
   Timeout = "BALANCE_CHECK_TIMEOUT",
@@ -122,13 +123,13 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
 
 export function getMoonbeamFundingData(decimals: number): {
   fundingAmountRaw: string;
-  walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>["walletClient"];
-  publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>["publicClient"];
+  walletClient: ReturnType<typeof createEvmClientsAndConfig>["walletClient"];
+  publicClient: ReturnType<typeof createEvmClientsAndConfig>["publicClient"];
 } {
   const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as EvmAddress);
-  const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+  const { walletClient, publicClient } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
 
   return { fundingAmountRaw, publicClient, walletClient };
 }

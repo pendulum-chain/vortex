@@ -122,6 +122,24 @@ export class BrlaApiService {
     }
   }
 
+  public async transferBrlaToDestination(
+    destination: string,
+    amount: Big,
+    chain: "Polygon" // For now, we only need to care about Polygon
+  ) {
+    const amountInCents = amount.mul(100); // Convert to cents as BRLA API expects amounts in cents
+    const payload = {
+      chain,
+      exactOutput: true,
+      inputCoin: "BRLA",
+      outputCoin: "BRLA",
+      to: destination,
+      value: amountInCents.toNumber() // Assuming BRLA is the input and output coin for this transfer
+    };
+
+    return await this.sendRequest(Endpoint.OnChainOut, "POST", undefined, payload);
+  }
+
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const query = `taxId=${encodeURIComponent(taxId)}`;
     const response = await this.sendRequest(Endpoint.Subaccounts, "GET", query);

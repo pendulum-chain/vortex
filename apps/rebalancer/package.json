@@ -8,25 +8,14 @@
     "big.js": "^7.0.1",
     "graphql": "~16.9.0",
     "graphql-request": "~6.1.0",
-    "viem": "^2.31.6",
+    "viem": "^2.21.3",
     "vortex-backend": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.0.0",
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/client-preset": "^4.2.6",
     "@types/bun": "latest",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.0",
     "typescript": "^5"
-  },
-  "lint-staged": {
-    "*": [
-      "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false"
-    ],
-    "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
-      "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false"
-    ]
   },
   "module": "index.ts",
   "name": "vortex-rebalancer",

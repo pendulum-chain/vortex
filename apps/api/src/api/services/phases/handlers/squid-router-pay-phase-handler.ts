@@ -8,7 +8,7 @@ import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
-import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
+import { createEvmClientsAndConfig } from "../../moonbeam/createServices";
 import { getTokenDetailsForEvmDestination } from "../../ramp/quote.service/gross-output";
 import { createOnrampRouteParams, getRoute, getStatus } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -39,7 +39,7 @@ const AXL_GAS_SERVICE_MOONBEAM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
-  private walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>["walletClient"];
+  private walletClient: ReturnType<typeof createEvmClientsAndConfig>["walletClient"];
 
   constructor() {
     super();
@@ -48,7 +48,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       transport: http()
     });
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-    const { walletClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+    const { walletClient } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
     this.walletClient = walletClient;
   }
 

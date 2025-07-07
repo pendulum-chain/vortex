@@ -1,7 +1,7 @@
+import { NABLA_ROUTER } from "@packages/shared";
 import request from "graphql-request";
 import { graphql } from "../../../gql";
 import type { GetRouterQuery } from "../../../gql/graphql.ts";
-import { NABLA_ROUTER } from "../nabla/helpers.ts";
 
 export type NablaInstanceRouter = NonNullable<GetRouterQuery["routerById"]>;
 export type NablaInstanceBackstopPool = NablaInstanceRouter["backstopPool"][number];

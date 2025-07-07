@@ -259,3 +259,12 @@ interface OperationFeedback {
   errorMsg: string;
   createdAt: string;
 }
+
+export interface OnChainOutPayload {
+  chain: string;
+  to: string;
+  value: number;
+  exactOutput: boolean;
+  inputCoin: string;
+  outputCoin: string;
+}

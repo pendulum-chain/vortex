@@ -12,7 +12,7 @@ import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { waitUntilTrue } from "../../../helpers/functions";
-import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
+import { createEvmClientsAndConfig } from "../../moonbeam/createServices";
 import { ApiManager } from "../../pendulum/apiManager";
 import encodePayload from "../../transactions/squidrouter/payload";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -60,7 +60,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = (await readContract(moonbeamConfig, {
+      const result = (await readContract(evmConfig, {
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
@@ -72,7 +72,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, publicClient, moonbeamConfig } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+    const { walletClient, publicClient, evmConfig } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {

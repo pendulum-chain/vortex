@@ -20,11 +20,7 @@
     "types": ["node", "vitest/globals"],
     "useDefineForClassFields": true
   },
-  "include": [
-    "src",
-    // Include the Pendulum types so we can use them in our code
-    "node_modules/@pendulum-chain/types"
-  ],
+  "include": ["src", "node_modules/@pendulum-chain/types"],
   "references": [
     {
       "path": "./tsconfig.node.json"
