@@ -1,5 +1,6 @@
 import ARS from "../assets/coins/ARS.png";
 import BRL from "../assets/coins/BRL.png";
+import ETH from "../assets/coins/ETH.svg";
 import ETH_ARBITRUM from "../assets/coins/ETH_ARBITRUM.svg";
 import ETH_BASE from "../assets/coins/ETH_BASE.svg";
 import ETH_BSC from "../assets/coins/ETH_BSC.svg";
@@ -37,6 +38,7 @@ const ICONS = {
   bscETH: ETH_BSC,
   bscUSDC: USDC_BSC,
   bscUSDT: USDT_BSC,
+  eth: ETH,
   ethereumETH: ETH_ETHEREUM,
   ethereumUSDC: USDC_ETHEREUM,
   ethereumUSDT: USDT_ETHEREUM,
