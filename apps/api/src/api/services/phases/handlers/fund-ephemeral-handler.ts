@@ -27,13 +27,18 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return "fundEphemeral";
   }
 
+  protected getRequiresPendulumEphemeralAddress(state: RampState): boolean {
+    // Pendulum ephemeral address is required for all onramp cases except when the input currency is EURC.
+    return !(state.type === "on" && state.state.inputCurrency === FiatToken.EURC);
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
     const moonbeamNode = await apiManager.getApi("moonbeam");
 
     const { moonbeamEphemeralAddress, pendulumEphemeralAddress, polygonEphemeralAddress } = state.state as StateMetadata;
-    const requiresPendulumEphemeralAddress = !(state.type === "on" && state.state.inputCurrency === FiatToken.EURC);
+    const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state);
 
     // Ephemeral checks.
     if (!pendulumEphemeralAddress && requiresPendulumEphemeralAddress) {
