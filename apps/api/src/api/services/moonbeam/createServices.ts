@@ -1,19 +1,14 @@
+import { Networks } from "@packages/shared";
 import { createConfig } from "@wagmi/core";
-import { createPublicClient, createWalletClient, http } from "viem";
+import { http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
+import { EvmClientManager } from "../evm/clientManager";
 
 export const createMoonbeamClientsAndConfig = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
-  const walletClient = createWalletClient({
-    account: executorAccount,
-    chain: moonbeam,
-    transport: http()
-  });
-
-  const publicClient = createPublicClient({
-    chain: moonbeam,
-    transport: http()
-  });
+  const evmClientManager = EvmClientManager.getInstance();
+  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
+  const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, executorAccount);
 
   const moonbeamConfig = createConfig({
     chains: [moonbeam],
@@ -22,5 +17,5 @@ export const createMoonbeamClientsAndConfig = (executorAccount: ReturnType<typeo
     }
   });
 
-  return { moonbeamConfig, publicClient, walletClient };
+  return { moonbeamClient, moonbeamConfig, walletClient };
 };

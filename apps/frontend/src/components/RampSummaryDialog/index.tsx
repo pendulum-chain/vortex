@@ -20,7 +20,7 @@ export const RampSummaryDialog: FC = () => {
   const { resetRampState } = useRampActions();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
-  const rampDirection = useRampDirection();
+  const rampDirection = executionInput?.quote.rampType === "off" ? RampDirection.OFFRAMP : RampDirection.ONRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();

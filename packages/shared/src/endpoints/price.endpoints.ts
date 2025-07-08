@@ -1,6 +1,8 @@
+import { EvmToken } from "../tokens";
+
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
 export const VALID_PROVIDERS = ["alchemypay", "moonpay", "transak"] as const;
-export const VALID_CRYPTO_CURRENCIES = ["usdc", "usdce", "usdc.e", "usdt"] as const;
+export const VALID_CRYPTO_CURRENCIES = Object.values(EvmToken);
 export const VALID_FIAT_CURRENCIES = ["eur", "ars", "brl"] as const;
 
 export type PriceProvider = (typeof VALID_PROVIDERS)[number];

@@ -5,6 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
+import { EvmClientManager } from "./api/services/evm/clientManager";
 import { ApiManager } from "./api/services/pendulum/apiManager";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
@@ -58,6 +59,9 @@ const initializeApp = async () => {
 
     const apiManager = ApiManager.getInstance();
     await apiManager.populateAllApis();
+
+    // Initialize EVM clients
+    const _evmClientManager = EvmClientManager.getInstance();
 
     // Start background workers
     new CleanupWorker().start();

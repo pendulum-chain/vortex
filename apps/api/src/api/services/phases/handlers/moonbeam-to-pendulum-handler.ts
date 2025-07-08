@@ -72,7 +72,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, publicClient, moonbeamConfig } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+    const { walletClient, moonbeamClient, moonbeamConfig } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
@@ -93,7 +93,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             functionName: "executeXCM"
           });
 
-          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+          const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamClient.estimateFeesPerGas();
           obtainedHash = await walletClient.sendTransaction({
             data,
             maxFeePerGas,

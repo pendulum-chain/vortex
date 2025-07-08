@@ -187,8 +187,11 @@ const getTokenDefinitionsForNetwork = (
 
   if (isOnramp) {
     if (type === "from") {
-      // @TODO: RESTRICT IT TO BRLA ONLY
-      return Object.entries(moonbeamTokenConfig).map(([key, value]) => ({
+      // @TODO: RESTRICT IT TO BRLA ONLY. Also, improve the properties to be more dynamic on our on/off definitions.
+      return [
+        ...Object.entries(moonbeamTokenConfig),
+        ...Object.entries(stellarTokenConfig).filter(([key]) => key === "eur")
+      ].map(([key, value]) => ({
         assetIcon: value.fiat.assetIcon,
         assetSymbol: value.fiat.symbol,
         details: value as FiatTokenDetails,

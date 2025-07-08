@@ -1,9 +1,9 @@
-import { EvmAddress } from "@packages/shared";
+import { EvmAddress, EvmNetworks } from "@packages/shared";
 import Big from "big.js";
-import { Chain, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../constants/constants";
 import erc20ABI from "../../../contracts/ERC20";
+import { EvmClientManager } from "../evm/clientManager";
 import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { createMoonbeamClientsAndConfig } from "./createServices";
@@ -26,15 +26,13 @@ export class BalanceCheckError extends Error {
 interface GetBalanceParams {
   tokenAddress: EvmAddress;
   ownerAddress: EvmAddress;
-  chain: Chain;
+  chain: EvmNetworks;
 }
 
 export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
   try {
-    const publicClient = createPublicClient({
-      chain,
-      transport: http()
-    });
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(chain);
 
     const balanceResult = (await publicClient.readContract({
       abi: erc20ABI,
@@ -55,16 +53,14 @@ export function checkEvmBalancePeriodically(
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: Chain
+  chain: EvmNetworks
 ): Promise<Big> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
-        const publicClient = createPublicClient({
-          chain,
-          transport: http()
-        });
+        const evmClientManager = EvmClientManager.getInstance();
+        const publicClient = evmClientManager.getClient(chain);
 
         const result = (await publicClient.readContract({
           abi: erc20ABI,
@@ -101,14 +97,14 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi("moonbeam");
 
-    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
+    const { walletClient, fundingAmountRaw, moonbeamClient } = getMoonbeamFundingData(apiData.decimals);
 
     const txHash = await walletClient.sendTransaction({
       to: ephemeralAddress as `0x${string}`,
       value: BigInt(fundingAmountRaw)
     });
 
-    const receipt = await publicClient.waitForTransactionReceipt({
+    const receipt = await moonbeamClient.waitForTransactionReceipt({
       hash: txHash as `0x${string}`
     });
     if (!receipt || receipt.status !== "success") {
@@ -123,12 +119,12 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
 export function getMoonbeamFundingData(decimals: number): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>["walletClient"];
-  publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>["publicClient"];
+  moonbeamClient: ReturnType<typeof createMoonbeamClientsAndConfig>["moonbeamClient"];
 } {
   const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as EvmAddress);
-  const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+  const { walletClient, moonbeamClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
 
-  return { fundingAmountRaw, publicClient, walletClient };
+  return { fundingAmountRaw, moonbeamClient, walletClient };
 }
