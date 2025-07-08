@@ -116,7 +116,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
     // Conditionally return Monerium's URL.
     // TODO to be improved when adding the EUR.e as a token config.
-    if (fiatToken.fiat.symbol === "EUR") {
+    if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
     return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
