@@ -397,7 +397,9 @@ export const useRegisterRamp = () => {
       // Update ramp with user-signed transactions and additional data
       const additionalData = {
         assetHubToPendulumHash,
-        moneriumOfframpSignature
+        moneriumOfframpSignature,
+        squidRouterApproveHash,
+        squidRouterSwapHash
       };
 
       // Ramp must exist at this point.
