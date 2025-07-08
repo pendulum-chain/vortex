@@ -31,7 +31,7 @@ export async function buildPaymentAndMergeTx({
   paymentData,
   tokenConfigStellar
 }: StellarBuildPaymentAndMergeTx): Promise<{
-  expectedSequenceNumber: string;
+  expectedSequenceNumbers: string[];
   paymentTransactions: Array<{ sequence: string; tx: string }>;
   mergeAccountTransactions: Array<{ sequence: string; tx: string }>;
   createAccountTransactions: Array<{ sequence: string; tx: string }>;
@@ -65,8 +65,6 @@ export async function buildPaymentAndMergeTx({
     const sequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32, timeWindows[i]);
     sequenceNumbers.push(sequenceNumber);
   }
-
-  const expectedSequenceNumber = sequenceNumbers[0]; // Use first sequence number as expected
 
   const paymentTransactions: Array<{ sequence: string; tx: string }> = [];
   const mergeAccountTransactions: Array<{ sequence: string; tx: string }> = [];
@@ -174,7 +172,7 @@ export async function buildPaymentAndMergeTx({
 
   return {
     createAccountTransactions,
-    expectedSequenceNumber: String(expectedSequenceNumber),
+    expectedSequenceNumbers: sequenceNumbers,
     mergeAccountTransactions,
     paymentTransactions
   };
