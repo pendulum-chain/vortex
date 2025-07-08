@@ -93,24 +93,20 @@ export async function prepareNablaApproveTransaction({
   }
 
   const currentAllowance = parseContractBalanceResponse(inputTokenPendulumDetails.decimals, response.value);
+  logger.debug("Current allowance:", currentAllowance.toString());
 
-  // maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
-    try {
-      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol}`);
-      return createApproveExtrinsic({
-        amount: amountRaw,
-        api,
-        callerAddress: pendulumEphemeralAddress,
-        contractAbi: erc20ContractAbi,
-        spender: NABLA_ROUTER,
-        token: inputTokenPendulumDetails.erc20WrapperAddress
-      });
-    } catch (e) {
-      logger.info(`Could not approve token: ${e}`);
-      return Promise.reject("Could not approve token");
-    }
+  try {
+    logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol}`);
+    return createApproveExtrinsic({
+      amount: amountRaw,
+      api,
+      callerAddress: pendulumEphemeralAddress,
+      contractAbi: erc20ContractAbi,
+      spender: NABLA_ROUTER,
+      token: inputTokenPendulumDetails.erc20WrapperAddress
+    });
+  } catch (e) {
+    logger.info(`Could not approve token: ${e}`);
+    return Promise.reject("Could not approve token");
   }
-
-  throw Error("Couldn't create approve extrinsic");
 }
