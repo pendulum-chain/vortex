@@ -1,28 +1,29 @@
 import {
   decodeSubmittableExtrinsic,
+  EvmTokenDetails,
   FiatToken,
   getAnyFiatTokenDetails,
   getAnyFiatTokenDetailsMoonbeam,
   Networks,
   PENDULUM_USDC_AXL,
-  type PendulumTokenDetails
+  type PendulumTokenDetails,
+  TokenType
 } from "@packages/shared";
 import { KeyPairSigner, signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
 import Big from "big.js";
 import { polygon } from "viem/chains";
 import { multiplyByPowerOfTen } from "vortex-backend/src/api/helpers/contracts.ts";
-import { BrlaApiService } from "vortex-backend/src/api/services/brla/brlaApiService";
-import { checkEvmBalancePeriodically } from "vortex-backend/src/api/services/moonbeam/balance";
 import { getTokenOutAmount } from "vortex-backend/src/api/services/nablaReads/outAmount.ts";
 import { ApiManager } from "vortex-backend/src/api/services/pendulum/apiManager.ts";
 import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/services/transactions/nabla";
+import { createOfframpSquidrouterTransactions } from "vortex-backend/src/api/services/transactions/squidrouter/offramp.ts";
 import { createPendulumToMoonbeamTransfer } from "vortex-backend/src/api/services/transactions/xcm/pendulumToMoonbeam";
 import { submitXcm } from "vortex-backend/src/api/services/xcm/send.ts";
-import { getConfig, getPendulumAccount, getPolygonAccount } from "../utils/config.ts";
+import { getConfig, getPendulumAccount, getPolygonWalletClient } from "../utils/config.ts";
 
 const usdcTokenDetails = PENDULUM_USDC_AXL;
 const brlaFiatTokenDetails = getAnyFiatTokenDetails(FiatToken.BRL);
-const brlaEvmTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+const brlaMoonbeamTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
 
 /// Takes care of rebalancing an overfull BRLA pool on Pendulum with the axl.USDC pool on Pendulum.
 /// @param amountAxlUsdc - The amount of USDC.axl to swap to BRLA initially.
@@ -56,27 +57,78 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   // );
   // console.log(`${outputAmount.toFixed(4, 0)} BRLA successfully teleported to Polygon account.`);
 
-  // 4. Send BRLA tokens from business to controlled account on Polygon using BRLA API
-  const polygonAccount = getPolygonAccount();
-  console.log(
-    `Sending ${outputAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonAccount.address}...`
-  );
-  const brlaApiService = BrlaApiService.getInstance();
-  await brlaApiService.transferBrlaToDestination(polygonAccount.address, outputAmount, "Polygon");
+  // // 4. Send BRLA tokens from business to controlled account on Polygon using BRLA API
+  const polygonWalletClient = getPolygonWalletClient();
+  // console.log(
+  //   `Sending ${outputAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonAccount.address}...`
+  // );
+  // const brlaApiService = BrlaApiService.getInstance();
+  // await brlaApiService.transferBrlaToDestination(polygonAccount.address, outputAmount, "Polygon");
+  //
+  // console.log(`Waiting for ${outputAmount.toFixed(4, 0)} BRLA to be transferred to controlled account on Polygon...`);
+  // await checkEvmBalancePeriodically(
+  //   brlaEvmTokenDetails.polygonErc20Address,
+  //   polygonAccount.address,
+  //   outputAmountRaw,
+  //   1_000, // 1 second
+  //   5 * 60 * 1_000, // 5 minutes
+  //   polygon
+  // );
 
-  console.log(`Waiting for ${outputAmount.toFixed(4, 0)} BRLA to be transferred to controlled account on Polygon...`);
-  await checkEvmBalancePeriodically(
-    brlaEvmTokenDetails.polygonErc20Address,
-    polygonAccount.address,
-    outputAmountRaw,
-    1_000, // 1 second
-    5 * 60 * 1_000, // 5 minutes
-    polygon
-  );
+  // 5. Swap BRLA via Squidrouter to USDC.axl on Moonbeam and send to Pendulum
+  console.log(`Swapping ${outputAmount.toFixed(4, 0)} BRLA to USDC.axl on Moonbeam via Squidrouter...`);
+  const pendulumAccount = getPendulumAccount();
 
-  // 5. Swap BRLA via Squidrouter to USDC.axl on Moonbeam
+  const brlaEvmTokenDetails: EvmTokenDetails = {
+    assetSymbol: "BRLA",
+    decimals: brlaMoonbeamTokenDetails.decimals,
+    erc20AddressSourceChain: brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`,
+    isNative: false,
+    network: Networks.Polygon,
+    networkAssetIcon: "polygonBRLA",
+    pendulumRepresentative: brlaFiatTokenDetails.pendulumRepresentative,
+    type: TokenType.Evm
+  };
 
-  // 6. Send USDC.axl back to the original account on Pendulum
+  const { approveData, swapData } = await createOfframpSquidrouterTransactions({
+    fromAddress: polygonWalletClient.account.address,
+    fromNetwork: Networks.Polygon,
+    inputTokenDetails: brlaEvmTokenDetails,
+    pendulumAddressDestination: pendulumAccount.address,
+    rawAmount: outputAmountRaw
+  });
+
+  const approveDataExtended = {
+    account: polygonWalletClient.account,
+    chain: polygon,
+    data: approveData.data,
+    gas: BigInt(approveData.gas),
+    maxFeePerGas: approveData.maxFeePerGas ? BigInt(approveData.maxFeePerGas) * 5n : BigInt(187500000000),
+    maxPriorityFeePerGas: approveData.maxPriorityFeePerGas
+      ? BigInt(approveData.maxPriorityFeePerGas) * 5n
+      : BigInt(187500000000),
+    to: approveData.to,
+    value: BigInt(approveData.value)
+  };
+
+  console.log("Approving BRLA for swap on Polygon...");
+  const approveHash = await polygonWalletClient.sendTransaction(approveDataExtended);
+  console.log("BRLA approved for swap on Polygon. Transaction hash:", approveHash);
+
+  const swapDataExtended = {
+    account: polygonWalletClient.account,
+    chain: polygon,
+    data: swapData.data,
+    gas: BigInt(swapData.gas),
+    maxFeePerGas: swapData.maxFeePerGas ? BigInt(swapData.maxFeePerGas) * 5n : BigInt(187500000000),
+    maxPriorityFeePerGas: swapData.maxPriorityFeePerGas ? BigInt(swapData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
+    to: swapData.to,
+    value: BigInt(swapData.value)
+  };
+
+  console.log("Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...");
+  const swapHash = await polygonWalletClient.sendTransaction(swapDataExtended);
+  console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
 }
 
 async function swapAxlusdcToBrla(amount: string) {

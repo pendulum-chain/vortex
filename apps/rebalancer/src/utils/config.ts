@@ -34,18 +34,18 @@ export function getPendulumAccount() {
   return keyring.addFromUri(config.pendulumAccountSecret);
 }
 
-export function getMoonbeamAccount() {
+export function getMoonbeamWalletClient() {
   const config = getConfig();
 
   const moonbeamExecutorAccount = mnemonicToAccount(config.moonbeamAccountSecret as `0x${string}`);
   const { walletClient } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
-  return walletClient.account;
+  return walletClient;
 }
 
-export function getPolygonAccount() {
+export function getPolygonWalletClient() {
   const config = getConfig();
 
   const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
   const { walletClient } = createEvmClientsAndConfig(polygonExecutorAccount, polygon);
-  return walletClient.account;
+  return walletClient;
 }

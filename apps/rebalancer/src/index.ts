@@ -19,7 +19,7 @@ async function checkForRebalancing() {
 
   const config = getConfig();
   if (
-    brlaPool.coverageRatio >= 1 + config.rebalancingThreshold &&
+    brlaPool.coverageRatio >= 1 + config.rebalancingThreshold ||
     usdcAxlPool.coverageRatio <= 1 - config.rebalancingThreshold
   ) {
     console.log("Coverage ratios of BRLA and USDC.axl require rebalancing.");
