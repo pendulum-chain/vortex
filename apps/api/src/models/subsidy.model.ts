@@ -10,7 +10,8 @@ export enum SubsidyToken {
   AXLUSDC = "USDC.axl",
   BRLA = "BRLA",
   EURC = "EURC",
-  USDC = "USDC"
+  USDC = "USDC",
+  MATIC = "MATIC"
 }
 
 export interface SubsidyAttributes {
