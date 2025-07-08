@@ -27,7 +27,7 @@ interface QuotePayload {
 interface QuoteState {
   quote: QuoteResponse | undefined;
   loading: boolean;
-  error: string | null;
+  error: string | null; // This is either the error message or the key of the translation
   outputAmount: Big | undefined;
   exchangeRate: number;
   fetchQuote: (params: QuoteParams) => Promise<void>;
@@ -96,12 +96,11 @@ const processQuoteResponse = (quoteResponse: QuoteResponse) => {
 export const useQuoteStore = create<QuoteState>(set => ({
   error: null,
   exchangeRate: 0,
-
   fetchQuote: async (params: QuoteParams) => {
     const { inputAmount, partnerId } = params;
 
-    if (!inputAmount) {
-      set({ error: "Invalid input parameters", loading: false });
+    if (!inputAmount || inputAmount.eq(0)) {
+      set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
       return;
     }
 
@@ -130,7 +129,7 @@ export const useQuoteStore = create<QuoteState>(set => ({
       });
     } catch (error) {
       console.error("Error fetching quote:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to get quote";
+      const errorMessage = error instanceof Error ? error.message : "pages.swap.error.fetchingQuote";
       set({
         error: errorMessage,
         loading: false,
@@ -142,7 +141,6 @@ export const useQuoteStore = create<QuoteState>(set => ({
   loading: false,
   outputAmount: undefined,
   quote: undefined,
-
   reset: () => {
     set({
       error: null,

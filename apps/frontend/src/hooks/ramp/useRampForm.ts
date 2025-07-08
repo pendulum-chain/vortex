@@ -54,16 +54,9 @@ export const useRampForm = (): {
     reset: resetStore
   } = useRampFormStoreActions();
 
-  const enforceTokenConstraints = useCallback(
-    (token: FiatToken): FiatToken => {
-      // For onramp, we only allow BRL
-      if (direction === RampDirection.ONRAMP && token !== FiatToken.BRL) {
-        return FiatToken.BRL;
-      }
-      return token;
-    },
-    [direction]
-  );
+  const enforceTokenConstraints = useCallback((token: FiatToken): FiatToken => {
+    return token;
+  }, []);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {

@@ -36,7 +36,11 @@ function validateOnramp(
   }
 ): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
+  // Set minimum amount for EURC to 1 unit as an arbitrary limit.
+  const minAmountUnits =
+    fromToken.assetSymbol === "EURC"
+      ? new Big(1)
+      : multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
   if (inputAmount && maxAmountUnits.lt(inputAmount)) {
     trackEvent({
@@ -84,6 +88,7 @@ function validateOfframp(
   }
 ): string | null {
   if (typeof userInputTokenBalance === "string") {
+    const isNativeToken = fromToken.isNative;
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
         error_message: "insufficient_balance",
@@ -94,6 +99,9 @@ function validateOfframp(
         assetSymbol: fromToken?.assetSymbol,
         userInputTokenBalance
       });
+      // If the user chose the max amount, show a warning for native tokens due to gas fees
+    } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
+      return t("pages.swap.error.gasWarning");
     }
   }
 
@@ -174,7 +182,7 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
-    if (quoteError) return quoteError;
+    if (quoteError) return t(quoteError);
 
     if (isDisconnected) return;
 

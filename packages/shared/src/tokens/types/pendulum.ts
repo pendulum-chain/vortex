@@ -1,8 +1,9 @@
-import { PendulumCurrencyId } from "./base";
+import { PendulumCurrencyId, RampCurrency } from "./base";
 
 export type PendulumTokenDetails = {
-  pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: PendulumCurrencyId;
-  pendulumAssetSymbol: string;
-  pendulumDecimals: number;
+  erc20WrapperAddress: string;
+  currencyId: PendulumCurrencyId;
+  assetSymbol: string;
+  decimals: number;
+  currency: RampCurrency; // Used for price conversions
 };

@@ -52,13 +52,12 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
  * @public
  */
 export const updateRamp = async (
-  req: Request<{ rampId: string }, unknown, Omit<UpdateRampRequest, "rampId">>,
+  req: Request<unknown, unknown, UpdateRampRequest>,
   res: Response<UpdateRampResponse>,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampId } = req.params;
-    const { presignedTxs, additionalData } = req.body;
+    const { rampId, presignedTxs, additionalData } = req.body;
 
     // Validate required fields
     if (!rampId || !presignedTxs) {

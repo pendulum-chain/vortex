@@ -1,6 +1,7 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
 import {
   BaseFiatTokenDetails,
+  FiatToken,
   FiatTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
@@ -22,6 +23,7 @@ import { RampExecutionInput } from "../../types/phases";
 import { RampDirection } from "../RampToggle";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
+import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
@@ -68,7 +70,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (targetTimestamp === null) {
       // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
-      setIsQuoteExpired(true);
+      //setIsQuoteExpired(true);
       return;
     }
 
@@ -112,6 +114,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
+    // Conditionally return Monerium's URL.
+    // TODO to be improved when adding the EUR.e as a token config.
+    if (fromToken.assetSymbol === "EURC") {
+      return "https://monerium.com";
+    }
     return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
   };
 
@@ -145,7 +152,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
       />
-      <BRLOnrampDetails />
+      {rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
+      {rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {targetTimestamp !== null && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

@@ -36,9 +36,9 @@ export const useStartRamp = () => {
           return;
         }
       } else {
-        // Here we assume we are in any EVM network and need squidrouter
-        if (!rampState.userSigningMeta.squidRouterApproveHash || !rampState.userSigningMeta.squidRouterSwapHash) {
-          console.error("Squid router hash is missing. Cannot start ramp.");
+        // Native token transfers don't require an approval so we only check the swap hash
+        if (!rampState.userSigningMeta.squidRouterSwapHash) {
+          console.error("Squid router swap hash is missing. Cannot start ramp.");
           return;
         }
       }

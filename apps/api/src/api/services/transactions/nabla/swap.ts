@@ -1,4 +1,4 @@
-import { NABLA_ROUTER, PendulumDetails } from "@packages/shared";
+import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { createExecuteMessageExtrinsic, Extrinsic } from "@pendulum-chain/api-solang";
 import { ApiPromise } from "@polkadot/api";
 import { Abi } from "@polkadot/api-contract";
@@ -10,8 +10,8 @@ import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";
 
 export interface PrepareNablaSwapParams {
-  inputTokenDetails: PendulumDetails;
-  outputTokenDetails: PendulumDetails;
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
   amountRaw: string;
   nablaHardMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
@@ -65,8 +65,8 @@ export async function createSwapExtrinsic({
 }
 
 export async function prepareNablaSwapTransaction({
-  inputTokenDetails,
-  outputTokenDetails,
+  inputTokenPendulumDetails,
+  outputTokenPendulumDetails,
   amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
@@ -82,7 +82,7 @@ export async function prepareNablaSwapTransaction({
   // Try create swap extrinsic
   try {
     logger.info(
-      `Preparing transaction to swap tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol} -> min ${nablaHardMinimumOutputRaw} ${outputTokenDetails.pendulumAssetSymbol}`
+      `Preparing transaction to swap tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol} -> min ${nablaHardMinimumOutputRaw} ${outputTokenPendulumDetails.assetSymbol}`
     );
     return createSwapExtrinsic({
       amount: amountRaw,
@@ -90,8 +90,8 @@ export async function prepareNablaSwapTransaction({
       api,
       callerAddress: pendulumEphemeralAddress,
       contractAbi: routerAbiObject,
-      tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,
-      tokenOut: outputTokenDetails.pendulumErc20WrapperAddress
+      tokenIn: inputTokenPendulumDetails.erc20WrapperAddress,
+      tokenOut: outputTokenPendulumDetails.erc20WrapperAddress
     });
   } catch (e) {
     logger.error(`Error creating swap extrinsic: ${e}`);

@@ -1,9 +1,11 @@
 import {
   assetHubTokenConfig,
+  EvmNetworks,
   evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
   getEnumKeyByStringValue,
+  isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
   OnChainToken,
@@ -166,14 +168,14 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
       details: value as OnChainTokenDetails,
       type: key as OnChainToken
     }));
-  }
-
-  return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-    assetIcon: value.networkAssetIcon,
-    assetSymbol: value.assetSymbol,
-    details: value as OnChainTokenDetails,
-    type: key as OnChainToken
-  }));
+  } else if (isNetworkEVM(selectedNetwork)) {
+    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
+      assetIcon: value.networkAssetIcon,
+      assetSymbol: value.assetSymbol,
+      details: value as OnChainTokenDetails,
+      type: key as OnChainToken
+    }));
+  } else throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
 }
 
 const getTokenDefinitionsForNetwork = (
@@ -185,8 +187,11 @@ const getTokenDefinitionsForNetwork = (
 
   if (isOnramp) {
     if (type === "from") {
-      // @TODO: RESTRICT IT TO BRLA ONLY
-      return Object.entries(moonbeamTokenConfig).map(([key, value]) => ({
+      // @TODO: RESTRICT IT TO BRLA ONLY. Also, improve the properties to be more dynamic on our on/off definitions.
+      return [
+        ...Object.entries(moonbeamTokenConfig),
+        ...Object.entries(stellarTokenConfig).filter(([key]) => key === "eur")
+      ].map(([key, value]) => ({
         assetIcon: value.fiat.assetIcon,
         assetSymbol: value.fiat.symbol,
         details: value as FiatTokenDetails,

@@ -123,20 +123,17 @@ export class BaseRampService {
   }
 
   /**
-   * Clean up expired quotes
+   * Clean up expired quotes by deleting them from the database
    */
   public async cleanupExpiredQuotes(): Promise<number> {
-    const [count] = await QuoteTicket.update(
-      { status: "expired" },
-      {
-        where: {
-          expiresAt: {
-            [Op.lt]: new Date()
-          },
-          status: "pending"
-        }
+    const count = await QuoteTicket.destroy({
+      where: {
+        expiresAt: {
+          [Op.lt]: new Date()
+        },
+        status: "pending"
       }
-    );
+    });
     return count;
   }
 }

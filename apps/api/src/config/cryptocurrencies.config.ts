@@ -1,6 +1,7 @@
 import {
   AssetHubToken,
   assetHubTokenConfig,
+  EvmNetworks,
   EvmToken,
   evmTokenConfig,
   isNetworkAssetHub,
@@ -20,8 +21,14 @@ const throwInvalidNetworkError = (network: string): never => {
   });
 };
 
-const mapEvmTokenToDetails = (network: Networks, token: EvmToken): SupportedCryptocurrencyDetails => {
+const mapEvmTokenToDetails = (network: EvmNetworks, token: EvmToken): SupportedCryptocurrencyDetails => {
   const details = evmTokenConfig[network][token];
+  if (!details) {
+    throw new APIError({
+      message: `Token '${token}' is not supported on network '${network}'.`
+    });
+  }
+
   return {
     assetContractAddress: details.erc20AddressSourceChain,
     assetDecimals: details.decimals,
@@ -41,10 +48,12 @@ const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrenc
 };
 
 const getEvmNetworkTokens = (network: Networks): SupportedCryptocurrencyDetails[] => {
-  if (!isNetworkEVM(network)) {
-    throwInvalidNetworkError(network);
+  if (isNetworkEVM(network)) {
+    const availableTokens = Object.keys(evmTokenConfig[network]) as EvmToken[];
+    return availableTokens.map(token => mapEvmTokenToDetails(network, token));
+  } else {
+    return throwInvalidNetworkError(network);
   }
-  return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
 };
 
 const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {

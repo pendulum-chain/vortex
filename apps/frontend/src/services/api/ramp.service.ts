@@ -56,7 +56,7 @@ export class RampService {
       presignedTxs,
       rampId
     };
-    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/start`, request);
+    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/update`, request);
   }
 
   /**

@@ -1,6 +1,6 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from "@packages/shared";
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "@packages/shared";
 import axios, { AxiosError } from "axios";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, PublicClient } from "viem";
 import squidReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
 import logger from "../../../../config/logger";
 import erc20ABI from "../../../../contracts/ERC20";
@@ -29,6 +29,20 @@ export interface RouteParams {
   };
 }
 
+interface RouteStatus {
+  chainId: string;
+  txHash: string;
+  status: string;
+  action: string;
+}
+
+export interface SquidRouterPayResponse {
+  id: string;
+  status: string;
+  squidTransactionStatus: string;
+  isGMPTransaction: boolean;
+  routeStatus: RouteStatus[];
+}
 // This function creates the parameters for the Squidrouter API to get a route for onramping.
 // This route will always be from Moonbeam to another EVM chain.
 export function createOnrampRouteParams(
@@ -59,6 +73,8 @@ export function createOnrampRouteParams(
 export interface SquidrouterRoute {
   route: {
     estimate: {
+      toToken: { decimals: number };
+      toAmount: string;
       toAmountMin: string;
     };
     transactionRequest: {
@@ -92,15 +108,21 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      logger.error(`Error fetching route from Squidrouter API: ${error.response?.data}}`);
+      logger.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
+      throw new Error(`Failed to fetch route: ${error.response?.data?.message || "Unknown error"}`);
+    } else {
+      logger.error(`Error with parameters: ${JSON.stringify(params)}`);
+      throw error;
     }
-    logger.error(`Error with parameters: ${JSON.stringify(params)}`);
-    throw error;
   }
 }
 
 // Function to get the status of the transaction using Squid API
-export async function getStatus(transactionId: string | undefined) {
+export async function getStatus(
+  transactionId: string | undefined,
+  fromChainId?: string,
+  toChainId?: string
+): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
     throw new Error("Transaction ID is undefined");
@@ -109,13 +131,14 @@ export async function getStatus(transactionId: string | undefined) {
   logger.debug(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`
   );
-
   try {
     const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
       headers: {
         "x-integrator-id": integratorId
       },
       params: {
+        fromChainId,
+        toChainId,
         transactionId
       }
     });
@@ -124,7 +147,7 @@ export async function getStatus(transactionId: string | undefined) {
     if (error instanceof AxiosError && error.response) {
       console.error("API error:", error.response.data);
     }
-    logger.error(error);
+    logger.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }
@@ -207,6 +230,33 @@ export function createOfframpRouteParams(
   };
 }
 
+export function createGenericRouteParams(
+  fromAddress: string,
+  amount: string,
+  inputTokenDetails: EvmTokenDetails,
+  outputTokenDetails: EvmTokenDetails,
+  fromNetwork: Networks,
+  toNetwork: Networks,
+  destinationAddress: string
+): RouteParams {
+  const fromChainId = getNetworkId(fromNetwork);
+  const toChainId = getNetworkId(toNetwork);
+
+  return {
+    enableExpress: true,
+    fromAddress,
+    fromAmount: amount,
+    fromChain: fromChainId.toString(),
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    slippageConfig: {
+      autoMode: 1
+    },
+    toAddress: destinationAddress,
+    toChain: toChainId.toString(),
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  };
+}
+
 export async function testRoute(
   testingToken: EvmTokenDetails,
   attemptedAmountRaw: string,
@@ -231,4 +281,61 @@ export async function testRoute(
 
   // will throw if no route is found
   await getRoute(sharedRouteParams);
+}
+
+export async function createTransactionDataFromRoute({
+  route,
+  rawAmount,
+  inputTokenErc20Address,
+  publicClient,
+  swapValue,
+  nonce
+}: {
+  route: SquidrouterRoute["route"];
+  rawAmount: string;
+  inputTokenErc20Address: string;
+  publicClient: PublicClient;
+  swapValue?: string;
+  nonce?: number;
+}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData }> {
+  const { transactionRequest } = route;
+
+  const approveTransactionData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [transactionRequest?.target, rawAmount],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const approveData: EvmTransactionData = {
+    data: approveTransactionData as `0x${string}`,
+    gas: "150000",
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: inputTokenErc20Address as `0x${string}`,
+    value: "0"
+  };
+
+  if (nonce !== undefined) {
+    approveData.nonce = nonce;
+  }
+
+  const swapData: EvmTransactionData = {
+    data: transactionRequest.data as `0x${string}`,
+    gas: transactionRequest.gasLimit,
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: transactionRequest.target as `0x${string}`,
+    value: swapValue ?? transactionRequest.value
+  };
+
+  if (nonce !== undefined) {
+    swapData.nonce = nonce + 1;
+  }
+
+  return {
+    approveData,
+    swapData
+  };
 }

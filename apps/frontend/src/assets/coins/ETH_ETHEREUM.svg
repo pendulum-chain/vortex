@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    <g fill="none" fill-rule="evenodd">
+        <circle cx="16" cy="16" r="16" fill="#627EEA"/>
+        <g fill="#FFF" fill-rule="nonzero">
+            <path fill-opacity=".602" d="M16.498 4v8.87l7.497 3.35z"/>
+            <path d="M16.498 4L9 16.22l7.498-3.35z"/>
+            <path fill-opacity=".602" d="M16.498 21.968v6.027L24 17.616z"/>
+            <path d="M16.498 27.995v-6.028L9 17.616z"/>
+            <path fill-opacity=".2" d="M16.498 20.573l7.497-4.353-7.497-3.348z"/>
+            <path fill-opacity=".602" d="M9 16.22l7.498 4.353v-7.701z"/>
+        </g>
+        <g transform="translate(1.15,1.35) scale(1.2)">
+            <!-- White circle background for the network logo -->
+            <path d="M19.6758 13.3806C22.7112 13.3806 25.1758 15.8529 25.1758 18.9074C25.1758 21.9618 22.7112 24.4342 19.6758 24.4342C16.6404 24.4342 14.1758 21.9618 14.1758 18.9074C14.1758 15.8529 16.6404 13.3806 19.6758 13.3806Z"
+                  fill="white"
+                  stroke="#ffffff"
+                  stroke-width="0.2"/>
+            <!-- Chain logo-->
+            <g transform="translate(16.54,13.80) scale(0.008)">
+                <polygon fill="#343434" points="392.07,0 383.5,29.11 383.5,873.74 392.07,882.29 784.13,650.54"/>
+                <polygon fill="#8C8C8C" points="392.07,0 0,650.54 392.07,882.29 392.07,472.33"/>
+                <polygon fill="#3C3C3B"
+                         points="392.07,956.52 387.24,962.41 387.24,1263.28 392.07,1277.38 784.37,724.89"/>
+                <polygon fill="#8C8C8C" points="392.07,1277.38 392.07,956.52 0,724.89"/>
+                <polygon fill="#141414" points="392.07,882.29 784.13,650.54 392.07,472.33"/>
+                <polygon fill="#393939" points="0,650.54 392.07,882.29 392.07,472.33"/>
+            </g>
+        </g>
+    </g>
+</svg>

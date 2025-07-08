@@ -155,6 +155,14 @@
         "continueOnPartnersPage": "Continuar na página do Parceiro",
         "continueWithPartner": "Continuar com Parceiro",
         "destination": "Conta de destino",
+        "EUROnrampDetails": {
+          "amount": "Valor",
+          "bic": "BIC",
+          "description": "Por favor, faça uma transferência bancária com os seguintes detalhes.",
+          "footer": "Por favor, garanta que o valor seja exato.",
+          "iban": "IBAN",
+          "title": "Detalhes da Transferência Bancária"
+        },
         "headerText": {
           "buy": "Você está comprando",
           "sell": "Você está vendendo"
@@ -341,10 +349,12 @@
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "fundEphemeral": "Financiando contas efêmeras",
       "initial": "Iniciando processo",
+      "moneriumOnrampMint": "Transferindo EUR.e",
+      "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
-      "squidRouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",
       "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",
@@ -373,6 +383,8 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "fetchingQuote": "Falha ao obter cotação",
+        "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
           "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
           "noAddress": "Nenhum endereço encontrado.",
@@ -381,6 +393,7 @@
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
+        "invalidInputAmount": "Valor de entrada inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
