@@ -37,7 +37,6 @@ export async function buildPaymentAndMergeTx({
   createAccountTransactions: Array<{ sequence: string; tx: string }>;
 }> {
   const baseFee = STELLAR_BASE_FEE;
-  const maxTime = Date.now() + 1000 * 60 * 10;
   const NUMBER_OF_PRESIGNED_TXS = 5;
 
   if (!FUNDING_SECRET) {
@@ -74,8 +73,6 @@ export async function buildPaymentAndMergeTx({
   const createAccountTransactions: Array<{ sequence: string; tx: string }> = [];
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
-    const timeWindow = timeWindows[i];
-    const maxTimeForTx = Date.now() + timeWindow * 1000; // Convert seconds to milliseconds
     const currentFundingAccount =
       i === 0
         ? fundingAccount
@@ -109,7 +106,7 @@ export async function buildPaymentAndMergeTx({
           source: ephemeralAccountId
         })
       )
-      .setTimebounds(0, maxTimeForTx)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(0))
       .build();
 
@@ -122,8 +119,6 @@ export async function buildPaymentAndMergeTx({
   }
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
-    const timeWindow = timeWindows[i];
-    const maxTimeForTx = Date.now() + timeWindow * 1000; // Convert seconds to milliseconds
     const currentSequence = sequenceNumbers[i];
     const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequence);
 
@@ -139,7 +134,7 @@ export async function buildPaymentAndMergeTx({
         })
       )
       .addMemo(transactionMemo)
-      .setTimebounds(0, maxTimeForTx)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(0))
       .build();
 
@@ -160,7 +155,7 @@ export async function buildPaymentAndMergeTx({
           destination: FUNDING_PUBLIC_KEY
         })
       )
-      .setTimebounds(0, maxTimeForTx)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(1n))
       .build();
 
