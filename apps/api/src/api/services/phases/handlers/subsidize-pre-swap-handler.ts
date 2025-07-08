@@ -1,7 +1,9 @@
 import { RampPhase } from "@packages/shared";
+import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -43,10 +45,17 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           `Subsidizing pre-swap with ${requiredAmount.toFixed()} to reach target value of ${inputAmountBeforeSwapRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
+
         // TODO this and other calls, add to executeApiCall to avoid low priority errors.
-        await pendulumNode.api.tx.tokens
+        const txHash = await pendulumNode.api.tx.tokens
           .transfer(pendulumEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
+
+        // Register the subsidy entry
+        const subsidyAmount = nativeToDecimal(requiredAmount, inputTokenPendulumDetails.decimals).toNumber();
+        const subsidyToken = inputTokenPendulumDetails.assetSymbol as SubsidyToken;
+
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");

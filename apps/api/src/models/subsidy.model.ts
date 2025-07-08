@@ -7,9 +7,10 @@ export enum SubsidyToken {
   GLMR = "GLMR",
   PEN = "PEN",
   XLM = "XLM",
-  AXLUSDC = "axlUSDC",
+  AXLUSDC = "USDC.axl",
   BRLA = "BRLA",
-  EURC = "EURC"
+  EURC = "EURC",
+  USDC = "USDC"
 }
 
 export interface SubsidyAttributes {
