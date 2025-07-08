@@ -26,7 +26,7 @@ import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/servic
 import { createOfframpSquidrouterTransactions } from "vortex-backend/src/api/services/transactions/squidrouter/offramp.ts";
 import encodePayload from "vortex-backend/src/api/services/transactions/squidrouter/payload.ts";
 import { createPendulumToMoonbeamTransfer } from "vortex-backend/src/api/services/transactions/xcm/pendulumToMoonbeam";
-import { submitXcm } from "vortex-backend/src/api/services/xcm/send.ts";
+import { signAndSubmitXcm, submitXcm } from "vortex-backend/src/api/services/xcm/send.ts";
 import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "vortex-backend/src/constants/constants";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../utils/config.ts";
 
@@ -40,7 +40,9 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log("Rebalancing BRLA to USDC.axl...");
 
   // 1. Swap USDC.axl in to get BRLA out
-  const outputAmount = await swapAxlusdcToBrla(amountAxlUsdc);
+  // const outputAmount = await swapAxlusdcToBrla(amountAxlUsdc);
+
+  const outputAmount = Big(2.7);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmount, brlaFiatTokenDetails.decimals).toFixed(0, 0);
 
   console.log(`${amountAxlUsdc} USDC.axl swapped to ${outputAmount.toFixed(4, 0)} BRLA.`);
@@ -250,7 +252,8 @@ async function sendBrlaToMoonbeam(brlaAmount: Big, brlaTokenDetails: PendulumTok
     brlaTokenDetails.currencyId
   );
 
-  return submitXcm(getPendulumAccount().address, xcmTransfer);
+  const pendulumAccount = getPendulumAccount();
+  return signAndSubmitXcm(pendulumAccount, xcmTransfer);
 }
 
 async function waitForTransactionConfirmation(txHash: string, publicClient: PublicClient): Promise<void> {

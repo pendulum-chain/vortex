@@ -1,6 +1,7 @@
 import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { encodeAddress } from "@polkadot/util-crypto";
@@ -32,53 +33,32 @@ function substrateAddressEqual(a: string, b: string): boolean {
 }
 
 export const signAndSubmitXcm = async (
-  walletAccount: Web3BaseWalletAccount,
-  extrinsic: SubmittableExtrinsic<"promise">,
-  afterSignCallback: () => void
-): Promise<{ event: XcmSentEvent; hash: string }> => {
+  keyringPair: KeyringPair,
+  extrinsic: SubmittableExtrinsic<"promise">
+): Promise<{ hash: string }> => {
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
 
     extrinsic
-      .signAndSend(
-        walletAccount.address,
-        { signer: walletAccount.signer as Signer },
-        (submissionResult: ISubmittableResult) => {
-          const { status, events, dispatchError } = submissionResult;
-          afterSignCallback();
+      .signAndSend(keyringPair, (submissionResult: ISubmittableResult) => {
+        const { status, dispatchError } = submissionResult;
 
-          if (status.isInBlock && !inBlockHash) {
-            inBlockHash = status.asInBlock.toString();
-          }
-
-          if (status.isFinalized) {
-            const hash = status.asFinalized.toString();
-
-            // Try to find a 'system.ExtrinsicFailed' event
-            if (dispatchError) {
-              reject("Xcm transaction failed");
-            }
-
-            // Try to find 'polkadotXcm.Sent' events
-            const xcmSentEvents = events.filter(record => {
-              return record.event.section === "polkadotXcm" && record.event.method === "Sent";
-            });
-
-            const event = xcmSentEvents
-              .map(event => parseEventXcmSent(event))
-              .filter(event => {
-                return substrateAddressEqual(event.originAddress, walletAccount.address);
-              });
-
-            if (event.length === 0) {
-              reject(new Error(`No XcmSent event found for account ${walletAccount.address}`));
-            }
-            resolve({ event: event[0], hash });
-          }
+        if (status.isInBlock && !inBlockHash) {
+          inBlockHash = status.asInBlock.toString();
         }
-      )
+
+        if (status.isFinalized) {
+          const hash = status.asFinalized.toString();
+
+          // Try to find a 'system.ExtrinsicFailed' event
+          if (dispatchError) {
+            reject("Xcm transaction failed");
+          }
+
+          resolve({ hash });
+        }
+      })
       .catch(error => {
-        afterSignCallback();
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
         if (error?.message.includes("1012:")) {
           reject(new TransactionTemporarilyBannedError("Transaction for xcm transfer is temporarily banned."));
