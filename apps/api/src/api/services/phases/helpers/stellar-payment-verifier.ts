@@ -12,19 +12,20 @@ import { StateMetadata } from "../meta-state-types";
 export async function verifyStellarPaymentSuccess(state: RampState): Promise<boolean> {
   const stateMetadata = state.state as StateMetadata;
 
-  if (!stateMetadata.stellarEphemeralAccountId) {
+  const { stellarEphemeralAccountId, stellarTarget, outputAmountBeforeFinalStep } = stateMetadata;
+
+  if (!stellarEphemeralAccountId) {
     throw new Error("Stellar ephemeral account ID not found in state metadata");
   }
 
-  if (!stateMetadata.stellarTarget) {
+  if (!stellarTarget) {
     throw new Error("Stellar target information not found in state metadata");
   }
 
-  if (!stateMetadata.outputAmountBeforeFinalStep) {
+  if (!outputAmountBeforeFinalStep) {
     throw new Error("Output amount information not found in state metadata");
   }
 
-  const { stellarEphemeralAccountId, stellarTarget, outputAmountBeforeFinalStep } = stateMetadata;
   const { stellarTokenDetails } = stellarTarget;
   const expectedPaymentAmount = new Big(outputAmountBeforeFinalStep.units);
 
