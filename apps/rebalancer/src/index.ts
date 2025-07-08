@@ -27,6 +27,8 @@ async function checkForRebalancing() {
     const amountAxlUsdc = "0.5";
     await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
   }
+  const amountAxlUsdc = "0.5";
+  await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
 }
 
 checkForRebalancing()

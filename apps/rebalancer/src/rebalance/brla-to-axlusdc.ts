@@ -39,17 +39,28 @@ const brlaMoonbeamTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
 export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log("Rebalancing BRLA to USDC.axl...");
 
-  // 1. Swap USDC.axl in to get BRLA out
-  // const outputAmount = await swapAxlusdcToBrla(amountAxlUsdc);
+  const pendulumAccount = getPendulumAccount();
+  const apiManager = ApiManager.getInstance();
+  const pendulumNode = await apiManager.getApi("pendulum");
+  // @ts-ignore
+  const balanceResponse = await pendulumNode.api.query.tokens.accounts(pendulumAccount.address, usdcTokenDetails.currencyId);
 
-  const outputAmount = Big(2.7);
+  // @ts-ignore
+  const currentBalance = multiplyByPowerOfTen(Big(balanceResponse?.free?.toString() ?? "0"), -usdcTokenDetails.decimals);
+  console.log(`Current axl.USDC balance on Pendulum: ${currentBalance.toFixed(4, 0)} USDC.axl.`);
+  if (currentBalance.lt(amountAxlUsdc)) {
+    throw new Error(`Not enough USDC.axl on Pendulum account. Current balance: ${currentBalance.toFixed(4, 0)} USDC.axl.`);
+  }
+
+  // 1. Swap USDC.axl in to get BRLA out
+  const outputAmount = await swapAxlusdcToBrla(amountAxlUsdc);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmount, brlaFiatTokenDetails.decimals).toFixed(0, 0);
 
   console.log(`${amountAxlUsdc} USDC.axl swapped to ${outputAmount.toFixed(4, 0)} BRLA.`);
 
   // 2. Send BRLA to Moonbeam via XCM
-  const hash = await sendBrlaToMoonbeam(outputAmount, brlaFiatTokenDetails.pendulumRepresentative);
-  console.log("BRLA sent to Moonbeam via XCM. Transaction hash:", hash);
+  // const hash = await sendBrlaToMoonbeam(outputAmount, brlaFiatTokenDetails.pendulumRepresentative);
+  // console.log("BRLA sent to Moonbeam via XCM. Transaction hash:", hash);
 
   // 3. Wait for tokens to be automatically teleported to owned account on Polygon
   const { brlaBusinessAccountAddress } = getConfig();
@@ -69,7 +80,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   // 4. Send BRLA tokens from business to controlled account on Polygon using BRLA API
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
   console.log(
-    `Sending ${outputAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonAccount.address}...`
+    `Sending ${outputAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonWalletClient.account.address}...`
   );
   const brlaApiService = BrlaApiService.getInstance();
   await brlaApiService.transferBrlaToDestination(polygonWalletClient.account.address, outputAmount, "Polygon");
@@ -86,7 +97,6 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
 
   // 5. Swap BRLA via Squidrouter to USDC.axl on Moonbeam and send to Pendulum
   console.log(`Swapping ${outputAmount.toFixed(4, 0)} BRLA to USDC.axl on Moonbeam via Squidrouter...`);
-  const pendulumAccount = getPendulumAccount();
 
   const brlaEvmTokenDetails: EvmTokenDetails = {
     assetSymbol: "BRLA",
@@ -154,6 +164,8 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
 
   const { walletClient: moonbeamWalletClient, publicClient: moonbeamPublicClient } = getMoonbeamEvmClients();
   const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamPublicClient.estimateFeesPerGas();
+  console.log("Sending transaction to make XCM call to Pendulum via Receiver contract...");
+  console.log("'ExecuteXCM' args:", [squidRouterReceiverId, squidRouterPayload]);
   const xcmHash = await moonbeamWalletClient.sendTransaction({
     data,
     maxFeePerGas,
@@ -165,23 +177,19 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   await waitForTransactionConfirmation(xcmHash, moonbeamPublicClient);
   console.log("USDC.axl successfully sent to Pendulum via Receiver contract. Transaction hash:", xcmHash);
 
-  // const apiManager = ApiManager.getInstance();
-  // const pendulumNode = await apiManager.getApi("pendulum");
-  // const didInputTokenArriveOnPendulum = async () => {
-  //   // @ts-ignore
-  //   const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-  //     pendulumAccount.address,
-  //     brlaMoonbeamTokenDetails.pendulumRepresentative.currencyId
-  //   );
-  //
-  //   // @ts-ignore
-  //   const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
-  //   return currentBalance.gt(Big(0));
-  // };
-  //
-  // console.log(`Waiting for USDC to arrive on Pendulum account ${pendulumAccount.address}...`);
-  // await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
-  // console.log(`USDC successfully arrived on Pendulum account.`);
+  const didInputTokenArriveOnPendulum = async () => {
+    // @ts-ignore
+    const balanceResponse = await pendulumNode.api.query.tokens.accounts(pendulumAccount.address, usdcTokenDetails.currencyId);
+
+    // @ts-ignore
+    const newBalance = multiplyByPowerOfTen(Big(balanceResponse?.free?.toString() ?? "0"), -usdcTokenDetails.decimals);
+    // Check that newBalance is again almost equal to the old current balance but with some small difference due to fees
+    return newBalance.gt(currentBalance.times(0.95)) && newBalance.lt(currentBalance.times(1.05));
+  };
+
+  console.log(`Waiting for USDC to arrive on Pendulum account ${pendulumAccount.address}...`);
+  await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
+  console.log(`USDC successfully arrived on Pendulum account.`);
 }
 
 async function swapAxlusdcToBrla(amount: string) {
