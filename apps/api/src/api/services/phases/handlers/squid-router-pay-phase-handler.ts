@@ -171,7 +171,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {
+  public async getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {
     try {
       // POST call, https://api.axelarscan.io/gmp/searchGMP
       const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {

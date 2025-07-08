@@ -12,6 +12,7 @@ import { BrlaApiService } from "vortex-backend/src/api/services/brla/brlaApiServ
 import { checkEvmBalancePeriodically } from "vortex-backend/src/api/services/moonbeam/balance.ts";
 import { getTokenOutAmount } from "vortex-backend/src/api/services/nablaReads/outAmount.ts";
 import { ApiManager } from "vortex-backend/src/api/services/pendulum/apiManager.ts";
+import SquidRouterPayPhaseHandler from "vortex-backend/src/api/services/phases/handlers/squid-router-pay-phase-handler.ts";
 import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/services/transactions/nabla";
 import { createOfframpSquidrouterTransactions } from "vortex-backend/src/api/services/transactions/squidrouter/offramp.ts";
 import encodePayload from "vortex-backend/src/api/services/transactions/squidrouter/payload.ts";
@@ -206,6 +207,23 @@ export async function swapBrlaToAxlUsdcOnPolygon(brlaAmountRaw: string, pendulum
   console.log(`BRLA swap to USDC.axl on Moonbeam sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
   await waitForTransactionConfirmation(swapHash, polygonPublicClient);
   console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
+
+  // Wait until the swap is executed on Axelar
+  let isExecuted = false;
+  while (!isExecuted) {
+    const axelarScanStatus = await SquidRouterPayPhaseHandler.getStatusAxelarScan(swapHash);
+
+    if (!axelarScanStatus) {
+      console.log(`No Axelar status found for swap hash ${swapHash}.`);
+      continue;
+    }
+    if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
+      isExecuted = true;
+      console.log(`Transaction ${swapHash} successfully executed on Axelar.`);
+      break;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before checking again
+  }
 
   return squidRouterReceiverId;
 }
