@@ -66,6 +66,13 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
+      id: ExtendedBrlaFieldOptions.PIX_ID,
+      index: 1,
+      label: t("components.brlaExtendedForm.form.pixId"),
+      required: true,
+      type: "text"
+    },
+    {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
       index: 1,
       label: t("components.brlaExtendedForm.form.fullName"),

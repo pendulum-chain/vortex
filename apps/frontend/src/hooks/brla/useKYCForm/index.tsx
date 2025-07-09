@@ -28,6 +28,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
           }
           return isValidCpf(value) || isValidCnpj(value);
         }),
+      [ExtendedBrlaFieldOptions.PIX_ID]: yup.string().required(t("components.brlaExtendedForm.validation.pixId.required")),
       [ExtendedBrlaFieldOptions.PHONE]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.phone.required"))
@@ -97,25 +98,27 @@ export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
 export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
-  const { taxId: taxIdFromStore } = useRampFormStore();
+  const { taxId: taxIdFromStore, pixId: pixIdFromStore } = useRampFormStore();
   const {
     rampExecutionInput: executionInput,
     actions: { setRampExecutionInput }
   } = useRampStore();
-  const { setTaxId } = useRampFormStoreActions();
+  const { setTaxId, setPixId } = useRampFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
 
   const kycForm = useForm<KYCFormData>({
     defaultValues: {
       ...getEnumInitialValues(ExtendedBrlaFieldOptions),
-      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || ""
+      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || "",
+      [ExtendedBrlaFieldOptions.PIX_ID]: pixIdFromStore || ""
     },
     mode: "onBlur",
     resolver: yupResolver(kycFormSchema)
   });
 
   const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
+  const watchedPixId = kycForm.watch(ExtendedBrlaFieldOptions.PIX_ID);
 
   useEffect(() => {
     if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
@@ -123,6 +126,13 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
       if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
     }
   }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, setRampExecutionInput]);
+
+  useEffect(() => {
+    if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
+      setPixId(watchedPixId);
+      if (executionInput) setRampExecutionInput({ ...executionInput, pixId: watchedPixId });
+    }
+  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, setRampExecutionInput]);
 
   useEffect(() => {
     if (cpfApiError) {
