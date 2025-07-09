@@ -1,5 +1,4 @@
-import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from "../../../constants/constants";
-import { BrlaKYCDocType } from "../..";
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType } from "../..";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   DepositLog,
