@@ -5,8 +5,6 @@ import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { encodeAddress } from "@polkadot/util-crypto";
-import { Web3BaseWalletAccount } from "web3";
-import logger from "../../../config/logger";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;

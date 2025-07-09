@@ -1,6 +1,6 @@
 import { eth } from "web3";
 
-function encodePayload(address: string): `0x${string}` {
+export function encodePayload(address: string): `0x${string}` {
   // Encode the payload
   // Asset should match the one received on Moonbeam side. Right now this is not used
   // on the contract so it can be anything.
@@ -24,5 +24,3 @@ function encodePayload(address: string): `0x${string}` {
 
   return payload as `0x${string}`;
 }
-
-export default encodePayload;

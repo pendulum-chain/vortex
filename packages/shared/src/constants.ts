@@ -1,0 +1,2 @@
+export const HORIZON_URL = "https://horizon.stellar.org";
+export const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = "0x2AB52086e8edaB28193172209407FF9df1103CDc";

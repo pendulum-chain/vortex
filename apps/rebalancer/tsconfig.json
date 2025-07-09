@@ -14,8 +14,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
-      "@packages/*": ["../../packages/*/src"],
-      "vortex-backend/*": ["../../apps/api/*/src"]
+      "@packages/*": ["../../packages/*/src"]
     },
     "skipLibCheck": true,
     "strict": true,

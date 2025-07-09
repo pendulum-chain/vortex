@@ -2,13 +2,19 @@ import {
   ApiManager,
   BrlaApiService,
   checkEvmBalancePeriodically,
+  createNablaTransactionsForOfframp,
+  createOfframpSquidrouterTransactions,
+  createPendulumToMoonbeamTransfer,
   decodeSubmittableExtrinsic,
   EvmTokenDetails,
+  encodePayload,
   getStatusAxelarScan,
   getTokenOutAmount,
+  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   multiplyByPowerOfTen,
   Networks,
   PendulumTokenDetails,
+  signAndSubmitXcm,
   TokenType,
   waitUntilTrue
 } from "@packages/shared";
@@ -19,12 +25,6 @@ import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
-import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/services/transactions/nabla";
-import { createOfframpSquidrouterTransactions } from "vortex-backend/src/api/services/transactions/squidrouter/offramp.ts";
-import encodePayload from "vortex-backend/src/api/services/transactions/squidrouter/payload.ts";
-import { createPendulumToMoonbeamTransfer } from "vortex-backend/src/api/services/transactions/xcm/pendulumToMoonbeam";
-import { signAndSubmitXcm } from "vortex-backend/src/api/services/xcm/send.ts";
-import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "vortex-backend/src/constants/constants";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";

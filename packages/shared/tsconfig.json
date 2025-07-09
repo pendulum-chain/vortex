@@ -6,7 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "paths": {
-      "@packages/shared/*": ["src/*"]
+      "@packages/*": ["../../packages/*/src"]
     },
     "rootDir": "src",
     "skipLibCheck": true,

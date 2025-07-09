@@ -3,3 +3,4 @@ export * from "./evm";
 export * from "./nabla";
 export * from "./pendulum";
 export * from "./squidrouter";
+export * from "./xcm";

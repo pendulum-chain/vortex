@@ -1,5 +1,4 @@
-import { MOONBEAM_XCM_FEE_GLMR, PendulumCurrencyId } from "@packages/shared";
-import { ApiManager } from "../../pendulum/apiManager";
+import { ApiManager, MOONBEAM_XCM_FEE_GLMR, PendulumCurrencyId } from "@packages/shared";
 
 // We send a fixed fee amount of 0.05 GLMR.
 export async function createPendulumToMoonbeamTransfer(

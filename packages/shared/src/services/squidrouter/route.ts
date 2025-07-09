@@ -1,9 +1,8 @@
 import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from "@packages/shared";
 import axios, { AxiosError } from "axios";
 import { encodeFunctionData } from "viem";
-import squidReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
-import logger from "../../../../config/logger";
-import erc20ABI from "../../../../contracts/ERC20";
+import erc20ABI from "../../contracts/ERC20";
+import { squidReceiverABI } from "../../contracts/SquidReceiver";
 import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";

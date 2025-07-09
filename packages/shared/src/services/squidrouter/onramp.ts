@@ -1,7 +1,7 @@
 import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
 import { createPublicClient, encodeFunctionData, http } from "viem";
 import { moonbeam } from "viem/chains";
-import erc20ABI from "../../../../contracts/ERC20";
+import erc20ABI from "../../contracts/ERC20";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createOnrampRouteParams, getRoute } from "./route";
 
