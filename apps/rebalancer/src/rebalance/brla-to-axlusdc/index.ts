@@ -22,13 +22,11 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
 
   // Step 1: Check initial balance
   const initialBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
-  // const initialBalance = Big(0.6);
 
   // Step 2: Swap USDC.axl to BRLA on Pendulum
   // We make sure that only 2 decimals are used in the BRLA amount because the BRLA API service expects amounts in cents
   // and we don't need more precision than that.
   const brlaAmount = Big((await swapAxlusdcToBrla(amountAxlUsdc)).toFixed(2, 0));
-  // const brlaAmount = Big(Big(2.7318).toFixed(2, 0));
   console.log(`Swapped ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA`);
 
   // Step 3: Send BRLA to Moonbeam via XCM
@@ -58,5 +56,9 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   await waitForAxlUsdcOnPendulum(pendulumAccount.address, initialBalance);
   console.log(`USDC.axl arrived on Pendulum`);
 
-  console.log(`Rebalance completed successfully`);
+  const finalBalance = await checkInitialPendulumBalance(pendulumAccount.address, "0");
+
+  console.log(
+    `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}`
+  );
 }
