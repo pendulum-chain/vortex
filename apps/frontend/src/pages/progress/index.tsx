@@ -273,6 +273,9 @@ const ProgressContent: FC<ProgressContentProps> = ({
     <Box className="mt-4 flex flex-col items-center justify-center">
       <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
+        <p className="mb-4 text-sm text-gray-600">
+          You may now close this screen.
+        </p>
         <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
           animate={{ opacity: 1, y: 0 }}
