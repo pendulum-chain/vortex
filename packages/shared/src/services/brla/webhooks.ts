@@ -1,3 +1,4 @@
+import logger from "../../logger";
 import { BrlaApiService } from "./brlaApiService";
 
 type SubscriptionType = "BURN" | "BALANCE-UPDATE" | "MONEY-TRANSFER" | "MINT" | "KYC";
@@ -42,7 +43,7 @@ export class EventPoller {
 
   public start() {
     if (this.started) {
-      console.warn("EventPoller already started");
+      logger.current.warn("EventPoller already started");
       return;
     }
     this.poll();
@@ -98,7 +99,7 @@ export class EventPoller {
     // async acknowledge events
     if (eventsToAcknowledge.length > 0) {
       this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap(event => event.id)).catch(error => {
-        console.error("Poll: Error while acknowledging events: ", error);
+        logger.current.error("Poll: Error while acknowledging events: ", error);
       });
     }
   }
@@ -123,7 +124,7 @@ export class EventPoller {
         }
       });
     } catch (error) {
-      console.error("Error polling events:", (error as Error).message);
+      logger.current.error("Error polling events:", (error as Error).message);
     }
   }
 

@@ -1,4 +1,5 @@
 import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType } from "../..";
+import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   DepositLog,
@@ -99,7 +100,7 @@ export class BrlaApiService {
       return options;
     };
 
-    console.log(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
     let response = await fetch(fullUrl, buildOptions());
 

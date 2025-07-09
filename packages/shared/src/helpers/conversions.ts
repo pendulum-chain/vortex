@@ -3,6 +3,7 @@ import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { Extrinsic } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { Buffer } from "buffer";
+import logger from "src/logger";
 import { StrKey } from "stellar-sdk";
 
 export function stellarHexToPublic(hexString: string) {
@@ -31,7 +32,7 @@ export function getAddressForFormat(address: string, ss58Format: number | string
     const encodedAddress = keyring.encodeAddress(address, ss58Format);
     return encodedAddress;
   } catch (error) {
-    console.error(`Error encoding address ${address}: ${error}`);
+    logger.current.error(`Error encoding address ${address}: ${error}`);
     return address;
   }
 }

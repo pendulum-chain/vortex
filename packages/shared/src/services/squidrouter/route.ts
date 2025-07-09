@@ -126,7 +126,7 @@ export async function getStatus(transactionId: string | undefined) {
     return result.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      console.error("API error:", error.response.data);
+      logger.current.error("API error:", error.response.data);
     }
     logger.current.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
     throw error;

@@ -1,3 +1,5 @@
+import logger from "../../logger";
+
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
   status: string; // executed or express_executed (for complete).
@@ -36,7 +38,7 @@ export async function getStatusAxelarScan(swapHash: string): Promise<AxelarScanS
     return (responseData as { data: unknown[] }).data[0] as AxelarScanStatusResponse;
   } catch (error) {
     if ((error as { response: unknown }).response) {
-      console.error(`Couldn't get status for ${swapHash} from AxelarScan:`, (error as { response: unknown }).response);
+      logger.current.error(`Couldn't get status for ${swapHash} from AxelarScan:`, (error as { response: unknown }).response);
     }
     throw error;
   }

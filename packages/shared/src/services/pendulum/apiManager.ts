@@ -141,7 +141,7 @@ export class ApiManager {
     // Create a new promise that continues from the current queue
     const newNoncePromise = nonceQueue
       .catch(err => {
-        console.error(`Previous nonce retrieval error for ${networkName}:`, err);
+        logger.current.error(`Previous nonce retrieval error for ${networkName}:`, err);
       })
       .then(async () => {
         const apiInstance = await this.getApi(networkName);
