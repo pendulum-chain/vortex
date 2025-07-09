@@ -1,4 +1,3 @@
-import logger from "../../../config/logger";
 import { WEBHOOKS_CACHE_URL } from "../../../constants/constants";
 import { BrlaApiService } from "./brlaApiService";
 
@@ -104,7 +103,7 @@ export class EventPoller {
     // async acknowledge events
     if (eventsToAcknowledge.length > 0) {
       this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap(event => event.id)).catch(error => {
-        logger.error("Poll: Error while acknowledging events: ", error);
+        console.error("Poll: Error while acknowledging events: ", error);
       });
     }
   }

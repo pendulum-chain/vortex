@@ -1,7 +1,7 @@
+import { createEvmClientsAndConfig } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { mnemonicToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
-import { createEvmClientsAndConfig } from "vortex-backend/src/api/services/moonbeam/createServices";
 
 export function getConfig() {
   if (!process.env.PENDULUM_ACCOUNT_SECRET) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");

@@ -1,18 +1,24 @@
-import { decodeSubmittableExtrinsic, EvmTokenDetails, Networks, type PendulumTokenDetails, TokenType } from "@packages/shared";
+import {
+  ApiManager,
+  BrlaApiService,
+  checkEvmBalancePeriodically,
+  decodeSubmittableExtrinsic,
+  EvmTokenDetails,
+  getStatusAxelarScan,
+  getTokenOutAmount,
+  multiplyByPowerOfTen,
+  Networks,
+  PendulumTokenDetails,
+  TokenType,
+  waitUntilTrue
+} from "@packages/shared";
+import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
-import splitReceiverABI from "vortex-backend/mooncontracts/splitReceiverABI.json";
-import { multiplyByPowerOfTen } from "vortex-backend/src/api/helpers/contracts.ts";
-import { waitUntilTrue } from "vortex-backend/src/api/helpers/functions.ts";
-import { BrlaApiService } from "vortex-backend/src/api/services/brla/brlaApiService.ts";
-import { checkEvmBalancePeriodically } from "vortex-backend/src/api/services/moonbeam/balance.ts";
-import { getTokenOutAmount } from "vortex-backend/src/api/services/nablaReads/outAmount.ts";
-import { ApiManager } from "vortex-backend/src/api/services/pendulum/apiManager.ts";
-import SquidRouterPayPhaseHandler from "vortex-backend/src/api/services/phases/handlers/squid-router-pay-phase-handler.ts";
 import { createNablaTransactionsForOfframp } from "vortex-backend/src/api/services/transactions/nabla";
 import { createOfframpSquidrouterTransactions } from "vortex-backend/src/api/services/transactions/squidrouter/offramp.ts";
 import encodePayload from "vortex-backend/src/api/services/transactions/squidrouter/payload.ts";
@@ -211,7 +217,7 @@ export async function swapBrlaToAxlUsdcOnPolygon(brlaAmountRaw: string, pendulum
   // Wait until the swap is executed on Axelar
   let isExecuted = false;
   while (!isExecuted) {
-    const axelarScanStatus = await SquidRouterPayPhaseHandler.getStatusAxelarScan(swapHash);
+    const axelarScanStatus = await getStatusAxelarScan(swapHash);
 
     if (!axelarScanStatus) {
       console.log(`No Axelar status found for swap hash ${swapHash}.`);

@@ -1,12 +1,11 @@
-import { EvmAddress } from "@packages/shared";
+import erc20ABI from "@packages/shared/contracts/ERC20";
 import { moonbeam } from "@wagmi/core/chains";
 import Big from "big.js";
 import { Chain, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../constants/constants";
-import erc20ABI from "../../../contracts/ERC20";
+import { EvmAddress } from "../..";
 import { ApiManager } from "../pendulum/apiManager";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { createEvmClientsAndConfig } from "./createServices";
 
 export enum BalanceCheckErrorType {

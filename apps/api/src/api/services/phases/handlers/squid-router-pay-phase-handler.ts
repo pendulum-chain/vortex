@@ -1,4 +1,4 @@
-import { Networks, OnChainToken, RampPhase } from "@packages/shared";
+import { createEvmClientsAndConfig, getStatusAxelarScan, Networks, OnChainToken, RampPhase } from "@packages/shared";
 import { createPublicClient, encodeFunctionData, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
@@ -8,29 +8,9 @@ import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
-import { createEvmClientsAndConfig } from "../../moonbeam/createServices";
 import { getTokenDetailsForEvmDestination } from "../../ramp/quote.service/gross-output";
 import { createOnrampRouteParams, getRoute, getStatus } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
-
-interface AxelarScanStatusResponse {
-  is_insufficient_fee: boolean;
-  status: string; // executed or express_executed (for complete).
-  fees: {
-    base_fee: number; // in units of the native token.
-    source_base_fee: number;
-    destination_base_fee: number;
-    source_express_fee: {
-      total: number;
-    };
-    source_confirm_fee: number;
-    destination_express_fee: {
-      total: number;
-    };
-  };
-
-  id: string; // the id of the swap.
-}
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const AXL_GAS_SERVICE_MOONBEAM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
@@ -101,7 +81,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
-        const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
+        const axelarScanStatus = await getStatusAxelarScan(swapHash);
 
         //no status found is considered a recoverable error.
         if (!axelarScanStatus) {
@@ -168,35 +148,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service: ", error);
       throw new Error("SquidRouterPayPhaseHandler: Failed to send transaction");
-    }
-  }
-
-  public async getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {
-    try {
-      // POST call, https://api.axelarscan.io/gmp/searchGMP
-      const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {
-        body: JSON.stringify({
-          txHash: swapHash
-        }),
-        headers: {
-          "Content-Type": "application/json"
-        },
-        method: "POST"
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error fetching status from axelar scan API: ${response.statusText}`);
-      }
-      const responseData = await response.json();
-      return (responseData as { data: unknown[] }).data[0] as AxelarScanStatusResponse;
-    } catch (error) {
-      if ((error as { response: unknown }).response) {
-        logger.error(
-          `SquidRouterPayPhaseHandler: Couldn't get status for ${swapHash} from AxelarScan:`,
-          (error as { response: unknown }).response
-        );
-      }
-      throw error;
     }
   }
 

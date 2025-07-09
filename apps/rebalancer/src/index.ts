@@ -1,4 +1,4 @@
-import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc/index.ts";
+import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { getSwapPoolsWithCoverageRatio } from "./services/indexer";
 import { getConfig } from "./utils/config.ts";
 

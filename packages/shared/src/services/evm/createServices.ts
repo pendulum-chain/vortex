@@ -2,7 +2,8 @@ import { createConfig } from "@wagmi/core";
 import { Chain, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-export const createEvmClientsAndConfig = (executorAccount: ReturnType<typeof privateKeyToAccount>, chain: Chain) => {
+// @ts-ignore
+export function createEvmClientsAndConfig(executorAccount: ReturnType<typeof privateKeyToAccount>, chain: Chain) {
   const walletClient = createWalletClient({
     account: executorAccount,
     chain,
@@ -22,4 +23,4 @@ export const createEvmClientsAndConfig = (executorAccount: ReturnType<typeof pri
   });
 
   return { evmConfig, publicClient, walletClient };
-};
+}

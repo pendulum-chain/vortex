@@ -1,4 +1,4 @@
-import { BrlaKYCDocType } from "@packages/shared";
+import { BrlaKYCDocType } from "../..";
 
 export interface TriggerOfframpRequest {
   taxId: string;
