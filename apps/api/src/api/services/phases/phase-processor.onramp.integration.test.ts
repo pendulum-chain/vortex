@@ -8,7 +8,6 @@ import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import rampRecoveryWorker from "../../workers/ramp-recovery.worker";
 import { API, ApiManager } from "../pendulum/apiManager";
 import { QuoteService } from "../ramp/quote.service";
 import { RampService } from "../ramp/ramp.service";
