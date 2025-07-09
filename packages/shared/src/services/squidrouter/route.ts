@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../contracts/ERC20";
 import { squidReceiverABI } from "../../contracts/SquidReceiver";
+import logger from "../../logger";
 import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
@@ -93,10 +94,10 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      logger.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
+      logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
       throw new Error(`Failed to fetch route: ${error.response?.data?.message || "Unknown error"}`);
     } else {
-      logger.error(`Error with parameters: ${JSON.stringify(params)}`);
+      logger.current.error(`Error with parameters: ${JSON.stringify(params)}`);
       throw error;
     }
   }
@@ -109,7 +110,7 @@ export async function getStatus(transactionId: string | undefined) {
     throw new Error("Transaction ID is undefined");
   }
 
-  logger.debug(
+  logger.current.debug(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`
   );
 
@@ -127,7 +128,7 @@ export async function getStatus(transactionId: string | undefined) {
     if (error instanceof AxiosError && error.response) {
       console.error("API error:", error.response.data);
     }
-    logger.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
+    logger.current.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }

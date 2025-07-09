@@ -6,7 +6,7 @@ import { moonbeam } from "viem/chains";
 import erc20ABI from "../../contracts/ERC20";
 import { createRandomString, createSquidRouterHash } from "../../helpers/squidrouter";
 import { getSquidRouterConfig } from "./config";
-import encodePayload from "./payload";
+import { encodePayload } from "./payload";
 import { createOfframpRouteParams, getRoute } from "./route";
 
 export interface OfframpSquidrouterParams {

@@ -2,7 +2,7 @@ import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import Big from "big.js";
 import BigNumber from "big.js";
-import { routerAbi } from "../../../contracts/Router";
+import { routerAbi } from "../../contracts/Router";
 import {
   ContractBalance,
   multiplyByPowerOfTen,

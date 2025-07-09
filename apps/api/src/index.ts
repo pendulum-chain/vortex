@@ -5,7 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager } from "./api/services/pendulum/apiManager";
+import { ApiManager } from "@packages/shared";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
@@ -19,13 +19,15 @@ import {
 } from "./constants/constants";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
-import { EventPoller } from "./api/services/brla/webhooks";
+import { setLogger } from "@packages/shared";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
 const { port, env } = config;
+
+setLogger(logger);
 
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {
@@ -75,7 +77,7 @@ const initializeApp = async () => {
   }
 };
 
-export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
+// export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
 
 // Start the application
 initializeApp();

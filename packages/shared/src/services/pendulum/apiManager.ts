@@ -2,6 +2,7 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
+import logger from "../../logger";
 
 export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam";
 
@@ -94,10 +95,10 @@ export class ApiManager {
 
   public async populateApi(networkName: SubstrateApiNetwork): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    logger.info(`Connecting to node ${network.wsUrl}...`);
+    logger.current.info(`Connecting to node ${network.wsUrl}...`);
     const newApi = await this.connectApi(networkName);
     this.apiInstances.set(networkName, newApi);
-    logger.info(`Connected to node ${network.wsUrl}`);
+    logger.current.info(`Connected to node ${network.wsUrl}`);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
@@ -123,7 +124,7 @@ export class ApiManager {
     const previousSpecVersion = this.previousSpecVersions.get(networkName) ?? 0;
 
     if (currentSpecVersion !== previousSpecVersion) {
-      logger.info(`Spec version changed for ${networkName}, refreshing the api...`);
+      logger.current.info(`Spec version changed for ${networkName}, refreshing the api...`);
       return await this.populateApi(networkName);
     }
 
@@ -158,7 +159,7 @@ export class ApiManager {
           return nonceRpc;
         }
 
-        logger.info(
+        logger.current.info(
           `Nonce mismatch detected on ${networkName}. RPC: ${nonceRpc}, ApiManager: ${lastUsedNonce}, sending transaction with nonce ${
             lastUsedNonce + 1
           }`
@@ -184,7 +185,7 @@ export class ApiManager {
 
     try {
       const nonce = await this.getNonce(senderKeypair, networkName);
-      logger.info(`Sending transaction on ${networkName} with nonce ${nonce}`);
+      logger.current.info(`Sending transaction on ${networkName} with nonce ${nonce}`);
 
       return new Promise((resolve, reject) => {
         call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
@@ -208,7 +209,7 @@ export class ApiManager {
       const initialError = initialE instanceof Error ? initialE : new Error(String(initialE));
       // Only retry if the error is regarding bad signature error
       if (initialError.name === "RpcError" && initialError.message.includes("Transaction has a bad signature")) {
-        logger.info(
+        logger.current.info(
           `Bad signature error encountered while sending transaction on ${networkName}, attempting to refresh the api...`
         );
 

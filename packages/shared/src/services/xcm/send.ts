@@ -5,6 +5,7 @@ import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { encodeAddress } from "@polkadot/util-crypto";
+import logger from "src/logger";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -88,7 +89,7 @@ async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 6000
         return block;
       }
     } catch (error) {
-      logger.error(error);
+      logger.current.error(error);
     }
     await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
   }
@@ -169,12 +170,12 @@ export const submitMoonbeamXcm = async (
   extrinsic: SubmittableExtrinsic<"promise">
 ): Promise<{ event: XcmSentEvent; hash: string }> =>
   new Promise((resolve, reject) => {
-    logger.info(`Submitting XCM transfer for address ${address}`);
+    logger.current.info(`Submitting XCM transfer for address ${address}`);
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
-        logger.info(`Moonbeam XCM transfer status: ${status.type}`);
+        logger.current.info(`Moonbeam XCM transfer status: ${status.type}`);
 
         // Try to find a 'system.ExtrinsicFailed' event
         if (dispatchError) {
@@ -182,7 +183,7 @@ export const submitMoonbeamXcm = async (
         }
 
         if (status.isInvalid) {
-          logger.error(`XCM transfer failed with status: ${status.type}`);
+          logger.current.error(`XCM transfer failed with status: ${status.type}`);
           reject(new Error(`XCM transfer failed with status: ${status.type}`));
         }
 

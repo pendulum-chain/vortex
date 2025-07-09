@@ -1,13 +1,16 @@
-import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import {
   createWriteOptions,
   defaultReadLimits,
   defaultWriteLimits,
+  NABLA_ROUTER,
+  PendulumTokenDetails,
   parseContractBalanceResponse
-} from "@packages/shared/helpers";
+} from "@packages/shared";
 import { createExecuteMessageExtrinsic, Extrinsic, ReadMessageResult, readMessage } from "@pendulum-chain/api-solang";
 import { ApiPromise } from "@polkadot/api";
 import { Abi } from "@polkadot/api-contract";
+import { erc20WrapperAbi } from "../../../contracts/ERC20Wrapper";
+import logger from "../../../logger";
 import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";
 
@@ -85,15 +88,15 @@ export async function prepareNablaApproveTransaction({
 
   if (response.type !== "success") {
     const message = "Could not load token allowance";
-    logger.info(message);
+    logger.current.info(message);
     throw new Error(message);
   }
 
   const currentAllowance = parseContractBalanceResponse(inputTokenPendulumDetails.decimals, response.value);
-  logger.debug("Current allowance:", currentAllowance.toString());
+  logger.current.debug("Current allowance:", currentAllowance.toString());
 
   try {
-    logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol}`);
+    logger.current.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenPendulumDetails.assetSymbol}`);
     return createApproveExtrinsic({
       amount: amountRaw,
       api,
@@ -103,7 +106,7 @@ export async function prepareNablaApproveTransaction({
       token: inputTokenPendulumDetails.erc20WrapperAddress
     });
   } catch (e) {
-    logger.info(`Could not approve token: ${e}`);
+    logger.current.info(`Could not approve token: ${e}`);
     return Promise.reject("Could not approve token");
   }
 }

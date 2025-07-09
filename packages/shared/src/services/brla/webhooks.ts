@@ -1,4 +1,3 @@
-import { WEBHOOKS_CACHE_URL } from "../../../constants/constants";
 import { BrlaApiService } from "./brlaApiService";
 
 type SubscriptionType = "BURN" | "BALANCE-UPDATE" | "MONEY-TRANSFER" | "MINT" | "KYC";
@@ -35,12 +34,8 @@ export class EventPoller {
 
   private brlaApiService: BrlaApiService;
 
-  constructor(pollingInterval = 1000) {
-    if (!WEBHOOKS_CACHE_URL) {
-      throw new Error("WEBHOOKS_CACHE_URL is not defined!");
-    }
-
-    this.apiUrl = WEBHOOKS_CACHE_URL;
+  constructor(apiUrl: string, pollingInterval = 1000) {
+    this.apiUrl = apiUrl;
     this.pollingInterval = pollingInterval;
     this.brlaApiService = BrlaApiService.getInstance();
   }

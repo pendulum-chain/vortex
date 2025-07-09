@@ -1,5 +1,5 @@
+import { multiplyByPowerOfTen } from "@packages/shared";
 import Big from "big.js";
-import { multiplyByPowerOfTen } from "vortex-backend/src/api/helpers/contracts.ts";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getPendulumAccount } from "../../utils/config.ts";
 import {
