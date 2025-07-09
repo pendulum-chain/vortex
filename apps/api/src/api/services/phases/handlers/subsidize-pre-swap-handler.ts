@@ -51,7 +51,6 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           .transfer(pendulumEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
 
-        // Register the subsidy entry
         const subsidyAmount = nativeToDecimal(requiredAmount, inputTokenPendulumDetails.decimals).toNumber();
         const subsidyToken = inputTokenPendulumDetails.assetSymbol as SubsidyToken;
 
