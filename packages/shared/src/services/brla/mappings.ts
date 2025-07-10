@@ -10,6 +10,7 @@ import {
   PixKeyData,
   RegisterSubaccountPayload,
   SubaccountData,
+  SwapLog,
   SwapPayload,
   UsedLimitData
 } from "./types";
@@ -23,6 +24,7 @@ export enum Endpoint {
   WebhookEvents = "/webhooks/events",
   PixInfo = "/pay-out/pix-info",
   PixHistory = "/pay-in/pix/history",
+  SwapHistory = "/swap/history",
   FastQuote = "/fast-quote",
   Swap = "/swap",
   OnChainHistoryOut = "/on-chain/history/out",
@@ -124,6 +126,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: { depositsLogs: DepositLog[] };
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.SwapHistory]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: { swapLogs: SwapLog[] };
     };
     PATCH: {
       body: undefined;

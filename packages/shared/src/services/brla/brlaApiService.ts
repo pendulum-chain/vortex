@@ -1,4 +1,4 @@
-import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType } from "../..";
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType, SwapLog } from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
@@ -193,9 +193,14 @@ export class BrlaApiService {
     return (await this.sendRequest(Endpoint.PixHistory, "GET", query)).depositsLogs;
   }
 
+  public async getSwapHistory(userId: string | undefined): Promise<SwapLog[]> {
+    const query = userId ? `subaccountId=${encodeURIComponent(userId)}` : undefined;
+    return (await this.sendRequest(Endpoint.SwapHistory, "GET", query)).swapLogs;
+  }
+
   public async createFastQuote(fastQuoteParams: FastQuoteQueryParams): Promise<FastQuoteResponse> {
     const query = [
-      `subaccountId=${encodeURIComponent(fastQuoteParams.subaccountId)}`,
+      fastQuoteParams.subaccountId ? `subaccountId=${encodeURIComponent(fastQuoteParams.subaccountId)}` : undefined,
       `operation=${fastQuoteParams.operation}`,
       `amount=${fastQuoteParams.amount.toString()}`,
       `inputCoin=${fastQuoteParams.inputCoin}`,

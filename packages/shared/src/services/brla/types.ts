@@ -104,6 +104,23 @@ export interface DepositLog {
   payerAccountType: string;
 }
 
+// Interface response from /swap/history
+export interface SwapLog {
+  chain: string;
+  walletAddress: string;
+  receiverAddress: string;
+  brlaAmount: number;
+  usdAmount: number;
+  basePrice: string;
+  baseFee: string;
+  coin: string;
+  id: string;
+  createdAt: string;
+  status: string;
+  smartContractOps: SmartContractOp[];
+  externalId: string;
+}
+
 interface Feedback {
   id: string;
   success: boolean;
@@ -135,15 +152,16 @@ interface MintOp {
 
 export type FastQuoteOperationType = "swap";
 
-export type FastQuoteCoin = "BRLA";
+export type FastQuoteCoin = "BRLA" | "USDC";
 
 export enum BrlaSupportedChain {
-  BRLA = "Moonbeam"
+  BRLA = "Moonbeam",
+  Polygon = "Polygon"
   // etc
 }
 
 export interface FastQuoteQueryParams {
-  subaccountId: string;
+  subaccountId: string | undefined;
   operation: FastQuoteOperationType;
   amount: number;
   inputCoin: FastQuoteCoin;
