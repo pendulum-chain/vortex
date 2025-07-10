@@ -24,6 +24,8 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   failed: 0,
   fundEphemeral: 20,
   initial: 0,
+  moneriumOnrampMint: 60, // TODO we need to profile this value.
+  moneriumOnrampSelfTransfer: 20,
 
   // The following are unused phases in the onramping process but are included for completeness.
   moonbeamToPendulum: 0,
@@ -50,12 +52,13 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 
   // The following are unused phases in the offramping process but are included for completeness.
   brlaTeleport: 0,
-
   complete: 0,
   distributeFees: 24,
   failed: 0,
   fundEphemeral: 20,
   initial: 0,
+  moneriumOnrampMint: 0,
+  moneriumOnrampSelfTransfer: 0,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 0,
   nablaApprove: 24,

@@ -1,7 +1,6 @@
-import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, RampPhase } from "@packages/shared";
+import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, Networks, RampPhase } from "@packages/shared";
 import Big from "big.js";
 
-import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BrlaApiService } from "../../brla/brlaApiService";
@@ -38,7 +37,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
-        polygon
+        Networks.Polygon
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {

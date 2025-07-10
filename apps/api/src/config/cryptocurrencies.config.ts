@@ -49,7 +49,8 @@ const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrenc
 
 const getEvmNetworkTokens = (network: Networks): SupportedCryptocurrencyDetails[] => {
   if (isNetworkEVM(network)) {
-    return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
+    const availableTokens = Object.keys(evmTokenConfig[network]) as EvmToken[];
+    return availableTokens.map(token => mapEvmTokenToDetails(network, token));
   } else {
     return throwInvalidNetworkError(network);
   }

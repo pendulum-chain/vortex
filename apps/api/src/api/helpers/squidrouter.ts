@@ -1,4 +1,4 @@
-import { createConfig, http, readContract, waitForTransactionReceipt } from "@wagmi/core";
+import { createConfig, http, readContract } from "@wagmi/core";
 import { moonbeam } from "@wagmi/core/chains";
 
 import { encodePacked, sha256 } from "viem";

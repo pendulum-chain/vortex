@@ -30,6 +30,7 @@
         "number": "Number",
         "partnerCpf": "Partner CPF",
         "phoneNumber": "Phone Number",
+        "pixId": "Pix Key",
         "startDate": "Company Start Date",
         "state": "State",
         "street": "Street",
@@ -82,6 +83,10 @@
         "phone": {
           "format": "Invalid phone number format",
           "required": "Phone number is required"
+        },
+        "pixId": {
+          "format": "Invalid Pix ID format",
+          "required": "Pix ID is required"
         },
         "startDate": {
           "future": "Company start date cannot be in the future",
@@ -156,6 +161,14 @@
         "continueOnPartnersPage": "Continue on Partner's page",
         "continueWithPartner": "Continue with Partner",
         "destination": "Destination Account",
+        "EUROnrampDetails": {
+          "amount": "Amount",
+          "bic": "BIC",
+          "description": "Please make a bank transfer with the following details.",
+          "footer": "Please ensure the amount is exact.",
+          "iban": "IBAN",
+          "title": "Bank Transfer Details"
+        },
         "headerText": {
           "buy": "You're buying",
           "sell": "You're selling"
@@ -342,10 +355,12 @@
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "fundEphemeral": "Funding ephemeral accounts",
       "initial": "Starting process",
+      "moneriumOnrampMint": "Minting EUR.e",
+      "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
-      "squidRouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "squidRouterSwap": "Transferring {{assetSymbol}} from {{fromNetwork}} to {{toNetwork}}",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
       "success": "Transaction completed successfully!",
       "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",

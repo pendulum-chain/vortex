@@ -1,4 +1,4 @@
-import { PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 import { ExtrinsicOptions } from "../transactions/nabla";
 
 export interface StateMetadata {
@@ -46,5 +46,8 @@ export interface StateMetadata {
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
-  brCode: string | undefined;
+  depositQrCode: string | undefined;
+  // Only used in onramp, offramp - monerium
+  polygonEphemeralAddress: string;
+  ibanPaymentData: IbanPaymentData;
 }
