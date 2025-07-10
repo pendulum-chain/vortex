@@ -84,13 +84,13 @@ export const useRampUrlParams = (): RampUrlParams => {
   const rampDirection = useRampDirection();
 
   const urlParams = useMemo(() => {
-    const rampParam = params.get('ramp')?.toLowerCase();
-    const networkParam = params.get('network')?.toLowerCase();
-    const toTokenParam = params.get('to')?.toLowerCase();
-    const fromTokenParam = params.get('from')?.toLowerCase();
-    const inputAmountParam = params.get('fromAmount');
-    const partnerIdParam = params.get('partnerId');
-    const moneriumCode = params.get('code')?.toLowerCase();
+    const rampParam = params.get("ramp")?.toLowerCase();
+    const networkParam = params.get("network")?.toLowerCase();
+    const toTokenParam = params.get("to")?.toLowerCase();
+    const fromTokenParam = params.get("from")?.toLowerCase();
+    const inputAmountParam = params.get("fromAmount");
+    const partnerIdParam = params.get("partnerId");
+    const moneriumCode = params.get("code")?.toLowerCase();
 
     const ramp =
       rampParam === undefined
@@ -116,9 +116,9 @@ export const useRampUrlParams = (): RampUrlParams => {
     return {
       from,
       fromAmount: inputAmountParam || fromAmount || undefined,
+      moneriumCode,
       network: getNetworkFromParam(networkParam),
       partnerId: partnerIdParam || undefined,
-      moneriumCode,
       ramp,
       to
     };
@@ -148,8 +148,6 @@ export const useSetRampUrlParams = () => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     if (hasInitialized.current) return;
-    console.log('moneriumCode', moneriumCode);
-    if (moneriumCode) return;
 
     onToggle(ramp);
 
