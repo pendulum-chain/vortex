@@ -33,6 +33,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
             <BrlaField
               className={
                 [
+                  ExtendedBrlaFieldOptions.PIX_ID,
                   ExtendedBrlaFieldOptions.TAX_ID,
                   ExtendedBrlaFieldOptions.PHONE,
                   ExtendedBrlaFieldOptions.FULL_NAME,
