@@ -26,11 +26,9 @@ async function checkForRebalancing() {
   ) {
     console.log("Coverage ratios of BRLA and USDC.axl require rebalancing.");
     // Proceed with rebalancing
-    // const amountAxlUsdc = "0.5";
-    // await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
+    const amountAxlUsdc = process.env.REBALANCING_AMOUNT_USD_TO_BRL || "10";
+    await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
   }
-  const amountAxlUsdc = "0.5";
-  await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
 }
 
 checkForRebalancing()

@@ -264,41 +264,31 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
   console.log("Swap request created on BRLA API service with ID:", id);
 
   // Wait a couple seconds for the swap to be processed on BRLA API service
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 10_000));
 
   // Find transaction receipt
   const swapHistory = await brlaApiService.getSwapHistory(undefined);
   const swapLog = swapHistory.find(tx => tx.id === id);
-  const txHash = swapLog?.smartContractOps[0]?.tx;
+  const success = Boolean(swapLog?.smartContractOps[0]?.feedback.success);
+  let txHash = swapLog?.smartContractOps[0]?.tx;
 
-  if (!txHash) {
-    throw new Error(`Swap transaction hash not found for ID: ${id}`);
+  if (!success || !txHash) {
+    // Wait for 1 minute and try again
+    console.log(`Swap transaction hash not found for ID: ${id}`);
+    await new Promise(resolve => setTimeout(resolve, 60_000));
+    const swapHistoryRetry = await brlaApiService.getSwapHistory(undefined);
+    const swapLogRetry = swapHistoryRetry.find(tx => tx.id === id);
+    const retrySuccess = Boolean(swapLogRetry?.smartContractOps[0]?.feedback.success);
+    if (!swapLogRetry || !retrySuccess || !swapLogRetry.smartContractOps[0]?.tx) {
+      throw new Error(`Swap transaction hash not found for ID: ${id} after retry.`);
+    }
+    txHash = swapLogRetry.smartContractOps[0].tx;
   }
+
   const { publicClient: polygonPublicClient } = getPolygonEvmClients();
   console.log(`Waiting for swap transaction ${txHash} to be confirmed on Polygon...`);
   await waitForTransactionConfirmation(txHash, polygonPublicClient, 3);
   console.log(`Swap transaction ${txHash} confirmed on Polygon.`);
-
-  // Wait for tokens to arrive on the receiver address
-  const quotedAmountDecimal = Big(quote.amountUsd);
-  const quotedAmountRaw = multiplyByPowerOfTen(quotedAmountDecimal, usdcDetails.decimals).toFixed(0, 0);
-  const expectedAmountRaw = Big(quotedAmountRaw).plus(receiverBalanceBeforeRaw).toFixed(0, 0);
-  console.log(`Waiting for ${quotedAmountDecimal} USDC to arrive on receiver address ${receiverAddress}...`);
-  await checkEvmBalancePeriodically(
-    usdcDetails.erc20AddressSourceChain,
-    receiverAddress,
-    expectedAmountRaw,
-    1000,
-    5 * 60 * 1000,
-    polygon
-  );
-  console.log(`USDC successfully arrived on receiver address ${receiverAddress}.`);
-  const receiverBalanceAfter = await getEvmTokenBalance({
-    chain: polygon,
-    ownerAddress: receiverAddress,
-    tokenAddress: usdcDetails.erc20AddressSourceChain
-  });
-  console.log(`Receiver USDC balance after swap: ${receiverBalanceAfter.toFixed(4, 0)} USDC`);
 
   return { amountUsd: quote.amountUsd, fee: quote.baseFee, rate: quote.basePrice };
 }

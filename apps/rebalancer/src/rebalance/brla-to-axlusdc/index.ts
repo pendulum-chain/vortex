@@ -1,4 +1,4 @@
-import { multiplyByPowerOfTen } from "@packages/shared";
+import { multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
@@ -43,30 +43,26 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   await waitForBrlaOnPolygon(brlaAmount, brlaAmountRaw);
   console.log(`BRLA appeared on Polygon: ${brlaAmount}`);
 
-  // Step 5: Transfer BRLA from business account to controlled account on Polygon using BRLA API service
-  await transferBrlaOnPolygon(brlaAmount, brlaAmountRaw);
-  console.log(`Transferred ${brlaAmount} BRLA on Polygon`);
-
-  // Step 6: Swap BRLA to USDC.e on Polygon via BRLA API service
+  // Step 5: Swap BRLA to USDC.e on Polygon via BRLA API service and send to custom Polygon account
   const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, polygonAccountAddress);
   console.log(`Swapped ${brlaAmount} BRLA to USDC.e on Polygon with a rate of ${brlaToUsdcSwapQuote.rate} USDC.e per BRLA`);
 
   const usdcAmountRaw = multiplyByPowerOfTen(brlaToUsdcSwapQuote.amountUsd, usdcTokenDetails.decimals).toFixed(0, 0);
 
-  // Step 7: Swap and transfer USDC.e from Polygon to USDC.axl on Moonbeam using SquidRouter
+  // Step 6: Swap and transfer USDC.e from Polygon to USDC.axl on Moonbeam using SquidRouter
   const { squidRouterReceiverId, amountUsd } = await transferUsdcToMoonbeamWithSquidrouter(
     usdcAmountRaw,
     pendulumAccount.address
   );
   console.log(`Swapped BRLA to USDC.axl on Polygon, receiver ID: ${squidRouterReceiverId}`);
 
-  // Step 8: Trigger XCM from Moonbeam to send USDC.axl back to Pendulum
+  // Step 7: Trigger XCM from Moonbeam to send USDC.axl back to Pendulum
   // Wait for 30 seconds to ensure the SquidRouter transaction is processed
   await new Promise(resolve => setTimeout(resolve, 30000));
   await triggerXcmFromMoonbeam(squidRouterReceiverId, pendulumAccount.address);
   console.log(`Triggered XCM from Moonbeam to Pendulum`);
 
-  // Step 9: Wait for USDC.axl to arrive on Pendulum
+  // Step 8: Wait for USDC.axl to arrive on Pendulum
   await waitForAxlUsdcOnPendulum(Big(amountUsd), pendulumAccount.address, initialBalance);
   console.log(`USDC.axl arrived on Pendulum`);
 
@@ -80,4 +76,12 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log(
     `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(initialBalance)).toFixed(4, 0)}`
   );
+
+  const slackNotifier = new SlackNotifier();
+  await slackNotifier.sendMessage({
+    text:
+      `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}\n` +
+      `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${amountUsd} USDC.axl\n` +
+      `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(initialBalance)).toFixed(4, 0)}`
+  });
 }
