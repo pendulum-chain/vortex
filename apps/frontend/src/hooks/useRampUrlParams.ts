@@ -6,7 +6,7 @@ import { useNetwork } from "../contexts/network";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
 import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
-import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
+import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -131,9 +131,10 @@ export const useSetRampUrlParams = () => {
   const { ramp, to, from, fromAmount, partnerId, moneriumCode } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
+  const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
-  const { setFiatToken, setOnChainToken, setInputAmount } = useRampFormStoreActions();
+  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useRampFormStoreActions();
 
   const hasInitialized = useRef(false);
 
@@ -148,6 +149,26 @@ export const useSetRampUrlParams = () => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     if (hasInitialized.current) return;
+
+    if (partnerId) {
+      setPartnerIdFn(partnerId);
+    } else {
+      setPartnerIdFn(null);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const persistState = params.get("code") !== null;
+
+    if (persistState) {
+      // If the persist flag is set, the ramp direction is already persisted
+      // and will be automatically loaded from localStorage by the store.
+      // We skip the rest of the initialization logic to preserve all persisted state.
+      hasInitialized.current = true;
+      return;
+    }
+
+    resetRampDirection();
+    resetRampForm();
 
     onToggle(ramp);
 
@@ -169,12 +190,6 @@ export const useSetRampUrlParams = () => {
 
     if (fromAmount) {
       setInputAmount(fromAmount);
-    }
-
-    if (partnerId) {
-      setPartnerIdFn(partnerId);
-    } else {
-      setPartnerIdFn(null);
     }
 
     hasInitialized.current = true;
