@@ -30,6 +30,7 @@
         "number": "Number",
         "partnerCpf": "Partner CPF",
         "phoneNumber": "Phone Number",
+        "pixId": "Pix Key",
         "startDate": "Company Start Date",
         "state": "State",
         "street": "Street",
@@ -82,6 +83,10 @@
         "phone": {
           "format": "Invalid phone number format",
           "required": "Phone number is required"
+        },
+        "pixId": {
+          "format": "Invalid Pix ID format",
+          "required": "Pix ID is required"
         },
         "startDate": {
           "future": "Company start date cannot be in the future",
