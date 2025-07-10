@@ -8,6 +8,7 @@
     "paths": {
       "@packages/*": ["../../packages/*/src"]
     },
+    "resolveJsonModule": true,
     "rootDir": "src",
     "skipLibCheck": true,
     "strict": true,

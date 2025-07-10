@@ -2,7 +2,7 @@ import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from "@pac
 import axios, { AxiosError } from "axios";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../contracts/ERC20";
-import { squidReceiverABI } from "../../contracts/SquidReceiver";
+import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
 import logger from "../../logger";
 import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
 
@@ -57,23 +57,22 @@ export function createOnrampRouteParams(
 }
 
 export interface SquidrouterRoute {
-  route: {
-    estimate: {
-      toToken: { decimals: number };
-      toAmount: string;
-      toAmountMin: string;
-    };
-    transactionRequest: {
-      value: string;
-      target: string;
-      data: string;
-      gasLimit: string;
-    };
+  estimate: {
+    toToken: { decimals: number };
+    toAmount: string;
+    toAmountMin: string;
+    toAmountUSD: string;
+  };
+  transactionRequest: {
+    value: string;
+    target: string;
+    data: string;
+    gasLimit: string;
   };
 }
 
 export interface SquidrouterRouteResult {
-  data: SquidrouterRoute;
+  data: { route: SquidrouterRoute };
   requestId: string;
 }
 
@@ -153,7 +152,7 @@ export function createOfframpRouteParams(
   });
 
   const initXCMEncodedData = encodeFunctionData({
-    abi: squidReceiverABI,
+    abi: splitReceiverABI,
     args: [squidRouterReceiverHash, "0"],
     functionName: "initXCM"
   });

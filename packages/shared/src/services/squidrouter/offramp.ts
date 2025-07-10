@@ -1,4 +1,4 @@
-import { EvmTokenDetails, EvmTransactionData, Networks } from "@packages/shared";
+import { EvmTokenDetails, EvmTransactionData, Networks, SquidrouterRoute } from "@packages/shared";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { createPublicClient, encodeFunctionData, http } from "viem";
@@ -22,6 +22,7 @@ export interface OfframpTransactionData {
   swapData: EvmTransactionData;
   squidRouterReceiverId: string;
   squidRouterReceiverHash: string;
+  route: SquidrouterRoute;
 }
 
 export async function createOfframpSquidrouterTransactions(params: OfframpSquidrouterParams): Promise<OfframpTransactionData> {
@@ -71,6 +72,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
       to: params.inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
       value: "0"
     },
+    route,
     squidRouterReceiverHash,
     squidRouterReceiverId,
     swapData: {

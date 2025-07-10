@@ -1,13 +1,18 @@
 import {
   ApiManager,
   BrlaApiService,
+  BrlaSupportedChain,
   checkEvmBalancePeriodically,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
   createPendulumToMoonbeamTransfer,
   decodeSubmittableExtrinsic,
+  EvmToken,
   EvmTokenDetails,
   encodePayload,
+  FastQuoteQueryParams,
+  getEvmTokenBalance,
+  getOnChainTokenDetails,
   getStatusAxelarScan,
   getTokenOutAmount,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
@@ -24,7 +29,7 @@ import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
-import { polygon } from "viem/chains";
+import { excelonMainnet, polygon } from "viem/chains";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
@@ -154,28 +159,19 @@ export async function transferBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: stri
   );
 }
 
-export async function swapBrlaToAxlUsdcOnPolygon(brlaAmountRaw: string, pendulumAddress: string): Promise<string> {
-  console.log(`Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...`);
+export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: string, pendulumAddress: string) {
+  console.log(`Transferring ${usdcAmountRaw} USDC to Moonbeam via SquidRouter...`);
 
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
-  const brlaEvmTokenDetails: EvmTokenDetails = {
-    assetSymbol: "BRLA",
-    decimals: brlaMoonbeamTokenDetails.decimals,
-    erc20AddressSourceChain: brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`,
-    isNative: false,
-    network: Networks.Polygon,
-    networkAssetIcon: "polygonBRLA",
-    pendulumRepresentative: brlaFiatTokenDetails.pendulumRepresentative,
-    type: TokenType.Evm
-  };
+  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
 
-  const { approveData, swapData, squidRouterReceiverId } = await createOfframpSquidrouterTransactions({
+  const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
     fromAddress: polygonWalletClient.account.address,
     fromNetwork: Networks.Polygon,
-    inputTokenDetails: brlaEvmTokenDetails,
+    inputTokenDetails: usdcTokenDetails,
     pendulumAddressDestination: pendulumAddress,
-    rawAmount: brlaAmountRaw
+    rawAmount: usdcAmountRaw
   });
 
   const approveDataExtended = {
@@ -221,6 +217,7 @@ export async function swapBrlaToAxlUsdcOnPolygon(brlaAmountRaw: string, pendulum
 
     if (!axelarScanStatus) {
       console.log(`No Axelar status found for swap hash ${swapHash}.`);
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before checking again
       continue;
     }
     if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
@@ -228,10 +225,82 @@ export async function swapBrlaToAxlUsdcOnPolygon(brlaAmountRaw: string, pendulum
       console.log(`Transaction ${swapHash} successfully executed on Axelar.`);
       break;
     }
-    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before checking again
   }
 
-  return squidRouterReceiverId;
+  return { amountUsd: route.estimate.toAmountUSD, squidRouterReceiverId };
+}
+
+/// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
+export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
+  const amountInCents = brlaAmount.mul(100).toFixed(0, 0); // Convert to cents as BRLA API expects amounts in cents
+  const fastQuoteParams: FastQuoteQueryParams = {
+    amount: Number(amountInCents),
+    chain: BrlaSupportedChain.Polygon,
+    fixOutput: false,
+    inputCoin: "BRLA",
+    operation: "swap",
+    outputCoin: "USDC",
+    subaccountId: undefined // We do the swap on the business account, so no subaccount ID is needed
+  };
+
+  const brlaApiService = BrlaApiService.getInstance();
+  const quote = await brlaApiService.createFastQuote(fastQuoteParams);
+  console.log(`Created fast quote for swapping ${brlaAmount.toFixed(4, 0)} BRLA to USDC.axl:`, quote);
+
+  // Get USDC balance of receiver before the swap. BRLA is using USDCe on Polygon, so we need to check USDCe balance.
+  const usdcDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
+  const receiverBalanceBeforeRaw = await getEvmTokenBalance({
+    chain: polygon,
+    ownerAddress: receiverAddress,
+    tokenAddress: usdcDetails.erc20AddressSourceChain
+  });
+  console.log(`Receiver USDC balance before swap: ${receiverBalanceBeforeRaw} USDC`);
+
+  const { id } = await brlaApiService.swapRequest({
+    receiverAddress,
+    token: quote.token
+  });
+
+  console.log("Swap request created on BRLA API service with ID:", id);
+
+  // Wait a couple seconds for the swap to be processed on BRLA API service
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  // Find transaction receipt
+  const swapHistory = await brlaApiService.getSwapHistory(undefined);
+  const swapLog = swapHistory.find(tx => tx.id === id);
+  const txHash = swapLog?.smartContractOps[0]?.tx;
+
+  if (!txHash) {
+    throw new Error(`Swap transaction hash not found for ID: ${id}`);
+  }
+  const { publicClient: polygonPublicClient } = getPolygonEvmClients();
+  console.log(`Waiting for swap transaction ${txHash} to be confirmed on Polygon...`);
+  await waitForTransactionConfirmation(txHash, polygonPublicClient, 3);
+  console.log(`Swap transaction ${txHash} confirmed on Polygon.`);
+
+  // Wait for tokens to arrive on the receiver address
+  const quotedAmountDecimal = Big(quote.amountUsd);
+  const quotedAmountRaw = multiplyByPowerOfTen(quotedAmountDecimal, usdcDetails.decimals).toFixed(0, 0);
+  const expectedAmountRaw = Big(quotedAmountRaw).plus(receiverBalanceBeforeRaw).toFixed(0, 0);
+  console.log(`Waiting for ${quotedAmountDecimal} USDC to arrive on receiver address ${receiverAddress}...`);
+  await checkEvmBalancePeriodically(
+    usdcDetails.erc20AddressSourceChain,
+    receiverAddress,
+    expectedAmountRaw,
+    1000,
+    5 * 60 * 1000,
+    polygon
+  );
+  console.log(`USDC successfully arrived on receiver address ${receiverAddress}.`);
+  const receiverBalanceAfter = await getEvmTokenBalance({
+    chain: polygon,
+    ownerAddress: receiverAddress,
+    tokenAddress: usdcDetails.erc20AddressSourceChain
+  });
+  console.log(`Receiver USDC balance after swap: ${receiverBalanceAfter.toFixed(4, 0)} USDC`);
+
+  return { amountUsd: quote.amountUsd, fee: quote.baseFee, rate: quote.basePrice };
 }
 
 export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pendulumAddress: string): Promise<void> {
@@ -259,7 +328,11 @@ export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pend
   console.log("USDC.axl successfully sent to Pendulum via Receiver contract. Transaction hash:", xcmHash);
 }
 
-export async function waitForAxlUsdcOnPendulum(pendulumAddress: string, initialBalance: Big): Promise<void> {
+export async function waitForAxlUsdcOnPendulum(
+  expectedAmountToReceive: Big,
+  pendulumAddress: string,
+  initialBalance: Big
+): Promise<void> {
   const apiManager = ApiManager.getInstance();
   const pendulumNode = await apiManager.getApi("pendulum");
 
@@ -269,8 +342,12 @@ export async function waitForAxlUsdcOnPendulum(pendulumAddress: string, initialB
 
     // @ts-ignore
     const newBalance = multiplyByPowerOfTen(Big(balanceResponse?.free?.toString() ?? "0"), -usdcTokenDetails.decimals);
+
     // Check that newBalance is again almost equal to the old current balance but with some small difference due to fees
-    return newBalance.gt(initialBalance.times(0.95)) && newBalance.lt(initialBalance.times(1.05));
+    const tolerance = 0.05; // 5% tolerance
+    const lowerBound = initialBalance.sub(expectedAmountToReceive.times(1 - tolerance));
+    const upperBound = initialBalance.add(expectedAmountToReceive.times(1 + tolerance));
+    return newBalance.gte(lowerBound) && newBalance.lte(upperBound);
   };
 
   console.log(`Waiting for USDC to arrive on Pendulum account ${pendulumAddress}...`);
