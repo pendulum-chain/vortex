@@ -166,7 +166,7 @@
           "description": "Por favor, faça uma transferência bancária com os seguintes detalhes.",
           "footer": "Por favor, garanta que o valor seja exato.",
           "iban": "IBAN",
-          "title": "Detalhes da Transferência Bancária"
+          "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
         },
         "headerText": {
           "buy": "Você está comprando",
@@ -354,7 +354,7 @@
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "fundEphemeral": "Financiando contas efêmeras",
       "initial": "Iniciando processo",
-      "moneriumOnrampMint": "Transferindo EUR.e",
+      "moneriumOnrampMint": "Aguardando pagamento",
       "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",

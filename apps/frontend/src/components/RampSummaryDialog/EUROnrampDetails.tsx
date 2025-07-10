@@ -57,6 +57,7 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       )}
+      <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.hint")}</p>
       <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.footer")}</p>
     </section>
   );
