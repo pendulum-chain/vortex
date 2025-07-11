@@ -9,65 +9,30 @@ import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { GotQuestions } from "../../sections";
 import { RampService } from "../../services/api";
-import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
 import { getMessageForPhase } from "./phaseMessages";
 
-// The order of the phases is important for the progress bar.
-export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
-  assethubToPendulum: 0,
-  brlaPayoutOnMoonbeam: 0,
+// Unified phase duration mapping for all phases
+const PHASE_DURATIONS: Record<RampPhase, number> = {
+  assethubToPendulum: 24,
+  brlaPayoutOnMoonbeam: 30,
   brlaTeleport: 5 * 60,
-
   complete: 0,
   distributeFees: 24,
   failed: 0,
   fundEphemeral: 20,
   initial: 0,
-  moneriumOnrampMint: 60, // TODO we need to profile this value.
+  moneriumOnrampMint: 60,
   moneriumOnrampSelfTransfer: 20,
-
-  // The following are unused phases in the onramping process but are included for completeness.
-  moonbeamToPendulum: 0,
+  moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
   nablaSwap: 24,
   pendulumToAssethub: 30,
   pendulumToMoonbeam: 40,
-  spacewalkRedeem: 0,
-  squidRouterApprove: 10,
-  squidRouterPay: 60,
-  squidRouterSwap: 10,
-  stellarCreateAccount: 0,
-  stellarPayment: 0,
-  subsidizePostSwap: 24,
-  subsidizePreSwap: 24,
-  timedOut: 0
-};
-
-// The order of the phases is important for the progress bar.
-export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
-  assethubToPendulum: 24,
-  brlaPayoutOnMoonbeam: 30,
-
-  // The following are unused phases in the offramping process but are included for completeness.
-  brlaTeleport: 0,
-  complete: 0,
-  distributeFees: 24,
-  failed: 0,
-  fundEphemeral: 20,
-  initial: 0,
-  moneriumOnrampMint: 0,
-  moneriumOnrampSelfTransfer: 0,
-  moonbeamToPendulum: 40,
-  moonbeamToPendulumXcm: 0,
-  nablaApprove: 24,
-  nablaSwap: 24,
-  pendulumToAssethub: 0,
-  pendulumToMoonbeam: 0,
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
-  squidRouterPay: 0,
+  squidRouterPay: 60,
   squidRouterSwap: 10,
   stellarCreateAccount: 0,
   stellarPayment: 6,
@@ -76,20 +41,112 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   timedOut: 0
 };
 
-// This constant is used to denote how many of the phases are relevant for the progress bar.
-// Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = { off: 14, on: 13 };
+const PHASE_FLOWS = {
+  offramp_brl: [
+    "initial",
+    "fundEphemeral",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "brlaPayoutOnMoonbeam",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  offramp_default: [
+    "initial",
+    "fundEphemeral",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_brl: [
+    "initial",
+    "brlaTeleport",
+    "fundEphemeral",
+    "moonbeamToPendulumXcm",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "squidRouterApprove",
+    "squidRouterPay",
+    "squidRouterSwap",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_default: [
+    "initial",
+    "fundEphemeral",
+    "moonbeamToPendulumXcm",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "squidRouterApprove",
+    "squidRouterPay",
+    "squidRouterSwap",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eurc: [
+    "initial",
+    "moneriumOnrampMint",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[]
+};
+
+/**
+ * Determine which phase flow is being used based on ramp state
+ */
+function getRampFlow(rampState: ReturnType<typeof useRampState>): keyof typeof PHASE_FLOWS {
+  if (!rampState?.ramp) {
+    return "onramp_default";
+  }
+
+  const { type } = rampState.ramp;
+
+  const currentPhase = rampState.ramp.currentPhase;
+
+  if (type === "on") {
+    if (currentPhase === "moneriumOnrampMint" || currentPhase === "moneriumOnrampSelfTransfer") {
+      return "onramp_eurc";
+    } else if (currentPhase === "brlaTeleport") {
+      return "onramp_brl";
+    }
+    return "onramp_default";
+  } else {
+    return "offramp_default";
+  }
+}
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
   currentPhaseIndex: number,
-  rampPhaseRecords: Record<RampPhase, number>,
+  numberOfPhases: number,
   displayedPercentage: number,
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void
 ) => {
-  const rampDirection = useRampDirection();
-  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
@@ -98,7 +155,7 @@ const useProgressUpdate = (
     }
 
     const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
-    const duration = rampPhaseRecords[currentPhase] * 1000;
+    const duration = PHASE_DURATIONS[currentPhase] * 1000;
     const startTime = Date.now();
     const startPercentage = displayedPercentage;
 
@@ -130,15 +187,7 @@ const useProgressUpdate = (
         clearInterval(intervalRef.current);
       }
     };
-  }, [
-    currentPhase,
-    currentPhaseIndex,
-    displayedPercentage,
-    numberOfPhases,
-    rampPhaseRecords,
-    setDisplayedPercentage,
-    setShowCheckmark
-  ]);
+  }, [currentPhase, currentPhaseIndex, displayedPercentage, numberOfPhases, setDisplayedPercentage, setShowCheckmark]);
 };
 
 const CIRCLE_RADIUS = 80;
@@ -205,9 +254,9 @@ const ProgressCircle: FC<{
 interface ProgressContentProps {
   currentPhase: RampPhase;
   currentPhaseIndex: number;
+  numberOfPhases: number;
   message: string;
   showIsDelayedWarning: boolean;
-  rampPhaseRecords: Record<RampPhase, number>;
 }
 
 const TransactionStatusBanner: FC = () => {
@@ -249,9 +298,9 @@ const TransactionStatusBanner: FC = () => {
 const ProgressContent: FC<ProgressContentProps> = ({
   currentPhase,
   currentPhaseIndex,
+  numberOfPhases,
   message,
-  showIsDelayedWarning,
-  rampPhaseRecords
+  showIsDelayedWarning
 }) => {
   const { t } = useTranslation();
 
@@ -263,7 +312,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
   useProgressUpdate(
     currentPhase,
     currentPhaseIndex,
-    rampPhaseRecords,
+    numberOfPhases,
     displayedPercentage,
     setDisplayedPercentage,
     setShowCheckmark
@@ -304,11 +353,14 @@ export const ProgressPage = () => {
   const { setRampState } = useRampActions();
   const { t } = useTranslation();
 
-  const rampPhaseRecords = rampState?.ramp?.type === "on" ? ONRAMPING_PHASE_SECONDS : OFFRAMPING_PHASE_SECONDS;
+  // Get the appropriate phase flow and calculate progress based on it
+  const flowType = getRampFlow(rampState);
+  const phaseSequence = PHASE_FLOWS[flowType];
+  const numberOfPhases = phaseSequence.length;
 
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
-  const currentPhaseIndex = Object.keys(rampPhaseRecords).indexOf(currentPhase);
+  const currentPhaseIndex = phaseSequence.indexOf(currentPhase);
   const message = getMessageForPhase(rampState, t);
 
   const showIsDelayedWarning = useMemo(() => {
@@ -347,7 +399,7 @@ export const ProgressPage = () => {
         if (maybeNewPhase !== prevPhaseRef.current) {
           trackEvent({
             event: "progress",
-            phase_index: Object.keys(rampPhaseRecords).indexOf(maybeNewPhase),
+            phase_index: phaseSequence.indexOf(maybeNewPhase),
             phase_name: maybeNewPhase
           });
 
@@ -367,7 +419,7 @@ export const ProgressPage = () => {
 
     // Clean up
     return () => clearInterval(intervalId);
-  }, [rampState?.ramp?.id, rampPhaseRecords, setRampState, trackEvent]); // Only depend on the ramp ID, not the entire state
+  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent]); // Only depend on the ramp ID, not the entire state
 
   return (
     <main>
@@ -375,7 +427,7 @@ export const ProgressPage = () => {
         currentPhase={currentPhase}
         currentPhaseIndex={currentPhaseIndex}
         message={message}
-        rampPhaseRecords={rampPhaseRecords}
+        numberOfPhases={numberOfPhases}
         showIsDelayedWarning={showIsDelayedWarning}
       />
       <GotQuestions />
