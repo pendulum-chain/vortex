@@ -368,7 +368,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
   } catch (error) {
     logger.error("Error calculating fee components:", error);
     throw new APIError({
-      message: "Failed to calculate fee components",
+      message: QuoteError.FailedToCalculateFeeComponents,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }

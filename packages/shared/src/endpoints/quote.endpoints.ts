@@ -40,5 +40,6 @@ export interface GetQuoteRequest {
 }
 
 export enum QuoteError {
-  FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees"
+  FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees",
+  FailedToCalculateFeeComponents = "Failed to calculate fee components"
 }

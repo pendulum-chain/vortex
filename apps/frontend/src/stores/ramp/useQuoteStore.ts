@@ -50,7 +50,8 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 };
 
 const friendlyErrorMessages: Record<QuoteError, string> = {
-  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.preNablaDeductibleFees"
+  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.preNablaDeductibleFees",
+  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.feeComponents"
 };
 
 function getFriendlyErrorMessage(error: unknown) {

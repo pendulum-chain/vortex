@@ -388,6 +388,7 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
         "fetchingQuote": "Falha ao obter cotação",
         "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
