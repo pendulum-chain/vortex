@@ -170,7 +170,7 @@
           "title": "Bank Transfer Details"
         },
         "headerText": {
-          "buy": "You're buying",
+          "buy": "Payment Summary",
           "sell": "You're selling"
         },
         "offrampFee": "Offramp fee",
