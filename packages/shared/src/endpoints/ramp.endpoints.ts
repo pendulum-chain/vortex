@@ -2,6 +2,8 @@ import { DestinationType, EvmAddress, Networks } from "../index";
 
 export type RampPhase =
   | "initial"
+  | "moneriumOnrampSelfTransfer"
+  | "moneriumOnrampMint"
   | "timedOut"
   | "stellarCreateAccount"
   | "squidRouterApprove"
@@ -40,6 +42,7 @@ export interface EvmTransactionData {
   gas: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+  nonce?: number;
 }
 
 export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
@@ -75,6 +78,11 @@ export interface PaymentData {
   anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
+export interface IbanPaymentData {
+  iban: string;
+  bic: string;
+}
+
 export interface RegisterRampRequest {
   quoteId: string;
   signingAccounts: AccountMeta[];
@@ -85,6 +93,7 @@ export interface RegisterRampRequest {
     pixDestination?: string;
     receiverTaxId?: string;
     taxId?: string;
+    moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     [key: string]: unknown;
   };
 }
@@ -102,9 +111,10 @@ export interface UpdateRampRequest {
   rampId: string;
   presignedTxs: PresignedTx[];
   additionalData?: {
-    squidRouterApproveHash: string | undefined;
-    squidRouterSwapHash: string | undefined;
-    assetHubToPendulumHash: string | undefined;
+    squidRouterApproveHash?: string;
+    squidRouterSwapHash?: string;
+    assetHubToPendulumHash?: string;
+    moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     [key: string]: unknown;
   };
 }
@@ -121,7 +131,8 @@ export interface RampProcess {
   createdAt: string;
   updatedAt: string;
   unsignedTxs: UnsignedTx[];
-  brCode?: string;
+  depositQrCode?: string;
+  ibanPaymentData?: IbanPaymentData;
 }
 
 export interface GetRampStatusRequest {

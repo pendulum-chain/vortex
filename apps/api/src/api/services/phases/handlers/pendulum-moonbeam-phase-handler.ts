@@ -4,6 +4,7 @@ import {
   FiatToken,
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
+  Networks,
   PENDULUM_USDC_AXL,
   RampPhase
 } from "@packages/shared";
@@ -15,7 +16,6 @@ import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
 import { submitXTokens } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
-import { StateMetadata } from "../meta-state-types";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -59,7 +59,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         state.type === "off" && state.state.outputTokenType === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
-        chain: moonbeam,
+        chain: Networks.Moonbeam,
         ownerAddress: ownerAddress as `0x${string}`,
         tokenAddress: tokenAddress as `0x${string}`
       });

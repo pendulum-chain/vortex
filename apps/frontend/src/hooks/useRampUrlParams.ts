@@ -15,6 +15,7 @@ interface RampUrlParams {
   from?: string;
   fromAmount?: string;
   partnerId?: string;
+  moneriumCode?: string;
 }
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
@@ -89,6 +90,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const fromTokenParam = params.get("from")?.toLowerCase();
     const inputAmountParam = params.get("fromAmount");
     const partnerIdParam = params.get("partnerId");
+    const moneriumCode = params.get("code")?.toLowerCase();
 
     const ramp =
       rampParam === undefined
@@ -114,6 +116,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     return {
       from,
       fromAmount: inputAmountParam || fromAmount || undefined,
+      moneriumCode,
       network: getNetworkFromParam(networkParam),
       partnerId: partnerIdParam || undefined,
       ramp,
@@ -125,7 +128,7 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId, moneriumCode } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const setPartnerIdFn = useSetPartnerId();

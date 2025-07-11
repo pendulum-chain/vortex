@@ -1,5 +1,4 @@
-import { HORIZON_URL, RampPhase } from "@packages/shared";
-import { Horizon, NetworkError, Networks, Transaction } from "stellar-sdk";
+import { FiatToken, RampPhase } from "@packages/shared";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -34,8 +33,10 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       }
     }
 
-    if (state.type === "on") {
+    if (state.type === "on" && state.state.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, "brlaTeleport");
+    } else if (state.type === "on" && state.state.inputCurrency === FiatToken.EURC) {
+      return this.transitionToNextPhase(state, "moneriumOnrampMint");
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");

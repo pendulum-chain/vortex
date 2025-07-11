@@ -14,6 +14,7 @@ export enum ExtendedBrlaFieldOptions {
   PHONE = "phone",
   ADDRESS = "address",
   TAX_ID = "taxId",
+  PIX_ID = "pixId",
   CEP = "cep",
   CITY = "city",
   STATE = "state",

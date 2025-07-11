@@ -4,60 +4,51 @@ import {
   getAddressForFormat,
   getOnChainTokenDetails,
   Networks,
+  RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
+import { getWalletClient } from "@wagmi/core";
 import { useCallback, useEffect } from "react";
+import { config } from "../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
 import { useToastMessage } from "../../../helpers/notifications";
 import { RampService } from "../../../services/api";
+import { MoneriumService } from "../../../services/api/monerium.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../services/transactions/userSigning";
+import { useMoneriumStore } from "../../../stores/moneriumStore";
 import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
 import { RampExecutionInput } from "../../../types/phases";
+import { wagmiConfig } from "../../../wagmiConfig";
 import { useVortexAccount } from "../../useVortexAccount";
 import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
 import { useSubmitRamp } from "../useSubmitRamp";
 
-const REGISTER_KEY_LOCAL_STORAGE = "rampRegisterKey";
-const START_KEY_LOCAL_STORAGE = "rampStartKey";
+const RAMP_REGISTER_TRACE_KEY = "rampRegisterTrace";
+const RAMP_SIGNING_TRACE_KEY = "rampSigningTrace";
 
 /**
- * A utility hook to manage process locks using localStorage
- * Prevents multiple processes from running simultaneously
+ * A utility hook to manage signature traces using localStorage.
+ * This prevents a process from running more than once.
  */
-const useProcessLock = (lockKey: string) => {
-  // Checks if a lock exists and returns true if the process can proceed
-  const checkLock = useCallback(() => {
-    const existingLock = localStorage.getItem(lockKey);
-    if (existingLock !== null) {
-      console.log(`Process for ${lockKey} already started, skipping...`);
+const useSignatureTrace = (traceKey: string) => {
+  // Checks if a trace exists. If not, it creates one and allows the process to proceed.
+  const checkAndSetTrace = useCallback(() => {
+    const existingTrace = localStorage.getItem(traceKey);
+    if (existingTrace !== null) {
       return { canProceed: false };
     }
 
-    const processRef = new Date().toISOString();
-    localStorage.setItem(lockKey, processRef);
-    return { canProceed: true, processRef };
-  }, [lockKey]);
+    const traceRef = new Date().toISOString();
+    localStorage.setItem(traceKey, traceRef);
+    return { canProceed: true };
+  }, [traceKey]);
 
-  // Verifies that the current process still owns the lock
-  const verifyLock = useCallback(
-    (processRef?: string) => {
-      const currentLock = localStorage.getItem(lockKey);
-      if (currentLock && currentLock !== processRef) {
-        console.log(`Process for ${lockKey} taken over by another process, skipping...`);
-        return false;
-      }
-      return true;
-    },
-    [lockKey]
-  );
+  const releaseTrace = useCallback(() => {
+    localStorage.removeItem(traceKey);
+  }, [traceKey]);
 
-  // Releases the lock when the process is complete
-  const releaseLock = useCallback(() => {
-    localStorage.removeItem(lockKey);
-  }, [lockKey]);
-
-  return { checkLock, releaseLock, verifyLock };
+  return { checkAndSetTrace, releaseTrace };
 };
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
@@ -69,12 +60,11 @@ export const useRegisterRamp = () => {
     rampStarted,
     canRegisterRamp,
     rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected }
+    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
 
-  const { address } = useVortexAccount();
-  const { chainId } = useVortexAccount();
+  const { address, chainId, getMessageSignature } = useVortexAccount();
   const { apiComponents: pendulumApiComponents } = usePendulumNode();
   const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
   const { apiComponents: assethubApiComponents } = useAssetHubNode();
@@ -84,6 +74,9 @@ export const useRegisterRamp = () => {
   const prepareRampSubmission = useSubmitRamp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
   const signingRejected = useSigningRejected();
+
+  // Get Monerium auth data
+  const { authToken, triggered: moneriumTriggered } = useMoneriumStore();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -106,28 +99,16 @@ export const useRegisterRamp = () => {
     }
   };
 
-  // Create a process lock for the registration process
-  const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
-
-  // Create a process lock for the signing process
-  const {
-    checkLock: checkSigningLock,
-    verifyLock: verifySigningLock,
-    releaseLock: releaseSigningLock
-  } = useProcessLock(START_KEY_LOCAL_STORAGE);
+  const { checkAndSetTrace: checkAndSetRegisterTrace, releaseTrace: releaseRegisterTrace } =
+    useSignatureTrace(RAMP_REGISTER_TRACE_KEY);
+  const { checkAndSetTrace: checkAndSetSigningTrace, releaseTrace: releaseSigningTrace } =
+    useSignatureTrace(RAMP_SIGNING_TRACE_KEY);
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
-    // Check if we can proceed with the registration process
-    const lockResult = checkLock();
-    if (!lockResult.canProceed) {
-      return;
-    }
-
-    const { processRef } = lockResult;
-
     const registerRampProcess = async () => {
       if (rampRegistered) {
+        console.log("Ramp process already registered, skipping registration.");
         return;
       }
 
@@ -140,23 +121,22 @@ export const useRegisterRamp = () => {
       }
 
       if (!canRegisterRamp) {
+        console.log("Cannot register ramp, canRegisterRamp is false");
         throw new Error("Cannot proceed with ramp registration, canRegisterRamp is false");
       }
 
-      // Verify we still own the lock before proceeding
-      if (!verifyLock(processRef)) {
-        return;
-      }
-
       if (!executionInput) {
+        console.error("Missing execution input for ramp registration");
         throw new Error("Missing execution input");
       }
 
       if (!chainId) {
+        console.error("Missing chain ID for ramp registration");
         throw new Error("Missing chainId");
       }
 
       if (!pendulumApiComponents?.api) {
+        console.error("Missing Pendulum API components for ramp registration");
         throw new Error("Missing pendulumApiComponents");
       }
 
@@ -180,7 +160,13 @@ export const useRegisterRamp = () => {
         }
       ];
 
-      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL) {
+      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
+        console.log("Waiting for Monerium auth token to be available for EURC onramp");
+        // If this is an onramp with Monerium EURC, we need to wait for the auth token
+        return; // Exit early, we will retry once the auth token is available
+      }
+
+      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
           throw new Error("Missing Stellar ephemeral secret");
@@ -190,20 +176,46 @@ export const useRegisterRamp = () => {
         }
       }
 
-      const additionalData =
-        executionInput.quote.rampType === "on"
-          ? {
-              destinationAddress: address,
-              taxId: executionInput.taxId
-            }
-          : {
-              paymentData: executionInput.paymentData,
-              pixDestination: executionInput.taxId,
-              receiverTaxId: executionInput.taxId,
-              taxId: executionInput.taxId,
-              walletAddress: address
-            };
+      // Build additional data based on ramp type and currency
 
+      let additionalData: RegisterRampRequest["additionalData"] = {};
+
+      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
+        additionalData = {
+          destinationAddress: address,
+          taxId: executionInput.taxId
+        };
+      } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
+        additionalData = {
+          destinationAddress: address,
+          moneriumAuthToken: authToken,
+          taxId: executionInput.taxId
+        };
+      } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
+        additionalData = {
+          paymentData: executionInput.paymentData,
+          pixDestination: executionInput.pixId,
+          receiverTaxId: executionInput.taxId,
+          taxId: executionInput.taxId,
+          walletAddress: address
+        };
+      } else {
+        // For other ramps, we can use the address directly
+        additionalData = {
+          moneriumAuthToken: authToken,
+          paymentData: executionInput.paymentData,
+          receiverTaxId: executionInput.taxId,
+          taxId: executionInput.taxId,
+          walletAddress: address
+        };
+      }
+
+      // Create a signature trace for the registration process
+      const traceResult = checkAndSetRegisterTrace();
+      if (!traceResult.canProceed) {
+        console.log("Ramp registration trace already exists, skipping registration.");
+        return;
+      }
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
@@ -220,13 +232,15 @@ export const useRegisterRamp = () => {
         ephemeralTxs,
         executionInput.ephemerals,
         pendulumApiComponents.api,
-        moonbeamApiComponents.api
+        moonbeamApiComponents.api,
+        config.alchemyApiKey
       );
 
       // Update ramp with ephemeral signed transactions
       const updatedRampProcess = await RampService.updateRamp(rampProcess.id, signedTransactions);
 
       setRampRegistered(true);
+      console.log("Ramp process set to registered:", updatedRampProcess);
       setRampState({
         quote: executionInput.quote,
         ramp: updatedRampProcess,
@@ -234,6 +248,7 @@ export const useRegisterRamp = () => {
         signedTransactions,
         userSigningMeta: {
           assetHubToPendulumHash: undefined,
+          moneriumOnrampApproveHash: undefined,
           squidRouterApproveHash: undefined,
           squidRouterSwapHash: undefined
         }
@@ -245,23 +260,24 @@ export const useRegisterRamp = () => {
         console.error("Error registering ramp:", error);
       })
       .finally(() => {
-        releaseLock();
+        // Release the registration trace lock
+        releaseRegisterTrace();
       });
   }, [
     address,
     canRegisterRamp,
     chainId,
-    checkLock,
+    checkAndSetRegisterTrace,
+    releaseRegisterTrace,
     executionInput,
     moonbeamApiComponents?.api,
     pendulumApiComponents?.api,
-    releaseLock,
     setRampRegistered,
     setRampState,
-    verifyLock,
     rampKycStarted,
-    rampRegistered,
-    signingRejected
+    signingRejected,
+    authToken,
+    rampRegistered
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
@@ -269,7 +285,11 @@ export const useRegisterRamp = () => {
   useEffect(() => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
-      !rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash;
+      (!rampState?.userSigningMeta?.squidRouterSwapHash && !rampState?.userSigningMeta?.assetHubToPendulumHash && !authToken) ||
+      (!rampState?.userSigningMeta?.moneriumOnrampApproveHash && authToken);
+
+    // If this is a Monerium offramp, we need to wait for a page refresh and the corresponding auth token.
+    const waitForAuthToken = moneriumTriggered && !authToken;
 
     const shouldRequestSignatures =
       Boolean(rampState?.ramp) && // Ramp process data exists
@@ -277,17 +297,16 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || rampState?.ramp?.type === "on" || !shouldRequestSignatures || signingRejected) {
+    if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken || !rampRegistered) {
       return; // Exit early if conditions aren't met
     }
 
-    // Check if we can proceed with the signing process
-    const lockResult = checkSigningLock();
-    if (!lockResult.canProceed) {
+    // Create a signature trace for the signing process
+    const traceResult = checkAndSetSigningTrace();
+    if (!traceResult.canProceed) {
+      console.log("Ramp signing trace already exists, skipping user signing process.");
       return;
     }
-
-    const { processRef } = lockResult;
     console.log(`Starting user signing process at ${new Date().toISOString()}`);
 
     // Now filter the transactions after passing the main guard
@@ -314,14 +333,21 @@ export const useRegisterRamp = () => {
       let squidRouterApproveHash: string | undefined = undefined;
       let squidRouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
+      let moneriumOfframpSignature: string | undefined = undefined;
+      let moneriumOnrampApproveHash: string | undefined = undefined;
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
-      // Verify we still own the lock
-      if (!verifySigningLock(processRef)) {
-        return;
+      // Monerium signatures.
+      // If Monerium offramp, prompt offramp message signature
+      if (authToken && rampState?.ramp?.type === "off") {
+        const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
+        moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
+
+      const walletClient = await getWalletClient(wagmiConfig);
+      console.log("Wallet client for signing: ", walletClient.account);
 
       if (!sortedTxs) {
         throw new Error("Missing sorted transactions");
@@ -360,6 +386,9 @@ export const useRegisterRamp = () => {
             substrateWalletAccount
           );
           setRampSigningPhase("finished");
+        } else if (tx.phase === "moneriumOnrampSelfTransfer") {
+          moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
+          setRampSigningPhase("finished");
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
         }
@@ -368,25 +397,24 @@ export const useRegisterRamp = () => {
       // Update ramp with user-signed transactions and additional data
       const additionalData = {
         assetHubToPendulumHash,
+        moneriumOfframpSignature,
         squidRouterApproveHash,
         squidRouterSwapHash
       };
 
+      // Ramp must exist at this point.
       if (!rampState.ramp) {
-        throw new Error("Missing ramp state");
+        console.error("Ramp state is missing, cannot update ramp with user signatures.");
+        throw new Error("Ramp state is missing, cannot update ramp with user signatures.");
       }
-
-      const updatedRampProcess = await RampService.updateRamp(
-        rampState.ramp.id,
-        [], // No additional presigned transactions at this point
-        additionalData
-      );
+      const updatedRampProcess = await RampService.updateRamp(rampState.ramp.id, [], additionalData);
 
       setRampState({
         ...rampState,
         ramp: updatedRampProcess,
         userSigningMeta: {
           assetHubToPendulumHash,
+          moneriumOnrampApproveHash,
           squidRouterApproveHash,
           squidRouterSwapHash
         }
@@ -402,26 +430,31 @@ export const useRegisterRamp = () => {
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
         setSigningRejected(true);
+        resetRampState();
       })
-      .finally(() => releaseSigningLock());
+      .finally(() => releaseSigningTrace());
   }, [
     address,
     assethubApiComponents?.api,
     chainId,
-    checkSigningLock,
+    checkAndSetSigningTrace,
     rampStarted,
     rampState,
-    releaseSigningLock,
     setRampSigningPhase,
     setRampState,
     substrateWalletAccount,
-    verifySigningLock,
     showToast,
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
+    releaseSigningTrace,
+    authToken,
     executionInput?.network,
-    executionInput?.onChainToken
+    executionInput?.onChainToken,
+    moneriumTriggered,
+    getMessageSignature,
+    resetRampState,
+    rampRegistered
   ]);
 
   return {

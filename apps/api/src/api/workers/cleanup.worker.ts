@@ -1,5 +1,5 @@
 import { CronJob } from "cron";
-
+import { Op } from "sequelize";
 import logger from "../../config/logger";
 import RampState from "../../models/rampState.model";
 import { postProcessHandlers } from "../services/phases/post-process";
@@ -74,6 +74,9 @@ class CleanupWorker {
       const states = await RampState.findAll({
         where: {
           currentPhase: "complete",
+          from: {
+            [Op.ne]: "sepa" // Exclude SEPA onramp states as the ephemerals are not cleaned up.
+          },
           postCompleteState: {
             cleanup: {
               cleanupCompleted: false
