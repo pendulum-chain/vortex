@@ -24,7 +24,7 @@ async function runBrlaOnrampExample() {
     console.log("📝 Step 2: Creating quote for BRLA onramp...");
     const quoteRequest = {
       from: "pix" as DestinationType,
-      inputAmount: "1000",
+      inputAmount: "1",
       inputCurrency: FiatToken.BRL,
       outputCurrency: EvmToken.USDC,
       rampType: "on" as const,
