@@ -93,6 +93,17 @@ export class VortexSigner {
     return handleAPIResponse<QuoteResponse>(response, "/v1/quotes");
   }
 
+  async getQuote(quoteId: string): Promise<QuoteResponse> {
+    const response = await fetch(`${this.config.apiBaseUrl}/v1/quotes/${quoteId}`, {
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "GET"
+    });
+
+    return handleAPIResponse<QuoteResponse>(response, `/v1/quotes/${quoteId}`);
+  }
+
   // We want to keep these methods (register, update and starte) as private, and use them inside
   // ramp-specific operations (Brla, Stellar, etc.) to ensure type safety.
   private async registerRamp(request: RegisterRampRequest): Promise<RegisterRampResponse> {

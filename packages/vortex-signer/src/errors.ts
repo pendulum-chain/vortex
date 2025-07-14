@@ -87,7 +87,7 @@ export class MoonbeamEphemeralNotFoundError extends BrlaOnrampError {
 
 export class SubaccountNotFoundError extends BrlaOnrampError {
   constructor() {
-    super("Subaccount not found", 404);
+    super("Subaccount not found. Provided taxId has not been KYC'ed", 404);
     this.name = "SubaccountNotFoundError";
   }
 }
