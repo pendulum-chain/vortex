@@ -409,7 +409,7 @@
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
         },
-        "preNablaDeductibleFees": "The amount is too large. Please try again with a smaller amount."
+        "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount."
       }
     }
   },
