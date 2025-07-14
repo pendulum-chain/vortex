@@ -1,0 +1,38 @@
+{
+  "dependencies": {
+    "@polkadot/api": "^16.4.1",
+    "stellar-sdk": "^13.3.0",
+    "viem": "^2.31.7"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "name": "vortex-sign",
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "build": "bun run clean && bun run build:types && bun run build:js",
+    "build:js": "bun build ./src/index.ts --outdir ./dist --target=browser --sourcemap=external",
+    "build:types": "tsc -p tsconfig.json",
+    "clean": "rm -rf ./dist",
+    "dev": "bun run --watch ./src/index.ts",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .ts",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0"
+}

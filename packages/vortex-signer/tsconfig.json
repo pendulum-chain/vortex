@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": true,
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": true,
+    "jsx": "react-jsx",
+    "lib": ["esnext"],
+    "module": "ESNext",
+    "moduleDetection": "force",
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "outDir": "./dist",
+    "skipLibCheck": true,
+
+    // Best practices
+    "strict": true,
+    "target": "ESNext",
+    "verbatimModuleSyntax": true
+  },
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "include": ["./src/**/*.ts"]
+}
