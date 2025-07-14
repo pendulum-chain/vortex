@@ -194,7 +194,7 @@ export const useRegisterRamp = () => {
       } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           paymentData: executionInput.paymentData,
-          pixDestination: executionInput.taxId,
+          pixDestination: executionInput.pixId,
           receiverTaxId: executionInput.taxId,
           taxId: executionInput.taxId,
           walletAddress: address
@@ -397,7 +397,9 @@ export const useRegisterRamp = () => {
       // Update ramp with user-signed transactions and additional data
       const additionalData = {
         assetHubToPendulumHash,
-        moneriumOfframpSignature
+        moneriumOfframpSignature,
+        squidRouterApproveHash,
+        squidRouterSwapHash
       };
 
       // Ramp must exist at this point.

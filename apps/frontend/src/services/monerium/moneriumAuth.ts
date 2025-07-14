@@ -74,6 +74,7 @@ export const handleMoneriumSiweAuth = async (address: string, signMessage: (mess
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
     message: message,
+    redirect_uri: window.location.origin,
     signature: signature
   });
 
@@ -96,7 +97,8 @@ export const exchangeMoneriumCode = async (code: string) => {
         client_id: VORTEX_APP_CLIENT_ID,
         code,
         code_verifier: codeVerifier,
-        grant_type: "authorization_code"
+        grant_type: "authorization_code",
+        redirect_uri: window.location.origin // We MUST use the same redirect URI as in the initial request
       }),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"

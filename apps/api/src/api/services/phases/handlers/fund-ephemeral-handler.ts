@@ -33,8 +33,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresPendulumEphemeralAddress(state: RampState): boolean {
-    // Pendulum ephemeral address is required for all onramp cases except when the input currency is EURC.
-    return !(isOnramp(state) && state.state.inputCurrency === FiatToken.EURC);
+    // Pendulum ephemeral address is required for all cases except when the input currency is EURC.
+    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC) {
+      return false;
+    }
+    return true;
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -57,10 +60,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const isPendulumFunded =
-        isOnramp(state) && requiresPendulumEphemeralAddress
-          ? await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode)
-          : true;
+      const isPendulumFunded = requiresPendulumEphemeralAddress
+        ? await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode)
+        : true;
 
       const isMoonbeamFunded =
         isOnramp(state) && moonbeamEphemeralAddress

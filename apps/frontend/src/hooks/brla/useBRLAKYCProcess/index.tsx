@@ -131,6 +131,7 @@ export function useKYCProcess() {
     setCpfApiError(null);
     resetRampState();
     localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
+    localStorage.removeItem(storageKeys.BRLA_KYC_PIX_KEY);
   }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
 
   const proceedWithRamp = useCallback(() => {
@@ -140,6 +141,7 @@ export function useKYCProcess() {
     setCanRegisterRamp(true);
     setRampSummaryVisible(true);
     localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
+    localStorage.removeItem(storageKeys.BRLA_KYC_PIX_KEY);
   }, [setRampKycStarted, setRampKycLevel2Started, setCanRegisterRamp, setRampSummaryVisible]);
 
   const proceedWithKYCLevel2 = useCallback(() => {
