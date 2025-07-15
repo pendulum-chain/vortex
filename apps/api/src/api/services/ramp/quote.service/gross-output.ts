@@ -279,7 +279,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
 
     // Calculate network fee (Squidrouter fee)
     // Parse final gross output amount
-    const finalGrossOutputAmount = routeData.route.estimate.toAmountMin;
+    const finalGrossOutputAmount = routeData.route.estimate.toAmount;
     const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
       tokenDetails.decimals,
       BigInt(finalGrossOutputAmount)
