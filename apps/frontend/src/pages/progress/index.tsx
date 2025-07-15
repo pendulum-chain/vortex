@@ -274,7 +274,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
       <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
         <p className="mb-4 text-lg text-gray-600">
-          💡 You’re all set! You can now close this tab or grab a coffee while we finish up in the background.
+          {t("pages.progress.closeProgressScreenText")}
         </p>
         <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
