@@ -1,8 +1,7 @@
 import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure } from "@packages/shared";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
-
-import { ExchangeRate } from "../ExchangeRate";
+import { InterbankExchangeRate } from "../InterbankExchangeRate";
 import { RampDirection } from "../RampToggle";
 
 interface FeeDetailsProps {
@@ -32,6 +31,8 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   if (!isFiatTokenDetails(fiatToken)) {
     throw new Error("Invalid fiat token details");
   }
+  const inputCurrency = isOfframp ? fromToken.assetSymbol : fiatToken.fiat.symbol;
+  const outputCurrency = isOfframp ? fiatToken.fiat.symbol : toToken.assetSymbol;
 
   return (
     <section className="mt-6">
@@ -50,10 +51,11 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
       <div className="mb-2 flex justify-between">
         <p>{t("components.dialogs.RampSummaryDialog.quote")}</p>
         <p>
-          <ExchangeRate
-            exchangeRate={Number(exchangeRate)}
-            inputToken={isOfframp ? fromToken : toToken}
-            outputToken={isOfframp ? toToken : fromToken}
+          <InterbankExchangeRate
+            asSpan={true}
+            inputCurrency={inputCurrency}
+            outputCurrency={outputCurrency}
+            rate={Number(exchangeRate)}
           />
         </p>
       </div>
