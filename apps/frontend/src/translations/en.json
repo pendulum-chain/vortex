@@ -173,8 +173,8 @@
           "buy": "You're buying",
           "sell": "You're selling"
         },
-        "offrampFee": "Offramp fee",
-        "onrampFee": "Onramp fee",
+        "offrampFee": "Total fee",
+        "onrampFee": "Total fee",
         "partner": "Partner",
         "processing": "Processing",
         "quote": "Quote",
