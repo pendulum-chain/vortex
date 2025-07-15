@@ -1,4 +1,11 @@
-import type { RampProcess, RegisterRampRequest, UpdateRampRequest } from "@packages/shared";
+import type {
+  AccountMeta,
+  EphemeralAccount,
+  RampProcess,
+  RegisterRampRequest,
+  UnsignedTx,
+  UpdateRampRequest
+} from "@packages/shared";
 import { Networks } from "@packages/shared";
 import { BrlaKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
@@ -6,30 +13,38 @@ import type { BrlaOnrampAdditionalData, RampHandler, VortexSignerContext } from 
 
 export class BrlaHandler implements RampHandler {
   private apiService: ApiService;
-  private generateEphemerals: VortexSignerContext["generateEphemerals"];
-  private signTransactions: VortexSignerContext["signTransactions"];
-  private setEphemerals: VortexSignerContext["setEphemerals"];
-  private createRampState: VortexSignerContext["createRampState"];
-  private updateRampState: VortexSignerContext["updateRampState"];
-  private hasRampState: VortexSignerContext["hasRampState"];
-  private registerRamp: (request: RegisterRampRequest) => Promise<RampProcess>;
-  private updateRamp: (request: UpdateRampRequest) => Promise<RampProcess>;
+  private generateEphemerals: (networks: Networks[]) => Promise<{
+    ephemerals: { [key in Networks]?: EphemeralAccount };
+    accountMetas: AccountMeta[];
+  }>;
+  private signTransactions: (
+    unsignedTxs: UnsignedTx[],
+    ephemerals: {
+      stellarEphemeral?: EphemeralAccount;
+      pendulumEphemeral?: EphemeralAccount;
+      moonbeamEphemeral?: EphemeralAccount;
+    }
+  ) => Promise<any[]>;
 
   constructor(
     apiService: ApiService,
     context: VortexSignerContext,
-    registerRamp: (request: RegisterRampRequest) => Promise<RampProcess>,
-    updateRamp: (request: UpdateRampRequest) => Promise<RampProcess>
+    generateEphemerals: (networks: Networks[]) => Promise<{
+      ephemerals: { [key in Networks]?: EphemeralAccount };
+      accountMetas: AccountMeta[];
+    }>,
+    signTransactions: (
+      unsignedTxs: UnsignedTx[],
+      ephemerals: {
+        stellarEphemeral?: EphemeralAccount;
+        pendulumEphemeral?: EphemeralAccount;
+        moonbeamEphemeral?: EphemeralAccount;
+      }
+    ) => Promise<any[]>
   ) {
     this.apiService = apiService;
-    this.generateEphemerals = context.generateEphemerals.bind(context);
-    this.signTransactions = context.signTransactions.bind(context);
-    this.setEphemerals = context.setEphemerals.bind(context);
-    this.createRampState = context.createRampState.bind(context);
-    this.updateRampState = context.updateRampState.bind(context);
-    this.hasRampState = context.hasRampState.bind(context);
-    this.registerRamp = registerRamp;
-    this.updateRamp = updateRamp;
+    this.generateEphemerals = generateEphemerals;
+    this.signTransactions = signTransactions;
   }
 
   private async validateBrlaKyc(taxId: string): Promise<void> {
@@ -62,37 +77,26 @@ export class BrlaHandler implements RampHandler {
       signingAccounts: accountMetas
     };
 
-    const rampProcess = await this.registerRamp(registerRequest);
-    const rampId = rampProcess.id;
+    const rampProcess = await this.apiService.registerRamp(registerRequest);
 
-    this.createRampState(rampId, rampProcess.quoteId, rampProcess.currentPhase, rampProcess.unsignedTxs);
-
-    this.setEphemerals(rampId, {
+    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
       moonbeamEphemeral: ephemerals[Networks.Moonbeam],
       pendulumEphemeral: ephemerals[Networks.Pendulum],
       stellarEphemeral: ephemerals[Networks.Stellar]
     });
 
-    const signedTxs = await this.signTransactions(rampId, rampProcess.unsignedTxs);
-
     const updateRequest: UpdateRampRequest = {
       additionalData: {},
       presignedTxs: signedTxs,
-      rampId
+      rampId: rampProcess.id
     };
 
-    const updatedRampProcess = await this.updateRamp(updateRequest);
-
-    this.updateRampState(rampId, updatedRampProcess.currentPhase, updatedRampProcess.unsignedTxs);
+    const updatedRampProcess = await this.apiService.updateRamp(updateRequest);
 
     return updatedRampProcess;
   }
 
   async startBrlaOnramp(rampId: string): Promise<RampProcess> {
-    if (!this.hasRampState(rampId)) {
-      throw new Error(`No ramp state found for rampId: ${rampId}`);
-    }
-
     const startRequest = { rampId };
     return this.apiService.startRamp(startRequest);
   }

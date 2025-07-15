@@ -30,7 +30,8 @@
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "bun run build",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "bun x --bun tsc"
   },
   "type": "module",
   "types": "./dist/index.d.ts",

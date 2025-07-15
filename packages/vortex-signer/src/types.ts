@@ -66,20 +66,5 @@ export interface RampHandler {
 
 // Context methods that handlers can use from VortexSigner
 export interface VortexSignerContext {
-  generateEphemerals(networks: Networks[]): Promise<{
-    ephemerals: { [key in Networks]?: EphemeralAccount };
-    accountMetas: AccountMeta[];
-  }>;
-  signTransactions(rampId: string, unsignedTxs: UnsignedTx[]): Promise<any[]>;
-  setEphemerals(
-    rampId: string,
-    ephemerals: {
-      stellarEphemeral?: EphemeralAccount;
-      pendulumEphemeral?: EphemeralAccount;
-      moonbeamEphemeral?: EphemeralAccount;
-    }
-  ): void;
-  createRampState(rampId: string, quoteId: string, currentPhase: RampPhase, unsignedTxs: UnsignedTx[]): void;
-  updateRampState(rampId: string, currentPhase: RampPhase, unsignedTxs: UnsignedTx[]): void;
-  hasRampState(rampId: string): boolean;
+  // Defined for future extensibility
 }

@@ -1,43 +1,41 @@
-import type { CreateQuoteRequest, EphemeralAccount, QuoteResponse } from "@packages/shared";
-import { Networks } from "@packages/shared";
 import type {
   AccountMeta,
+  CreateQuoteRequest,
+  EphemeralAccount,
+  QuoteResponse,
   RampProcess,
-  RegisterRampRequest,
-  RegisterRampResponse,
-  StartRampRequest,
-  StartRampResponse,
-  UnsignedTx,
-  UpdateRampRequest,
-  UpdateRampResponse
-} from "../../shared/src/endpoints/ramp.endpoints";
-import { signUnsignedTransactions } from "../../shared/src/helpers/signUnsigned";
+  UnsignedTx
+} from "@packages/shared";
+import { Networks, signUnsignedTransactions } from "@packages/shared";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
-import { EphemeralGenerationError, RampStateNotFoundError, TransactionSigningError } from "./errors";
+import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, RampState, VortexSignerConfig, VortexSignerContext } from "./types";
+import type { BrlaOnrampAdditionalData, VortexSignerConfig, VortexSignerContext } from "./types";
 
-export class VortexSigner implements VortexSignerContext {
-  private config: VortexSignerConfig;
-  private rampStates: Map<string, RampState> = new Map();
+export class VortexSigner {
   private apiService: ApiService;
   private networkManager: NetworkManager;
   private brlaHandler: BrlaHandler;
+  private initializationPromise: Promise<void>;
 
   constructor(config: VortexSignerConfig) {
-    this.config = config;
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
 
-    this.brlaHandler = new BrlaHandler(this.apiService, this, this.registerRamp.bind(this), this.updateRamp.bind(this));
+    this.brlaHandler = new BrlaHandler(
+      this.apiService,
+      this,
+      this.generateEphemerals.bind(this),
+      this.signTransactions.bind(this)
+    );
 
-    console.log("VortexSigner initialized with config:", config);
+    this.initializationPromise = this.networkManager.waitForInitialization();
   }
 
-  async waitForInitialization(): Promise<void> {
-    await this.networkManager.waitForInitialization();
+  private async ensureInitialized(): Promise<void> {
+    await this.initializationPromise;
   }
 
   async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
@@ -49,14 +47,7 @@ export class VortexSigner implements VortexSignerContext {
   }
 
   async getRampStatus(rampId: string): Promise<RampProcess> {
-    const rampProcess = await this.apiService.getRampStatus(rampId);
-
-    const existingState = this.rampStates.get(rampProcess.id);
-    if (existingState) {
-      existingState.currentPhase = rampProcess.currentPhase;
-    }
-
-    return rampProcess;
+    return this.apiService.getRampStatus(rampId);
   }
 
   async registerBrlaOnramp(quoteId: string, additionalData: BrlaOnrampAdditionalData): Promise<RampProcess> {
@@ -67,7 +58,7 @@ export class VortexSigner implements VortexSignerContext {
     return this.brlaHandler.startBrlaOnramp(rampId);
   }
 
-  async generateEphemerals(networks: Networks[]): Promise<{
+  private async generateEphemerals(networks: Networks[]): Promise<{
     ephemerals: { [key in Networks]?: EphemeralAccount };
     accountMetas: AccountMeta[];
   }> {
@@ -109,18 +100,20 @@ export class VortexSigner implements VortexSignerContext {
     return { accountMetas, ephemerals };
   }
 
-  async signTransactions(rampId: string, unsignedTxs: UnsignedTx[]): Promise<any[]> {
-    await this.waitForInitialization();
-
-    const rampState = this.rampStates.get(rampId);
-    if (!rampState) {
-      throw new RampStateNotFoundError(rampId);
+  private async signTransactions(
+    unsignedTxs: UnsignedTx[],
+    ephemerals: {
+      stellarEphemeral?: EphemeralAccount;
+      pendulumEphemeral?: EphemeralAccount;
+      moonbeamEphemeral?: EphemeralAccount;
     }
+  ): Promise<any[]> {
+    await this.ensureInitialized();
 
     try {
       const signedTxs = await signUnsignedTransactions(
         unsignedTxs,
-        rampState.ephemerals,
+        ephemerals,
         this.networkManager.getPendulumApi() as any, // TODO fix typing
         this.networkManager.getMoonbeamApi() as any,
         this.networkManager.getAlchemyApiKey()
@@ -130,73 +123,5 @@ export class VortexSigner implements VortexSignerContext {
     } catch (error) {
       throw new TransactionSigningError(undefined, error as Error);
     }
-  }
-
-  setEphemerals(
-    rampId: string,
-    ephemerals: {
-      stellarEphemeral?: EphemeralAccount;
-      pendulumEphemeral?: EphemeralAccount;
-      moonbeamEphemeral?: EphemeralAccount;
-    }
-  ): void {
-    const rampState = this.rampStates.get(rampId);
-    if (!rampState) {
-      throw new RampStateNotFoundError(rampId);
-    }
-
-    rampState.ephemerals = { ...rampState.ephemerals, ...ephemerals };
-  }
-
-  // TODO how to make these private?
-  createRampState(rampId: string, quoteId: string, currentPhase: any, unsignedTxs: UnsignedTx[]): void {
-    this.rampStates.set(rampId, {
-      currentPhase,
-      ephemerals: {},
-      quoteId,
-      rampId,
-      unsignedTxs
-    });
-  }
-
-  updateRampState(rampId: string, currentPhase: any, unsignedTxs: UnsignedTx[]): void {
-    const existingState = this.rampStates.get(rampId);
-    if (existingState) {
-      existingState.currentPhase = currentPhase;
-      existingState.unsignedTxs = unsignedTxs;
-    }
-  }
-
-  hasRampState(rampId: string): boolean {
-    return this.rampStates.has(rampId);
-  }
-
-  getRampState(rampId: string): RampState | undefined {
-    return this.rampStates.get(rampId);
-  }
-
-  removeRampState(rampId: string): void {
-    this.rampStates.delete(rampId);
-  }
-
-  private async registerRamp(request: RegisterRampRequest): Promise<RegisterRampResponse> {
-    const rampProcess = await this.apiService.registerRamp(request);
-
-    this.createRampState(rampProcess.id, rampProcess.quoteId, rampProcess.currentPhase, rampProcess.unsignedTxs);
-
-    return rampProcess;
-  }
-
-  private async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
-    const rampProcess = await this.apiService.updateRamp(request);
-
-    // Update the stored ramp state
-    this.updateRampState(rampProcess.id, rampProcess.currentPhase, rampProcess.unsignedTxs);
-
-    return rampProcess;
-  }
-
-  private async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
-    return this.apiService.startRamp(request);
   }
 }

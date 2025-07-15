@@ -23,8 +23,7 @@
 
     // Best practices
     "strict": true,
-    "target": "ESNext",
-    "verbatimModuleSyntax": true
+    "target": "ESNext"
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "include": ["./src/**/*.ts"]

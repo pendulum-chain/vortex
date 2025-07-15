@@ -18,7 +18,6 @@ async function runBrlaOnrampExample() {
     const signer = new VortexSigner(config);
 
     console.log("⏳ Waiting for API initialization...");
-    await signer.waitForInitialization();
     console.log("✅ VortexSigner initialized successfully\n");
 
     console.log("📝 Step 2: Creating quote for BRLA onramp...");
