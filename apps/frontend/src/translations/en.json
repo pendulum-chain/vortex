@@ -171,7 +171,7 @@
         },
         "headerText": {
           "buy": "Payment Summary",
-          "sell": "You're selling"
+          "sell": "Payment Summary"
         },
         "offrampFee": "Offramp fee",
         "onrampFee": "Onramp fee",
