@@ -30,6 +30,7 @@
         "number": "Número",
         "partnerCpff": "CPF do Parceiro",
         "phoneNumber": "Número de Telefone",
+        "pixId": "Chave Pix",
         "startDate": "Data de Início da Empresa",
         "state": "Estado",
         "street": "Rua",
@@ -82,6 +83,10 @@
         "phone": {
           "format": "Formato de número de telefone inválido",
           "required": "Número de telefone é obrigatório"
+        },
+        "pixId": {
+          "format": "Formato de chave Pix inválido",
+          "required": "Chave Pix é obrigatória"
         },
         "startDate": {
           "future": "Data de início não pode ser no futuro",

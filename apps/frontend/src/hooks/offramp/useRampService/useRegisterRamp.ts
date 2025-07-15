@@ -194,7 +194,7 @@ export const useRegisterRamp = () => {
       } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           paymentData: executionInput.paymentData,
-          pixDestination: executionInput.taxId,
+          pixDestination: executionInput.pixId,
           receiverTaxId: executionInput.taxId,
           taxId: executionInput.taxId,
           walletAddress: address

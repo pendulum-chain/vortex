@@ -148,8 +148,6 @@ export const useSetRampUrlParams = () => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     if (hasInitialized.current) return;
-    console.log("moneriumCode", moneriumCode);
-    if (moneriumCode) return;
 
     onToggle(ramp);
 
