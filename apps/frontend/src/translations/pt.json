@@ -172,8 +172,8 @@
           "buy": "Resumo do pagamento",
           "sell": "Resumo do pagamento"
         },
-        "offrampFee": "Taxa de saque",
-        "onrampFee": "Taxa de compra",
+        "offrampFee": "Taxa total",
+        "onrampFee": "Taxa total",
         "partner": "Parceiro",
         "processing": "Processando",
         "quote": "Cotação",
