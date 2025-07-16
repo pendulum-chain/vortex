@@ -16,6 +16,7 @@ export interface RouteParams {
   toChain: string;
   toToken: string;
   toAddress: string;
+  bypassGuardrails: boolean;
   slippageConfig: {
     autoMode: number;
   };
@@ -56,6 +57,7 @@ export function createOnrampRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -178,6 +180,7 @@ export function createOfframpRouteParams(
   });
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -243,6 +246,7 @@ export function createGenericRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -266,11 +270,13 @@ export async function testRoute(
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
   const sharedRouteParams: RouteParams = {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress: address,
     fromAmount: attemptedAmountRaw,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
+
     slippageConfig: {
       autoMode: 1
     },
