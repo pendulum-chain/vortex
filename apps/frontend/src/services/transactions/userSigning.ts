@@ -21,14 +21,14 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
   const account = getAccount(wagmiConfig);
   const originalChainId = account.chainId;
 
-  console.log('About to send transaction for phase', unsignedTx.phase);
+  console.log("About to send transaction for phase", unsignedTx.phase);
 
   if (!targetChainId) {
     throw new Error(`Invalid network: ${network}. Unable to determine chain ID.`);
   }
 
   if (!originalChainId) {
-    throw new Error('No wallet connected or unable to determine current chain ID.');
+    throw new Error("No wallet connected or unable to determine current chain ID.");
   }
 
   const needsNetworkSwitch = originalChainId !== targetChainId;
@@ -38,23 +38,23 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
     try {
       await switchChain(wagmiConfig, { chainId: targetChainId });
     } catch (error) {
-      console.error('Failed to switch chain:', error);
+      console.error("Failed to switch chain:", error);
       throw new Error(
-        `Failed to switch to network ${network} (chainId: ${targetChainId}). Please switch manually and try again.`,
+        `Failed to switch to network ${network} (chainId: ${targetChainId}). Please switch manually and try again.`
       );
     }
   }
 
   try {
     const hash = await sendTransaction(wagmiConfig, {
-      to: txData.to,
       data: txData.data,
-      value: BigInt(txData.value),
+      to: txData.to,
+      value: BigInt(txData.value)
     });
-    console.log('Transaction sent', hash);
+    console.log("Transaction sent", hash);
 
     const confirmedHash = await waitForTransactionConfirmation(hash, targetChainId);
-    console.log('Transaction confirmed', confirmedHash);
+    console.log("Transaction confirmed", confirmedHash);
 
     // Switch back to original chain if we switched
     if (needsNetworkSwitch) {
@@ -62,13 +62,13 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
       try {
         await switchChain(wagmiConfig, { chainId: originalChainId });
       } catch (error) {
-        console.warn('Failed to switch back to original chain:', error);
+        console.warn("Failed to switch back to original chain:", error);
       }
     }
 
     return confirmedHash;
   } catch (error) {
-    console.error('Transaction failed:', error);
+    console.error("Transaction failed:", error);
 
     if (needsNetworkSwitch) {
       console.log(`Switching back to original chain ${originalChainId} after failure`);
@@ -76,7 +76,7 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
         await switchChain(wagmiConfig, { chainId: originalChainId });
         console.log(`Successfully switched back to chain ${originalChainId}`);
       } catch (switchError) {
-        console.warn('Failed to switch back to original chain after transaction failure:', switchError);
+        console.warn("Failed to switch back to original chain after transaction failure:", switchError);
         // Preserve the original error
       }
     }
