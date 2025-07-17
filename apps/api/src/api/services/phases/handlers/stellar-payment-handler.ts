@@ -4,6 +4,7 @@ import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { verifyStellarPaymentSuccess } from "../helpers/stellar-payment-verifier";
+import { isStellarNetworkError } from "./fund-ephemeral-handler";
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -27,7 +28,7 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
     } catch (e) {
       const horizonError = e as NetworkError;
 
-      if (horizonError.response.data?.status === 400) {
+      if (isStellarNetworkError(horizonError) && horizonError.response.data?.status === 400) {
         logger.error(
           `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`
         );

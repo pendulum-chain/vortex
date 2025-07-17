@@ -1,8 +1,9 @@
 import { CleanupPhase, FiatToken, HORIZON_URL } from "@packages/shared";
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS, SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
+import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
+import { isStellarNetworkError } from "../handlers/fund-ephemeral-handler";
 import { StateMetadata } from "../meta-state-types";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
@@ -56,7 +57,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
     } catch (e) {
       try {
         const horizonError = e as NetworkError;
-        if (horizonError.response.data?.status === 400) {
+        if (isStellarNetworkError(horizonError) && horizonError.response.data?.status === 400) {
           logger.info(
             `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response?.data?.extras.result_codes)}`
           );

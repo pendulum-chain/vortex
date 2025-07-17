@@ -23,6 +23,16 @@ import {
   NETWORK_PASSPHRASE
 } from "./helpers";
 
+export function isStellarNetworkError(error: unknown): error is NetworkError {
+  return (
+    error instanceof Error &&
+    "response" in error &&
+    error.response !== null &&
+    typeof error.response === "object" &&
+    "data" in error.response
+  );
+}
+
 function isOnramp(state: RampState): boolean {
   return state.type === "on";
 }
@@ -158,32 +168,40 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       await horizonServer.submitTransaction(stellarCreationTransaction);
 
       logger.info("Validating stellar payment sequence number after account creation");
-      await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+      try {
+        await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+      } catch (validationError) {
+        logger.error(`Stellar payment sequence validation failed after account creation: ${validationError}`);
+        throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation");
+      }
     } catch (e) {
-      const horizonError = e as NetworkError;
-      if (horizonError.response.data?.status === 400) {
-        logger.info(
-          `Could not submit the stellar account creation transaction ${JSON.stringify(
-            horizonError.response.data.extras.result_codes
-          )}`
-        );
+      // when validateStellarPaymentSequenceNumber throws an error, it's not NetworkError
+      if (isStellarNetworkError(e)) {
+        if (e.response.data?.status === 400) {
+          logger.info(
+            `Could not submit the stellar account creation transaction ${JSON.stringify(e.response.data.extras.result_codes)}`
+          );
 
-        // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
-        if (horizonError.response.data.extras.result_codes.transaction === "tx_bad_seq") {
-          logger.info("Recovery mode: Creation already performed.");
+          // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
+          if (e.response.data.extras.result_codes.transaction === "tx_bad_seq") {
+            logger.info("Recovery mode: Creation already performed.");
 
-          try {
-            logger.info("Validating stellar payment sequence number in recovery mode");
-            await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
-          } catch (validationError) {
-            logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
-            throw new Error("Stellar payment sequence validation failed after account creation recovery");
+            try {
+              logger.info("Validating stellar payment sequence number in recovery mode");
+              await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+            } catch (validationError) {
+              logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
+              throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation recovery");
+            }
           }
+          logger.error(`Could not submit the stellar creation transaction: ${e.response.data.extras}`);
+          throw new Error("Could not submit the stellar creation transaction");
+        } else {
+          logger.error(`Could not submit the stellar creation transaction: ${e.response.data}`);
+          throw new Error("Could not submit the stellar creation transaction");
         }
-        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data.extras}`);
-        throw new Error("Could not submit the stellar creation transaction");
       } else {
-        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data}`);
+        logger.error(`Error in stellar account creation: ${e}`);
         throw new Error("Could not submit the stellar creation transaction");
       }
     }
