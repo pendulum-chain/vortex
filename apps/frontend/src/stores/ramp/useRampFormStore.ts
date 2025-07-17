@@ -1,5 +1,6 @@
 import { AssetHubToken, EvmToken, FiatToken, getOnChainTokenDetails, Networks, OnChainToken } from "@packages/shared";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { RampDirection } from "../../components/RampToggle";
 import { getRampDirectionFromPath } from "../../helpers/path";
 import { getLanguageFromPath, Language } from "../../translations/helpers";
@@ -63,31 +64,46 @@ export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   taxId: undefined
 };
 
-export const useRampFormStore = create<RampFormState & RampFormActions>((set, get) => ({
-  ...DEFAULT_RAMP_FORM_STORE_VALUES,
-  actions: {
-    handleNetworkChange: (network: Networks) => {
-      const { onChainToken } = get();
-      const onChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
-      if (!onChainTokenDetails) {
-        // USDC is supported on all networks
-        set({ onChainToken: EvmToken.USDC });
-      }
-    },
+export const useRampFormStore = create<RampFormState & RampFormActions>()(
+  persist(
+    (set, get) => ({
+      ...DEFAULT_RAMP_FORM_STORE_VALUES,
+      actions: {
+        handleNetworkChange: (network: Networks) => {
+          const { onChainToken } = get();
+          const onChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
+          if (!onChainTokenDetails) {
+            // USDC is supported on all networks
+            set({ onChainToken: EvmToken.USDC });
+          }
+        },
 
-    reset: () => {
-      set({
-        ...DEFAULT_RAMP_FORM_STORE_VALUES
-      });
-    },
-    setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
-    setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
-    setInputAmount: (amount?: string) => set({ inputAmount: amount }),
-    setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
-    setPixId: (pixId: string) => set({ pixId }),
-    setTaxId: (taxId: string) => set({ taxId })
-  }
-}));
+        reset: () => {
+          set({
+            ...DEFAULT_RAMP_FORM_STORE_VALUES
+          });
+        },
+        setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
+        setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
+        setInputAmount: (amount?: string) => set({ inputAmount: amount }),
+        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
+        setPixId: (pixId: string) => set({ pixId }),
+        setTaxId: (taxId: string) => set({ taxId })
+      }
+    }),
+    {
+      name: "useRampFormStore",
+      partialize: state => ({
+        fiatToken: state.fiatToken,
+        inputAmount: state.inputAmount,
+        lastConstraintDirection: state.lastConstraintDirection,
+        onChainToken: state.onChainToken,
+        pixId: state.pixId,
+        taxId: state.taxId
+      })
+    }
+  )
+);
 
 export const useInputAmount = () => useRampFormStore(state => state.inputAmount);
 export const useOnChainToken = () => useRampFormStore(state => state.onChainToken);

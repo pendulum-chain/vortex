@@ -16,6 +16,7 @@ export interface RouteParams {
   toChain: string;
   toToken: string;
   toAddress: string;
+  bypassGuardrails: boolean;
   slippageConfig: {
     autoMode: number;
   };
@@ -56,6 +57,7 @@ export function createOnrampRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -74,6 +76,7 @@ export interface SquidrouterRoute {
   route: {
     estimate: {
       toToken: { decimals: number };
+      aggregateSlippage: number;
       toAmount: string;
       toAmountMin: string;
     };
@@ -105,6 +108,16 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     });
 
     const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
+
+    // FIXME remove this check once squidrouter works as expected again.
+    // Check if slippage of received route is reasonable.
+    const route = result.data as SquidrouterRoute;
+    const slippage = route.route.estimate.aggregateSlippage;
+    if (slippage > 1) {
+      logger.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+      throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+    }
+
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -178,6 +191,7 @@ export function createOfframpRouteParams(
   });
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -243,6 +257,7 @@ export function createGenericRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -266,11 +281,13 @@ export async function testRoute(
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
   const sharedRouteParams: RouteParams = {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress: address,
     fromAmount: attemptedAmountRaw,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
+
     slippageConfig: {
       autoMode: 1
     },

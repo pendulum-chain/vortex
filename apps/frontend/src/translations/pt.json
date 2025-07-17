@@ -169,11 +169,11 @@
           "title": "Detalhes da Transferência Bancária"
         },
         "headerText": {
-          "buy": "Você está comprando",
-          "sell": "Você está vendendo"
+          "buy": "Resumo do pagamento",
+          "sell": "Resumo do pagamento"
         },
-        "offrampFee": "Taxa de saque",
-        "onrampFee": "Taxa de compra",
+        "offrampFee": "Taxa total",
+        "onrampFee": "Taxa total",
         "partner": "Parceiro",
         "processing": "Processando",
         "quote": "Cotação",
@@ -348,6 +348,7 @@
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
+      "closeProgressScreenText": "💡 Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
       "createStellarAccount": "Criando conta Stellar",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",

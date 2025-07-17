@@ -180,7 +180,7 @@ export class QuoteService extends BaseRampService {
 
       const routeResult = await getRoute(routeParams);
       const { route } = routeResult.data;
-      const finalGrossOutputAmount = route.estimate.toAmountMin;
+      const finalGrossOutputAmount = route.estimate.toAmount;
       const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
         outputTokenDetails.decimals,
         BigInt(finalGrossOutputAmount)
