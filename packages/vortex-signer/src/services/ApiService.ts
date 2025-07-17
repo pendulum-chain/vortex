@@ -76,14 +76,15 @@ export class ApiService {
   }
 
   async getRampStatus(rampId: string): Promise<RampProcess> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/ramp/status/${rampId}`, {
+    const url = new URL(`${this.apiBaseUrl}/v1/ramp/${rampId}`);
+    const response = await fetch(url.toString(), {
       headers: {
         "Content-Type": "application/json"
       },
       method: "GET"
     });
 
-    return handleAPIResponse<RampProcess>(response, `/v1/ramp/status/${rampId}`);
+    return handleAPIResponse<RampProcess>(response, `/v1/ramp/status?id=${rampId}`);
   }
 
   async getBrlaKycStatus(taxId: string): Promise<BrlaKycResponse> {
