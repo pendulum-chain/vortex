@@ -76,6 +76,7 @@ export interface SquidrouterRoute {
   route: {
     estimate: {
       toToken: { decimals: number };
+      aggregateSlippage: number;
       toAmount: string;
       toAmountMin: string;
     };
@@ -107,6 +108,16 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     });
 
     const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
+
+    // FIXME remove this check once squidrouter works as expected again.
+    // Check if slippage of received route is reasonable.
+    const route = result.data as SquidrouterRoute;
+    const slippage = route.route.estimate.aggregateSlippage;
+    if (slippage > 1) {
+      logger.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+      throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+    }
+
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
