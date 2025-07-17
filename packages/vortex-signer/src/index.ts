@@ -6,4 +6,4 @@ export {
 } from "./ephemeralHelpers";
 export * from "./errors";
 export * from "./types";
-export { VortexSigner } from "./VortexSigner";
+export { VortexSdk } from "./VortexSdk";

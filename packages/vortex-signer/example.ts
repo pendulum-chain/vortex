@@ -1,13 +1,13 @@
 import { DestinationType, EvmToken, FiatToken, Networks } from "@packages/shared";
-import type { BrlaOnrampAdditionalData, PaymentMethod, VortexSignerConfig } from "./src/types";
-import { VortexSigner } from "./src/VortexSigner";
+import type { BrlaOnrampAdditionalData, PaymentMethod, VortexSdkConfig } from "./src/types";
+import { VortexSdk } from "./src/VortexSdk";
 
 async function runBrlaOnrampExample() {
   try {
     console.log("Starting BRLA Onramp Example...\n");
 
-    console.log("📝 Step 1: Initializing VortexSigner...");
-    const config: VortexSignerConfig = {
+    console.log("📝 Step 1: Initializing VortexSdk...");
+    const config: VortexSdkConfig = {
       apiBaseUrl: "http://localhost:3000"
       // Optional: provide custom WebSocket URLs
       // pendulumWsUrl: 'wss://custom-pendulum-rpc.com',
@@ -15,10 +15,10 @@ async function runBrlaOnrampExample() {
       // autoReconnect: true, // default is true
     };
 
-    const signer = new VortexSigner(config);
+    const sdk = new VortexSdk(config);
 
     console.log("⏳ Waiting for API initialization...");
-    console.log("✅ VortexSigner initialized successfully\n");
+    console.log("✅ VortexSdk initialized successfully\n");
 
     console.log("📝 Step 2: Creating quote for BRLA onramp...");
     const quoteRequest = {
@@ -31,7 +31,7 @@ async function runBrlaOnrampExample() {
       //partnerId: "example-partner"
     };
 
-    const quote = await signer.createQuote(quoteRequest);
+    const quote = await sdk.createQuote(quoteRequest);
     console.log("✅ Quote created successfully:");
     console.log(`   Quote ID: ${quote.id}`);
     console.log(`   Input: ${quote.inputAmount} ${quote.inputCurrency}`);
@@ -44,18 +44,18 @@ async function runBrlaOnrampExample() {
       taxId: ""
     };
 
-    const registeredRamp = await signer.registerBrlaOnramp(quote.id, brlaOnrampData);
+    const registeredRamp = await sdk.registerBrlaOnramp(quote.id, brlaOnrampData);
 
     if (registeredRamp.depositQrCode) {
       console.log(`   Deposit QR Code: ${registeredRamp.depositQrCode}`);
     }
     // Step 4: Start the BRLA onramp process AFTER PAYMENT
     console.log("📝 Step 4: Starting BRLA onramp...");
-    //const startedRamp = await signer.startBrlaOnramp(registeredRamp.id);
+    //const startedRamp = await sdk.startBrlaOnramp(registeredRamp.id);
 
     // Step 5: Monitor ramp status (optional)
     // console.log('📝 Step 5: Checking ramp status...');
-    // const rampStatus = await signer.getRampStatus(startedRamp.id);
+    // const rampStatus = await sdk.getRampStatus(startedRamp.id);
     // console.log('✅ Current ramp status:');
     // console.log(`   Phase: ${rampStatus.currentPhase}`);
     // console.log(`   Unsigned transactions: ${rampStatus.unsignedTxs.length}`);

@@ -5,9 +5,9 @@ The Vortex Signer is an SDK that abstracts Vortex's API and ephemeral key handli
 
 ## Core Components
 
-### VortexSigner (Main Orchestrator)
+### VortexSdk (Main Orchestrator)
 
-The `VortexSigner` class is the main entry point that users interact with. It bundles together:
+The `VortexSdk` class is the main entry point that users interact with. It bundles together:
 
 - **ApiService**: Handles all backend API interactions
 - **NetworkManager**: Manages RPC connections for transaction signing

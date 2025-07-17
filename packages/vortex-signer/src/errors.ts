@@ -5,7 +5,7 @@ export interface APIErrorResponse {
   isPublic?: boolean;
 }
 
-export class VortexSignerError extends Error {
+export class VortexSdkError extends Error {
   public readonly status: number;
   public readonly isPublic: boolean;
   public readonly errors?: unknown[];
@@ -13,7 +13,7 @@ export class VortexSignerError extends Error {
 
   constructor(message: string, status: number = 500, isPublic: boolean = false, errors?: unknown[], originalError?: Error) {
     super(message);
-    this.name = "VortexSignerError";
+    this.name = "VortexSdkError";
     this.status = status;
     this.isPublic = isPublic;
     this.errors = errors;
@@ -21,7 +21,7 @@ export class VortexSignerError extends Error {
   }
 }
 
-export class RegisterRampError extends VortexSignerError {
+export class RegisterRampError extends VortexSdkError {
   constructor(message: string, status: number = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "RegisterRampError";
@@ -160,7 +160,7 @@ export class MissingMoneriumOfframpParametersError extends MoneriumError {
 /**
  * Update Ramp Error Types
  */
-export class UpdateRampError extends VortexSignerError {
+export class UpdateRampError extends VortexSdkError {
   constructor(message: string, status: number = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "UpdateRampError";
@@ -191,7 +191,7 @@ export class InvalidPresignedTxsError extends UpdateRampError {
 /**
  * Start Ramp Error Types
  */
-export class StartRampError extends VortexSignerError {
+export class StartRampError extends VortexSdkError {
   constructor(message: string, status: number = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "StartRampError";
@@ -212,7 +212,7 @@ export class TimeWindowExceededError extends StartRampError {
   }
 }
 
-export class NetworkError extends VortexSignerError {
+export class NetworkError extends VortexSdkError {
   constructor(message: string, originalError?: Error) {
     super(message, 500, false, undefined, originalError);
     this.name = "NetworkError";
@@ -226,7 +226,7 @@ export class APIConnectionError extends NetworkError {
   }
 }
 
-export class APIResponseError extends VortexSignerError {
+export class APIResponseError extends VortexSdkError {
   constructor(endpoint: string, status: number, statusText: string) {
     super(`API request failed for ${endpoint}: ${status} ${statusText}`, status, false);
     this.name = "APIResponseError";
@@ -234,37 +234,37 @@ export class APIResponseError extends VortexSignerError {
 }
 
 /**
- * Internal VortexSigner Error Types
+ * Internal VortexSdk Error Types
  */
-export class VortexSignerInternalError extends VortexSignerError {
+export class VortexSdkInternalError extends VortexSdkError {
   constructor(message: string, originalError?: Error) {
     super(message, 500, false, undefined, originalError);
-    this.name = "VortexSignerInternalError";
+    this.name = "VortexSdkInternalError";
   }
 }
 
-export class RampStateNotFoundError extends VortexSignerInternalError {
+export class RampStateNotFoundError extends VortexSdkInternalError {
   constructor(rampId: string) {
     super(`No ramp state found for rampId: ${rampId}`);
     this.name = "RampStateNotFoundError";
   }
 }
 
-export class APINotInitializedError extends VortexSignerInternalError {
+export class APINotInitializedError extends VortexSdkInternalError {
   constructor(apiName: string) {
     super(`${apiName} API is required but not initialized`);
     this.name = "APINotInitializedError";
   }
 }
 
-export class EphemeralGenerationError extends VortexSignerInternalError {
+export class EphemeralGenerationError extends VortexSdkInternalError {
   constructor(network: string, originalError?: Error) {
     super(`Failed to generate ephemeral account for network: ${network}`, originalError);
     this.name = "EphemeralGenerationError";
   }
 }
 
-export class TransactionSigningError extends VortexSignerInternalError {
+export class TransactionSigningError extends VortexSdkInternalError {
   constructor(details?: string, originalError?: Error) {
     super(`Failed to sign transactions${details ? `: ${details}` : ""}`, originalError);
     this.name = "TransactionSigningError";
@@ -274,7 +274,7 @@ export class TransactionSigningError extends VortexSignerInternalError {
 /**
  * Error parsing utilities
  */
-export function parseAPIError(response: any): VortexSignerError {
+export function parseAPIError(response: any): VortexSdkError {
   if (response && typeof response === "object") {
     const { message, error, status = 500, errors } = response;
     const errorMessage = message || error;
@@ -339,10 +339,10 @@ export function parseAPIError(response: any): VortexSignerError {
       }
     }
 
-    return new VortexSignerError(errorMessage || "Unknown API error", status, true, errors);
+    return new VortexSdkError(errorMessage || "Unknown API error", status, true, errors);
   }
 
-  return new VortexSignerError("Unknown error occurred", 500);
+  return new VortexSdkError("Unknown error occurred", 500);
 }
 
 export async function handleAPIResponse<T>(response: Response, endpoint: string): Promise<T> {

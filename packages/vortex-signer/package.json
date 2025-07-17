@@ -17,7 +17,7 @@
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "name": "vortex-sign",
+  "name": "@vortexfi/sdk",
   "peerDependencies": {
     "typescript": "^5"
   },

@@ -1,7 +1,7 @@
 import { Networks } from "@packages/shared";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { APINotInitializedError } from "../errors";
-import type { NetworkConfig, VortexSignerConfig } from "../types";
+import type { NetworkConfig, VortexSdkConfig } from "../types";
 
 const DEFAULT_NETWORKS: NetworkConfig[] = [
   {
@@ -23,7 +23,7 @@ export class NetworkManager {
   private moonbeamApi?: ApiPromise;
   private initializationPromise: Promise<void>;
 
-  constructor(private readonly config: VortexSignerConfig) {
+  constructor(private readonly config: VortexSdkConfig) {
     this.initializationPromise = this.initializeApis();
   }
 

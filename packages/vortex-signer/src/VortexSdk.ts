@@ -12,15 +12,15 @@ import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, VortexSignerConfig, VortexSignerContext } from "./types";
+import type { BrlaOnrampAdditionalData, VortexSdkConfig } from "./types";
 
-export class VortexSigner {
+export class VortexSdk {
   private apiService: ApiService;
   private networkManager: NetworkManager;
   private brlaHandler: BrlaHandler;
   private initializationPromise: Promise<void>;
 
-  constructor(config: VortexSignerConfig) {
+  constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
 

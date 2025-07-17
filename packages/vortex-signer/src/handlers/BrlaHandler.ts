@@ -9,7 +9,7 @@ import type {
 import { Networks } from "@packages/shared";
 import { BrlaKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
-import type { BrlaOnrampAdditionalData, RampHandler, VortexSignerContext } from "../types";
+import type { BrlaOnrampAdditionalData, RampHandler, VortexSdkContext } from "../types";
 
 export class BrlaHandler implements RampHandler {
   private apiService: ApiService;
@@ -28,7 +28,7 @@ export class BrlaHandler implements RampHandler {
 
   constructor(
     apiService: ApiService,
-    context: VortexSignerContext,
+    context: VortexSdkContext,
     generateEphemerals: (networks: Networks[]) => Promise<{
       ephemerals: { [key in Networks]?: EphemeralAccount };
       accountMetas: AccountMeta[];

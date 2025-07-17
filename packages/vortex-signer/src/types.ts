@@ -50,7 +50,7 @@ export interface NetworkConfig {
   wsUrl: string;
 }
 
-export interface VortexSignerConfig {
+export interface VortexSdkConfig {
   apiBaseUrl: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
@@ -64,7 +64,7 @@ export interface RampHandler {
   // The update step may be invisible to the user (like in BRLA onramp)
 }
 
-// Context methods that handlers can use from VortexSigner
-export interface VortexSignerContext {
+// Context methods that handlers can use from VortexSdk
+export interface VortexSdkContext {
   // Defined for future extensibility
 }

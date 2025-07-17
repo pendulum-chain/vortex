@@ -11,14 +11,14 @@ npm install @packages/vortex-signer
 ## Quick Start
 
 ```typescript
-import { VortexSigner, Networks, FiatToken, EvmToken } from "@packages/vortex-signer";
-import type { VortexSignerConfig, BrlaOnrampAdditionalData, DestinationType } from "@packages/vortex-signer";
+import { VortexSdk, Networks, FiatToken, EvmToken } from "@packages/vortex-signer";
+import type { VortexSdkConfig, BrlaOnrampAdditionalData, DestinationType } from "@packages/vortex-signer";
 
-const config: VortexSignerConfig = {
+const config: VortexSdkConfig = {
   apiBaseUrl: "http://localhost:3000",
 };
 
-const signer = new VortexSigner(config);
+const signer = new VortexSdk(config);
 
 const quoteRequest = {
   from: "pix" as DestinationType,
@@ -48,12 +48,12 @@ const startedRamp = await signer.startBrlaOnramp(registeredRamp.id);
 
 ## API Reference
 
-### VortexSigner
+### VortexSdk
 
 #### Constructor
 
 ```typescript
-new VortexSigner(config: VortexSignerConfig)
+new VortexSdk(config: VortexSdkConfig)
 ```
 
 #### Methods
@@ -76,7 +76,7 @@ Starts a registered BRLA onramp process.
 ## Configuration
 
 ```typescript
-interface VortexSignerConfig {
+interface VortexSdkConfig {
   apiBaseUrl: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
