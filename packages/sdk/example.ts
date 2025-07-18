@@ -22,7 +22,7 @@ async function runBrlaOnrampExample() {
 
     console.log("📝 Step 2: Creating quote for BRLA onramp...");
     const quoteRequest = {
-      from: "pix" as DestinationType,
+      from: "pix" as const,
       inputAmount: "1",
       inputCurrency: FiatToken.BRL,
       outputCurrency: EvmToken.USDC,
@@ -39,13 +39,12 @@ async function runBrlaOnrampExample() {
     console.log(`   Fee: ${quote.fee}`);
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
-    const brlaOnrampData: BrlaOnrampAdditionalData = {
+    const brlaOnrampData = {
       destinationAddress: "0x1234567890123456789012345678901234567890",
-      taxId: ""
+      taxId: "123.456.789-00"
     };
 
-    await sdk.registerRamp(quote, { paymentMethod: "pix", sourceAddress: "", taxId: "" });
-    const registeredRamp = await sdk.registerBrlaOnramp(quote.id, brlaOnrampData);
+    const registeredRamp = await sdk.registerRamp(quote, brlaOnrampData);
 
     if (registeredRamp.depositQrCode) {
       console.log(`   Deposit QR Code: ${registeredRamp.depositQrCode}`);

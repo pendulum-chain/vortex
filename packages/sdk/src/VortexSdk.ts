@@ -12,8 +12,7 @@ import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, RegisterRampAdditionalData, VortexSdkConfig } from "./types";
-
+import type { BrlaOnrampAdditionalData, ExtendedQuoteResponse, RegisterRampAdditionalData, VortexSdkConfig } from "./types";
 export class VortexSdk {
   private apiService: ApiService;
   private networkManager: NetworkManager;
@@ -38,8 +37,9 @@ export class VortexSdk {
     await this.initializationPromise;
   }
 
-  async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
-    return this.apiService.createQuote(request);
+  async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
+    const baseQuote = await this.apiService.createQuote(request);
+    return baseQuote as ExtendedQuoteResponse<T>;
   }
 
   async getQuote(quoteId: string): Promise<QuoteResponse> {

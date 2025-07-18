@@ -1,33 +1,55 @@
 import type {
-  AccountMeta,
+  CreateQuoteRequest,
   EphemeralAccount,
-  Networks,
   PaymentMethod,
   QuoteResponse,
   RampPhase,
-  RampProcess,
   UnsignedTx
 } from "@packages/shared";
 
 export type { PaymentMethod };
 
-// Union type of all possible additional data types
-export type AnyRampAdditionalData =
-  | BrlaOnrampAdditionalData
-  | EurOnrampAdditionalData
-  | BrlaOfframpAdditionalData
-  | EurOfframpAdditionalData;
+export type BrlaOnrampQuote = QuoteResponse & {
+  rampType: "on";
+  from: "pix";
+};
 
-// Type-safe mapping for registerRamp function based on quote parameters
-export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends { rampType: "on"; from: "pix" }
+export type EurOnrampQuote = QuoteResponse & {
+  rampType: "on";
+  from: "sepa";
+};
+
+export type BrlaOfframpQuote = QuoteResponse & {
+  rampType: "off";
+  to: "pix";
+};
+
+export type EurOfframpQuote = QuoteResponse & {
+  rampType: "off";
+  to: "sepa";
+};
+
+export type AnyQuote = BrlaOnrampQuote | EurOnrampQuote | BrlaOfframpQuote | EurOfframpQuote;
+
+export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
+  ? BrlaOnrampQuote
+  : T extends { rampType: "on"; from: "sepa" }
+    ? EurOnrampQuote
+    : T extends { rampType: "off"; to: "pix" }
+      ? BrlaOfframpQuote
+      : T extends { rampType: "off"; to: "sepa" }
+        ? EurOfframpQuote
+        : never;
+
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlaOnrampQuote
   ? BrlaOnrampAdditionalData
-  : Q extends { rampType: "on"; from: "sepa" }
+  : Q extends EurOnrampQuote
     ? EurOnrampAdditionalData
-    : Q extends { rampType: "off"; to: "pix" }
+    : Q extends BrlaOfframpQuote
       ? BrlaOfframpAdditionalData
-      : Q extends { rampType: "off"; to: "sepa" }
+      : Q extends EurOfframpQuote
         ? EurOfframpAdditionalData
-        : AnyRampAdditionalData; // Fallback for when TypeScript can't narrow the type
+        : never;
 
 export interface BrlaOnrampAdditionalData {
   destinationAddress: string;
