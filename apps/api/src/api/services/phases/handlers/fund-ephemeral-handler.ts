@@ -5,6 +5,7 @@ import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
+import { PhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { EvmClientManager } from "../../evm/clientManager";
 import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
@@ -13,7 +14,6 @@ import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
-
 import {
   horizonServer,
   isMoonbeamEphemeralFunded,
@@ -125,6 +125,12 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       console.error("Error in FundEphemeralPhaseHandler:", e);
+
+      // Preserve UnrecoverablePhaseError
+      if (e instanceof UnrecoverablePhaseError) {
+        throw e;
+      }
+
       const recoverableError = this.createRecoverableError("Error funding ephemeral account");
       throw recoverableError;
     }
@@ -175,6 +181,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation");
       }
     } catch (e) {
+      if (e instanceof UnrecoverablePhaseError) {
+        throw e;
+      }
+
       // when validateStellarPaymentSequenceNumber throws an error, it's not NetworkError
       if (isStellarNetworkError(e)) {
         if (e.response.data?.status === 400) {
