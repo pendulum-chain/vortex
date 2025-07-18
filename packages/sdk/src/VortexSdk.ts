@@ -12,7 +12,7 @@ import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, InferAdditionalData, VortexSdkConfig } from "./types";
+import type { BrlaOnrampAdditionalData, RegisterRampAdditionalData, VortexSdkConfig } from "./types";
 
 export class VortexSdk {
   private apiService: ApiService;
@@ -50,15 +50,13 @@ export class VortexSdk {
     return this.apiService.getRampStatus(rampId);
   }
 
-  async registerRamp<T extends "on" | "off", D extends "pix" | "sepa">(
-    quote: QuoteResponse & { rampType: T; from: T extends "on" ? D : string; to: T extends "off" ? D : string },
-    additionalData: InferAdditionalData<T, D>
-  ): Promise<RampProcess> {
+  async registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess> {
     await this.ensureInitialized();
 
     // Determine which handler to use based on the quote parameters
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
+        // TypeScript now knows additionalData is BrlaOnrampAdditionalData
         return this.brlaHandler.registerBrlaOnramp(quote.id, additionalData as BrlaOnrampAdditionalData);
       } else if (quote.from === "sepa") {
         // Assuming you'll implement this handler later

@@ -11,24 +11,23 @@ import type {
 
 export type { PaymentMethod };
 
-export type RampAdditionalData = {
-  onramp: {
-    pix: BrlaOnrampAdditionalData;
-    sepa: EurOnrampAdditionalData;
-  };
-  offramp: {
-    pix: BrlaOfframpAdditionalData;
-    sepa: EurOfframpAdditionalData;
-  };
-};
+// Union type of all possible additional data types
+export type AnyRampAdditionalData =
+  | BrlaOnrampAdditionalData
+  | EurOnrampAdditionalData
+  | BrlaOfframpAdditionalData
+  | EurOfframpAdditionalData;
 
-export type InferAdditionalData<T extends "on" | "off", D extends "pix" | "sepa"> = T extends "on"
-  ? D extends "pix"
-    ? BrlaOnrampAdditionalData
-    : EurOnrampAdditionalData
-  : D extends "pix"
-    ? BrlaOfframpAdditionalData
-    : EurOfframpAdditionalData;
+// Type-safe mapping for registerRamp function based on quote parameters
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends { rampType: "on"; from: "pix" }
+  ? BrlaOnrampAdditionalData
+  : Q extends { rampType: "on"; from: "sepa" }
+    ? EurOnrampAdditionalData
+    : Q extends { rampType: "off"; to: "pix" }
+      ? BrlaOfframpAdditionalData
+      : Q extends { rampType: "off"; to: "sepa" }
+        ? EurOfframpAdditionalData
+        : AnyRampAdditionalData; // Fallback for when TypeScript can't narrow the type
 
 export interface BrlaOnrampAdditionalData {
   destinationAddress: string;

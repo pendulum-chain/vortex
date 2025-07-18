@@ -9,7 +9,7 @@ import type {
 import { Networks } from "@packages/shared";
 import { BrlaKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
-import type { BrlaOnrampAdditionalData, RampHandler, VortexSdkContext } from "../types";
+import type { BrlaOnrampAdditionalData, RampAdditionalData, RampHandler, VortexSdkContext } from "../types";
 
 export class BrlaHandler implements RampHandler {
   private apiService: ApiService;
