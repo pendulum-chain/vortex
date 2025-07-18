@@ -220,6 +220,14 @@ export class PhaseProcessor {
 
       await state.update({ errorLogs });
 
+      if (isPhaseError && !isRecoverable) {
+        logger.error(`Ramp ${state.id} failed unrecoverably in phase ${state.currentPhase}, transitioning to failed state`);
+
+        await state.update({ currentPhase: "failed" });
+        this.retriesMap.delete(state.id);
+        return;
+      }
+
       throw error;
     }
   }
