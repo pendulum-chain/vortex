@@ -56,18 +56,14 @@ export class VortexSdk {
     // Determine which handler to use based on the quote parameters
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
-        // TypeScript now knows additionalData is BrlaOnrampAdditionalData
         return this.brlaHandler.registerBrlaOnramp(quote.id, additionalData as BrlaOnrampAdditionalData);
       } else if (quote.from === "sepa") {
-        // Assuming you'll implement this handler later
         throw new Error("Euro onramp handler not implemented yet");
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        // Assuming you'll implement this handler later
         throw new Error("BRLA offramp handler not implemented yet");
       } else if (quote.to === "sepa") {
-        // Assuming you'll implement this handler later
         throw new Error("Euro offramp handler not implemented yet");
       }
     }
