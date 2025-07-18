@@ -1,4 +1,5 @@
 import { FiatToken, getNetworkId, Networks, RampPhase } from "@packages/shared";
+import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -7,6 +8,7 @@ import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../models/subsidy.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { EvmClientManager } from "../../evm/clientManager";
 import { getStatus, SquidRouterPayResponse } from "../../transactions/squidrouter/route";
@@ -147,6 +149,17 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
           payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state);
+
+          const isPolygon = state.state.inputCurrency !== FiatToken.BRL;
+          const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
+          const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber(); // Both MATIC and GLMR have 18 decimals
+          const payerAccount = isPolygon
+            ? this.polygonWalletClient.account?.address
+            : this.moonbeamWalletClient.account?.address;
+
+          if (payerAccount) {
+            await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
+          }
 
           await state.update({
             state: {
