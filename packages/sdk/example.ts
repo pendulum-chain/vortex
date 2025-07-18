@@ -44,6 +44,7 @@ async function runBrlaOnrampExample() {
       taxId: ""
     };
 
+    await sdk.registerRamp(quote, { paymentMethod: "pix", sourceAddress: "", taxId: "" });
     const registeredRamp = await sdk.registerBrlaOnramp(quote.id, brlaOnrampData);
 
     if (registeredRamp.depositQrCode) {

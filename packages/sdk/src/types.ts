@@ -3,6 +3,7 @@ import type {
   EphemeralAccount,
   Networks,
   PaymentMethod,
+  QuoteResponse,
   RampPhase,
   RampProcess,
   UnsignedTx
@@ -10,22 +11,46 @@ import type {
 
 export type { PaymentMethod };
 
-export interface QuoteResponse {
-  id: string;
-  rampType: "on" | "off";
-  from: string;
-  to: string;
-  inputAmount: string;
-  outputAmount: string;
-  inputCurrency: string;
-  outputCurrency: string;
-  fee: string;
-  expiresAt: string;
-}
+export type RampAdditionalData = {
+  onramp: {
+    pix: BrlaOnrampAdditionalData;
+    sepa: EurOnrampAdditionalData;
+  };
+  offramp: {
+    pix: BrlaOfframpAdditionalData;
+    sepa: EurOfframpAdditionalData;
+  };
+};
+
+export type InferAdditionalData<T extends "on" | "off", D extends "pix" | "sepa"> = T extends "on"
+  ? D extends "pix"
+    ? BrlaOnrampAdditionalData
+    : EurOnrampAdditionalData
+  : D extends "pix"
+    ? BrlaOfframpAdditionalData
+    : EurOfframpAdditionalData;
 
 export interface BrlaOnrampAdditionalData {
   destinationAddress: string;
   taxId: string;
+}
+
+export interface EurOnrampAdditionalData {
+  destinationAddress: string;
+  taxId: string;
+  paymentMethod: PaymentMethod;
+}
+
+export interface BrlaOfframpAdditionalData {
+  sourceAddress: string;
+  taxId: string;
+  paymentMethod: PaymentMethod;
+}
+
+export interface EurOfframpAdditionalData {
+  sourceAddress: string;
+  taxId: string;
+  paymentMethod: PaymentMethod;
 }
 
 export interface BrlaKycResponse {

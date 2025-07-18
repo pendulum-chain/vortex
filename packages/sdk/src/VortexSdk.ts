@@ -12,7 +12,7 @@ import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, VortexSdkConfig } from "./types";
+import type { BrlaOnrampAdditionalData, InferAdditionalData, VortexSdkConfig } from "./types";
 
 export class VortexSdk {
   private apiService: ApiService;
@@ -48,6 +48,33 @@ export class VortexSdk {
 
   async getRampStatus(rampId: string): Promise<RampProcess> {
     return this.apiService.getRampStatus(rampId);
+  }
+
+  async registerRamp<T extends "on" | "off", D extends "pix" | "sepa">(
+    quote: QuoteResponse & { rampType: T; from: T extends "on" ? D : string; to: T extends "off" ? D : string },
+    additionalData: InferAdditionalData<T, D>
+  ): Promise<RampProcess> {
+    await this.ensureInitialized();
+
+    // Determine which handler to use based on the quote parameters
+    if (quote.rampType === "on") {
+      if (quote.from === "pix") {
+        return this.brlaHandler.registerBrlaOnramp(quote.id, additionalData as BrlaOnrampAdditionalData);
+      } else if (quote.from === "sepa") {
+        // Assuming you'll implement this handler later
+        throw new Error("Euro onramp handler not implemented yet");
+      }
+    } else if (quote.rampType === "off") {
+      if (quote.to === "pix") {
+        // Assuming you'll implement this handler later
+        throw new Error("BRLA offramp handler not implemented yet");
+      } else if (quote.to === "sepa") {
+        // Assuming you'll implement this handler later
+        throw new Error("Euro offramp handler not implemented yet");
+      }
+    }
+
+    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
   async registerBrlaOnramp(quoteId: string, additionalData: BrlaOnrampAdditionalData): Promise<RampProcess> {
