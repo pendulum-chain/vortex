@@ -1,19 +1,20 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "allowSyntheticDefaultImports": true,
     "declaration": true,
     "declarationDir": "./dist",
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "module": "ESNext",
     "moduleDetection": "force",
 
     // Bundler mode
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

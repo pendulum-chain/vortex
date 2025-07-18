@@ -59,7 +59,6 @@ export class VortexSdk {
   async registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess> {
     await this.ensureInitialized();
 
-    // Determine which handler to use based on the quote parameters
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
         return this.brlaHandler.registerBrlaOnramp(quote.id, additionalData as BrlaOnrampAdditionalData);
