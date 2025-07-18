@@ -12,7 +12,13 @@ import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlaHandler } from "./handlers/BrlaHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import type { BrlaOnrampAdditionalData, ExtendedQuoteResponse, RegisterRampAdditionalData, VortexSdkConfig } from "./types";
+import type {
+  BrlaOnrampAdditionalData,
+  ExtendedQuoteResponse,
+  RegisterRampAdditionalData,
+  UpdateRampAdditionalData,
+  VortexSdkConfig
+} from "./types";
 export class VortexSdk {
   private apiService: ApiService;
   private networkManager: NetworkManager;
@@ -71,12 +77,40 @@ export class VortexSdk {
     throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
-  async registerBrlaOnramp(quoteId: string, additionalData: BrlaOnrampAdditionalData): Promise<RampProcess> {
-    return this.brlaHandler.registerBrlaOnramp(quoteId, additionalData);
+  async updateRamp<Q extends QuoteResponse>(quote: Q, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess> {
+    if (quote.rampType === "on") {
+      if (quote.from === "pix") {
+        throw new Error("Brla onramp does not require any further data");
+      } else if (quote.from === "sepa") {
+        throw new Error("Euro onramp handler not implemented yet");
+      }
+    } else if (quote.rampType === "off") {
+      if (quote.to === "pix") {
+        throw new Error("BRLA offramp handler not implemented yet");
+      } else if (quote.to === "sepa") {
+        throw new Error("Euro offramp handler not implemented yet");
+      }
+    }
+
+    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
-  async startBrlaOnramp(rampId: string): Promise<RampProcess> {
-    return this.brlaHandler.startBrlaOnramp(rampId);
+  async startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess> {
+    if (quote.rampType === "on") {
+      if (quote.from === "pix") {
+        return this.brlaHandler.startBrlaOnramp(rampId);
+      } else if (quote.from === "sepa") {
+        throw new Error("Euro onramp handler not implemented yet");
+      }
+    } else if (quote.rampType === "off") {
+      if (quote.to === "pix") {
+        throw new Error("BRLA offramp handler not implemented yet");
+      } else if (quote.to === "sepa") {
+        throw new Error("Euro offramp handler not implemented yet");
+      }
+    }
+
+    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
   private async generateEphemerals(networks: Networks[]): Promise<{

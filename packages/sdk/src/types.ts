@@ -1,6 +1,7 @@
 import type {
   CreateQuoteRequest,
   EphemeralAccount,
+  PaymentData,
   PaymentMethod,
   QuoteResponse,
   RampPhase,
@@ -57,21 +58,44 @@ export interface BrlaOnrampAdditionalData {
 }
 
 export interface EurOnrampAdditionalData {
-  destinationAddress: string;
-  taxId: string;
-  paymentMethod: PaymentMethod;
+  moneriumAuthToken: string;
 }
 
 export interface BrlaOfframpAdditionalData {
-  sourceAddress: string;
+  pixDestination: string;
+  receiverTaxId: string;
   taxId: string;
-  paymentMethod: PaymentMethod;
 }
 
 export interface EurOfframpAdditionalData {
-  sourceAddress: string;
-  taxId: string;
-  paymentMethod: PaymentMethod;
+  paymentData: PaymentData;
+}
+
+export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlaOnrampQuote
+  ? never // No additional data required from the user for this type of ramp.
+  : Q extends EurOnrampQuote
+    ? EurOnrampUpdateAdditionalData
+    : Q extends BrlaOfframpQuote
+      ? BrlaOfframpUpdateAdditionalData
+      : Q extends EurOfframpQuote
+        ? EurOfframpUpdateAdditionalData
+        : never;
+
+export interface EurOnrampUpdateAdditionalData {
+  squidRouterApproveHash: string;
+  squidRouterSwapHash: string;
+  moneriumOfframpSignature: string;
+}
+
+export interface BrlaOfframpUpdateAdditionalData {
+  squidRouterApproveHash: string;
+  squidRouterSwapHash: string;
+  assetHubToPendulumHash: string;
+}
+export interface EurOfframpUpdateAdditionalData {
+  squidRouterApproveHash: string;
+  squidRouterSwapHash: string;
+  assetHubToPendulumHash: string;
 }
 
 export interface BrlaKycResponse {
