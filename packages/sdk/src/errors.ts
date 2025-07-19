@@ -63,72 +63,72 @@ export class InvalidAdditionalDataError extends RegisterRampError {
   }
 }
 
-// BRLA Onramp specific errors
-export class BrlaOnrampError extends RegisterRampError {
+// BRL Onramp specific errors
+export class BrlOnrampError extends RegisterRampError {
   constructor(message: string, status: number = 400) {
     super(message, status);
-    this.name = "BrlaOnrampError";
+    this.name = "BrlOnrampError";
   }
 }
 
-export class MissingBrlaParametersError extends BrlaOnrampError {
+export class MissingBrlParametersError extends BrlOnrampError {
   constructor() {
     super("Parameters destinationAddress and taxId are required for onramp", 400);
-    this.name = "MissingBrlaParametersError";
+    this.name = "MissingBrlParametersError";
   }
 }
 
-export class MoonbeamEphemeralNotFoundError extends BrlaOnrampError {
+export class MoonbeamEphemeralNotFoundError extends BrlOnrampError {
   constructor() {
     super("Moonbeam ephemeral not found", 400);
     this.name = "MoonbeamEphemeralNotFoundError";
   }
 }
 
-export class SubaccountNotFoundError extends BrlaOnrampError {
+export class SubaccountNotFoundError extends BrlOnrampError {
   constructor() {
     super("Subaccount not found. Provided taxId has not been KYC'ed", 404);
     this.name = "SubaccountNotFoundError";
   }
 }
 
-export class KycInvalidError extends BrlaOnrampError {
+export class KycInvalidError extends BrlOnrampError {
   constructor() {
     super("KYC invalid", 400);
     this.name = "KycInvalidError";
   }
 }
 
-export class BrlaKycStatusError extends BrlaOnrampError {
+export class BrlKycStatusError extends BrlOnrampError {
   constructor(message: string, status: number = 400) {
     super(message, status);
-    this.name = "BrlaKycStatusError";
+    this.name = "BrlKycStatusError";
   }
 }
 
-export class AmountExceedsLimitError extends BrlaOnrampError {
+export class AmountExceedsLimitError extends BrlOnrampError {
   constructor() {
     super("Amount exceeds KYC limits", 400);
     this.name = "AmountExceedsLimitError";
   }
 }
 
-// BRLA Offramp specific errors
-export class BrlaOfframpError extends RegisterRampError {
+// BRL Offramp specific errors
+export class BrlOfframpError extends RegisterRampError {
   constructor(message: string, status: number = 400) {
     super(message, status);
-    this.name = "BrlaOfframpError";
+    this.name = "BrlOfframpError";
   }
 }
 
-export class MissingBrlaOfframpParametersError extends BrlaOfframpError {
+export class MissingBrlOfframpParametersError extends BrlOfframpError {
   constructor() {
     super("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL", 400);
-    this.name = "MissingBrlaOfframpParametersError";
+    this.name = "MissingBrlOfframpParametersError";
   }
 }
 
-export class InvalidPixKeyError extends BrlaOfframpError {
+export class InvalidPixKeyError extends BrlOfframpError {
   constructor() {
     super("Invalid pixKey or receiverTaxId", 400);
     this.name = "InvalidPixKeyError";
@@ -295,7 +295,7 @@ export function parseAPIError(response: any): VortexSdkError {
         return new InvalidNetworkError(network);
       }
       if (errorMessage === "Parameters destinationAddress and taxId are required for onramp") {
-        return new MissingBrlaParametersError();
+        return new MissingBrlParametersError();
       }
       if (errorMessage === "Moonbeam ephemeral not found") {
         return new MoonbeamEphemeralNotFoundError();
@@ -307,13 +307,13 @@ export function parseAPIError(response: any): VortexSdkError {
         return new KycInvalidError();
       }
       if (errorMessage === "Missing taxId query parameters") {
-        return new BrlaKycStatusError("Tax ID is required", 400);
+        return new BrlKycStatusError("Tax ID is required", 400);
       }
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();
       }
       if (errorMessage === "receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL") {
-        return new MissingBrlaOfframpParametersError();
+        return new MissingBrlOfframpParametersError();
       }
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
         return new InvalidPixKeyError();

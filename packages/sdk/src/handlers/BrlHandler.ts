@@ -7,11 +7,11 @@ import type {
   UpdateRampRequest
 } from "@packages/shared";
 import { Networks } from "@packages/shared";
-import { BrlaKycStatusError } from "../errors";
+import { BrlKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
-import type { BrlaOnrampAdditionalData, RampHandler, VortexSdkContext } from "../types";
+import type { BrlOnrampAdditionalData, RampHandler, VortexSdkContext } from "../types";
 
-export class BrlaHandler implements RampHandler {
+export class BrlHandler implements RampHandler {
   private apiService: ApiService;
   private generateEphemerals: (networks: Networks[]) => Promise<{
     ephemerals: { [key in Networks]?: EphemeralAccount };
@@ -47,25 +47,25 @@ export class BrlaHandler implements RampHandler {
     this.signTransactions = signTransactions;
   }
 
-  private async validateBrlaKyc(taxId: string): Promise<void> {
+  private async validateBrlKyc(taxId: string): Promise<void> {
     if (!taxId) {
-      throw new BrlaKycStatusError("Tax ID is required", 400);
+      throw new BrlKycStatusError("Tax ID is required", 400);
     }
 
-    const kycStatus = await this.apiService.getBrlaKycStatus(taxId);
+    const kycStatus = await this.apiService.getBrlKycStatus(taxId);
     if (kycStatus.kycLevel < 1) {
       throw new Error(`Insufficient KYC level. Current: ${kycStatus.kycLevel}`);
     }
   }
 
-  async registerBrlaOnramp(quoteId: string, additionalData: BrlaOnrampAdditionalData): Promise<RampProcess> {
+  async registerBrlOnramp(quoteId: string, additionalData: BrlOnrampAdditionalData): Promise<RampProcess> {
     if (!additionalData.taxId) {
-      throw new Error("Tax ID is required for BRLA onramp");
+      throw new Error("Tax ID is required for BRL onramp");
     }
 
-    await this.validateBrlaKyc(additionalData.taxId);
+    await this.validateBrlKyc(additionalData.taxId);
 
-    const requiredNetworks = [Networks.Pendulum, Networks.Moonbeam]; // Hardcoded for BRLA onramp.
+    const requiredNetworks = [Networks.Pendulum, Networks.Moonbeam]; // Hardcoded for BRL onramp.
     const { ephemerals, accountMetas } = await this.generateEphemerals(requiredNetworks);
 
     const registerRequest: RegisterRampRequest = {
@@ -96,7 +96,7 @@ export class BrlaHandler implements RampHandler {
     return updatedRampProcess;
   }
 
-  async startBrlaOnramp(rampId: string): Promise<RampProcess> {
+  async startBrlOnramp(rampId: string): Promise<RampProcess> {
     const startRequest = { rampId };
     return this.apiService.startRamp(startRequest);
   }

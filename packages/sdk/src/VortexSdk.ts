@@ -9,11 +9,11 @@ import type {
 import { Networks, signUnsignedTransactions } from "@packages/shared";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
 import { EphemeralGenerationError, TransactionSigningError } from "./errors";
-import { BrlaHandler } from "./handlers/BrlaHandler";
+import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import type {
-  BrlaOnrampAdditionalData,
+  BrlOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
   UpdateRampAdditionalData,
@@ -22,14 +22,14 @@ import type {
 export class VortexSdk {
   private apiService: ApiService;
   private networkManager: NetworkManager;
-  private brlaHandler: BrlaHandler;
+  private brlHandler: BrlHandler;
   private initializationPromise: Promise<void>;
 
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
 
-    this.brlaHandler = new BrlaHandler(
+    this.brlHandler = new BrlHandler(
       this.apiService,
       this,
       this.generateEphemerals.bind(this),
@@ -61,13 +61,13 @@ export class VortexSdk {
 
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
-        return this.brlaHandler.registerBrlaOnramp(quote.id, additionalData as BrlaOnrampAdditionalData);
+        return this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        throw new Error("BRLA offramp handler not implemented yet");
+        throw new Error("BRL offramp handler not implemented yet");
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }
@@ -79,13 +79,13 @@ export class VortexSdk {
   async updateRamp<Q extends QuoteResponse>(quote: Q, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess> {
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
-        throw new Error("Brla onramp does not require any further data");
+        throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        throw new Error("BRLA offramp handler not implemented yet");
+        throw new Error("BRL offramp handler not implemented yet");
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }
@@ -97,13 +97,13 @@ export class VortexSdk {
   async startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess> {
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
-        return this.brlaHandler.startBrlaOnramp(rampId);
+        return this.brlHandler.startBrlOnramp(rampId);
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        throw new Error("BRLA offramp handler not implemented yet");
+        throw new Error("BRL offramp handler not implemented yet");
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }

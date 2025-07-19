@@ -10,7 +10,7 @@ import type {
 
 export type { PaymentMethod };
 
-export type BrlaOnrampQuote = QuoteResponse & {
+export type BrlOnrampQuote = QuoteResponse & {
   rampType: "on";
   from: "pix";
 };
@@ -20,7 +20,7 @@ export type EurOnrampQuote = QuoteResponse & {
   from: "sepa";
 };
 
-export type BrlaOfframpQuote = QuoteResponse & {
+export type BrlOfframpQuote = QuoteResponse & {
   rampType: "off";
   to: "pix";
 };
@@ -30,29 +30,29 @@ export type EurOfframpQuote = QuoteResponse & {
   to: "sepa";
 };
 
-export type AnyQuote = BrlaOnrampQuote | EurOnrampQuote | BrlaOfframpQuote | EurOfframpQuote;
+export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 
 export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
-  ? BrlaOnrampQuote
+  ? BrlOnrampQuote
   : T extends { rampType: "on"; from: "sepa" }
     ? EurOnrampQuote
     : T extends { rampType: "off"; to: "pix" }
-      ? BrlaOfframpQuote
+      ? BrlOfframpQuote
       : T extends { rampType: "off"; to: "sepa" }
         ? EurOfframpQuote
         : never;
 
-export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlaOnrampQuote
-  ? BrlaOnrampAdditionalData
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
+  ? BrlOnrampAdditionalData
   : Q extends EurOnrampQuote
     ? EurOnrampAdditionalData
-    : Q extends BrlaOfframpQuote
-      ? BrlaOfframpAdditionalData
+    : Q extends BrlOfframpQuote
+      ? BrlOfframpAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpAdditionalData
         : never;
 
-export interface BrlaOnrampAdditionalData {
+export interface BrlOnrampAdditionalData {
   destinationAddress: string;
   taxId: string;
 }
@@ -61,7 +61,7 @@ export interface EurOnrampAdditionalData {
   moneriumAuthToken: string;
 }
 
-export interface BrlaOfframpAdditionalData {
+export interface BrlOfframpAdditionalData {
   pixDestination: string;
   receiverTaxId: string;
   taxId: string;
@@ -71,12 +71,12 @@ export interface EurOfframpAdditionalData {
   paymentData: PaymentData;
 }
 
-export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlaOnrampQuote
+export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? never // No additional data required from the user for this type of ramp.
   : Q extends EurOnrampQuote
     ? EurOnrampUpdateAdditionalData
-    : Q extends BrlaOfframpQuote
-      ? BrlaOfframpUpdateAdditionalData
+    : Q extends BrlOfframpQuote
+      ? BrlOfframpUpdateAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpUpdateAdditionalData
         : never;
@@ -87,7 +87,7 @@ export interface EurOnrampUpdateAdditionalData {
   moneriumOfframpSignature: string;
 }
 
-export interface BrlaOfframpUpdateAdditionalData {
+export interface BrlOfframpUpdateAdditionalData {
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   assetHubToPendulumHash: string;
@@ -98,7 +98,7 @@ export interface EurOfframpUpdateAdditionalData {
   assetHubToPendulumHash: string;
 }
 
-export interface BrlaKycResponse {
+export interface BrlKycResponse {
   evmAddress: string;
   kycLevel: number;
 }
@@ -131,7 +131,7 @@ export interface VortexSdkConfig {
 // Handler interface for ramp-specific operations
 export interface RampHandler {
   // Each handler implements the register-update-start flow
-  // The update step may be invisible to the user (like in BRLA onramp)
+  // The update step may be invisible to the user (like in BRL onramp)
 }
 
 // Context methods that handlers can use from VortexSdk

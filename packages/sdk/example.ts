@@ -1,10 +1,10 @@
-import { DestinationType, EvmToken, FiatToken, Networks } from "@packages/shared";
-import type { BrlaOnrampAdditionalData, PaymentMethod, VortexSdkConfig } from "./src/types";
+import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { VortexSdkConfig } from "./src/types";
 import { VortexSdk } from "./src/VortexSdk";
 
-async function runBrlaOnrampExample() {
+async function runBrlOnrampExample() {
   try {
-    console.log("Starting BRLA Onramp Example...\n");
+    console.log("Starting BRL Onramp Example...\n");
 
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
@@ -20,7 +20,7 @@ async function runBrlaOnrampExample() {
     console.log("⏳ Waiting for API initialization...");
     console.log("✅ VortexSdk initialized successfully\n");
 
-    console.log("📝 Step 2: Creating quote for BRLA onramp...");
+    console.log("📝 Step 2: Creating quote for BRL onramp...");
     const quoteRequest = {
       from: "pix" as const,
       inputAmount: "1",
@@ -39,19 +39,19 @@ async function runBrlaOnrampExample() {
     console.log(`   Fee: ${quote.fee}`);
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
-    const brlaOnrampData = {
+    const brlOnrampData = {
       destinationAddress: "0x1234567890123456789012345678901234567890",
       taxId: "123.456.789-00"
     };
 
-    const registeredRamp = await sdk.registerRamp(quote, brlaOnrampData);
+    const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
 
     if (registeredRamp.depositQrCode) {
       console.log(`   Deposit QR Code: ${registeredRamp.depositQrCode}`);
     }
-    // Step 4: Start the BRLA onramp process AFTER PAYMENT
-    console.log("📝 Step 4: Starting BRLA onramp...");
-    //const startedRamp = await sdk.startBrlaOnramp(registeredRamp.id);
+    // Step 4: Start the BRL onramp process AFTER PAYMENT
+    console.log("📝 Step 4: Starting BRL onramp...");
+    //const startedRamp = await sdk.startBrlOnramp(registeredRamp.id);
 
     // Step 5: Monitor ramp status (optional)
     // console.log('📝 Step 5: Checking ramp status...');
@@ -60,7 +60,7 @@ async function runBrlaOnrampExample() {
     // console.log(`   Phase: ${rampStatus.currentPhase}`);
     // console.log(`   Unsigned transactions: ${rampStatus.unsignedTxs.length}`);
   } catch (error) {
-    console.error("❌ Error in BRLA Onramp Example:", error);
+    console.error("❌ Error in BRL Onramp Example:", error);
 
     if (error instanceof Error) {
       console.error("Error message:", error.message);
@@ -73,7 +73,7 @@ async function runBrlaOnrampExample() {
 
 // Run the example if this file is executed directly
 if (require.main === module) {
-  runBrlaOnrampExample()
+  runBrlOnrampExample()
     .then(() => {
       console.log("\n✨ Example execution completed");
       process.exit(0);

@@ -10,7 +10,7 @@ import type {
   UpdateRampResponse
 } from "@packages/shared";
 import { handleAPIResponse } from "../errors";
-import type { BrlaKycResponse } from "../types";
+import type { BrlKycResponse } from "../types";
 
 export class ApiService {
   constructor(private readonly apiBaseUrl: string) {}
@@ -87,7 +87,7 @@ export class ApiService {
     return handleAPIResponse<RampProcess>(response, `/v1/ramp/status?id=${rampId}`);
   }
 
-  async getBrlaKycStatus(taxId: string): Promise<BrlaKycResponse> {
+  async getBrlKycStatus(taxId: string): Promise<BrlKycResponse> {
     const url = new URL(`${this.apiBaseUrl}/v1/brla/getUser`);
     url.searchParams.append("taxId", taxId);
 
@@ -98,6 +98,6 @@ export class ApiService {
       method: "GET"
     });
 
-    return handleAPIResponse<BrlaKycResponse>(response, "/v1/brla/getUser");
+    return handleAPIResponse<BrlKycResponse>(response, "/v1/brla/getUser");
   }
 }
