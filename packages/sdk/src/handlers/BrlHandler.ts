@@ -13,6 +13,7 @@ import type { BrlOnrampAdditionalData, RampHandler, VortexSdkContext } from "../
 
 export class BrlHandler implements RampHandler {
   private apiService: ApiService;
+  private context: VortexSdkContext;
   private generateEphemerals: (networks: Networks[]) => Promise<{
     ephemerals: { [key in Networks]?: EphemeralAccount };
     accountMetas: AccountMeta[];
@@ -43,6 +44,7 @@ export class BrlHandler implements RampHandler {
     ) => Promise<any[]>
   ) {
     this.apiService = apiService;
+    this.context = context;
     this.generateEphemerals = generateEphemerals;
     this.signTransactions = signTransactions;
   }
@@ -78,6 +80,8 @@ export class BrlHandler implements RampHandler {
     };
 
     const rampProcess = await this.apiService.registerRamp(registerRequest);
+
+    await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
       moonbeamEphemeral: ephemerals[Networks.Moonbeam],

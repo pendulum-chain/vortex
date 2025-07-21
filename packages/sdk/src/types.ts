@@ -7,8 +7,11 @@ import type {
   RampPhase,
   UnsignedTx
 } from "@packages/shared";
+// Types re-exported used to create quotes.
+import { EvmToken, FiatToken, Networks } from "@packages/shared";
 
 export type { PaymentMethod };
+export { EvmToken, FiatToken, Networks };
 
 export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 
@@ -146,5 +149,5 @@ export interface RampHandler {
 
 // Context methods that handlers can use from VortexSdk
 export interface VortexSdkContext {
-  // Defined for future extensibility
+  storeEphemerals: (ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string) => Promise<void>;
 }

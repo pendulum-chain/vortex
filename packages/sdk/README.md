@@ -5,7 +5,7 @@ A stateless SDK that abstracts Vortex's API and ephemeral key handling for cross
 ## Installation
 
 ```bash
-npm install @packages/vortex-signer
+npm install @vortexfi/sdk
 ```
 
 ## Quick Start

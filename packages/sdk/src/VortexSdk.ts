@@ -7,7 +7,7 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 import { Networks, signUnsignedTransactions } from "@packages/shared";
-import { appendFile, writeFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
 import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
@@ -116,6 +116,42 @@ export class VortexSdk {
     throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
+  public async storeEphemerals(ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string): Promise<void> {
+    if (!this.storeEphemeralKeys) {
+      return;
+    }
+
+    for (const network of Object.keys(ephemerals) as Networks[]) {
+      const ephemeral = ephemerals[network];
+      if (ephemeral) {
+        const { address, secret } = ephemeral;
+        const fileName = `${network}_ephemeral_key.json`;
+        const newKey = { address, rampId, secret };
+
+        try {
+          let existingKeys: { rampId: string; address: string; secret: string }[] = [];
+          try {
+            const data = await readFile(fileName, "utf-8");
+            if (data) {
+              existingKeys = JSON.parse(data);
+            }
+          } catch (readError: any) {
+            if (readError.code !== "ENOENT") {
+              console.error(`Error reading ephemeral key file for ${network}:`, readError);
+              continue;
+            }
+          }
+
+          existingKeys.push(newKey);
+          const fileContent = JSON.stringify(existingKeys, null, 2);
+          await writeFile(fileName, fileContent, "utf-8");
+        } catch (writeError) {
+          console.error(`Error writing ephemeral key for ${network} to file:`, writeError);
+        }
+      }
+    }
+  }
+
   private async generateEphemerals(networks: Networks[]): Promise<{
     ephemerals: { [key in Networks]?: EphemeralAccount };
     accountMetas: AccountMeta[];
@@ -148,18 +184,6 @@ export class VortexSdk {
             address: ephemeral.address,
             network
           });
-
-          if (this.storeEphemeralKeys) {
-            const { address, secret: privateKey } = ephemeral;
-            const fileName = `${network}_ephemeral_key.json`;
-            const fileContent = JSON.stringify({ address, privateKey }, null, 2) + "\n";
-
-            try {
-              await appendFile(fileName, fileContent, "utf-8");
-            } catch (writeError) {
-              console.error(`Error writing ephemeral key for ${network} to file:`, writeError);
-            }
-          }
         }
       } catch (error) {
         throw new EphemeralGenerationError(network, error as Error);
