@@ -7,6 +7,7 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 import { Networks, signUnsignedTransactions } from "@packages/shared";
+import { appendFile, writeFile } from "fs/promises";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
 import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
@@ -25,10 +26,12 @@ export class VortexSdk {
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private initializationPromise: Promise<void>;
+  private storeEphemeralKey: boolean;
 
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
+    this.storeEphemeralKey = config.storeEphemeralKey ?? false;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -122,30 +125,41 @@ export class VortexSdk {
 
     for (const network of networks) {
       try {
+        let ephemeral: EphemeralAccount | undefined;
         switch (network) {
           case Networks.Stellar:
-            ephemerals[Networks.Stellar] = createStellarEphemeral();
-            accountMetas.push({
-              address: ephemerals[Networks.Stellar]!.address,
-              network: Networks.Stellar
-            });
+            ephemeral = createStellarEphemeral();
+            ephemerals[Networks.Stellar] = ephemeral;
             break;
           case Networks.Pendulum:
-            ephemerals[Networks.Pendulum] = createPendulumEphemeral();
-            accountMetas.push({
-              address: ephemerals[Networks.Pendulum]!.address,
-              network: Networks.Pendulum
-            });
+            ephemeral = createPendulumEphemeral();
+            ephemerals[Networks.Pendulum] = ephemeral;
             break;
           case Networks.Moonbeam:
-            ephemerals[Networks.Moonbeam] = createMoonbeamEphemeral();
-            accountMetas.push({
-              address: ephemerals[Networks.Moonbeam]!.address,
-              network: Networks.Moonbeam
-            });
+            ephemeral = createMoonbeamEphemeral();
+            ephemerals[Networks.Moonbeam] = ephemeral;
             break;
           default:
             console.warn(`Ephemeral generation not implemented for network: ${network}`);
+        }
+
+        if (ephemeral) {
+          accountMetas.push({
+            address: ephemeral.address,
+            network
+          });
+
+          if (this.storeEphemeralKey) {
+            const { address, secret: privateKey } = ephemeral;
+            const fileName = `${network}_ephemeral_key.json`;
+            const fileContent = JSON.stringify({ address, privateKey }, null, 2) + "\n";
+
+            try {
+              await appendFile(fileName, fileContent, "utf-8");
+            } catch (writeError) {
+              console.error(`Error writing ephemeral key for ${network} to file:`, writeError);
+            }
+          }
         }
       } catch (error) {
         throw new EphemeralGenerationError(network, error as Error);

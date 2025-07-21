@@ -51,14 +51,9 @@ async function runBrlOnrampExample() {
     }
     // Step 4: Start the BRL onramp process AFTER PAYMENT
     console.log("📝 Step 4: Starting BRL onramp...");
-    //const startedRamp = await sdk.startBrlOnramp(registeredRamp.id);
 
-    // Step 5: Monitor ramp status (optional)
-    // console.log('📝 Step 5: Checking ramp status...');
-    // const rampStatus = await sdk.getRampStatus(startedRamp.id);
-    // console.log('✅ Current ramp status:');
-    // console.log(`   Phase: ${rampStatus.currentPhase}`);
-    // console.log(`   Unsigned transactions: ${rampStatus.unsignedTxs.length}`);
+    // Ensure making the payment BEFORE starting the ramp
+    //const startedRamp = await sdk.startBrlOnramp(registeredRamp.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 
