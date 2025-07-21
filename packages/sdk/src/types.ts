@@ -10,6 +10,8 @@ import type {
 
 export type { PaymentMethod };
 
+export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
+
 export type BrlOnrampQuote = QuoteResponse & {
   rampType: "on";
   from: "pix";
@@ -30,8 +32,6 @@ export type EurOfframpQuote = QuoteResponse & {
   to: "sepa";
 };
 
-export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
-
 export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
   ? BrlOnrampQuote
   : T extends { rampType: "on"; from: "sepa" }
@@ -40,7 +40,16 @@ export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { ra
       ? BrlOfframpQuote
       : T extends { rampType: "off"; to: "sepa" }
         ? EurOfframpQuote
-        : never;
+        : AnyQuote;
+
+export type AnyAdditionalData =
+  | BrlOfframpAdditionalData
+  | EurOfframpAdditionalData
+  | BrlOnrampAdditionalData
+  | EurOnrampAdditionalData
+  | EurOnrampUpdateAdditionalData
+  | EurOfframpUpdateAdditionalData
+  | BrlOfframpUpdateAdditionalData;
 
 export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? BrlOnrampAdditionalData
@@ -50,7 +59,7 @@ export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlO
       ? BrlOfframpAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpAdditionalData
-        : never;
+        : AnyAdditionalData;
 
 export interface BrlOnrampAdditionalData {
   destinationAddress: string;
@@ -79,7 +88,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnr
       ? BrlOfframpUpdateAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpUpdateAdditionalData
-        : never;
+        : AnyAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
   squidRouterApproveHash: string;

@@ -19,6 +19,7 @@ import type {
   UpdateRampAdditionalData,
   VortexSdkConfig
 } from "./types";
+
 export class VortexSdk {
   private apiService: ApiService;
   private networkManager: NetworkManager;
