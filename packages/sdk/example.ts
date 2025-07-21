@@ -8,11 +8,13 @@ async function runBrlOnrampExample() {
 
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
-      apiBaseUrl: "http://localhost:3000"
+      apiBaseUrl: "http://localhost:3000",
       // Optional: provide custom WebSocket URLs
-      // pendulumWsUrl: 'wss://custom-pendulum-rpc.com',
-      // moonbeamWsUrl: 'wss://custom-moonbeam-rpc.com',
-      // autoReconnect: true, // default is true
+      moonbeamWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
+      pendulumWsUrl: undefined,  // 'wss://custom-pendulum-rpc.com',
+      autoReconnect: true, // default is `true`
+      // Optional: store ephemeral keys for later use
+      storeEphemeralKeys: false // default is `false`
     };
 
     const sdk = new VortexSdk(config);

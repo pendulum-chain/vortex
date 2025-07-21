@@ -26,12 +26,12 @@ export class VortexSdk {
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private initializationPromise: Promise<void>;
-  private storeEphemeralKey: boolean;
+  private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
-    this.storeEphemeralKey = config.storeEphemeralKey ?? false;
+    this.storeEphemeralKeys = config.storeEphemeralKeys ?? false;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -149,7 +149,7 @@ export class VortexSdk {
             network
           });
 
-          if (this.storeEphemeralKey) {
+          if (this.storeEphemeralKeys) {
             const { address, secret: privateKey } = ephemeral;
             const fileName = `${network}_ephemeral_key.json`;
             const fileContent = JSON.stringify({ address, privateKey }, null, 2) + "\n";

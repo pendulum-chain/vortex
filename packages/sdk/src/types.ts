@@ -135,7 +135,7 @@ export interface VortexSdkConfig {
   moonbeamWsUrl?: string;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
-  storeEphemeralKey?: boolean;
+  storeEphemeralKeys?: boolean;
 }
 
 // Handler interface for ramp-specific operations
