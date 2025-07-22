@@ -7,12 +7,12 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 import { Networks, signUnsignedTransactions } from "@packages/shared";
-import { readFile, writeFile } from "fs/promises";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
 import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
+import { retrieveEphemeralKeys, storeEphemeralKeys } from "./storage";
 import type {
   BrlOnrampAdditionalData,
   ExtendedQuoteResponse,
@@ -125,28 +125,15 @@ export class VortexSdk {
       const ephemeral = ephemerals[network];
       if (ephemeral) {
         const { address, secret } = ephemeral;
-        const fileName = `${network}_ephemeral_key.json`;
+        const key = `${network}_ephemeral_key`;
         const newKey = { address, rampId, secret };
 
         try {
-          let existingKeys: { rampId: string; address: string; secret: string }[] = [];
-          try {
-            const data = await readFile(fileName, "utf-8");
-            if (data) {
-              existingKeys = JSON.parse(data);
-            }
-          } catch (readError: any) {
-            if (readError.code !== "ENOENT") {
-              console.error(`Error reading ephemeral key file for ${network}:`, readError);
-              continue;
-            }
-          }
-
+          const existingKeys = (await retrieveEphemeralKeys(key)) || [];
           existingKeys.push(newKey);
-          const fileContent = JSON.stringify(existingKeys, null, 2);
-          await writeFile(fileName, fileContent, "utf-8");
-        } catch (writeError) {
-          console.error(`Error writing ephemeral key for ${network} to file:`, writeError);
+          await storeEphemeralKeys(key, existingKeys);
+        } catch (error) {
+          console.error(`Error storing ephemeral key for ${network}:`, error);
         }
       }
     }

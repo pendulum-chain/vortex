@@ -9,8 +9,16 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
+      "import": {
+        "browser": "./dist/browser/index.js",
+        "default": "./dist/browser/index.js",
+        "node": "./dist/node/index.js"
+      },
+      "require": {
+        "browser": "./dist/browser/index.cjs",
+        "default": "./dist/browser/index.cjs",
+        "node": "./dist/node/index.cjs"
+      },
       "types": "./dist/index.d.ts"
     },
     "./package.json": "./package.json"
@@ -19,15 +27,17 @@
     "dist",
     "README.md"
   ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
+  "main": "./dist/browser/index.js",
+  "module": "./dist/browser/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
     "typescript": "^5"
   },
   "scripts": {
     "build": "bun run clean && bun run build:types && bun run build:js",
-    "build:js": "bun build ./src/index.ts --outdir ./dist --target=browser --sourcemap=external",
+    "build:js": "bun run build:js:node && bun run build:js:browser",
+    "build:js:browser": "bun build ./src/index.ts --outdir ./dist/browser --target=browser --sourcemap=external",
+    "build:js:node": "bun build ./src/index.ts --outdir ./dist/node --target=node --sourcemap=external",
     "build:types": "tsc -p tsconfig.json",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
@@ -39,5 +49,5 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.1.5"
+  "version": "0.1.6"
 }
