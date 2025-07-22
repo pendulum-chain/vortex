@@ -1,11 +1,8 @@
 {
-  "dependencies": {
-    "@polkadot/api": "^16.4.1",
-    "stellar-sdk": "^13.3.0",
-    "viem": "^2.31.7"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
   },
   "exports": {
     ".": {
@@ -31,13 +28,15 @@
   "module": "./dist/browser/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
-    "typescript": "^5"
+    "@polkadot/api": "^16.4.1",
+    "stellar-sdk": "^13.3.0",
+    "viem": "^2.31.7"
   },
   "scripts": {
     "build": "bun run clean && bun run build:types && bun run build:js",
     "build:js": "bun run build:js:node && bun run build:js:browser",
-    "build:js:browser": "bun build ./src/index.ts --outdir ./dist/browser --target=browser --sourcemap=external",
-    "build:js:node": "bun build ./src/index.ts --outdir ./dist/node --target=node --sourcemap=external",
+    "build:js:browser": "bun build ./src/index.ts --outdir ./dist/browser --target=browser --sourcemap=external --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
+    "build:js:node": "bun build ./src/index.ts --outdir ./dist/node --target=node --sourcemap=external --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
     "build:types": "tsc -p tsconfig.json",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
@@ -49,5 +48,5 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.1.7"
+  "version": "0.1.9"
 }
