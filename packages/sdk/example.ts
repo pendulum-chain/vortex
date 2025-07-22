@@ -9,10 +9,10 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
       apiBaseUrl: "http://localhost:3000",
+      autoReconnect: true, // 'wss://custom-moonbeam-rpc.com',
       // Optional: provide custom WebSocket URLs
-      moonbeamWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
-      pendulumWsUrl: undefined,  // 'wss://custom-pendulum-rpc.com',
-      autoReconnect: true, // default is `true`
+      moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',
+      pendulumWsUrl: undefined, // default is `true`
       // Optional: store ephemeral keys for later use
       storeEphemeralKeys: false // default is `false`
     };
@@ -55,7 +55,7 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 4: Starting BRL onramp...");
 
     // Ensure making the payment BEFORE starting the ramp
-    //const startedRamp = await sdk.startBrlOnramp(registeredRamp.id);
+    const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 

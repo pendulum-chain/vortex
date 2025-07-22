@@ -2,6 +2,10 @@
 
 A stateless SDK that abstracts Vortex's API and ephemeral key handling for cross-chain ramp operations.
 
+## Environment Support
+
+This SDK is and can be used in both **Node.js** and **browser** environments.
+
 ## Installation
 
 ```bash
@@ -11,17 +15,18 @@ npm install @vortexfi/sdk
 ## Quick Start
 
 ```typescript
-import { VortexSdk, Networks, FiatToken, EvmToken } from "@packages/vortex-signer";
-import type { VortexSdkConfig, BrlaOnrampAdditionalData, DestinationType } from "@packages/vortex-signer";
+import {  VortexSdk } from "@vortexfi/sdk";
+import { FiatToken, EvmToken, Networks} from "@vortexfi/sdk";
+import type { VortexSdkConfig } from "@vortexfi/sdk";
 
 const config: VortexSdkConfig = {
   apiBaseUrl: "http://localhost:3000",
 };
 
-const signer = new VortexSdk(config);
+const sdk = new VortexSdk(config);
 
 const quoteRequest = {
-  from: "pix" as DestinationType,
+  from: "pix" as const,
   inputAmount: "150000",
   inputCurrency: FiatToken.BRL,
   outputCurrency: EvmToken.USDC,
@@ -29,21 +34,21 @@ const quoteRequest = {
   to: Networks.Polygon,
 };
 
-const quote = await signer.createQuote(quoteRequest);
+const quote = await sdk.createQuote(quoteRequest);
 
-const brlaOnrampData: BrlaOnrampAdditionalData = {
+const brlOnrampData = {
   destinationAddress: "0x1234567890123456789012345678901234567890",
-  taxId: "",
+  taxId: "123.456.789-00"
 };
 
-const registeredRamp = await signer.registerBrlaOnramp(quote.id, brlaOnrampData);
+const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
 
-// Do the payment
-const startedRamp = await signer.startBrlaOnramp(registeredRamp.id);
+// Do the FIAT payment, then start the ramp.
+const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
 ```
 
 ## Core Features
-- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. 
+- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or in `localStorage` in the browser.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
 
 ## API Reference
@@ -67,11 +72,11 @@ Retrieves an existing quote by ID.
 ##### `getRampStatus(rampId: string): Promise<RampProcess>`
 Gets the current status of a ramp process.
 
-##### `registerBrlaOnramp(quoteId: string, additionalData: BrlaOnrampAdditionalData): Promise<RampProcess>`
-Registers a new BRLA onramp process.
+##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess>`
+Registers a new onramp process.
 
-##### `startBrlaOnramp(rampId: string): Promise<RampProcess>`
-Starts a registered BRLA onramp process.
+##### `startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess>`
+Starts a registered onramp process.
 
 ## Configuration
 
@@ -82,6 +87,7 @@ interface VortexSdkConfig {
   moonbeamWsUrl?: string;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
+  storeEphemeralKeys?: boolean;
 }
 ```
 
