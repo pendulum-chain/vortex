@@ -81,7 +81,7 @@ export class QuoteService extends BaseRampService {
       request.rampType,
       request.from,
       request.to,
-      request.partnerId
+      partner?.id || undefined
     );
 
     // c. Calculate inputAmountForNablaSwap
@@ -257,7 +257,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       outputAmountOfframp,
       outputCurrency: request.outputCurrency,
-      partnerName: request.partnerId,
+      partnerName: partner?.id || undefined,
       rampType: request.rampType,
       to: request.to
     });
