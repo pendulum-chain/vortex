@@ -4,7 +4,7 @@ A stateless SDK that abstracts Vortex's API and ephemeral key handling for cross
 
 ## Environment Support
 
-This SDK is and can be used in both **Node.js** and **browser** environments.
+This SDK is currently working only on **Node.js** environment.
 
 ## Installation
 
@@ -53,7 +53,7 @@ const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
 ```
 
 ## Core Features
-- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or in `localStorage` in the browser.
+- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
 
 ## API Reference
