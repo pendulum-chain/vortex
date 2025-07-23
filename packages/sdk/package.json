@@ -25,6 +25,11 @@
     "stellar-sdk": "^13.3.0",
     "viem": "^2.31.7"
   },
+  "repository": {
+    "directory": "packages/sdk",
+    "type": "git",
+    "url": "https://github.com/pendulum-chain/vortex.git"
+  },
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
