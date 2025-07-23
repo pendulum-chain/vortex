@@ -12,7 +12,6 @@ import { RampService } from "../../services/api";
 import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
 import { getMessageForPhase } from "./phaseMessages";
 
-// Unified phase duration mapping for all phases
 const PHASE_DURATIONS: Record<RampPhase, number> = {
   assethubToPendulum: 24,
   brlaPayoutOnMoonbeam: 30,
@@ -41,7 +40,37 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   timedOut: 0
 };
 
-const PHASE_FLOWS = {
+export const PHASE_FLOWS = {
+  assethub_offramp_through_stellar: [
+    "initial",
+    "fundEphemeral",
+    "assethubToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  evm_offramp_through_stellar: [
+    "initial",
+    "fundEphemeral",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
   offramp_brl: [
     "initial",
     "fundEphemeral",
@@ -54,21 +83,6 @@ const PHASE_FLOWS = {
     "spacewalkRedeem",
     "stellarPayment",
     "brlaPayoutOnMoonbeam",
-    "distributeFees",
-    "complete"
-  ] as RampPhase[],
-
-  offramp_default: [
-    "initial",
-    "fundEphemeral",
-    "moonbeamToPendulum",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "subsidizePostSwap",
-    "assethubToPendulum",
-    "spacewalkRedeem",
-    "stellarPayment",
     "distributeFees",
     "complete"
   ] as RampPhase[],
@@ -89,22 +103,7 @@ const PHASE_FLOWS = {
     "complete"
   ] as RampPhase[],
 
-  onramp_default: [
-    "initial",
-    "fundEphemeral",
-    "moonbeamToPendulumXcm",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "subsidizePostSwap",
-    "squidRouterApprove",
-    "squidRouterPay",
-    "squidRouterSwap",
-    "distributeFees",
-    "complete"
-  ] as RampPhase[],
-
-  onramp_eurc: [
+  onramp_eur: [
     "initial",
     "moneriumOnrampMint",
     "moneriumOnrampSelfTransfer",
@@ -115,27 +114,31 @@ const PHASE_FLOWS = {
   ] as RampPhase[]
 };
 
-/**
- * Determine which phase flow is being used based on ramp state
- */
 function getRampFlow(rampState: ReturnType<typeof useRampState>): keyof typeof PHASE_FLOWS {
   if (!rampState?.ramp) {
-    return "onramp_default";
+    return "onramp_eur";
   }
 
   const { type } = rampState.ramp;
-
   const currentPhase = rampState.ramp.currentPhase;
 
   if (type === "on") {
     if (currentPhase === "moneriumOnrampMint" || currentPhase === "moneriumOnrampSelfTransfer") {
-      return "onramp_eurc";
+      return "onramp_eur";
     } else if (currentPhase === "brlaTeleport") {
       return "onramp_brl";
     }
-    return "onramp_default";
+    return "onramp_eur";
   } else {
-    return "offramp_default";
+    if (currentPhase === "brlaPayoutOnMoonbeam") {
+      return "offramp_brl";
+    }
+
+    if (currentPhase === "assethubToPendulum" || currentPhase === "pendulumToAssethub") {
+      return "assethub_offramp_through_stellar";
+    }
+
+    return "evm_offramp_through_stellar";
   }
 }
 
@@ -353,7 +356,6 @@ export const ProgressPage = () => {
   const { setRampState } = useRampActions();
   const { t } = useTranslation();
 
-  // Get the appropriate phase flow and calculate progress based on it
   const flowType = getRampFlow(rampState);
   const phaseSequence = PHASE_FLOWS[flowType];
   const numberOfPhases = phaseSequence.length;
@@ -375,17 +377,14 @@ export const ProgressPage = () => {
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
   useEffect(() => {
-    // Only set up the polling if we have a ramp ID
     if (!rampState?.ramp?.id) return;
 
-    // Extract the ramp ID once to avoid dependency on the entire rampState object
     const rampId = rampState.ramp.id;
 
     const fetchRampState = async () => {
       try {
         const updatedRampProcess = await RampService.getRampStatus(rampId);
 
-        // Get the latest rampState from the store to ensure we're using current data
         const currentRampState = useRampStore.getState().rampState;
         if (currentRampState) {
           const updatedRampState = {
@@ -411,15 +410,12 @@ export const ProgressPage = () => {
       }
     };
 
-    // Initial fetch
     fetchRampState();
 
-    // Set up polling
     const intervalId = setInterval(fetchRampState, 5000);
 
-    // Clean up
     return () => clearInterval(intervalId);
-  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent]); // Only depend on the ramp ID, not the entire state
+  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent]);
 
   return (
     <main>
