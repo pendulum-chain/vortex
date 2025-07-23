@@ -43,7 +43,12 @@ const brlOnrampData = {
 
 const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
 
-// Do the FIAT payment, then start the ramp.
+// Make the FIAT payment.
+// The sdk will provide the information to make the payment.
+const { depositQrCode } = registeredRamp
+console.log("Please do the pix transfer using the following code: ", brCode)
+
+//Once the payment is done, start the ramp.
 const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
 ```
 
