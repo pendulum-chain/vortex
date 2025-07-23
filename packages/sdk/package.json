@@ -6,16 +6,9 @@
   },
   "exports": {
     ".": {
-      "import": {
-        "browser": "./dist/browser/index.js",
-        "default": "./dist/browser/index.js",
-        "node": "./dist/node/index.js"
-      },
-      "require": {
-        "browser": "./dist/browser/index.cjs",
-        "default": "./dist/browser/index.cjs",
-        "node": "./dist/node/index.cjs"
-      },
+      "browser": "./dist/browser/index.js",
+      "default": "./dist/browser/index.js",
+      "node": "./dist/node/index.js",
       "types": "./dist/index.d.ts"
     },
     "./package.json": "./package.json"
@@ -33,11 +26,9 @@
     "viem": "^2.31.7"
   },
   "scripts": {
-    "build": "bun run clean && bun run build:types && bun run build:js",
-    "build:js": "bun run build:js:node && bun run build:js:browser",
-    "build:js:browser": "bun build ./src/index.ts --outdir ./dist/browser --target=browser --sourcemap=external --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
-    "build:js:node": "bun build ./src/index.ts --outdir ./dist/node --target=node --sourcemap=external --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
-    "build:types": "tsc -p tsconfig.json",
+    "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
+    "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
+    "build": "rm -rf ./dist && tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist/browser --target=browser --format=esm --minify --splitting --tree-shaking --sourcemap=external --drop=console --drop=debugger --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\" && bun build ./src/index.ts --outdir ./dist/node --target=node --format=esm --minify --splitting --tree-shaking --sourcemap=external --drop=console --drop=debugger --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
     "format": "prettier --write .",
@@ -48,5 +39,5 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.1.9"
+  "version": "0.1.10"
 }
