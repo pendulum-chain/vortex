@@ -1,7 +1,7 @@
 
 ## Overview
 
-The Vortex Signer is an SDK that abstracts Vortex's API and ephemeral key handling into a self-contained package. It provides a clean interface for creating quotes, registering ramps, and managing the signing process for cross-chain transactions.
+The Vortex SDK abstracts Vortex's API and ephemeral key handling into a self-contained package. It provides a clean interface for creating quotes, registering ramps, and managing the signing process for cross-chain transactions.
 
 ## Core Components
 

@@ -1,4 +1,4 @@
-# Vortex Signer
+# Vortex SDK
 
 A stateless SDK that abstracts Vortex's API and ephemeral key handling for cross-chain ramp operations.
 
