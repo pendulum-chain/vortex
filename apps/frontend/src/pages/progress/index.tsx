@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { isNetworkEVM, RampPhase } from "@packages/shared";
+import { FiatToken, isNetworkEVM, Networks, RampPhase } from "@packages/shared";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { useNetwork } from "../../contexts/network";
 import { GotQuestions } from "../../sections";
 import { RampService } from "../../services/api";
 import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
+import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
@@ -74,12 +75,11 @@ export const PHASE_FLOWS = {
   offramp_brl: [
     "initial",
     "fundEphemeral",
-    "moonbeamToPendulum",
+    "moonbeamToPendulum", // or "assethubToPendulum",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
     "subsidizePostSwap",
-    "assethubToPendulum",
     "spacewalkRedeem",
     "stellarPayment",
     "brlaPayoutOnMoonbeam",
@@ -114,32 +114,43 @@ export const PHASE_FLOWS = {
   ] as RampPhase[]
 };
 
-function getRampFlow(rampState: ReturnType<typeof useRampState>): keyof typeof PHASE_FLOWS {
-  if (!rampState?.ramp) {
-    return "onramp_eur";
+function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS | null {
+  if (!rampState || !rampState.ramp) {
+    return null;
   }
 
-  const { type } = rampState.ramp;
+  const { type, from } = rampState.ramp;
   const currentPhase = rampState.ramp.currentPhase;
 
   if (type === "on") {
-    if (currentPhase === "moneriumOnrampMint" || currentPhase === "moneriumOnrampSelfTransfer") {
-      return "onramp_eur";
-    } else if (currentPhase === "brlaTeleport") {
+    if (
+      currentPhase === "brlaTeleport" ||
+      rampState.quote?.outputCurrency === FiatToken.BRL ||
+      rampState.quote?.inputCurrency === FiatToken.BRL
+    ) {
       return "onramp_brl";
     }
+
+    if (
+      currentPhase === "moneriumOnrampMint" ||
+      currentPhase === "moneriumOnrampSelfTransfer" ||
+      rampState.quote?.inputCurrency === FiatToken.EURC
+    ) {
+      return "onramp_eur";
+    }
+
     return "onramp_eur";
-  } else {
-    if (currentPhase === "brlaPayoutOnMoonbeam") {
-      return "offramp_brl";
-    }
-
-    if (currentPhase === "assethubToPendulum" || currentPhase === "pendulumToAssethub") {
-      return "assethub_offramp_through_stellar";
-    }
-
-    return "evm_offramp_through_stellar";
   }
+
+  if (currentPhase === "brlaPayoutOnMoonbeam" || rampState.quote?.outputCurrency === FiatToken.BRL) {
+    return "offramp_brl";
+  }
+
+  if (from === Networks.AssetHub) {
+    return "assethub_offramp_through_stellar";
+  }
+
+  return "evm_offramp_through_stellar";
 }
 
 const useProgressUpdate = (
@@ -356,17 +367,17 @@ export const ProgressPage = () => {
   const { setRampState } = useRampActions();
   const { t } = useTranslation();
 
-  const flowType = getRampFlow(rampState);
-  const phaseSequence = PHASE_FLOWS[flowType];
-  const numberOfPhases = phaseSequence.length;
-
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
-  const currentPhaseIndex = phaseSequence.indexOf(currentPhase);
-  const message = getMessageForPhase(rampState, t);
+
+  const flowType = getRampFlow(rampState);
+
+  const phaseSequence = flowType ? PHASE_FLOWS[flowType] : [];
+  const numberOfPhases = phaseSequence.length || 1;
+  const currentPhaseIndex = flowType ? phaseSequence.indexOf(currentPhase) : -1;
+  const message = flowType ? getMessageForPhase(rampState, t) : "";
 
   const showIsDelayedWarning = useMemo(() => {
-    // Check if the ramp was created more than 10 minutes ago and is not in the 'complete' phase
     if (rampState?.ramp?.createdAt && rampState?.ramp?.currentPhase !== "complete") {
       const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
@@ -377,7 +388,7 @@ export const ProgressPage = () => {
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
   useEffect(() => {
-    if (!rampState?.ramp?.id) return;
+    if (!rampState?.ramp?.id || !flowType) return;
 
     const rampId = rampState.ramp.id;
 
@@ -415,7 +426,7 @@ export const ProgressPage = () => {
     const intervalId = setInterval(fetchRampState, 5000);
 
     return () => clearInterval(intervalId);
-  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent]);
+  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent, flowType]);
 
   return (
     <main>
