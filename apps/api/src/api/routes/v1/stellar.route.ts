@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as stellarController from "../../controllers/stellar.controller";
 import { getMemoFromCookiesMiddleware } from "../../middlewares/auth";
-import { validateChangeOpInput, validateCreationInput, validateSep10Input } from "../../middlewares/validators";
+import { validateCreationInput, validateSep10Input } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 

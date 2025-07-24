@@ -5,14 +5,15 @@ import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
+import { PhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { EvmClientManager } from "../../evm/clientManager";
 import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
 import { ApiManager } from "../../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
-
 import {
   horizonServer,
   isMoonbeamEphemeralFunded,
@@ -21,6 +22,16 @@ import {
   isStellarEphemeralFunded,
   NETWORK_PASSPHRASE
 } from "./helpers";
+
+export function isStellarNetworkError(error: unknown): error is NetworkError {
+  return (
+    error instanceof Error &&
+    "response" in error &&
+    error.response !== null &&
+    typeof error.response === "object" &&
+    "data" in error.response
+  );
+}
 
 function isOnramp(state: RampState): boolean {
   return state.type === "on";
@@ -114,6 +125,12 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       console.error("Error in FundEphemeralPhaseHandler:", e);
+
+      // Preserve UnrecoverablePhaseError
+      if (e instanceof UnrecoverablePhaseError) {
+        throw e;
+      }
+
       const recoverableError = this.createRecoverableError("Error funding ephemeral account");
       throw recoverableError;
     }
@@ -155,23 +172,46 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`
       );
       await horizonServer.submitTransaction(stellarCreationTransaction);
-    } catch (e) {
-      const horizonError = e as NetworkError;
-      if (horizonError.response.data?.status === 400) {
-        logger.info(
-          `Could not submit the stellar account creation transaction ${JSON.stringify(
-            horizonError.response.data.extras.result_codes
-          )}`
-        );
 
-        // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
-        if (horizonError.response.data.extras.result_codes.transaction === "tx_bad_seq") {
-          logger.info("Recovery mode: Creation already performed.");
+      logger.info("Validating stellar payment sequence number after account creation");
+      try {
+        await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+      } catch (validationError) {
+        logger.error(`Stellar payment sequence validation failed after account creation: ${validationError}`);
+        throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation");
+      }
+    } catch (e) {
+      if (e instanceof UnrecoverablePhaseError) {
+        throw e;
+      }
+
+      // when validateStellarPaymentSequenceNumber throws an error, it's not NetworkError
+      if (isStellarNetworkError(e)) {
+        if (e.response.data?.status === 400) {
+          logger.info(
+            `Could not submit the stellar account creation transaction ${JSON.stringify(e.response.data.extras.result_codes)}`
+          );
+
+          // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
+          if (e.response.data.extras.result_codes.transaction === "tx_bad_seq") {
+            logger.info("Recovery mode: Creation already performed.");
+
+            try {
+              logger.info("Validating stellar payment sequence number in recovery mode");
+              await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
+            } catch (validationError) {
+              logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
+              throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation recovery");
+            }
+          }
+          logger.error(`Could not submit the stellar creation transaction: ${e.response.data.extras}`);
+          throw new Error("Could not submit the stellar creation transaction");
+        } else {
+          logger.error(`Could not submit the stellar creation transaction: ${e.response.data}`);
+          throw new Error("Could not submit the stellar creation transaction");
         }
-        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data.extras}`);
-        throw new Error("Could not submit the stellar creation transaction");
       } else {
-        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data}`);
+        logger.error(`Error in stellar account creation: ${e}`);
         throw new Error("Could not submit the stellar creation transaction");
       }
     }
