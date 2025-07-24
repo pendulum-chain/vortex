@@ -25,7 +25,7 @@
   },
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig.cjs.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.json",
     "format": "prettier . --write",
