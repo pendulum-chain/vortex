@@ -3,6 +3,8 @@ import {
   EvmToken,
   EvmTokenDetails,
   FiatToken,
+  FiatTokenDetails,
+  getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   isAssetHubTokenDetails,
@@ -67,6 +69,18 @@ export class QuoteService extends BaseRampService {
       // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
       if (!partner) {
         logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
+      }
+    }
+
+    if (request.rampType === "on") {
+      const fromTokenDetails = getAnyFiatTokenDetails(request.inputCurrency as FiatToken);
+      const maxAmountUnits = multiplyByPowerOfTen(Big(fromTokenDetails.maxWithdrawalAmountRaw), -fromTokenDetails.decimals);
+
+      if (Big(request.inputAmount).gt(maxAmountUnits)) {
+        throw new APIError({
+          message: `Input amount exceeds maximum buy limit of ${maxAmountUnits.toFixed(2)} ${fromTokenDetails.fiat.symbol}`,
+          status: httpStatus.BAD_REQUEST
+        });
       }
     }
 
@@ -243,6 +257,18 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
+    if (request.rampType === "off") {
+      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
+      const maxAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.maxWithdrawalAmountRaw), -toTokenDetails.decimals);
+
+      if (nablaSwapResult.nablaOutputAmountDecimal.gt(maxAmountUnits)) {
+        throw new APIError({
+          message: `Output amount exceeds maximum sell limit of ${maxAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
@@ -380,6 +406,28 @@ export class QuoteService extends BaseRampService {
         message: "Input amount too low to cover calculated fees.",
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    if (request.rampType === "on") {
+      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
+      const minAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.minWithdrawalAmountRaw), -toTokenDetails.decimals);
+
+      if (finalNetOutputAmount.lt(minAmountUnits)) {
+        throw new APIError({
+          message: `Output amount below minimum buy limit of ${minAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    } else {
+      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
+      const minAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.minWithdrawalAmountRaw), -toTokenDetails.decimals);
+
+      if (finalNetOutputAmount.lt(minAmountUnits)) {
+        throw new APIError({
+          message: `Output amount below minimum sell limit of ${minAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
     }
 
     const finalNetOutputAmountStr =
