@@ -94,7 +94,12 @@ export const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitte
           {visibleStars.map((ratingValue, index) => (
             <motion.input
               animate={getStarState(ratingValue)}
-              className={cn("mask mask-star-2 bg-orange-400", !isFormSubmitted && "cursor-pointer", index !== 0 && "mr-2.5")}
+              className={cn(
+                "mask mask-star-2 bg-orange-400",
+                !isFormSubmitted && "cursor-pointer",
+                index !== 0 && "mr-2.5",
+                isFormSubmitted ? "pointer-events-none" : "pointer-events-auto"
+              )}
               exit="exit"
               initial="initial"
               key={`star-${ratingValue}`}
@@ -103,9 +108,6 @@ export const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitte
               onClick={() => handleStarClick(ratingValue)}
               onMouseEnter={() => !isFormSubmitted && setHoveredRating(ratingValue)}
               onMouseLeave={() => !isFormSubmitted && setHoveredRating(null)}
-              style={{
-                pointerEvents: isFormSubmitted ? "none" : "auto"
-              }}
               type="radio"
               value={ratingValue}
               variants={starVariants}
