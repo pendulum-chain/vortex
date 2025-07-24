@@ -374,7 +374,7 @@ export const ProgressPage = () => {
 
   const phaseSequence = flowType ? PHASE_FLOWS[flowType] : [];
   const numberOfPhases = phaseSequence.length || 1;
-  const currentPhaseIndex = flowType ? phaseSequence.indexOf(currentPhase) : -1;
+  const currentPhaseIndex = flowType ? phaseSequence.indexOf(currentPhase) : 0;
   const message = flowType ? getMessageForPhase(rampState, t) : "";
 
   const showIsDelayedWarning = useMemo(() => {
@@ -407,9 +407,10 @@ export const ProgressPage = () => {
 
         const maybeNewPhase = updatedRampProcess.currentPhase;
         if (maybeNewPhase !== prevPhaseRef.current) {
+          const phaseIndex = phaseSequence.indexOf(maybeNewPhase);
           trackEvent({
             event: "progress",
-            phase_index: phaseSequence.indexOf(maybeNewPhase),
+            phase_index: phaseIndex >= 0 ? phaseIndex : 0,
             phase_name: maybeNewPhase
           });
 
