@@ -3,8 +3,6 @@ import {
   EvmToken,
   EvmTokenDetails,
   FiatToken,
-  FiatTokenDetails,
-  getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   isAssetHubTokenDetails,
@@ -31,6 +29,7 @@ import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
+import { validateAmountLimits } from "./validation-helpers";
 
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
@@ -73,15 +72,7 @@ export class QuoteService extends BaseRampService {
     }
 
     if (request.rampType === "on") {
-      const fromTokenDetails = getAnyFiatTokenDetails(request.inputCurrency as FiatToken);
-      const maxAmountUnits = multiplyByPowerOfTen(Big(fromTokenDetails.maxWithdrawalAmountRaw), -fromTokenDetails.decimals);
-
-      if (Big(request.inputAmount).gt(maxAmountUnits)) {
-        throw new APIError({
-          message: `Input amount exceeds maximum buy limit of ${maxAmountUnits.toFixed(2)} ${fromTokenDetails.fiat.symbol}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", "buy");
     }
 
     // Determine the target fiat currency for fees
@@ -258,15 +249,7 @@ export class QuoteService extends BaseRampService {
     });
 
     if (request.rampType === "off") {
-      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
-      const maxAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.maxWithdrawalAmountRaw), -toTokenDetails.decimals);
-
-      if (nablaSwapResult.nablaOutputAmountDecimal.gt(maxAmountUnits)) {
-        throw new APIError({
-          message: `Output amount exceeds maximum sell limit of ${maxAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      validateAmountLimits(nablaSwapResult.nablaOutputAmountDecimal, request.outputCurrency as FiatToken, "max", "sell");
     }
 
     // e. Calculate Full Fee Breakdown
@@ -409,25 +392,9 @@ export class QuoteService extends BaseRampService {
     }
 
     if (request.rampType === "on") {
-      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
-      const minAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.minWithdrawalAmountRaw), -toTokenDetails.decimals);
-
-      if (finalNetOutputAmount.lt(minAmountUnits)) {
-        throw new APIError({
-          message: `Output amount below minimum buy limit of ${minAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "buy");
     } else {
-      const toTokenDetails = getAnyFiatTokenDetails(request.outputCurrency as FiatToken);
-      const minAmountUnits = multiplyByPowerOfTen(Big(toTokenDetails.minWithdrawalAmountRaw), -toTokenDetails.decimals);
-
-      if (finalNetOutputAmount.lt(minAmountUnits)) {
-        throw new APIError({
-          message: `Output amount below minimum sell limit of ${minAmountUnits.toFixed(2)} ${toTokenDetails.fiat.symbol}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "sell");
     }
 
     const finalNetOutputAmountStr =
