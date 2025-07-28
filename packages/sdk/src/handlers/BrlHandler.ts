@@ -108,7 +108,7 @@ export class BrlHandler implements RampHandler {
 
   async registerBrlOfframp(quoteId: string, additionalData: BrlOfframpAdditionalData): Promise<RampProcess> {
     if (!additionalData.taxId) {
-      throw new Error("Tax ID is required for BRL onramp");
+      throw new Error("Tax ID is required for BRL offramps");
     }
 
     await this.validateBrlKyc(additionalData.taxId);
