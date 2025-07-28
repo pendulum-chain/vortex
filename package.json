@@ -1,8 +1,23 @@
 {
+  "catalog": {
+    "@pendulum-chain/types": "^1.1.1",
+    "@polkadot/api": "^13.2.1",
+    "@polkadot/types": "^13.2.1",
+    "@polkadot/types-codec": "^13.2.1",
+    "@polkadot/util": "^13.2.1",
+    "@polkadot/util-crypto": "^13.2.1",
+    "@types/big.js": "^6.2.2",
+    "@types/node": "^22.7.5",
+    "big.js": "^7.0.1",
+    "prettier": "^2.8.4",
+    "stellar-sdk": "^13.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2",
+    "viem": "^2.33.0"
+  },
   "dependencies": {
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.0",
-    "viem": "^2.33.0"
+    "lint-staged": "^16.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
