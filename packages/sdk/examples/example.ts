@@ -28,7 +28,7 @@ async function runBrlOnrampExample() {
       inputAmount: "1",
       inputCurrency: FiatToken.BRL,
       outputCurrency: EvmToken.USDC,
-      rampType: "off" as const,
+      rampType: "on" as const,
       to: Networks.Polygon
       //partnerId: "example-partner"
     };
