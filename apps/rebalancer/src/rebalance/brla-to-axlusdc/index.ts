@@ -60,11 +60,11 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   // Wait for 30 seconds to ensure the SquidRouter transaction is processed
   await new Promise(resolve => setTimeout(resolve, 30000));
   await triggerXcmFromMoonbeam(squidRouterReceiverId, pendulumAccount.address);
-  console.log(`Triggered XCM from Moonbeam to Pendulum`);
+  console.log("Triggered XCM from Moonbeam to Pendulum");
 
   // Step 8: Wait for USDC.axl to arrive on Pendulum
   await waitForAxlUsdcOnPendulum(Big(amountUsd), pendulumAccount.address, initialBalance);
-  console.log(`USDC.axl arrived on Pendulum`);
+  console.log("USDC.axl arrived on Pendulum");
 
   const finalBalance = await checkInitialPendulumBalance(pendulumAccount.address, "0");
   const rebalancingCost = initialBalance.sub(finalBalance);

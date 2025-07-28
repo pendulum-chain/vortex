@@ -1,4 +1,4 @@
-import { decodeSubmittableExtrinsic, RampPhase } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, RampPhase, TransactionTemporarilyBannedError } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
@@ -6,8 +6,6 @@ import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { ApiManager } from "../../pendulum/apiManager";
-import { TransactionTemporarilyBannedError } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**

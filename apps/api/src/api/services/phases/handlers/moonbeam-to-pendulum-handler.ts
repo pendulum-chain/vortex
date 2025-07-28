@@ -1,4 +1,5 @@
-import { RampPhase } from "@packages/shared";
+import { ApiManager, createEvmClientsAndConfig, encodePayload, RampPhase, waitUntilTrue } from "@packages/shared";
+import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { readContract } from "@wagmi/core";
@@ -6,15 +7,9 @@ import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
-
-import splitReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
-import { waitUntilTrue } from "../../../helpers/functions";
-import { createEvmClientsAndConfig } from "../../moonbeam/createServices";
-import { ApiManager } from "../../pendulum/apiManager";
-import encodePayload from "../../transactions/squidrouter/payload";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

@@ -342,5 +342,5 @@ export async function waitForAxlUsdcOnPendulum(
 
   console.log(`Waiting for USDC to arrive on Pendulum account ${pendulumAddress}...`);
   await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
-  console.log(`USDC successfully arrived on Pendulum account.`);
+  console.log("USDC successfully arrived on Pendulum account.");
 }

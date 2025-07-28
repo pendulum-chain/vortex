@@ -1,6 +1,6 @@
 import { ApiPromise } from "@polkadot/api";
-import { Event, EventRecord } from "@polkadot/types/interfaces";
-import logger from "src/logger";
+import { EventRecord } from "@polkadot/types/interfaces";
+import logger from "../logger";
 import { parseEventRedeemExecution, parseEventXcmSent } from "./eventParsers";
 
 interface IPendingEvent<T = unknown> {

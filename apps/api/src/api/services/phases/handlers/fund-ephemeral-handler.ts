@@ -1,10 +1,9 @@
-import { FiatToken, getNetworkFromDestination, RampPhase } from "@packages/shared";
+import { ApiManager, FiatToken, getNetworkFromDestination, RampPhase } from "@packages/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
-import { ApiManager } from "../../pendulum/apiManager";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
+import { fundMoonbeamEphemeralAccount } from "../../transactions/moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 import {

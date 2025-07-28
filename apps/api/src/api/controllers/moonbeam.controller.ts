@@ -1,11 +1,11 @@
 import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages/shared";
+import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Address, createPublicClient, createWalletClient, encodeFunctionData, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
-import splitReceiverABI from "../../../mooncontracts/splitReceiverABI.json";
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,

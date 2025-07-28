@@ -5,7 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager } from "@packages/shared";
+import { ApiManager, EventPoller } from "@packages/shared";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
@@ -15,7 +15,8 @@ import {
   DEFAULT_POLLING_INTERVAL,
   FUNDING_SECRET,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  PENDULUM_FUNDING_SEED
+  PENDULUM_FUNDING_SEED,
+  WEBHOOKS_CACHE_URL
 } from "./constants/constants";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
@@ -77,7 +78,7 @@ const initializeApp = async () => {
   }
 };
 
-// export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
+export const eventPoller = new EventPoller(WEBHOOKS_CACHE_URL, DEFAULT_POLLING_INTERVAL);
 
 // Start the application
 initializeApp();
