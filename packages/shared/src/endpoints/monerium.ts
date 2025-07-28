@@ -1,8 +1,13 @@
+export enum MoneriumAddressStatus {
+  REQUESTED = "requested",
+  APPROVED = "approved"
+}
+
 export interface MoneriumAddress {
   address: string;
   profile: string;
   chains: string[];
-  status: string;
+  status: MoneriumAddressStatus;
 }
 
 export interface MoneriumResponse {
@@ -64,4 +69,8 @@ export interface AuthContextProfile {
 export interface AuthContext {
   defaultProfile: string;
   profiles: AuthContextProfile[];
+}
+
+export enum MoneriumErrors {
+  USER_MINT_ADDRESS_NOT_FOUND = "User mint address not found for Monerium onramp"
 }
