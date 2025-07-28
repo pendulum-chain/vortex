@@ -1,6 +1,6 @@
 import { createEvmClientsAndConfig } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
-import { mnemonicToAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 
 export function getConfig() {
@@ -37,13 +37,13 @@ export function getPendulumAccount() {
 export function getMoonbeamEvmClients() {
   const config = getConfig();
 
-  const moonbeamExecutorAccount = mnemonicToAccount(config.moonbeamAccountSecret as `0x${string}`);
+  const moonbeamExecutorAccount = privateKeyToAccount(config.moonbeamAccountSecret as `0x${string}`);
   return createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
 }
 
 export function getPolygonEvmClients() {
   const config = getConfig();
 
-  const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
+  const polygonExecutorAccount = privateKeyToAccount(config.polygonAccountSecret as `0x${string}`);
   return createEvmClientsAndConfig(polygonExecutorAccount, polygon);
 }

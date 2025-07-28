@@ -1,11 +1,17 @@
-import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from "@packages/shared";
+import {
+  logger,
+  parseEventMoonbeamXcmSent,
+  parseEventXcmSent,
+  parseEventXTokens,
+  XcmSentEvent,
+  XTokensEvent
+} from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
-import { ISubmittableResult, Signer } from "@polkadot/types/types";
+import { ISubmittableResult } from "@polkadot/types/types";
 import { encodeAddress } from "@polkadot/util-crypto";
-import logger from "src/logger";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;

@@ -1,9 +1,8 @@
-import { FiatToken, RampPhase } from "@packages/shared";
+import { ApiManager, FiatToken, RampPhase } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
-import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

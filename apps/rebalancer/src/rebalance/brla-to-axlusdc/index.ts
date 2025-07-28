@@ -44,7 +44,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log(`BRLA appeared on Polygon: ${brlaAmount}`);
 
   // Step 5: Swap BRLA to USDC.e on Polygon via BRLA API service and send to custom Polygon account
-  const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, polygonAccountAddress);
+  const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, polygonAccountAddress as `0x${string}`);
   console.log(`Swapped ${brlaAmount} BRLA to USDC.e on Polygon with a rate of ${brlaToUsdcSwapQuote.rate} USDC.e per BRLA`);
 
   const usdcAmountRaw = multiplyByPowerOfTen(brlaToUsdcSwapQuote.amountUsd, usdcTokenDetails.decimals).toFixed(0, 0);

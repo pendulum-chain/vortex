@@ -1,15 +1,22 @@
-import { createEvmClientsAndConfig, getStatusAxelarScan, Networks, OnChainToken, RampPhase } from "@packages/shared";
+import {
+  createEvmClientsAndConfig,
+  createOnrampRouteParams,
+  getRoute,
+  getStatus,
+  getStatusAxelarScan,
+  Networks,
+  OnChainToken,
+  RampPhase
+} from "@packages/shared";
 import { createPublicClient, encodeFunctionData, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
-
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { getTokenDetailsForEvmDestination } from "../../ramp/quote.service/gross-output";
-import { createOnrampRouteParams, getRoute, getStatus } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds

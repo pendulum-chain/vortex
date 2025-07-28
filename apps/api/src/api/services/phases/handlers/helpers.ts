@@ -1,9 +1,8 @@
-import { HORIZON_URL, StellarTokenDetails } from "@packages/shared";
+import { API, HORIZON_URL, StellarTokenDetails } from "@packages/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
-import { API } from "../../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);

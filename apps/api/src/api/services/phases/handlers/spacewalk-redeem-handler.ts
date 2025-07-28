@@ -1,8 +1,7 @@
-import { decodeSubmittableExtrinsic, RampPhase } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, RampPhase } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { ApiManager } from "../../pendulum/apiManager";
 import { checkBalancePeriodically } from "../../stellar/checkBalance";
 import { createVaultService } from "../../stellar/vaultService";
 import { BasePhaseHandler } from "../base-phase-handler";
