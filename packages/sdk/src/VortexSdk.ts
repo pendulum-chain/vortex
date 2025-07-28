@@ -14,6 +14,8 @@ import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import { retrieveEphemeralKeys, storeEphemeralKeys } from "./storage";
 import type {
+  BrlOfframpAdditionalData,
+  BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
@@ -71,7 +73,7 @@ export class VortexSdk {
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
+        return this.brlHandler.registerBrlOfframp(quote.id, additionalData as BrlOfframpAdditionalData);
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }
@@ -80,7 +82,11 @@ export class VortexSdk {
     throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
-  async updateRamp<Q extends QuoteResponse>(quote: Q, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess> {
+  async updateRamp<Q extends QuoteResponse>(
+    quote: Q,
+    rampId: string,
+    additionalUpdateData: UpdateRampAdditionalData<Q>
+  ): Promise<RampProcess> {
     if (quote.rampType === "on") {
       if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
@@ -89,7 +95,7 @@ export class VortexSdk {
       }
     } else if (quote.rampType === "off") {
       if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
+        return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }
@@ -98,22 +104,8 @@ export class VortexSdk {
     throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
-  async startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess> {
-    if (quote.rampType === "on") {
-      if (quote.from === "pix") {
-        return this.brlHandler.startBrlOnramp(rampId);
-      } else if (quote.from === "sepa") {
-        throw new Error("Euro onramp handler not implemented yet");
-      }
-    } else if (quote.rampType === "off") {
-      if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
-      } else if (quote.to === "sepa") {
-        throw new Error("Euro offramp handler not implemented yet");
-      }
-    }
-
-    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
+  async startRamp(rampId: string): Promise<RampProcess> {
+    return this.brlHandler.startBrlRamp(rampId);
   }
 
   public async storeEphemerals(ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string): Promise<void> {

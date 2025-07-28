@@ -51,7 +51,7 @@ export class ApiService {
     return handleAPIResponse<RegisterRampResponse>(response, "/v1/ramp/register");
   }
 
-  async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
+  async updateRamp(request: Partial<UpdateRampRequest>): Promise<UpdateRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/update`, {
       body: JSON.stringify(request),
       headers: {
@@ -59,7 +59,7 @@ export class ApiService {
       },
       method: "POST"
     });
-
+    console.log("Updating ramp with request:", request);
     return handleAPIResponse<UpdateRampResponse>(response, "/v1/ramp/update");
   }
 

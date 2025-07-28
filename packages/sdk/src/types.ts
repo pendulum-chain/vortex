@@ -77,6 +77,7 @@ export interface BrlOfframpAdditionalData {
   pixDestination: string;
   receiverTaxId: string;
   taxId: string;
+  walletAddress: string;
 }
 
 export interface EurOfframpAdditionalData {
@@ -100,14 +101,14 @@ export interface EurOnrampUpdateAdditionalData {
 }
 
 export interface BrlOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 export interface EurOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 
 export interface BrlKycResponse {

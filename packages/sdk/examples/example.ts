@@ -1,6 +1,6 @@
 import { EvmToken, FiatToken, Networks } from "@packages/shared";
-import { VortexSdkConfig } from "./src/types";
-import { VortexSdk } from "./src/VortexSdk";
+import { VortexSdkConfig } from "../src/types";
+import { VortexSdk } from "../src/VortexSdk";
 
 async function runBrlOnrampExample() {
   try {
@@ -28,7 +28,7 @@ async function runBrlOnrampExample() {
       inputAmount: "1",
       inputCurrency: FiatToken.BRL,
       outputCurrency: EvmToken.USDC,
-      rampType: "on" as const,
+      rampType: "off" as const,
       to: Networks.Polygon
       //partnerId: "example-partner"
     };
@@ -55,7 +55,7 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 4: Starting BRL onramp...");
 
     // Ensure making the payment BEFORE starting the ramp
-    const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
+    await sdk.startRamp(registeredRamp.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 
