@@ -2,19 +2,19 @@
   "dependencies": {
     "@packages/shared": "workspace:*",
     "@pendulum-chain/api-solang": "^0.7.2",
-    "@polkadot/api": "^13.2.1",
+    "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "^13.2.1",
-    "@types/big.js": "^6.2.2",
-    "big.js": "^7.0.1",
+    "@types/big.js": "catalog:",
+    "big.js": "catalog:",
     "graphql": "~16.9.0",
     "graphql-request": "~6.1.0",
-    "viem": "^2.33.0"
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/client-preset": "^4.2.6",
     "@types/bun": "latest",
-    "typescript": "^5"
+    "typescript": "catalog:"
   },
   "module": "index.ts",
   "name": "vortex-rebalancer",
