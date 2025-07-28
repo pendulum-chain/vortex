@@ -1,6 +1,3 @@
-import { Networks } from "@packages/shared";
-import logger from "../../../config/logger";
-import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 import {
   AddressExistsResponse,
   AuthContext,
@@ -11,8 +8,11 @@ import {
   IbanDataResponse,
   MoneriumResponse,
   MoneriumTokenResponse,
-  MoneriumUserProfile
-} from "./types";
+  MoneriumUserProfile,
+  Networks
+} from "@packages/shared";
+import logger from "../../../config/logger";
+import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 
 const MONERIUM_API_URL = "https://api.monerium.app";
 export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
@@ -88,15 +88,20 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
     const data: MoneriumResponse = await response.json();
 
     if (data.addresses && data.addresses.length > 0) {
-      const firstAddress = data.addresses[data.addresses.length - 1].address; // Ordered by creation date, so last is the most recent.
-      return firstAddress;
+      const mostRecentAddress = data.addresses[data.addresses.length - 1]; // Ordered by creation date, so last is the most recent.
+
+      if (mostRecentAddress.status === "requested") {
+        throw new Error("User mint address not found for Monerium onramp");
+      }
+
+      return mostRecentAddress.address;
     } else {
       logger.info("No addresses found in the response.");
       return null;
     }
   } catch (error) {
     console.error("Failed to fetch addresses:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -151,7 +156,7 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     // Look for the IBAN data specifically for the Polygon chain.
     // We choose Polygon as the default chain for Monerium EUR minting,
     // so user registered with us should always have a Polygon-linked  address.
-    const ibanData = data.ibans.find(item => item.chain === "polygon");
+    const ibanData = data.ibans.find((item: IbanData) => item.chain === "polygon");
     if (!ibanData) {
       throw new Error("No IBAN found for the specified chain (polygon)");
     }
