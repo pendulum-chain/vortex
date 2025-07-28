@@ -2,6 +2,7 @@ export interface MoneriumAddress {
   address: string;
   profile: string;
   chains: string[];
+  status: string;
 }
 
 export interface MoneriumResponse {
