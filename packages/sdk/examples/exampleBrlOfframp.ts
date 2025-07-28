@@ -50,7 +50,7 @@ async function runBrlOfframpExample() {
 
     const registeredRamp = await sdk.registerRamp(quote, brlOfframpData);
 
-    // Step 4: Start the BRL offramp process AFTER TOKEN PAYMENT and updating with corresponding transaction hashes.
+    // Step 4: Update and start the BRL offramp process AFTER MAKING THE TOKEN PAYMENT.
     console.log("📝 Step 4: Updating BRL offramp...");
     const transactionHashes = {
       squidRouterApproveHash: "0x",
@@ -61,7 +61,6 @@ async function runBrlOfframpExample() {
     await sdk.updateRamp(quote, registeredRamp.id, transactionHashes);
     console.log("✅ BRL Offramp updated successfully:");
 
-    // Ensure making the payment BEFORE starting the ramp
     await sdk.startRamp(registeredRamp.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
