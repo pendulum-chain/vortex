@@ -1,8 +1,23 @@
-import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { EvmToken, EvmTransactionData, FiatToken, Networks } from "@packages/shared";
+import * as readline from "readline";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
 async function runBrlOfframpExample() {
+  const askQuestion = (query: string): Promise<string> => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    return new Promise(resolve => {
+      rl.question(query, (ans: string) => {
+        rl.close();
+        resolve(ans.trim());
+      });
+    });
+  };
+
   try {
     console.log("Starting BRL Offramp Example...\n");
 
@@ -13,16 +28,15 @@ async function runBrlOfframpExample() {
       // Optional: provide custom WebSocket URLs
       moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',
       pendulumWsUrl: undefined, // default is `true`
-      // Optional: store ephemeral keys for later use
+      // Optional: store ephemeral keys for debug
       storeEphemeralKeys: false // default is `false`
     };
 
     const sdk = new VortexSdk(config);
-
     console.log("⏳ Waiting for API initialization...");
     console.log("✅ VortexSdk initialized successfully\n");
 
-    console.log("📝 Step 2: Creating quote for BRL onramp...");
+    console.log("📝 Step 2: Creating quote for BRL offramp...");
     const quoteRequest = {
       from: Networks.Polygon,
       inputAmount: "1",
@@ -30,7 +44,6 @@ async function runBrlOfframpExample() {
       outputCurrency: FiatToken.BRL,
       rampType: "off" as const,
       to: "pix" as const
-      //partnerId: "example-partner"
     };
 
     const quote = await sdk.createQuote(quoteRequest);
@@ -48,33 +61,41 @@ async function runBrlOfframpExample() {
       walletAddress: "0x1234567890123456789012345678901234567890"
     };
 
-    const registeredRamp = await sdk.registerRamp(quote, brlOfframpData);
+    const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, brlOfframpData);
 
-    // Step 4: Update and start the BRL offramp process AFTER MAKING THE TOKEN PAYMENT.
-    console.log("📝 Step 4: Updating BRL offramp...");
+    console.log(`✅ BRL Offramp registered successfully:`);
+    console.log(`   Ramp ID: ${rampProcess.id}`);
+    console.log(
+      `   Unsigned transactions: ${unsignedTransactions.forEach(tx => console.log(`     - ${tx.phase} -to: ${(tx.txData as EvmTransactionData).to} (${(tx.txData as EvmTransactionData).data})`))}\n`
+    );
+
+    console.log(
+      "\n🛑 Complete the token payment on-chain now with the transactions above, and provide the resulting transaction hashes below."
+    );
+
+    const squidRouterApproveHash = await askQuestion("➡️  Enter the Squid Router Approve Hash: ");
+    const squidRouterSwapHash = await askQuestion("➡️  Enter the Squid Router Swap Hash: ");
+
+    console.log("\n📝 Step 4: Updating BRL offramp...");
     const transactionHashes = {
-      squidRouterApproveHash: "0x",
-      squidRouterSwapHash: "0x"
-      //assetHubToPendulumHash: "0x"
+      squidRouterApproveHash,
+      squidRouterSwapHash
     };
 
-    await sdk.updateRamp(quote, registeredRamp.id, transactionHashes);
-    console.log("✅ BRL Offramp updated successfully:");
+    await sdk.updateRamp(quote, rampProcess.id, transactionHashes);
+    console.log("✅ BRL Offramp updated successfully.");
 
-    await sdk.startRamp(registeredRamp.id);
+    await sdk.startRamp(rampProcess.id);
+    console.log("✅ Offramp started successfully.");
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
-
     if (error instanceof Error) {
       console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
     }
-
     process.exit(1);
   }
 }
 
-// Run the example if this file is executed directly
 if (require.main === module) {
   runBrlOfframpExample()
     .then(() => {

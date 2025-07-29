@@ -46,16 +46,20 @@ async function runBrlOnrampExample() {
       taxId: "123.456.789-00"
     };
 
-    const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
+    const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, brlOnrampData);
 
-    if (registeredRamp.depositQrCode) {
-      console.log(`   Deposit QR Code: ${registeredRamp.depositQrCode}`);
+    console.log(`✅ BRL Onramp registered successfully:`);
+    console.log(`   Ramp ID: ${rampProcess.id}`);
+
+    if (rampProcess.depositQrCode) {
+      console.log(`   Deposit QR Code: ${rampProcess.depositQrCode}`);
     }
+
     // Step 4: Start the BRL onramp process AFTER PAYMENT
     console.log("📝 Step 4: Starting BRL onramp...");
 
     // Ensure making the payment BEFORE starting the ramp
-    await sdk.startRamp(registeredRamp.id);
+    await sdk.startRamp(rampProcess.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 

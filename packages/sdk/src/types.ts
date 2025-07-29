@@ -49,10 +49,7 @@ export type AnyAdditionalData =
   | BrlOfframpAdditionalData
   | EurOfframpAdditionalData
   | BrlOnrampAdditionalData
-  | EurOnrampAdditionalData
-  | EurOnrampUpdateAdditionalData
-  | EurOfframpUpdateAdditionalData
-  | BrlOfframpUpdateAdditionalData;
+  | EurOnrampAdditionalData;
 
 export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? BrlOnrampAdditionalData
@@ -82,6 +79,7 @@ export interface BrlOfframpAdditionalData {
 
 export interface EurOfframpAdditionalData {
   paymentData: PaymentData;
+  walletAddress: string;
 }
 
 export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
