@@ -4,6 +4,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusResponse,
   IbanPaymentData,
+  MoneriumErrors,
   Networks,
   RampErrorLog,
   RampPhase,
@@ -156,35 +157,46 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
-      moneriumAuthToken: additionalData.moneriumAuthToken,
-      quote,
-      signingAccounts: normalizedSigningAccounts
-    });
+    try {
+      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+        destinationAddress: additionalData.destinationAddress,
+        moneriumAuthToken: additionalData.moneriumAuthToken,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      });
 
-    const userContext = await getAuthContext(additionalData.moneriumAuthToken);
-    const ibanData = await getMoneriumUserIban({
-      authToken: additionalData.moneriumAuthToken,
-      profileId: userContext.defaultProfile
-    });
-    const ibanPaymentData = {
-      bic: ibanData.bic,
-      iban: ibanData.iban
-    };
+      const userContext = await getAuthContext(additionalData.moneriumAuthToken);
 
-    const userProfile = await getMoneriumUserProfile({
-      authToken: additionalData.moneriumAuthToken,
-      profileId: ibanData.profile
-    });
+      const ibanData = await getMoneriumUserIban({
+        authToken: additionalData.moneriumAuthToken,
+        profileId: userContext.defaultProfile
+      });
+      const ibanPaymentData = {
+        bic: ibanData.bic,
+        iban: ibanData.iban
+      };
 
-    const ibanCode = createEpcQrCodeData({
-      amount: quote.inputAmount,
-      bic: ibanData.bic,
-      iban: ibanData.iban,
-      name: userProfile.name
-    });
-    return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+      const userProfile = await getMoneriumUserProfile({
+        authToken: additionalData.moneriumAuthToken,
+        profileId: ibanData.profile
+      });
+
+      const ibanCode = createEpcQrCodeData({
+        amount: quote.inputAmount,
+        bic: ibanData.bic,
+        iban: ibanData.iban,
+        name: userProfile.name
+      });
+      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
+        throw new APIError({
+          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      throw error;
+    }
   }
 
   private async prepareMoneriumOfframpTransactions(

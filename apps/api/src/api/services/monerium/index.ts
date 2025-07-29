@@ -6,6 +6,8 @@ import {
   FetchProfileParams,
   IbanData,
   IbanDataResponse,
+  MoneriumAddressStatus,
+  MoneriumErrors,
   MoneriumResponse,
   MoneriumTokenResponse,
   MoneriumUserProfile,
@@ -90,8 +92,8 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
     if (data.addresses && data.addresses.length > 0) {
       const mostRecentAddress = data.addresses[data.addresses.length - 1]; // Ordered by creation date, so last is the most recent.
 
-      if (mostRecentAddress.status === "requested") {
-        throw new Error("User mint address not found for Monerium onramp");
+      if (mostRecentAddress.status === MoneriumAddressStatus.REQUESTED) {
+        throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
       }
 
       return mostRecentAddress.address;

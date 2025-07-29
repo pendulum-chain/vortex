@@ -9,6 +9,7 @@ import {
   isAssetHubTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
+  MoneriumErrors,
   Networks,
   UnsignedTx
 } from "@packages/shared";
@@ -71,7 +72,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   const userMintAddress = await getMoneriumEvmDefaultMintAddress(moneriumAuthToken);
   if (!userMintAddress) {
-    throw new Error("User mint address not found for Monerium onramp");
+    throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
   }
 
   // Find required ephemeral accounts
