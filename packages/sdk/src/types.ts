@@ -82,6 +82,11 @@ export interface EurOfframpAdditionalData {
   walletAddress: string;
 }
 
+export type AnyUpdateAdditionalData =
+  | EurOnrampUpdateAdditionalData
+  | BrlOfframpUpdateAdditionalData
+  | EurOfframpUpdateAdditionalData;
+
 export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? never // No additional data required from the user for this type of ramp.
   : Q extends EurOnrampQuote
@@ -90,7 +95,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnr
       ? BrlOfframpUpdateAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpUpdateAdditionalData
-        : AnyAdditionalData;
+        : AnyUpdateAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
   squidRouterApproveHash: string;

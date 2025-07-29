@@ -88,7 +88,7 @@ async function runBrlOfframpExample() {
     await sdk.startRamp(rampProcess.id);
     console.log("✅ Offramp started successfully.");
   } catch (error) {
-    console.error("❌ Error in BRL Onramp Example:", error);
+    console.error("❌ Error in BRL Offramp Example:", error);
     if (error instanceof Error) {
       console.error("Error message:", error.message);
     }

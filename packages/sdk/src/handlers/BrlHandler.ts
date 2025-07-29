@@ -162,7 +162,7 @@ export class BrlHandler implements RampHandler {
         squidRouterApproveHash: additionalData.squidRouterApproveHash,
         squidRouterSwapHash: additionalData.squidRouterSwapHash
       },
-      presignedTxs: [], // Presigned transactions are sent during the initial update, on the regsisterBrlOfframp of this class.
+      presignedTxs: [], // Presigned transactions are sent during the initial update, on the registerBrlOfframp of this class.
       rampId: rampProcess.id
     };
 
