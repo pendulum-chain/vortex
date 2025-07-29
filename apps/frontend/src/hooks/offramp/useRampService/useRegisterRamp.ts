@@ -7,7 +7,6 @@ import {
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
-import { getWalletClient } from "@wagmi/core";
 import { useCallback, useEffect } from "react";
 import { config } from "../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
@@ -19,7 +18,6 @@ import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "
 import { useMoneriumStore } from "../../../stores/moneriumStore";
 import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
 import { RampExecutionInput } from "../../../types/phases";
-import { wagmiConfig } from "../../../wagmiConfig";
 import { useVortexAccount } from "../../useVortexAccount";
 import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
 import { useSubmitRamp } from "../useSubmitRamp";
@@ -345,9 +343,6 @@ export const useRegisterRamp = () => {
         const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
         moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
-
-      const walletClient = await getWalletClient(wagmiConfig);
-      console.log("Wallet client for signing: ", walletClient.account);
 
       if (!sortedTxs) {
         throw new Error("Missing sorted transactions");
