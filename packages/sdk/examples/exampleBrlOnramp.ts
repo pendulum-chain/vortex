@@ -46,7 +46,7 @@ async function runBrlOnrampExample() {
       taxId: "123.456.789-00"
     };
 
-    const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, brlOnrampData);
+    const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
 
     console.log(`✅ BRL Onramp registered successfully:`);
     console.log(`   Ramp ID: ${rampProcess.id}`);
