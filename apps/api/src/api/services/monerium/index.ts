@@ -158,7 +158,7 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     // Look for the IBAN data specifically for the Polygon chain.
     // We choose Polygon as the default chain for Monerium EUR minting,
     // so user registered with us should always have a Polygon-linked  address.
-    const ibanData = data.ibans.find((item: IbanData) => item.chain === "polygon");
+    const ibanData = data.ibans.find(item => item.chain === "polygon");
     if (!ibanData) {
       throw new Error("No IBAN found for the specified chain (polygon)");
     }
