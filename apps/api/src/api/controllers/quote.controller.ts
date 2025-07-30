@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, GetQuoteRequest, QuoteErrors, QuoteResponse } from "@packages/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -74,7 +74,7 @@ export const getQuote = async (
 
     if (!quote) {
       throw new APIError({
-        message: "Quote not found",
+        message: QuoteErrors.QUOTE_NOT_FOUND,
         status: httpStatus.NOT_FOUND
       });
     }

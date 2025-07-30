@@ -1,3 +1,4 @@
+import { QuoteErrors } from "@packages/shared";
 import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,19 +28,27 @@ export const useSignatureTrace = (traceKey: string) => {
 };
 
 const RampRegistrationErrorMessages = {
-  [MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.userMintAddressNotFound"
+  [MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.userMintAddressNotFound",
+  [QuoteErrors.QUOTE_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.quoteNotFound"
 };
 
 export const useGetRampRegistrationErrorMessage = () => {
   const { t } = useTranslation();
 
   return useCallback(
-    (error: Error): string | undefined => {
-      if (error instanceof Error && error.message?.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
-        return t(
-          RampRegistrationErrorMessages[MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND] ||
-            "hooks.useGetRampRegistrationErrorMessage.default"
-        );
+    (error: unknown): string | undefined => {
+      if (error instanceof Error) {
+        if (error.message?.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
+          return t(
+            RampRegistrationErrorMessages[MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND] ||
+              "hooks.useGetRampRegistrationErrorMessage.default"
+          );
+        }
+        if (error.message?.includes(QuoteErrors.QUOTE_NOT_FOUND)) {
+          return t(
+            RampRegistrationErrorMessages[QuoteErrors.QUOTE_NOT_FOUND] || "hooks.useGetRampRegistrationErrorMessage.default"
+          );
+        }
       }
     },
     [t]
