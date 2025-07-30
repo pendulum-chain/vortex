@@ -31,6 +31,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
     rampKycStarted: false,
     rampPaymentConfirmed: false,
     rampRegistered: false,
+    rampRegistrationError: undefined,
     rampSigningPhase: undefined,
     rampStarted: false,
     rampState: undefined,
@@ -50,6 +51,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
       rampKycStarted: state.rampKycStarted,
       rampPaymentConfirmed: state.rampPaymentConfirmed,
       rampRegistered: state.rampRegistered,
+      rampRegistrationError: state.rampRegistrationError,
       rampSigningPhase: state.rampSigningPhase,
       rampStarted: state.rampStarted,
       rampState: state.rampState,
@@ -78,6 +80,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
           rampKycStarted: false,
           rampPaymentConfirmed: false,
           rampRegistered: false,
+          rampRegistrationError: undefined,
           rampSigningPhase: undefined,
           rampStarted: false,
           rampState: undefined,
@@ -121,6 +124,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ rampRegistered: registered });
         saveState();
       },
+      setRampRegistrationError: (error: string | undefined) => {
+        set({ rampRegistrationError: error });
+        saveState();
+      },
       setRampSigningPhase: phase => {
         set({ rampSigningPhase: phase });
         saveState();
@@ -159,5 +166,6 @@ export const useRampSummaryVisible = () => useRampStore(state => state.rampSumma
 export const useCanRegisterRamp = () => useRampStore(state => state.canRegisterRamp);
 export const clearInitializeFailedMessage = () => useRampStore.getState().actions.clearInitializeFailedMessage();
 export const useSigningRejected = () => useRampStore(state => state.signingRejected);
+export const useRampRegistrationError = () => useRampStore(state => state.rampRegistrationError);
 
 export const useRampActions = () => useRampStore(state => state.actions);
