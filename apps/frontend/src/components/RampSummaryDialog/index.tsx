@@ -1,8 +1,10 @@
-import { UserIcon } from "@heroicons/react/24/solid";
+import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
+import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import Big from "big.js";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
+import { useGetRampRegistrationErrorMessage } from "../../hooks/offramp/useRampService/useRegisterRamp/helpers";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
@@ -30,6 +32,8 @@ export const RampSummaryDialog: FC = () => {
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
+  const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
+
   if (!visible) return null;
   if (!executionInput) return null;
 
@@ -45,11 +49,16 @@ export const RampSummaryDialog: FC = () => {
     });
   };
 
+  const isUserMintAddressNotFound =
+    rampRegistrationError && rampRegistrationError === MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND;
+
+  const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
+
   const headerText = isOnramp
     ? t("components.dialogs.RampSummaryDialog.headerText.buy")
     : t("components.dialogs.RampSummaryDialog.headerText.sell");
 
-  const actions = rampRegistrationError ? (
+  const actions = rampRegistrationErrorMessage ? (
     <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onClose}>
       {t("components.dialogs.RampSummaryDialog.tryAgain")}
     </button>
@@ -69,13 +78,22 @@ export const RampSummaryDialog: FC = () => {
         </div>
       )}
 
-      {rampRegistrationError && (
+      {isUserMintAddressNotFound && (
         <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
           <div className="flex items-center">
             <UserIcon className="w-5 text-yellow-800" />
-            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationError}</p>
+            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationErrorMessage}</p>
           </div>
           <progress className="progress progress-warning mt-4 w-56" />
+        </div>
+      )}
+
+      {!isUserMintAddressNotFound && rampRegistrationErrorMessage && (
+        <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
+          <div className="flex items-center">
+            <ExclamationCircleIcon className="w-5 text-yellow-800" />
+            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationErrorMessage}</p>
+          </div>
         </div>
       )}
     </>

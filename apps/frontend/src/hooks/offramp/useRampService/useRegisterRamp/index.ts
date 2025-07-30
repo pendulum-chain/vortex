@@ -62,8 +62,6 @@ export const useRegisterRamp = () => {
   // Get Monerium auth data
   const { authToken, triggered: moneriumTriggered } = useMoneriumStore();
 
-  const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
-
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
   const registerRamp = async (executionInput: RampExecutionInput) => {
@@ -243,7 +241,7 @@ export const useRegisterRamp = () => {
 
     registerRampProcess()
       .catch(error => {
-        setRampRegistrationError(getRampRegistrationErrorMessage(error));
+        setRampRegistrationError(error);
       })
       .finally(() => {
         // Release the registration trace lock
@@ -264,7 +262,6 @@ export const useRegisterRamp = () => {
     signingRejected,
     authToken,
     rampRegistered,
-    getRampRegistrationErrorMessage,
     setRampRegistrationError
   ]);
 
