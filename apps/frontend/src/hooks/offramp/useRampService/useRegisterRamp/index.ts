@@ -7,8 +7,7 @@ import {
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
-import { getWalletClient } from "@wagmi/core";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { config } from "../../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
@@ -17,7 +16,7 @@ import { RampService } from "../../../../services/api";
 import { MoneriumService } from "../../../../services/api/monerium.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../../services/transactions/userSigning";
 import { useMoneriumStore } from "../../../../stores/moneriumStore";
-import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../../stores/rampStore"; // Import useSigningRejected
+import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../../stores/rampStore";
 import { RampExecutionInput } from "../../../../types/phases";
 import { wagmiConfig } from "../../../../wagmiConfig";
 import { useVortexAccount } from "../../../useVortexAccount";
@@ -334,9 +333,6 @@ export const useRegisterRamp = () => {
         const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
         moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
-
-      const walletClient = await getWalletClient(wagmiConfig);
-      console.log("Wallet client for signing: ", walletClient.account);
 
       if (!sortedTxs) {
         throw new Error("Missing sorted transactions");
