@@ -400,15 +400,20 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
         "invalidInputAmount": "Valor de entrada inválido",
+        "invalidRampType": "Tipo de rampa inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
+        "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
         },
-        "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente."
+        "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
+        "quoteNotFound": "Cotação não encontrada",
+        "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
       }
     }
   },

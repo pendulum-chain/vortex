@@ -50,8 +50,22 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 };
 
 const friendlyErrorMessages: Record<QuoteError, string> = {
-  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.preNablaDeductibleFees",
-  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.feeComponents"
+  // Validation errors - show specific messages
+  [QuoteError.MissingRequiredFields]: "pages.swap.error.missingFields",
+  [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
+  [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
+
+  // Amount too low - suggest larger amount
+  [QuoteError.InputAmountTooLowToCoverFees]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountForSwapMustBeGreaterThanZero]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLow]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
+
+  // Calculation failures - suggest different amount
+  [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount"
 };
 
 function getFriendlyErrorMessage(error: unknown) {
