@@ -6,6 +6,7 @@ import {
   IbanPaymentData,
   MoneriumErrors,
   Networks,
+  QuoteErrors,
   RampErrorLog,
   RampPhase,
   RampProcess,
@@ -260,7 +261,7 @@ export class RampService extends BaseRampService {
 
       if (!quote) {
         throw new APIError({
-          message: "Quote not found",
+          message: QuoteErrors.QUOTE_NOT_FOUND,
           status: httpStatus.NOT_FOUND
         });
       }

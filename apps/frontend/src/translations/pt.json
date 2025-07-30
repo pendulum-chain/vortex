@@ -319,6 +319,7 @@
   "hooks": {
     "useGetRampRegistrationErrorMessage": {
       "default": "Algo deu errado",
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
       "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
     },
     "useSubmitOfframp": {
