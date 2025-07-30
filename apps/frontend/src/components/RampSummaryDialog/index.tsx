@@ -1,7 +1,5 @@
-import { XCircleIcon } from "@heroicons/react/24/solid";
-import { MoneriumErrors } from "@packages/shared";
+import { UserIcon } from "@heroicons/react/24/solid";
 import Big from "big.js";
-import { motion } from "motion/react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
@@ -74,7 +72,7 @@ export const RampSummaryDialog: FC = () => {
       {rampRegistrationError && (
         <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
           <div className="flex items-center">
-            <XCircleIcon className="w-5 text-yellow-800" />
+            <UserIcon className="w-5 text-yellow-800" />
             <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationError}</p>
           </div>
           <progress className="progress progress-warning mt-4 w-56" />
