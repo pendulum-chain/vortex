@@ -35,7 +35,7 @@ export const useGetRampRegistrationErrorMessage = () => {
 
   return useCallback(
     (error: Error): string | undefined => {
-      if (error.message && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
+      if (error instanceof Error && error.message?.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
         return t(
           RampRegistrationErrorMessages[MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND] ||
             "hooks.useGetRampRegistrationErrorMessage.default"
