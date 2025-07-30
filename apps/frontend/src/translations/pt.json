@@ -163,7 +163,6 @@
         "EUROnrampDetails": {
           "amount": "Valor",
           "bic": "BIC",
-          "description": "Por favor, faça uma transferência bancária com os seguintes detalhes.",
           "footer": "Por favor, garanta que o valor seja exato.",
           "iban": "IBAN",
           "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"

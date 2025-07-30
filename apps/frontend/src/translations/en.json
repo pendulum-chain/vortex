@@ -164,7 +164,6 @@
         "EUROnrampDetails": {
           "amount": "Amount",
           "bic": "BIC",
-          "description": "Please make a bank transfer with the following details.",
           "footer": "Please ensure the amount is exact.",
           "hint": "Scan this QR code in your banking app to start the payment instantly.",
           "iban": "IBAN",
