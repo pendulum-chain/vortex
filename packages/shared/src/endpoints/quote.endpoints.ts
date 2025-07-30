@@ -38,3 +38,7 @@ export interface QuoteResponse {
 export interface GetQuoteRequest {
   id: string;
 }
+
+export enum QuoteErrors {
+  QUOTE_NOT_FOUND = "Quote not found"
+}
