@@ -1,21 +1,30 @@
 import logger from "../../logger";
 
+export interface AxelarScanStatusFees {
+  base_fee: number; // in units of the native token.
+  source_base_fee: number;
+  destination_base_fee: number;
+  source_express_fee: {
+    total: number;
+  };
+  source_confirm_fee: number;
+  destination_express_fee: {
+    total: number;
+  };
+  source_token: {
+    gas_price: string;
+    gas_price_in_units: {
+      decimals: number;
+      value: string;
+    };
+  };
+  execute_gas_multiplier: number;
+}
+
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
   status: string; // executed or express_executed (for complete).
-  fees: {
-    base_fee: number; // in units of the native token.
-    source_base_fee: number;
-    destination_base_fee: number;
-    source_express_fee: {
-      total: number;
-    };
-    source_confirm_fee: number;
-    destination_express_fee: {
-      total: number;
-    };
-  };
-
+  fees: AxelarScanStatusFees;
   id: string; // the id of the swap.
 }
 export async function getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {

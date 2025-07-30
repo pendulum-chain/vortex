@@ -1,11 +1,8 @@
-import { FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
+import { EvmClientManager, FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
 import { PublicClient } from "viem";
-import { moonbeam, polygon } from "viem/chains";
-
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { EvmClientManager } from "../../evm/clientManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**

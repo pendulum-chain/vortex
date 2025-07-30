@@ -1,4 +1,4 @@
-import { API, HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@packages/shared";
+import { API, EvmClientManager, HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@packages/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { polygon } from "viem/chains";
@@ -8,7 +8,6 @@ import {
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../constants/constants";
-import { EvmClientManager } from "../../evm/clientManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);

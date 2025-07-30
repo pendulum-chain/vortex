@@ -1,8 +1,7 @@
-import { EvmNetworks, Networks } from "@packages/shared";
+import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "@packages/shared";
 import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
 import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon } from "viem/chains";
-import logger from "../../../config/logger";
-import { ALCHEMY_API_KEY } from "../../../constants/constants";
+import logger from "../../logger";
 
 export interface EvmNetworkConfig {
   name: EvmNetworks;
@@ -10,43 +9,45 @@ export interface EvmNetworkConfig {
   rpcUrl?: string;
 }
 
-const EVM_NETWORKS: EvmNetworkConfig[] = [
-  {
-    chain: polygon,
-    name: Networks.Polygon,
-    rpcUrl: ALCHEMY_API_KEY ? `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  },
-  {
-    chain: moonbeam,
-    name: Networks.Moonbeam
-    // No custom RPC URL for Moonbeam, always using default from viem
-  },
-  {
-    chain: arbitrum,
-    name: Networks.Arbitrum,
-    rpcUrl: ALCHEMY_API_KEY ? `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  },
-  {
-    chain: avalanche,
-    name: Networks.Avalanche,
-    rpcUrl: ALCHEMY_API_KEY ? `https://avax-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  },
-  {
-    chain: base,
-    name: Networks.Base,
-    rpcUrl: ALCHEMY_API_KEY ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  },
-  {
-    chain: bsc,
-    name: Networks.BSC,
-    rpcUrl: ALCHEMY_API_KEY ? `https://bnb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  },
-  {
-    chain: mainnet,
-    name: Networks.Ethereum,
-    rpcUrl: ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : undefined
-  }
-];
+function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
+  return [
+    {
+      chain: polygon,
+      name: Networks.Polygon,
+      rpcUrl: apiKey ? `https://polygon-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    },
+    {
+      chain: moonbeam,
+      name: Networks.Moonbeam
+      // No custom RPC URL for Moonbeam, always using default from viem
+    },
+    {
+      chain: arbitrum,
+      name: Networks.Arbitrum,
+      rpcUrl: apiKey ? `https://arb-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    },
+    {
+      chain: avalanche,
+      name: Networks.Avalanche,
+      rpcUrl: apiKey ? `https://avax-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    },
+    {
+      chain: base,
+      name: Networks.Base,
+      rpcUrl: apiKey ? `https://base-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    },
+    {
+      chain: bsc,
+      name: Networks.BSC,
+      rpcUrl: apiKey ? `https://bnb-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    },
+    {
+      chain: mainnet,
+      name: Networks.Ethereum,
+      rpcUrl: apiKey ? `https://eth-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
+    }
+  ];
+}
 
 export class EvmClientManager {
   private static instance: EvmClientManager;
@@ -55,7 +56,7 @@ export class EvmClientManager {
   private networks: EvmNetworkConfig[] = [];
 
   private constructor() {
-    this.networks = EVM_NETWORKS;
+    this.networks = getEvmNetworks(ALCHEMY_API_KEY);
   }
 
   public static getInstance(): EvmClientManager {
@@ -108,7 +109,7 @@ export class EvmClientManager {
     let client = this.clientInstances.get(networkName);
 
     if (!client) {
-      logger.info(`Creating new EVM client for ${networkName}`);
+      logger.current.info(`Creating new EVM client for ${networkName}`);
       client = this.createClient(networkName);
       this.clientInstances.set(networkName, client);
     }
@@ -121,7 +122,7 @@ export class EvmClientManager {
     let walletClient = this.walletClientInstances.get(key);
 
     if (!walletClient) {
-      logger.info(`Creating new EVM wallet client for ${networkName} with account ${account.address}`);
+      logger.current.info(`Creating new EVM wallet client for ${networkName} with account ${account.address}`);
       walletClient = this.createWalletClient(networkName, account);
       this.walletClientInstances.set(key, walletClient);
     }

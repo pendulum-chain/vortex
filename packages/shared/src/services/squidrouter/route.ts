@@ -307,7 +307,7 @@ export async function createTransactionDataFromRoute({
   swapValue,
   nonce
 }: {
-  route: SquidrouterRoute["route"];
+  route: SquidrouterRoute;
   rawAmount: string;
   inputTokenErc20Address: string;
   publicClient: PublicClient;

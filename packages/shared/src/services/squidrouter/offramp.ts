@@ -1,11 +1,8 @@
 import { EvmTokenDetails, EvmTransactionData, Networks, SquidrouterRoute } from "@packages/shared";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
-import { createPublicClient, encodeFunctionData, http } from "viem";
-import { moonbeam } from "viem/chains";
-import erc20ABI from "../../contracts/ERC20";
-import { EvmClientManager } from "../../evm/clientManager";
 import { createRandomString, createSquidRouterHash } from "../../helpers/squidrouter";
+import { EvmClientManager } from "../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import { encodePayload } from "./payload";
 import { createGenericRouteParams, createOfframpRouteParams, createTransactionDataFromRoute, getRoute } from "./route";

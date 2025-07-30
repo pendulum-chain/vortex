@@ -5,8 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager, EventPoller } from "@packages/shared";
-import { EvmClientManager } from "./api/services/evm/clientManager";
+import { ApiManager, EventPoller, EvmClientManager } from "@packages/shared";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";

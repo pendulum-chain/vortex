@@ -1,4 +1,4 @@
-import { ApiManager, FiatToken, getNetworkFromDestination, Networks, RampPhase } from "@packages/shared";
+import { ApiManager, EvmClientManager, FiatToken, getNetworkFromDestination, Networks, RampPhase } from "@packages/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
@@ -6,7 +6,6 @@ import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
-import { EvmClientManager } from "../../evm/clientManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { fundMoonbeamEphemeralAccount } from "../../transactions/moonbeam/balance";

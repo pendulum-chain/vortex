@@ -15,8 +15,6 @@ import {
 } from "./types";
 
 const MONERIUM_API_URL = "https://api.monerium.app";
-export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
-export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals
 
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };

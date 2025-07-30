@@ -1,5 +1,9 @@
 import {
   AccountMeta,
+  createOnrampSquidrouterTransactionsToEvm,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
+  EvmClientManager,
   EvmTokenDetails,
   EvmTransactionData,
   FiatToken,
@@ -16,12 +20,11 @@ import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { EvmClientManager } from "../evm/clientManager";
-import { ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, getMoneriumEvmDefaultMintAddress } from "../monerium";
+import { getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
-import { createOnrampSquidrouterTransactionsToEvm } from "./squidrouter/onramp";
+
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];

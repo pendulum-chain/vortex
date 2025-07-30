@@ -20,7 +20,6 @@ import {
   Networks,
   PendulumTokenDetails,
   signAndSubmitXcm,
-  TokenType,
   waitUntilTrue
 } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
@@ -29,7 +28,7 @@ import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
-import { excelonMainnet, polygon } from "viem/chains";
+import { polygon } from "viem/chains";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
@@ -134,7 +133,7 @@ export async function waitForBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: strin
     brlaAmountRaw,
     1_000, // 1 second
     5 * 60 * 1_000, // 5 minutes
-    polygon
+    Networks.Polygon
   );
   console.log(`${brlaAmount.toFixed(4, 0)} BRLA successfully teleported to Polygon account.`);
 }
@@ -155,7 +154,7 @@ export async function transferBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: stri
     brlaAmountRaw,
     1_000, // 1 second
     5 * 60 * 1_000, // 5 minutes
-    polygon
+    Networks.Polygon
   );
 }
 
@@ -250,7 +249,7 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
   // Get USDC balance of receiver before the swap. BRLA is using USDCe on Polygon, so we need to check USDCe balance.
   const usdcDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
   const receiverBalanceBeforeRaw = await getEvmTokenBalance({
-    chain: polygon,
+    chain: Networks.Polygon,
     ownerAddress: receiverAddress,
     tokenAddress: usdcDetails.erc20AddressSourceChain
   });

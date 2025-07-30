@@ -1,15 +1,17 @@
 import {
-  createEvmClientsAndConfig,
+  AxelarScanStatusFees,
+  EvmClientManager,
   FiatToken,
   getNetworkId,
   getStatus,
   getStatusAxelarScan,
   Networks,
-  RampPhase
+  RampPhase,
+  SquidRouterPayResponse
 } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
-import { createPublicClient, encodeFunctionData, Hash } from "viem";
+import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
@@ -18,8 +20,6 @@ import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { PhaseError } from "../../../errors/phase-error";
-import { EvmClientManager } from "../../evm/clientManager";
-import { SquidRouterPayResponse } from "../../transactions/squidrouter/route";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
