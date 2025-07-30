@@ -9,6 +9,7 @@ import {
   isOnChainToken,
   Networks,
   OnChainToken,
+  QuoteError,
   QuoteFeeStructure,
   QuoteResponse,
   RampCurrency
@@ -101,7 +102,7 @@ export class QuoteService extends BaseRampService {
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover fees.",
+        message: QuoteError.InputAmountTooLowToCoverFees,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -377,7 +378,7 @@ export class QuoteService extends BaseRampService {
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover calculated fees.",
+        message: QuoteError.InputAmountTooLowToCoverCalculatedFees,
         status: httpStatus.BAD_REQUEST
       });
     }

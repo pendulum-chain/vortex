@@ -40,6 +40,24 @@ export interface GetQuoteRequest {
 }
 
 export enum QuoteError {
+  // Validation errors
+  MissingRequiredFields = "Missing required fields",
+  InvalidRampType = 'Invalid ramp type, must be "on" or "off"',
+
+  // Quote lookup errors
+  QuoteNotFound = "Quote not found",
+
+  // Amount validation errors
+  InputAmountTooLowToCoverFees = "Input amount too low to cover fees",
+  InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0",
+  InputAmountTooLow = "Input amount too low. Please try a larger amount.",
+  InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.",
+
+  // Token/calculation errors
+  UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",
+  FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.",
+
+  // Fee calculation errors
   FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees",
   FailedToCalculateFeeComponents = "Failed to calculate fee components"
 }
