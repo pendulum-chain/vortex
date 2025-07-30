@@ -124,7 +124,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ rampRegistered: registered });
         saveState();
       },
-      setRampRegistrationError: (error: string | undefined) => {
+      setRampRegistrationError: (error: unknown) => {
         set({ rampRegistrationError: error });
         saveState();
       },
