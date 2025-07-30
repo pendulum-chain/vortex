@@ -9,47 +9,24 @@ import {
 } from "@packages/shared";
 import { getWalletClient } from "@wagmi/core";
 import { useCallback, useEffect } from "react";
-import { config } from "../../../config";
-import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
-import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
-import { useToastMessage } from "../../../helpers/notifications";
-import { RampService } from "../../../services/api";
-import { MoneriumService } from "../../../services/api/monerium.service";
-import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../services/transactions/userSigning";
-import { useMoneriumStore } from "../../../stores/moneriumStore";
-import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
-import { RampExecutionInput } from "../../../types/phases";
-import { wagmiConfig } from "../../../wagmiConfig";
-import { useVortexAccount } from "../../useVortexAccount";
-import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
-import { useSubmitRamp } from "../useSubmitRamp";
+import { config } from "../../../../config";
+import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../../contexts/polkadotNode";
+import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
+import { useToastMessage } from "../../../../helpers/notifications";
+import { RampService } from "../../../../services/api";
+import { MoneriumService } from "../../../../services/api/monerium.service";
+import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../../services/transactions/userSigning";
+import { useMoneriumStore } from "../../../../stores/moneriumStore";
+import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../../stores/rampStore"; // Import useSigningRejected
+import { RampExecutionInput } from "../../../../types/phases";
+import { wagmiConfig } from "../../../../wagmiConfig";
+import { useVortexAccount } from "../../../useVortexAccount";
+import { useAnchorWindowHandler } from "../../useSEP24/useAnchorWindowHandler";
+import { useSubmitRamp } from "../../useSubmitRamp";
+import { useGetRampRegistrationErrorMessage, useSignatureTrace } from "./helpers";
 
 const RAMP_REGISTER_TRACE_KEY = "rampRegisterTrace";
 const RAMP_SIGNING_TRACE_KEY = "rampSigningTrace";
-
-/**
- * A utility hook to manage signature traces using localStorage.
- * This prevents a process from running more than once.
- */
-const useSignatureTrace = (traceKey: string) => {
-  // Checks if a trace exists. If not, it creates one and allows the process to proceed.
-  const checkAndSetTrace = useCallback(() => {
-    const existingTrace = localStorage.getItem(traceKey);
-    if (existingTrace !== null) {
-      return { canProceed: false };
-    }
-
-    const traceRef = new Date().toISOString();
-    localStorage.setItem(traceKey, traceRef);
-    return { canProceed: true };
-  }, [traceKey]);
-
-  const releaseTrace = useCallback(() => {
-    localStorage.removeItem(traceKey);
-  }, [traceKey]);
-
-  return { checkAndSetTrace, releaseTrace };
-};
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
 // For Offramp/Onramp BRL we trigger it while clicking Continue in the ramp form
@@ -60,7 +37,15 @@ export const useRegisterRamp = () => {
     rampStarted,
     canRegisterRamp,
     rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
+    actions: {
+      setRampRegistered,
+      setRampState,
+      setRampSigningPhase,
+      setCanRegisterRamp,
+      setSigningRejected,
+      resetRampState,
+      setRampRegistrationError
+    }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
 
@@ -77,6 +62,8 @@ export const useRegisterRamp = () => {
 
   // Get Monerium auth data
   const { authToken, triggered: moneriumTriggered } = useMoneriumStore();
+
+  const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -257,7 +244,7 @@ export const useRegisterRamp = () => {
 
     registerRampProcess()
       .catch(error => {
-        console.error("Error registering ramp:", error);
+        setRampRegistrationError(getRampRegistrationErrorMessage(error));
       })
       .finally(() => {
         // Release the registration trace lock
@@ -277,7 +264,9 @@ export const useRegisterRamp = () => {
     rampKycStarted,
     signingRejected,
     authToken,
-    rampRegistered
+    rampRegistered,
+    getRampRegistrationErrorMessage,
+    setRampRegistrationError
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
