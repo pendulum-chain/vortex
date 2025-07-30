@@ -1,4 +1,7 @@
+import { XCircleIcon } from "@heroicons/react/24/solid";
+import { MoneriumErrors } from "@packages/shared";
 import Big from "big.js";
+import { motion } from "motion/react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
@@ -6,8 +9,7 @@ import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
+import { useRampActions, useRampExecutionInput, useRampRegistrationError, useRampSummaryVisible } from "../../stores/rampStore";
 import { Dialog } from "../Dialog";
 import { RampDirection } from "../RampToggle";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -20,6 +22,7 @@ export const RampSummaryDialog: FC = () => {
   const { resetRampState } = useRampActions();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
+  const rampRegistrationError = useRampRegistrationError();
   const rampDirection = executionInput?.quote.rampType === "off" ? RampDirection.OFFRAMP : RampDirection.ONRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const fiatToken = useFiatToken();
@@ -48,7 +51,11 @@ export const RampSummaryDialog: FC = () => {
     ? t("components.dialogs.RampSummaryDialog.headerText.buy")
     : t("components.dialogs.RampSummaryDialog.headerText.sell");
 
-  const actions = signingBoxVisible ? (
+  const actions = rampRegistrationError ? (
+    <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onClose}>
+      {t("components.dialogs.RampSummaryDialog.tryAgain")}
+    </button>
+  ) : signingBoxVisible ? (
     <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
   ) : (
     <RampSummaryButton />
@@ -58,9 +65,19 @@ export const RampSummaryDialog: FC = () => {
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
 
-      {signingBoxVisible && (
+      {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
           <SigningBoxContent progress={progress} />
+        </div>
+      )}
+
+      {rampRegistrationError && (
+        <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
+          <div className="flex items-center">
+            <XCircleIcon className="w-5 text-yellow-800" />
+            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationError}</p>
+          </div>
+          <progress className="progress progress-warning mt-4 w-56" />
         </div>
       )}
     </>
