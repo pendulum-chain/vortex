@@ -68,7 +68,7 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
     }
     return null;
   } catch (error) {
-    console.error("Failed to fetch address:", error);
+    logger.error("Failed to fetch address:", error);
     return null;
   }
 };
@@ -102,7 +102,7 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
       return null;
     }
   } catch (error) {
-    console.error("Failed to fetch addresses:", error);
+    logger.error("Failed to fetch addresses:", error);
     throw error;
   }
 };
@@ -123,7 +123,7 @@ export const getAuthContext = async (authToken: string): Promise<AuthContext> =>
 
     return response.json();
   } catch (error) {
-    console.error("Failed to fetch auth context:", error);
+    logger.error("Failed to fetch auth context:", error);
     throw error;
   }
 };
@@ -165,7 +165,7 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
 
     return ibanData;
   } catch (error) {
-    console.error("Error fetching IBANs:", error);
+    logger.error("Error fetching IBANs:", error);
     throw error;
   }
 };
@@ -190,7 +190,7 @@ export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProf
     const profileData: MoneriumUserProfile = await profileResponse.json();
     return profileData;
   } catch (error) {
-    console.error("Error fetching user profile:", error);
+    logger.error("Error fetching user profile:", error);
     throw error;
   }
 };
