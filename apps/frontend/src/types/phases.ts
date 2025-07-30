@@ -54,7 +54,7 @@ export interface RampZustand {
   rampSummaryVisible: boolean;
   canRegisterRamp: boolean;
   signingRejected: boolean;
-  rampRegistrationError: string | undefined;
+  rampRegistrationError: unknown;
 }
 
 export interface RampActions {
@@ -73,5 +73,5 @@ export interface RampActions {
   resetRampState: () => void;
   setCanRegisterRamp: (canRegister: boolean) => void;
   setSigningRejected: (rejected: boolean) => void;
-  setRampRegistrationError: (error: string | undefined) => void;
+  setRampRegistrationError: (error: unknown) => void;
 }
