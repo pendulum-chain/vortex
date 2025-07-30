@@ -8,6 +8,7 @@ const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = "0x2AB52086e8edaB28193172209407FF9df1
 const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = "2.5"; // Amount to send to the new stellar ephemeral account created
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = "0.1"; // Amount to send to the new pendulum ephemeral account created
 const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = "1"; // Amount to send to the new moonbeam ephemeral account created
+const POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS = "0.15"; // Amount to send to the new polygon ephemeral account created
 const BRLA_BASE_URL = "https://api.brla.digital:5567/v1/business";
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = "50000000000000000";
@@ -19,7 +20,22 @@ const STELLAR_BASE_FEE = "1000000";
 
 // Expiration and timeout values
 const SEQUENCE_TIME_WINDOW_IN_SECONDS = 600; // 10 minutes. Marks the MAXIMUM window between creating the stellar ephemeral transactions and it's creation on chain.
+
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
+
+const FIRST_TX_TIME_WINDOW_IN_SECONDS = 5 * 60; // 5 minutes
+const SECOND_TX_TIME_WINDOW_IN_SECONDS = 24 * 60 * 60; // 24 hours
+const THIRD_TX_TIME_WINDOW_IN_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const FOURTH_TX_TIME_WINDOW_IN_SECONDS = 30 * 24 * 60 * 60; // 30 days
+const FIFTH_TX_TIME_WINDOW_IN_SECONDS = 90 * 24 * 60 * 60; // 90 days
+
+const SEQUENCE_TIME_WINDOWS = {
+  FIFTH_TX: FIFTH_TX_TIME_WINDOW_IN_SECONDS,
+  FIRST_TX: FIRST_TX_TIME_WINDOW_IN_SECONDS,
+  FOURTH_TX: FOURTH_TX_TIME_WINDOW_IN_SECONDS,
+  SECOND_TX: SECOND_TX_TIME_WINDOW_IN_SECONDS,
+  THIRD_TX: THIRD_TX_TIME_WINDOW_IN_SECONDS
+};
 
 const { PENDULUM_FUNDING_SEED } = process.env;
 const { FUNDING_SECRET } = process.env;
@@ -30,10 +46,16 @@ const { BRLA_LOGIN_PASSWORD } = process.env;
 const { BRLA_LOGIN_USERNAME } = process.env;
 const MOONBEAM_FUNDING_PRIVATE_KEY = MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
-
+const { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } = process.env;
+const { ALCHEMY_API_KEY } = process.env;
 export {
+  ALCHEMY_API_KEY,
+  MONERIUM_CLIENT_ID_APP,
+  MONERIUM_CLIENT_SECRET,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
   ASSETHUB_XCM_FEE_USDC_UNITS,
   SEQUENCE_TIME_WINDOW_IN_SECONDS,
+  SEQUENCE_TIME_WINDOWS,
   BACKEND_TEST_STARTER_ACCOUNT,
   GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,

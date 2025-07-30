@@ -13,7 +13,8 @@ export enum LocalStorageKeys {
   TERMS_AND_CONDITIONS = "TERMS_AND_CONDITIONS",
   RAMPING_STATE = "RAMPING_STATE",
   REGISTER_KEY_LOCAL_STORAGE = "rampRegisterKey",
-  START_KEY_LOCAL_STORAGE = "rampStartKey"
+  START_KEY_LOCAL_STORAGE = "rampStartKey",
+  MONERIUM_STATE = "MONERIUM_STATE"
 }
 
 export const debounce = <T extends unknown[]>(func: (...args: T) => void, timeout = 300) => {

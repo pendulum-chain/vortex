@@ -3,10 +3,10 @@ import {
   checkEvmBalancePeriodically,
   getAnyFiatTokenDetailsMoonbeam,
   isFiatTokenEnum,
+  Networks,
   RampPhase
 } from "@packages/shared";
 import Big from "big.js";
-import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -41,7 +41,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
-        polygon
+        Networks.Polygon
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {

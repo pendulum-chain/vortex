@@ -52,11 +52,11 @@ class RampRecoveryWorker {
       logger.info("Running ramp recovery worker");
 
       // Find ramp states that have not been updated in the last 10 minutes
-      // and are not in the 'complete' phase
+      // and are not in the 'complete', 'failed' or 'initial' phase
       const staleStates = await RampState.findAll({
         where: {
           currentPhase: {
-            [Op.notIn]: ["complete", "failed"]
+            [Op.notIn]: ["complete", "failed", "initial"]
           },
           presignedTxs: { [Op.not]: null },
           updatedAt: {

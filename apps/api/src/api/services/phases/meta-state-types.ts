@@ -1,4 +1,4 @@
-import { ExtrinsicOptions, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { ExtrinsicOptions, IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 
 export interface StateMetadata {
   inputAmount: string;
@@ -45,5 +45,8 @@ export interface StateMetadata {
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
-  brCode: string | undefined;
+  depositQrCode: string | undefined;
+  // Only used in onramp, offramp - monerium
+  polygonEphemeralAddress: string;
+  ibanPaymentData: IbanPaymentData;
 }

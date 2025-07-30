@@ -30,6 +30,7 @@
         "number": "Número",
         "partnerCpff": "CPF do Parceiro",
         "phoneNumber": "Número de Telefone",
+        "pixId": "Chave Pix",
         "startDate": "Data de Início da Empresa",
         "state": "Estado",
         "street": "Rua",
@@ -82,6 +83,10 @@
         "phone": {
           "format": "Formato de número de telefone inválido",
           "required": "Número de telefone é obrigatório"
+        },
+        "pixId": {
+          "format": "Formato de chave Pix inválido",
+          "required": "Chave Pix é obrigatória"
         },
         "startDate": {
           "future": "Data de início não pode ser no futuro",
@@ -155,12 +160,20 @@
         "continueOnPartnersPage": "Continuar na página do Parceiro",
         "continueWithPartner": "Continuar com Parceiro",
         "destination": "Conta de destino",
-        "headerText": {
-          "buy": "Você está comprando",
-          "sell": "Você está vendendo"
+        "EUROnrampDetails": {
+          "amount": "Valor",
+          "bic": "BIC",
+          "description": "Por favor, faça uma transferência bancária com os seguintes detalhes.",
+          "footer": "Por favor, garanta que o valor seja exato.",
+          "iban": "IBAN",
+          "title": "Detalhes da Transferência Bancária"
         },
-        "offrampFee": "Taxa de saque",
-        "onrampFee": "Taxa de compra",
+        "headerText": {
+          "buy": "Resumo do pagamento",
+          "sell": "Resumo do pagamento"
+        },
+        "offrampFee": "Taxa total",
+        "onrampFee": "Taxa total",
         "partner": "Parceiro",
         "processing": "Processando",
         "quote": "Cotação",
@@ -335,16 +348,19 @@
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
+      "closeProgressScreenText": "💡 Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
       "createStellarAccount": "Criando conta Stellar",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "fundEphemeral": "Financiando contas efêmeras",
       "initial": "Iniciando processo",
+      "moneriumOnrampMint": "Transferindo EUR.e",
+      "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
-      "squidRouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",
       "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",

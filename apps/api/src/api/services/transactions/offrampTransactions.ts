@@ -450,7 +450,7 @@ async function createStellarPaymentTransactions(
 ): Promise<void> {
   const { account, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
 
-  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
+  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumbers } =
     await buildPaymentAndMergeTx({
       amountToAnchorUnits: outputAmountUnits.toFixed(),
       ephemeralAccountId: account.address,
@@ -460,7 +460,7 @@ async function createStellarPaymentTransactions(
 
   const createAccountPrimaryTx: UnsignedTx = {
     meta: {
-      expectedSequenceNumber
+      expectedSequenceNumber: expectedSequenceNumbers[0]
     },
     network: account.network,
     nonce: 0,
@@ -471,7 +471,7 @@ async function createStellarPaymentTransactions(
 
   const paymentTransactionPrimary: UnsignedTx = {
     meta: {
-      expectedSequenceNumber
+      expectedSequenceNumber: expectedSequenceNumbers[0]
     },
     network: account.network,
     nonce: 1,
@@ -481,7 +481,9 @@ async function createStellarPaymentTransactions(
   };
 
   const mergeAccountTransactionPrimary: UnsignedTx = {
-    meta: {},
+    meta: {
+      expectedSequenceNumber: expectedSequenceNumbers[0]
+    },
     network: account.network,
     nonce: 2,
     phase: "stellarCleanup",
@@ -491,6 +493,9 @@ async function createStellarPaymentTransactions(
 
   const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
     ...createAccountPrimaryTx,
+    meta: {
+      expectedSequenceNumber: expectedSequenceNumbers[index]
+    },
     nonce: createAccountPrimaryTx.nonce + index,
     txData: tx.tx
   }));
@@ -500,6 +505,9 @@ async function createStellarPaymentTransactions(
 
   const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
     ...paymentTransactionPrimary,
+    meta: {
+      expectedSequenceNumber: expectedSequenceNumbers[index]
+    },
     nonce: paymentTransactionPrimary.nonce + index,
     txData: tx.tx
   }));
@@ -509,6 +517,9 @@ async function createStellarPaymentTransactions(
 
   const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
     ...mergeAccountTransactionPrimary,
+    meta: {
+      expectedSequenceNumber: expectedSequenceNumbers[index]
+    },
     nonce: mergeAccountTransactionPrimary.nonce + index,
     txData: tx.tx
   }));

@@ -3,6 +3,7 @@ import { ReadMessageResult } from "@pendulum-chain/api-solang";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
+import Subsidy, { SubsidyToken } from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
 import rampService from "../ramp/ramp.service";
@@ -146,5 +147,41 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       return `${result.description}`;
     }
     return "Could not extract error message for ReadMessageResult.";
+  }
+
+  /**
+   * Create a subsidy entry for the current ramp and phase
+   * @param state The current ramp state
+   * @param amount The subsidy amount
+   * @param token The token used for the subsidy
+   * @param payerAccount The account address that made the subsidy payment
+   * @param transactionHash The transaction hash or external identifier
+   * @param paymentDate The date when the subsidy payment was made (defaults to current date)
+   * @returns The created subsidy entry
+   */
+  protected async createSubsidy(
+    state: RampState,
+    amount: number,
+    token: SubsidyToken,
+    payerAccount: string,
+    transactionHash: string,
+    paymentDate: Date = new Date()
+  ): Promise<void> {
+    try {
+      const subsidy = await Subsidy.create({
+        amount,
+        payerAccount,
+        paymentDate,
+        phase: this.getPhaseName(),
+        rampId: state.id,
+        token,
+        transactionHash
+      });
+
+      logger.info(`Subsidy created successfully with id ${subsidy.id} for ramp ${state.id}`);
+    } catch (error) {
+      logger.error(`Error creating subsidy for ramp ${state.id}:`, error);
+      // We do not want to throw an error here, as it should not block the phase execution.
+    }
   }
 }

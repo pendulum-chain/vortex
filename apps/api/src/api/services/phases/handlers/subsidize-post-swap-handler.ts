@@ -1,7 +1,9 @@
 import { ApiManager, FiatToken, RampPhase } from "@packages/shared";
+import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -42,9 +44,14 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${outputAmountBeforeFinalStep.raw}`
         );
         const fundingAccountKeypair = getFundingAccount();
-        await pendulumNode.api.tx.tokens
+        const txHash = await pendulumNode.api.tx.tokens
           .transfer(pendulumEphemeralAddress, outputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
+
+        const subsidyAmount = nativeToDecimal(requiredAmount, outputTokenPendulumDetails.decimals).toNumber();
+        const subsidyToken = outputTokenPendulumDetails.assetSymbol as SubsidyToken;
+
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state));

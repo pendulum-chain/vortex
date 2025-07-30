@@ -5,6 +5,7 @@ import RampState from "../../../../models/rampState.model";
 import { checkBalancePeriodically } from "../../stellar/checkBalance";
 import { createVaultService } from "../../stellar/vaultService";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
 import { isStellarEphemeralFunded } from "./helpers";
 
@@ -46,6 +47,14 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       logger.error(
         `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarEphemeralAccountId} does not exist or does not have the required trustline.`
       );
+      return this.transitionToNextPhase(state, "failed");
+    }
+
+    try {
+      logger.info("Validating stellar payment sequence number before spacewalk redeem");
+      await validateStellarPaymentSequenceNumber(state, stellarEphemeralAccountId);
+    } catch (validationError) {
+      logger.error(`Stellar payment sequence validation failed before spacewalk redeem: ${validationError}`);
       return this.transitionToNextPhase(state, "failed");
     }
 

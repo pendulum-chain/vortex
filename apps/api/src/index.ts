@@ -6,6 +6,7 @@ dotenv.config({
 });
 
 import { ApiManager, EventPoller } from "@packages/shared";
+import { EvmClientManager } from "./api/services/evm/clientManager";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
@@ -61,6 +62,9 @@ const initializeApp = async () => {
 
     const apiManager = ApiManager.getInstance();
     await apiManager.populateAllApis();
+
+    // Initialize EVM clients
+    const _evmClientManager = EvmClientManager.getInstance();
 
     // Start background workers
     new CleanupWorker().start();

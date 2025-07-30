@@ -29,6 +29,7 @@
     "viem": "^2.33.0"
   },
   "dependencies": {
+    "big.js": "^6.2.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0"
   },

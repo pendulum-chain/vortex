@@ -6,10 +6,10 @@ import {
   FiatToken,
   generateReferenceLabel,
   getAnyFiatTokenDetailsMoonbeam,
+  Networks,
   RampPhase
 } from "@packages/shared";
 import Big from "big.js";
-import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BrlaTeleportService } from "../../brla/brlaTeleportService";
@@ -80,7 +80,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        moonbeam
+        Networks.Moonbeam
       );
 
       // Add delay to ensure the transaction is settled

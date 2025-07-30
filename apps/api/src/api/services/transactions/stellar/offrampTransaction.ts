@@ -2,14 +2,18 @@ import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, Ste
 import Big from "big.js";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
 import logger from "../../../../config/logger";
-import { FUNDING_SECRET, SEQUENCE_TIME_WINDOW_IN_SECONDS, STELLAR_BASE_FEE } from "../../../../constants/constants";
+import {
+  FUNDING_SECRET,
+  SEQUENCE_TIME_WINDOW_IN_SECONDS,
+  SEQUENCE_TIME_WINDOWS,
+  STELLAR_BASE_FEE
+} from "../../../../constants/constants";
 
 // Define HorizonServer type
 type HorizonServer = Horizon.Server;
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
-const MAX_TIME = Date.now() + 1000 * 60 * 10;
 const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7;
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -27,13 +31,12 @@ export async function buildPaymentAndMergeTx({
   paymentData,
   tokenConfigStellar
 }: StellarBuildPaymentAndMergeTx): Promise<{
-  expectedSequenceNumber: string;
+  expectedSequenceNumbers: string[];
   paymentTransactions: Array<{ sequence: string; tx: string }>;
   mergeAccountTransactions: Array<{ sequence: string; tx: string }>;
   createAccountTransactions: Array<{ sequence: string; tx: string }>;
 }> {
   const baseFee = STELLAR_BASE_FEE;
-  const maxTime = Date.now() + 1000 * 60 * 10;
   const NUMBER_OF_PRESIGNED_TXS = 5;
 
   if (!FUNDING_SECRET) {
@@ -41,14 +44,27 @@ export async function buildPaymentAndMergeTx({
     throw new Error("Stellar funding secret not defined");
   }
 
-  const expectedSequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32);
-
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
   const { memo, memoType, anchorTargetAccount } = paymentData;
   const transactionMemo = memoType === "text" ? Memo.text(memo) : Memo.hash(Buffer.from(memo, "base64"));
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
+
+  // Define timeframes for each presigned transaction
+  const timeWindows = [
+    SEQUENCE_TIME_WINDOWS.FIRST_TX,
+    SEQUENCE_TIME_WINDOWS.SECOND_TX,
+    SEQUENCE_TIME_WINDOWS.THIRD_TX,
+    SEQUENCE_TIME_WINDOWS.FOURTH_TX,
+    SEQUENCE_TIME_WINDOWS.FIFTH_TX
+  ];
+
+  const sequenceNumbers: string[] = [];
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
+    const sequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32, timeWindows[i]);
+    sequenceNumbers.push(sequenceNumber);
+  }
 
   const paymentTransactions: Array<{ sequence: string; tx: string }> = [];
   const mergeAccountTransactions: Array<{ sequence: string; tx: string }> = [];
@@ -88,7 +104,7 @@ export async function buildPaymentAndMergeTx({
           source: ephemeralAccountId
         })
       )
-      .setTimebounds(0, maxTime)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(0))
       .build();
 
@@ -101,9 +117,8 @@ export async function buildPaymentAndMergeTx({
   }
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
-    const currentSequence = BigInt(expectedSequenceNumber) + BigInt(i);
-    const currentSequenceStr = String(currentSequence);
-    const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequenceStr);
+    const currentSequence = sequenceNumbers[i];
+    const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequence);
 
     const currentPaymentTransaction = new TransactionBuilder(currentEphemeralAccount, {
       fee: STELLAR_BASE_FEE,
@@ -117,7 +132,7 @@ export async function buildPaymentAndMergeTx({
         })
       )
       .addMemo(transactionMemo)
-      .setTimebounds(0, MAX_TIME)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(0))
       .build();
 
@@ -138,40 +153,44 @@ export async function buildPaymentAndMergeTx({
           destination: FUNDING_PUBLIC_KEY
         })
       )
-      .setTimebounds(0, MAX_TIME)
+      .setTimebounds(0, 0)
       .setMinAccountSequence(String(1n))
       .build();
 
     currentMergeAccountTransaction.sign(fundingAccountKeypair);
 
     paymentTransactions.push({
-      sequence: currentSequenceStr,
+      sequence: currentSequence,
       tx: currentPaymentTransaction.toEnvelope().toXDR().toString("base64")
     });
 
     mergeAccountTransactions.push({
-      sequence: currentSequenceStr,
+      sequence: currentSequence,
       tx: currentMergeAccountTransaction.toEnvelope().toXDR().toString("base64")
     });
   }
 
   return {
     createAccountTransactions,
-    expectedSequenceNumber: String(expectedSequenceNumber),
+    expectedSequenceNumbers: sequenceNumbers,
     mergeAccountTransactions,
     paymentTransactions
   };
 }
 
-async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shiftAmount = 32) {
+async function getFutureShiftedLedgerSequence(
+  horizonServer: HorizonServer,
+  shiftAmount = 32,
+  timeWindowSeconds = SEQUENCE_TIME_WINDOW_IN_SECONDS
+) {
   try {
     const latestLedger = await horizonServer.ledgers().order("desc").limit(1).call();
 
     const currentLedgerSequence = latestLedger.records[0].sequence;
 
-    const ledgersIn5Minutes = Math.ceil(SEQUENCE_TIME_WINDOW_IN_SECONDS / APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS);
+    const ledgersInTimeWindow = Math.ceil(timeWindowSeconds / APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS);
 
-    const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
+    const futureLedgerSequence = currentLedgerSequence + ledgersInTimeWindow;
 
     const bigFutureLedger = new Big(futureLedgerSequence);
     const bigShift = new Big(2).pow(shiftAmount);

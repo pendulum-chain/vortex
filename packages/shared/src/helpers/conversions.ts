@@ -2,7 +2,6 @@ import { ApiPromise, Keyring } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { Extrinsic } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { Buffer } from "buffer";
 import { StrKey } from "stellar-sdk";
 import logger from "../logger";
 

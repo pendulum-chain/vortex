@@ -1,10 +1,10 @@
+import { Networks } from "@packages/shared";
 import { signatureVerify } from "@polkadot/util-crypto";
 import { generateNonce } from "siwe";
-import { createPublicClient, http } from "viem";
-import { polygon } from "viem/chains";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
 import { deriveMemoFromAddress } from "../helpers/memoDerivation";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
+import { EvmClientManager } from "./evm/clientManager";
 
 class ValidationError extends Error {
   constructor(message: string) {
@@ -55,11 +55,9 @@ export const verifySiweMessage = async (
   // verify with substrate (generic) or evm generic (using polygon public client)
   let valid = false;
   if (address.startsWith("0x")) {
-    const publicClient = createPublicClient({
-      chain: polygon,
-      transport: http()
-    });
-    valid = await publicClient.verifyMessage({
+    const evmClientManager = EvmClientManager.getInstance();
+    const polygonClient = evmClientManager.getClient(Networks.Polygon);
+    valid = await polygonClient.verifyMessage({
       address: address as `0x${string}`,
       message: siweMessage.toMessage(), // Validation must be done on the message as string
       signature: signature as `0x${string}`

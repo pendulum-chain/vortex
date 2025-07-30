@@ -1,6 +1,6 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from "@packages/shared";
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "@packages/shared";
 import axios, { AxiosError } from "axios";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, PublicClient } from "viem";
 import erc20ABI from "../../contracts/ERC20";
 import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
 import logger from "../../logger";
@@ -16,6 +16,7 @@ export interface RouteParams {
   toChain: string;
   toToken: string;
   toAddress: string;
+  bypassGuardrails: boolean;
   slippageConfig: {
     autoMode: number;
   };
@@ -29,6 +30,20 @@ export interface RouteParams {
   };
 }
 
+interface RouteStatus {
+  chainId: string;
+  txHash: string;
+  status: string;
+  action: string;
+}
+
+export interface SquidRouterPayResponse {
+  id: string;
+  status: string;
+  squidTransactionStatus: string;
+  isGMPTransaction: boolean;
+  routeStatus: RouteStatus[];
+}
 // This function creates the parameters for the Squidrouter API to get a route for onramping.
 // This route will always be from Moonbeam to another EVM chain.
 export function createOnrampRouteParams(
@@ -42,6 +57,7 @@ export function createOnrampRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -59,6 +75,7 @@ export function createOnrampRouteParams(
 export interface SquidrouterRoute {
   estimate: {
     toToken: { decimals: number };
+    aggregateSlippage: number;
     toAmount: string;
     toAmountMin: string;
     toAmountUSD: string;
@@ -90,6 +107,16 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     });
 
     const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
+
+    // FIXME remove this check once squidrouter works as expected again.
+    // Check if slippage of received route is reasonable.
+    const route = result.data as SquidrouterRoute;
+    const slippage = route.estimate.aggregateSlippage;
+    if (slippage > 1) {
+      logger.current.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+      throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+    }
+
     return { data: result.data, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -103,7 +130,11 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 }
 
 // Function to get the status of the transaction using Squid API
-export async function getStatus(transactionId: string | undefined) {
+export async function getStatus(
+  transactionId: string | undefined,
+  fromChainId?: string,
+  toChainId?: string
+): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
     throw new Error("Transaction ID is undefined");
@@ -112,13 +143,14 @@ export async function getStatus(transactionId: string | undefined) {
   logger.current.debug(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`
   );
-
   try {
     const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
       headers: {
         "x-integrator-id": integratorId
       },
       params: {
+        fromChainId,
+        toChainId,
         transactionId
       }
     });
@@ -158,6 +190,7 @@ export function createOfframpRouteParams(
   });
 
   return {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress,
     fromAmount: amount,
@@ -210,6 +243,34 @@ export function createOfframpRouteParams(
   };
 }
 
+export function createGenericRouteParams(
+  fromAddress: string,
+  amount: string,
+  inputTokenDetails: EvmTokenDetails,
+  outputTokenDetails: EvmTokenDetails,
+  fromNetwork: Networks,
+  toNetwork: Networks,
+  destinationAddress: string
+): RouteParams {
+  const fromChainId = getNetworkId(fromNetwork);
+  const toChainId = getNetworkId(toNetwork);
+
+  return {
+    bypassGuardrails: true,
+    enableExpress: true,
+    fromAddress,
+    fromAmount: amount,
+    fromChain: fromChainId.toString(),
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    slippageConfig: {
+      autoMode: 1
+    },
+    toAddress: destinationAddress,
+    toChain: toChainId.toString(),
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  };
+}
+
 export async function testRoute(
   testingToken: EvmTokenDetails,
   attemptedAmountRaw: string,
@@ -219,11 +280,13 @@ export async function testRoute(
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
   const sharedRouteParams: RouteParams = {
+    bypassGuardrails: true,
     enableExpress: true,
     fromAddress: address,
     fromAmount: attemptedAmountRaw,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
+
     slippageConfig: {
       autoMode: 1
     },
@@ -234,4 +297,61 @@ export async function testRoute(
 
   // will throw if no route is found
   await getRoute(sharedRouteParams);
+}
+
+export async function createTransactionDataFromRoute({
+  route,
+  rawAmount,
+  inputTokenErc20Address,
+  publicClient,
+  swapValue,
+  nonce
+}: {
+  route: SquidrouterRoute["route"];
+  rawAmount: string;
+  inputTokenErc20Address: string;
+  publicClient: PublicClient;
+  swapValue?: string;
+  nonce?: number;
+}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData }> {
+  const { transactionRequest } = route;
+
+  const approveTransactionData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [transactionRequest?.target, rawAmount],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const approveData: EvmTransactionData = {
+    data: approveTransactionData as `0x${string}`,
+    gas: "150000",
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: inputTokenErc20Address as `0x${string}`,
+    value: "0"
+  };
+
+  if (nonce !== undefined) {
+    approveData.nonce = nonce;
+  }
+
+  const swapData: EvmTransactionData = {
+    data: transactionRequest.data as `0x${string}`,
+    gas: transactionRequest.gasLimit,
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    to: transactionRequest.target as `0x${string}`,
+    value: swapValue ?? transactionRequest.value
+  };
+
+  if (nonce !== undefined) {
+    swapData.nonce = nonce + 1;
+  }
+
+  return {
+    approveData,
+    swapData
+  };
 }

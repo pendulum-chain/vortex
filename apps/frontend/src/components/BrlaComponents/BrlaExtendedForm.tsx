@@ -10,6 +10,7 @@ import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
 import { useKYCFormLocalStorage } from "./KYCForm/useKYCFormLocalStorage";
 import { DocumentUpload } from "./KYCLevel2Form";
+import { useBrlaKycPixKeyLocalStorage } from "./useBrlaKycPixKeyLocalStorage";
 import { useBrlaKycTaxIdLocalStorage } from "./useBrlaKycTaxIdLocalStorage";
 import { VerificationStatus } from "./VerificationStatus";
 
@@ -36,6 +37,7 @@ export const PIXKYCForm = () => {
   const { t } = useTranslation();
 
   const { taxId, clearTaxId } = useBrlaKycTaxIdLocalStorage();
+  const { clearPixId } = useBrlaKycPixKeyLocalStorage();
 
   const handleDocumentUploadSubmit = useCallback(() => {
     if (!taxId) {
@@ -60,6 +62,13 @@ export const PIXKYCForm = () => {
       id: ExtendedBrlaFieldOptions.TAX_ID,
       index: 0,
       label: t("components.brlaExtendedForm.form.taxId"),
+      required: true,
+      type: "text"
+    },
+    {
+      id: ExtendedBrlaFieldOptions.PIX_ID,
+      index: 1,
+      label: t("components.brlaExtendedForm.form.pixId"),
       required: true,
       type: "text"
     },
@@ -186,6 +195,7 @@ export const PIXKYCForm = () => {
           onSubmitHandler={() => {
             handleDocumentUploadSubmit();
             clearTaxId();
+            clearPixId();
           }}
           taxId={taxId}
         />
@@ -201,6 +211,7 @@ export const PIXKYCForm = () => {
         onBackClick={() => {
           handleBackClick();
           clearTaxId();
+          clearPixId();
           clearStorage();
         }}
         onSubmit={async formData => {

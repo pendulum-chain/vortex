@@ -6,14 +6,17 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
   getEvmTokenBalance,
+  MOONBEAM_XCM_FEE_GLMR,
+  Networks,
+  nativeToDecimal,
   PENDULUM_USDC_AXL,
   RampPhase,
   submitXTokens
 } from "@packages/shared";
 import Big from "big.js";
-import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
@@ -58,7 +61,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         state.type === "off" && state.state.outputTokenType === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
-        chain: moonbeam,
+        chain: Networks.Moonbeam,
         ownerAddress: ownerAddress as `0x${string}`,
         tokenAddress: tokenAddress as `0x${string}`
       });
@@ -93,6 +96,11 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         `PendulumToMoonbeamPhaseHandler: XCM transfer submitted with hash ${hash} for ramp ${state.id}. Waiting for the token to arrive on Moonbeam...`
       );
       await didTokensArriveOnMoonbeam();
+
+      // XCM is payed by the ephemeral, in GLMR, with a fixed value of MOONBEAM_XCM_FEE_GLMR
+      const subsidyAmount = nativeToDecimal(MOONBEAM_XCM_FEE_GLMR, 18).toNumber();
+      const hashToStore = hash ?? "0x";
+      await this.createSubsidy(state, subsidyAmount, SubsidyToken.GLMR, pendulumEphemeralAddress, hashToStore);
 
       state.state = {
         ...state.state,

@@ -1,7 +1,7 @@
+import { EvmAddress, EvmNetworks } from "@packages/shared";
 import Big from "big.js";
-import { Chain, createPublicClient, http } from "viem";
-import { EvmAddress } from "../..";
 import erc20ABI from "../../contracts/ERC20";
+import { EvmClientManager } from "../evm/clientManager";
 
 export enum BalanceCheckErrorType {
   Timeout = "BALANCE_CHECK_TIMEOUT",
@@ -21,15 +21,13 @@ export class BalanceCheckError extends Error {
 interface GetBalanceParams {
   tokenAddress: EvmAddress;
   ownerAddress: EvmAddress;
-  chain: Chain;
+  chain: EvmNetworks;
 }
 
 export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
   try {
-    const publicClient = createPublicClient({
-      chain,
-      transport: http()
-    });
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(chain);
 
     const balanceResult = (await publicClient.readContract({
       abi: erc20ABI,
@@ -50,16 +48,14 @@ export function checkEvmBalancePeriodically(
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: Chain
+  chain: EvmNetworks
 ): Promise<Big> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
-        const publicClient = createPublicClient({
-          chain,
-          transport: http()
-        });
+        const evmClientManager = EvmClientManager.getInstance();
+        const publicClient = evmClientManager.getClient(chain);
 
         const result = (await publicClient.readContract({
           abi: erc20ABI,

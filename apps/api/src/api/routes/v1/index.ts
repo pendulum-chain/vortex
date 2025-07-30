@@ -6,6 +6,7 @@ import brlaRoutes from "./brla.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import maintenanceRoutes from "./maintenance.route";
+import moneriumRoutes from "./monerium.route";
 import moonbeamRoutes from "./moonbeam.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import pendulumRoutes from "./pendulum.route";
@@ -122,6 +123,11 @@ router.use("/supported-cryptocurrencies", cryptocurrenciesRoutes);
  * GET v1/maintenance
  */
 router.use("/maintenance", maintenanceRoutes);
+
+/**
+ * GET v1/monerium
+ */
+router.use("/monerium", moneriumRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
