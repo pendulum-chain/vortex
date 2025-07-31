@@ -1,4 +1,4 @@
-import { CleanupPhase, decodeSubmittableExtrinsic } from "@packages/shared";
+import { CleanupPhase, decodeSubmittableExtrinsic, RampDirection } from "@packages/shared";
 import { submitExtrinsic } from "@pendulum-chain/api-solang";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
@@ -23,7 +23,7 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
     }
 
     // Moonbeam cleanup is only required for BRL onramp
-    if (state.type !== "on") {
+    if (state.type !== RampDirection.BUY) {
       return false;
     }
 

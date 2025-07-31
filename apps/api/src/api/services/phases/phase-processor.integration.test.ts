@@ -8,6 +8,7 @@ import {
   EvmToken,
   FiatToken,
   Networks,
+  RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
@@ -247,7 +248,7 @@ describe("PhaseProcessor Integration Test", () => {
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
         outputCurrency: TEST_OUTPUT_CURRENCY,
-        rampType: "off",
+        rampType: RampDirection.SELL,
         to: QUOTE_TO
       });
 
