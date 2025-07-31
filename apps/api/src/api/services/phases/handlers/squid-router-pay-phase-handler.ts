@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkId, Networks, RampPhase } from "@packages/shared";
+import { FiatToken, getNetworkId, Networks, RampDirection, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
@@ -81,7 +81,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
 
-    if (state.type === "off") {
+    if (state.type === RampDirection.SELL) {
       logger.info("squidRouterPay phase is not supported for off-ramp");
       return state;
     }
