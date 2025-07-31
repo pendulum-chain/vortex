@@ -164,10 +164,10 @@
         "EUROnrampDetails": {
           "amount": "Amount",
           "bic": "BIC",
-          "description": "Please make a bank transfer with the following details.",
           "footer": "Please ensure the amount is exact.",
+          "hint": "Scan this QR code in your banking app to start the payment instantly.",
           "iban": "IBAN",
-          "title": "Bank Transfer Details"
+          "title": "Do an instant bank transfer with the following details"
         },
         "headerText": {
           "buy": "Payment Summary",
@@ -356,7 +356,7 @@
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "fundEphemeral": "Funding ephemeral accounts",
       "initial": "Starting process",
-      "moneriumOnrampMint": "Minting EUR.e",
+      "moneriumOnrampMint": "Waiting to receive payment",
       "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
