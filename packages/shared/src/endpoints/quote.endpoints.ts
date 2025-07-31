@@ -1,4 +1,4 @@
-import { DestinationType, RampCurrency } from "../index";
+import { DestinationType, RampCurrency, RampDirection } from "../index";
 
 // Fee structure
 export interface QuoteFeeStructure {
@@ -12,7 +12,7 @@ export interface QuoteFeeStructure {
 
 // POST /quotes
 export interface CreateQuoteRequest {
-  rampType: "on" | "off";
+  rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
@@ -23,7 +23,7 @@ export interface CreateQuoteRequest {
 
 export interface QuoteResponse {
   id: string;
-  rampType: "on" | "off";
+  rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
