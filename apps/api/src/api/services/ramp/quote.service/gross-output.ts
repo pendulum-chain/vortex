@@ -7,7 +7,8 @@ import {
   isEvmTokenDetails,
   OnChainToken,
   PendulumTokenDetails,
-  RampCurrency
+  RampCurrency,
+  RampDirection
 } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { Big } from "big.js";
@@ -31,7 +32,7 @@ export interface NablaSwapRequest {
   inputAmountForSwap: string;
   inputCurrency: RampCurrency;
   nablaOutputCurrency: RampCurrency;
-  rampType: "on" | "off";
+  rampType: RampDirection;
   fromPolkadotDestination: DestinationType;
   toPolkadotDestination: DestinationType;
 }
@@ -47,11 +48,11 @@ export interface EvmBridgeRequest {
   finalOutputCurrency: OnChainToken; // Target token on final EVM chain
   finalEvmDestination: DestinationType; // Target EVM chain
   originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
-  rampType: "on" | "off"; // Whether this is an onramp or offramp
+  rampType: RampDirection; // Whether this is an onramp or offramp
 }
 
 export interface EvmBridgeQuoteRequest {
-  rampType: "on" | "off"; // Whether this is an onramp or offramp
+  rampType: RampDirection; // Whether this is an onramp or offramp
   amountDecimal: string; // Raw amount
   inputOrOutputCurrency: OnChainToken; // The currency being swapped (input for offramp, output for onramp)
   sourceOrDestination: DestinationType; // The source or destination EVM chain based on rampType
@@ -108,7 +109,7 @@ export function getTokenDetailsForEvmDestination(
  * Helper to prepare route parameters for Squidrouter
  */
 function prepareSquidrouterRouteParams(
-  rampType: "on" | "off",
+  rampType: RampDirection,
   amountRaw: string,
   tokenDetails: EvmTokenDetails,
   sourceOrDestination: DestinationType
@@ -125,7 +126,7 @@ function prepareSquidrouterRouteParams(
   }
 
   const routeParams =
-    rampType === "on"
+    rampType === RampDirection.BUY
       ? createOnrampRouteParams(placeholderAddress, amountRaw, tokenDetails, network, placeholderAddress)
       : createOfframpRouteParams(placeholderAddress, amountRaw, tokenDetails, network, placeholderAddress, placeholderHash);
 
@@ -194,12 +195,12 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 
     // Get token details for Pendulum
     const inputTokenPendulumDetails =
-      rampType === "on"
+      rampType === RampDirection.BUY
         ? getPendulumDetails(inputCurrency)
         : getPendulumDetails(inputCurrency, getNetworkFromDestination(fromPolkadotDestination));
 
     const outputTokenPendulumDetails =
-      rampType === "on"
+      rampType === RampDirection.BUY
         ? getPendulumDetails(nablaOutputCurrency, getNetworkFromDestination(toPolkadotDestination))
         : getPendulumDetails(nablaOutputCurrency);
 
