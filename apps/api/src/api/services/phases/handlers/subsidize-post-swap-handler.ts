@@ -1,4 +1,4 @@
-import { FiatToken, RampPhase } from "@packages/shared";
+import { FiatToken, RampDirection, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -64,7 +64,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp cases
-    if (state.type === "on") {
+    if (state.type === RampDirection.BUY) {
       if (state.to === "assethub") {
         return "pendulumToAssethub";
       }
