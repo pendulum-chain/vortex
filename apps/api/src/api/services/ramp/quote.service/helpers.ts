@@ -1,4 +1,4 @@
-import { DestinationType, Networks, RampCurrency } from "@packages/shared";
+import { DestinationType, Networks, RampCurrency, RampDirection } from "@packages/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
 
@@ -6,10 +6,10 @@ import { APIError } from "../../../errors/api-error";
  * Supported chains configuration for ramp operations
  */
 export const SUPPORTED_CHAINS: {
-  off: { from: DestinationType[]; to: DestinationType[] };
-  on: { from: DestinationType[]; to: DestinationType[] };
+  [RampDirection.SELL]: { from: DestinationType[]; to: DestinationType[] };
+  [RampDirection.BUY]: { from: DestinationType[]; to: DestinationType[] };
 } = {
-  off: {
+  [RampDirection.SELL]: {
     from: [
       Networks.AssetHub,
       Networks.Avalanche,
@@ -21,7 +21,7 @@ export const SUPPORTED_CHAINS: {
     ],
     to: ["pix", "sepa", "cbu"]
   },
-  on: {
+  [RampDirection.BUY]: {
     from: ["pix", "sepa"],
     to: [
       Networks.AssetHub,
@@ -37,18 +37,18 @@ export const SUPPORTED_CHAINS: {
 
 /**
  * Determines the target fiat currency for fee calculations based on ramp type
- * @param rampType - The type of ramp operation ('on' or 'off')
+ * @param rampType - The type of ramp operation
  * @param inputCurrency - The input currency
  * @param outputCurrency - The output currency
  * @returns The target fiat currency for fee calculations
  */
 export function getTargetFiatCurrency(
-  rampType: "on" | "off",
+  rampType: RampDirection,
   inputCurrency: RampCurrency,
   outputCurrency: RampCurrency
 ): RampCurrency {
   // TODO: Add validation to ensure the identified currency is a supported fiat currency
-  if (rampType === "on") {
+  if (rampType === RampDirection.BUY) {
     // Assuming input is the fiat currency for on-ramp (e.g., BRL from pix)
     return inputCurrency;
   }
@@ -58,15 +58,16 @@ export function getTargetFiatCurrency(
 
 /**
  * Validates that the specified chain combination is supported for the given ramp type
- * @param rampType - The type of ramp operation ('on' or 'off')
+ * @param rampType - The type of ramp operation
  * @param from - The source destination type
  * @param to - The target destination type
  * @throws APIError if the chain combination is not supported
  */
-export function validateChainSupport(rampType: "on" | "off", from: DestinationType, to: DestinationType): void {
+export function validateChainSupport(rampType: RampDirection, from: DestinationType, to: DestinationType): void {
   if (!SUPPORTED_CHAINS[rampType].from.includes(from) || !SUPPORTED_CHAINS[rampType].to.includes(to)) {
+    const rampTypeStr = rampType === RampDirection.BUY ? "on" : "off";
     throw new APIError({
-      message: `${rampType}ramping from ${from} to ${to} is not supported.`,
+      message: `${rampTypeStr}ramping from ${from} to ${to} is not supported.`,
       status: httpStatus.BAD_REQUEST
     });
   }
