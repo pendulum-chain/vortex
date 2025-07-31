@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, GetQuoteRequest, Networks, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -28,7 +28,7 @@ export const createQuote = async (
     }
 
     // Validate ramp type
-    if (rampType !== "on" && rampType !== "off") {
+    if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
       throw new APIError({
         message: 'Invalid ramp type, must be "on" or "off"',
         status: httpStatus.BAD_REQUEST
@@ -47,7 +47,7 @@ export const createQuote = async (
     });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
-    if (rampType === "on" && to === "assethub") {
+    if (rampType === RampDirection.BUY && to === Networks.AssetHub) {
       quote.outputAmount = new Big(quote.outputAmount).sub(ASSETHUB_XCM_FEE_USDC_UNITS).toFixed();
     }
 
