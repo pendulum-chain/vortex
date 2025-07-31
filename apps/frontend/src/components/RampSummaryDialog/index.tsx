@@ -1,3 +1,4 @@
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,10 +7,8 @@ import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
 import { Dialog } from "../Dialog";
-import { RampDirection } from "../RampToggle";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
 import { RampSummaryButton } from "./RampSummaryButton";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
@@ -20,8 +19,8 @@ export const RampSummaryDialog: FC = () => {
   const { resetRampState } = useRampActions();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
-  const rampDirection = executionInput?.quote.rampType === "off" ? RampDirection.OFFRAMP : RampDirection.ONRAMP;
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const rampType = executionInput?.quote.rampType || RampDirection.BUY;
+  const isOnramp = rampType === RampDirection.BUY;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
@@ -39,7 +38,7 @@ export const RampSummaryDialog: FC = () => {
       inputAmount: Big(quote?.inputAmount || "0"),
       onChainToken,
       partnerId: partnerId === null ? undefined : partnerId, // Handle null case,
-      rampType: isOnramp ? "on" : "off",
+      rampType,
       selectedNetwork
     });
   };
@@ -56,7 +55,7 @@ export const RampSummaryDialog: FC = () => {
 
   const content = (
     <>
-      <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
+      <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
 
       {signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
