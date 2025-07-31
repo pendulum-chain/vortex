@@ -1,8 +1,7 @@
-import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure } from "@packages/shared";
+import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, RampDirection } from "@packages/shared";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { InterbankExchangeRate } from "../InterbankExchangeRate";
-import { RampDirection } from "../RampToggle";
 
 interface FeeDetailsProps {
   feesCost: QuoteFeeStructure;
@@ -25,7 +24,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const isOfframp = direction === RampDirection.OFFRAMP;
+  const isOfframp = direction === RampDirection.SELL;
 
   const fiatToken = (isOfframp ? toToken : fromToken) as FiatTokenDetails;
   if (!isFiatTokenDetails(fiatToken)) {
