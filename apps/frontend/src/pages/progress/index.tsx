@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { isNetworkEVM, RampPhase } from "@packages/shared";
+import { isNetworkEVM, RampDirection, RampPhase } from "@packages/shared";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -89,7 +89,7 @@ const useProgressUpdate = (
   setShowCheckmark: (value: boolean) => void
 ) => {
   const rampDirection = useRampDirection();
-  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
+  const numberOfPhases = rampDirection === RampDirection.BUY ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
@@ -273,7 +273,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
     <Box className="mt-4 flex flex-col items-center justify-center">
       <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
-        <p className="mb-4 text-lg text-gray-600">{t("pages.progress.closeProgressScreenText")}</p>
+        <p className="mb-4 text-gray-600 text-lg">{t("pages.progress.closeProgressScreenText")}</p>
         <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
           animate={{ opacity: 1, y: 0 }}
@@ -305,7 +305,7 @@ export const ProgressPage = () => {
   const { setRampState } = useRampActions();
   const { t } = useTranslation();
 
-  const rampPhaseRecords = rampState?.ramp?.type === "on" ? ONRAMPING_PHASE_SECONDS : OFFRAMPING_PHASE_SECONDS;
+  const rampPhaseRecords = rampState?.ramp?.type === RampDirection.BUY ? ONRAMPING_PHASE_SECONDS : OFFRAMPING_PHASE_SECONDS;
 
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
