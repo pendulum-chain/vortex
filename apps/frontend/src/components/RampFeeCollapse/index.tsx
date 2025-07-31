@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/20/solid";
-import { QuoteFeeStructure, roundDownToSignificantDecimals } from "@packages/shared";
+import { QuoteFeeStructure, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { useQuote } from "../../stores/ramp/useQuoteStore";
@@ -7,7 +7,6 @@ import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStor
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { InterbankExchangeRate } from "../InterbankExchangeRate";
 import { QuoteRefreshProgress } from "../QuoteRefreshProgress";
-import { RampDirection } from "../RampToggle";
 
 interface FeeItem {
   label: string;
@@ -28,7 +27,7 @@ function calculateInterbankExchangeRate(
   let effectiveInputAmount = inputAmount;
   let effectiveOutputAmount = outputAmount;
 
-  if (rampType === "on") {
+  if (rampType === RampDirection.BUY) {
     effectiveInputAmount = inputAmount.minus(fee.total);
   } else {
     effectiveOutputAmount = outputAmount.plus(fee.total);
@@ -66,9 +65,9 @@ export function RampFeeCollapse() {
           vortex: "0"
         },
         inputAmount: 0,
-        inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
+        inputCurrency: rampDirection === RampDirection.BUY ? fiatToken : onChainToken,
         outputAmount: 0,
-        outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
+        outputCurrency: rampDirection === RampDirection.BUY ? onChainToken : fiatToken,
         rampType: "on"
       };
 
