@@ -5,6 +5,7 @@ import {
   GetRampStatusResponse,
   IbanPaymentData,
   Networks,
+  RampDirection,
   RampErrorLog,
   RampPhase,
   RampProcess,
@@ -217,7 +218,7 @@ export class RampService extends BaseRampService {
     depositQrCode?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (quote.rampType === "off") {
+    if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
