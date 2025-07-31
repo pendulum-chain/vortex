@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
+import { FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampDirection, RampPhase } from "@packages/shared";
 import { PublicClient } from "viem";
 import { moonbeam, polygon } from "viem/chains";
 
@@ -66,7 +66,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    if (state.type === "off") {
+    if (state.type === RampDirection.SELL) {
       logger.info("SquidRouter phase is not supported for off-ramp");
       return state;
     }
