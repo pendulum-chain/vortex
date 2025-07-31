@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { DestinationType, FiatToken, OnChainToken, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { create } from "zustand";
 
@@ -9,14 +9,12 @@ interface QuoteParams {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
-  rampType: RampType;
+  rampType: RampDirection;
   partnerId?: string;
 }
 
-type RampType = "on" | "off";
-
 interface QuotePayload {
-  rampType: RampType;
+  rampType: RampDirection;
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
@@ -59,21 +57,21 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
   const fiatDestination = mapFiatToDestination(fiatToken);
   const inputAmountStr = inputAmount?.toString() || "0";
 
-  const payloadMap: Record<RampType, QuotePayload> = {
-    off: {
+  const payloadMap: Record<RampDirection, QuotePayload> = {
+    [RampDirection.SELL]: {
       fromDestination: selectedNetwork,
       inputAmount: inputAmountStr,
       inputCurrency: onChainToken,
       outputCurrency: fiatToken,
-      rampType: "off",
+      rampType: RampDirection.SELL,
       toDestination: fiatDestination
     },
-    on: {
+    [RampDirection.BUY]: {
       fromDestination: fiatDestination,
       inputAmount: inputAmountStr,
       inputCurrency: fiatToken,
       outputCurrency: onChainToken,
-      rampType: "on",
+      rampType: RampDirection.BUY,
       toDestination: selectedNetwork
     }
   };
