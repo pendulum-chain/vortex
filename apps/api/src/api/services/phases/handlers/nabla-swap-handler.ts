@@ -1,4 +1,4 @@
-import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
+import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampDirection, RampPhase } from "@packages/shared";
 import {
   createExecuteMessageExtrinsic,
   ExecuteMessageResult,
@@ -117,7 +117,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
-    const nextPhase = state.type === "on" ? "distributeFees" : "subsidizePostSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }
