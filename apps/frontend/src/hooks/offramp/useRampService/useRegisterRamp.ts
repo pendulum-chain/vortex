@@ -4,6 +4,7 @@ import {
   getAddressForFormat,
   getOnChainTokenDetails,
   Networks,
+  RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
@@ -83,12 +84,12 @@ export const useRegisterRamp = () => {
 
     // For Stellar offramps, we need to prepare something in advance
     // Calling this function will result in eventually having the necessary prerequisites set
-    if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL) {
+    if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken !== FiatToken.BRL) {
       console.log("Registering ramp for Stellar offramps");
       await handleOnAnchorWindowOpen();
     }
 
-    if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
+    if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
       // Waiting for user input (the ramp summary dialog should show the 'Confirm' button and once clicked,
       // We setCanRegisterRamp to true inside of the RampSummaryButton
     } else {
@@ -158,13 +159,13 @@ export const useRegisterRamp = () => {
         }
       ];
 
-      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
+      if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && !authToken) {
         console.log("Waiting for Monerium auth token to be available for EURC onramp");
         // If this is an onramp with Monerium EURC, we need to wait for the auth token
         return; // Exit early, we will retry once the auth token is available
       }
 
-      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
+      if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
           throw new Error("Missing Stellar ephemeral secret");
@@ -178,18 +179,18 @@ export const useRegisterRamp = () => {
 
       let additionalData: RegisterRampRequest["additionalData"] = {};
 
-      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
+      if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           destinationAddress: address,
           taxId: executionInput.taxId
         };
-      } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
+      } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
         additionalData = {
           destinationAddress: address,
           moneriumAuthToken: authToken,
           taxId: executionInput.taxId
         };
-      } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
+      } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
         additionalData = {
           paymentData: executionInput.paymentData,
           pixDestination: executionInput.pixId,
@@ -339,7 +340,7 @@ export const useRegisterRamp = () => {
 
       // Monerium signatures.
       // If Monerium offramp, prompt offramp message signature
-      if (authToken && rampState?.ramp?.type === "off") {
+      if (authToken && rampState?.ramp?.type === RampDirection.SELL) {
         const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
         moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
