@@ -1,5 +1,5 @@
 import Big from "big.js";
-import { FC } from "react";
+import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
@@ -7,6 +7,7 @@ import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
+import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
 import { RampDirection } from "../RampToggle";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -25,8 +26,18 @@ export const RampSummaryDialog: FC = () => {
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
   const partnerId = usePartnerId();
+  const { setDialogRef } = useRampSummaryActions();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
+
+  const dialogContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setDialogRef(dialogContentRef);
+    return () => {
+      setDialogRef(null);
+    };
+  }, [setDialogRef]);
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -65,5 +76,14 @@ export const RampSummaryDialog: FC = () => {
     </>
   );
 
-  return <Dialog actions={actions} content={content} headerText={headerText} onClose={onClose} visible={visible} />;
+  return (
+    <Dialog
+      actions={actions}
+      content={content}
+      contentRef={dialogContentRef}
+      headerText={headerText}
+      onClose={onClose}
+      visible={visible}
+    />
+  );
 };
