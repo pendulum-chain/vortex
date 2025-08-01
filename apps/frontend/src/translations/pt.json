@@ -149,9 +149,9 @@
       "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "description": "Continue no app do seu banco",
           "pixCode": "Código PIX",
           "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+          "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
           "timerLabel": "Cotação expira em:",
           "title": "Pagar com PIX"
         },
