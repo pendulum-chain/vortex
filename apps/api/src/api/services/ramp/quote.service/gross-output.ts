@@ -7,6 +7,7 @@ import {
   isEvmTokenDetails,
   OnChainToken,
   PendulumTokenDetails,
+  QuoteError,
   RampCurrency
 } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
@@ -182,7 +183,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
-      message: "Input amount for swap must be greater than 0",
+      message: QuoteError.InputAmountForSwapMustBeGreaterThanZero,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -205,7 +206,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 
     if (!inputTokenPendulumDetails || !outputTokenPendulumDetails) {
       throw new APIError({
-        message: "Unable to get Pendulum token details",
+        message: QuoteError.UnableToGetPendulumTokenDetails,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -226,7 +227,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
   } catch (error) {
     logger.error("Error calculating Nabla swap output:", error);
     throw new APIError({
-      message: "Failed to calculate the quote. Please try a lower amount.",
+      message: QuoteError.FailedToCalculateQuote,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }
@@ -301,7 +302,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     logger.error(`Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`);
     // We assume that the error is due to a low input amount
     throw new APIError({
-      message: "Input amount too low. Please try a larger amount.",
+      message: QuoteError.InputAmountTooLow,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }

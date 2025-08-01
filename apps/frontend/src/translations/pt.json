@@ -388,6 +388,7 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
         "fetchingQuote": "Falha ao obter cotação",
         "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
@@ -399,14 +400,20 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
         "invalidInputAmount": "Valor de entrada inválido",
+        "invalidRampType": "Tipo de rampa inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
+        "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
+        "quoteNotFound": "Cotação não encontrada",
+        "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
       }
     }
   },

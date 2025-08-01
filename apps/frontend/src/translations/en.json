@@ -390,6 +390,7 @@
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
         "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",
         "initializeFailed": {
@@ -401,14 +402,20 @@
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
         "invalidInputAmount": "Invalid input amount",
+        "invalidRampType": "Invalid ramp type",
         "lessThanMinimumWithdrawal": {
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
+        "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
+        "quoteNotFound": "Quote not found",
+        "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
+        "tryLargerAmount": "Input amount too low. Please try a larger amount."
       }
     }
   },
