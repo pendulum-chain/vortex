@@ -139,9 +139,9 @@ export const getIbanForAddress = async (walletAddress: string, authToken: string
   const approvedAddresses = await getMoneriumLinkedIbans(authToken);
 
   // Check if the wallet address is in the list of approved addresses
-  // and that it matches the specified network.
+  // and that it matches the polygon network.
   const ibanData = approvedAddresses.find(
-    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === network
+    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === "polygon"
   );
 
   if (!ibanData) {
