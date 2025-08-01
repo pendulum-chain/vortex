@@ -1,3 +1,4 @@
+import { WalletAccount } from "@talismn/connect-wallets";
 import { ApiComponents } from "../contexts/polkadotNode";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 
@@ -9,6 +10,7 @@ export interface RampContext {
   chainId: number | undefined;
   pendulumApiComponents: ApiComponents | undefined;
   moonbeamApiComponents: ApiComponents | undefined;
+  assethubApiComponents: ApiComponents | undefined;
   rampState: RampState | undefined;
   rampSigningPhase: RampSigningPhase | undefined;
   rampExecutionInput: RampExecutionInput | undefined;
@@ -20,4 +22,6 @@ export interface RampContext {
   canRegisterRamp: boolean;
   signingRejected: boolean;
   executionInput: RampExecutionInput | undefined;
+  getMessageSignature: ((message: string) => Promise<string>) | undefined;
+  substrateWalletAccount: WalletAccount | undefined;
 }
