@@ -307,6 +307,10 @@ export const useRegisterRamp = () => {
     }
     console.log(`Starting user signing process at ${new Date().toISOString()}`);
 
+    // XSTATE MIGRATION: This check should be on the "entry" action of the UpdateRamp state. An invoke probably.
+    // Then a self-transition to the same state, but an internal state call "Sign". This internal machine should generically
+    // handle a N number of transactions to be signed by the user.
+
     // Now filter the transactions after passing the main guard
     const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
       if (!address) {
