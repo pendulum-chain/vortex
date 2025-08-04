@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
+import { useRampState } from "../../../contexts/rampState";
 import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
@@ -26,6 +27,7 @@ import { RampTerms } from "../../RampTerms";
 
 export const Onramp = () => {
   const { t } = useTranslation();
+  const rampState = useRampState();
 
   const { setTrackPrice } = useFeeComparisonStore();
 
@@ -36,7 +38,6 @@ export const Onramp = () => {
   const quoteLoading = useQuoteLoading();
 
   const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
-
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
     form.setValue("outputAmount", toAmount?.toFixed(6, 0) || "0");
