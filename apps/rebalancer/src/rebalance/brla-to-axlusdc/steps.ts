@@ -334,7 +334,7 @@ export async function waitForAxlUsdcOnPendulum(
 
     // Check that newBalance is again almost equal to the old current balance but with some small difference due to fees
     const tolerance = 0.05; // 5% tolerance
-    const lowerBound = initialBalance.sub(expectedAmountToReceive.times(1 - tolerance));
+    const lowerBound = initialBalance.add(expectedAmountToReceive.times(1 - tolerance));
     const upperBound = initialBalance.add(expectedAmountToReceive.times(1 + tolerance));
     return newBalance.gte(lowerBound) && newBalance.lte(upperBound);
   };
