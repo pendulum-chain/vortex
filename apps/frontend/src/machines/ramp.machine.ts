@@ -4,6 +4,7 @@ import { RampExecutionInput } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
+import { kycMachine } from "./kyc.machine";
 import { RampContext, RampState } from "./types";
 import { updateRampMachine } from "./update.machine";
 
@@ -63,7 +64,15 @@ export const rampMachine = setup({
         }
       }
     },
-    KYC: {},
+    KYC: {
+      invoke: {
+        input: ({ context }) => context,
+        onDone: {
+          target: "RegisterRamp"
+        },
+        src: kycMachine
+      }
+    },
     RampFollowUp: {},
     RampRequested: {
       invoke: {
