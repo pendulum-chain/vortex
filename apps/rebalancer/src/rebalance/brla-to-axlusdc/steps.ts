@@ -266,23 +266,35 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
   await new Promise(resolve => setTimeout(resolve, 10_000));
 
   // Find transaction receipt
-  const swapHistory = await brlaApiService.getSwapHistory(undefined);
-  const swapLog = swapHistory.find(tx => tx.id === id);
-  const success = Boolean(swapLog?.smartContractOps[0]?.feedback.success);
-  let txHash = swapLog?.smartContractOps[0]?.tx;
+  let success = false;
+  let txHash: string | undefined;
+  const maxRetries = 5;
+  const retryDelayMs = 60_000; // 60 seconds
 
-  if (!success || !txHash) {
-    // Wait for 1 minute and try again
-    console.log(`Swap transaction hash not found for ID: ${id}`);
-    await new Promise(resolve => setTimeout(resolve, 60_000));
-    const swapHistoryRetry = await brlaApiService.getSwapHistory(undefined);
-    const swapLogRetry = swapHistoryRetry.find(tx => tx.id === id);
-    const retrySuccess = Boolean(swapLogRetry?.smartContractOps[0]?.feedback.success);
-    if (!swapLogRetry || !retrySuccess || !swapLogRetry.smartContractOps[0]?.tx) {
-      throw new Error(`Swap transaction hash not found for ID: ${id} after retry.`);
+  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
+    if (retryCount > 0) {
+      console.log(`Swap transaction hash not found for ID: ${id}. Retry ${retryCount}/${maxRetries}...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
     }
-    txHash = swapLogRetry.smartContractOps[0].tx;
+
+    const swapHistory = await brlaApiService.getSwapHistory(undefined);
+    const swapLog = swapHistory.find(tx => tx.id === id);
+    success = Boolean(swapLog?.smartContractOps[0]?.feedback.success);
+    txHash = swapLog?.smartContractOps[0]?.tx;
+
+    if (success && txHash) {
+      if (retryCount > 0) {
+        console.log(`Found transaction hash on retry ${retryCount}: ${txHash}`);
+      }
+      break;
+    }
+
+    if (retryCount === maxRetries) {
+      throw new Error(`Swap transaction hash not found for ID: ${id} after ${maxRetries} retries.`);
+    }
   }
+
+  if (!txHash) throw new Error(`Swap transaction hash not found for ID: ${id}.`);
 
   const { publicClient: polygonPublicClient } = getPolygonEvmClients();
   console.log(`Waiting for swap transaction ${txHash} to be confirmed on Polygon...`);
