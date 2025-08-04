@@ -21,7 +21,7 @@ export const kycMachine = setup({
   initial: "started",
   output: ({ context }) => context,
   states: {
-    done: {
+    kycDone: {
       type: "final"
     },
     started: {
@@ -32,7 +32,9 @@ export const kycMachine = setup({
       states: {
         brla: {
           invoke: {
-            onDone: "#kyc.done",
+            // Asign taxId as initial input, from the swap form.
+            input: ({ context }) => ({ taxId: context.executionInput!.taxId }),
+            onDone: "kycDone", // TODO: again, executionInput cannot be undefined here.
             src: "brlaKyc"
           }
         },
@@ -53,13 +55,13 @@ export const kycMachine = setup({
         },
         monerium: {
           invoke: {
-            onDone: "#kyc.done",
+            onDone: "kycDone",
             src: "moneriumKyc"
           }
         },
         stellar: {
           invoke: {
-            onDone: "#kyc.done",
+            onDone: "kycDone",
             src: "stellarKyc"
           }
         }
