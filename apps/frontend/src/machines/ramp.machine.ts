@@ -1,4 +1,5 @@
 import { assign, fromPromise, setup } from "xstate";
+import { RampExecutionInput } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { startRampActor } from "./actors/start.actor";
 import { RampContext, RampState } from "./types";
@@ -16,7 +17,10 @@ export const rampMachine = setup({
   },
   types: {
     context: {} as RampContext,
-    events: {} as { type: "confirm" } | { type: "onDone"; output: RampState }
+    events: {} as
+      | { type: "confirm" }
+      | { type: "onDone"; output: RampState }
+      | { type: "modifyExecutionInput"; output: RampExecutionInput }
   }
 }).createMachine({
   context: {
@@ -45,7 +49,17 @@ export const rampMachine = setup({
   states: {
     Failure: {},
     Idle: {
-      on: { confirm: "RampRequested" }
+      on: {
+        confirm: "RampRequested",
+        modifyExecutionInput: {
+          actions: assign(({ context, event }) => {
+            if (event.type === "modifyExecutionInput") {
+              return { executionInput: event.output };
+            }
+            return context;
+          })
+        }
+      }
     },
     KYC: {},
     RampFollowUp: {},

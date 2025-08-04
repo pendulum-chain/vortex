@@ -17,6 +17,7 @@ import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
 import { SiweProvider } from "./contexts/siwe";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
+import { RampStateProvider } from "./contexts/rampState";
 
 const queryClient = new QueryClient();
 
@@ -50,7 +51,9 @@ createRoot(root).render(
           <PolkadotWalletStateProvider>
             <EventsProvider>
               <SiweProvider>
-                <App />
+                <RampStateProvider>
+                  <App />
+                </RampStateProvider>
               </SiweProvider>
             </EventsProvider>
           </PolkadotWalletStateProvider>
