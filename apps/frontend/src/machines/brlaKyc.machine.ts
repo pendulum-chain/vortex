@@ -24,9 +24,6 @@ export const brlaKycMachine = setup({
     events: {} as
       | { type: "SubmitLevel1"; formData: KYCFormData }
       | { type: "SubmitLevel2"; formData: KYCFormData }
-      | { type: "APPROVED" }
-      | { type: "REJECTED"; reason?: KycFailureReason }
-      | { type: "FAIL"; error: string }
       | { type: "CloseSuccessModal" },
     output: {} as BRLAKycContext
   }

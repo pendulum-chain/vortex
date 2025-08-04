@@ -72,6 +72,8 @@ export const useSubmitRamp = () => {
             throw new Error("ChainId must be defined at this stage");
           }
 
+          // XSTATE migration: all these kyc logic must be moved to the respective child state machines.
+          // ARS and EURC flows (offramp) should both be handled with the same logic.
           if (executionInput.fiatToken === FiatToken.EURC) {
             // Check if backend should route to Monerium or Stellar anchor
             const shouldUseMonerium = rampDirection === RampDirection.ONRAMP || (await shouldRouteToMonerium(executionInput));
