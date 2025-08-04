@@ -180,7 +180,8 @@
         "tryAgain": "Tentar novamente"
       },
       "selectionModal": {
-        "searchPlaceholder": "Encontre por nome ou endereço",
+        "allNetworks": "Todas as Redes",
+        "searchPlaceholder": "Encontrar por nome ou endereço",
         "title": "Selecione um token"
       }
     },
