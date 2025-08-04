@@ -7,6 +7,7 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   Networks,
+  QuoteError,
   RampErrorLog,
   RampPhase,
   RampProcess,
@@ -248,7 +249,7 @@ export class RampService extends BaseRampService {
 
       if (!quote) {
         throw new APIError({
-          message: "Quote not found",
+          message: QuoteError.QuoteNotFound,
           status: httpStatus.NOT_FOUND
         });
       }
