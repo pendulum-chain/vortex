@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
-import { PoolSelectorModal } from "../../components/InputKeys/SelectionModal";
 import { PoweredBy } from "../../components/PoweredBy";
 import { Offramp } from "../../components/Ramp/Offramp";
 import { Onramp } from "../../components/Ramp/Onramp";
@@ -8,6 +7,7 @@ import { RampHistory } from "../../components/RampHistory";
 import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
 import { RampDirection, RampToggle } from "../../components/RampToggle";
+import { PoolSelectorModal } from "../../components/SelectionDialog/SelectionModal";
 
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";

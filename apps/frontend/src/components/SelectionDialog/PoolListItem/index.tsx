@@ -4,12 +4,12 @@ import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../../config/tokenAvailability";
 import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
 import { UserBalance } from "../../UserBalance";
-import { TokenDefinition } from "../SelectionModal";
+import { ExtendedTokenDefinition } from "../SelectionModal";
 
 interface PoolListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
-  token: TokenDefinition;
+  token: ExtendedTokenDefinition;
 }
 
 export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps) {
@@ -47,7 +47,10 @@ export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps)
             {isDisabled ? (
               <span className="text-red-500">{disabledReason || "Unavailable"}</span>
             ) : (
-              token.name || token.assetSymbol
+              <>
+                {token.name && <div>{token.name}</div>}
+                <div>({token.networkDisplayName})</div>
+              </>
             )}
           </span>
         </span>
