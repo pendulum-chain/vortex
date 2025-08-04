@@ -1,4 +1,5 @@
 import { WalletAccount } from "@talismn/connect-wallets";
+import { RampDirection } from "../components/RampToggle";
 import { ApiComponents } from "../contexts/polkadotNode";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 
@@ -8,6 +9,7 @@ export interface RampContext {
   address: string | undefined;
   authToken: string | undefined;
   chainId: number | undefined;
+  rampDirection: RampDirection | undefined;
   pendulumApiComponents: ApiComponents | undefined;
   moonbeamApiComponents: ApiComponents | undefined;
   assethubApiComponents: ApiComponents | undefined;

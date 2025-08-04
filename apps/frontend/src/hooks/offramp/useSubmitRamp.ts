@@ -1,4 +1,4 @@
-import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import { FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,9 +9,8 @@ import { useSiweContext } from "../../contexts/siwe";
 import { useToastMessage } from "../../helpers/notifications";
 import { sep10 } from "../../services/anchor/sep10";
 import { sep24First } from "../../services/anchor/sep24/first";
-import { BrlaService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
-import { exchangeMoneriumCode, handleMoneriumSiweAuth, initiateMoneriumAuth } from "../../services/monerium/moneriumAuth";
+import { handleMoneriumSiweAuth, initiateMoneriumAuth } from "../../services/monerium/moneriumAuth";
 import { fetchTomlValues } from "../../services/stellar";
 import { useMoneriumStore } from "../../stores/moneriumStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -19,7 +18,6 @@ import { useRampActions } from "../../stores/rampStore";
 import { useSep24Actions } from "../../stores/sep24Store";
 import { RampExecutionInput } from "../../types/phases";
 import { useMoneriumFlow } from "../monerium/useMoneriumFlow";
-import { isValidCnpj, isValidCpf } from "../ramp/schema";
 import { useVortexAccount } from "../useVortexAccount";
 
 export const useSubmitRamp = () => {
@@ -63,6 +61,7 @@ export const useSubmitRamp = () => {
       (async () => {
         setRampInitiating(true);
         try {
+          // XSTATE migrate: where do we trigger this?? maybe an action?
           await setSelectedNetwork(selectedNetwork);
 
           if (!address) {
@@ -73,62 +72,7 @@ export const useSubmitRamp = () => {
             throw new Error("ChainId must be defined at this stage");
           }
 
-          // @TODO: BRL-related logic should be in a separate function/hook
-          if (executionInput.fiatToken === FiatToken.BRL) {
-            const { taxId } = executionInput;
-            if (!taxId) {
-              setRampStarted(false);
-              setRampInitiating(false);
-              return;
-            }
-
-            try {
-              const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
-
-              const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-
-              const remainingLimitInUnits =
-                rampDirection === RampDirection.OFFRAMP
-                  ? remainingLimitResponse.remainingLimitOfframp
-                  : remainingLimitResponse.remainingLimitOnramp;
-
-              const amountNum = Number(
-                rampDirection === RampDirection.OFFRAMP ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
-              );
-              const remainingLimitNum = Number(remainingLimitInUnits);
-              if (amountNum > remainingLimitNum) {
-                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
-                // handling of level 0 users.
-                setRampKycLevel2Started(true);
-                return;
-              }
-
-              // append EVM address to execution input
-              const updatedBrlaRampExecution = {
-                ...executionInput,
-                brlaEvmAddress
-              };
-              setRampExecutionInput(updatedBrlaRampExecution);
-
-              setRampSummaryVisible(true);
-            } catch (err) {
-              const errorResponse = err as BrlaErrorResponse;
-
-              // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
-              // to be valid, or retry.
-              if (isValidCpf(taxId) || isValidCnpj(taxId)) {
-                console.log("User doesn't exist yet.");
-                setRampKycStarted(true);
-              } else if (errorResponse.error.includes("KYC invalid")) {
-                setInitializeFailedMessage(t("hooks.useSubmitOfframp.kycInvalid"));
-                setRampStarted(false);
-                setRampInitiating(false);
-                cleanupSEP24();
-                return;
-              }
-              throw new Error("Error while fetching BRLA user");
-            }
-          } else if (executionInput.fiatToken === FiatToken.EURC) {
+          if (executionInput.fiatToken === FiatToken.EURC) {
             // Check if backend should route to Monerium or Stellar anchor
             const shouldUseMonerium = rampDirection === RampDirection.ONRAMP || (await shouldRouteToMonerium(executionInput));
 

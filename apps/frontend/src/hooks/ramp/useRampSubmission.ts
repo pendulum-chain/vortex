@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
@@ -9,6 +10,7 @@ import {
 } from "../../services/transactions/ephemerals";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { useRampActions } from "../../stores/rampStore";
 import { RampExecutionInput } from "../../types/phases";
 import { useRegisterRamp } from "../offramp/useRampService/useRegisterRamp";
@@ -30,12 +32,15 @@ export const useRampSubmission = () => {
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
   const { quote } = useQuoteStore();
-  const { address } = useVortexAccount();
+  const { address, chainId } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
   const { registerRamp } = useRegisterRamp();
+  const rampActor = useRampActor();
   const preRampCheck = usePreRampCheck();
+  const rampDirection = useRampDirectionStore(state => state.activeDirection);
+
   useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
   // @TODO: implement Error boundary
@@ -106,8 +111,14 @@ export const useRampSubmission = () => {
     try {
       const executionInput = prepareExecutionInput();
       await preRampCheck(executionInput);
-      setRampExecutionInput(executionInput);
+      //setRampExecutionInput(executionInput);
       await registerRamp(executionInput);
+      // Set the execution input to the state machine.
+      if (!chainId) {
+        throw new Error("ChainId must be defined at this stage");
+      }
+      rampActor.send({ output: { chainId, executionInput, rampDirection }, type: "modifyExecutionInput" });
+      rampActor.send({ type: "confirm" });
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
     } finally {

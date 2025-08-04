@@ -38,7 +38,6 @@ export const Onramp = () => {
   const quoteLoading = useQuoteLoading();
 
   const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
-
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
     form.setValue("outputAmount", toAmount?.toFixed(6, 0) || "0");

@@ -1,7 +1,9 @@
 import { assign, fromPromise, setup } from "xstate";
+import { RampDirection } from "../components/RampToggle";
 import { RampExecutionInput } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { startRampActor } from "./actors/start.actor";
+import { validateKycActor } from "./actors/validateKyc.actor";
 import { RampContext, RampState } from "./types";
 import { updateRampMachine } from "./update.machine";
 
@@ -9,18 +11,17 @@ export const rampMachine = setup({
   actors: {
     registerRamp: fromPromise(registerRampActor), // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
     startRamp: startRampActor,
-    // TODO implement the actual KYC validation logic
-    validateKyc: fromPromise(async ({ input }: { input: RampContext }) => {
-      console.log(`Performing async KYC validation for user: ${input}...`);
-      return true;
-    })
+    validateKyc: fromPromise(validateKycActor)
   },
   types: {
     context: {} as RampContext,
     events: {} as
       | { type: "confirm" }
       | { type: "onDone"; output: RampState }
-      | { type: "modifyExecutionInput"; output: RampExecutionInput }
+      | {
+          type: "modifyExecutionInput";
+          output: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection };
+        }
   }
 }).createMachine({
   context: {
@@ -34,6 +35,7 @@ export const rampMachine = setup({
     initializeFailedMessage: undefined,
     moonbeamApiComponents: undefined,
     pendulumApiComponents: undefined,
+    rampDirection: undefined,
     rampExecutionInput: undefined,
     rampKycLevel2Started: false,
     rampKycStarted: false,
@@ -53,9 +55,9 @@ export const rampMachine = setup({
         confirm: "RampRequested",
         modifyExecutionInput: {
           actions: assign(({ context, event }) => {
-            if (event.type === "modifyExecutionInput") {
-              return { executionInput: event.output };
-            }
+            context.executionInput = event.output.executionInput;
+            context.chainId = event.output.chainId;
+            context.rampDirection = event.output.rampDirection;
             return context;
           })
         }
@@ -69,7 +71,7 @@ export const rampMachine = setup({
         onDone: [
           {
             // The guard checks validateKyc output
-            guard: ({ event }) => event.output === true,
+            guard: ({ event }) => !event.output.kycNeeded,
             target: "RegisterRamp"
           },
           {
