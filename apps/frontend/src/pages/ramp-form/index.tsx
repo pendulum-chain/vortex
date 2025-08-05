@@ -7,11 +7,10 @@ import { RampHistory } from "../../components/RampHistory";
 import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
 import { RampDirection, RampToggle } from "../../components/RampToggle";
-import { PoolSelectorModal } from "../../components/SelectionDialog/SelectionModal";
-
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
+import { TokenSelectionPage } from "../token-selection";
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -33,7 +32,7 @@ export const RampForm = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.3 }}
         >
-          <PoolSelectorModal />
+          <TokenSelectionPage />
           <RampHistory />
           <section className="flex w-full justify-end pb-1">
             <RampHistoryButton />
