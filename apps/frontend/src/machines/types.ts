@@ -1,11 +1,13 @@
 import { WalletAccount } from "@talismn/connect-wallets";
 import { RampDirection } from "../components/RampToggle";
 import { ApiComponents } from "../contexts/polkadotNode";
+import { UseSiweContext } from "../contexts/siwe";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 
 export type { RampState } from "../types/phases";
 
 export interface RampContext {
+  siwe: UseSiweContext | undefined;
   address: string | undefined;
   authToken: string | undefined;
   chainId: number | undefined;

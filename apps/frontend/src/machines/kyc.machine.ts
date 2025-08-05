@@ -1,5 +1,5 @@
 import { FiatToken } from "@packages/shared";
-import { setup } from "xstate";
+import { assertEvent, assign, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { RampExecutionInput } from "../types/phases";
 import { brlaKycMachine } from "./brlaKyc.machine";
@@ -9,6 +9,7 @@ import { RampContext } from "./types";
 
 type RampKycContext = RampContext & {
   executionInput: RampExecutionInput;
+  error?: any;
 };
 
 export const kycMachine = setup({
@@ -27,6 +28,12 @@ export const kycMachine = setup({
   initial: "started",
   output: ({ context }) => context,
   states: {
+    Cancelled: {
+      type: "final"
+    },
+    Failed: {
+      type: "final"
+    },
     kycDone: {
       type: "final"
     },
@@ -39,8 +46,8 @@ export const kycMachine = setup({
         brla: {
           invoke: {
             // Asign taxId as initial input, from the swap form.
-            input: ({ context }) => ({ taxId: context.executionInput.taxId }),
-            onDone: "kycDone", // TODO: again, executionInput cannot be undefined here.
+            input: ({ context }) => ({ taxId: context.executionInput.taxId! }),
+            onDone: "kycDone", // TODO: again, taxId cannot be undefined here.
             src: "brlaKyc"
           }
         },
@@ -68,8 +75,24 @@ export const kycMachine = setup({
         },
         stellar: {
           invoke: {
-            input: ({ context }) => ({ taxId: context.executionInput.taxId }),
-            onDone: "kycDone",
+            input: ({ context }) => context,
+            onDone: [
+              {
+                guard: ({ event }) => (event.output as any)?.status === "Cancelled",
+                target: "Cancelled" // TODO use Stellar machine return types.
+              },
+              {
+                guard: ({ event }) => (event.output as any)?.status !== "Failed",
+                target: "kycDone"
+              },
+
+              {
+                actions: assign({
+                  error: ({ event }) => event.output
+                }),
+                target: "Failed"
+              }
+            ],
             src: "stellarKyc"
           }
         }

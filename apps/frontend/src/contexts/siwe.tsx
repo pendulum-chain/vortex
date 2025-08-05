@@ -1,7 +1,7 @@
 import { createContext, PropsWithChildren, useContext } from "react";
 import { useSiweSignature } from "../hooks/useSignChallenge";
 
-type UseSiweContext = ReturnType<typeof useSiweSignature>;
+export type UseSiweContext = ReturnType<typeof useSiweSignature>;
 const SiweContext = createContext<UseSiweContext | undefined>(undefined);
 
 export const useSiweContext = () => {

@@ -46,6 +46,7 @@ export const rampMachine = setup({
     rampState: undefined,
     rampSummaryVisible: false,
     signingRejected: false,
+    siwe: undefined,
     substrateWalletAccount: undefined
   },
   id: "ramp",

@@ -1,0 +1,81 @@
+import { getTokenDetailsSpacewalk } from "@packages/shared";
+import Big from "big.js";
+import { fromCallback } from "xstate";
+import { sep10 } from "../../../services/anchor/sep10";
+import { sep24First } from "../../../services/anchor/sep24/first";
+import { fetchTomlValues } from "../../../services/stellar";
+import { IAnchorSessionParams } from "../../../types/sep";
+import { RampContext } from "../../types";
+
+export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input }) => {
+  const parent = (self as any)._parent!;
+
+  const { executionInput, siwe } = input;
+  if (!executionInput || !siwe) {
+    parent.send({
+      error: new Error("Missing execution input or siwe context"),
+      type: "xstate.error"
+    });
+    return;
+  }
+
+  let intervalId: NodeJS.Timeout;
+
+  const runSep24Logic = async () => {
+    try {
+      const stellarEphemeralSecret = executionInput.ephemerals.stellarEphemeral.secret;
+      const outputToken = getTokenDetailsSpacewalk(executionInput.fiatToken);
+      const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
+
+      const { token: sep10Token, sep10Account } = await sep10(
+        tomlValues,
+        stellarEphemeralSecret,
+        executionInput.fiatToken,
+        executionInput.userWalletAddress,
+        siwe.checkAndWaitForSignature,
+        siwe.forceRefreshAndWaitForSignature
+      );
+
+      const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);
+
+      const anchorSessionParams: IAnchorSessionParams = {
+        offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),
+        token: sep10Token,
+        tokenConfig: outputToken,
+        tomlValues
+      };
+
+      const fetchAndUpdateSep24Url = async () => {
+        const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, executionInput.fiatToken);
+        const url = new URL(firstSep24Response.url);
+        // TODO debug log. Remove.
+        console.log("SEP-24 URL:", url.toString());
+        url.searchParams.append("callback", "postMessage");
+        sendBack({
+          id: firstSep24Response.id,
+          type: "URL_UPDATED",
+          url: url.toString()
+        });
+      };
+
+      sendBack({
+        output: { sep10Account, token: sep10Token, tomlValues },
+        type: "SEP24_STARTED"
+      });
+
+      await fetchAndUpdateSep24Url();
+
+      intervalId = setInterval(fetchAndUpdateSep24Url, 20000);
+    } catch (error) {
+      sendBack({ error, type: "xstate.error" });
+    }
+  };
+
+  runSep24Logic();
+
+  return () => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  };
+});

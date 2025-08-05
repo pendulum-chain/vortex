@@ -25,10 +25,17 @@ export const brlaKycMachine = setup({
       | { type: "SubmitLevel1"; formData: KYCFormData }
       | { type: "SubmitLevel2"; formData: KYCFormData }
       | { type: "CloseSuccessModal" },
+    input: {} as { taxId: string },
     output: {} as BRLAKycContext
   }
 }).createMachine({
-  context: ({ input }) => input as BRLAKycContext,
+  context: ({ input }) =>
+    ({
+      error: undefined,
+      failureReason: undefined,
+      kycFormData: undefined,
+      taxId: input.taxId
+    }) as BRLAKycContext,
   id: "brlaKyc",
   initial: "Started",
   output: ({ context }) => context,
