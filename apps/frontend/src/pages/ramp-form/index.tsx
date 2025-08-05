@@ -23,23 +23,22 @@ export const RampForm = () => {
 
   return (
     <main>
-      <PoolSelectorModal />
       <RampSummaryDialog />
       {rampKycStarted || rampKycLevel2Started ? (
         <PIXKYCForm />
       ) : (
         <motion.div
           animate={{ opacity: 1, scale: 1 }}
-          className="relative mx-4 mt-8 mb-4 overflow-hidden rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
+          className="relative mx-4 mt-8 mb-4 max-h-[670px] overflow-hidden rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
           initial={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.3 }}
         >
+          <PoolSelectorModal />
           <RampHistory />
           <section className="flex w-full justify-end pb-1">
             <RampHistoryButton />
           </section>
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
-
           {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
           <div className="mb-16" />
           <PoweredBy />
