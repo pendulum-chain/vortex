@@ -18,7 +18,7 @@ import { useOnchainTokenBalances } from "../../../hooks/useOnchainTokenBalances"
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useRampModalState } from "../../../stores/rampModalStore";
 import { RampDirection } from "../../RampToggle";
-import { ExtendedTokenDefinition } from "../SelectionModal";
+import { ExtendedTokenDefinition } from "./";
 
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
   const { tokenSelectModalType } = useRampModalState();
