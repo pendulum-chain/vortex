@@ -1,28 +1,16 @@
-import {
-  AccountMeta,
-  FiatToken,
-  getAddressForFormat,
-  getOnChainTokenDetails,
-  Networks,
-  RegisterRampRequest,
-  signUnsignedTransactions
-} from "@packages/shared";
+import { getAddressForFormat, getOnChainTokenDetails } from "@packages/shared";
 import { useCallback, useEffect } from "react";
-import { config } from "../../../config";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
+import { useRampActor } from "../../../contexts/rampState";
 import { useToastMessage } from "../../../helpers/notifications";
 import { RampService } from "../../../services/api";
 import { MoneriumService } from "../../../services/api/monerium.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../services/transactions/userSigning";
 import { useMoneriumStore } from "../../../stores/moneriumStore";
 import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
-import { RampExecutionInput } from "../../../types/phases";
 import { useVortexAccount } from "../../useVortexAccount";
-import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
-import { useSubmitRamp } from "../useSubmitRamp";
 
-const RAMP_REGISTER_TRACE_KEY = "rampRegisterTrace";
 const RAMP_SIGNING_TRACE_KEY = "rampSigningTrace";
 
 /**
@@ -61,7 +49,7 @@ export const useRegisterRamp = () => {
     actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
-
+  const rampActor = useRampActor();
   const { address, chainId, getMessageSignature } = useVortexAccount();
   const { apiComponents: pendulumApiComponents } = usePendulumNode();
   const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
@@ -69,214 +57,25 @@ export const useRegisterRamp = () => {
   const { walletAccount: substrateWalletAccount } = usePolkadotWalletState();
 
   const executionInput = useRampExecutionInput();
-  const prepareRampSubmission = useSubmitRamp();
-  const handleOnAnchorWindowOpen = useAnchorWindowHandler();
-  const signingRejected = useSigningRejected();
+
+  useEffect(() => {
+    if (rampActor && pendulumApiComponents && moonbeamApiComponents && assethubApiComponents) {
+      rampActor.send({
+        assethubApiComponents,
+        moonbeamApiComponents,
+        pendulumApiComponents,
+        type: "SET_API_COMPONENTS"
+      });
+    }
+  }, [rampActor, pendulumApiComponents, moonbeamApiComponents, assethubApiComponents]);
 
   // Get Monerium auth data
   const { authToken, triggered: moneriumTriggered } = useMoneriumStore();
 
-  // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
-  // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
-  const registerRamp = async (executionInput: RampExecutionInput) => {
-    prepareRampSubmission(executionInput);
-
-    // For Stellar offramps, we need to prepare something in advance
-    // Calling this function will result in eventually having the necessary prerequisites set
-    if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL) {
-      console.log("Registering ramp for Stellar offramps");
-      await handleOnAnchorWindowOpen();
-    }
-
-    if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
-      // Waiting for user input (the ramp summary dialog should show the 'Confirm' button and once clicked,
-      // We setCanRegisterRamp to true inside of the RampSummaryButton
-    } else {
-      // For other ramps, we can continue registering right away
-      setCanRegisterRamp(true);
-    }
-  };
-
-  const { checkAndSetTrace: checkAndSetRegisterTrace, releaseTrace: releaseRegisterTrace } =
-    useSignatureTrace(RAMP_REGISTER_TRACE_KEY);
   const { checkAndSetTrace: checkAndSetSigningTrace, releaseTrace: releaseSigningTrace } =
     useSignatureTrace(RAMP_SIGNING_TRACE_KEY);
 
-  // @TODO: maybe change to useCallback
-  useEffect(() => {
-    const registerRampProcess = async () => {
-      if (rampRegistered) {
-        console.log("Ramp process already registered, skipping registration.");
-        return;
-      }
-
-      if (signingRejected) {
-        throw new Error("Signing was rejected, cannot proceed with ramp registration");
-      }
-
-      if (rampKycStarted) {
-        throw new Error("KYC is not valid yet");
-      }
-
-      if (!canRegisterRamp) {
-        console.log("Cannot register ramp, canRegisterRamp is false");
-        throw new Error("Cannot proceed with ramp registration, canRegisterRamp is false");
-      }
-
-      if (!executionInput) {
-        console.error("Missing execution input for ramp registration");
-        throw new Error("Missing execution input");
-      }
-
-      if (!chainId) {
-        console.error("Missing chain ID for ramp registration");
-        throw new Error("Missing chainId");
-      }
-
-      if (!pendulumApiComponents?.api) {
-        console.error("Missing Pendulum API components for ramp registration");
-        throw new Error("Missing pendulumApiComponents");
-      }
-
-      if (!moonbeamApiComponents?.api) {
-        throw new Error("Missing moonbeamApiComponents");
-      }
-
-      const quoteId = executionInput.quote.id;
-      const signingAccounts: AccountMeta[] = [
-        {
-          address: executionInput.ephemerals.stellarEphemeral.address,
-          network: Networks.Stellar
-        },
-        {
-          address: executionInput.ephemerals.moonbeamEphemeral.address,
-          network: Networks.Moonbeam
-        },
-        {
-          address: executionInput.ephemerals.pendulumEphemeral.address,
-          network: Networks.Pendulum
-        }
-      ];
-
-      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC && !authToken) {
-        console.log("Waiting for Monerium auth token to be available for EURC onramp");
-        // If this is an onramp with Monerium EURC, we need to wait for the auth token
-        return; // Exit early, we will retry once the auth token is available
-      }
-
-      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
-        // Checks for Stellar offramps
-        if (!executionInput.ephemerals.stellarEphemeral.secret) {
-          throw new Error("Missing Stellar ephemeral secret");
-        }
-        if (!executionInput.paymentData) {
-          throw new Error("Missing payment data for Stellar offramps");
-        }
-      }
-
-      // Build additional data based on ramp type and currency
-
-      let additionalData: RegisterRampRequest["additionalData"] = {};
-
-      if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
-        additionalData = {
-          destinationAddress: address,
-          taxId: executionInput.taxId
-        };
-      } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
-        additionalData = {
-          destinationAddress: address,
-          moneriumAuthToken: authToken,
-          taxId: executionInput.taxId
-        };
-      } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
-        additionalData = {
-          paymentData: executionInput.paymentData,
-          pixDestination: executionInput.pixId,
-          receiverTaxId: executionInput.taxId,
-          taxId: executionInput.taxId,
-          walletAddress: address
-        };
-      } else {
-        // For other ramps, we can use the address directly
-        additionalData = {
-          moneriumAuthToken: authToken,
-          paymentData: executionInput.paymentData,
-          receiverTaxId: executionInput.taxId,
-          taxId: executionInput.taxId,
-          walletAddress: address
-        };
-      }
-
-      // Create a signature trace for the registration process
-      const traceResult = checkAndSetRegisterTrace();
-      if (!traceResult.canProceed) {
-        console.log("Ramp registration trace already exists, skipping registration.");
-        return;
-      }
-      const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-
-      const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
-        if (!address) {
-          return true;
-        }
-
-        return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
-          ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
-          : tx.signer.toLowerCase() !== address.toLowerCase();
-      });
-
-      const signedTransactions = await signUnsignedTransactions(
-        ephemeralTxs,
-        executionInput.ephemerals,
-        pendulumApiComponents.api,
-        moonbeamApiComponents.api,
-        config.alchemyApiKey
-      );
-
-      // Update ramp with ephemeral signed transactions
-      const updatedRampProcess = await RampService.updateRamp(rampProcess.id, signedTransactions);
-
-      setRampRegistered(true);
-      console.log("Ramp process set to registered:", updatedRampProcess);
-      setRampState({
-        quote: executionInput.quote,
-        ramp: updatedRampProcess,
-        requiredUserActionsCompleted: false,
-        signedTransactions,
-        userSigningMeta: {
-          assetHubToPendulumHash: undefined,
-          moneriumOnrampApproveHash: undefined,
-          squidRouterApproveHash: undefined,
-          squidRouterSwapHash: undefined
-        }
-      });
-    };
-
-    registerRampProcess()
-      .catch(error => {
-        console.error("Error registering ramp:", error);
-      })
-      .finally(() => {
-        // Release the registration trace lock
-        releaseRegisterTrace();
-      });
-  }, [
-    address,
-    canRegisterRamp,
-    chainId,
-    checkAndSetRegisterTrace,
-    releaseRegisterTrace,
-    executionInput,
-    moonbeamApiComponents?.api,
-    pendulumApiComponents?.api,
-    setRampRegistered,
-    setRampState,
-    rampKycStarted,
-    signingRejected,
-    authToken,
-    rampRegistered
-  ]);
+  // XSTATE migration. This hook must go into the update and sign actor.
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
   // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp
@@ -295,7 +94,7 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || !shouldRequestSignatures || signingRejected || waitForAuthToken || !rampRegistered) {
+    if (!rampState || !shouldRequestSignatures || waitForAuthToken || !rampRegistered) {
       return; // Exit early if conditions aren't met
     }
 
@@ -443,7 +242,6 @@ export const useRegisterRamp = () => {
     setRampState,
     substrateWalletAccount,
     showToast,
-    signingRejected,
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
     releaseSigningTrace,
@@ -457,7 +255,6 @@ export const useRegisterRamp = () => {
   ]);
 
   return {
-    rampRegistered,
-    registerRamp
+    rampRegistered
   };
 };

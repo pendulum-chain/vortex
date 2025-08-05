@@ -37,11 +37,13 @@ export const useRampSubmission = () => {
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
-  const { registerRamp } = useRegisterRamp();
   const rampActor = useRampActor();
   const preRampCheck = usePreRampCheck();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
+
+  //XSTATE migration. Used to set the apiComponents in the ramp context.
+  useRegisterRamp();
 
   useEffect(() => {
     if (rampActor) {
@@ -128,14 +130,13 @@ export const useRampSubmission = () => {
       if (!chainId) {
         throw new Error("ChainId must be defined at this stage");
       }
-      rampActor.send({ output: { chainId, executionInput, rampDirection }, type: "modifyExecutionInput" });
-      rampActor.send({ type: "confirm" });
+      rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "confirm" });
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
     } finally {
       setExecutionPreparing(false);
     }
-  }, [executionPreparing, prepareExecutionInput, preRampCheck, setRampExecutionInput, registerRamp, handleSubmissionError]);
+  }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
 
   return {
     finishOfframping: () => {

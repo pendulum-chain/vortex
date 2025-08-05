@@ -12,6 +12,7 @@ interface ValidateKycResult {
 
 export const validateKycActor = async ({ input }: { input: RampContext }): Promise<ValidateKycResult> => {
   const { executionInput, rampDirection } = input;
+  console.log("Validating KYC with input:", input);
 
   if (!executionInput) {
     throw new Error("executionInput is missing from ramp context");

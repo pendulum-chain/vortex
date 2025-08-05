@@ -9,6 +9,7 @@ import { RampContext } from "./types";
 
 type RampKycContext = RampContext & {
   executionInput: RampExecutionInput;
+  kycResponse?: any; // To store the output from the KYC actor
   error?: any;
 };
 
@@ -42,12 +43,28 @@ export const kycMachine = setup({
     },
     verifying: {
       initial: "deciding",
+      onDone: [
+        {
+          guard: ({ event }) => (event.output as any)?.status === "Cancelled",
+          target: "Cancelled"
+        },
+        {
+          actions: assign({
+            kycResponse: ({ event }) => event.output
+          }),
+          target: "kycDone"
+        }
+      ],
       states: {
         brla: {
           invoke: {
-            // Asign taxId as initial input, from the swap form.
             input: ({ context }) => ({ taxId: context.executionInput.taxId! }),
-            onDone: "kycDone", // TODO: again, taxId cannot be undefined here.
+            onDone: {
+              target: "verificationComplete"
+            },
+            onError: {
+              target: "Failed"
+            },
             src: "brlaKyc"
           }
         },
@@ -67,34 +84,39 @@ export const kycMachine = setup({
             }
           ]
         },
+        Failed: {
+          entry: ({ event }) => console.error("KYC failed within verifying state", event)
+          // This will cause the top-level machine to enter its 'Failed' final state
+          // because if a state configuration has no transitions
+        },
         monerium: {
           invoke: {
-            onDone: "kycDone",
+            onDone: {
+              target: "verificationComplete"
+            },
+            onError: {
+              target: "Failed"
+            },
             src: "moneriumKyc"
           }
         },
         stellar: {
           invoke: {
             input: ({ context }) => context,
-            onDone: [
-              {
-                guard: ({ event }) => (event.output as any)?.status === "Cancelled",
-                target: "Cancelled" // TODO use Stellar machine return types.
-              },
-              {
-                guard: ({ event }) => (event.output as any)?.status !== "Failed",
-                target: "kycDone"
-              },
-
-              {
-                actions: assign({
-                  error: ({ event }) => event.output
-                }),
-                target: "Failed"
-              }
-            ],
+            onDone: {
+              target: "verificationComplete"
+            },
+            onError: {
+              actions: assign({
+                error: ({ event }) => (event as any).data
+              }),
+              target: "Failed"
+            },
             src: "stellarKyc"
           }
+        },
+        verificationComplete: {
+          type: "final"
         }
       }
     }

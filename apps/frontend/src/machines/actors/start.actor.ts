@@ -2,7 +2,7 @@ import { fromPromise } from "xstate";
 import { RampService } from "../../services/api";
 import { RampContext } from "../types";
 
-export const startRampActor = fromPromise(async ({ input }: { input: RampContext }) => {
+export const startRampActor = async ({ input }: { input: RampContext }) => {
   const { rampState, rampPaymentConfirmed } = input;
 
   if (!rampState || !rampState.ramp) {
@@ -17,4 +17,4 @@ export const startRampActor = fromPromise(async ({ input }: { input: RampContext
   const response = await RampService.startRamp(rampState.ramp.id);
 
   return response;
-});
+};

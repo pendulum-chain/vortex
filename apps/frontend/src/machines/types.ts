@@ -5,6 +5,7 @@ import { UseSiweContext } from "../contexts/siwe";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 
 export type { RampState } from "../types/phases";
+export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 
 export interface RampContext {
   siwe: UseSiweContext | undefined;
@@ -17,15 +18,12 @@ export interface RampContext {
   assethubApiComponents: ApiComponents | undefined;
   rampState: RampState | undefined;
   rampSigningPhase: RampSigningPhase | undefined;
-  rampExecutionInput: RampExecutionInput | undefined;
+  executionInput: RampExecutionInput | undefined;
   rampKycStarted: boolean;
   rampKycLevel2Started: boolean;
   rampPaymentConfirmed: boolean;
   initializeFailedMessage: string | undefined;
   rampSummaryVisible: boolean;
-  canRegisterRamp: boolean;
-  signingRejected: boolean;
-  executionInput: RampExecutionInput | undefined;
-  getMessageSignature: ((message: string) => Promise<string>) | undefined;
+  getMessageSignature: GetMessageSignatureCallback | undefined;
   substrateWalletAccount: WalletAccount | undefined;
 }

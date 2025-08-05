@@ -1,13 +1,14 @@
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
+import { useRampActions, useRampExecutionInput } from "../../stores/rampStore";
 import { Dialog } from "../Dialog";
 import { RampDirection } from "../RampToggle";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -16,18 +17,24 @@ import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
+  const rampActor = useRampActor();
   const { selectedNetwork } = useNetwork();
   const { resetRampState } = useRampActions();
-  const executionInput = useRampExecutionInput();
-  const visible = useRampSummaryVisible();
-  const rampDirection = executionInput?.quote.rampType === "off" ? RampDirection.OFFRAMP : RampDirection.ONRAMP;
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
   const partnerId = usePartnerId();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
+
+  const { visible, executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
+    rampDirection: state.context.rampDirection,
+    visible: state.context.rampSummaryVisible
+  }));
+  const isOnramp = executionInput?.quote.rampType === "on";
+  const rampDirection = executionInput?.quote.rampType === "off" ? RampDirection.OFFRAMP : RampDirection.ONRAMP;
 
   if (!visible) return null;
   if (!executionInput) return null;

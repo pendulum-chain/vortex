@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
-import { useRampState } from "../../../contexts/rampState";
 import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
@@ -27,7 +26,6 @@ import { RampTerms } from "../../RampTerms";
 
 export const Onramp = () => {
   const { t } = useTranslation();
-  const rampState = useRampState();
 
   const { setTrackPrice } = useFeeComparisonStore();
 

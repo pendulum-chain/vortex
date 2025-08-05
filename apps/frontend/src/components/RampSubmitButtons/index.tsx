@@ -1,7 +1,9 @@
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../contexts/events";
+import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { useFeeComparisonStore } from "../../stores/feeComparison";
@@ -18,13 +20,13 @@ interface RampSubmitButtonsProps {
 
 export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { t } = useTranslation();
-
+  const rampActor = useRampActor();
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage } = useRampValidation();
   const executionInput = useRampExecutionInput();
   const initializeFailedMessage = useInitializeFailedMessage();
-  const isRampSummaryDialogVisible = useRampSummaryVisible();
+
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const rampDirection = useRampDirection();
@@ -51,6 +53,8 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
     },
     [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, toAmount, feeComparisonRef]
   );
+
+  const isRampSummaryDialogVisible = useSelector(rampActor, state => state.context.rampSummaryVisible);
 
   const getButtonState = (): string => {
     if (isRampSummaryDialogVisible) {

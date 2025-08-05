@@ -1,38 +1,45 @@
 import { assign, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
+import { ApiComponents } from "../contexts/polkadotNode";
 import { UseSiweContext } from "../contexts/siwe";
+import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
 import { kycMachine } from "./kyc.machine";
-import { RampContext, RampState } from "./types";
+import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 import { updateRampMachine } from "./update.machine";
 
 export const rampMachine = setup({
   actors: {
     registerRamp: fromPromise(registerRampActor), // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
-    startRamp: startRampActor,
+    startRamp: fromPromise(startRampActor),
     validateKyc: fromPromise(validateKycActor)
   },
   types: {
     context: {} as RampContext,
     events: {} as
-      | { type: "confirm" }
-      | { type: "onDone"; output: RampState }
-      | {
-          type: "modifyExecutionInput";
-          output: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection };
-        }
+      | { type: "confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
+      | { type: "onDone"; input: RampState }
+      | { type: "onRampConfirm" }
       | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
+      | { type: "SET_ADDRESS"; address: string | undefined }
+      | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback }
+      | {
+          type: "SET_API_COMPONENTS";
+          pendulumApiComponents: ApiComponents;
+          moonbeamApiComponents: ApiComponents;
+          assethubApiComponents: ApiComponents;
+        }
+      | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   }
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QCcCGBbADgOgJIQBswBiAYwHsA7AMwEtl0BtABgF1FRNzZaAXWqhxAAPRACYArAHZsARmayJATiUAOAGxrNEgDQgAnuIAsMo7PXqxSqdJPmpAXwd60WPIRLpyEWtX0BRYTBSAFd+KlxKTDCWdiQQLh5wyiFRBDNsFSzs7I09QwRZI3VsAGZS1SMlMRtiqUl1JxcMHABpAE0AYWIIKjBsWkoAN3IAa37XNq6EQZHSVGTY2KFEvgEU+LT5UolsZmKlUvtVUvV6-ONVTPNLWuLzJSaQSewAJRbXsABHELheSB6fQGwzGExabw+31+sH+EBmIPmizYy3iq2SqUQ0hKpTU90OJhUF0KzF2N3U5lkNiOsjEpSeL3eWE+Pz+AN6lH6s1B2AZkJZMMg8LmC3WS1kcU43DWgk2mKk2Nx5PxUkJBku1wsNQkRnumnp4MZmGZ0NhxDAyGQ5GQ2EwBAW1Ct6B5Br5JsFXMRouRbBWUvRsoQWLKitkytVBRxsmwFgsFSUshxYkk+rcnygtAFyENgI5wJG42dqbA6czhqF5E9VCWPtRfvWGMKyiM0akofUqiUxSMzFUujVCFUYky6h7HcHZ1qjWczwNxYz-yzLTNFqtNrtvAdDELODT8-NZY9Iqr3olCTrMtAWybLbbHa7Pb7BUkV0sVUOEgksl7RRTOAAyrwqDILw2bspyIIFi8AFASBLTlpWlDVqeaL1gGYhVMw2BSEYSbWJoxRiOoRLxlhb7qB+7YVK2qi-tg0HAdm5qWtatr2o6250YBDFwYeSKsCikpJKhl7GEomHYbh8qdpYRH9gmShlNhagqOopTMKUYiqI404vAAqpgEALGAoFAlykHgvphn-AeCJHohJ6+kJF4iIgoZVNgEi0hI5SflIPbykSg7DqOaiEVIk5ONOlDeHAQiTI50obCJCAALQlMwGWZVlmVFESaV7NlhUZdpzRuAAYqgtAECEyBgAl-rJWFQ5nNYhzMO2rbqUSRQKehKi9jh6nMJptH4EQ9XCS5xIyKoGWzWIsg0lYZiyU+JgauSRhaepFTobRHSdBNzlpNtHmRjs0hJrURJJs2K1KvKZhWPKtGGmV5AEAQ5AAO76UdSVTU1LatWpHXbMR4lvp5d7yL2jw6S6TJQqyED-Q2pQ2B5mULXNhGfo+4jodg92ho9NJ4a9c6li0aMBgmqhRjsnZGJ5YgZRIzBSMRuxKZ2H6UtUyg0Qjbj0bBWC041Vi7CcI4mCSWmtqUgVRhzOU1BYYmdrRllGYaktTZSvZ7IoUgY2YzAqBIqgq1j6vypoltGJFDhAA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QCcCGBbADgYgMoFEAVAfVwEkB1fYgYQHkA5Q-ADUIG0AGAXUVEwD2sAJYAXYQIB2fEAA9EARgBMAdgUA6TgFZOKgGxalSg3pUAOADQgAnogDMnDXa0BOACyGFnXWbt29AL4BVmhYeETEAIIAItEASvi4uFy8SCCCIuJSMvIIyu7qbgpunCVavgrlela2CEql6i6ceg7F3oZGbkEhGDgEJADiEQCyibiRQ6RkAwyRhACqCSkyGWIS0mm5ykou6krFZkp++i7ldjWKnGaFWnaVut7GCsrdIKF9EZEACmS0dMNfRj4JjJHgrIRrbKbRRKVzqcxaBTOEouQ5mao2GGvd7qMgQAA2YGwAGMpAAzYTIdDLNKrLIbUBbBzqHTeK4qLR6FpuFRuC4INwuJTqMwqfTlXnNNx6MzY3rqADSAE0aNgIFIwOphJIAG4CADWmpxypoCG1euJqHpKRp-Ah9JyiBcCl2xk5xR5Yu8Cn5LV2Kh2dnqLS0KhcKjlWHUcV6cTAAEcAK5wUSQNUarW6g1G+UxrBxpMpyBmrOW608W3pe3rR0CvQaEp6WEtTiw558zEC06NMPGXk7MynWXBN652MJ5OwVMQdOSTXm7PqHF5zAFyfTksWq3rG0KVJ2zI16F1hvNZsONvFX12f2B4POMMRkfL8eFqdpsDIZACZDqTD4q0yR-dAlzHfMJyLCBNwEMsdwrMFaWrKFGUQaVTybTkL0RK9O3MYUeRcOwVDsMwij0VEFEjTBozAKBhHfZAV1necs0NUCozjOiGJXaDYKkG0EIPSEGTkRQeS0EVTA9F03DsWSO1qHk7BFfxWy8QizlMKiaK41NGN6bBP2-X9-0A4D2Oozj6L0niFz4yQBP3KtD2Q0S8nEyS1DcIp3DkuTfUFdQ7lhcxeX0SotG03BRFQZBRCY9U50zPU2JxaLYvi3peO3fj4KcukjxQuoiM4TQjiItx0URThnH5SrhU5J5BQ8fwumfeV0ripijJ-P8ANEICqQs9ROsyrBsvLbhKwK1zciOFRStbY5KoMLxas7W5FowpozCRW4FECdqo3mTAICtMAEozBdUvlE6ztTWzSxyhy8vBFyRK2CpChlNQ7maAxQzq4iVL0NTOA03wtNeSQBAgOAZHeN7hNrABaH1OxItwRWUUGlDMRxSg8bSADFUGEfFE2QMAkYdY9YVklkIrUIVeXrALrmCwxOeaJFtLxQkacKtyeX5RE9CCrQfO0OSkUI7STUF2bEA5CT6juLxylcIpfUqPYdlhW4-TDQ6eg43piYEfF8QEAB3E7FY+xB6eUxEtFDF1VDQurdpZJsAd0bDOW0lc10gh3ayUQKikbBRzAcMw3ZUOqhRFSXVC5IiFF2lxg9o6zPxXcPjxx4UdhlbzY4DNnOxW32ngW+tymMKKYq63oi6K-ZeUKFxe7cPGzwOrQgeFYKWmUWS1A5bS7vOwvEPe2sDtMQoz3B-ZKpcAwR6CnHgsn2PIqCAIgA */
   context: {
     address: undefined,
     assethubApiComponents: undefined,
     authToken: undefined,
-    canRegisterRamp: false,
     chainId: undefined,
     executionInput: undefined,
     getMessageSignature: undefined,
@@ -40,20 +47,35 @@ export const rampMachine = setup({
     moonbeamApiComponents: undefined,
     pendulumApiComponents: undefined,
     rampDirection: undefined,
-    rampExecutionInput: undefined,
     rampKycLevel2Started: false,
     rampKycStarted: false,
     rampPaymentConfirmed: false,
     rampSigningPhase: undefined,
     rampState: undefined,
     rampSummaryVisible: false,
-    signingRejected: false,
     siwe: undefined,
     substrateWalletAccount: undefined
   },
   id: "ramp",
   initial: "Idle",
   on: {
+    SET_ADDRESS: {
+      actions: assign({
+        address: ({ event }) => event.address
+      })
+    },
+    SET_API_COMPONENTS: {
+      actions: assign({
+        assethubApiComponents: ({ event }) => event.assethubApiComponents,
+        moonbeamApiComponents: ({ event }) => event.moonbeamApiComponents,
+        pendulumApiComponents: ({ event }) => event.pendulumApiComponents
+      })
+    },
+    SET_GET_MESSAGE_SIGNATURE: {
+      actions: assign({
+        getMessageSignature: ({ event }) => event.getMessageSignature
+      })
+    },
     SET_SIWE_CONTEXT: {
       actions: assign({
         siwe: ({ event }) => event.siwe
@@ -64,14 +86,14 @@ export const rampMachine = setup({
     Failure: {},
     Idle: {
       on: {
-        confirm: "RampRequested",
-        modifyExecutionInput: {
+        confirm: {
           actions: assign(({ context, event }) => {
-            context.executionInput = event.output.executionInput;
-            context.chainId = event.output.chainId;
-            context.rampDirection = event.output.rampDirection;
+            context.executionInput = event.input.executionInput;
+            context.chainId = event.input.chainId;
+            context.rampDirection = event.input.rampDirection;
             return context;
-          })
+          }),
+          target: "RampRequested"
         }
       }
     },
@@ -86,20 +108,25 @@ export const rampMachine = setup({
     },
     RampFollowUp: {},
     RampRequested: {
+      entry: assign(({ context }) => {
+        context.rampSummaryVisible = true;
+        return context;
+      }),
       invoke: {
         input: ({ context }) => context,
         onDone: [
+          // The guard checks validateKyc output
+          // do nothing otherwise, as we wait for modal confirmation.
           {
-            // The guard checks validateKyc output
-            guard: ({ event }) => !event.output.kycNeeded,
-            target: "RegisterRamp"
-          },
-          {
-            // Fallback. Go to child state machine "KYC"
+            //Go to child state machine "KYC"
+            guard: ({ event }) => event.output.kycNeeded,
             target: "KYC"
           }
         ],
         onError: "Failure",
+        onRampConfirm: {
+          target: "RegisterRamp"
+        },
         src: "validateKyc"
       }
     },

@@ -2,7 +2,7 @@ import { getAddressForFormat, getOnChainTokenDetails } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
-import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions";
+import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
 import { RampContext } from "../types";
 
 export const signTransactionsActor = fromPromise(async ({ input }: { input: RampContext }) => {

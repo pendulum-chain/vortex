@@ -46,19 +46,19 @@ if (!root) {
 createRoot(root).render(
   <QueryClientProvider client={queryClient}>
     <WagmiProvider config={wagmiConfig}>
-      <NetworkProvider>
-        <PolkadotNodeProvider>
-          <PolkadotWalletStateProvider>
-            <EventsProvider>
-              <SiweProvider>
-                <RampStateProvider>
+      <RampStateProvider>
+        <NetworkProvider>
+          <PolkadotNodeProvider>
+            <PolkadotWalletStateProvider>
+              <EventsProvider>
+                <SiweProvider>
                   <App />
-                </RampStateProvider>
-              </SiweProvider>
-            </EventsProvider>
-          </PolkadotWalletStateProvider>
-        </PolkadotNodeProvider>
-      </NetworkProvider>
+                </SiweProvider>
+              </EventsProvider>
+            </PolkadotWalletStateProvider>
+          </PolkadotNodeProvider>
+        </NetworkProvider>
+      </RampStateProvider>
     </WagmiProvider>
   </QueryClientProvider>
 );

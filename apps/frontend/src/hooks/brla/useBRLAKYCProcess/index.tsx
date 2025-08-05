@@ -3,6 +3,7 @@ import { useMachine } from "@xstate/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { storageKeys } from "../../../constants/localStorage";
+import { useRampActor } from "../../../contexts/rampState";
 import { useToastMessage } from "../../../helpers/notifications";
 import { brlaKycMachine } from "../../../machines/brlaKyc.machine";
 import { KycStatus } from "../../../services/signingService";
@@ -108,13 +109,9 @@ export function useKYCProcess() {
   const { showToast, ToastMessage } = useToastMessage();
   const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
 
-  const [state, send] = useMachine(brlaKycMachine, {
-    input: {
-      taxId
-    }
-  });
+  const rampActor = useRampActor();
 
-  const { context: machineContext } = state;
+  const { context: machineContext } = rampActor.state;
 
   const isSubmitted = !state.matches("Level1") && !state.matches("Started");
   const isSubmittedDebounced = useDebouncedValue(isSubmitted, 3000);
@@ -151,9 +148,9 @@ export function useKYCProcess() {
 
   const handleFormSubmit = useCallback(
     (formData: KYCFormData) => {
-      send({ formData, type: "SubmitLevel1" });
+      rampActor.send({ formData, type: "SubmitLevel1" });
     },
-    [send]
+    [rampActor]
   );
 
   useEffect(() => {
