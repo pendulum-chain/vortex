@@ -1,10 +1,10 @@
-import { XMarkIcon } from "@heroicons/react/24/outline";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 
 import { useRampHistory } from "../../hooks/useRampHistory";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useRampHistoryStore } from "../../stores/rampHistoryStore";
+import { PageHeader } from "../PageHeader";
 import { groupRampHistoryByMonth } from "./helpers";
 import { TransactionItem } from "./TransactionItem";
 import { TransactionGroup } from "./types";
@@ -32,14 +32,7 @@ export function RampHistory() {
           initial={{ x: "100%" }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <h1 className="font-bold text-3xl">History</h1>
-            </div>
-            <button className="btn-vortex-accent cursor-pointer rounded-full p-2" onClick={actions.toggleHistory}>
-              <XMarkIcon className="h-4 w-4" tabIndex={1} />
-            </button>
-          </div>
+          <PageHeader onClose={actions.toggleHistory} title="History" />
           <hr />
           <div className="no-scrollbar flex-1 overflow-y-auto">
             {isLoading ? (
