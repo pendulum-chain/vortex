@@ -8,30 +8,11 @@ export const updateRampMachine = setup({
   },
   types: {
     context: {} as RampContext,
+    input: {} as RampContext,
     output: {} as RampContext
   }
 }).createMachine({
-  context: {
-    address: undefined,
-    assethubApiComponents: undefined,
-    authToken: undefined,
-    canRegisterRamp: false,
-    chainId: undefined,
-    executionInput: undefined,
-    getMessageSignature: undefined,
-    initializeFailedMessage: undefined,
-    moonbeamApiComponents: undefined,
-    pendulumApiComponents: undefined,
-    rampExecutionInput: undefined,
-    rampKycLevel2Started: false,
-    rampKycStarted: false,
-    rampPaymentConfirmed: false,
-    rampSigningPhase: undefined,
-    rampState: undefined,
-    rampSummaryVisible: false,
-    signingRejected: false,
-    substrateWalletAccount: undefined
-  },
+  context: ({ input }) => input as RampContext,
   id: "updateRamp",
   initial: "started",
   output: ({ context }) => context,

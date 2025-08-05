@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
+import { useSiweContext } from "../../contexts/siwe";
 import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
@@ -40,6 +41,16 @@ export const useRampSubmission = () => {
   const rampActor = useRampActor();
   const preRampCheck = usePreRampCheck();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
+  const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
+
+  useEffect(() => {
+    if (rampActor) {
+      rampActor.send({
+        siwe: { checkAndWaitForSignature, forceRefreshAndWaitForSignature },
+        type: "SET_SIWE_CONTEXT"
+      });
+    }
+  }, [rampActor, checkAndWaitForSignature, forceRefreshAndWaitForSignature]);
 
   useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
@@ -112,7 +123,7 @@ export const useRampSubmission = () => {
       const executionInput = prepareExecutionInput();
       await preRampCheck(executionInput);
       //setRampExecutionInput(executionInput);
-      await registerRamp(executionInput);
+      //XSTATE migration. Old starting point -> await registerRamp(executionInput);
       // Set the execution input to the state machine.
       if (!chainId) {
         throw new Error("ChainId must be defined at this stage");
