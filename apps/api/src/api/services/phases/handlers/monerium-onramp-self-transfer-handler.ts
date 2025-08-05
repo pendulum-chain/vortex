@@ -1,11 +1,8 @@
-import { getNetworkId, Networks, RampPhase } from "@packages/shared";
+import { ERC20_EURE_POLYGON, EvmClientManager, getEvmTokenBalance, getNetworkId, Networks, RampPhase } from "@packages/shared";
 import Big from "big.js";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { EvmClientManager } from "../../evm/clientManager";
-import { ERC20_EURE_POLYGON } from "../../monerium";
-import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**

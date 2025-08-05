@@ -1,32 +1,32 @@
 import {
+  ApiManager,
+  createOfframpRouteParams,
+  createOnrampRouteParams,
   DestinationType,
   EvmTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getPendulumDetails,
+  getRoute,
+  getTokenOutAmount,
   isEvmTokenDetails,
   OnChainToken,
   PendulumTokenDetails,
+  parseContractBalanceResponse,
   QuoteError,
-  RampCurrency
+  RampCurrency,
+  RouteParams,
+  SquidrouterRoute,
+  stringifyBigWithSignificantDecimals,
+  TokenOutData
 } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
-import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from "../../../helpers/contracts";
-import { getTokenOutAmount, TokenOutData } from "../../nablaReads/outAmount";
-import { ApiManager } from "../../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
-import {
-  createOfframpRouteParams,
-  createOnrampRouteParams,
-  getRoute,
-  RouteParams,
-  SquidrouterRoute
-} from "../../transactions/squidrouter/route";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -137,7 +137,7 @@ function prepareSquidrouterRouteParams(
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
  */
 async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
-  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
+  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.transactionRequest.value), -18);
 
   try {
     // Get current GLMR price in USD from price feed service
@@ -253,7 +253,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
-  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData);
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route);
 
   return {
     networkFeeUSD,

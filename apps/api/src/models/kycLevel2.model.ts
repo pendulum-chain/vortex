@@ -1,6 +1,5 @@
-import { BrlaKYCDocType } from "@packages/shared";
+import { BrlaKYCDocType, KycLevel2Response } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
-import { KycLevel2Response } from "../api/services/brla/types";
 import sequelize from "../config/database";
 
 export enum KycLevel2Status {

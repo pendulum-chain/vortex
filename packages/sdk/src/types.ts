@@ -142,10 +142,8 @@ export interface VortexSdkConfig {
 }
 
 // Handler interface for ramp-specific operations
-export interface RampHandler {
-  // Each handler implements the register-update-start flow
-  // The update step may be invisible to the user (like in BRL onramp)
-}
+// biome-ignore lint/complexity/noBannedTypes: TBD in the future
+export type RampHandler = {};
 
 // Context methods that handlers can use from VortexSdk
 export interface VortexSdkContext {

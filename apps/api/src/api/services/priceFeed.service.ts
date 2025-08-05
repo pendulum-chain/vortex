@@ -1,8 +1,15 @@
-import { EvmToken, getPendulumDetails, isFiatToken, PENDULUM_USDC_AXL, RampCurrency, UsdLikeEvmToken } from "@packages/shared";
+import {
+  ApiManager,
+  EvmToken,
+  getPendulumDetails,
+  getTokenOutAmount,
+  isFiatToken,
+  PENDULUM_USDC_AXL,
+  RampCurrency,
+  UsdLikeEvmToken
+} from "@packages/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
-import { getTokenOutAmount } from "./nablaReads/outAmount";
-import { ApiManager } from "./pendulum/apiManager";
 import { SlackNotifier } from "./slack.service";
 
 // Cache entry interface

@@ -1,8 +1,10 @@
 import {
   AccountMeta,
+  BrlaApiService,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
+  generateReferenceLabel,
   IbanPaymentData,
   Networks,
   QuoteError,
@@ -13,6 +15,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  SubaccountData,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
@@ -25,9 +28,6 @@ import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { BrlaApiService } from "../brla/brlaApiService";
-import { generateReferenceLabel } from "../brla/helpers";
-import { SubaccountData } from "../brla/types";
 import { createEpcQrCodeData, getAuthContext, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";

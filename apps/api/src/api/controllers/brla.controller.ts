@@ -1,4 +1,5 @@
 import {
+  BrlaApiService,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaErrorResponse,
@@ -15,7 +16,9 @@ import {
   BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
+  Kyc2FailureReason,
   KycFailureReason,
+  RegisterSubaccountPayload,
   StartKYC2Request,
   validateMaskedNumber
 } from "@packages/shared";
@@ -23,9 +26,6 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
 import logger from "../../config/logger";
-import { BrlaApiService } from "../services/brla/brlaApiService";
-import { RegisterSubaccountPayload } from "../services/brla/types";
-import { Kyc2FailureReason } from "../services/brla/webhooks";
 import kycService from "../services/kyc/kyc.service";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.

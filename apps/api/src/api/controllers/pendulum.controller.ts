@@ -1,4 +1,5 @@
 import {
+  ApiManager,
   PendulumFundEphemeralErrorResponse,
   PendulumFundEphemeralRequest,
   PendulumFundEphemeralResponse,
@@ -16,7 +17,6 @@ import {
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS
 } from "../../constants/constants";
-import { ApiManager } from "../services/pendulum/apiManager";
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from "../services/pendulum/helpers";
 import { fundEphemeralAccount, getFundingData } from "../services/pendulum/pendulum.service";
 import { SlackNotifier } from "../services/slack.service";

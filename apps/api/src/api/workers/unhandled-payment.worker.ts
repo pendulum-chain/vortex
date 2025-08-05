@@ -1,10 +1,8 @@
+import { BrlaApiService, DepositLog, generateReferenceLabel, isValidReferenceLabel } from "@packages/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import RampState from "../../models/rampState.model";
-import { BrlaApiService } from "../services/brla/brlaApiService";
-import { generateReferenceLabel, isValidReferenceLabel } from "../services/brla/helpers";
-import { DepositLog } from "../services/brla/types";
 import { SlackNotifier } from "../services/slack.service";
 
 const DEFAULT_CRON_TIME = "*/15 * * * *";

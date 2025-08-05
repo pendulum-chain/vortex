@@ -7,6 +7,7 @@ import { createWalletClient, http, WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import { decodeSubmittableExtrinsic, EphemeralAccount, isEvmTransactionData, PresignedTx, UnsignedTx } from "../index";
+import logger from "../logger";
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
@@ -352,7 +353,7 @@ export async function signUnsignedTransactions(
       signedTxs.push(txWithMeta);
     }
   } catch (error) {
-    console.error("Error signing transactions:", error);
+    logger.current.error("Error signing transactions:", error);
     throw error;
   }
 
