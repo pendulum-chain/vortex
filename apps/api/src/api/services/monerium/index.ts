@@ -93,7 +93,7 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
       const mostRecentAddress = data.addresses[data.addresses.length - 1]; // Ordered by creation date, so last is the most recent.
 
       if (mostRecentAddress.status === MoneriumAddressStatus.REQUESTED) {
-        throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
+        throw new Error(MoneriumErrors.USER_MINT_ADDRESS_IS_NOT_READY);
       }
 
       return mostRecentAddress.address;
