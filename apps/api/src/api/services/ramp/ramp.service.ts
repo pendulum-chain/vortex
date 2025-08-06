@@ -1,13 +1,15 @@
 import {
   AccountMeta,
+  BrlaApiService,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
+  generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
   Networks,
-  QuoteErrors,
+  QuoteError,
   RampErrorLog,
   RampPhase,
   RampProcess,
@@ -15,6 +17,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  SubaccountData,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
@@ -27,9 +30,6 @@ import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { BrlaApiService } from "../brla/brlaApiService";
-import { generateReferenceLabel } from "../brla/helpers";
-import { SubaccountData } from "../brla/types";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -262,7 +262,7 @@ export class RampService extends BaseRampService {
 
       if (!quote) {
         throw new APIError({
-          message: QuoteErrors.QUOTE_NOT_FOUND,
+          message: QuoteError.QuoteNotFound,
           status: httpStatus.NOT_FOUND
         });
       }

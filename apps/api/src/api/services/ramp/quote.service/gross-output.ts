@@ -1,31 +1,32 @@
 import {
+  ApiManager,
+  createOfframpRouteParams,
+  createOnrampRouteParams,
   DestinationType,
   EvmTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getPendulumDetails,
+  getRoute,
+  getTokenOutAmount,
   isEvmTokenDetails,
   OnChainToken,
   PendulumTokenDetails,
-  RampCurrency
+  parseContractBalanceResponse,
+  QuoteError,
+  RampCurrency,
+  RouteParams,
+  SquidrouterRoute,
+  stringifyBigWithSignificantDecimals,
+  TokenOutData
 } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
-import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from "../../../helpers/contracts";
-import { getTokenOutAmount, TokenOutData } from "../../nablaReads/outAmount";
-import { ApiManager } from "../../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
-import {
-  createOfframpRouteParams,
-  createOnrampRouteParams,
-  getRoute,
-  RouteParams,
-  SquidrouterRoute
-} from "../../transactions/squidrouter/route";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -136,7 +137,7 @@ function prepareSquidrouterRouteParams(
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
  */
 async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
-  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
+  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.transactionRequest.value), -18);
 
   try {
     // Get current GLMR price in USD from price feed service
@@ -182,7 +183,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
-      message: "Input amount for swap must be greater than 0",
+      message: QuoteError.InputAmountForSwapMustBeGreaterThanZero,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -205,7 +206,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 
     if (!inputTokenPendulumDetails || !outputTokenPendulumDetails) {
       throw new APIError({
-        message: "Unable to get Pendulum token details",
+        message: QuoteError.UnableToGetPendulumTokenDetails,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -226,7 +227,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
   } catch (error) {
     logger.error("Error calculating Nabla swap output:", error);
     throw new APIError({
-      message: "Failed to calculate the quote. Please try a lower amount.",
+      message: QuoteError.FailedToCalculateQuote,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }
@@ -252,7 +253,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
-  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData);
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route);
 
   return {
     networkFeeUSD,
@@ -301,7 +302,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     logger.error(`Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`);
     // We assume that the error is due to a low input amount
     throw new APIError({
-      message: "Input amount too low. Please try a larger amount.",
+      message: QuoteError.InputAmountTooLow,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }

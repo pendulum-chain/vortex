@@ -1,14 +1,20 @@
 import {
   CreateQuoteRequest,
+  createGenericRouteParams,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   EvmTokenDetails,
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getRoute,
   isAssetHubTokenDetails,
   isOnChainToken,
   Networks,
   OnChainToken,
+  parseContractBalanceResponse,
+  QuoteError,
   QuoteFeeStructure,
   QuoteResponse,
   RampCurrency
@@ -20,11 +26,8 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
 import { APIError } from "../../../errors/api-error";
-import { parseContractBalanceResponse } from "../../../helpers/contracts";
-import { ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS } from "../../monerium";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
-import { createGenericRouteParams, getRoute } from "../../transactions/squidrouter/route";
 import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
@@ -101,7 +104,7 @@ export class QuoteService extends BaseRampService {
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover fees.",
+        message: QuoteError.InputAmountTooLowToCoverFees,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -377,7 +380,7 @@ export class QuoteService extends BaseRampService {
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover calculated fees.",
+        message: QuoteError.InputAmountTooLowToCoverCalculatedFees,
         status: httpStatus.BAD_REQUEST
       });
     }

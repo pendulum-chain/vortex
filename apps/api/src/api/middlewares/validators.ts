@@ -3,10 +3,13 @@ import {
   Direction,
   isValidCurrencyForDirection,
   isValidDirection,
+  isValidKYCDocType,
   isValidPriceProvider,
   PriceProvider,
+  RegisterSubaccountPayload,
   StartKYC2Request,
   TokenConfig,
+  TriggerOfframpRequest,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
@@ -18,7 +21,6 @@ import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
 import { EvmAddress } from "../services/brla/brlaTeleportService";
-import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from "../services/brla/types";
 
 interface CreationBody {
   accountId: string;

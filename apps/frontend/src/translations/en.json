@@ -164,10 +164,10 @@
         "EUROnrampDetails": {
           "amount": "Amount",
           "bic": "BIC",
-          "description": "Please make a bank transfer with the following details.",
           "footer": "Please ensure the amount is exact.",
+          "hint": "Scan this QR code in your banking app to start the payment instantly.",
           "iban": "IBAN",
-          "title": "Bank Transfer Details"
+          "title": "Do an instant bank transfer with the following details"
         },
         "headerText": {
           "buy": "Payment Summary",
@@ -361,7 +361,7 @@
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "fundEphemeral": "Funding ephemeral accounts",
       "initial": "Starting process",
-      "moneriumOnrampMint": "Minting EUR.e",
+      "moneriumOnrampMint": "Waiting to receive payment",
       "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
@@ -395,6 +395,7 @@
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
         "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",
         "initializeFailed": {
@@ -406,14 +407,20 @@
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
         "invalidInputAmount": "Invalid input amount",
+        "invalidRampType": "Invalid ramp type",
         "lessThanMinimumWithdrawal": {
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
+        "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
+        "quoteNotFound": "Quote not found",
+        "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
+        "tryLargerAmount": "Input amount too low. Please try a larger amount."
       }
     }
   },

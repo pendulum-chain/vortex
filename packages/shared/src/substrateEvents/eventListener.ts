@@ -1,6 +1,6 @@
 import { ApiPromise } from "@polkadot/api";
-import { Event, EventRecord } from "@polkadot/types/interfaces";
-
+import { EventRecord } from "@polkadot/types/interfaces";
+import logger from "../logger";
 import { parseEventRedeemExecution, parseEventXcmSent } from "./eventParsers";
 
 interface IPendingEvent<T = unknown> {
@@ -23,7 +23,7 @@ export class EventListener {
     this.initEventSubscriber();
 
     this.api?.on("connected", async (): Promise<void> => {
-      console.log("Connected (or reconnected) to the endpoint.");
+      logger.current.info("Connected (or reconnected) to the endpoint.");
       await this.checkForMissedEvents();
     });
   }

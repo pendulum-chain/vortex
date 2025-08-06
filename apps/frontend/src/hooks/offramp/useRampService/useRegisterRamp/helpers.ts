@@ -1,4 +1,4 @@
-import { QuoteErrors } from "@packages/shared";
+import { QuoteError } from "@packages/shared";
 import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,7 +29,7 @@ export const useSignatureTrace = (traceKey: string) => {
 
 const RampRegistrationErrorMessages = {
   [MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.userMintAddressNotFound",
-  [QuoteErrors.QUOTE_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.quoteNotFound"
+  [QuoteError.QuoteNotFound]: "hooks.useGetRampRegistrationErrorMessage.quoteNotFound"
 };
 
 export const useGetRampRegistrationErrorMessage = () => {
@@ -44,9 +44,9 @@ export const useGetRampRegistrationErrorMessage = () => {
               "hooks.useGetRampRegistrationErrorMessage.default"
           );
         }
-        if (error.message?.includes(QuoteErrors.QUOTE_NOT_FOUND)) {
+        if (error.message?.includes(QuoteError.QuoteNotFound)) {
           return t(
-            RampRegistrationErrorMessages[QuoteErrors.QUOTE_NOT_FOUND] || "hooks.useGetRampRegistrationErrorMessage.default"
+            RampRegistrationErrorMessages[QuoteError.QuoteNotFound] || "hooks.useGetRampRegistrationErrorMessage.default"
           );
         }
       }

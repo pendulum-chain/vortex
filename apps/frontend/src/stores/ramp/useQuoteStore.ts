@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse } from "@packages/shared";
 import Big from "big.js";
 import { create } from "zustand";
 
@@ -48,6 +48,34 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 
   return destinationMap[fiatToken] || "sepa";
 };
+
+const friendlyErrorMessages: Record<QuoteError, string> = {
+  // Validation errors - show specific messages
+  [QuoteError.MissingRequiredFields]: "pages.swap.error.missingFields",
+  [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
+  [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
+
+  // Amount too low - suggest larger amount
+  [QuoteError.InputAmountTooLowToCoverFees]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountForSwapMustBeGreaterThanZero]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLow]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
+
+  // Calculation failures - suggest different amount
+  [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount"
+};
+
+function getFriendlyErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    const friendlyErrorMessage = friendlyErrorMessages[error.message as QuoteError];
+    return friendlyErrorMessage || error.message;
+  }
+
+  return "pages.swap.error.fetchingQuote";
+}
 
 /**
  * Creates a quote payload based on ramp parameters
@@ -128,10 +156,8 @@ export const useQuoteStore = create<QuoteState>(set => ({
         quote: quoteResponse
       });
     } catch (error) {
-      console.error("Error fetching quote:", error);
-      const errorMessage = error instanceof Error ? error.message : "pages.swap.error.fetchingQuote";
       set({
-        error: errorMessage,
+        error: getFriendlyErrorMessage(error),
         loading: false,
         outputAmount: undefined,
         quote: undefined

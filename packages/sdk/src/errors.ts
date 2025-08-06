@@ -1,4 +1,4 @@
-import { QuoteErrors } from "@packages/shared";
+import { QuoteError } from "@packages/shared";
 
 export interface APIErrorResponse {
   message: string;
@@ -39,7 +39,7 @@ export class MissingRequiredFieldsError extends RegisterRampError {
 
 export class QuoteNotFoundError extends RegisterRampError {
   constructor() {
-    super(QuoteErrors.QUOTE_NOT_FOUND, 404);
+    super(QuoteError.QuoteNotFound, 404);
     this.name = "QuoteNotFoundError";
   }
 }
@@ -285,7 +285,7 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage.includes("Missing required fields")) {
         return new MissingRequiredFieldsError([]);
       }
-      if (errorMessage === QuoteErrors.QUOTE_NOT_FOUND) {
+      if (errorMessage === QuoteError.QuoteNotFound) {
         return new QuoteNotFoundError();
       }
       if (errorMessage === "Quote has expired") {

@@ -1,18 +1,10 @@
-import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
-import {
-  createExecuteMessageExtrinsic,
-  ExecuteMessageResult,
-  ReadMessageResult,
-  readMessage,
-  submitExtrinsic
-} from "@pendulum-chain/api-solang";
+import { ApiManager, decodeSubmittableExtrinsic, defaultReadLimits, NABLA_ROUTER, RampPhase } from "@packages/shared";
+import { createExecuteMessageExtrinsic, ExecuteMessageResult, readMessage, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import RampState from "../../../../models/rampState.model";
-import { defaultReadLimits } from "../../../helpers/contracts";
-import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
