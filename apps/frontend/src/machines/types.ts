@@ -26,4 +26,5 @@ export interface RampContext {
   rampSummaryVisible: boolean;
   getMessageSignature: GetMessageSignatureCallback | undefined;
   substrateWalletAccount: WalletAccount | undefined;
+  isQuoteExpired: boolean;
 }

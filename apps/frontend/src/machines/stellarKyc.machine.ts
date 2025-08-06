@@ -22,7 +22,7 @@ export const stellarKycMachine = setup({
     },
     events: {} as
       | { type: "Cancel" }
-      | { type: "SummaryConfirm" }
+      | { type: "SummaryConfirm2" }
       | { type: "URL_UPDATED"; url: string; id: string }
       | {
           type: "SEP24_STARTED";
@@ -106,8 +106,8 @@ export const stellarKycMachine = setup({
             tomlValues: ({ event }) => event.output.tomlValues
           })
         },
-        SummaryConfirm: {
-          guard: ({ context }) => !!context.redirectUrl && !!context.id,
+        SummaryConfirm2: {
+          guard: ({ context }) => !!context.redirectUrl,
           target: "Sep24Second"
         },
         URL_UPDATED: {

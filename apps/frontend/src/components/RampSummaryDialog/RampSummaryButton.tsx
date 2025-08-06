@@ -4,6 +4,7 @@ import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  PaymentData,
   TokenType
 } from "@packages/shared";
 import { useSelector } from "@xstate/react";
@@ -12,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { RampContext } from "../../machines/types";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampActions, useRampExecutionInput, useRampState, useSigningRejected } from "../../stores/rampStore";
 import { useIsQuoteExpired, useRampSummaryStore } from "../../stores/rampSummary";
@@ -32,10 +34,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
   }));
-  // get kyc child states
-  useSelector(rampActor, parentState => {
-    console.log("Parent state:", parentState);
-  });
+
   const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
 
@@ -114,22 +113,40 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
 
 export const RampSummaryButton = () => {
   const rampActor = useRampActor();
+  const { onRampConfirm } = useRampSubmission();
 
-  const { rampState } = useSelector(rampActor, state => ({
+  const { rampState, executionInput, isQuoteExpired, anchorUrl } = useSelector(rampActor, state => ({
+    anchorUrl: state.children.KYC?._parent?.getSnapshot().children.Stellar.context.anchorUrl,
+    executionInput: state.context.executionInput,
+    isQuoteExpired: state.context.isQuoteExpired,
     rampState: state.context.rampState
-    //anchorUrl: state.context.
   }));
 
-  const { onRampConfirm } = useRampSubmission();
-  const anchorUrl = useSep24StoreCachedAnchorUrl();
+  const state = useSelector(rampActor, state => state);
+
+  const stellarContext = useSelector(rampActor, state => {
+    const stellarMachine = state.children["stellarKyc"]?.getSnapshot();
+    if (stellarMachine && "context" in stellarMachine && stellarMachine.context) {
+      const context = stellarMachine.context as RampContext & {
+        token?: string;
+        sep10Account?: any;
+        paymentData?: PaymentData;
+        redirectUrl?: string;
+        tomlValues?: any;
+        id?: string;
+        error?: any;
+      };
+      return context ?? null;
+    }
+    return null;
+  });
+  console.log("Stellar context:", stellarContext);
   const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isOfframp = rampDirection === RampDirection.OFFRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
-  const { isQuoteExpired } = useRampSummaryStore();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
-  const executionInput = useRampExecutionInput();
 
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
@@ -138,16 +155,24 @@ export const RampSummaryButton = () => {
     if (isQuoteExpired) return true;
 
     if (isOfframp) {
-      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
+      if (!stellarContext?.redirectUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
     const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
     if (isOnramp && !isDepositQrCodeReady) return true;
 
-    const isSubmitted = false;
-    return isSubmitted;
-  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.depositQrCode, anchorUrl, fiatToken]);
+    return false;
+  }, [
+    executionInput,
+    isQuoteExpired,
+    isOfframp,
+    isOnramp,
+    rampState?.ramp?.depositQrCode,
+    anchorUrl,
+    fiatToken,
+    stellarContext
+  ]);
 
   const buttonContent = useButtonContent({
     isSubmitted: false,
@@ -157,6 +182,7 @@ export const RampSummaryButton = () => {
 
   const onSubmit = () => {
     rampActor.send({ type: "SummaryConfirm" });
+    console.log("SummaryConfirm event sent");
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
       //setCanRegisterRamp(true);

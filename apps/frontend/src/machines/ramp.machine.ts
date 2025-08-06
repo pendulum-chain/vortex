@@ -7,7 +7,10 @@ import { RampExecutionInput } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
-import { kycMachine } from "./kyc.machine";
+import { brlaKycMachine } from "./brlaKyc.machine";
+import { kycStateNode } from "./kyc.states";
+import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 import { updateRampMachine } from "./update.machine";
 
@@ -19,6 +22,7 @@ const initialRampContext: RampContext = {
   executionInput: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
+  isQuoteExpired: false,
   moonbeamApiComponents: undefined,
   pendulumApiComponents: undefined,
   rampDirection: undefined,
@@ -34,8 +38,11 @@ const initialRampContext: RampContext = {
 
 export const rampMachine = setup({
   actors: {
-    registerRamp: fromPromise(registerRampActor), // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
+    brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
+    moneriumKyc: moneriumKycMachine,
+    registerRamp: fromPromise(registerRampActor),
     startRamp: fromPromise(startRampActor),
+    stellarKyc: stellarKycMachine,
     validateKyc: fromPromise(validateKycActor)
   },
   types: {
@@ -63,12 +70,6 @@ export const rampMachine = setup({
   initial: "Idle",
   on: {
     CancelRamp: {
-      actions: assign(({ context }) => ({
-        ...initialRampContext,
-        address: context.address,
-        authToken: context.authToken,
-        siwe: context.siwe
-      })),
       target: ".Cancel"
     },
     SET_ADDRESS: {
@@ -96,6 +97,12 @@ export const rampMachine = setup({
   },
   states: {
     Cancel: {
+      entry: assign(({ context }) => ({
+        ...initialRampContext,
+        address: context.address,
+        authToken: context.authToken,
+        siwe: context.siwe
+      })),
       target: "Idle"
     },
     Failure: {},
@@ -103,47 +110,36 @@ export const rampMachine = setup({
       on: {
         // This is the main confirm button.
         Confirm: {
-          actions: assign(({ context, event }) => {
-            context.executionInput = event.input.executionInput;
-            context.chainId = event.input.chainId;
-            context.rampDirection = event.input.rampDirection;
-            return context;
+          actions: assign({
+            chainId: ({ event }) => event.input.chainId,
+            executionInput: ({ event }) => event.input.executionInput,
+            rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
         }
       }
     },
-    KYC: {
-      invoke: {
-        input: ({ context }) => context,
-        onDone: {
-          target: "RegisterRamp"
-        },
-        src: kycMachine
-      }
-    },
+    KYC: kycStateNode as any, // This is a partial state node, it will be composed into the main ramp machine
     RampFollowUp: {},
     RampRequested: {
-      entry: assign(({ context }) => {
-        context.rampSummaryVisible = true; // TODO maybe we can get rid and just match this state and RampRequested, etc.
-        return context;
+      entry: assign({
+        rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.
       }),
       invoke: {
         input: ({ context }) => context,
-        onDone: [
+        onDone: {
+          guard: ({ event }) => event.output.kycNeeded,
           // The guard checks validateKyc output
           // do nothing otherwise, as we wait for modal confirmation.
-          {
-            //Go to child state machine "KYC"
-            guard: ({ event }) => event.output.kycNeeded,
-            target: "KYC"
-          }
-        ],
+          target: "KYC"
+        },
         onError: "Failure",
+        src: "validateKyc"
+      },
+      on: {
         SummaryConfirm: {
           target: "RegisterRamp"
-        },
-        src: "validateKyc"
+        }
       }
     },
     RegisterRamp: {
@@ -176,9 +172,8 @@ export const rampMachine = setup({
         input: ({ context }: { context: RampContext }) => context,
         onDone: {
           // an event in this state, only then it should transition to StartRamp
-          actions: assign(({ context, event }) => {
-            context = event.output as RampContext; // TODO: we define the output, why is this not typed?
-            return context;
+          actions: assign((_, event) => {
+            return event.output as RampContext;
           }), // TODO add guard to check if the payment was confirmed ONLY FOR ONRAMPS. That UI element should trigger
           target: "StartRamp"
         },

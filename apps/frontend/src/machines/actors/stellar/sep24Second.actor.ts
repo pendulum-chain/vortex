@@ -15,7 +15,12 @@ export const sep24SecondActor = fromPromise(
     } & ISep24Intermediate;
   }) => {
     const { executionInput, token, tomlValues, id } = input;
-
+    console.log("SEP-24 Second step input:", {
+      executionInput,
+      id,
+      token,
+      tomlValues
+    });
     if (!executionInput || !token || !tomlValues || !id) {
       throw new Error("Missing required data for SEP-24 second step");
     }
