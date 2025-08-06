@@ -2,6 +2,7 @@ import {
   AddressExistsResponse,
   AuthContext,
   BeneficiaryDetails,
+  EvmNetworks,
   FetchIbansParams,
   FetchProfileParams,
   IbanData,
@@ -134,6 +135,21 @@ export const getMoneriumEvmDefaultMintAddress = async (token: string): Promise<s
   return getFirstMoneriumLinkedAddress(token);
 };
 
+export const getIbanForAddress = async (walletAddress: string, authToken: string, network: EvmNetworks): Promise<IbanData> => {
+  const approvedAddresses = await getMoneriumLinkedIbans(authToken);
+
+  // Check if the wallet address is in the list of approved addresses
+  // and that it matches the polygon network.
+  const ibanData = approvedAddresses.find(
+    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === "polygon"
+  );
+
+  if (!ibanData) {
+    throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
+  }
+  return ibanData;
+};
+
 export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansParams): Promise<IbanData> => {
   const baseUrl = `${MONERIUM_API_URL}/ibans`;
   const url = new URL(baseUrl);
@@ -153,7 +169,6 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
     }
-
     const data: IbanDataResponse = await response.json();
     // Look for the IBAN data specifically for the Polygon chain.
     // We choose Polygon as the default chain for Monerium EUR minting,
@@ -166,6 +181,43 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     return ibanData;
   } catch (error) {
     logger.error("Error fetching IBANs:", error);
+    throw error;
+  }
+};
+
+export const getMoneriumLinkedIbans = async (authToken: string): Promise<IbanData[]> => {
+  const authContext = await getAuthContext(authToken);
+  const profileId = authContext.defaultProfile;
+
+  const baseUrl = `${MONERIUM_API_URL}/ibans`;
+  const url = new URL(baseUrl);
+
+  url.searchParams.append("profile", profileId);
+  const headers = new Headers({
+    ...HEADER_ACCEPT_V2,
+    Authorization: `Bearer ${authToken}`
+  });
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: headers,
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { ibans: Array<IbanData & { state: string; emailNotifications?: boolean }> };
+    const approvedIbans = data.ibans.filter(item => item.state === "approved" && item.iban !== undefined && item.iban !== null);
+
+    if (approvedIbans.length === 0) {
+      throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
+    }
+
+    return approvedIbans;
+  } catch (error) {
+    logger.error("Error fetching linked IBANs:", error);
     throw error;
   }
 };

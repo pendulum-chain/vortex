@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -29,7 +30,7 @@ import { APIError } from "../../errors/api-error";
 import { BrlaApiService } from "../brla/brlaApiService";
 import { generateReferenceLabel } from "../brla/helpers";
 import { SubaccountData } from "../brla/types";
-import { createEpcQrCodeData, getAuthContext, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
+import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
@@ -159,28 +160,28 @@ export class RampService extends BaseRampService {
     }
 
     try {
-      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
-        destinationAddress: additionalData.destinationAddress,
-        moneriumAuthToken: additionalData.moneriumAuthToken,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      });
-
-      const userContext = await getAuthContext(additionalData.moneriumAuthToken);
-
-      const ibanData = await getMoneriumUserIban({
-        authToken: additionalData.moneriumAuthToken,
-        profileId: userContext.defaultProfile
-      });
-      const ibanPaymentData = {
-        bic: ibanData.bic,
-        iban: ibanData.iban
-      };
+      // Validate the user mint address
+      const ibanData = await getIbanForAddress(
+        additionalData.destinationAddress,
+        additionalData.moneriumAuthToken,
+        quote.to as EvmNetworks // Fixme: assethub network type issue.
+      );
 
       const userProfile = await getMoneriumUserProfile({
         authToken: additionalData.moneriumAuthToken,
         profileId: ibanData.profile
       });
+
+      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+        destinationAddress: additionalData.destinationAddress,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      });
+
+      const ibanPaymentData = {
+        bic: ibanData.bic,
+        iban: ibanData.iban
+      };
 
       const ibanCode = createEpcQrCodeData({
         amount: quote.inputAmount,
