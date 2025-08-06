@@ -301,7 +301,7 @@
     "swapSubmitButton": {
       "confirm": "Confirmar",
       "confirming": "Confirmando",
-      "confirmPayment": "Confirmar pagamento",
+      "confirmPayment": "Eu fiz o pagamento.",
       "processing": "Processando"
     },
     "termsAndConditions": {
