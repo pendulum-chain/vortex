@@ -1,7 +1,26 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken, PaymentData } from "@packages/shared";
 import { assign, sendTo } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { RampContext } from "./types";
+
+// Extended context types for child KYC machines
+export interface BrlaKycContext extends RampContext {
+  taxId: string;
+}
+
+export interface MoneriumKycContext extends RampContext {
+  // TODO
+}
+
+export interface StellarKycContext extends RampContext {
+  token?: string;
+  sep10Account?: any;
+  paymentData?: PaymentData;
+  redirectUrl?: string;
+  tomlValues?: any;
+  id?: string;
+  error?: any;
+}
 
 export const kycStateNode = {
   initial: "Started",
@@ -14,7 +33,19 @@ export const kycStateNode = {
       on: {
         SummaryConfirm: {
           actions: [
-            sendTo("stellarKyc", { type: "SummaryConfirm" }),
+            // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
+            sendTo(
+              ({ context }) => {
+                if (context.executionInput?.fiatToken === FiatToken.BRL) {
+                  return "brlaKyc";
+                }
+                if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.ONRAMP) {
+                  return "moneriumKyc";
+                }
+                return "stellarKyc";
+              },
+              { type: "SummaryConfirm" }
+            ),
             ({ event }: any) => {
               console.log("SummaryConfirm event:", event);
             }
@@ -45,18 +76,14 @@ export const kycStateNode = {
         Brla: {
           invoke: {
             id: "brlaKyc",
-            input: ({ context }: { context: RampContext }) => ({
+            input: ({ context }: { context: RampContext }): BrlaKycContext => ({
+              ...context,
               taxId: context.executionInput!.taxId!
             }),
             onDone: {
               target: "VerificationComplete"
             },
             src: "brlaKyc"
-          },
-          on: {
-            SummaryConfirm: {
-              actions: [sendTo("brlaKyc", { type: "SummaryConfirm" })]
-            }
           }
         },
         Deciding: {
@@ -78,26 +105,17 @@ export const kycStateNode = {
         Monerium: {
           invoke: {
             id: "moneriumKyc",
+            input: ({ context }: { context: RampContext }): MoneriumKycContext => context,
             onDone: {
               target: "VerificationComplete"
             },
             src: "moneriumKyc"
-          },
-          on: {
-            SummaryConfirm: {
-              actions: [
-                sendTo("moneriumKyc", { type: "SummaryConfirm" }),
-                ({ event }: any) => {
-                  console.log("Monerium SummaryConfirm event:", event);
-                }
-              ]
-            }
           }
         },
         Stellar: {
           invoke: {
             id: "stellarKyc",
-            input: ({ context }: { context: RampContext }) => context,
+            input: ({ context }: { context: RampContext }): StellarKycContext => context,
             onDone: {
               target: "VerificationComplete"
             },
@@ -108,11 +126,6 @@ export const kycStateNode = {
               // The onError of the parent 'Verifying' state will handle the transition to failure
             },
             src: "stellarKyc"
-          },
-          on: {
-            SummaryConfirm: {
-              actions: [sendTo("stellarKyc", { type: "SummaryConfirm" })]
-            }
           }
         },
         VerificationComplete: {

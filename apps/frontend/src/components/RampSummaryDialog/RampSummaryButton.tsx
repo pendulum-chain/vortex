@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { StellarKycContext } from "../../machines/kyc.states";
 import { RampContext } from "../../machines/types";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampActions, useRampExecutionInput, useRampState, useSigningRejected } from "../../stores/rampStore";
@@ -30,6 +31,15 @@ interface UseButtonContentProps {
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
+
+  const stellarMachineState = useSelector(rampActor, state => {
+    const stellarMachineSnapshot = state.children["stellarKyc"]?.getSnapshot();
+
+    if (stellarMachineSnapshot && "value" in stellarMachineSnapshot && stellarMachineSnapshot.value) {
+      return stellarMachineSnapshot.value;
+    }
+    return null;
+  });
 
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
@@ -92,7 +102,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && isAnchorWithRedirect) {
-      if (isSubmitted) {
+      if (stellarMachineState === "Sep24Second") {
         return {
           icon: <Spinner />,
           text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage")
@@ -122,20 +132,10 @@ export const RampSummaryButton = () => {
     rampState: state.context.rampState
   }));
 
-  const state = useSelector(rampActor, state => state);
-
   const stellarContext = useSelector(rampActor, state => {
     const stellarMachine = state.children["stellarKyc"]?.getSnapshot();
     if (stellarMachine && "context" in stellarMachine && stellarMachine.context) {
-      const context = stellarMachine.context as RampContext & {
-        token?: string;
-        sep10Account?: any;
-        paymentData?: PaymentData;
-        redirectUrl?: string;
-        tomlValues?: any;
-        id?: string;
-        error?: any;
-      };
+      const context = stellarMachine.context as StellarKycContext;
       return context ?? null;
     }
     return null;

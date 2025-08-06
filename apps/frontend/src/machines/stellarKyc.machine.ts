@@ -1,8 +1,8 @@
 import { PaymentData } from "@packages/shared";
-import { assign, sendParent, setup } from "xstate";
-import { ISep24Intermediate } from "../types/sep";
+import { assign, setup } from "xstate";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
+import { StellarKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
 export const stellarKycMachine = setup({
@@ -11,18 +11,10 @@ export const stellarKycMachine = setup({
     startSep24: startSep24Actor
   },
   types: {
-    context: {} as RampContext & {
-      token?: string;
-      sep10Account?: any;
-      paymentData?: PaymentData;
-      redirectUrl?: string;
-      tomlValues?: any;
-      id?: string;
-      error?: any;
-    },
+    context: {} as StellarKycContext,
     events: {} as
       | { type: "Cancel" }
-      | { type: "SummaryConfirm2" }
+      | { type: "SummaryConfirm" }
       | { type: "URL_UPDATED"; url: string; id: string }
       | {
           type: "SEP24_STARTED";
@@ -106,7 +98,12 @@ export const stellarKycMachine = setup({
             tomlValues: ({ event }) => event.output.tomlValues
           })
         },
-        SummaryConfirm2: {
+        SummaryConfirm: {
+          actions: ({ context }) => {
+            if (context.redirectUrl) {
+              window.open(context.redirectUrl, "_blank");
+            }
+          },
           guard: ({ context }) => !!context.redirectUrl,
           target: "Sep24Second"
         },
