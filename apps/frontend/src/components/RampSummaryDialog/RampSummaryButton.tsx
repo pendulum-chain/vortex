@@ -6,19 +6,14 @@ import {
   getOnChainTokenDetailsOrDefault,
   TokenType
 } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
-import {
-  useCanRegisterRamp,
-  useRampActions,
-  useRampExecutionInput,
-  useRampState,
-  useSigningRejected
-} from "../../stores/rampStore";
+import { useRampActions, useRampExecutionInput, useRampState, useSigningRejected } from "../../stores/rampStore";
 import { useIsQuoteExpired, useRampSummaryStore } from "../../stores/rampSummary";
 import { useSep24StoreCachedAnchorUrl } from "../../stores/sep24Store";
 import { RampDirection } from "../RampToggle";
@@ -31,12 +26,18 @@ interface UseButtonContentProps {
 }
 
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
-  const rampState = useRampState();
   const { t } = useTranslation();
+  const rampActor = useRampActor();
+
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
+  // get kyc child states
+  useSelector(rampActor, parentState => {
+    console.log("Parent state:", parentState);
+  });
   const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isQuoteExpired = useIsQuoteExpired();
-  const canRegisterRamp = useCanRegisterRamp();
-  const signingRejected = useSigningRejected();
 
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.ONRAMP;
@@ -54,13 +55,14 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       };
     }
 
+    // XSTATE migrate: we can display this on failure, generic failure.
     // Add check for signing rejection
-    if (signingRejected) {
-      return {
-        icon: null,
-        text: t("components.dialogs.RampSummaryDialog.tryAgain")
-      };
-    }
+    // if (signingRejected) {
+    //   return {
+    //     icon: null,
+    //     text: t("components.dialogs.RampSummaryDialog.tryAgain")
+    //   };
+    // }
 
     if (submitButtonDisabled) {
       return {
@@ -69,7 +71,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       };
     }
 
-    if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
+    if (isOfframp && isAnchorWithoutRedirect) {
       return {
         icon: null,
         text: t("components.dialogs.RampSummaryDialog.confirm")
@@ -107,24 +109,17 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [
-    submitButtonDisabled,
-    isQuoteExpired,
-    rampDirection,
-    rampState,
-    t,
-    isSubmitted,
-    canRegisterRamp,
-    toToken,
-    signingRejected
-  ]);
+  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, isSubmitted, toToken]);
 };
 
 export const RampSummaryButton = () => {
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const { setRampPaymentConfirmed, setCanRegisterRamp, setSigningRejected } = useRampActions();
-  const rampState = useRampState();
-  const signingRejected = useSigningRejected();
+  const rampActor = useRampActor();
+
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+    //anchorUrl: state.context.
+  }));
+
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
   const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
@@ -150,53 +145,39 @@ export const RampSummaryButton = () => {
     const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
     if (isOnramp && !isDepositQrCodeReady) return true;
 
-    if (signingRejected) {
-      return false;
-    }
-
+    const isSubmitted = false;
     return isSubmitted;
-  }, [
-    executionInput,
-    isQuoteExpired,
-    isOfframp,
-    isOnramp,
-    rampState?.ramp?.depositQrCode,
-    isSubmitted,
-    anchorUrl,
-    fiatToken,
-    signingRejected
-  ]);
+  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.depositQrCode, anchorUrl, fiatToken]);
 
   const buttonContent = useButtonContent({
-    isSubmitted,
+    isSubmitted: false,
     submitButtonDisabled,
     toToken: toToken as FiatTokenDetails
   });
 
   const onSubmit = () => {
-    setIsSubmitted(true);
-
+    rampActor.send({ type: "SummaryConfirm" });
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
-      setCanRegisterRamp(true);
+      //setCanRegisterRamp(true);
     }
 
     if (executionInput?.quote.rampType === "on") {
-      setRampPaymentConfirmed(true);
+      //setRampPaymentConfirmed(true);
     } else {
       onRampConfirm();
     }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
       // If signing was rejected, we do not open the anchor URL again
-      if (!signingRejected) {
-        window.open(anchorUrl, "_blank");
-      }
+      // if (!signingRejected) {
+      //   window.open(anchorUrl, "_blank");
+      // }
     }
 
-    if (signingRejected) {
-      setSigningRejected(false);
-    }
+    // if (signingRejected) {
+    //   setSigningRejected(false);
+    // }
   };
 
   return (

@@ -19,7 +19,6 @@ export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { selectedNetwork } = useNetwork();
-  const { resetRampState } = useRampActions();
 
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
@@ -40,7 +39,7 @@ export const RampSummaryDialog: FC = () => {
   if (!executionInput) return null;
 
   const onClose = () => {
-    resetRampState();
+    rampActor.send({ type: "CancelRamp" });
     fetchQuote({
       fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),

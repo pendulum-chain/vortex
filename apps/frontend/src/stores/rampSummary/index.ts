@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+//XSTATE migrate: what to do with this?
 interface RampSummaryState {
   isQuoteExpired: boolean;
   actions: {

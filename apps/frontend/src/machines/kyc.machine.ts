@@ -1,4 +1,4 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken, PaymentData } from "@packages/shared";
 import { assertEvent, assign, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { RampExecutionInput } from "../types/phases";
@@ -9,7 +9,7 @@ import { RampContext } from "./types";
 
 type RampKycContext = RampContext & {
   executionInput: RampExecutionInput;
-  kycResponse?: any; // To store the output from the KYC actor
+  kycResponse?: PaymentData | any; // To store the output from the KYC actor
   error?: any;
 };
 
@@ -26,7 +26,7 @@ export const kycMachine = setup({
 }).createMachine({
   context: ({ input }) => input as RampKycContext,
   id: "kyc",
-  initial: "started",
+  initial: "Started",
   output: ({ context }) => context,
   states: {
     Cancelled: {
@@ -35,14 +35,14 @@ export const kycMachine = setup({
     Failed: {
       type: "final"
     },
-    kycDone: {
+    KycDone: {
       type: "final"
     },
-    started: {
-      always: "verifying"
+    Started: {
+      always: "Verifying"
     },
-    verifying: {
-      initial: "deciding",
+    Verifying: {
+      initial: "Deciding",
       onDone: [
         {
           guard: ({ event }) => (event.output as any)?.status === "Cancelled",
@@ -50,17 +50,21 @@ export const kycMachine = setup({
         },
         {
           actions: assign({
-            kycResponse: ({ event }) => event.output
+            kycResponse: ({ event }) => {
+              console.log("KYC process completed with response:", event.output);
+              return event.output;
+            }
           }),
-          target: "kycDone"
+          target: "KycDone"
         }
       ],
       states: {
-        brla: {
+        Brla: {
           invoke: {
+            id: "brlaKyc",
             input: ({ context }) => ({ taxId: context.executionInput.taxId! }),
             onDone: {
-              target: "verificationComplete"
+              target: "VerificationComplete"
             },
             onError: {
               target: "Failed"
@@ -68,19 +72,19 @@ export const kycMachine = setup({
             src: "brlaKyc"
           }
         },
-        deciding: {
+        Deciding: {
           always: [
             {
               guard: ({ context }) => context.executionInput?.fiatToken === FiatToken.BRL,
-              target: "brla"
+              target: "Brla"
             },
             {
               guard: ({ context }) =>
                 context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.ONRAMP,
-              target: "monerium"
+              target: "Monerium"
             },
             {
-              target: "stellar"
+              target: "Stellar"
             }
           ]
         },
@@ -89,10 +93,11 @@ export const kycMachine = setup({
           // This will cause the top-level machine to enter its 'Failed' final state
           // because if a state configuration has no transitions
         },
-        monerium: {
+        Monerium: {
           invoke: {
+            id: "moneriumKyc",
             onDone: {
-              target: "verificationComplete"
+              target: "VerificationComplete"
             },
             onError: {
               target: "Failed"
@@ -100,11 +105,12 @@ export const kycMachine = setup({
             src: "moneriumKyc"
           }
         },
-        stellar: {
+        Stellar: {
           invoke: {
+            id: "stellarKyc",
             input: ({ context }) => context,
             onDone: {
-              target: "verificationComplete"
+              target: "VerificationComplete"
             },
             onError: {
               actions: assign({
@@ -115,7 +121,7 @@ export const kycMachine = setup({
             src: "stellarKyc"
           }
         },
-        verificationComplete: {
+        VerificationComplete: {
           type: "final"
         }
       }

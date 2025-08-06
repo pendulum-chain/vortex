@@ -21,8 +21,8 @@ export const stellarKycMachine = setup({
       error?: any;
     },
     events: {} as
-      | { type: "cancel" }
-      | { type: "open" }
+      | { type: "Cancel" }
+      | { type: "SummaryConfirm" }
       | { type: "URL_UPDATED"; url: string; id: string }
       | {
           type: "SEP24_STARTED";
@@ -44,7 +44,7 @@ export const stellarKycMachine = setup({
   initial: "StartSep24",
   // At any point in the KYC process, the user can cancel it.
   on: {
-    cancel: ".Cancelled"
+    Cancel: ".Cancelled"
   },
   states: {
     Cancelled: {
@@ -93,10 +93,6 @@ export const stellarKycMachine = setup({
         src: "startSep24"
       },
       on: {
-        open: {
-          guard: ({ context }) => !!context.redirectUrl && !!context.id,
-          target: "Sep24Second"
-        },
         SEP24_FAILED: {
           actions: assign({
             error: ({ event }) => event.error
@@ -109,6 +105,10 @@ export const stellarKycMachine = setup({
             token: ({ event }) => event.output.token,
             tomlValues: ({ event }) => event.output.tomlValues
           })
+        },
+        SummaryConfirm: {
+          guard: ({ context }) => !!context.redirectUrl && !!context.id,
+          target: "Sep24Second"
         },
         URL_UPDATED: {
           actions: assign({
