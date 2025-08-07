@@ -1,8 +1,11 @@
-import { describe, it, mock } from "bun:test";
+import {describe, it, mock} from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import {
   AccountMeta,
+  API,
+  ApiManager,
+  BrlaApiService,
   DestinationType,
   EphemeralAccount,
   EvmToken,
@@ -10,21 +13,19 @@ import {
   Networks,
   RampDirection,
   RegisterRampRequest,
-  signUnsignedTransactions
+  signUnsignedTransactions,
+  SubaccountData
 } from "@packages/shared";
-import { Keyring } from "@polkadot/api";
-import { mnemonicGenerate } from "@polkadot/util-crypto";
+import {Keyring} from "@polkadot/api";
+import {mnemonicGenerate} from "@polkadot/util-crypto";
 import Big from "big.js";
-import { UpdateOptions } from "sequelize";
-import { Keypair } from "stellar-sdk";
-import QuoteTicket, { QuoteTicketAttributes, QuoteTicketCreationAttributes } from "../../../models/quoteTicket.model";
-import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../../../models/rampState.model";
+import {UpdateOptions} from "sequelize";
+import {Keypair} from "stellar-sdk";
+import QuoteTicket, {QuoteTicketAttributes, QuoteTicketCreationAttributes} from "../../../models/quoteTicket.model";
+import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
 import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
-import { BrlaApiService } from "../brla/brlaApiService";
-import { SubaccountData } from "../brla/types";
-import { API, ApiManager } from "../pendulum/apiManager";
-import { QuoteService } from "../ramp/quote.service";
-import { RampService } from "../ramp/ramp.service";
+import {QuoteService} from "../ramp/quote.service";
+import {RampService} from "../ramp/ramp.service";
 import registerPhaseHandlers from "./register-handlers";
 
 const EVM_TESTING_ADDRESS = "0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3";

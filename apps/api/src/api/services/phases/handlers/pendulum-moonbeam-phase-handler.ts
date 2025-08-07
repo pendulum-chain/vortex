@@ -1,23 +1,23 @@
 import {
+  ApiManager,
   AXL_USDC_MOONBEAM,
   decodeSubmittableExtrinsic,
   FiatToken,
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
+  getEvmTokenBalance,
   MOONBEAM_XCM_FEE_GLMR,
   Networks,
   nativeToDecimal,
   PENDULUM_USDC_AXL,
   RampDirection,
-  RampPhase
+  RampPhase,
+  submitXTokens
 } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
-import { getEvmTokenBalance } from "../../moonbeam/balance";
-import { ApiManager } from "../../pendulum/apiManager";
-import { submitXTokens } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {

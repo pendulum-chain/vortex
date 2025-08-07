@@ -2,6 +2,12 @@ import {
   AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  ApiManager,
+  createMoonbeamToPendulumXCM,
+  createNablaTransactionsForOnramp,
+  createOnrampSquidrouterTransactions,
+  createPendulumToAssethubTransfer,
+  createPendulumToMoonbeamTransfer,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
@@ -26,18 +32,12 @@ import Big from "big.js";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
-import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { priceFeedService } from "../priceFeed.service";
 import { encodeEvmTransactionData } from "./index";
 import { prepareMoonbeamCleanupTransaction } from "./moonbeam/cleanup";
-import { createNablaTransactionsForOnramp } from "./nabla";
 import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
-import { createOnrampSquidrouterTransactions } from "./squidrouter/onramp";
-import { createMoonbeamToPendulumXCM } from "./xcm/moonbeamToPendulum";
-import { createPendulumToAssethubTransfer } from "./xcm/pendulumToAssethub";
-import { createPendulumToMoonbeamTransfer } from "./xcm/pendulumToMoonbeam";
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase

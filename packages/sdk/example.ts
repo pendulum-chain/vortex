@@ -55,7 +55,7 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 4: Starting BRL onramp...");
 
     // Ensure making the payment BEFORE starting the ramp
-    const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
+    const _startedRamp = await sdk.startRamp(quote, registeredRamp.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 

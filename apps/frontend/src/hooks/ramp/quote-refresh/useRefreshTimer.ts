@@ -8,7 +8,7 @@ interface UseRefreshTimerReturn {
   reset: () => void;
 }
 
-export const useRefreshTimer = (duration: number = 30): UseRefreshTimerReturn => {
+export const useRefreshTimer = (duration = 30): UseRefreshTimerReturn => {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isActive, setIsActive] = useState(false);
 

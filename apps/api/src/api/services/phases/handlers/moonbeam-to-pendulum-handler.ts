@@ -1,4 +1,5 @@
-import { RampPhase } from "@packages/shared";
+import { ApiManager, createEvmClientsAndConfig, encodePayload, RampPhase, waitUntilTrue } from "@packages/shared";
+import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { readContract } from "@wagmi/core";
@@ -6,15 +7,9 @@ import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
-
-import splitReceiverABI from "../../../../../mooncontracts/splitReceiverABI.json";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
-import { waitUntilTrue } from "../../../helpers/functions";
-import { createMoonbeamClientsAndConfig } from "../../moonbeam/createServices";
-import { ApiManager } from "../../pendulum/apiManager";
-import encodePayload from "../../transactions/squidrouter/payload";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -60,7 +55,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = (await readContract(moonbeamConfig, {
+      const result = (await readContract(evmConfig, {
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
@@ -72,7 +67,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, moonbeamClient, moonbeamConfig } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+    const { walletClient, publicClient, evmConfig } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
@@ -93,7 +88,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             functionName: "executeXCM"
           });
 
-          const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamClient.estimateFeesPerGas();
+          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
           obtainedHash = await walletClient.sendTransaction({
             data,
             maxFeePerGas,
