@@ -1,3 +1,4 @@
+import { useNetwork } from "../../../../contexts/network";
 import { cn } from "../../../../helpers/cn";
 import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { ListItem } from "../../../ListItem";
@@ -8,6 +9,7 @@ export const SelectionTokenList = () => {
   const isNetworkDropdownOpen = useIsNetworkDropdownOpen();
   const searchFilter = useSearchFilter();
   const selectedNetworkFilter = useSelectedNetworkFilter();
+  const { selectedNetwork } = useNetwork();
   const { filteredDefinitions } = useTokenDefinitions(searchFilter, selectedNetworkFilter);
   const { handleTokenSelect, selectedToken } = useTokenSelection();
 
@@ -22,7 +24,7 @@ export const SelectionTokenList = () => {
         {filteredDefinitions.map(token => (
           <li key={`${token.type}-${token.network}`}>
             <ListItem
-              isSelected={selectedToken === token.type}
+              isSelected={selectedToken === token.type && selectedNetwork === token.network}
               onSelect={tokenType => handleTokenSelect(tokenType, token)}
               token={token}
             />
