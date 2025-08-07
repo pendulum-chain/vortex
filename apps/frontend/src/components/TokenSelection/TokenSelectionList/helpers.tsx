@@ -162,9 +162,9 @@ function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDir
           assetSymbol: value.fiat.symbol,
           details: value as FiatTokenDetails,
           name: value.fiat.name,
-          network: key === "brl" ? Networks.Moonbeam : Networks.Stellar,
+          network: key === FiatToken.BRL ? Networks.Moonbeam : Networks.Stellar,
           networkDisplayName:
-            key === "brl" ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
+            key === FiatToken.BRL ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
           type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
         })
       );
