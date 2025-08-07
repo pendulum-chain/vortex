@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
-
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useRampHistory } from "../../hooks/useRampHistory";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useRampHistoryStore } from "../../stores/rampHistoryStore";
@@ -19,6 +19,8 @@ export function RampHistory() {
       refetch();
     }
   }, [isActive, address, refetch]);
+
+  useEscapeKey(isActive, actions.toggleHistory);
 
   const rampHistoryGroups: TransactionGroup[] = data?.transactions ? groupRampHistoryByMonth(data.transactions) : [];
 
