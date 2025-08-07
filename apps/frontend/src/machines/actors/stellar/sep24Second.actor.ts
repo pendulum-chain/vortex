@@ -49,7 +49,7 @@ export const sep24SecondActor = fromPromise(
       memo: secondSep24Response.memo,
       memoType: secondSep24Response.memoType as "text" | "hash"
     };
-
+    console.log("SEP-24 Second step output:", paymentData);
     return paymentData;
   }
 );

@@ -91,33 +91,47 @@ export const kycStateNode = {
       }
     },
     Stellar: {
+      exit: sendTo("stellarKyc", { type: "Cancel" }),
       invoke: {
         id: "stellarKyc",
         input: ({ context }: { context: RampContext }): StellarKycContext => context,
-        onDone: {
-          assign: ({ context, event }: { context: RampContext; event: any }) => {
-            console.log("Stellar KYC completed with response:", event.output);
-            return {
-              ...context,
-              kycResponse: event.output
-            };
+        onDone: [
+          {
+            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
+              console.log("Stellar KYC completed with response:", event.output);
+              return {
+                ...context,
+                kycResponse: event.output.paymentData
+              };
+            }),
+            guard: ({ event }: { event: any }) => !!event.output.paymentData,
+            target: "VerificationComplete"
           },
-          target: "VerificationComplete"
-        },
+          {
+            // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
+            actions: assign({
+              error: ({ event }: { event: any }) => event.output.error
+            }),
+            target: "#ramp.Failure"
+          }
+        ],
         onError: {
-          actions: assign({
-            error: ({ event }) => (event as any).data
-          }),
           target: "#ramp.Failure"
         },
         src: "stellarKyc"
       }
     },
     VerificationComplete: {
-      entry: ({ context }: any) => {
-        console.log("KYC verification completed successfully:", context.kycResponse);
+      always: {
+        target: "#ramp.RegisterRamp"
       },
-      target: "#ramp.RegisterRamp"
+      entry: {
+        actions: [
+          ({ context }: any) => {
+            console.log("KYC verification completed successfully:", context.kycResponse);
+          }
+        ]
+      }
     }
   }
 };

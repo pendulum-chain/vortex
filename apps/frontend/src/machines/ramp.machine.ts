@@ -98,15 +98,28 @@ export const rampMachine = setup({
   },
   states: {
     Cancel: {
+      always: {
+        target: "#ramp.Idle"
+      },
       entry: assign(({ context }) => ({
         ...initialRampContext,
         address: context.address,
         authToken: context.authToken,
         siwe: context.siwe
-      })),
-      target: "Idle"
+      }))
     },
-    Failure: {},
+    Failure: {
+      always: {
+        target: "#ramp.Idle"
+      },
+      // TODO We also need to display the "final" error message in the UI.
+      entry: assign(({ context }) => ({
+        ...initialRampContext,
+        address: context.address,
+        authToken: context.authToken,
+        siwe: context.siwe
+      }))
+    },
     Idle: {
       on: {
         // This is the main confirm button.
@@ -120,7 +133,7 @@ export const rampMachine = setup({
         }
       }
     },
-    KYC: kycStateNode as any, // This is a partial state node, it will be composed into the main ramp machine
+    KYC: kycStateNode as any,
     RampFollowUp: {},
     RampRequested: {
       entry: assign({
@@ -148,7 +161,7 @@ export const rampMachine = setup({
         input: ({ context }) => context,
         onDone: {
           actions: assign({
-            rampState: ({ event }: any) => event.output
+            rampState: ({ event }) => event.output
           }),
           target: "UpdateRamp"
         },

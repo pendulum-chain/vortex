@@ -1,3 +1,4 @@
+import { PaymentData } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { RampDirection } from "../components/RampToggle";
 import { ApiComponents } from "../contexts/polkadotNode";
@@ -8,7 +9,7 @@ export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 
 export interface RampContext {
-  kycResponse: any;
+  kycResponse: PaymentData | undefined;
   siwe: UseSiweContext | undefined;
   address: string | undefined;
   authToken: string | undefined;

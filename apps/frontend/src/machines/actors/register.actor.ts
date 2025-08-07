@@ -12,7 +12,7 @@ import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, pendulumApiComponents, moonbeamApiComponents, address, authToken } = input;
+  const { executionInput, chainId, pendulumApiComponents, moonbeamApiComponents, address, authToken, kycResponse } = input;
 
   console.log("Registering ramp with input:", input);
 
@@ -58,7 +58,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
-      paymentData: executionInput.paymentData,
+      paymentData: kycResponse, // We know it exists here, as the KYC machine ensures it is set before reaching this point.
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
@@ -67,7 +67,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else {
     additionalData = {
       moneriumAuthToken: authToken,
-      paymentData: executionInput.paymentData,
+      paymentData: kycResponse,
       receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
       walletAddress: address

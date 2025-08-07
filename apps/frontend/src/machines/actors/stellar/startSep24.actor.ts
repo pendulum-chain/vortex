@@ -7,7 +7,9 @@ import { fetchTomlValues } from "../../../services/stellar";
 import { IAnchorSessionParams } from "../../../types/sep";
 import { RampContext } from "../../types";
 
-export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input }) => {
+let intervalId: NodeJS.Timeout;
+
+export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input, receive }) => {
   const parent = (self as any)._parent!;
 
   const { executionInput, siwe } = input;
@@ -18,8 +20,6 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
     });
     return;
   }
-
-  let intervalId: NodeJS.Timeout;
 
   const runSep24Logic = async () => {
     try {
@@ -71,7 +71,20 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
     }
   };
 
-  runSep24Logic();
+  if (!intervalId) {
+    console.log("Starting SEP-24 logic with input:", input);
+    runSep24Logic();
+  }
+
+  // Clean logic
+  receive(event => {
+    console.log("Received event in startSep24Actor:", event);
+    if (event.type === "STOP_SEP24") {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    }
+  });
 
   return () => {
     if (intervalId) {

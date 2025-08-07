@@ -19,9 +19,11 @@ export const stellarKycMachine = setup({
           type: "SEP24_STARTED";
           output: { token: string; sep10Account: any; tomlValues: any };
         }
-      | { type: "SEP24_FAILED"; error: any },
+      | { type: "SEP24_FAILED"; error: any }
+      | { type: "STOP_SEP24" }
+      | { type: "Cancel"; output: PaymentData },
     input: {} as RampContext,
-    output: {} as PaymentData | { status: "Failed"; msg: string; error?: any }
+    output: {} as { error?: any; paymentData?: PaymentData }
   }
 }).createMachine({
   context: ({ input }) => ({
@@ -30,17 +32,20 @@ export const stellarKycMachine = setup({
   }),
   id: "stellarKyc",
   initial: "StartSep24",
+  on: {
+    Cancel: {
+      actions: sendTo("startSep24Actor", { type: "STOP_SEP24" })
+    }
+  },
+  output: ({ context }) => ({
+    error: context.error,
+    paymentData: context.paymentData
+  }),
   states: {
     Done: {
-      output: ({ context }) => context.paymentData,
       type: "final"
     },
     Failed: {
-      output: ({ context }) => ({
-        error: context.error,
-        msg: "KYC process failed.",
-        status: "Failed"
-      }),
       type: "final"
     },
     Sep24Second: {
@@ -54,23 +59,25 @@ export const stellarKycMachine = setup({
           url: context.redirectUrl!
         }),
         onDone: {
-          actions: assign({
-            paymentData: ({ event }) => event.output
-          })
+          actions: [
+            assign({
+              paymentData: ({ event }) => event.output
+            })
+          ],
+          target: "Done"
         },
         onError: {
-          actions: assign({
-            error: ({ event }) => event.error
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error
+            }),
+            ({ context, event }) => {
+              console.log("context after error: ", context, "event : ", event);
+            }
+          ],
           target: "Failed"
         },
         src: "sep24Second"
-      },
-      onDone: {
-        actions: ({ context }) => {
-          console.log("context after output: ", context);
-        },
-        target: "Done"
       }
     },
     StartSep24: {
