@@ -49,7 +49,7 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
             ) : (
               <>
                 {token.name && <div>{token.name}</div>}
-                <div>({token.networkDisplayName})</div>
+                {isOnChainToken(token.type) && <div>({token.networkDisplayName})</div>}
               </>
             )}
           </span>
