@@ -2,20 +2,18 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { Networks } from "@packages/shared";
 import ALL_NETWORKS_ICON from "../../../../assets/chains/all-networks.svg";
 import { cn } from "../../../../helpers/cn";
+import { useIsNetworkDropdownOpen, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { NetworkIcon } from "../../../NetworkIcon";
 import { SelectionButtonMotion, SelectionChevronMotion } from "../animations";
 
 interface SelectionNetworkButtonProps {
-  selectedNetworkFilter: Networks | "all";
-  isNetworkDropdownOpen: boolean;
   onToggle: () => void;
 }
 
-export const SelectionNetworkButton = ({
-  selectedNetworkFilter,
-  isNetworkDropdownOpen,
-  onToggle
-}: SelectionNetworkButtonProps) => {
+export const SelectionNetworkButton = ({ onToggle }: SelectionNetworkButtonProps) => {
+  const isNetworkDropdownOpen = useIsNetworkDropdownOpen();
+  const selectedNetworkFilter = useSelectedNetworkFilter();
+
   return (
     <SelectionButtonMotion
       className={cn(
