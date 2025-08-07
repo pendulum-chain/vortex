@@ -316,6 +316,11 @@
     }
   },
   "hooks": {
+    "useGetRampRegistrationErrorMessage": {
+      "default": "Algo deu errado",
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
+      "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
+    },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
       "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."

@@ -20,7 +20,6 @@ import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { getMoneriumEvmDefaultMintAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
@@ -29,7 +28,6 @@ export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];
   destinationAddress: string;
-  moneriumAuthToken: string;
 }
 
 /**
@@ -39,8 +37,7 @@ export interface MoneriumOnrampTransactionParams {
 export async function prepareMoneriumEvmOnrampTransactions({
   quote,
   signingAccounts,
-  destinationAddress,
-  moneriumAuthToken
+  destinationAddress
 }: MoneriumOnrampTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
@@ -72,11 +69,6 @@ export async function prepareMoneriumEvmOnrampTransactions({
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  const userMintAddress = await getMoneriumEvmDefaultMintAddress(moneriumAuthToken);
-  if (!userMintAddress) {
-    throw new Error("User mint address not found for Monerium onramp");
-  }
-
   // Find required ephemeral accounts
   // We use Moonbeam as the generic EVM chain.
   const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
@@ -98,7 +90,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
     outputTokenType: quote.outputCurrency,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
-    walletAddress: userMintAddress
+    walletAddress: destinationAddress
   };
 
   // Create initial user transaction that approves minted funds to ephemeral.
@@ -109,7 +101,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
     network: Networks.Polygon,
     nonce: 0,
     phase: "moneriumOnrampSelfTransfer",
-    signer: userMintAddress,
+    signer: destinationAddress,
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
@@ -123,7 +115,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,
-        userMintAddress,
+        destinationAddress,
         polygonEphemeralEntry.address
       );
 

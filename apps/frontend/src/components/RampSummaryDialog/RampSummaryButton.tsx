@@ -200,12 +200,7 @@ export const RampSummaryButton = () => {
   };
 
   return (
-    <button
-      className="btn-vortex-primary btn rounded-xl"
-      disabled={submitButtonDisabled}
-      onClick={onSubmit}
-      style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}
-    >
+    <button className="btn-vortex-primary btn w-full rounded-xl" disabled={submitButtonDisabled} onClick={onSubmit}>
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}

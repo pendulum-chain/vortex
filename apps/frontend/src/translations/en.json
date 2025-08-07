@@ -318,6 +318,11 @@
     }
   },
   "hooks": {
+    "useGetRampRegistrationErrorMessage": {
+      "default": "Something went wrong",
+      "quoteNotFound": "The quote is expired. Please try again.",
+      "userMintAddressNotFound": "Account creation in progress... Please try again shortly."
+    },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
       "kycInvalid": "Your KYC level is invalid. Please contact support."
