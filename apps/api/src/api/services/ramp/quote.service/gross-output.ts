@@ -14,6 +14,7 @@ import {
   PendulumTokenDetails,
   parseContractBalanceResponse,
   QuoteError,
+  RampCurrency,
   RampDirection,
   RouteParams,
   SquidrouterRoute,
