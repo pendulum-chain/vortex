@@ -14,6 +14,8 @@ import { RampContext } from "../types";
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
   const { executionInput, chainId, pendulumApiComponents, moonbeamApiComponents, address, authToken } = input;
 
+  console.log("Registering ramp with input:", input);
+
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput) {
     throw new Error("Execution input is required to register ramp.");

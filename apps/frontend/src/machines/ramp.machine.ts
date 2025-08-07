@@ -23,6 +23,7 @@ const initialRampContext: RampContext = {
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
+  kycResponse: undefined,
   moonbeamApiComponents: undefined,
   pendulumApiComponents: undefined,
   rampDirection: undefined,
@@ -74,24 +75,24 @@ export const rampMachine = setup({
     },
     SET_ADDRESS: {
       actions: assign({
-        address: ({ event }) => event.address
+        address: ({ event }: any) => event.address
       })
     },
     SET_API_COMPONENTS: {
       actions: assign({
-        assethubApiComponents: ({ event }) => event.assethubApiComponents,
-        moonbeamApiComponents: ({ event }) => event.moonbeamApiComponents,
-        pendulumApiComponents: ({ event }) => event.pendulumApiComponents
+        assethubApiComponents: ({ event }: any) => event.assethubApiComponents,
+        moonbeamApiComponents: ({ event }: any) => event.moonbeamApiComponents,
+        pendulumApiComponents: ({ event }: any) => event.pendulumApiComponents
       })
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({ event }) => event.getMessageSignature
+        getMessageSignature: ({ event }: any) => event.getMessageSignature
       })
     },
     SET_SIWE_CONTEXT: {
       actions: assign({
-        siwe: ({ event }) => event.siwe
+        siwe: ({ event }: any) => event.siwe
       })
     }
   },
@@ -111,9 +112,9 @@ export const rampMachine = setup({
         // This is the main confirm button.
         Confirm: {
           actions: assign({
-            chainId: ({ event }) => event.input.chainId,
-            executionInput: ({ event }) => event.input.executionInput,
-            rampDirection: ({ event }) => event.input.rampDirection
+            chainId: ({ event }: any) => event.input.chainId,
+            executionInput: ({ event }: any) => event.input.executionInput,
+            rampDirection: ({ event }: any) => event.input.rampDirection
           }),
           target: "RampRequested"
         }
@@ -128,7 +129,7 @@ export const rampMachine = setup({
       invoke: {
         input: ({ context }) => context,
         onDone: {
-          guard: ({ event }) => event.output.kycNeeded,
+          guard: ({ event }: any) => event.output.kycNeeded,
           // The guard checks validateKyc output
           // do nothing otherwise, as we wait for modal confirmation.
           target: "KYC"
@@ -147,7 +148,7 @@ export const rampMachine = setup({
         input: ({ context }) => context,
         onDone: {
           actions: assign({
-            rampState: ({ event }) => event.output
+            rampState: ({ event }: any) => event.output
           }),
           target: "UpdateRamp"
         },
@@ -172,7 +173,7 @@ export const rampMachine = setup({
         input: ({ context }: { context: RampContext }) => context,
         onDone: {
           // an event in this state, only then it should transition to StartRamp
-          actions: assign((_, event) => {
+          actions: assign((_, event: any) => {
             return event.output as RampContext;
           }), // TODO add guard to check if the payment was confirmed ONLY FOR ONRAMPS. That UI element should trigger
           target: "StartRamp"

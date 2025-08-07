@@ -1,5 +1,5 @@
 import { PaymentData } from "@packages/shared";
-import { assign, setup } from "xstate";
+import { assign, sendTo, setup } from "xstate";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
 import { StellarKycContext } from "./kyc.states";
@@ -13,7 +13,6 @@ export const stellarKycMachine = setup({
   types: {
     context: {} as StellarKycContext,
     events: {} as
-      | { type: "Cancel" }
       | { type: "SummaryConfirm" }
       | { type: "URL_UPDATED"; url: string; id: string }
       | {
@@ -22,10 +21,7 @@ export const stellarKycMachine = setup({
         }
       | { type: "SEP24_FAILED"; error: any },
     input: {} as RampContext,
-    output: {} as
-      | PaymentData
-      | { status: "Failed"; msg: string; error?: any }
-      | { status: "Cancelled"; msg: string; error?: any }
+    output: {} as PaymentData | { status: "Failed"; msg: string; error?: any }
   }
 }).createMachine({
   context: ({ input }) => ({
@@ -34,15 +30,7 @@ export const stellarKycMachine = setup({
   }),
   id: "stellarKyc",
   initial: "StartSep24",
-  // At any point in the KYC process, the user can cancel it.
-  on: {
-    Cancel: ".Cancelled"
-  },
   states: {
-    Cancelled: {
-      output: { msg: "User cancelled.", status: "Cancelled" },
-      type: "final"
-    },
     Done: {
       output: ({ context }) => context.paymentData,
       type: "final"
@@ -56,6 +44,7 @@ export const stellarKycMachine = setup({
       type: "final"
     },
     Sep24Second: {
+      // TODO important, why this invoked actor does not STOP after we exit this state?
       invoke: {
         input: ({ context }) => ({
           ...context,
@@ -67,8 +56,7 @@ export const stellarKycMachine = setup({
         onDone: {
           actions: assign({
             paymentData: ({ event }) => event.output
-          }),
-          target: "Done"
+          })
         },
         onError: {
           actions: assign({
@@ -77,10 +65,17 @@ export const stellarKycMachine = setup({
           target: "Failed"
         },
         src: "sep24Second"
+      },
+      onDone: {
+        actions: ({ context }) => {
+          console.log("context after output: ", context);
+        },
+        target: "Done"
       }
     },
     StartSep24: {
       invoke: {
+        id: "startSep24Actor",
         input: ({ context }) => context,
         src: "startSep24"
       },
