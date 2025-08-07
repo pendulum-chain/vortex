@@ -4,42 +4,28 @@ import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  PaymentData,
   TokenType
 } from "@packages/shared";
 import { useSelector } from "@xstate/react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
-import { useRampActor } from "../../contexts/rampState";
+import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { StellarKycContext } from "../../machines/kyc.states";
-import { RampContext } from "../../machines/types";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampActions, useRampExecutionInput, useRampState, useSigningRejected } from "../../stores/rampStore";
-import { useIsQuoteExpired, useRampSummaryStore } from "../../stores/rampSummary";
-import { useSep24StoreCachedAnchorUrl } from "../../stores/sep24Store";
+import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { RampDirection } from "../RampToggle";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
-  isSubmitted: boolean;
   toToken: FiatTokenDetails;
   submitButtonDisabled: boolean;
 }
 
-export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
+export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-
-  const stellarMachineState = useSelector(rampActor, state => {
-    const stellarMachineSnapshot = state.children["stellarKyc"]?.getSnapshot();
-
-    if (stellarMachineSnapshot && "value" in stellarMachineSnapshot && stellarMachineSnapshot.value) {
-      return stellarMachineSnapshot.value;
-    }
-    return null;
-  });
+  const stellarData = useStellarKycSelector();
 
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
@@ -102,7 +88,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     }
 
     if (isOfframp && isAnchorWithRedirect) {
-      if (stellarMachineState === "Sep24Second") {
+      if (stellarData?.stateValue === "Sep24Second") {
         return {
           icon: <Spinner />,
           text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage")
@@ -118,29 +104,23 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, isSubmitted, toToken]);
+  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, toToken, stellarData]);
 };
 
 export const RampSummaryButton = () => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
-
-  const { rampState, executionInput, isQuoteExpired, anchorUrl } = useSelector(rampActor, state => ({
-    anchorUrl: state.children.KYC?._parent?.getSnapshot().children.Stellar.context.anchorUrl,
+  const stellarData = useStellarKycSelector();
+  console.log("Stellar context:", stellarData);
+  const { rampState, executionInput, isQuoteExpired } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
     rampState: state.context.rampState
   }));
 
-  const stellarContext = useSelector(rampActor, state => {
-    const stellarMachine = state.children["stellarKyc"]?.getSnapshot();
-    if (stellarMachine && "context" in stellarMachine && stellarMachine.context) {
-      const context = stellarMachine.context as StellarKycContext;
-      return context ?? null;
-    }
-    return null;
-  });
-  console.log("Stellar context:", stellarContext);
+  const stellarContext = stellarData?.context;
+  const anchorUrl = stellarContext?.redirectUrl;
+
   const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
   const isOfframp = rampDirection === RampDirection.OFFRAMP;
   const isOnramp = rampDirection === RampDirection.ONRAMP;
@@ -155,7 +135,8 @@ export const RampSummaryButton = () => {
     if (isQuoteExpired) return true;
 
     if (isOfframp) {
-      if (!stellarContext?.redirectUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
+      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
+      if (stellarData?.stateValue === "Sep24Second") return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
@@ -175,7 +156,6 @@ export const RampSummaryButton = () => {
   ]);
 
   const buttonContent = useButtonContent({
-    isSubmitted: false,
     submitButtonDisabled,
     toToken: toToken as FiatTokenDetails
   });
