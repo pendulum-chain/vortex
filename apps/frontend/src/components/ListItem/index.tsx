@@ -23,8 +23,8 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
 
   return (
     <button
-      className={`btn w-full items-center justify-start gap-4 border-0 bg-gray-200 px-3 py-3 text-left shadow-xs ${
-        isDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-gray-300 hover:opacity-80"
+      className={`btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left hover:bg-gray-100 ${
+        isDisabled ? "cursor-not-allowed opacity-50" : ""
       }`}
       key={token.assetSymbol}
       onClick={() => !isDisabled && onSelect(token.type)}
