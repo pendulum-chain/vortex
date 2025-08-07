@@ -1,5 +1,6 @@
 import {
   assetHubTokenConfig,
+  doesNetworkSupportRamp,
   EvmNetworks,
   evmTokenConfig,
   FiatToken,
@@ -114,14 +115,15 @@ function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDir
       // Fiat tokens (from moonbeam and stellar configs)
       const fiatTokens = [
         ...Object.entries(moonbeamTokenConfig),
-        ...Object.entries(stellarTokenConfig).filter(([key]) => key === "eur")
+        ...Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
       ].map(([key, value]) => ({
         assetIcon: value.fiat.assetIcon,
         assetSymbol: value.fiat.symbol,
         details: value as FiatTokenDetails,
         name: value.fiat.name,
-        network: key === "brl" ? Networks.Moonbeam : Networks.Stellar,
-        networkDisplayName: key === "brl" ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
+        network: key === FiatToken.BRL ? Networks.Moonbeam : Networks.Stellar,
+        networkDisplayName:
+          key === FiatToken.BRL ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
         type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
       }));
       allTokens.push(...fiatTokens);
@@ -131,7 +133,7 @@ function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDir
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
 
       // EVM network tokens
-      const evmNetworks = Object.values(Networks).filter(isNetworkEVM) as EvmNetworks[];
+      const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
       for (const network of evmNetworks) {
         if (evmTokenConfig[network]) {
           allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
