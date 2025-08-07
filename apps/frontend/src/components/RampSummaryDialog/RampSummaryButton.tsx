@@ -32,7 +32,7 @@ interface UseButtonContentProps {
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const rampState = useRampState();
   const { t } = useTranslation();
-  const rampDirection = rampState?.ramp?.type === RampDirection.BUY ? RampDirection.BUY : RampDirection.SELL;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isQuoteExpired = useIsQuoteExpired();
   const canRegisterRamp = useCanRegisterRamp();
   const signingRejected = useSigningRejected();
@@ -126,7 +126,7 @@ export const RampSummaryButton = () => {
   const signingRejected = useSigningRejected();
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
-  const rampDirection = rampState?.ramp?.type === RampDirection.BUY ? RampDirection.BUY : RampDirection.SELL;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isOfframp = rampDirection === RampDirection.SELL;
   const isOnramp = rampDirection === RampDirection.BUY;
   const { isQuoteExpired } = useRampSummaryStore();

@@ -18,7 +18,7 @@ const getRampDirectionFromPath = (): RampDirection => {
   }
 
   // If the language is Portuguese, we default to BUY, otherwise we default to SELL
-  const isLanguagePortuguese = getLanguageFromPath() === Language.Portuguese_Brazil;
+  const isLanguagePortuguese = getLanguageFromPath()?.toUpperCase() === Language.Portuguese_Brazil.toUpperCase();
   return isLanguagePortuguese ? RampDirection.BUY : RampDirection.SELL;
 };
 
