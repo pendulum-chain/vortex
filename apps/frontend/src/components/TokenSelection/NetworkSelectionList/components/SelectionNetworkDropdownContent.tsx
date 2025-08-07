@@ -1,20 +1,20 @@
 import { getNetworkDisplayName, Networks } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 import ALL_NETWORKS_ICON from "../../../../assets/chains/all-networks.svg";
+import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { NetworkIcon } from "../../../NetworkIcon";
+import { useTokenDefinitions } from "../../TokenSelectionList/helpers";
 import { SelectionDropdownMotion } from "../animations";
 
 interface SelectionNetworkDropdownContentProps {
-  isOpen: boolean;
-  availableNetworks: Networks[];
   onNetworkSelect: (network: Networks | "all") => void;
 }
 
-export const SelectionNetworkDropdownContent = ({
-  isOpen,
-  availableNetworks,
-  onNetworkSelect
-}: SelectionNetworkDropdownContentProps) => {
+export const SelectionNetworkDropdownContent = ({ onNetworkSelect }: SelectionNetworkDropdownContentProps) => {
+  const selectedNetworkFilter = useSelectedNetworkFilter();
+  const isOpen = useIsNetworkDropdownOpen();
+  const searchFilter = useSearchFilter();
+  const { availableNetworks } = useTokenDefinitions(searchFilter, selectedNetworkFilter);
   const { t } = useTranslation();
 
   return (
