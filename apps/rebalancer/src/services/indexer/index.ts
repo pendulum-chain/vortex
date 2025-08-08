@@ -12,8 +12,8 @@ export async function getSwapPoolsWithCoverageRatio() {
 
   const currentTime = Date.now();
   const blockTime = new Date(latestBlock.timestamp).getTime();
-  if (currentTime - blockTime > 60 * 1000) {
-    throw Error("Latest block is older than 1 minute, data may not be fresh");
+  if (currentTime - blockTime > 5 * 60 * 1000) {
+    throw Error("Latest block returned from indexer is older than 5 minutes, data may not be fresh");
   }
 
   const nablaInstance = await fetchNablaInstance();
