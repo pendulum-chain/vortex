@@ -2,11 +2,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { Skeleton } from "../../components/Skeleton";
 import { TokenSelectionList } from "../../components/TokenSelection/TokenSelectionList";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
-import { useTokenModalActions, useTokenModalState } from "../../stores/rampModalStore";
+import { useTokenSelectionActions, useTokenSelectionState } from "../../stores/tokenSelectionStore";
 
 export function TokenSelectionPage() {
-  const { isOpen, isLoading } = useTokenModalState();
-  const { closeTokenSelectModal } = useTokenModalActions();
+  const { isOpen, isLoading } = useTokenSelectionState();
+  const { closeTokenSelectModal } = useTokenSelectionActions();
   const content = isLoading ? <LoadingContent /> : <TokenSelectionList />;
 
   useEscapeKey(isOpen, closeTokenSelectModal);

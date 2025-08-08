@@ -1,13 +1,13 @@
 import { Networks } from "@packages/shared";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { useTokenModalActions, useTokenModalState } from "../../../stores/rampModalStore";
+import { useTokenSelectionActions, useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { RampDirection } from "../../RampToggle";
 import { SelectionNetworkButton } from "./components/SelectionNetworkButton";
 import { SelectionNetworkDropdownContent } from "./components/SelectionNetworkDropdownContent";
 
 export const NetworkDropdown = () => {
-  const { setSelectedNetworkFilter, toggleNetworkDropdown } = useTokenModalActions();
-  const { tokenSelectModalType } = useTokenModalState();
+  const { setSelectedNetworkFilter, toggleNetworkDropdown } = useTokenSelectionActions();
+  const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
 
   const isFiatTokenSelection = (() => {

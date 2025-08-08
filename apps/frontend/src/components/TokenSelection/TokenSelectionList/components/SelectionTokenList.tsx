@@ -1,6 +1,6 @@
 import { useNetwork } from "../../../../contexts/network";
 import { cn } from "../../../../helpers/cn";
-import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/rampModalStore";
+import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { ListItem } from "../../../ListItem";
 import { useTokenDefinitions } from "../helpers";
 import { useTokenSelection } from "../hooks/useTokenSelection";

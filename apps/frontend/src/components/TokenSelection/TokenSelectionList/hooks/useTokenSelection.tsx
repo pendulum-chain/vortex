@@ -3,7 +3,7 @@ import { isFiatTokenDisabled } from "../../../../config/tokenAvailability";
 import { useNetwork } from "../../../../contexts/network";
 import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
-import { useTokenModalActions, useTokenModalState } from "../../../../stores/rampModalStore";
+import { useTokenSelectionActions, useTokenSelectionState } from "../../../../stores/tokenSelectionStore";
 import { RampDirection } from "../../../RampToggle";
 
 export interface TokenDefinition {
@@ -20,8 +20,8 @@ export interface ExtendedTokenDefinition extends TokenDefinition {
 }
 
 export const useTokenSelection = () => {
-  const { tokenSelectModalType } = useTokenModalState();
-  const { closeTokenSelectModal } = useTokenModalActions();
+  const { tokenSelectModalType } = useTokenSelectionState();
+  const { closeTokenSelectModal } = useTokenSelectionActions();
   const { setSelectedNetwork } = useNetwork();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();

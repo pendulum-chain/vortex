@@ -2,7 +2,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { Networks } from "@packages/shared";
 import ALL_NETWORKS_ICON from "../../../../assets/chains/all-networks.svg";
 import { cn } from "../../../../helpers/cn";
-import { useIsNetworkDropdownOpen, useSelectedNetworkFilter } from "../../../../stores/rampModalStore";
+import { useIsNetworkDropdownOpen, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { NetworkIcon } from "../../../NetworkIcon";
 import { SelectionButtonMotion, SelectionChevronMotion } from "../animations";
 

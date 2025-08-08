@@ -1,7 +1,7 @@
 import { Networks } from "@packages/shared";
 import { create } from "zustand";
 
-interface TokenModalState {
+interface TokenSelectionState {
   // Modal state
   isOpen: boolean;
   isLoading: boolean;
@@ -13,7 +13,7 @@ interface TokenModalState {
   isNetworkDropdownOpen: boolean;
 }
 
-interface TokenModalActions {
+interface TokenSelectionActions {
   openTokenSelectModal: (type: "from" | "to") => void;
   closeTokenSelectModal: () => void;
   setSearchFilter: (filter: string) => void;
@@ -24,12 +24,12 @@ interface TokenModalActions {
   closeDropdowns: () => void;
 }
 
-interface TokenModalStore {
-  state: TokenModalState;
-  actions: TokenModalActions;
+interface TokenSelectionStore {
+  state: TokenSelectionState;
+  actions: TokenSelectionActions;
 }
 
-export const useTokenModalStore = create<TokenModalStore>(set => ({
+export const useTokenSelectionStore = create<TokenSelectionStore>(set => ({
   actions: {
     closeDropdowns: () =>
       set(state => ({
@@ -113,10 +113,10 @@ export const useTokenModalStore = create<TokenModalStore>(set => ({
 }));
 
 // Hook exports
-export const useTokenModalState = () => useTokenModalStore(state => state.state);
-export const useTokenModalActions = () => useTokenModalStore(state => state.actions);
+export const useTokenSelectionState = () => useTokenSelectionStore(state => state.state);
+export const useTokenSelectionActions = () => useTokenSelectionStore(state => state.actions);
 
 // Specific state hooks for commonly used values
-export const useSearchFilter = () => useTokenModalStore(state => state.state.searchFilter);
-export const useSelectedNetworkFilter = () => useTokenModalStore(state => state.state.selectedNetworkFilter);
-export const useIsNetworkDropdownOpen = () => useTokenModalStore(state => state.state.isNetworkDropdownOpen);
+export const useSearchFilter = () => useTokenSelectionStore(state => state.state.searchFilter);
+export const useSelectedNetworkFilter = () => useTokenSelectionStore(state => state.state.selectedNetworkFilter);
+export const useIsNetworkDropdownOpen = () => useTokenSelectionStore(state => state.state.isNetworkDropdownOpen);
