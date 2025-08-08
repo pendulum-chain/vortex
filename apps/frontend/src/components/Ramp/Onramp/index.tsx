@@ -13,7 +13,7 @@ import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
-import { useRampModalActions } from "../../../stores/rampModalStore";
+import { useTokenModalActions } from "../../../stores/rampModalStore";
 import { useValidateTerms } from "../../../stores/termsStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
@@ -51,7 +51,7 @@ export const Onramp = () => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
-  const { openTokenSelectModal } = useRampModalActions();
+  const { openTokenSelectModal } = useTokenModalActions();
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);

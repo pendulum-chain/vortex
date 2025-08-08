@@ -17,12 +17,12 @@ import {
 import { useMemo } from "react";
 import { useOnchainTokenBalances } from "../../../hooks/useOnchainTokenBalances";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { useRampModalState } from "../../../stores/rampModalStore";
+import { useTokenModalState } from "../../../stores/rampModalStore";
 import { RampDirection } from "../../RampToggle";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
 
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
-  const { tokenSelectModalType } = useRampModalState();
+  const { tokenSelectModalType } = useTokenModalState();
   const rampDirection = useRampDirection();
 
   // Get all supported tokens

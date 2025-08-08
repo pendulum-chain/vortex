@@ -1,13 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "../../../../helpers/cn";
-import { useIsNetworkDropdownOpen, useSetSearchFilter } from "../../../../stores/tokenSelectionStore";
+import { useIsNetworkDropdownOpen, useTokenModalActions } from "../../../../stores/rampModalStore";
 import { SearchInput } from "../../../SearchInput";
 import { NetworkDropdown } from "../../NetworkSelectionList";
 
 const TokenSelectionSearchInput = () => {
   const { t } = useTranslation();
   const isNetworkDropdownOpen = useIsNetworkDropdownOpen();
-  const setSearchFilter = useSetSearchFilter();
+  const { setSearchFilter } = useTokenModalActions();
 
   const handleSearchChange = (value: string) => {
     setSearchFilter(value);

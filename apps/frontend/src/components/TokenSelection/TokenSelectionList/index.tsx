@@ -1,10 +1,10 @@
-import { useRampModalActions } from "../../../stores/rampModalStore";
+import { useTokenModalActions } from "../../../stores/rampModalStore";
 import { PageHeader } from "../../PageHeader";
 import { SelectionTokenList } from "./components/SelectionTokenList";
 import { TokenSelectionControls } from "./components/TokenSelectionControls";
 
 export function TokenSelectionList() {
-  const { closeTokenSelectModal } = useRampModalActions();
+  const { closeTokenSelectModal } = useTokenModalActions();
 
   const handleClose = () => {
     closeTokenSelectModal();

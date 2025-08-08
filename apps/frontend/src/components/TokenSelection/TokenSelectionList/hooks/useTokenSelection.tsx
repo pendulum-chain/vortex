@@ -3,8 +3,7 @@ import { isFiatTokenDisabled } from "../../../../config/tokenAvailability";
 import { useNetwork } from "../../../../contexts/network";
 import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
-import { useRampModalActions, useRampModalState } from "../../../../stores/rampModalStore";
-import { useResetFilters } from "../../../../stores/tokenSelectionStore";
+import { useTokenModalActions, useTokenModalState } from "../../../../stores/rampModalStore";
 import { RampDirection } from "../../../RampToggle";
 
 export interface TokenDefinition {
@@ -21,9 +20,8 @@ export interface ExtendedTokenDefinition extends TokenDefinition {
 }
 
 export const useTokenSelection = () => {
-  const { tokenSelectModalType } = useRampModalState();
-  const resetFilters = useResetFilters();
-  const { closeTokenSelectModal } = useRampModalActions();
+  const { tokenSelectModalType } = useTokenModalState();
+  const { closeTokenSelectModal } = useTokenModalActions();
   const { setSelectedNetwork } = useNetwork();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
@@ -54,7 +52,6 @@ export const useTokenSelection = () => {
       }
     }
     closeTokenSelectModal();
-    resetFilters();
   };
 
   const getSelectedToken = () => {
