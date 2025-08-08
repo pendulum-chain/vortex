@@ -9,7 +9,10 @@ export interface BrlaKycContext extends RampContext {
 }
 
 export interface MoneriumKycContext extends RampContext {
-  // TODO
+  authCode?: string;
+  authUrl?: string;
+  codeVerifier?: string;
+  error?: any;
 }
 
 export interface StellarKycContext extends RampContext {
@@ -84,8 +87,28 @@ export const kycStateNode = {
       invoke: {
         id: "moneriumKyc",
         input: ({ context }: { context: RampContext }): MoneriumKycContext => context,
-        onDone: {
-          target: "VerificationComplete"
+        onDone: [
+          {
+            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
+              console.log("Monerium KYC completed with response:", event.output);
+              return {
+                ...context,
+                authCode: event.output.authCode
+              };
+            }),
+            guard: ({ event }: { event: any }) => !!event.output.authCode,
+            target: "VerificationComplete"
+          },
+          {
+            // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
+            actions: assign({
+              error: ({ event }: { event: any }) => event.output.error
+            }),
+            target: "#ramp.Failure"
+          }
+        ],
+        onError: {
+          target: "#ramp.Failure"
         },
         src: "moneriumKyc"
       }

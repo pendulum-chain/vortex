@@ -1,25 +1,152 @@
-import { setup } from "xstate";
-import { RampContext } from "./types";
+import { assign, fromPromise, setup } from "xstate";
+
+import { MoneriumService } from "../services/api/monerium.service";
+import { exchangeMoneriumCode, handleMoneriumSiweAuth, initiateMoneriumAuth } from "../services/monerium/moneriumAuth";
+import { MoneriumKycContext } from "./kyc.states";
 
 export const moneriumKycMachine = setup({
+  actions: {
+    saveMachineAndRedirect: ({ context, self }) => {
+      const persistedState = self.getPersistedSnapshot();
+      localStorage.setItem("moneriumKycState", JSON.stringify(persistedState)); // TODO use a proper key.
+      window.location.assign(context.authUrl!); // It must exist at this point.
+    }
+  },
+  actors: {
+    checkUserStatus: fromPromise(async ({ input }: { input: MoneriumKycContext }) => {
+      if (!input.address) {
+        throw new Error("Address is required");
+      }
+      return MoneriumService.checkUserStatus(input.address);
+    }),
+    exchangeMoneriumCode: fromPromise(async ({ input }: { input: MoneriumKycContext }): Promise<{ authToken: string }> => {
+      if (!input.authCode) {
+        throw new Error("Auth code is required");
+      }
+      return exchangeMoneriumCode(input.authCode, input.codeVerifier!);
+    }),
+    handleMoneriumSiwe: fromPromise(
+      async ({ input }: { input: MoneriumKycContext }): Promise<{ authUrl: string; codeVerifier: string }> => {
+        if (!input.address || !input.getMessageSignature) {
+          throw new Error("Address and getMessageSignature are required");
+        }
+        const { authUrl, codeVerifier } = await handleMoneriumSiweAuth(input.address, input.getMessageSignature);
+        return { authUrl, codeVerifier };
+      }
+    ),
+    initiateMonerium: fromPromise(
+      async ({ input }: { input: MoneriumKycContext }): Promise<{ authUrl: string; codeVerifier: string }> => {
+        if (!input.address || !input.getMessageSignature) {
+          throw new Error("Address and getMessageSignature are required");
+        }
+        const { authUrl, codeVerifier } = await initiateMoneriumAuth(input.address, input.getMessageSignature);
+        return { authUrl, codeVerifier };
+      }
+    )
+  },
   types: {
-    context: {} as RampContext,
-    output: {} as RampContext
+    context: {} as MoneriumKycContext,
+    output: {} as { authCode?: string; error?: any }
   }
 }).createMachine({
-  context: ({ input }) => input as RampContext,
+  context: ({ input }) => input as MoneriumKycContext,
   id: "moneriumKyc",
-  initial: "started",
-  output: ({ context }) => context,
+  initial: "Started",
+  output: ({ context }) => ({
+    authCode: context.authCode,
+    error: context.error
+  }),
   states: {
-    done: {
+    Done: {
       type: "final"
     },
-    started: {
-      always: "verifying"
+    ExchangingCode: {
+      invoke: {
+        id: "exchangeMoneriumCode",
+        input: ({ context }) => context,
+        onDone: {
+          actions: assign({
+            authToken: ({ event }) => event.output.authToken
+          }),
+          target: "Done"
+        },
+        onError: {
+          actions: assign({
+            error: ({ event }) => event.error
+          }),
+          target: "Failure"
+        },
+        src: "exchangeMoneriumCode"
+      }
     },
-    verifying: {
-      always: "done"
+    Failure: {
+      type: "final"
+    },
+    MoneriumRedirect: {
+      invoke: {
+        id: "initiateMonerium",
+        input: ({ context }) => context,
+        onDone: {
+          actions: assign({
+            authUrl: ({ event }) => event.output.authUrl,
+            codeVerifier: ({ event }) => event.output.codeVerifier
+          }),
+          target: "WaitAuthCode"
+        },
+        onError: {
+          actions: assign({ error: ({ event }) => event.error }),
+          target: "Failure"
+        },
+        src: "initiateMonerium"
+      }
+    },
+    MoneriumSiwe: {
+      invoke: {
+        id: "handleMoneriumSiwe",
+        input: ({ context }) => context,
+        onDone: {
+          actions: assign({
+            authUrl: ({ event }) => event.output.authUrl,
+            codeVerifier: ({ event }) => event.output.codeVerifier
+          }),
+          target: "WaitAuthCode"
+        },
+        onError: {
+          actions: assign({ error: ({ event }) => event.error }),
+          target: "Failure"
+        },
+        src: "handleMoneriumSiwe"
+      }
+    },
+    Started: {
+      invoke: {
+        id: "checkUserStatus",
+        input: ({ context }) => context,
+        onDone: [
+          {
+            guard: ({ event }) => event.output.isNewUser,
+            target: "MoneriumRedirect"
+          },
+          {
+            target: "MoneriumSiwe"
+          }
+        ],
+        onError: {
+          actions: assign({ error: ({ event }) => event.error }),
+          target: "Failure"
+        },
+        src: "checkUserStatus"
+      }
+    },
+    // This state will redirect on entry and must be restored after redirect back/refresh.
+    WaitAuthCode: {
+      entry: "saveMachineAndRedirect",
+      on: {
+        CODE_RECEIVED: {
+          actions: assign({ authCode: ({ event }) => event.code }),
+          target: "ExchangingCode"
+        }
+      }
     }
   }
 });

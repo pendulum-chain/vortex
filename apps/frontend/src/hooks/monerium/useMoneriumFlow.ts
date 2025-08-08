@@ -1,53 +1,26 @@
-import { useCallback, useEffect } from "react";
-import { exchangeMoneriumCode } from "../../services/monerium/moneriumAuth";
-import { useMoneriumStore } from "../../stores/moneriumStore";
-import { useRampActions } from "../../stores/rampStore";
+import { useSelector } from "@xstate/react";
+import { useEffect } from "react";
+import { useRampActor } from "../../contexts/rampState";
+import { moneriumKycMachine } from "../../machines/moneriumKyc.machine";
 
 /**
  * Hook to manage Monerium authentication flow state and handle redirects
  */
 export const useMoneriumFlow = () => {
-  const { triggered, flowState, codeVerifier, authToken, reset } = useMoneriumStore();
-  const { resetRampState } = useRampActions();
+  const rampActor = useRampActor();
+  const moneriumActor = useSelector(rampActor, (snapshot: any) => (snapshot.children as any).moneriumKyc);
 
-  // Reset function for cleanup
-  const resetFlow = useCallback(() => {
-    reset();
-  }, [reset]);
-
-  // Handle redirect from Monerium
   useEffect(() => {
-    // only listen if a Monerium ramp has been triggered, and the flow state is redirecting or in siwe mode.
-    if (!triggered || flowState === "completed" || flowState === "idle" || flowState === "authenticating") {
+    if (!moneriumActor) {
       return;
     }
 
-    const handleRedirect = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
 
-      if (code && codeVerifier) {
-        try {
-          // Exchange the code for tokens
-          await exchangeMoneriumCode(code);
-
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-          console.error("Error exchanging Monerium code:", error);
-          resetFlow();
-          resetRampState();
-        }
-      }
-    };
-
-    handleRedirect();
-  }, [triggered, codeVerifier, flowState, resetRampState, resetFlow]);
-
-  return {
-    authToken,
-    flowState,
-    isAuthenticated: flowState === "completed" && !!authToken,
-    resetFlow
-  };
+    if (code) {
+      moneriumActor.send({ code, type: "CODE_RECEIVED" });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [moneriumActor]);
 };
