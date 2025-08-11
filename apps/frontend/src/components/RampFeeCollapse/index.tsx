@@ -68,7 +68,7 @@ export function RampFeeCollapse() {
         inputCurrency: rampDirection === RampDirection.BUY ? fiatToken : onChainToken,
         outputAmount: 0,
         outputCurrency: rampDirection === RampDirection.BUY ? onChainToken : fiatToken,
-        rampType: "on"
+        rampType: RampDirection.BUY
       };
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
