@@ -74,7 +74,7 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    // If no partner found or no partnerId provided, fetch the default 'vortex' partner for subsidies
+    // If no partner was found or no partnerId provided, fetch the 'vortex' partner
     if (!partner) {
       partner = await Partner.findOne({
         where: {
@@ -82,10 +82,6 @@ export class QuoteService extends BaseRampService {
           name: "vortex"
         }
       });
-
-      if (!partner) {
-        logger.warn(`Default 'vortex' partner not found or not active. Proceeding without subsidies.`);
-      }
     }
 
     // Determine the target fiat currency for fees
@@ -204,30 +200,6 @@ export class QuoteService extends BaseRampService {
         BigInt(finalGrossOutputAmount)
       ).preciseBigDecimal;
 
-      // Apply Partner Subsidy for EUR onramp
-      let finalOutputAmountEur = finalGrossOutputAmountDecimal;
-      let subsidyInfoEur = null;
-
-      if (partner && partner.discount > 0) {
-        // Calculate subsidy as a percentage of the finalGrossOutputAmountDecimal
-        const subsidyAmountBig = finalGrossOutputAmountDecimal.times(partner.discount).div(100);
-        const subsidyAmount = subsidyAmountBig.toFixed(6, 0);
-
-        // Add the subsidy to the final output amount (more favorable for the user)
-        finalOutputAmountEur = finalGrossOutputAmountDecimal.plus(subsidyAmountBig);
-
-        // Store subsidy information
-        subsidyInfoEur = {
-          discount: partner.discount,
-          partnerId: partner.id,
-          subsidyAmount: subsidyAmount
-        };
-
-        logger.info(
-          `Applied subsidy of ${subsidyAmount} (${partner.discount}%) from partner ${partner.name} (${partner.id}) for EUR onramp`
-        );
-      }
-
       const feeToStore: QuoteFeeStructure = {
         anchor: "0",
         currency: targetFeeFiatCurrency,
@@ -244,13 +216,8 @@ export class QuoteService extends BaseRampService {
         id: uuidv4(),
         inputAmount: request.inputAmount,
         inputCurrency: request.inputCurrency,
-        metadata: {
-          inputAmountForNablaSwapDecimal: "0",
-          onrampOutputAmountMoonbeamRaw: "0",
-          subsidy: subsidyInfoEur,
-          usdFeeStructure: feeToStore
-        } as QuoteTicketMetadata,
-        outputAmount: finalOutputAmountEur.toFixed(6, 0),
+        metadata: {} as QuoteTicketMetadata,
+        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
         partnerId: partner?.id || null,
         rampType: request.rampType,
@@ -274,7 +241,7 @@ export class QuoteService extends BaseRampService {
         id: quote.id,
         inputAmount: trimTrailingZeros(quote.inputAmount),
         inputCurrency: quote.inputCurrency,
-        outputAmount: trimTrailingZeros(finalOutputAmountEur.toFixed(6, 0)),
+        outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
         outputCurrency: quote.outputCurrency,
         rampType: quote.rampType,
         to: quote.to
@@ -421,34 +388,30 @@ export class QuoteService extends BaseRampService {
       finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
     }
 
-    // i. Apply Partner Subsidy
-    let subsidyAmount = "0";
-    let subsidyInfo = null;
-
-    if (partner && partner.discount > 0) {
-      // Calculate subsidy as a percentage of the finalNetOutputAmount
-      const subsidyAmountBig = finalNetOutputAmount.times(partner.discount).div(100);
-      subsidyAmount = subsidyAmountBig.toFixed(6, 0);
-
-      // Add the subsidy to the final output amount (more favorable for the user)
-      finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmountBig);
-
-      // Store subsidy information
-      subsidyInfo = {
-        discount: partner.discount,
-        partnerId: partner.id,
-        subsidyAmount: subsidyAmount
-      };
-
-      logger.info(`Applied subsidy of ${subsidyAmount} (${partner.discount}%) from partner ${partner.name} (${partner.id})`);
-    }
-
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
         message: QuoteError.InputAmountTooLowToCoverCalculatedFees,
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    // Apply subsidy if partner has discount > 0
+    let subsidyAmount = new Big(0);
+    let subsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
+
+    if (partner && partner.discount > 0) {
+      // Calculate subsidy as percentage of finalNetOutputAmount
+      subsidyAmount = finalNetOutputAmount.mul(partner.discount).div(100);
+
+      // Add subsidy to finalNetOutputAmount
+      finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmount);
+
+      subsidyInfo = {
+        discount: partner.discount.toString(),
+        partnerId: partner.id,
+        subsidyAmountInOutputToken: subsidyAmount.toFixed(6, 0)
+      };
     }
 
     const finalNetOutputAmountStr =
@@ -474,11 +437,23 @@ export class QuoteService extends BaseRampService {
     };
 
     // This is the final net output amount before anchor fees are deducted
-    const offrampAmountBeforeAnchorFees =
+    let offrampAmountBeforeAnchorFees =
       request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
     // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    const onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+
+    // Adjust intermediate values for subsidy
+    if (partner && partner.discount > 0) {
+      if (request.rampType === RampDirection.BUY) {
+        // For on-ramps: increase onrampOutputAmountMoonbeamRaw by subsidy amount (convert to raw format)
+        const subsidyAmountRaw = multiplyByPowerOfTen(subsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
+        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
+      } else {
+        // For off-ramps: increase offrampAmountBeforeAnchorFees by subsidy amount
+        offrampAmountBeforeAnchorFees = new Big(offrampAmountBeforeAnchorFees || "0").plus(subsidyAmount).toFixed();
+      }
+    }
 
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
