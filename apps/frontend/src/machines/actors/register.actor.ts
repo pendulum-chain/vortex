@@ -7,12 +7,12 @@ import {
   signUnsignedTransactions
 } from "@packages/shared";
 import { config } from "../../config";
-import { RampService } from "../../services/api";
+import { moonbeamApiService, pendulumApiService, RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, pendulumApiComponents, moonbeamApiComponents, address, authToken, kycResponse } = input;
+  const { executionInput, chainId, address, authToken, kycResponse } = input;
 
   console.log("Registering ramp with input:", input);
 
@@ -20,9 +20,8 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   if (!executionInput) {
     throw new Error("Execution input is required to register ramp.");
   }
-  if (!pendulumApiComponents || !moonbeamApiComponents) {
-    throw new Error("Pendulum and Moonbeam API components are required to register ramp.");
-  }
+  const pendulumApiComponents = await pendulumApiService.getApi();
+  const moonbeamApiComponents = await moonbeamApiService.getApi();
   if (!chainId) {
     throw new Error("Chain ID is required to register ramp.");
   }

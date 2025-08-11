@@ -9,10 +9,11 @@ export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 
 export interface RampContext {
-  kycResponse: PaymentData | undefined;
+  stuff?: string;
+  authToken?: string;
+  paymentData?: PaymentData;
   siwe: UseSiweContext | undefined;
   address: string | undefined;
-  authToken: string | undefined;
   chainId: number | undefined;
   rampDirection: RampDirection | undefined;
   rampState: RampState | undefined;

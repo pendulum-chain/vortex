@@ -22,7 +22,7 @@ const initialRampContext: RampContext = {
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
-  kycResponse: undefined,
+  paymentData: undefined,
   rampDirection: undefined,
   rampKycLevel2Started: false,
   rampKycStarted: false,
@@ -31,6 +31,7 @@ const initialRampContext: RampContext = {
   rampState: undefined,
   rampSummaryVisible: false,
   siwe: undefined,
+  stuff: undefined,
   substrateWalletAccount: undefined
 };
 

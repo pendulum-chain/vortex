@@ -19,7 +19,6 @@ export interface MoneriumKycContext extends RampContext {
 export interface StellarKycContext extends RampContext {
   token?: string;
   sep10Account?: any;
-  paymentData?: PaymentData;
   redirectUrl?: string;
   tomlValues?: any;
   id?: string;
@@ -94,10 +93,10 @@ export const kycStateNode = {
               console.log("Monerium KYC completed with response:", event.output);
               return {
                 ...context,
-                authCode: event.output.authCode
+                authToken: event.output.authToken
               };
             }),
-            guard: ({ event }: { event: any }) => !!event.output.authCode,
+            guard: ({ event }: { event: any }) => !!event.output.authToken,
             target: "VerificationComplete"
           },
           {
