@@ -1,10 +1,14 @@
-import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, Networks, RampPhase } from "@packages/shared";
+import {
+  BrlaApiService,
+  checkEvmBalancePeriodically,
+  getAnyFiatTokenDetailsMoonbeam,
+  isFiatTokenEnum,
+  Networks,
+  RampPhase
+} from "@packages/shared";
 import Big from "big.js";
-
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { BrlaApiService } from "../../brla/brlaApiService";
-import { checkEvmBalancePeriodically } from "../../moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

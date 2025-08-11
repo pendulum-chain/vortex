@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, GetQuoteRequest, Networks, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -22,15 +22,15 @@ export const createQuote = async (
     // Validate required fields
     if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
       throw new APIError({
-        message: "Missing required fields",
+        message: QuoteError.MissingRequiredFields,
         status: httpStatus.BAD_REQUEST
       });
     }
 
     // Validate ramp type
-    if (rampType !== "on" && rampType !== "off") {
+    if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
       throw new APIError({
-        message: 'Invalid ramp type, must be "on" or "off"',
+        message: QuoteError.InvalidRampType,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -47,7 +47,7 @@ export const createQuote = async (
     });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
-    if (rampType === "on" && to === "assethub") {
+    if (rampType === RampDirection.BUY && to === Networks.AssetHub) {
       quote.outputAmount = new Big(quote.outputAmount).sub(ASSETHUB_XCM_FEE_USDC_UNITS).toFixed();
     }
 
@@ -74,7 +74,7 @@ export const getQuote = async (
 
     if (!quote) {
       throw new APIError({
-        message: "Quote not found",
+        message: QuoteError.QuoteNotFound,
         status: httpStatus.NOT_FOUND
       });
     }

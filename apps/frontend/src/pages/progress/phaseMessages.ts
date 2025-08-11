@@ -4,6 +4,7 @@ import {
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
   OnChainToken,
+  RampDirection,
   RampPhase
 } from "@packages/shared";
 import { TFunction } from "i18next";
@@ -20,14 +21,14 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const toNetwork = getNetworkFromDestination(quote.to);
 
   const inputAssetSymbol =
-    currentState.type === "off"
+    currentState.type === RampDirection.SELL
       ? fromNetwork
         ? getOnChainTokenDetailsOrDefault(fromNetwork, quote.inputCurrency as OnChainToken).assetSymbol
         : "Unknown" // Fallback when network is undefined
       : getAnyFiatTokenDetails(quote.inputCurrency as FiatToken).assetSymbol;
 
   const outputAssetSymbol =
-    currentState.type === "off"
+    currentState.type === RampDirection.SELL
       ? getAnyFiatTokenDetails(quote.outputCurrency as FiatToken).assetSymbol
       : toNetwork
         ? getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol

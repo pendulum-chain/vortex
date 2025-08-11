@@ -1,16 +1,22 @@
-import { FiatToken, getNetworkFromDestination, Networks, RampPhase } from "@packages/shared";
+import {
+  ApiManager,
+  EvmClientManager,
+  FiatToken,
+  getNetworkFromDestination,
+  Networks,
+  RampDirection,
+  RampPhase
+} from "@packages/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
-import { PhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
-import { EvmClientManager } from "../../evm/clientManager";
-import { fundMoonbeamEphemeralAccount } from "../../moonbeam/balance";
-import { ApiManager } from "../../pendulum/apiManager";
+import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
+import { fundMoonbeamEphemeralAccount } from "../../transactions/moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
@@ -34,7 +40,7 @@ export function isStellarNetworkError(error: unknown): error is NetworkError {
 }
 
 function isOnramp(state: RampState): boolean {
-  return state.type === "on";
+  return state.type === RampDirection.BUY;
 }
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
@@ -94,7 +100,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${pendulumEphemeralAddress}`);
-        if (isOnramp(state) && state.to !== "assethub") {
+        if (isOnramp(state) && state.to !== Networks.AssetHub) {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
@@ -151,7 +157,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     }
 
     // off ramp cases
-    if (state.type === "off" && state.from === "assethub") {
+    if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
       return "distributeFees";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap

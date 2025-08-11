@@ -1,8 +1,7 @@
-import { getAddressForFormat, PendulumCurrencyId } from "@packages/shared";
+import { ApiManager, getAddressForFormat, PendulumCurrencyId } from "@packages/shared";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
-import { ApiManager } from "../../pendulum/apiManager";
 
 export async function preparePendulumCleanupTransaction(
   inputCurrencyId: PendulumCurrencyId,

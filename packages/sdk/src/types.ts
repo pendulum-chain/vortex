@@ -8,40 +8,40 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 // Types re-exported used to create quotes.
-import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { EvmToken, FiatToken, Networks, RampDirection } from "@packages/shared";
 
 export type { PaymentMethod };
-export { EvmToken, FiatToken, Networks };
+export { EvmToken, FiatToken, Networks, RampDirection };
 
 export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 
 export type BrlOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "pix";
 };
 
 export type EurOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "sepa";
 };
 
 export type BrlOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "pix";
 };
 
 export type EurOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "sepa";
 };
 
-export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
+export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: RampDirection.BUY; from: "pix" }
   ? BrlOnrampQuote
-  : T extends { rampType: "on"; from: "sepa" }
+  : T extends { rampType: RampDirection.BUY; from: "sepa" }
     ? EurOnrampQuote
-    : T extends { rampType: "off"; to: "pix" }
+    : T extends { rampType: RampDirection.SELL; to: "pix" }
       ? BrlOfframpQuote
-      : T extends { rampType: "off"; to: "sepa" }
+      : T extends { rampType: RampDirection.SELL; to: "sepa" }
         ? EurOfframpQuote
         : AnyQuote;
 
@@ -142,10 +142,8 @@ export interface VortexSdkConfig {
 }
 
 // Handler interface for ramp-specific operations
-export interface RampHandler {
-  // Each handler implements the register-update-start flow
-  // The update step may be invisible to the user (like in BRL onramp)
-}
+// biome-ignore lint/complexity/noBannedTypes: TBD in the future
+export type RampHandler = {};
 
 // Context methods that handlers can use from VortexSdk
 export interface VortexSdkContext {

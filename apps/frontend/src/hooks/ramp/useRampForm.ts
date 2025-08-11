@@ -1,8 +1,7 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { useCallback, useEffect } from "react";
 import { UseFormReturn, useForm } from "react-hook-form";
-import { RampDirection } from "../../components/RampToggle";
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,

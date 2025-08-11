@@ -1,7 +1,7 @@
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { RampDirection } from "../components/RampToggle";
 import { useToastMessage } from "../helpers/notifications";
 import { useRampDirection } from "../stores/rampDirectionStore";
 import { RampExecutionInput } from "../types/phases";
@@ -22,7 +22,7 @@ function useRampAmountWithinAllowedLimits() {
         }
 
         const remainingLimitInUnits =
-          rampDirection === RampDirection.OFFRAMP
+          rampDirection === RampDirection.SELL
             ? remainingLimitResponse.remainingLimitOfframp
             : remainingLimitResponse.remainingLimitOnramp;
 
@@ -59,7 +59,9 @@ export function usePreRampCheck() {
         }
 
         const isWithinLimits = await rampWithinLimits(
-          executionInput.quote.rampType === "on" ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
+          executionInput.quote.rampType === RampDirection.BUY
+            ? executionInput.quote.inputAmount
+            : executionInput.quote.outputAmount,
           executionInput.taxId
         );
         if (!isWithinLimits) {

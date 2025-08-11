@@ -1,8 +1,6 @@
-import { FiatToken, OnChainToken } from "@packages/shared";
+import { FiatToken, OnChainToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback, useEffect } from "react";
-
-import { RampDirection } from "../../components/RampToggle";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { usePartnerId } from "../../stores/partnerStore";
@@ -18,8 +16,7 @@ import { useRampDirection } from "../../stores/rampDirectionStore";
 export const useQuoteService = (inputAmount: string | undefined, onChainToken: OnChainToken, fiatToken: FiatToken) => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
-  const rampDirection = useRampDirection();
-  const rampType = rampDirection === RampDirection.ONRAMP ? "on" : "off";
+  const rampType = useRampDirection();
   const partnerId = usePartnerId();
   const quoteConstraintsValid = useQuoteConstraintsValid();
 

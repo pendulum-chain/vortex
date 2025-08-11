@@ -1,11 +1,10 @@
-import { FiatToken, RampPhase } from "@packages/shared";
+import { ApiManager, FiatToken, RampDirection, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
-import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -64,7 +63,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp cases
-    if (state.type === "on") {
+    if (state.type === RampDirection.BUY) {
       if (state.to === "assethub") {
         return "pendulumToAssethub";
       }

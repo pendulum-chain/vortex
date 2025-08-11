@@ -1,7 +1,6 @@
-import { FiatToken, OnChainToken } from "@packages/shared";
+import { FiatToken, OnChainToken, RampDirection } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
-import { RampDirection } from "../../components/RampToggle";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 export type RampFormValues = {
@@ -49,7 +48,7 @@ export const createRampFormSchema = (t: (key: string) => string, rampDirection: 
     onChainToken: Yup.mixed<OnChainToken>().required(t("components.swap.validation.onChainToken.required")),
     outputAmount: Yup.string().optional(),
     pixId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.OFFRAMP,
+      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.SELL,
       otherwise: schema => schema.optional(),
       then: schema =>
         schema

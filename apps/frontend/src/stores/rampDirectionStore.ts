@@ -1,6 +1,6 @@
+import { RampDirection } from "@packages/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { RampDirection } from "../components/RampToggle";
 import { getRampDirectionFromPath } from "../helpers/path";
 
 const defaultRampDirection = getRampDirectionFromPath();

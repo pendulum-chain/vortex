@@ -16,3 +16,7 @@ export const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
 export const TRANSFER_WAITING_TIME_SECONDS = 6000;
 export const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
+
+// Constants relevant for the Monerium ramps
+export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
+export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals

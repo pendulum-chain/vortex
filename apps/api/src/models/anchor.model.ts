@@ -1,10 +1,11 @@
+import { RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 // Define the attributes of the Anchor model
 export interface AnchorAttributes {
   id: string; // UUID
-  rampType: "on" | "off";
+  rampType: RampDirection;
   identifier: string | null;
   valueType: "absolute" | "relative";
   value: number;
@@ -21,7 +22,7 @@ type AnchorCreationAttributes = Optional<AnchorAttributes, "id" | "createdAt" | 
 class Anchor extends Model<AnchorAttributes, AnchorCreationAttributes> implements AnchorAttributes {
   declare id: string;
 
-  declare rampType: "on" | "off";
+  declare rampType: RampDirection;
 
   declare identifier: string | null;
 
@@ -71,7 +72,7 @@ Anchor.init(
     rampType: {
       allowNull: false,
       field: "ramp_type",
-      type: DataTypes.ENUM("on", "off")
+      type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
     },
     updatedAt: {
       allowNull: false,

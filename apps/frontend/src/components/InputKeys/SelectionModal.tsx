@@ -1,6 +1,5 @@
 import {
   assetHubTokenConfig,
-  EvmNetworks,
   evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
@@ -10,6 +9,7 @@ import {
   Networks,
   OnChainToken,
   OnChainTokenDetails,
+  RampDirection,
   stellarTokenConfig
 } from "@packages/shared";
 import { useMemo, useState } from "react";
@@ -22,7 +22,6 @@ import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../st
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useRampModalActions, useRampModalState } from "../../stores/rampModalStore";
 import { Dialog } from "../Dialog";
-import { RampDirection } from "../RampToggle";
 import { SearchInput } from "../SearchInput";
 import { Skeleton } from "../Skeleton";
 import { PoolListItem } from "./PoolListItem";
@@ -75,7 +74,7 @@ function TokenSelectionList() {
       return;
     }
 
-    if (rampDirection === RampDirection.ONRAMP) {
+    if (rampDirection === RampDirection.BUY) {
       if (tokenSelectModalType === "from") {
         setFiatToken(token as FiatToken);
       } else {
@@ -92,7 +91,7 @@ function TokenSelectionList() {
   };
 
   const selectedToken =
-    rampDirection === RampDirection.ONRAMP
+    rampDirection === RampDirection.BUY
       ? tokenSelectModalType === "from"
         ? fiatToken
         : onChainToken
@@ -183,7 +182,7 @@ const getTokenDefinitionsForNetwork = (
   direction: RampDirection,
   selectedNetwork: Networks
 ): TokenDefinition[] => {
-  const isOnramp = direction === RampDirection.ONRAMP;
+  const isOnramp = direction === RampDirection.BUY;
 
   if (isOnramp) {
     if (type === "from") {

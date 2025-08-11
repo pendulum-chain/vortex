@@ -10,3 +10,5 @@ export interface EphemeralAccount {
   secret: string;
   address: string;
 }
+
+export * from "./types/rampDirection";
