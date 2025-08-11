@@ -1,16 +1,22 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
-import { FC } from "react";
+import { FC, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useRampSigningPhase, useRampState } from "../../stores/rampStore";
+import { useRampActor } from "../../contexts/rampState";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { CopyButton } from "../CopyButton";
 
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
-  const rampState = useRampState();
+  const rampActor = useRampActor();
   const isQuoteExpired = useIsQuoteExpired();
-  const signingPhase = useRampSigningPhase();
+  const { rampState, signingPhase } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState,
+    signingPhase: state.context.rampSigningPhase
+  }));
+
+  if (!rampState?.ramp?.depositQrCode) return null;
 
   if (!rampState?.ramp?.ibanPaymentData) return null;
   if (signingPhase !== "finished") return null; // Only show details if the ramp is finished

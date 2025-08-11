@@ -44,30 +44,14 @@ export const useRegisterRamp = () => {
     rampRegistered,
     rampState,
     rampStarted,
-    canRegisterRamp,
-    rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
+    actions: { setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected, resetRampState }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
-  const rampActor = useRampActor();
   const { address, chainId, getMessageSignature } = useVortexAccount();
-  const { apiComponents: pendulumApiComponents } = usePendulumNode();
-  const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
   const { apiComponents: assethubApiComponents } = useAssetHubNode();
   const { walletAccount: substrateWalletAccount } = usePolkadotWalletState();
 
   const executionInput = useRampExecutionInput();
-
-  useEffect(() => {
-    if (rampActor && pendulumApiComponents && moonbeamApiComponents && assethubApiComponents) {
-      rampActor.send({
-        assethubApiComponents,
-        moonbeamApiComponents,
-        pendulumApiComponents,
-        type: "SET_API_COMPONENTS"
-      });
-    }
-  }, [rampActor, pendulumApiComponents, moonbeamApiComponents, assethubApiComponents]);
 
   // Get Monerium auth data
   const { authToken, triggered: moneriumTriggered } = useMoneriumStore();

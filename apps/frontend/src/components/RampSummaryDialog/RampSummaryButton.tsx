@@ -162,14 +162,13 @@ export const RampSummaryButton = () => {
 
   const onSubmit = () => {
     rampActor.send({ type: "SummaryConfirm" });
-    console.log("SummaryConfirm event sent");
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
       //setCanRegisterRamp(true);
     }
 
     if (executionInput?.quote.rampType === "on") {
-      //setRampPaymentConfirmed(true);
+      rampActor.send({ type: "PAYMENT_CONFIRMED" });
     } else {
       onRampConfirm();
     }

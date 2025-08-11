@@ -1,17 +1,14 @@
+import { RampProcess } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { RampService } from "../../services/api";
-import { RampContext } from "../types";
+import { RampContext, RampState } from "../types";
 
-export const startRampActor = async ({ input }: { input: RampContext }) => {
-  const { rampState, rampPaymentConfirmed } = input;
+export const startRampActor = async ({ input }: { input: RampContext }): Promise<RampProcess> => {
+  console.log("start actor called");
+  const { rampState } = input;
 
   if (!rampState || !rampState.ramp) {
     throw new Error("Ramp state or ramp process not found.");
-  }
-
-  // Check if user confirmed that they made the payment for on-ramps
-  if (rampState.ramp.type === "on" && !rampPaymentConfirmed) {
-    throw new Error("Payment not confirmed for on-ramp.");
   }
 
   const response = await RampService.startRamp(rampState.ramp.id);

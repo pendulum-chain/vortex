@@ -1,13 +1,18 @@
-import { getAddressForFormat, getOnChainTokenDetails } from "@packages/shared";
-import { fromPromise } from "xstate";
+import { getAddressForFormat, getOnChainTokenDetails, RampProcess } from "@packages/shared";
+import { ActorRefFrom } from "xstate";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
-import { RampContext } from "../types";
+import { rampMachine } from "../ramp.machine";
+import { RampContext, RampMachineActor, RampState } from "../types";
 
-export const signTransactionsActor = fromPromise(async ({ input }: { input: RampContext }) => {
-  const { rampState, address, chainId, authToken, executionInput, substrateWalletAccount, getMessageSignature } = input;
+export const signTransactionsActor = async ({
+  input
+}: {
+  input: { parent: RampMachineActor; context: RampContext };
+}): Promise<RampState> => {
+  const { rampState, address, chainId, authToken, executionInput, substrateWalletAccount, getMessageSignature } = input.context;
 
   if (!rampState || !address || chainId === undefined) {
     throw new Error("Missing required context for signing");
@@ -25,7 +30,7 @@ export const signTransactionsActor = fromPromise(async ({ input }: { input: Ramp
 
   if (!userTxs || userTxs.length === 0) {
     console.log("No user transactions found requiring signature.");
-    return;
+    return rampState;
   }
 
   let squidRouterApproveHash: string | undefined = undefined;
@@ -53,11 +58,15 @@ export const signTransactionsActor = fromPromise(async ({ input }: { input: Ramp
   for (const tx of sortedTxs) {
     if (tx.phase === "squidRouterApprove") {
       if (isNativeTokenTransfer) {
+        input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
         continue;
       }
+      input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
       squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
+      input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
     } else if (tx.phase === "squidRouterSwap") {
       squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
+      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
     } else if (tx.phase === "assethubToPendulum") {
       if (!substrateWalletAccount) {
         throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
@@ -66,9 +75,13 @@ export const signTransactionsActor = fromPromise(async ({ input }: { input: Ramp
       if (!assethubApiComponents?.api) {
         throw new Error("Missing assethubApiComponents. Assethub API is not available.");
       }
+      input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
       assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
+      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
     } else if (tx.phase === "moneriumOnrampSelfTransfer") {
+      input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
       moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
+      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
     } else {
       throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
     }
@@ -96,4 +109,4 @@ export const signTransactionsActor = fromPromise(async ({ input }: { input: Ramp
       squidRouterSwapHash
     }
   };
-});
+};

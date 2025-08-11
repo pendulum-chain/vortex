@@ -44,6 +44,7 @@ export const useMoneriumFlow = () => {
     }
 
     codeProcessedRef.current = true;
+    localStorage.removeItem("moneriumKycState");
     moneriumKycActor.send({ code, type: "CODE_RECEIVED" });
     window.history.replaceState({}, document.title, window.location.pathname);
   }, [moneriumKycActor]);

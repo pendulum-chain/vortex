@@ -12,7 +12,7 @@ import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, address, authToken, kycResponse } = input;
+  const { executionInput, chainId, address, authToken, paymentData } = input;
 
   console.log("Registering ramp with input:", input);
 
@@ -57,7 +57,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
-      paymentData: kycResponse, // We know it exists here, as the KYC machine ensures it is set before reaching this point.
+      paymentData, // We know it exists here, as the KYC machine ensures it is set before reaching this point.
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
@@ -66,7 +66,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else {
     additionalData = {
       moneriumAuthToken: authToken,
-      paymentData: kycResponse,
+      paymentData,
       receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
       walletAddress: address
