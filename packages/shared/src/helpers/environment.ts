@@ -7,7 +7,7 @@ export const isBrowser = (): boolean => {
 };
 
 export const getEnvVar = (key: string, fallback = ""): string => {
-  if (isServer() && typeof process !== "undefined" && process.env) {
+  if (isServer()) {
     return process.env[key] || fallback;
   }
   return fallback;
