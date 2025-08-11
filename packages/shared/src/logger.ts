@@ -1,5 +1,4 @@
-import { StreamOptions } from "morgan";
-import winston, { format } from "winston";
+import { isServer } from "./helpers/environment";
 
 export interface ILogger {
   debug: (...args: unknown[]) => void;
@@ -8,42 +7,70 @@ export interface ILogger {
   error: (...args: unknown[]) => void;
 }
 
-const customFormat = winston.format.printf(
-  ({ timestamp, level, message, label = "" }) => `[${timestamp}] ${level}\t ${label} ${message}`
-);
-
-const defaultLogger = winston.createLogger({
-  level: "info",
-  transports: [
-    new winston.transports.File({
-      filename: "error.log",
-      format: format.combine(format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }), format.prettyPrint(), customFormat),
-      level: "error"
-    }),
-    new winston.transports.File({
-      filename: "combined.log",
-      format: format.combine(format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }), format.prettyPrint(), customFormat)
-    }),
-    new winston.transports.Console({
-      format: format.combine(format.colorize(), winston.format.simple())
-    })
-  ]
-});
-
-const stream: StreamOptions = {
-  write: (message: string) => {
-    defaultLogger.info(message.trim());
-  }
+const browserLogger: ILogger = {
+  debug: (...args: unknown[]) => console.debug(...args),
+  error: (...args: unknown[]) => console.error(...args),
+  info: (...args: unknown[]) => console.info(...args),
+  warn: (...args: unknown[]) => console.warn(...args)
 };
 
-// @ts-ignore 'morgan'
-defaultLogger.stream = stream;
+const loggerInstance: ILogger = browserLogger;
 
-// We use an object to hold the logger instance. This allows us to change the
-// 'current' logger at runtime, and all modules that import 'logger' will
-// see the updated instance.
+if (isServer()) {
+  try {
+    import("winston")
+      .then(({ default: winston }) => {
+        const customFormat = winston.format.printf(
+          info => `[${info.timestamp}] ${info.level}\t ${info.label || ""} ${info.message}`
+        );
+
+        const serverLogger = winston.createLogger({
+          level: "info",
+          transports: [
+            new winston.transports.File({
+              filename: "error.log",
+              format: winston.format.combine(
+                winston.format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }),
+                winston.format.prettyPrint(),
+                customFormat
+              ),
+              level: "error"
+            }),
+            new winston.transports.File({
+              filename: "combined.log",
+              format: winston.format.combine(
+                winston.format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }),
+                winston.format.prettyPrint(),
+                customFormat
+              )
+            }),
+            new winston.transports.Console({
+              format: winston.format.combine(winston.format.colorize(), winston.format.simple())
+            })
+          ]
+        });
+
+        const stream = {
+          write: (message: string) => {
+            serverLogger.info(message.trim());
+          }
+        };
+
+        // @ts-expect-error 'morgan'
+        serverLogger.stream = stream;
+
+        logger.current = serverLogger;
+      })
+      .catch(() => {
+        console.warn("Winston failed to load, using console logger");
+      });
+  } catch {
+    console.warn("Failed to initialize winston logger, using console logger");
+  }
+}
+
 export const logger: { current: ILogger } = {
-  current: defaultLogger
+  current: loggerInstance
 };
 
 export function setLogger(newLogger: ILogger): void {
