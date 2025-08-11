@@ -74,16 +74,6 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    // If no partner was found or no partnerId provided, fetch the 'vortex' partner
-    if (!partner) {
-      partner = await Partner.findOne({
-        where: {
-          isActive: true,
-          name: "vortex"
-        }
-      });
-    }
-
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
@@ -95,7 +85,7 @@ export class QuoteService extends BaseRampService {
       request.rampType,
       request.from,
       request.to,
-      partner?.id || undefined
+      partner?.name || undefined
     );
 
     // c. Calculate inputAmountForNablaSwap
@@ -399,17 +389,26 @@ export class QuoteService extends BaseRampService {
     // Apply subsidy if partner has discount > 0
     let subsidyAmount = new Big(0);
     let subsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
+    // The subsidy partner is either the partner provided in the request or the default "vortex" partner
+    const subsidyPartner = partner
+      ? partner
+      : await Partner.findOne({
+          where: {
+            isActive: true,
+            name: "vortex"
+          }
+        });
 
-    if (partner && partner.discount > 0) {
-      // Calculate subsidy as percentage of finalNetOutputAmount
-      subsidyAmount = finalNetOutputAmount.mul(partner.discount).div(100);
+    if (subsidyPartner && subsidyPartner.discount > 0) {
+      // Calculate subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
+      subsidyAmount = finalNetOutputAmount.mul(subsidyPartner.discount);
 
       // Add subsidy to finalNetOutputAmount
       finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmount);
 
       subsidyInfo = {
-        discount: partner.discount.toString(),
-        partnerId: partner.id,
+        discount: subsidyPartner.discount.toString(),
+        partnerId: subsidyPartner.id,
         subsidyAmountInOutputToken: subsidyAmount.toFixed(6, 0)
       };
     }
