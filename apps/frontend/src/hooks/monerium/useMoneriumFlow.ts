@@ -28,13 +28,47 @@ export const useMoneriumFlow = () => {
     }
 
     if (redirectReady && authUrl && !effectHasRun.current) {
+      const parentSnapshot = rampActor.getSnapshot();
+      const childSnapshot = moneriumKycActor.getSnapshot();
+
+      const sanitizedParentContext = {
+        ...parentSnapshot.context,
+        assethubApiComponents: undefined,
+        getMessageSignature: undefined,
+        moonbeamApiComponents: undefined,
+        pendulumApiComponents: undefined
+      };
+
+      const sanitizedChildContext = {
+        ...childSnapshot.context,
+        assethubApiComponents: undefined,
+        getMessageSignature: undefined,
+        moonbeamApiComponents: undefined,
+        pendulumApiComponents: undefined
+      };
+
+      const stateToPersist = {
+        children: {
+          moneriumKyc: {
+            context: sanitizedChildContext,
+            value: childSnapshot.value
+          }
+        },
+        context: sanitizedParentContext,
+        value: parentSnapshot.value
+      };
+
       try {
-        const parentSnapshot = rampActor.getPersistedSnapshot();
+        const jsonString = JSON.stringify(stateToPersist);
+        localStorage.setItem("moneriumKycState", jsonString);
+        console.log("✅ Successfully saved sanitized state to localStorage.");
+
+        effectHasRun.current = true;
+        window.location.assign(authUrl);
       } catch (error) {
-        console.error("❌ FAILED: The sanitized parent snapshot still failed to serialize.", error);
+        console.error("❌ FAILED: Could not stringify the manually built state object.", error);
       }
 
-      //window.location.assign(authUrl);
       effectHasRun.current = true;
     }
   }, [redirectReady, authUrl, moneriumKycActor, rampActor]);
