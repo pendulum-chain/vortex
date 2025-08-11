@@ -74,6 +74,20 @@ export class QuoteService extends BaseRampService {
       }
     }
 
+    // If no partner found or no partnerId provided, fetch the default 'vortex' partner for subsidies
+    if (!partner) {
+      partner = await Partner.findOne({
+        where: {
+          isActive: true,
+          name: "vortex"
+        }
+      });
+
+      if (!partner) {
+        logger.warn(`Default 'vortex' partner not found or not active. Proceeding without subsidies.`);
+      }
+    }
+
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
@@ -190,6 +204,30 @@ export class QuoteService extends BaseRampService {
         BigInt(finalGrossOutputAmount)
       ).preciseBigDecimal;
 
+      // Apply Partner Subsidy for EUR onramp
+      let finalOutputAmountEur = finalGrossOutputAmountDecimal;
+      let subsidyInfoEur = null;
+
+      if (partner && partner.discount > 0) {
+        // Calculate subsidy as a percentage of the finalGrossOutputAmountDecimal
+        const subsidyAmountBig = finalGrossOutputAmountDecimal.times(partner.discount).div(100);
+        const subsidyAmount = subsidyAmountBig.toFixed(6, 0);
+
+        // Add the subsidy to the final output amount (more favorable for the user)
+        finalOutputAmountEur = finalGrossOutputAmountDecimal.plus(subsidyAmountBig);
+
+        // Store subsidy information
+        subsidyInfoEur = {
+          discount: partner.discount,
+          partnerId: partner.id,
+          subsidyAmount: subsidyAmount
+        };
+
+        logger.info(
+          `Applied subsidy of ${subsidyAmount} (${partner.discount}%) from partner ${partner.name} (${partner.id}) for EUR onramp`
+        );
+      }
+
       const feeToStore: QuoteFeeStructure = {
         anchor: "0",
         currency: targetFeeFiatCurrency,
@@ -206,8 +244,13 @@ export class QuoteService extends BaseRampService {
         id: uuidv4(),
         inputAmount: request.inputAmount,
         inputCurrency: request.inputCurrency,
-        metadata: {} as QuoteTicketMetadata,
-        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
+        metadata: {
+          inputAmountForNablaSwapDecimal: "0",
+          onrampOutputAmountMoonbeamRaw: "0",
+          subsidy: subsidyInfoEur,
+          usdFeeStructure: feeToStore
+        } as QuoteTicketMetadata,
+        outputAmount: finalOutputAmountEur.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
         partnerId: partner?.id || null,
         rampType: request.rampType,
@@ -231,7 +274,7 @@ export class QuoteService extends BaseRampService {
         id: quote.id,
         inputAmount: trimTrailingZeros(quote.inputAmount),
         inputCurrency: quote.inputCurrency,
-        outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
+        outputAmount: trimTrailingZeros(finalOutputAmountEur.toFixed(6, 0)),
         outputCurrency: quote.outputCurrency,
         rampType: quote.rampType,
         to: quote.to
@@ -378,6 +421,28 @@ export class QuoteService extends BaseRampService {
       finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
     }
 
+    // i. Apply Partner Subsidy
+    let subsidyAmount = "0";
+    let subsidyInfo = null;
+
+    if (partner && partner.discount > 0) {
+      // Calculate subsidy as a percentage of the finalNetOutputAmount
+      const subsidyAmountBig = finalNetOutputAmount.times(partner.discount).div(100);
+      subsidyAmount = subsidyAmountBig.toFixed(6, 0);
+
+      // Add the subsidy to the final output amount (more favorable for the user)
+      finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmountBig);
+
+      // Store subsidy information
+      subsidyInfo = {
+        discount: partner.discount,
+        partnerId: partner.id,
+        subsidyAmount: subsidyAmount
+      };
+
+      logger.info(`Applied subsidy of ${subsidyAmount} (${partner.discount}%) from partner ${partner.name} (${partner.id})`);
+    }
+
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
@@ -427,6 +492,7 @@ export class QuoteService extends BaseRampService {
         inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
+        subsidy: subsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
       outputAmount: finalNetOutputAmountStr,
