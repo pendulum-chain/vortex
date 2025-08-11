@@ -56,7 +56,7 @@ if (isServer()) {
           }
         };
 
-        // @ts-ignore 'morgan'
+        // @ts-expect-error 'morgan'
         serverLogger.stream = stream;
 
         logger.current = serverLogger;
