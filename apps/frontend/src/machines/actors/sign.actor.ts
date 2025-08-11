@@ -2,20 +2,12 @@ import { getAddressForFormat, getOnChainTokenDetails } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
+import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
 import { RampContext } from "../types";
 
 export const signTransactionsActor = fromPromise(async ({ input }: { input: RampContext }) => {
-  const {
-    rampState,
-    address,
-    chainId,
-    authToken,
-    executionInput,
-    substrateWalletAccount,
-    assethubApiComponents,
-    getMessageSignature
-  } = input;
+  const { rampState, address, chainId, authToken, executionInput, substrateWalletAccount, getMessageSignature } = input;
 
   if (!rampState || !address || chainId === undefined) {
     throw new Error("Missing required context for signing");
@@ -70,6 +62,7 @@ export const signTransactionsActor = fromPromise(async ({ input }: { input: Ramp
       if (!substrateWalletAccount) {
         throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
       }
+      const assethubApiComponents = await polkadotApiService.getApi(PolkadotNodeName.AssetHub);
       if (!assethubApiComponents?.api) {
         throw new Error("Missing assethubApiComponents. Assethub API is not available.");
       }

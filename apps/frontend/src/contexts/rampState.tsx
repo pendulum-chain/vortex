@@ -5,11 +5,11 @@ import { moneriumKycMachine } from "../machines/moneriumKyc.machine";
 import { rampMachine } from "../machines/ramp.machine";
 import { stellarKycMachine } from "../machines/stellarKyc.machine";
 
-// const restoredState = localStorage.getItem("moneriumKycState")
-//   ? JSON.parse(localStorage.getItem("moneriumKycState")!)
-//   : undefined;
-// console.log("Restored state:", restoredState);
-export const RampStateContext = createActorContext(rampMachine, { snapshot: undefined });
+const restoredState = localStorage.getItem("moneriumKycState")
+  ? JSON.parse(localStorage.getItem("moneriumKycState")!)
+  : undefined;
+console.log("Restored state:", restoredState);
+export const RampStateContext = createActorContext(rampMachine, { snapshot: restoredState });
 
 export const RampStateProvider = RampStateContext.Provider;
 export const useRampActor = RampStateContext.useActorRef;

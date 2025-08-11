@@ -16,7 +16,6 @@ import { updateRampMachine } from "./update.machine";
 
 const initialRampContext: RampContext = {
   address: undefined,
-  assethubApiComponents: undefined,
   authToken: undefined,
   chainId: undefined,
   executionInput: undefined,
@@ -24,8 +23,6 @@ const initialRampContext: RampContext = {
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
   kycResponse: undefined,
-  moonbeamApiComponents: undefined,
-  pendulumApiComponents: undefined,
   rampDirection: undefined,
   rampKycLevel2Started: false,
   rampKycStarted: false,
@@ -54,13 +51,7 @@ export const rampMachine = setup({
       | { type: "onDone"; input: RampState }
       | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
       | { type: "SET_ADDRESS"; address: string | undefined }
-      | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback }
-      | {
-          type: "SET_API_COMPONENTS";
-          pendulumApiComponents: ApiComponents;
-          moonbeamApiComponents: ApiComponents;
-          assethubApiComponents: ApiComponents;
-        }
+      | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
       | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
       | { type: "SummaryConfirm" }
   }
@@ -76,13 +67,6 @@ export const rampMachine = setup({
     SET_ADDRESS: {
       actions: assign({
         address: ({ event }: any) => event.address
-      })
-    },
-    SET_API_COMPONENTS: {
-      actions: assign({
-        assethubApiComponents: ({ event }: any) => event.assethubApiComponents,
-        moonbeamApiComponents: ({ event }: any) => event.moonbeamApiComponents,
-        pendulumApiComponents: ({ event }: any) => event.pendulumApiComponents
       })
     },
     SET_GET_MESSAGE_SIGNATURE: {

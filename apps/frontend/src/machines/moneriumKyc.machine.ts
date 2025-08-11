@@ -1,15 +1,10 @@
-import { assign, fromPromise, setup } from "xstate";
+import { assign, fromPromise, log, setup } from "xstate";
 
 import { MoneriumService } from "../services/api/monerium.service";
 import { exchangeMoneriumCode, handleMoneriumSiweAuth, initiateMoneriumAuth } from "../services/monerium/moneriumAuth";
 import { MoneriumKycContext } from "./kyc.states";
 
 export const moneriumKycMachine = setup({
-  actions: {
-    saveMachineAndRedirect: assign({
-      redirectReady: true
-    })
-  },
   actors: {
     checkUserStatus: fromPromise(async ({ input }: { input: MoneriumKycContext }) => {
       if (!input.address) {
@@ -89,7 +84,7 @@ export const moneriumKycMachine = setup({
             authUrl: ({ event }) => event.output.authUrl,
             codeVerifier: ({ event }) => event.output.codeVerifier
           }),
-          target: "WaitAuthCode"
+          target: "Redirect"
         },
         onError: {
           actions: assign({ error: ({ event }) => event.error }),
@@ -107,13 +102,22 @@ export const moneriumKycMachine = setup({
             authUrl: ({ event }) => event.output.authUrl,
             codeVerifier: ({ event }) => event.output.codeVerifier
           }),
-          target: "WaitAuthCode"
+          target: "Redirect"
         },
         onError: {
           actions: assign({ error: ({ event }) => event.error }),
           target: "Failure"
         },
         src: "handleMoneriumSiwe"
+      }
+    },
+    // This state will redirect on entry and must be restored after redirect-back/refresh.
+    Redirect: {
+      on: {
+        CODE_RECEIVED: {
+          actions: assign({ authCode: ({ event }) => event.code }),
+          target: "ExchangingCode"
+        }
       }
     },
     Started: {
@@ -134,16 +138,6 @@ export const moneriumKycMachine = setup({
           target: "Failure"
         },
         src: "checkUserStatus"
-      }
-    },
-    // This state will redirect on entry and must be restored after redirect-back/refresh.
-    WaitAuthCode: {
-      entry: ["saveMachineAndRedirect"],
-      on: {
-        CODE_RECEIVED: {
-          actions: assign({ authCode: ({ event }) => event.code }),
-          target: "ExchangingCode"
-        }
       }
     }
   }

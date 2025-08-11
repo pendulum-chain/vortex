@@ -15,9 +15,6 @@ export interface RampContext {
   authToken: string | undefined;
   chainId: number | undefined;
   rampDirection: RampDirection | undefined;
-  pendulumApiComponents: ApiComponents | undefined;
-  moonbeamApiComponents: ApiComponents | undefined;
-  assethubApiComponents: ApiComponents | undefined;
   rampState: RampState | undefined;
   rampSigningPhase: RampSigningPhase | undefined;
   executionInput: RampExecutionInput | undefined;
