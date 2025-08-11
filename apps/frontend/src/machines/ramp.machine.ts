@@ -188,6 +188,9 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       },
       on: {
         PAYMENT_CONFIRMED: {
+          actions: assign({
+            rampPaymentConfirmed: true
+          }),
           target: "StartRamp"
         }
       }

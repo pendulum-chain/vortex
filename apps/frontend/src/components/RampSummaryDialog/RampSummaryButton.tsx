@@ -27,7 +27,8 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
 
-  const { rampState } = useSelector(rampActor, state => ({
+  const { rampState, rampPaymentConfirmed } = useSelector(rampActor, state => ({
+    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
 
@@ -80,7 +81,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       };
     }
 
-    if (isOnramp && isDepositQrCodeReady) {
+    if (isOnramp && isDepositQrCodeReady && !rampPaymentConfirmed) {
       return {
         icon: null,
         text: t("components.swapSubmitButton.confirmPayment")
