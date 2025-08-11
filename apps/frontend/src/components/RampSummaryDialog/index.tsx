@@ -39,7 +39,7 @@ export const RampSummaryDialog: FC = () => {
   if (!executionInput) return null;
 
   const onClose = () => {
-    rampActor.send({ type: "CancelRamp" });
+    rampActor.send({ type: "CANCEL_RAMP" });
     fetchQuote({
       fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),

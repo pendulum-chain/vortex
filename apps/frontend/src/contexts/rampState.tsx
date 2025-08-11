@@ -5,11 +5,11 @@ import { moneriumKycMachine } from "../machines/moneriumKyc.machine";
 import { rampMachine } from "../machines/ramp.machine";
 import { stellarKycMachine } from "../machines/stellarKyc.machine";
 
-const restoredState = localStorage.getItem("moneriumKycState")
-  ? JSON.parse(localStorage.getItem("moneriumKycState")!)
-  : undefined;
-console.log("Restored state:", restoredState);
-export const RampStateContext = createActorContext(rampMachine, { snapshot: restoredState });
+// const restoredState = localStorage.getItem("moneriumKycState")
+//   ? JSON.parse(localStorage.getItem("moneriumKycState")!)
+//   : undefined;
+// console.log("Restored state:", restoredState);
+export const RampStateContext = createActorContext(rampMachine, { snapshot: undefined });
 
 export const RampStateProvider = RampStateContext.Provider;
 export const useRampActor = RampStateContext.useActorRef;
@@ -58,6 +58,14 @@ export function useStellarKycSelector(): SelectedStellarData | undefined {
       return prev.stateValue === next.stateValue && prev.context === next.context;
     }
   );
+}
+
+export function useMoneriumKycActor(): MoneriumKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
+    | MoneriumKycActorRef
+    | undefined;
 }
 
 export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {

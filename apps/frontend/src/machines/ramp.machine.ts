@@ -50,7 +50,7 @@ export const rampMachine = setup({
     context: {} as RampContext,
     events: {} as
       | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
-      | { type: "CancelRamp" }
+      | { type: "CANCEL_RAMP" }
       | { type: "onDone"; input: RampState }
       | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
       | { type: "SET_ADDRESS"; address: string | undefined }
@@ -70,7 +70,7 @@ export const rampMachine = setup({
   id: "ramp",
   initial: "Idle",
   on: {
-    CancelRamp: {
+    CANCEL_RAMP: {
       target: ".Cancel"
     },
     SET_ADDRESS: {
@@ -92,7 +92,7 @@ export const rampMachine = setup({
     },
     SET_SIWE_CONTEXT: {
       actions: assign({
-        siwe: ({ event }: any) => event.siwe
+        siwe: ({ event }: any) => event.siwe // TODO this must be set using input, for serialization.
       })
     }
   },

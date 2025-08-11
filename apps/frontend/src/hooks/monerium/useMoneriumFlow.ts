@@ -1,17 +1,19 @@
-import { useSelector } from "@xstate/react";
-import { useEffect } from "react";
-import { useRampActor } from "../../contexts/rampState";
-import { moneriumKycMachine } from "../../machines/moneriumKyc.machine";
+import { useEffect, useRef } from "react";
+import { useMoneriumKycActor, useMoneriumKycSelector, useRampActor } from "../../contexts/rampState";
 
 /**
  * Hook to manage Monerium authentication flow state and handle redirects
  */
 export const useMoneriumFlow = () => {
+  const moneriumKycActor = useMoneriumKycActor();
+  const moneriumKycData = useMoneriumKycSelector();
   const rampActor = useRampActor();
-  const moneriumActor = useSelector(rampActor, (snapshot: any) => (snapshot.children as any).moneriumKyc);
+  const effectHasRun = useRef(false);
+
+  const { redirectReady, authUrl } = moneriumKycData?.context || {};
 
   useEffect(() => {
-    if (!moneriumActor) {
+    if (!moneriumKycActor || !rampActor) {
       return;
     }
 
@@ -19,8 +21,21 @@ export const useMoneriumFlow = () => {
     const code = urlParams.get("code");
 
     if (code) {
-      moneriumActor.send({ code, type: "CODE_RECEIVED" });
+      moneriumKycActor.send({ code, type: "CODE_RECEIVED" });
+      localStorage.removeItem("moneriumKycState");
       window.history.replaceState({}, document.title, window.location.pathname);
+      return;
     }
-  }, [moneriumActor]);
+
+    if (redirectReady && authUrl && !effectHasRun.current) {
+      try {
+        const parentSnapshot = rampActor.getPersistedSnapshot();
+      } catch (error) {
+        console.error("❌ FAILED: The sanitized parent snapshot still failed to serialize.", error);
+      }
+
+      //window.location.assign(authUrl);
+      effectHasRun.current = true;
+    }
+  }, [redirectReady, authUrl, moneriumKycActor, rampActor]);
 };

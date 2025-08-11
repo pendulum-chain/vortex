@@ -13,6 +13,7 @@ export interface MoneriumKycContext extends RampContext {
   authUrl?: string;
   codeVerifier?: string;
   error?: any;
+  redirectReady?: boolean;
 }
 
 export interface StellarKycContext extends RampContext {

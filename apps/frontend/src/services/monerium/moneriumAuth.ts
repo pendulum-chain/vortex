@@ -51,7 +51,6 @@ export const handleMoneriumSiweAuth = async (
   address: string,
   signMessage: (message: string) => Promise<string>
 ): Promise<{ authUrl: string; codeVerifier: string }> => {
-  const { setCodeVerifier, setFlowState } = useMoneriumStore.getState();
   console.log("Handling Monerium SIWE auth for address:", address);
 
   const codeVerifier = CryptoJS.lib.WordArray.random(64).toString();
@@ -72,6 +71,7 @@ export const handleMoneriumSiweAuth = async (
   });
 
   const authUrl = `${MONERIUM_API_URL}/auth?${params}`;
+  console.log("Monerium auth URL:", authUrl);
   return { authUrl, codeVerifier };
 };
 

@@ -111,7 +111,7 @@ export const RampSummaryButton = () => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
-  console.log("Stellar context:", stellarData);
+
   const { rampState, executionInput, isQuoteExpired } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,

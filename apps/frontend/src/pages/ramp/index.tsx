@@ -1,5 +1,6 @@
 import { useSelector } from "@xstate/react";
 import { useRampActor } from "../../contexts/rampState";
+import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
@@ -9,6 +10,7 @@ import { SuccessPage } from "../success";
 export const Ramp = () => {
   const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <RampForm />);
   const rampActor = useRampActor();
+  useMoneriumFlow();
 
   const { state } = useSelector(rampActor, state => ({
     state: state.value

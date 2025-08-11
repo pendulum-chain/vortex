@@ -6,11 +6,9 @@ import { MoneriumKycContext } from "./kyc.states";
 
 export const moneriumKycMachine = setup({
   actions: {
-    saveMachineAndRedirect: ({ context, self }) => {
-      const persistedState = self.getPersistedSnapshot();
-      localStorage.setItem("moneriumKycState", JSON.stringify(persistedState)); // TODO use a proper key.
-      window.location.assign(context.authUrl!); // It must exist at this point.
-    }
+    saveMachineAndRedirect: assign({
+      redirectReady: true
+    })
   },
   actors: {
     checkUserStatus: fromPromise(async ({ input }: { input: MoneriumKycContext }) => {
@@ -138,9 +136,9 @@ export const moneriumKycMachine = setup({
         src: "checkUserStatus"
       }
     },
-    // This state will redirect on entry and must be restored after redirect back/refresh.
+    // This state will redirect on entry and must be restored after redirect-back/refresh.
     WaitAuthCode: {
-      entry: "saveMachineAndRedirect",
+      entry: ["saveMachineAndRedirect"],
       on: {
         CODE_RECEIVED: {
           actions: assign({ authCode: ({ event }) => event.code }),
