@@ -1,5 +1,5 @@
+import { RampDirection } from "@packages/shared";
 import { useCallback } from "react";
-import { RampDirection } from "../components/RampToggle";
 import { useEventsContext } from "../contexts/events";
 import { useQuoteStore } from "../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/ramp/useRampFormStore";
@@ -14,8 +14,8 @@ export const useTrackRampConfirmation = () => {
   const { quote } = useQuoteStore();
 
   return useCallback(() => {
-    const fromAsset = rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken;
-    const toAsset = rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken;
+    const fromAsset = rampDirection === RampDirection.BUY ? fiatToken : onChainToken;
+    const toAsset = rampDirection === RampDirection.BUY ? onChainToken : fiatToken;
     trackEvent({
       event: "transaction_confirmation",
       from_amount: inputAmount?.toString() || "0",

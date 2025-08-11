@@ -8,40 +8,40 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 // Types re-exported used to create quotes.
-import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { EvmToken, FiatToken, Networks, RampDirection } from "@packages/shared";
 
 export type { PaymentMethod };
-export { EvmToken, FiatToken, Networks };
+export { EvmToken, FiatToken, Networks, RampDirection };
 
 export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 
 export type BrlOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "pix";
 };
 
 export type EurOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "sepa";
 };
 
 export type BrlOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "pix";
 };
 
 export type EurOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "sepa";
 };
 
-export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
+export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: RampDirection.BUY; from: "pix" }
   ? BrlOnrampQuote
-  : T extends { rampType: "on"; from: "sepa" }
+  : T extends { rampType: RampDirection.BUY; from: "sepa" }
     ? EurOnrampQuote
-    : T extends { rampType: "off"; to: "pix" }
+    : T extends { rampType: RampDirection.SELL; to: "pix" }
       ? BrlOfframpQuote
-      : T extends { rampType: "off"; to: "sepa" }
+      : T extends { rampType: RampDirection.SELL; to: "sepa" }
         ? EurOfframpQuote
         : AnyQuote;
 

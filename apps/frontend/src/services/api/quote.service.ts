@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse, RampDirection } from "@packages/shared";
 import { apiRequest } from "./api-client";
 
 /**
@@ -19,7 +19,7 @@ export class QuoteService {
    * @returns The created quote
    */
   static async createQuote(
-    rampType: "on" | "off",
+    rampType: RampDirection,
     from: DestinationType,
     to: DestinationType,
     inputAmount: string,

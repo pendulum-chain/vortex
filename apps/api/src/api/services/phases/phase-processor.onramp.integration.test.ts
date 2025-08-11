@@ -2,7 +2,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { AccountMeta, EphemeralAccount, EvmToken, FiatToken, Networks, signUnsignedTransactions } from "@packages/shared";
+import { AccountMeta, EphemeralAccount, EvmToken, FiatToken, Networks, RampDirection, signUnsignedTransactions } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
@@ -172,7 +172,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
         outputCurrency: TEST_OUTPUT_CURRENCY,
-        rampType: "on",
+        rampType: RampDirection.BUY,
         to: Networks.AssetHub
       });
 

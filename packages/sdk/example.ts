@@ -1,4 +1,4 @@
-import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { CreateQuoteRequest, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@packages/shared";
 import { VortexSdkConfig } from "./src/types";
 import { VortexSdk } from "./src/VortexSdk";
 
@@ -23,17 +23,17 @@ async function runBrlOnrampExample() {
     console.log("✅ VortexSdk initialized successfully\n");
 
     console.log("📝 Step 2: Creating quote for BRL onramp...");
-    const quoteRequest = {
+    const quoteRequest: CreateQuoteRequest = {
       from: "pix" as const,
       inputAmount: "1",
       inputCurrency: FiatToken.BRL,
       outputCurrency: EvmToken.USDC,
-      rampType: "on" as const,
+      rampType: RampDirection.BUY,
       to: Networks.Polygon
       //partnerId: "example-partner"
     };
 
-    const quote = await sdk.createQuote(quoteRequest);
+    const quote = (await sdk.createQuote(quoteRequest)) as QuoteResponse;
     console.log("✅ Quote created successfully:");
     console.log(`   Quote ID: ${quote.id}`);
     console.log(`   Input: ${quote.inputAmount} ${quote.inputCurrency}`);

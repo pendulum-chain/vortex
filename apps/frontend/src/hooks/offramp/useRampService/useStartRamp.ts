@@ -1,3 +1,4 @@
+import { RampDirection } from "@packages/shared";
 import { useEffect } from "react";
 import { RampService } from "../../../services/api";
 import { useRampStore } from "../../../stores/rampStore";
@@ -19,11 +20,11 @@ export const useStartRamp = () => {
     }
 
     // Check if user confirmed that they made the payment
-    if (Boolean(rampState.ramp?.type === "on") && !rampPaymentConfirmed) {
+    if (Boolean(rampState.ramp?.type === RampDirection.BUY) && !rampPaymentConfirmed) {
       return;
     }
 
-    if (rampState.ramp.type === "off") {
+    if (rampState.ramp.type === RampDirection.SELL) {
       // Check if the user signed the necessary transactions
       if (!rampState.userSigningMeta) {
         console.error("User signing meta is missing. Cannot start ramp.");

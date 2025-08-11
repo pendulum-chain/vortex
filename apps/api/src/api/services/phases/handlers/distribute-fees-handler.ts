@@ -1,4 +1,10 @@
-import { ApiManager, decodeSubmittableExtrinsic, RampPhase, TransactionTemporarilyBannedError } from "@packages/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  RampDirection,
+  RampPhase,
+  TransactionTemporarilyBannedError
+} from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
@@ -38,7 +44,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine next phase
-    const nextPhase = state.type === "on" ? "subsidizePostSwap" : "subsidizePreSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
 
     try {
       // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.

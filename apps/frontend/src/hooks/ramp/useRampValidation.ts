@@ -4,14 +4,13 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   OnChainTokenDetails,
-  QuoteResponse
+  QuoteResponse,
+  RampDirection
 } from "@packages/shared";
 import Big from "big.js";
 import { TFunction } from "i18next";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-
-import { RampDirection } from "../../components/RampToggle";
 import { config } from "../../config";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
 import { TrackableEvent, useEventsContext } from "../../contexts/events";
@@ -166,7 +165,7 @@ export const useRampValidation = () => {
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOnramp = rampDirection === RampDirection.BUY;
   const { isDisconnected } = useVortexAccount();
 
   const inputAmount = useMemo(() => Big(inputAmountString || "0"), [inputAmountString]);

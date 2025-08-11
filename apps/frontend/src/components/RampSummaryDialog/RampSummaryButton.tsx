@@ -4,6 +4,7 @@ import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  RampDirection,
   TokenType
 } from "@packages/shared";
 import { useMemo, useState } from "react";
@@ -11,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampDirection } from "../../stores/rampDirectionStore";
 import {
   useCanRegisterRamp,
   useRampActions,
@@ -21,7 +21,6 @@ import {
 } from "../../stores/rampStore";
 import { useIsQuoteExpired, useRampSummaryStore } from "../../stores/rampSummary";
 import { useSep24StoreCachedAnchorUrl } from "../../stores/sep24Store";
-import { RampDirection } from "../RampToggle";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -33,14 +32,14 @@ interface UseButtonContentProps {
 export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const rampState = useRampState();
   const { t } = useTranslation();
-  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isQuoteExpired = useIsQuoteExpired();
   const canRegisterRamp = useCanRegisterRamp();
   const signingRejected = useSigningRejected();
 
   return useMemo(() => {
-    const isOnramp = rampDirection === RampDirection.ONRAMP;
-    const isOfframp = rampDirection === RampDirection.OFFRAMP;
+    const isOnramp = rampDirection === RampDirection.BUY;
+    const isOfframp = rampDirection === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
@@ -127,9 +126,9 @@ export const RampSummaryButton = () => {
   const signingRejected = useSigningRejected();
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
-  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
-  const isOfframp = rampDirection === RampDirection.OFFRAMP;
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
+  const isOfframp = rampDirection === RampDirection.SELL;
+  const isOnramp = rampDirection === RampDirection.BUY;
   const { isQuoteExpired } = useRampSummaryStore();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
@@ -177,11 +176,11 @@ export const RampSummaryButton = () => {
     setIsSubmitted(true);
 
     // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
+    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
       setCanRegisterRamp(true);
     }
 
-    if (executionInput?.quote.rampType === "on") {
+    if (executionInput?.quote.rampType === RampDirection.BUY) {
       setRampPaymentConfirmed(true);
     } else {
       onRampConfirm();
