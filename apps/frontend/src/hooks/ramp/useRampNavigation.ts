@@ -1,5 +1,6 @@
+import { useSelector } from "@xstate/react";
 import { ReactNode, useCallback } from "react";
-import { useRampStarted, useRampState } from "../../stores/rampStore";
+import { useRampActor } from "../../contexts/rampState";
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -7,8 +8,11 @@ export const useRampNavigation = (
   progressComponent: ReactNode,
   formComponent: ReactNode
 ) => {
-  const rampState = useRampState();
-  const rampStarted = useRampStarted();
+  const rampActor = useRampActor();
+  const { rampState, rampMachineState } = useSelector(rampActor, state => ({
+    rampMachineState: state,
+    rampState: state.context.rampState
+  }));
 
   const getCurrentComponent = useCallback(() => {
     if (rampState?.ramp?.currentPhase === "complete") {
@@ -19,14 +23,12 @@ export const useRampNavigation = (
       return failureComponent;
     }
 
-    if (rampState !== undefined && rampState.ramp?.currentPhase) {
-      if (rampStarted) {
-        return progressComponent;
-      }
+    if (rampState !== undefined && rampMachineState.value === "RampFollowUp") {
+      return progressComponent;
     }
 
     return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, rampStarted, progressComponent]);
+  }, [rampState, formComponent, successComponent, failureComponent, progressComponent]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,
