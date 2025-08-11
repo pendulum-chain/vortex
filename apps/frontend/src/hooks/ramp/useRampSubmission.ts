@@ -14,8 +14,6 @@ import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { useRampActions } from "../../stores/rampStore";
 import { RampExecutionInput } from "../../types/phases";
-import { useRegisterRamp } from "../offramp/useRampService/useRegisterRamp";
-import { useStartRamp } from "../offramp/useRampService/useStartRamp";
 import { useVortexAccount } from "../useVortexAccount";
 
 interface SubmissionError extends Error {
@@ -36,14 +34,11 @@ export const useRampSubmission = () => {
   const { address, chainId } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
-  const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
+  const { setRampInitiating, resetRampState } = useRampActions();
   const rampActor = useRampActor();
   const preRampCheck = usePreRampCheck();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
-
-  //XSTATE migration. Used to set the apiComponents in the ramp context.
-  useRegisterRamp();
 
   useEffect(() => {
     if (rampActor) {
@@ -53,8 +48,6 @@ export const useRampSubmission = () => {
       });
     }
   }, [rampActor, checkAndWaitForSignature, forceRefreshAndWaitForSignature]);
-
-  useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
