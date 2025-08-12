@@ -17,7 +17,7 @@ interface DialogProps {
   id?: string;
   disableNativeEvents?: boolean;
   hideCloseButton?: boolean;
-  contentRef?: React.RefObject<HTMLDivElement | null>;
+  dialogScrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export const Dialog: FC<DialogProps> = ({
@@ -30,7 +30,7 @@ export const Dialog: FC<DialogProps> = ({
   form,
   disableNativeEvents = false,
   hideCloseButton = false,
-  contentRef
+  dialogScrollRef
 }) => {
   const ref = useRef<HTMLDialogElement>(null);
   const dialog = ref.current;
@@ -114,7 +114,7 @@ export const Dialog: FC<DialogProps> = ({
 
   return createPortal(
     <dialog aria-labelledby={`${headerText}-header`} className="modal border border-[--modal-border]" id={id} ref={ref}>
-      <div className="modal-box bg-base-200" ref={contentRef}>
+      <div className="modal-box bg-base-200" ref={dialogScrollRef}>
         <div className={cn("claim-title mb-5 flex items-center text-2xl", headerText ? "justify-between" : "justify-end")}>
           <span>{headerText}</span> {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
         </div>
