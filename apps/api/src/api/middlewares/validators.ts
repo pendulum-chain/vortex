@@ -1,11 +1,11 @@
 import {
   Currency,
-  Direction,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
   PriceProvider,
+  RampDirection,
   RegisterSubaccountPayload,
   StartKYC2Request,
   TokenConfig,
@@ -108,22 +108,22 @@ export const validateBundledPriceInput: RequestHandler<unknown, unknown, unknown
 
   // For offramp: source must be crypto, target must be fiat
   // For onramp: source must be fiat, target must be crypto
-  const isOfframp = direction === "offramp";
+  const isSell = direction === RampDirection.SELL;
 
-  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isOfframp ? "crypto" : "fiat")) {
+  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isSell ? "crypto" : "fiat")) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid sourceCurrency for ${direction}. Must be a ${
-        isOfframp ? "cryptocurrency" : "fiat currency"
-      }. Supported currencies are: ${isOfframp ? VALID_CRYPTO_CURRENCIES.join(", ") : VALID_FIAT_CURRENCIES.join(", ")}`
+        isSell ? "cryptocurrency" : "fiat currency"
+      }. Supported currencies are: ${isSell ? VALID_CRYPTO_CURRENCIES.join(", ") : VALID_FIAT_CURRENCIES.join(", ")}`
     });
     return;
   }
 
-  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isOfframp ? "fiat" : "crypto")) {
+  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isSell ? "fiat" : "crypto")) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid targetCurrency for ${direction}. Must be a ${
-        isOfframp ? "fiat currency" : "cryptocurrency"
-      }. Supported currencies are: ${isOfframp ? VALID_FIAT_CURRENCIES.join(", ") : VALID_CRYPTO_CURRENCIES.join(", ")}`
+        isSell ? "fiat currency" : "cryptocurrency"
+      }. Supported currencies are: ${isSell ? VALID_FIAT_CURRENCIES.join(", ") : VALID_CRYPTO_CURRENCIES.join(", ")}`
     });
     return;
   }
@@ -165,22 +165,22 @@ export const validatePriceInput: RequestHandler<unknown, unknown, unknown, Price
 
   // For offramp: source must be crypto, target must be fiat
   // For onramp: source must be fiat, target must be crypto
-  const isOfframp = direction === "offramp";
+  const isSell = direction === RampDirection.SELL;
 
-  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isOfframp ? "crypto" : "fiat")) {
+  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isSell ? "crypto" : "fiat")) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid sourceCurrency for ${direction}. Must be a ${
-        isOfframp ? "cryptocurrency" : "fiat currency"
-      }. Supported currencies are: ${isOfframp ? VALID_CRYPTO_CURRENCIES.join(", ") : VALID_FIAT_CURRENCIES.join(", ")}`
+        isSell ? "cryptocurrency" : "fiat currency"
+      }. Supported currencies are: ${isSell ? VALID_CRYPTO_CURRENCIES.join(", ") : VALID_FIAT_CURRENCIES.join(", ")}`
     });
     return;
   }
 
-  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isOfframp ? "fiat" : "crypto")) {
+  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isSell ? "fiat" : "crypto")) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid targetCurrency for ${direction}. Must be a ${
-        isOfframp ? "fiat currency" : "cryptocurrency"
-      }. Supported currencies are: ${isOfframp ? VALID_FIAT_CURRENCIES.join(", ") : VALID_CRYPTO_CURRENCIES.join(", ")}`
+        isSell ? "fiat currency" : "cryptocurrency"
+      }. Supported currencies are: ${isSell ? VALID_FIAT_CURRENCIES.join(", ") : VALID_CRYPTO_CURRENCIES.join(", ")}`
     });
     return;
   }
