@@ -386,11 +386,11 @@ export class QuoteService extends BaseRampService {
       });
     }
 
-    // Apply subsidy if partner has discount > 0
-    let subsidyAmount = new Big(0);
-    let subsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
+    // Apply discount subsidy if partner has discount > 0
+    let discountSubsidyAmount = new Big(0);
+    let discountSubsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
     // The subsidy partner is either the partner provided in the request or the default "vortex" partner
-    const subsidyPartner = partner
+    const discountSubsidyPartner = partner
       ? partner
       : await Partner.findOne({
           where: {
@@ -402,24 +402,23 @@ export class QuoteService extends BaseRampService {
     // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
     let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
 
-    if (subsidyPartner && subsidyPartner.discount > 0) {
-      // Calculate subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
-      subsidyAmount = finalNetOutputAmount.mul(subsidyPartner.discount);
+    if (discountSubsidyPartner && discountSubsidyPartner.discount > 0) {
+      // Calculate discount subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
+      discountSubsidyAmount = finalNetOutputAmount.mul(discountSubsidyPartner.discount);
 
-      // Add subsidy to finalNetOutputAmount
-      finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmount);
+      // Add discount subsidy to finalNetOutputAmount (relevant for the subsidy of off-ramps)
+      finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
 
-      // Add subsidy to the output amount on Moonbeam for on-ramps
+      // Add subsidy to the output amount on Moonbeam (relevant for the subsidy of on-ramps)
       if (request.rampType === RampDirection.BUY) {
-        // For on-ramps: increase onrampOutputAmountMoonbeamRaw by subsidy amount (convert to raw format)
-        const subsidyAmountRaw = multiplyByPowerOfTen(subsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
+        const subsidyAmountRaw = multiplyByPowerOfTen(discountSubsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
         onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
       }
 
-      subsidyInfo = {
-        discount: subsidyPartner.discount.toString(),
-        partnerId: subsidyPartner.id,
-        subsidyAmountInOutputToken: subsidyAmount.toFixed(6, 0)
+      discountSubsidyInfo = {
+        discount: discountSubsidyPartner.discount.toString(),
+        partnerId: discountSubsidyPartner.id,
+        subsidyAmountInOutputToken: discountSubsidyAmount.toFixed(6, 0)
       };
     }
 
@@ -461,7 +460,7 @@ export class QuoteService extends BaseRampService {
         inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
-        subsidy: subsidyInfo,
+        subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
       outputAmount: finalNetOutputAmountStr,
