@@ -41,15 +41,15 @@ const brlOnrampData = {
   taxId: "123.456.789-00"
 };
 
-const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
+const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
 
 // Make the FIAT payment.
 // The sdk will provide the information to make the payment.
-const { depositQrCode } = registeredRamp
+const { depositQrCode } = rampProcess
 console.log("Please do the pix transfer using the following code: ", depositQrCode)
 
 //Once the payment is done, start the ramp.
-const startedRamp = await sdk.startRamp(quote, registeredRamp.id);
+const startedRamp = await sdk.startRamp(quote, rampProcess.id);
 ```
 
 ## Core Features
@@ -78,7 +78,8 @@ Retrieves an existing quote by ID.
 Gets the current status of a ramp process.
 
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess>`
-Registers a new onramp process.
+Registers a new onramp process. Returns the ramp process, and a 
+list of transaction data objects (`unsignedTransactions`) that must be signed and sent before starting the ramp.
 
 ##### `startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess>`
 Starts a registered onramp process.

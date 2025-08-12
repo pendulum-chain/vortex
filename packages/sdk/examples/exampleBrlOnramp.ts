@@ -1,6 +1,6 @@
 import { CreateQuoteRequest, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@packages/shared";
-import { VortexSdkConfig } from "./src/types";
-import { VortexSdk } from "./src/VortexSdk";
+import { VortexSdkConfig } from "../src/types";
+import { VortexSdk } from "../src/VortexSdk";
 
 async function runBrlOnrampExample() {
   try {
@@ -46,16 +46,20 @@ async function runBrlOnrampExample() {
       taxId: "123.456.789-00"
     };
 
-    const registeredRamp = await sdk.registerRamp(quote, brlOnrampData);
+    const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
 
-    if (registeredRamp.depositQrCode) {
-      console.log(`   Deposit QR Code: ${registeredRamp.depositQrCode}`);
+    console.log(`✅ BRL Onramp registered successfully:`);
+    console.log(`   Ramp ID: ${rampProcess.id}`);
+
+    if (rampProcess.depositQrCode) {
+      console.log(`   Deposit QR Code: ${rampProcess.depositQrCode}`);
     }
+
     // Step 4: Start the BRL onramp process AFTER PAYMENT
     console.log("📝 Step 4: Starting BRL onramp...");
 
     // Ensure making the payment BEFORE starting the ramp
-    const _startedRamp = await sdk.startRamp(quote, registeredRamp.id);
+    const _startedRamp = await sdk.startRamp(rampProcess.id);
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 

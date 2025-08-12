@@ -14,6 +14,8 @@ import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import { retrieveEphemeralKeys, storeEphemeralKeys } from "./storage";
 import type {
+  BrlOfframpAdditionalData,
+  BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
@@ -60,27 +62,57 @@ export class VortexSdk {
     return this.apiService.getRampStatus(rampId);
   }
 
-  async registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess> {
+  async getUserTransactions(rampProcess: RampProcess, userAddress: string): Promise<UnsignedTx[]> {
+    if (!rampProcess.unsignedTxs) {
+      return [];
+    }
+
+    return rampProcess.unsignedTxs.filter(tx => tx.signer === userAddress);
+  }
+
+  async registerRamp<Q extends QuoteResponse>(
+    quote: Q,
+    additionalData: RegisterRampAdditionalData<Q>
+  ): Promise<{
+    rampProcess: RampProcess;
+    unsignedTransactions: UnsignedTx[];
+  }> {
     await this.ensureInitialized();
+
+    let rampProcess: RampProcess;
+    let unsignedTransactions: UnsignedTx[] = [];
 
     if (quote.rampType === RampDirection.BUY) {
       if (quote.from === "pix") {
-        return this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
+        rampProcess = await this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
+        unsignedTransactions = [];
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
+      } else {
+        throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
     } else if (quote.rampType === RampDirection.SELL) {
       if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
+        rampProcess = await this.brlHandler.registerBrlOfframp(quote.id, additionalData as BrlOfframpAdditionalData);
+        const userAddress = (additionalData as BrlOfframpAdditionalData).walletAddress;
+        unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
+      } else {
+        throw new Error(`Unsupported offramp to: ${quote.to}`);
       }
+    } else {
+      throw new Error(`Unsupported ramp type: ${quote.rampType}`);
     }
 
-    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
+    return { rampProcess, unsignedTransactions };
   }
 
-  async updateRamp<Q extends QuoteResponse>(quote: Q, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess> {
+  async updateRamp<Q extends QuoteResponse>(
+    quote: Q,
+    rampId: string,
+    additionalUpdateData: UpdateRampAdditionalData<Q>
+  ): Promise<RampProcess> {
     if (quote.rampType === RampDirection.BUY) {
       if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
@@ -89,7 +121,7 @@ export class VortexSdk {
       }
     } else if (quote.rampType === RampDirection.SELL) {
       if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
+        return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
       }
@@ -98,22 +130,8 @@ export class VortexSdk {
     throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
   }
 
-  async startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess> {
-    if (quote.rampType === RampDirection.BUY) {
-      if (quote.from === "pix") {
-        return this.brlHandler.startBrlOnramp(rampId);
-      } else if (quote.from === "sepa") {
-        throw new Error("Euro onramp handler not implemented yet");
-      }
-    } else if (quote.rampType === RampDirection.SELL) {
-      if (quote.to === "pix") {
-        throw new Error("BRL offramp handler not implemented yet");
-      } else if (quote.to === "sepa") {
-        throw new Error("Euro offramp handler not implemented yet");
-      }
-    }
-
-    throw new Error(`Unsupported ramp type: ${quote.rampType} with from: ${quote.from}, to: ${quote.to}`);
+  async startRamp(rampId: string): Promise<RampProcess> {
+    return this.brlHandler.startBrlRamp(rampId);
   }
 
   public async storeEphemerals(ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string): Promise<void> {

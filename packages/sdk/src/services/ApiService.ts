@@ -59,7 +59,6 @@ export class ApiService {
       },
       method: "POST"
     });
-
     return handleAPIResponse<UpdateRampResponse>(response, "/v1/ramp/update");
   }
 
