@@ -399,12 +399,22 @@ export class QuoteService extends BaseRampService {
           }
         });
 
+    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
+    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+
     if (subsidyPartner && subsidyPartner.discount > 0) {
       // Calculate subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
       subsidyAmount = finalNetOutputAmount.mul(subsidyPartner.discount);
 
       // Add subsidy to finalNetOutputAmount
       finalNetOutputAmount = finalNetOutputAmount.plus(subsidyAmount);
+
+      // Add subsidy to the output amount on Moonbeam for on-ramps
+      if (request.rampType === RampDirection.BUY) {
+        // For on-ramps: increase onrampOutputAmountMoonbeamRaw by subsidy amount (convert to raw format)
+        const subsidyAmountRaw = multiplyByPowerOfTen(subsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
+        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
+      }
 
       subsidyInfo = {
         discount: subsidyPartner.discount.toString(),
@@ -436,23 +446,8 @@ export class QuoteService extends BaseRampService {
     };
 
     // This is the final net output amount before anchor fees are deducted
-    let offrampAmountBeforeAnchorFees =
+    const offrampAmountBeforeAnchorFees =
       request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
-
-    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
-
-    // Adjust intermediate values for subsidy
-    if (partner && partner.discount > 0) {
-      if (request.rampType === RampDirection.BUY) {
-        // For on-ramps: increase onrampOutputAmountMoonbeamRaw by subsidy amount (convert to raw format)
-        const subsidyAmountRaw = multiplyByPowerOfTen(subsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
-        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
-      } else {
-        // For off-ramps: increase offrampAmountBeforeAnchorFees by subsidy amount
-        offrampAmountBeforeAnchorFees = new Big(offrampAmountBeforeAnchorFees || "0").plus(subsidyAmount).toFixed();
-      }
-    }
 
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
