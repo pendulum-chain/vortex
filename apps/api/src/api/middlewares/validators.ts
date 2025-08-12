@@ -35,7 +35,7 @@ export interface PriceQuery {
   targetCurrency: Currency;
   amount: string;
   network?: string;
-  direction: Direction;
+  direction: RampDirection;
 }
 
 interface ChangeOpBody extends CreationBody {
