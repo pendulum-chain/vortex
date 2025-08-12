@@ -117,9 +117,6 @@ export const useRampSubmission = () => {
     try {
       const executionInput = prepareExecutionInput();
       await preRampCheck(executionInput);
-      //setRampExecutionInput(executionInput);
-      //XSTATE migration. Old starting point -> await registerRamp(executionInput);
-      // Set the execution input to the state machine.
       if (!chainId) {
         throw new Error("ChainId must be defined at this stage");
       }

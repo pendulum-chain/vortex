@@ -1,3 +1,4 @@
+import { RampProcess } from "@packages/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { UseSiweContext } from "../contexts/siwe";
@@ -44,7 +45,9 @@ export type RampMachineEvents =
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase }
-  | { type: "PAYMENT_CONFIRMED" };
+  | { type: "PAYMENT_CONFIRMED" }
+  | { type: "SET_RAMP_STATE"; rampState: RampState }
+  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput };
 
 export const rampMachine = setup<RampContext, RampMachineEvents>({
   actors: {
@@ -88,7 +91,6 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       actions: assign({ rampSigningPhase: ({ event }: any) => event.phase })
     }
   },
-
   states: {
     Cancel: {
       always: {
@@ -123,11 +125,24 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
             rampDirection: ({ event }: any) => event.input.rampDirection
           }),
           target: "RampRequested"
+        },
+        SET_RAMP_EXECUTION_INPUT: {
+          actions: assign({
+            executionInput: ({ event }: any) => event.executionInput
+          })
         }
       }
     },
     KYC: kycStateNode as any,
-    RampFollowUp: {},
+    RampFollowUp: {
+      on: {
+        SET_RAMP_STATE: {
+          actions: assign({
+            rampState: ({ event }) => event.rampState
+          })
+        }
+      }
+    },
     RampRequested: {
       entry: assign({
         rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.

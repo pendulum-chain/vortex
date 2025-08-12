@@ -1,5 +1,6 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
 import { FiatToken, isNetworkEVM, Networks, RampPhase } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,6 +8,7 @@ import { Box } from "../../components/Box";
 import { config } from "../../config";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { GotQuestions } from "../../sections";
 import { RampService } from "../../services/api";
 import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
@@ -275,7 +277,11 @@ interface ProgressContentProps {
 
 const TransactionStatusBanner: FC = () => {
   const { t } = useTranslation();
-  const rampState = useRampState();
+
+  const rampActor = useRampActor();
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
 
   return (
     <section className="flex items-center gap-4 rounded-lg border border-blue-200 bg-blue-50 p-5 shadow-sm">
@@ -363,10 +369,13 @@ const ProgressContent: FC<ProgressContentProps> = ({
 };
 
 export const ProgressPage = () => {
-  const { trackEvent } = useEventsContext();
-  const rampState = useRampState();
-  const { setRampState } = useRampActions();
   const { t } = useTranslation();
+  const { trackEvent } = useEventsContext();
+  const rampActor = useRampActor();
+
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
 
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
@@ -393,6 +402,7 @@ export const ProgressPage = () => {
 
     const rampId = rampState.ramp.id;
 
+    //XSTATE: we could also move this into an internal process inside the FollowUp state.
     const fetchRampState = async () => {
       try {
         const updatedRampProcess = await RampService.getRampStatus(rampId);
@@ -403,7 +413,7 @@ export const ProgressPage = () => {
             ...currentRampState,
             ramp: updatedRampProcess
           };
-          setRampState(updatedRampState);
+          rampActor.send({ rampState: updatedRampState, type: "SET_RAMP_STATE" });
         }
 
         const maybeNewPhase = updatedRampProcess.currentPhase;
@@ -428,7 +438,7 @@ export const ProgressPage = () => {
     const intervalId = setInterval(fetchRampState, 5000);
 
     return () => clearInterval(intervalId);
-  }, [rampState?.ramp?.id, phaseSequence, setRampState, trackEvent, flowType]);
+  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType]);
 
   return (
     <main>
