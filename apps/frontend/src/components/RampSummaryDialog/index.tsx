@@ -43,7 +43,7 @@ export const RampSummaryDialog: FC = () => {
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
-  const dialogScrollRef = useRef<HTMLDialogElement>(null);
+  const dialogScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDialogScrollRef(dialogScrollRef);

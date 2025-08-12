@@ -3,10 +3,10 @@ import { create } from "zustand";
 
 interface RampSummaryState {
   isQuoteExpired: boolean;
-  dialogScrollRef: RefObject<HTMLDialogElement | null> | null;
+  dialogScrollRef: RefObject<HTMLDivElement | null> | null;
   actions: {
     setIsQuoteExpired: (expired: boolean) => void;
-    setDialogScrollRef: (ref: RefObject<HTMLDialogElement | null> | null) => void;
+    setDialogScrollRef: (ref: RefObject<HTMLDivElement | null> | null) => void;
     scrollToBottom: () => void;
   };
 }
@@ -22,7 +22,7 @@ export const useRampSummaryStore = create<RampSummaryState>((set, get) => ({
         });
       }
     },
-    setDialogScrollRef: (ref: RefObject<HTMLDialogElement | null> | null) => set({ dialogScrollRef: ref }),
+    setDialogScrollRef: (ref: RefObject<HTMLDivElement | null> | null) => set({ dialogScrollRef: ref }),
     setIsQuoteExpired: (expired: boolean) => set({ isQuoteExpired: expired })
   },
   dialogScrollRef: null,
