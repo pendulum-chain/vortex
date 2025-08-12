@@ -1,18 +1,17 @@
-import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
 import {
-  createExecuteMessageExtrinsic,
-  ExecuteMessageResult,
-  ReadMessageResult,
-  readMessage,
-  submitExtrinsic
-} from "@pendulum-chain/api-solang";
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  defaultReadLimits,
+  NABLA_ROUTER,
+  RampDirection,
+  RampPhase
+} from "@packages/shared";
+import { createExecuteMessageExtrinsic, ExecuteMessageResult, readMessage, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import RampState from "../../../../models/rampState.model";
-import { defaultReadLimits } from "../../../helpers/contracts";
-import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -117,7 +116,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
-    const nextPhase = state.type === "on" ? "distributeFees" : "subsidizePostSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

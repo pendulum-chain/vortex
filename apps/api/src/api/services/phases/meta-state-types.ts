@@ -1,5 +1,4 @@
-import { IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
-import { ExtrinsicOptions } from "../transactions/nabla";
+import { ExtrinsicOptions, IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 
 export interface StateMetadata {
   inputAmount: string;

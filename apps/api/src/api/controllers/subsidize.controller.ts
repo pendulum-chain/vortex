@@ -1,4 +1,5 @@
 import {
+  ApiManager,
   StellarTokenConfig,
   SubsidizeErrorResponse,
   SubsidizePostSwapRequest,
@@ -14,7 +15,6 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { PENDULUM_FUNDING_SEED } from "../../constants/constants";
-import { ApiManager } from "../services/pendulum/apiManager";
 
 export const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {

@@ -12,13 +12,13 @@ import {
   Networks,
   OnChainToken,
   OnChainTokenDetails,
+  RampDirection,
   stellarTokenConfig
 } from "@packages/shared";
 import { useMemo } from "react";
 import { useOnchainTokenBalances } from "../../../hooks/useOnchainTokenBalances";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
-import { RampDirection } from "../../RampToggle";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
 
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
@@ -107,7 +107,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
 }
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
-  const isOnramp = direction === RampDirection.ONRAMP;
+  const isOnramp = direction === RampDirection.BUY;
   const allTokens: ExtendedTokenDefinition[] = [];
 
   if (isOnramp) {

@@ -1,7 +1,6 @@
-import { Networks } from "@packages/shared";
+import { Networks, RampDirection } from "@packages/shared";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionActions, useTokenSelectionState } from "../../../stores/tokenSelectionStore";
-import { RampDirection } from "../../RampToggle";
 import { SelectionNetworkButton } from "./components/SelectionNetworkButton";
 import { SelectionNetworkDropdownContent } from "./components/SelectionNetworkDropdownContent";
 
@@ -11,7 +10,7 @@ export const NetworkDropdown = () => {
   const rampDirection = useRampDirection();
 
   const isFiatTokenSelection = (() => {
-    const isOnramp = rampDirection === RampDirection.ONRAMP;
+    const isOnramp = rampDirection === RampDirection.BUY;
     return (isOnramp && tokenSelectModalType === "from") || (!isOnramp && tokenSelectModalType === "to");
   })();
 

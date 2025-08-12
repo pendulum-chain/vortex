@@ -1,10 +1,9 @@
-import { FiatToken, FiatTokenDetails, Networks, OnChainToken, OnChainTokenDetails } from "@packages/shared";
+import { FiatToken, FiatTokenDetails, Networks, OnChainToken, OnChainTokenDetails, RampDirection } from "@packages/shared";
 import { isFiatTokenDisabled } from "../../../../config/tokenAvailability";
 import { useNetwork } from "../../../../contexts/network";
 import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
 import { useTokenSelectionActions, useTokenSelectionState } from "../../../../stores/tokenSelectionStore";
-import { RampDirection } from "../../../RampToggle";
 
 export interface TokenDefinition {
   assetSymbol: string;
@@ -38,7 +37,7 @@ export const useTokenSelection = () => {
       await setSelectedNetwork(tokenDefinition.network);
     }
 
-    if (rampDirection === RampDirection.ONRAMP) {
+    if (rampDirection === RampDirection.BUY) {
       if (tokenSelectModalType === "from") {
         setFiatToken(token as FiatToken);
       } else {
@@ -55,7 +54,7 @@ export const useTokenSelection = () => {
   };
 
   const getSelectedToken = () => {
-    return rampDirection === RampDirection.ONRAMP
+    return rampDirection === RampDirection.BUY
       ? tokenSelectModalType === "from"
         ? fiatToken
         : onChainToken

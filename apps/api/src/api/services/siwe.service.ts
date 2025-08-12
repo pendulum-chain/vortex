@@ -1,10 +1,9 @@
-import { Networks } from "@packages/shared";
+import { EvmClientManager, Networks } from "@packages/shared";
 import { signatureVerify } from "@polkadot/util-crypto";
 import { generateNonce } from "siwe";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
 import { deriveMemoFromAddress } from "../helpers/memoDerivation";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
-import { EvmClientManager } from "./evm/clientManager";
 
 class ValidationError extends Error {
   constructor(message: string) {

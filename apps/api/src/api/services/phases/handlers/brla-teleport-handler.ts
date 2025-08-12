@@ -1,13 +1,18 @@
-import { FiatToken, getAnyFiatTokenDetailsMoonbeam, Networks, RampPhase } from "@packages/shared";
+import {
+  BalanceCheckError,
+  BalanceCheckErrorType,
+  BrlaApiService,
+  checkEvmBalancePeriodically,
+  FiatToken,
+  generateReferenceLabel,
+  getAnyFiatTokenDetailsMoonbeam,
+  Networks,
+  RampPhase
+} from "@packages/shared";
 import Big from "big.js";
-
-import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { BrlaApiService } from "../../brla/brlaApiService";
 import { BrlaTeleportService } from "../../brla/brlaTeleportService";
-import { generateReferenceLabel } from "../../brla/helpers";
-import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from "../../moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

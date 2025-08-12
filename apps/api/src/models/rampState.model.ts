@@ -1,4 +1,12 @@
-import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from "@packages/shared";
+import {
+  CleanupPhase,
+  DestinationType,
+  PresignedTx,
+  RampDirection,
+  RampErrorLog,
+  RampPhase,
+  UnsignedTx
+} from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import { StateMetadata } from "../api/services/phases/meta-state-types";
 import sequelize from "../config/database";
@@ -30,7 +38,7 @@ type PostCompleteState = {
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
   id: string; // UUID
-  type: "on" | "off";
+  type: RampDirection;
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[]; // JSONB array
   presignedTxs: PresignedTx[] | null; // JSONB array
@@ -53,7 +61,7 @@ export type RampStateCreationAttributes = Optional<RampStateAttributes, "id" | "
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
   declare id: string;
 
-  declare type: "on" | "off";
+  declare type: RampDirection;
 
   declare currentPhase: RampPhase;
 
@@ -167,7 +175,7 @@ RampState.init(
     },
     type: {
       allowNull: false,
-      type: DataTypes.ENUM("on", "off")
+      type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
     },
     unsignedTxs: {
       allowNull: false,

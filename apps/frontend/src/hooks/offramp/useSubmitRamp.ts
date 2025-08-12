@@ -1,9 +1,7 @@
-import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-
-import { RampDirection } from "../../components/RampToggle";
 import { useNetwork } from "../../contexts/network";
 import { useSiweContext } from "../../contexts/siwe";
 import { useToastMessage } from "../../helpers/notifications";
@@ -11,7 +9,7 @@ import { sep10 } from "../../services/anchor/sep10";
 import { sep24First } from "../../services/anchor/sep24/first";
 import { BrlaService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
-import { exchangeMoneriumCode, handleMoneriumSiweAuth, initiateMoneriumAuth } from "../../services/monerium/moneriumAuth";
+import { handleMoneriumSiweAuth, initiateMoneriumAuth } from "../../services/monerium/moneriumAuth";
 import { fetchTomlValues } from "../../services/stellar";
 import { useMoneriumStore } from "../../stores/moneriumStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -88,12 +86,12 @@ export const useSubmitRamp = () => {
               const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
 
               const remainingLimitInUnits =
-                rampDirection === RampDirection.OFFRAMP
+                rampDirection === RampDirection.SELL
                   ? remainingLimitResponse.remainingLimitOfframp
                   : remainingLimitResponse.remainingLimitOnramp;
 
               const amountNum = Number(
-                rampDirection === RampDirection.OFFRAMP ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
+                rampDirection === RampDirection.SELL ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
               );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
@@ -130,7 +128,7 @@ export const useSubmitRamp = () => {
             }
           } else if (executionInput.fiatToken === FiatToken.EURC) {
             // Check if backend should route to Monerium or Stellar anchor
-            const shouldUseMonerium = rampDirection === RampDirection.ONRAMP || (await shouldRouteToMonerium(executionInput));
+            const shouldUseMonerium = rampDirection === RampDirection.BUY || (await shouldRouteToMonerium(executionInput));
 
             if (shouldUseMonerium) {
               setRampSummaryVisible(true);

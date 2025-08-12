@@ -20,7 +20,7 @@ const starVariants = {
     scale: 0,
     transition: {
       duration: 0.5,
-      ease: "easeInOut"
+      ease: "easeInOut" as const
     },
     y: 50
   },
@@ -29,7 +29,7 @@ const starVariants = {
     scale: 1.15,
     transition: {
       duration: 0.2,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   },
   initial: {
@@ -42,14 +42,14 @@ const starVariants = {
     scale: 1,
     transition: {
       duration: 0.3,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   },
   tap: {
     scale: 0.9,
     transition: {
       duration: 0.1,
-      ease: "easeInOut"
+      ease: "easeInOut" as const
     }
   }
 };

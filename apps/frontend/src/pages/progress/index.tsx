@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isNetworkEVM, Networks, RampPhase } from "@packages/shared";
+import { FiatToken, isNetworkEVM, Networks, RampDirection, RampPhase } from "@packages/shared";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -122,7 +122,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
   const { type, from } = rampState.ramp;
   const currentPhase = rampState.ramp.currentPhase;
 
-  if (type === "on") {
+  if (type === RampDirection.BUY) {
     if (
       currentPhase === "brlaTeleport" ||
       rampState.quote?.outputCurrency === FiatToken.BRL ||
@@ -336,7 +336,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
     <Box className="mt-4 flex flex-col items-center justify-center">
       <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
-        <p className="mb-4 text-lg text-gray-600">{t("pages.progress.closeProgressScreenText")}</p>
+        <p className="mb-4 text-gray-600 text-lg">{t("pages.progress.closeProgressScreenText")}</p>
         <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
           animate={{ opacity: 1, y: 0 }}

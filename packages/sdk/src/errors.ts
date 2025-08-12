@@ -1,3 +1,5 @@
+import { QuoteError } from "@packages/shared";
+
 export interface APIErrorResponse {
   message: string;
   errors?: unknown[];
@@ -11,7 +13,7 @@ export class VortexSdkError extends Error {
   public readonly errors?: unknown[];
   public readonly originalError?: Error;
 
-  constructor(message: string, status: number = 500, isPublic: boolean = false, errors?: unknown[], originalError?: Error) {
+  constructor(message: string, status = 500, isPublic = false, errors?: unknown[], originalError?: Error) {
     super(message);
     this.name = "VortexSdkError";
     this.status = status;
@@ -22,7 +24,7 @@ export class VortexSdkError extends Error {
 }
 
 export class RegisterRampError extends VortexSdkError {
-  constructor(message: string, status: number = 400, originalError?: Error) {
+  constructor(message: string, status = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "RegisterRampError";
   }
@@ -37,7 +39,7 @@ export class MissingRequiredFieldsError extends RegisterRampError {
 
 export class QuoteNotFoundError extends RegisterRampError {
   constructor() {
-    super("Quote not found", 404);
+    super(QuoteError.QuoteNotFound, 404);
     this.name = "QuoteNotFoundError";
   }
 }
@@ -65,7 +67,7 @@ export class InvalidAdditionalDataError extends RegisterRampError {
 
 // BRL Onramp specific errors
 export class BrlOnrampError extends RegisterRampError {
-  constructor(message: string, status: number = 400) {
+  constructor(message: string, status = 400) {
     super(message, status);
     this.name = "BrlOnrampError";
   }
@@ -100,7 +102,7 @@ export class KycInvalidError extends BrlOnrampError {
 }
 
 export class BrlKycStatusError extends BrlOnrampError {
-  constructor(message: string, status: number = 400) {
+  constructor(message: string, status = 400) {
     super(message, status);
     this.name = "BrlKycStatusError";
   }
@@ -115,7 +117,7 @@ export class AmountExceedsLimitError extends BrlOnrampError {
 
 // BRL Offramp specific errors
 export class BrlOfframpError extends RegisterRampError {
-  constructor(message: string, status: number = 400) {
+  constructor(message: string, status = 400) {
     super(message, status);
     this.name = "BrlOfframpError";
   }
@@ -137,7 +139,7 @@ export class InvalidPixKeyError extends BrlOfframpError {
 
 // Monerium specific errors
 export class MoneriumError extends RegisterRampError {
-  constructor(message: string, status: number = 400) {
+  constructor(message: string, status = 400) {
     super(message, status);
     this.name = "MoneriumError";
   }
@@ -161,7 +163,7 @@ export class MissingMoneriumOfframpParametersError extends MoneriumError {
  * Update Ramp Error Types
  */
 export class UpdateRampError extends VortexSdkError {
-  constructor(message: string, status: number = 400, originalError?: Error) {
+  constructor(message: string, status = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "UpdateRampError";
   }
@@ -192,7 +194,7 @@ export class InvalidPresignedTxsError extends UpdateRampError {
  * Start Ramp Error Types
  */
 export class StartRampError extends VortexSdkError {
-  constructor(message: string, status: number = 400, originalError?: Error) {
+  constructor(message: string, status = 400, originalError?: Error) {
     super(message, status, true, undefined, originalError);
     this.name = "StartRampError";
   }
@@ -283,7 +285,7 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage.includes("Missing required fields")) {
         return new MissingRequiredFieldsError([]);
       }
-      if (errorMessage === "Quote not found") {
+      if (errorMessage === QuoteError.QuoteNotFound) {
         return new QuoteNotFoundError();
       }
       if (errorMessage === "Quote has expired") {

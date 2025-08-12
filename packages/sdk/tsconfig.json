@@ -9,20 +9,15 @@
     "lib": ["esnext", "dom"],
     "module": "ESNext",
     "moduleDetection": "force",
-
-    // Bundler mode
     "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
-
-    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "outDir": "./dist",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-
-    // Best practices
     "strict": true,
     "target": "ESNext"
   },
