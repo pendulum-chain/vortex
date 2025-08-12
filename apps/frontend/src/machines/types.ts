@@ -17,7 +17,6 @@ export interface RampContext {
   stuff?: string;
   authToken?: string;
   paymentData?: PaymentData;
-  siwe: UseSiweContext | undefined;
   address: string | undefined;
   chainId: number | undefined;
   rampDirection: RampDirection | undefined;

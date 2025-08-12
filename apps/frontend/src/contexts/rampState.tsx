@@ -4,6 +4,7 @@ import { rampMachine } from "../machines/ramp.machine";
 import {
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
+  RampMachineActor,
   RampMachineSnapshot,
   SelectedMoneriumData,
   SelectedStellarData,

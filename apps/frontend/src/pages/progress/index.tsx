@@ -11,7 +11,6 @@ import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
 import { GotQuestions } from "../../sections";
 import { RampService } from "../../services/api";
-import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
 import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";
 
@@ -407,7 +406,7 @@ export const ProgressPage = () => {
       try {
         const updatedRampProcess = await RampService.getRampStatus(rampId);
 
-        const currentRampState = useRampStore.getState().rampState;
+        const currentRampState = rampState;
         if (currentRampState) {
           const updatedRampState = {
             ...currentRampState,

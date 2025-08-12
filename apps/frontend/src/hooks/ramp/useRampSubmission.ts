@@ -12,7 +12,6 @@ import {
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
-import { useRampActions } from "../../stores/rampStore";
 import { RampExecutionInput } from "../../types/phases";
 import { useVortexAccount } from "../useVortexAccount";
 
@@ -28,14 +27,13 @@ const createEphemerals = () => ({
 });
 
 export const useRampSubmission = () => {
+  const rampActor = useRampActor();
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
   const { quote } = useQuoteStore();
   const { address, chainId } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
-  const { setRampInitiating, resetRampState } = useRampActions();
-  const rampActor = useRampActor();
   const preRampCheck = usePreRampCheck();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
@@ -105,9 +103,8 @@ export const useRampSubmission = () => {
         to_amount: quote?.outputAmount || "0",
         to_asset: onChainToken
       });
-      setRampInitiating(false);
     },
-    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating]
+    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount]
   );
 
   const onRampConfirm = useCallback(async () => {
@@ -129,9 +126,7 @@ export const useRampSubmission = () => {
   }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
 
   return {
-    finishOfframping: () => {
-      resetRampState();
-    },
+    finishOfframping: () => {},
     isExecutionPreparing: executionPreparing,
     onRampConfirm,
     validateSubmissionData

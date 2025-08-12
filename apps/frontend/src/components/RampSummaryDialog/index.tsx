@@ -8,7 +8,6 @@ import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampActions, useRampExecutionInput } from "../../stores/rampStore";
 import { Dialog } from "../Dialog";
 import { RampDirection } from "../RampToggle";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";

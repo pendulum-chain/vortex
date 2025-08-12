@@ -30,8 +30,7 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   rampSummaryVisible: false,
-  siwe: undefined,
-  stuff: undefined,
+  stuff: undefined, // TODO for BRLA
   substrateWalletAccount: undefined
 };
 
@@ -44,10 +43,12 @@ export type RampMachineEvents =
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
-  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase }
+  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput };
+  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
+  | { type: "RESET_RAMP" }
+  | { type: "FINISH_OFFRAMPING" };
 
 export const rampMachine = setup<RampContext, RampMachineEvents>({
   actors: {
@@ -99,21 +100,21 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       entry: assign(({ context }) => ({
         ...initialRampContext,
         address: context.address,
-        authToken: context.authToken,
-        siwe: context.siwe
+        authToken: context.authToken
       }))
     },
     Failure: {
-      always: {
-        target: "#ramp.Idle"
-      },
       // TODO We also need to display the "final" error message in the UI.
       entry: assign(({ context }) => ({
         ...initialRampContext,
         address: context.address,
-        authToken: context.authToken,
-        siwe: context.siwe
-      }))
+        authToken: context.authToken
+      })),
+      on: {
+        FINISH_OFFRAMPING: {
+          target: "#ramp.Idle"
+        }
+      }
     },
     Idle: {
       on: {
@@ -125,6 +126,13 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
             rampDirection: ({ event }: any) => event.input.rampDirection
           }),
           target: "RampRequested"
+        },
+        RESET_RAMP: {
+          actions: assign({
+            authToken: () => undefined,
+            paymentData: () => undefined,
+            rampState: () => undefined
+          })
         },
         SET_RAMP_EXECUTION_INPUT: {
           actions: assign({
@@ -155,7 +163,7 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
           // do nothing otherwise, as we wait for modal confirmation.
           target: "KYC"
         },
-        onError: "Failure",
+        onError: "Idle",
         src: "validateKyc"
       },
       on: {
@@ -173,7 +181,7 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
           }),
           target: "UpdateRamp"
         },
-        onError: "Failure",
+        onError: "Idle",
         src: "registerRamp"
       }
     },
@@ -184,7 +192,7 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
           target: "RampFollowUp"
         },
         onError: {
-          target: "Failure"
+          target: "Idle"
         },
         src: "startRamp"
       }
@@ -198,7 +206,7 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
             rampState: ({ event }) => event.output as RampState
           })
         },
-        onError: "Failure",
+        onError: "Idle",
         src: "signTransactions"
       },
       on: {

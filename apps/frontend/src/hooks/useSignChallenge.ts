@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
 import { storageKeys } from "../constants/localStorage";
+import { useRampActor } from "../contexts/rampState";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
-import { useRampActions } from "../stores/rampStore";
 import { useVortexAccount } from "./useVortexAccount";
 
 export interface SiweSignatureData {
@@ -24,7 +24,7 @@ function createSiweMessage(address: string, nonce: string) {
 
 export function useSiweSignature() {
   const { address, getMessageSignature } = useVortexAccount();
-  const { setRampSigningPhase } = useRampActions();
+  const rampActor = useRampActor();
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
@@ -52,10 +52,10 @@ export function useSiweSignature() {
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
+      rampActor.send({ phase: "login", type: "SIGNING_UPDATE" });
       setSignPromise({ reject, resolve });
-      setRampSigningPhase?.("login");
     });
-  }, [setRampSigningPhase, signPromise]);
+  }, [rampActor, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -92,11 +92,11 @@ export function useSiweSignature() {
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
+      rampActor.send({ phase: "finished", type: "SIGNING_UPDATE" });
       signPromise.resolve();
-      setRampSigningPhase?.("finished");
     } catch (error) {
+      rampActor.send({ phase: undefined, type: "SIGNING_UPDATE" });
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setRampSigningPhase?.(undefined);
 
       // First case Assethub, second case EVM
       if ((error as Error).message.includes("User rejected the request") || (error as Error).message.includes("Cancelled")) {
@@ -106,7 +106,7 @@ export function useSiweSignature() {
     } finally {
       setSignPromise(null);
     }
-  }, [address, storageKey, signPromise, getMessageSignature, setRampSigningPhase]);
+  }, [address, storageKey, signPromise, getMessageSignature, rampActor]);
 
   useEffect(() => {
     if (signPromise) handleSign();

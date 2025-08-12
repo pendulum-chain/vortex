@@ -1,14 +1,11 @@
 import { KycFailureReason } from "@packages/shared";
-import { useMachine } from "@xstate/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { storageKeys } from "../../../constants/localStorage";
 import { useRampActor } from "../../../contexts/rampState";
 import { useToastMessage } from "../../../helpers/notifications";
-import { brlaKycMachine } from "../../../machines/brlaKyc.machine";
 import { KycStatus } from "../../../services/signingService";
 import { useTaxId } from "../../../stores/ramp/useRampFormStore";
-import { useRampActions, useRampKycLevel2Started } from "../../../stores/rampStore";
 import { isValidCnpj } from "../../ramp/schema";
 import { useDebouncedValue } from "../../useDebouncedValue";
 import { KYCFormData } from "../useKYCForm";
@@ -118,33 +115,25 @@ export function useKYCProcess() {
 
   const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } =
     useVerificationStatusUI(isSubmittedDebounced);
-  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } =
-    useRampActions();
-  const offrampKycLevel2Started = useRampKycLevel2Started();
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
 
-  const handleBackClick = useCallback(() => {
-    setRampKycLevel2Started(false);
-    setRampKycStarted(false);
-    resetRampState();
-    localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
-    localStorage.removeItem(storageKeys.BRLA_KYC_PIX_KEY);
-  }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
+  // const handleBackClick = useCallback(() => {
+  // }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
 
-  const proceedWithRamp = useCallback(() => {
-    setRampKycStarted(false);
-    setRampKycLevel2Started(false);
-    setCanRegisterRamp(true);
-    setRampSummaryVisible(true);
-    localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
-    localStorage.removeItem(storageKeys.BRLA_KYC_PIX_KEY);
-  }, [setRampKycStarted, setRampKycLevel2Started, setCanRegisterRamp, setRampSummaryVisible]);
+  // const proceedWithRamp = useCallback(() => {
+  //   setRampKycStarted(false);
+  //   setRampKycLevel2Started(false);
+  //   setCanRegisterRamp(true);
+  //   setRampSummaryVisible(true);
+  //   localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
+  //   localStorage.removeItem(storageKeys.BRLA_KYC_PIX_KEY);
+  // }, [setRampKycStarted, setRampKycLevel2Started, setCanRegisterRamp, setRampSummaryVisible]);
 
-  const proceedWithKYCLevel2 = useCallback(() => {
-    setRampKycLevel2Started(true);
-    setRampKycStarted(false);
-  }, [setRampKycLevel2Started, setRampKycStarted]);
+  // const proceedWithKYCLevel2 = useCallback(() => {
+  //   setRampKycLevel2Started(true);
+  //   setRampKycStarted(false);
+  // }, [setRampKycLevel2Started, setRampKycStarted]);
 
   const handleFormSubmit = useCallback(
     (formData: KYCFormData) => {
