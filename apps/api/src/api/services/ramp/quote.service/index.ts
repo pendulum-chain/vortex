@@ -64,7 +64,8 @@ export class QuoteService extends BaseRampService {
       partner = await Partner.findOne({
         where: {
           isActive: true,
-          name: request.partnerId
+          name: request.partnerId,
+          rampType: request.rampType
         }
       });
 
@@ -85,7 +86,7 @@ export class QuoteService extends BaseRampService {
       request.rampType,
       request.from,
       request.to,
-      partner?.name || undefined
+      partner?.id || undefined
     );
 
     // c. Calculate inputAmountForNablaSwap
