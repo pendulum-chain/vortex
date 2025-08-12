@@ -117,6 +117,13 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       }
     },
     Idle: {
+      entry: [
+        assign({
+          authToken: () => undefined,
+          paymentData: () => undefined,
+          rampState: () => undefined
+        })
+      ],
       on: {
         // This is the main confirm button.
         Confirm: {
@@ -142,6 +149,12 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       }
     },
     KYC: kycStateNode as any,
+    KycFailure: {
+      // So far, we only go back to main component
+      always: {
+        target: "Idle"
+      }
+    },
     RampFollowUp: {
       on: {
         SET_RAMP_STATE: {

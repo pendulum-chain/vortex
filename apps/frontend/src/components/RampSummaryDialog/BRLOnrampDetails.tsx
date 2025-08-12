@@ -3,7 +3,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../contexts/rampState";
-import { useRampState } from "../../stores/rampStore";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { CopyButton } from "../CopyButton";
 

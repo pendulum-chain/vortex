@@ -9,15 +9,16 @@ import {
   isStellarOutputTokenDetails,
   OnChainTokenDetails
 } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useAssetHubNode } from "../../contexts/polkadotNode";
+import { useRampActor } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
-import { useRampState } from "../../stores/rampStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { RampExecutionInput } from "../../types/phases";
 import { RampDirection } from "../RampToggle";
@@ -37,7 +38,7 @@ interface TransactionTokensDisplayProps {
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ executionInput, isOnramp, rampDirection }) => {
   const { t } = useTranslation();
-  const rampState = useRampState();
+  const rampActor = useRampActor();
 
   const { selectedNetwork } = useNetwork();
   const { apiComponents } = useAssetHubNode();
@@ -49,6 +50,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
+
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
 
   useEffect(() => {
     let targetTimestamp: number | null = null;

@@ -104,11 +104,11 @@ export const kycStateNode = {
             actions: assign({
               error: ({ event }: { event: any }) => event.output.error
             }),
-            target: "#ramp.Failure"
+            target: "#ramp.KycFailure"
           }
         ],
         onError: {
-          target: "#ramp.Failure"
+          target: "#ramp.KycFailure"
         },
         src: "moneriumKyc"
       }
@@ -135,11 +135,11 @@ export const kycStateNode = {
             actions: assign({
               error: ({ event }: { event: any }) => event.output.error
             }),
-            target: "#ramp.Failure"
+            target: "#ramp.KycFailure"
           }
         ],
         onError: {
-          target: "#ramp.Failure"
+          target: "#ramp.KycFailure"
         },
         src: "stellarKyc"
       }
