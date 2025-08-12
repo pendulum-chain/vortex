@@ -1,3 +1,5 @@
+import { getEnvVar } from "../helpers/environment";
+
 // 6 hours in milliseconds
 const COOLDOWN_PERIOD_MS = 6 * 60 * 60 * 1000;
 
@@ -16,11 +18,11 @@ export class SlackNotifier {
   private readonly messageHistory: Map<string, number>;
 
   constructor(token?: string) {
-    const defaultToken = process.env.SLACK_WEB_HOOK_TOKEN;
+    const defaultToken = getEnvVar("SLACK_WEB_HOOK_TOKEN");
     if (!token && !defaultToken) {
       throw new Error("No slack token provided.");
     }
-    this.webhookUrl = `https://hooks.slack.com/services/${token}`;
+    this.webhookUrl = `https://hooks.slack.com/services/${token || defaultToken}`;
     this.messageHistory = new Map();
   }
 
@@ -34,7 +36,7 @@ export class SlackNotifier {
   }
 
   public async sendMessage(message: SlackMessage): Promise<void> {
-    const slackUserId = process.env.SLACK_USER_ID;
+    const slackUserId = getEnvVar("SLACK_USER_ID");
 
     const messageWithUserTag = {
       ...message,
