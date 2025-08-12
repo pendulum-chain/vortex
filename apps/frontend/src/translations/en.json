@@ -149,10 +149,10 @@
       },
       "RampSummaryDialog": {
         "BRLOnrampDetails": {
-          "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
-          "description": "Continue in your bank's app",
+          "copyCode": "or copy the PIX code below and paste it in your bank app",
           "pixCode": "Pix code",
           "qrCode": "Select Pix in your bank's app and scan the QR code below.",
+          "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
           "timerLabel": "Quote expires in:",
           "title": "Pay with Pix"
         },

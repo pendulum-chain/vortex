@@ -2,10 +2,10 @@ import {
   AlchemyPayPriceResponse,
   AllPricesResponse,
   Currency,
-  Direction,
   MoonpayPriceResponse,
   Networks,
   PriceProvider,
+  RampDirection,
   TransakPriceResponse
 } from "@packages/shared";
 import { RequestHandler } from "express";
@@ -29,7 +29,7 @@ type PriceHandler = (
   sourceCurrency: Currency,
   targetCurrency: Currency,
   amount: string,
-  direction: Direction,
+  direction: RampDirection,
   network?: Networks
 ) => Promise<AnyPrice>;
 
@@ -47,7 +47,7 @@ const getPriceFromProvider = async (
   sourceCurrency: Currency,
   targetCurrency: Currency,
   amount: string,
-  direction: Direction,
+  direction: RampDirection,
   network?: Networks
 ) => providerHandlers[provider](sourceCurrency, targetCurrency, amount, direction, network);
 
