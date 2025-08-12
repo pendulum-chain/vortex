@@ -94,7 +94,7 @@ function validateTransakResponse(
     response: { cryptoAmount, fiatAmount, totalFee }
   } = body;
 
-  const isBuy = direction === "onramp";
+  const isBuy = direction === RampDirection.BUY;
 
   return {
     direction,
