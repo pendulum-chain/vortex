@@ -37,20 +37,20 @@ export const RampSummaryDialog: FC = () => {
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
   const partnerId = usePartnerId();
-  const { setDialogRef, scrollToBottom } = useRampSummaryActions();
+  const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
   const rampState = useRampState();
   const signingPhase = useRampSigningPhase();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
-  const dialogContentRef = useRef<HTMLDivElement>(null);
+  const dialogScrollRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    setDialogRef(dialogContentRef);
+    setDialogScrollRef(dialogScrollRef);
     return () => {
-      setDialogRef(null);
+      setDialogScrollRef(null);
     };
-  }, [setDialogRef]);
+  }, [setDialogScrollRef]);
 
   useEffect(() => {
     if (visible && isOnramp && executionInput?.fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode) {
@@ -141,7 +141,7 @@ export const RampSummaryDialog: FC = () => {
     <Dialog
       actions={actions}
       content={content}
-      contentRef={dialogContentRef}
+      dialogScrollRef={dialogScrollRef}
       headerText={headerText}
       onClose={onClose}
       visible={visible}
