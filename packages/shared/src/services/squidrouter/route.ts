@@ -108,16 +108,24 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 
     const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
 
-    // FIXME remove this check once squidrouter works as expected again.
-    // Check if slippage of received route is reasonable.
-    const route = result.data as SquidrouterRoute;
-    const slippage = route.estimate.aggregateSlippage;
-    if (slippage > 1) {
-      logger.current.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
-      throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+    // Validate response structure
+    if (!result.data || !result.data.route) {
+      logger.current.error(`Invalid API response structure. Request ID: ${requestId}`);
+      throw new Error("Invalid response from Squid Router API");
     }
 
-    return { data: result.data, requestId };
+    // FIXME remove this check once squidrouter works as expected again.
+    // Check if slippage of received route is reasonable.
+    const route = result.data.route;
+    if (route.estimate?.aggregateSlippage !== undefined) {
+      const slippage = route.estimate.aggregateSlippage;
+      if (slippage > 1) {
+        logger.current.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+        throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+      }
+    }
+
+    return { data: { route }, requestId };
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
       logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
