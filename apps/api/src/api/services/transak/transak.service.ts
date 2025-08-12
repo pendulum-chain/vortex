@@ -1,4 +1,4 @@
-import { Direction, Networks, TransakPriceResponse } from "@packages/shared";
+import { Networks, RampDirection, TransakPriceResponse } from "@packages/shared";
 import { config } from "../../../config/vars";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
@@ -45,7 +45,7 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: Networks,
-  direction: Direction
+  direction: RampDirection
 ): Promise<TransakPriceResponse> {
   const { baseUrl, partnerApiKey } = priceProviders.transak;
 
@@ -75,7 +75,7 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string | number,
-  direction: Direction,
+  direction: RampDirection,
   network?: Networks
 ): Promise<TransakPriceResponse> => {
   const DEFAULT_NETWORK = "polygon";
@@ -83,8 +83,8 @@ export const getPriceFor = (
 
   // For offramp: source is crypto, target is fiat
   // For onramp: source is fiat, target is crypto
-  const cryptoCurrency = direction === "onramp" ? targetCurrency : sourceCurrency;
-  const fiatCurrency = direction === "onramp" ? sourceCurrency : targetCurrency;
+  const cryptoCurrency = direction === RampDirection.BUY ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === RampDirection.BUY ? sourceCurrency : targetCurrency;
 
   return priceQuery(
     getCryptoCode(cryptoCurrency),

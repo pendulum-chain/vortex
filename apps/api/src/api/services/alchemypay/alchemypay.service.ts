@@ -1,4 +1,4 @@
-import { AlchemyPayPriceResponse, Direction } from "@packages/shared";
+import { AlchemyPayPriceResponse, RampDirection } from "@packages/shared";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
 import { AlchemyPayResponse, processAlchemyPayResponse } from "./response-handler";
@@ -32,7 +32,7 @@ async function fetchAlchemyPayData(url: string, request: RequestInit): Promise<F
  * @param fiatCurrencyCode The fiat currency code
  * @param amount The amount to convert
  * @param network The blockchain network
- * @param direction The direction of the conversion (onramp or offramp)
+ * @param direction The direction of the conversion
  * @returns Standardized price response
  */
 async function priceQuery(
@@ -40,7 +40,7 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: string,
-  direction: Direction
+  direction: RampDirection
 ): Promise<AlchemyPayPriceResponse> {
   const { requestUrl, request } = createQuoteRequest(direction, cryptoCurrencyCode, fiatCurrencyCode, amount, network);
 
@@ -62,7 +62,7 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string | number,
-  direction: Direction,
+  direction: RampDirection,
   network?: string
 ): Promise<AlchemyPayPriceResponse> => {
   const DEFAULT_NETWORK = "POLYGON";
@@ -70,8 +70,8 @@ export const getPriceFor = (
 
   // For offramp: source is crypto, target is fiat
   // For onramp: source is fiat, target is crypto
-  const cryptoCurrency = direction === "onramp" ? targetCurrency : sourceCurrency;
-  const fiatCurrency = direction === "onramp" ? sourceCurrency : targetCurrency;
+  const cryptoCurrency = direction === RampDirection.BUY ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === RampDirection.BUY ? sourceCurrency : targetCurrency;
 
   return priceQuery(
     getCryptoCurrencyCode(cryptoCurrency),
