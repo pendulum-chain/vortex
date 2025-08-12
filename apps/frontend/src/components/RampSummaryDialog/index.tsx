@@ -1,5 +1,5 @@
 import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
-import { RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import Big from "big.js";
 import { FC, useEffect, useRef } from "react";
@@ -10,7 +10,14 @@ import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useRampActions, useRampExecutionInput, useRampRegistrationError, useRampSummaryVisible } from "../../stores/rampStore";
+import {
+  useRampActions,
+  useRampExecutionInput,
+  useRampRegistrationError,
+  useRampSigningPhase,
+  useRampState,
+  useRampSummaryVisible
+} from "../../stores/rampStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -31,6 +38,8 @@ export const RampSummaryDialog: FC = () => {
   const { quote, fetchQuote } = useQuoteStore();
   const partnerId = usePartnerId();
   const { setDialogRef, scrollToBottom } = useRampSummaryActions();
+  const rampState = useRampState();
+  const signingPhase = useRampSigningPhase();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
@@ -43,18 +52,25 @@ export const RampSummaryDialog: FC = () => {
     };
   }, [setDialogRef]);
 
-  const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
   useEffect(() => {
-    if (visible) {
+    if (visible && isOnramp && executionInput?.fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode) {
       scrollToBottom();
     }
-  }, [visible, scrollToBottom]);
+  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.depositQrCode, scrollToBottom]);
 
   useEffect(() => {
-    if (visible && signingBoxVisible) {
+    if (
+      visible &&
+      isOnramp &&
+      executionInput?.fiatToken === FiatToken.EURC &&
+      rampState?.ramp?.ibanPaymentData &&
+      signingPhase === "finished"
+    ) {
       scrollToBottom();
     }
-  }, [signingBoxVisible, scrollToBottom, visible]);
+  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.ibanPaymentData, signingPhase, scrollToBottom]);
+
+  const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -65,7 +81,7 @@ export const RampSummaryDialog: FC = () => {
       fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),
       onChainToken,
-      partnerId: partnerId === null ? undefined : partnerId, // Handle null case,
+      partnerId: partnerId === null ? undefined : partnerId,
       rampType,
       selectedNetwork
     });

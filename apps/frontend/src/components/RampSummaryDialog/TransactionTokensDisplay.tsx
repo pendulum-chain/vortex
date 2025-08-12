@@ -48,7 +48,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     seconds: 0
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
-  const { setIsQuoteExpired, scrollToBottom } = useRampSummaryActions();
+  const { setIsQuoteExpired } = useRampSummaryActions();
 
   useEffect(() => {
     let targetTimestamp: number | null = null;
@@ -93,24 +93,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
     return () => clearInterval(intervalId);
   }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, setIsQuoteExpired]);
-
-  // Scroll to bottom when BRL or EUR onramp details appear
-  useEffect(() => {
-    const shouldShowBRLDetails =
-      rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode;
-    const shouldShowEURDetails =
-      rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.EURC && rampState?.ramp?.ibanPaymentData;
-
-    if (shouldShowBRLDetails || shouldShowEURDetails) {
-      scrollToBottom();
-    }
-  }, [
-    rampDirection,
-    executionInput.fiatToken,
-    rampState?.ramp?.depositQrCode,
-    rampState?.ramp?.ibanPaymentData,
-    scrollToBottom
-  ]);
 
   const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
 

@@ -108,7 +108,6 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 
     const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
 
-    // Validate response structure
     if (!result.data || !result.data.route) {
       logger.current.error(`Invalid API response structure. Request ID: ${requestId}`);
       throw new Error("Invalid response from Squid Router API");
