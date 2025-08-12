@@ -30,7 +30,7 @@ export const RampSummaryDialog: FC = () => {
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
   const partnerId = usePartnerId();
-  const { setDialogRef } = useRampSummaryActions();
+  const { setDialogRef, scrollToBottom } = useRampSummaryActions();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
@@ -44,6 +44,17 @@ export const RampSummaryDialog: FC = () => {
   }, [setDialogRef]);
 
   const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
+  useEffect(() => {
+    if (visible) {
+      scrollToBottom();
+    }
+  }, [visible, scrollToBottom]);
+
+  useEffect(() => {
+    if (visible && signingBoxVisible) {
+      scrollToBottom();
+    }
+  }, [signingBoxVisible, scrollToBottom, visible]);
 
   if (!visible) return null;
   if (!executionInput) return null;
