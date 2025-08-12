@@ -1,4 +1,4 @@
-import { EvmToken, EvmTransactionData, FiatToken, Networks } from "@packages/shared";
+import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "@packages/shared";
 import * as readline from "readline";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
@@ -42,7 +42,7 @@ async function runBrlOfframpExample() {
       inputAmount: "1",
       inputCurrency: EvmToken.USDC,
       outputCurrency: FiatToken.BRL,
-      rampType: "off" as const,
+      rampType: RampDirection.SELL,
       to: "pix" as const
     };
 
