@@ -1,23 +1,23 @@
 import {
+  ApiManager,
   AXL_USDC_MOONBEAM,
   decodeSubmittableExtrinsic,
   FiatToken,
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
+  getEvmTokenBalance,
   MOONBEAM_XCM_FEE_GLMR,
   Networks,
   nativeToDecimal,
   PENDULUM_USDC_AXL,
-  RampPhase
+  RampDirection,
+  RampPhase,
+  submitXTokens
 } from "@packages/shared";
 import Big from "big.js";
-import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
-import { getEvmTokenBalance } from "../../moonbeam/balance";
-import { ApiManager } from "../../pendulum/apiManager";
-import { submitXTokens } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
@@ -44,7 +44,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const didTokensLeavePendulum = async () => {
       // Token is always either axlUSDC or BRL.
       const currencyId =
-        state.type === "off"
+        state.type === RampDirection.SELL
           ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).pendulumRepresentative.currencyId
           : PENDULUM_USDC_AXL.currencyId;
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(pendulumEphemeralAddress, currencyId);
@@ -57,9 +57,13 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const didTokensArriveOnMoonbeam = async () => {
       // Token is always either axlUSDC or BRL.
       const tokenAddress =
-        state.type === "off" ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address : AXL_USDC_MOONBEAM;
+        state.type === RampDirection.SELL
+          ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address
+          : AXL_USDC_MOONBEAM;
       const ownerAddress =
-        state.type === "off" && state.state.outputTokenType === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
+        state.type === RampDirection.SELL && state.state.outputTokenType === FiatToken.BRL
+          ? brlaEvmAddress
+          : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
         chain: Networks.Moonbeam,
@@ -117,7 +121,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState): RampPhase {
-    if (state.type === "off") {
+    if (state.type === RampDirection.SELL) {
       return "brlaPayoutOnMoonbeam";
     } else {
       return "squidRouterSwap";

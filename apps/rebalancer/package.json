@@ -1,0 +1,34 @@
+{
+  "dependencies": {
+    "@packages/shared": "workspace:*",
+    "@pendulum-chain/api-solang": "catalog:",
+    "@polkadot/api": "catalog:",
+    "@polkadot/api-contract": "catalog:",
+    "@types/big.js": "catalog:",
+    "big.js": "catalog:",
+    "graphql": "~16.9.0",
+    "graphql-request": "~6.1.0",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.2",
+    "@graphql-codegen/client-preset": "^4.2.6",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "module": "index.ts",
+  "name": "vortex-rebalancer",
+  "peerDependencies": {},
+  "private": true,
+  "scripts": {
+    "build": "bun run swc src -d dist --strip-leading-paths",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "dev": "bun run src/index.ts",
+    "format": "biome check --write --unsafe --no-errors-on-unmatched",
+    "prepare": "husky",
+    "serve": "bun dist/index.js",
+    "start": "bun run build && bun run serve",
+    "test": "bun test"
+  },
+  "type": "module"
+}

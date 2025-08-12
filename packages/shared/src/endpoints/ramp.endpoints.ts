@@ -1,4 +1,4 @@
-import { DestinationType, EvmAddress, Networks } from "../index";
+import { DestinationType, EvmAddress, Networks, RampDirection } from "../index";
 
 export type RampPhase =
   | "initial"
@@ -124,7 +124,7 @@ export type StartRampResponse = RampProcess;
 export interface RampProcess {
   id: string;
   quoteId: string;
-  type: "on" | "off";
+  type: RampDirection;
   currentPhase: RampPhase;
   from: DestinationType;
   to: DestinationType;
@@ -154,7 +154,7 @@ export interface GetRampHistoryRequest {
 export type GetRampHistoryResponse = {
   transactions: {
     id: string;
-    type: "on" | "off";
+    type: RampDirection;
     fromNetwork: string;
     toNetwork: string;
     fromAmount: string;

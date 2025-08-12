@@ -23,7 +23,6 @@ export const EUROnrampDetails: FC = () => {
     <section>
       <hr className="my-5" />
       <h1 className="text-center font-bold text-lg">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.title")}</h1>
-      <p className="pt-2 text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.description")}</p>
       <div className="my-4 rounded-lg border-1 border-gray-300 p-3">
         <div className="flex items-center justify-between">
           <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.amount")}</span>
@@ -57,6 +56,7 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       )}
+      <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.hint")}</p>
       <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.footer")}</p>
     </section>
   );

@@ -1,7 +1,6 @@
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
-
-import { RampDirection } from "../../../components/RampToggle";
 import { useNetwork } from "../../../contexts/network";
 import { usePartnerId } from "../../../stores/partnerStore";
 import { useQuote, useQuoteStore } from "../../../stores/ramp/useQuoteStore";
@@ -21,14 +20,13 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
   const { selectedNetwork } = useNetwork();
-  const rampDirection = useRampDirection();
+  const rampType = useRampDirection();
   const partnerId = usePartnerId();
   const { fetchQuote } = useQuoteStore();
   const rampSummaryVisible = useRampSummaryVisible();
 
   const hasValidQuote = Boolean(quote && inputAmount && onChainToken && fiatToken);
   const shouldRefresh = hasValidQuote && !rampSummaryVisible;
-  const rampType = rampDirection === RampDirection.ONRAMP ? "on" : "off";
 
   const performRefresh = useCallback(async () => {
     if (!hasValidQuote || !inputAmount) return;

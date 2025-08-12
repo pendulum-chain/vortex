@@ -1,7 +1,6 @@
-import { StellarTokenDetails } from "@packages/shared";
+import { ApiManager, StellarTokenDetails } from "@packages/shared";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { ApiManager } from "../../pendulum/apiManager";
 import { createVaultService } from "../../stellar/vaultService";
 
 interface SpacewalkRedeemParams {

@@ -1,8 +1,7 @@
-import { BundledPriceResult } from "@packages/shared";
+import { BundledPriceResult, FiatToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { RampDirection } from "../../../components/RampToggle";
 import { Skeleton } from "../../../components/Skeleton";
 import { RampParameters, useEventsContext } from "../../../contexts/events";
 import { cn } from "../../../helpers/cn";
@@ -35,7 +34,7 @@ export function FeeProviderRow({
 }: FeeProviderRowProps) {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
-  const isBRLOnramp = rampDirection === RampDirection.ONRAMP && sourceAssetSymbol === "BRL";
+  const isBRLOnramp = rampDirection === RampDirection.BUY && sourceAssetSymbol === FiatToken.BRL;
 
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)

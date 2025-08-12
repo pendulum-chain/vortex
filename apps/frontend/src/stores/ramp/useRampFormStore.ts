@@ -1,7 +1,14 @@
-import { AssetHubToken, EvmToken, FiatToken, getOnChainTokenDetails, Networks, OnChainToken } from "@packages/shared";
+import {
+  AssetHubToken,
+  EvmToken,
+  FiatToken,
+  getOnChainTokenDetails,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { RampDirection } from "../../components/RampToggle";
 import { getRampDirectionFromPath } from "../../helpers/path";
 import { getLanguageFromPath, Language } from "../../translations/helpers";
 import { useRampDirection } from "../rampDirectionStore";
@@ -27,7 +34,7 @@ const defaultFiatAmount =
 const storedNetwork = localStorage.getItem("SELECTED_NETWORK");
 
 const defaultOnChainToken =
-  getRampDirectionFromPath() === RampDirection.ONRAMP
+  getRampDirectionFromPath() === RampDirection.BUY
     ? storedNetwork === Networks.AssetHub
       ? AssetHubToken.USDC
       : EvmToken.USDT

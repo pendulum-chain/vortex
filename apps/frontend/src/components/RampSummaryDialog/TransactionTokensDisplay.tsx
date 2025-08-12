@@ -7,7 +7,8 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-  OnChainTokenDetails
+  OnChainTokenDetails,
+  RampDirection
 } from "@packages/shared";
 import Big from "big.js";
 import { FC, useEffect, useState } from "react";
@@ -20,7 +21,6 @@ import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useRampState } from "../../stores/rampStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { RampExecutionInput } from "../../types/phases";
-import { RampDirection } from "../RampToggle";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
@@ -152,8 +152,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
       />
-      {rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
-      {rampDirection === RampDirection.ONRAMP && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {targetTimestamp !== null && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

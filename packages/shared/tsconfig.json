@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "declaration": true,
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "Node",
+    "noEmit": true,
     "paths": {
-      "@packages/shared/*": ["src/*"]
+      "@packages/*": ["../../packages/*/src"]
     },
+    "resolveJsonModule": true,
     "rootDir": "src",
     "skipLibCheck": true,
     "strict": true,

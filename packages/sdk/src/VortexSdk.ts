@@ -6,7 +6,7 @@ import type {
   RampProcess,
   UnsignedTx
 } from "@packages/shared";
-import { Networks, signUnsignedTransactions } from "@packages/shared";
+import { Networks, RampDirection, signUnsignedTransactions } from "@packages/shared";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
 import { EphemeralGenerationError, TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
@@ -82,7 +82,7 @@ export class VortexSdk {
     let rampProcess: RampProcess;
     let unsignedTransactions: UnsignedTx[] = [];
 
-    if (quote.rampType === "on") {
+    if (quote.rampType === RampDirection.BUY) {
       if (quote.from === "pix") {
         rampProcess = await this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
         unsignedTransactions = [];
@@ -91,7 +91,7 @@ export class VortexSdk {
       } else {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
-    } else if (quote.rampType === "off") {
+    } else if (quote.rampType === RampDirection.SELL) {
       if (quote.to === "pix") {
         rampProcess = await this.brlHandler.registerBrlOfframp(quote.id, additionalData as BrlOfframpAdditionalData);
         const userAddress = (additionalData as BrlOfframpAdditionalData).walletAddress;
@@ -113,13 +113,13 @@ export class VortexSdk {
     rampId: string,
     additionalUpdateData: UpdateRampAdditionalData<Q>
   ): Promise<RampProcess> {
-    if (quote.rampType === "on") {
+    if (quote.rampType === RampDirection.BUY) {
       if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
       }
-    } else if (quote.rampType === "off") {
+    } else if (quote.rampType === RampDirection.SELL) {
       if (quote.to === "pix") {
         return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
