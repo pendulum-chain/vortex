@@ -65,12 +65,14 @@ async function runBrlOfframpExample() {
 
     console.log(`✅ BRL Offramp registered successfully:`);
     console.log(`   Ramp ID: ${rampProcess.id}`);
+
+    // The unsignedTransactions object will always return the transactions the user must sign and broadcast, please check the docs for more information https://api-docs.vortexfinance.co/vortex-sdk-1289458m0.
     console.log(
       `   Unsigned transactions: ${unsignedTransactions.forEach(tx => console.log(`     - ${tx.phase} -to: ${(tx.txData as EvmTransactionData).to} (${(tx.txData as EvmTransactionData).data})`))}\n`
     );
 
     console.log(
-      "\n🛑 Complete the token payment on-chain now with the transactions above, and provide the resulting transaction hashes below."
+      "\n🛑 Complete the token payment on-chain now. Execute the transactions shown above (squidRouterApprove and squidRouterSwap), and save the corresponding transaction hashes."
     );
 
     const squidRouterApproveHash = await askQuestion("➡️  Enter the Squid Router Approve Hash: ");
