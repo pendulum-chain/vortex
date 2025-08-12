@@ -30,7 +30,7 @@ export const PIXKYCForm = () => {
     resetToDefault
   } = useKYCProcess();
 
-  const rampKycLevel2Started = useRampKycLevel2Started();
+  const rampKycLevel2Started = useRampKycLevel2Started(); // XSTATE TODO: Refactor after BRLA's new API is defined.
   const { kycForm } = useKYCForm({ cpfApiError });
   const { clearStorage } = useKYCFormLocalStorage(kycForm);
 

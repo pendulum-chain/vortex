@@ -15,7 +15,6 @@ import {
 const restoredState = localStorage.getItem("moneriumKycState")
   ? JSON.parse(localStorage.getItem("moneriumKycState")!)
   : undefined;
-console.log("Restored state:", restoredState);
 export const RampStateContext = createActorContext(rampMachine, { snapshot: restoredState });
 
 export const RampStateProvider = RampStateContext.Provider;

@@ -124,7 +124,7 @@ export const kycStateNode = {
               console.log("Stellar KYC completed with response:", event.output);
               return {
                 ...context,
-                kycResponse: event.output.paymentData
+                paymentData: event.output.paymentData
               };
             }),
             guard: ({ event }: { event: any }) => !!event.output.paymentData,

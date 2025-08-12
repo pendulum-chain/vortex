@@ -11,6 +11,18 @@ import { moonbeamApiService, pendulumApiService, RampService } from "../../servi
 import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
+export enum RegisterRampErrorType {
+  InvalidInput = "INVALID_INPUT"
+}
+
+export class RegisterRampError extends Error {
+  type: RegisterRampErrorType;
+  constructor(message: string, type: RegisterRampErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
+
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
   const { executionInput, chainId, address, authToken, paymentData } = input;
 
@@ -18,12 +30,12 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput) {
-    throw new Error("Execution input is required to register ramp.");
+    throw new RegisterRampError("Execution input is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
   const pendulumApiComponents = await pendulumApiService.getApi();
   const moonbeamApiComponents = await moonbeamApiService.getApi();
   if (!chainId) {
-    throw new Error("Chain ID is required to register ramp.");
+    throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
   const quoteId = executionInput.quote.id;

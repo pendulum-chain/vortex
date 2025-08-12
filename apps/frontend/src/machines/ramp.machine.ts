@@ -2,22 +2,24 @@ import { RampProcess } from "@packages/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { UseSiweContext } from "../contexts/siwe";
+import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
-import { signTransactionsActor } from "./actors/sign.actor";
+import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
 import { brlaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
+import { DisplayUserRejectError, GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
   chainId: undefined,
+  displayUserRejectError: undefined,
   executionInput: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
@@ -29,8 +31,9 @@ const initialRampContext: RampContext = {
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  rampSummaryVisible: false,
-  stuff: undefined, // TODO for BRLA
+  rampSummaryVisible: false, // TODO for BRLA
+  siwe: undefined,
+  stuff: undefined,
   substrateWalletAccount: undefined
 };
 
@@ -48,9 +51,23 @@ export type RampMachineEvents =
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
   | { type: "RESET_RAMP" }
-  | { type: "FINISH_OFFRAMPING" };
+  | { type: "FINISH_OFFRAMPING" }
+  | { type: "SET_DISPLAY_USER_REJECT_ERROR"; implementation: DisplayUserRejectError };
 
 export const rampMachine = setup<RampContext, RampMachineEvents>({
+  actions: {
+    actions: {
+      displaySignRejectError: () => Promise<void>
+    },
+    resetRamp: assign(({ context }) => ({
+      ...initialRampContext,
+      address: context.address,
+      authToken: context.authToken
+    })),
+    setFailedMessage: assign({
+      initializeFailedMessage: () => "Ramp failed, please retry"
+    })
+  },
   actors: {
     brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
     moneriumKyc: moneriumKycMachine,
@@ -76,6 +93,11 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
     SET_ADDRESS: {
       actions: assign({
         address: ({ event }: any) => event.address
+      })
+    },
+    SET_DISPLAY_USER_REJECT_ERROR: {
+      actions: assign({
+        displayUserRejectError: ({ event }: any) => event.displayUserRejectError
       })
     },
     SET_GET_MESSAGE_SIGNATURE: {
@@ -117,29 +139,22 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
       }
     },
     Idle: {
-      entry: [
-        assign({
-          authToken: () => undefined,
-          paymentData: () => undefined,
-          rampState: () => undefined
-        })
-      ],
       on: {
         // This is the main confirm button.
         Confirm: {
           actions: assign({
-            chainId: ({ event }: any) => event.input.chainId,
-            executionInput: ({ event }: any) => event.input.executionInput,
-            rampDirection: ({ event }: any) => event.input.rampDirection
+            chainId: ({ event }) => event.input.chainId,
+            executionInput: ({ event }) => event.input.executionInput,
+            rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
         },
         RESET_RAMP: {
-          actions: assign({
-            authToken: () => undefined,
-            paymentData: () => undefined,
-            rampState: () => undefined
-          })
+          actions: assign(({ context }) => ({
+            ...initialRampContext,
+            address: context.address,
+            authToken: context.authToken
+          })) // WHY can't I assign it like the others?
         },
         SET_RAMP_EXECUTION_INPUT: {
           actions: assign({
@@ -194,7 +209,10 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
           }),
           target: "UpdateRamp"
         },
-        onError: "Idle",
+        onError: {
+          actions: [{ type: "setFailedMessage" }, { type: "resetRamp" }],
+          target: "Idle"
+        },
         src: "registerRamp"
       }
     },
@@ -205,6 +223,7 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
           target: "RampFollowUp"
         },
         onError: {
+          actions: [{ type: "setFailedMessage" }, { type: "resetRamp" }],
           target: "Idle"
         },
         src: "startRamp"
@@ -219,7 +238,25 @@ export const rampMachine = setup<RampContext, RampMachineEvents>({
             rampState: ({ event }) => event.output as RampState
           })
         },
-        onError: "Idle",
+        onError: [
+          {
+            actions: [
+              ({ event }) => {
+                console.log("User rejected signing:", event.error);
+              },
+              ({ context }) => {
+                context.displayUserRejectError?.(ToastMessage.SIGNING_REJECTED);
+              },
+              { type: "resetRamp" }
+            ],
+            guard: ({ event }) => event.error instanceof SignRampError && event.error.type === SignRampErrorType.UserRejected,
+            target: "Idle"
+          },
+          {
+            actions: [{ type: "resetRamp" }],
+            target: "Idle"
+          }
+        ],
         src: "signTransactions"
       },
       on: {

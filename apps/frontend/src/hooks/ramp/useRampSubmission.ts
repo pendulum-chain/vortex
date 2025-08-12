@@ -117,6 +117,7 @@ export const useRampSubmission = () => {
       if (!chainId) {
         throw new Error("ChainId must be defined at this stage");
       }
+      console.log({ input: { chainId, executionInput, rampDirection } });
       rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "Confirm" });
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
@@ -126,7 +127,9 @@ export const useRampSubmission = () => {
   }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
 
   return {
-    finishOfframping: () => {},
+    finishOfframping: () => {
+      rampActor.send({ type: "FINISH_OFFRAMPING" });
+    },
     isExecutionPreparing: executionPreparing,
     onRampConfirm,
     validateSubmissionData

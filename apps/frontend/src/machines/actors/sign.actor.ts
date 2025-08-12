@@ -1,11 +1,22 @@
 import { getAddressForFormat, getOnChainTokenDetails, RampProcess } from "@packages/shared";
-import { ActorRefFrom } from "xstate";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
-import { rampMachine } from "../ramp.machine";
 import { RampContext, RampMachineActor, RampState } from "../types";
+
+export enum SignRampErrorType {
+  InvalidInput = "INVALID_INPUT",
+  UserRejected = "USER_REJECTED",
+  UnknownError = "UNKNOWN_ERROR"
+}
+export class SignRampError extends Error {
+  type: SignRampErrorType;
+  constructor(message: string, type: SignRampErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
 
 export const signTransactionsActor = async ({
   input
@@ -15,7 +26,7 @@ export const signTransactionsActor = async ({
   const { rampState, address, chainId, authToken, executionInput, substrateWalletAccount, getMessageSignature } = input.context;
 
   if (!rampState || !address || chainId === undefined) {
-    throw new Error("Missing required context for signing");
+    throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
@@ -48,43 +59,54 @@ export const signTransactionsActor = async ({
   }
 
   if (!sortedTxs) {
-    throw new Error("Missing sorted transactions");
+    throw new SignRampError("Missing sorted transactions", SignRampErrorType.UnknownError);
   }
 
   const isNativeTokenTransfer = Boolean(
     executionInput?.onChainToken && getOnChainTokenDetails(executionInput.network, executionInput.onChainToken)?.isNative
   );
 
-  for (const tx of sortedTxs) {
-    if (tx.phase === "squidRouterApprove") {
-      if (isNativeTokenTransfer) {
+  try {
+    for (const tx of sortedTxs) {
+      if (tx.phase === "squidRouterApprove") {
+        if (isNativeTokenTransfer) {
+          input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+          continue;
+        }
+        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "squidRouterSwap") {
+        squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "assethubToPendulum") {
+        if (!substrateWalletAccount) {
+          throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
+        }
+        const assethubApiComponents = await polkadotApiService.getApi(PolkadotNodeName.AssetHub);
+        if (!assethubApiComponents?.api) {
+          throw new Error("Missing assethubApiComponents. Assethub API is not available.");
+        }
+        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "moneriumOnrampSelfTransfer") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
-        continue;
+        moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else {
+        throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
       }
-      input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-      squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
-      input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
-    } else if (tx.phase === "squidRouterSwap") {
-      squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
-      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
-    } else if (tx.phase === "assethubToPendulum") {
-      if (!substrateWalletAccount) {
-        throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
-      }
-      const assethubApiComponents = await polkadotApiService.getApi(PolkadotNodeName.AssetHub);
-      if (!assethubApiComponents?.api) {
-        throw new Error("Missing assethubApiComponents. Assethub API is not available.");
-      }
-      input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-      assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
-      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
-    } else if (tx.phase === "moneriumOnrampSelfTransfer") {
-      input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
-      moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
-      input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
-    } else {
-      throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
     }
+  } catch (error) {
+    // We try to catch an error caused by user rejection of the signature request.
+    if (error instanceof Error && error.message) {
+      if (error.message.includes("User rejected the request")) {
+        throw new SignRampError("User rejected the signature request.", SignRampErrorType.UserRejected);
+      }
+      throw new SignRampError("Error signing transaction", SignRampErrorType.UnknownError);
+    }
+    throw new SignRampError("Error signing transaction", SignRampErrorType.UnknownError);
   }
 
   const additionalData = {

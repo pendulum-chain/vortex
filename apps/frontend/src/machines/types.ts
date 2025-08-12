@@ -12,7 +12,7 @@ import { stellarKycMachine } from "./stellarKyc.machine";
 
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
-
+export type DisplayUserRejectError = (message: string) => Promise<unknown>;
 export interface RampContext {
   stuff?: string;
   authToken?: string;
@@ -31,6 +31,8 @@ export interface RampContext {
   getMessageSignature: GetMessageSignatureCallback | undefined;
   substrateWalletAccount: WalletAccount | undefined;
   isQuoteExpired: boolean;
+  siwe: UseSiweContext | undefined;
+  displayUserRejectError: DisplayUserRejectError | undefined;
 }
 
 export type RampMachineSnapshot = SnapshotFrom<typeof rampMachine>;

@@ -16,7 +16,7 @@ import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampSto
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
-  const rampKycStarted = useRampKycStarted();
+  const rampKycStarted = useRampKycStarted(); // XSTATE TODO: Refactor after BRLA's new API is defined.
   const rampKycLevel2Started = useRampKycLevel2Started();
 
   useSetRampUrlParams();
