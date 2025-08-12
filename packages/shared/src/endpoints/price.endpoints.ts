@@ -1,3 +1,4 @@
+import { RampDirection } from "src/types";
 import { EvmToken } from "../tokens";
 
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
@@ -33,7 +34,7 @@ export interface PriceRequest {
 
 // Validation function for direction
 export const isValidDirection = (value: unknown): value is Direction =>
-  typeof value === "string" && (value === "onramp" || value === "offramp");
+  typeof value === "string" && Object.values(RampDirection).includes(value as RampDirection);
 
 // Validation function for currency based on direction
 export const isValidCurrencyForDirection = (currency: unknown, expectedType: "crypto" | "fiat"): boolean => {
