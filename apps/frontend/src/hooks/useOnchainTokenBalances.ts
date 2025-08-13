@@ -5,7 +5,6 @@ import {
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   evmTokenConfig,
-  FiatTokenDetails,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
@@ -19,17 +18,14 @@ import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
 import { Abi } from "viem";
 import { useBalance, useReadContracts } from "wagmi";
-
 import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
-import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
 import { useVortexAccount } from "./useVortexAccount";
 
-// Hook to get EVM native token balance
 export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
-  const { address } = useVortexAccount();
+  const { evmAddress: address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const chainId = getNetworkId(selectedNetwork);
 
@@ -59,10 +55,9 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
   }, [balance, selectedNetwork, nativeToken]);
 };
 
-// Hook to get AssetHub native DOT balance
 export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | null => {
   const [nativeBalance, setNativeBalance] = useState<AssetHubTokenDetailsWithBalance | null>(null);
-  const { walletAccount } = usePolkadotWalletState();
+  const { substrateAddress } = useVortexAccount();
   const { apiComponents: assetHubNode } = useAssetHubNode();
   const { selectedNetwork } = useNetwork();
 
@@ -72,7 +67,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
   }, []);
 
   useEffect(() => {
-    if (!nativeToken || !walletAccount || !assetHubNode || selectedNetwork !== "assethub") {
+    if (!nativeToken || !substrateAddress || !assetHubNode || selectedNetwork !== "assethub") {
       setNativeBalance(null);
       return;
     }
@@ -80,7 +75,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     const getNativeBalance = async () => {
       try {
         const { api } = assetHubNode;
-        const accountInfo = await api.query.system.account(walletAccount.address);
+        const accountInfo = await api.query.system.account(substrateAddress);
         const accountData = accountInfo.toJSON() as {
           data: {
             free: number;
@@ -103,31 +98,48 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     };
 
     getNativeBalance();
-  }, [assetHubNode, walletAccount, selectedNetwork, nativeToken]);
+  }, [assetHubNode, substrateAddress, selectedNetwork, nativeToken]);
 
   return nativeBalance;
 };
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
-  const { address } = useVortexAccount();
-  const { selectedNetwork } = useNetwork();
-  const chainId = getNetworkId(selectedNetwork);
+  const { evmAddress: address } = useVortexAccount();
 
-  const { data: balances } = useReadContracts({
-    contracts:
-      tokens.map(token => ({
+  // Group tokens by their network
+  const tokensByNetwork = useMemo(() => {
+    return tokens.reduce<Record<string, EvmTokenDetails[]>>((acc, token) => {
+      if (!acc[token.network]) {
+        acc[token.network] = [];
+      }
+      acc[token.network].push(token);
+      return acc;
+    }, {});
+  }, [tokens]);
+
+  // Create contract calls for all networks
+  const contractCalls = useMemo(() => {
+    return Object.entries(tokensByNetwork).flatMap(([network, networkTokens]) => {
+      const chainId = getNetworkId(network as Networks);
+      return networkTokens.map(token => ({
         abi: erc20ABI as Abi,
         address: token.erc20AddressSourceChain,
         args: [address],
         chainId,
         functionName: "balanceOf"
-      })) ?? []
+      }));
+    });
+  }, [tokensByNetwork, address]);
+
+  const { data: balances } = useReadContracts({
+    contracts: contractCalls ?? []
   });
 
   if (!tokens.length || !balances) {
     return [];
   }
 
+  // Create a flat list of all tokens with their balances
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
     const tokenBalance = balances[index]?.result;
 
@@ -150,11 +162,11 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
   const [balances, setBalances] = useState<Array<AssetHubTokenDetailsWithBalance>>([]);
-  const { walletAccount } = usePolkadotWalletState();
+  const { substrateAddress } = useVortexAccount();
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
   useEffect(() => {
-    if (!walletAccount || !assetHubNode) return;
+    if (!substrateAddress || !assetHubNode) return;
 
     const getBalances = async () => {
       const { api } = assetHubNode;
@@ -162,7 +174,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
       const assetIds = tokens.map(token => token.foreignAssetId).filter(Boolean);
       const assetInfos = await api.query.assets.asset.multi(assetIds);
 
-      const accountQueries = assetIds.map(assetId => [assetId, walletAccount.address]);
+      const accountQueries = assetIds.map(assetId => [assetId, substrateAddress]);
       const accountInfos = await api.query.assets.account.multi(accountQueries);
 
       const tokensWithBalances = tokens.map((token, index) => {
@@ -184,16 +196,12 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     };
 
     getBalances();
-  }, [assetHubNode, tokens, walletAccount]);
+  }, [assetHubNode, tokens, substrateAddress]);
 
   return balances;
 };
 
-export const useOnchainTokenBalances = (
-  tokens: (FiatTokenDetails | OnChainTokenDetails)[]
-): OnChainTokenDetailsWithBalance[] => {
-  const { selectedNetwork } = useNetwork();
-
+export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainTokenDetailsWithBalance[] => {
   const evmTokens = useMemo(() => tokens.filter(isEvmTokenDetails) as EvmTokenDetailsWithBalance[], [tokens]);
   const substrateTokens = useMemo(() => tokens.filter(isAssetHubTokenDetails) as AssetHubTokenDetailsWithBalance[], [tokens]);
 
@@ -202,27 +210,16 @@ export const useOnchainTokenBalances = (
   const evmNativeBalance = useEvmNativeBalance();
   const assetHubNativeBalance = useAssetHubNativeBalance();
 
-  const shouldIncludeEvmNativeBalance = evmTokens.some(token => token.isNative);
-  const shouldIncludeAssetHubNativeBalance = substrateTokens.some(token => token.isNative);
+  console.log("evmBalances", evmBalances);
+  console.log("substrateBalances", substrateBalances);
+  console.log("assetHubNativeBalance", assetHubNativeBalance);
+  console.log("evmNativeBalance", evmNativeBalance);
 
-  return useMemo(() => {
-    const tokenBalances: OnChainTokenDetailsWithBalance[] = evmBalances.length ? evmBalances : substrateBalances;
-
-    // Add native token balance based on the selected network
-    if (isNetworkEVM(selectedNetwork) && shouldIncludeEvmNativeBalance && evmNativeBalance) {
-      return [evmNativeBalance, ...tokenBalances];
-    } else if (selectedNetwork === Networks.AssetHub && shouldIncludeAssetHubNativeBalance && assetHubNativeBalance) {
-      return [assetHubNativeBalance, ...tokenBalances];
-    }
-
-    return tokenBalances;
-  }, [
-    evmBalances,
-    substrateBalances,
-    evmNativeBalance,
-    assetHubNativeBalance,
-    selectedNetwork,
-    shouldIncludeAssetHubNativeBalance,
-    shouldIncludeEvmNativeBalance
-  ]);
+  return useMemo(
+    () =>
+      [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(
+        Boolean
+      ) as OnChainTokenDetailsWithBalance[],
+    [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]
+  );
 };
