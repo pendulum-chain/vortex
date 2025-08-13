@@ -1,14 +1,17 @@
 import { ReactNode, useCallback } from "react";
+import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
 import { useRampStarted, useRampState } from "../../stores/rampStore";
 
 export const useRampNavigation = (
   successComponent: ReactNode,
   failureComponent: ReactNode,
   progressComponent: ReactNode,
-  formComponent: ReactNode
+  formComponent: ReactNode,
+  widgetComponent: ReactNode
 ) => {
   const rampState = useRampState();
   const rampStarted = useRampStarted();
+  const providedQuoteId = useProvidedQuoteId();
 
   const getCurrentComponent = useCallback(() => {
     if (rampState?.ramp?.currentPhase === "complete") {
@@ -25,8 +28,21 @@ export const useRampNavigation = (
       }
     }
 
+    if (providedQuoteId) {
+      return widgetComponent;
+    }
+
     return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, rampStarted, progressComponent]);
+  }, [
+    rampState,
+    formComponent,
+    successComponent,
+    failureComponent,
+    rampStarted,
+    progressComponent,
+    providedQuoteId,
+    widgetComponent
+  ]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,

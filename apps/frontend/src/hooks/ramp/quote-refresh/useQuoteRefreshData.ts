@@ -22,7 +22,9 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
   const { selectedNetwork } = useNetwork();
   const rampType = useRampDirection();
   const partnerId = usePartnerId();
-  const { fetchQuote } = useQuoteStore();
+  const {
+    actions: { fetchQuote }
+  } = useQuoteStore();
   const rampSummaryVisible = useRampSummaryVisible();
 
   const hasValidQuote = Boolean(quote && inputAmount && onChainToken && fiatToken);

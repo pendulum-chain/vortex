@@ -4,6 +4,7 @@ import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAva
 import { useNetwork } from "../contexts/network";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
+import { useQuoteActions } from "../stores/ramp/useQuoteStore";
 import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
@@ -138,7 +139,8 @@ export const useSetRampUrlParams = () => {
   const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
-  const { setFiatToken, setOnChainToken, setInputAmount, setProvidedQuoteId, reset: resetRampForm } = useRampFormStoreActions();
+  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useRampFormStoreActions();
+  const { setProvidedQuoteId } = useQuoteActions();
 
   const hasInitialized = useRef(false);
 
