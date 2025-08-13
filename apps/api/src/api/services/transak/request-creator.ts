@@ -1,4 +1,4 @@
-import { Direction, Networks } from "@packages/shared";
+import { Networks, RampDirection } from "@packages/shared";
 import { config } from "../../../config/vars";
 
 const { priceProviders } = config;
@@ -91,13 +91,13 @@ function createSellQuoteRequest(
  * @returns Request configuration
  */
 export function createQuoteRequest(
-  direction: Direction,
+  direction: RampDirection,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,
   network: Networks
 ): RequestConfig {
-  return direction === "onramp"
+  return direction === RampDirection.BUY
     ? createBuyQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network)
     : createSellQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network);
 }

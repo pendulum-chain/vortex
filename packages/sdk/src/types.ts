@@ -49,10 +49,7 @@ export type AnyAdditionalData =
   | BrlOfframpAdditionalData
   | EurOfframpAdditionalData
   | BrlOnrampAdditionalData
-  | EurOnrampAdditionalData
-  | EurOnrampUpdateAdditionalData
-  | EurOfframpUpdateAdditionalData
-  | BrlOfframpUpdateAdditionalData;
+  | EurOnrampAdditionalData;
 
 export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? BrlOnrampAdditionalData
@@ -77,11 +74,18 @@ export interface BrlOfframpAdditionalData {
   pixDestination: string;
   receiverTaxId: string;
   taxId: string;
+  walletAddress: string;
 }
 
 export interface EurOfframpAdditionalData {
   paymentData: PaymentData;
+  walletAddress: string;
 }
+
+export type AnyUpdateAdditionalData =
+  | EurOnrampUpdateAdditionalData
+  | BrlOfframpUpdateAdditionalData
+  | EurOfframpUpdateAdditionalData;
 
 export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? never // No additional data required from the user for this type of ramp.
@@ -91,7 +95,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnr
       ? BrlOfframpUpdateAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpUpdateAdditionalData
-        : AnyAdditionalData;
+        : AnyUpdateAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
   squidRouterApproveHash: string;
@@ -100,14 +104,14 @@ export interface EurOnrampUpdateAdditionalData {
 }
 
 export interface BrlOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 export interface EurOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 
 export interface BrlKycResponse {
