@@ -1,10 +1,10 @@
 import { createActorContext, useSelector } from "@xstate/react";
+import React, { PropsWithChildren, useEffect } from "react";
 import { MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
-  RampMachineActor,
   RampMachineSnapshot,
   SelectedMoneriumData,
   SelectedStellarData,
@@ -12,14 +12,55 @@ import {
   StellarKycSnapshot
 } from "../machines/types";
 
-const restoredState = localStorage.getItem("moneriumKycState")
-  ? JSON.parse(localStorage.getItem("moneriumKycState")!)
-  : undefined;
-export const RampStateContext = createActorContext(rampMachine, { snapshot: restoredState });
+const RAMP_STATE_STORAGE_KEY = "rampState";
 
-export const RampStateProvider = RampStateContext.Provider;
+const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
+const restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
+console.log("restored state: ", restoredState);
+
+export const RampStateContext = createActorContext(rampMachine, {
+  snapshot: restoredState
+});
+
 export const useRampActor = RampStateContext.useActorRef;
 export const useRampStateSelector = RampStateContext.useSelector;
+
+const PersistenceEffect = () => {
+  const rampActor = useRampActor();
+
+  const stellarActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
+    | StellarKycActorRef
+    | undefined;
+
+  const moneriumActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
+    | MoneriumKycActorRef
+    | undefined;
+
+  const { moneriumState } = useSelector(moneriumActor, state => ({
+    moneriumState: state?.value
+  }));
+
+  const { stellarState } = useSelector(stellarActor, state => ({
+    stellarState: state?.value
+  }));
+
+  useEffect(() => {
+    console.log("persisting....");
+    const persistedSnapshot = rampActor.getPersistedSnapshot();
+    localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
+  }, [rampActor, moneriumState, stellarState]);
+
+  return null;
+};
+
+export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ children }) => {
+  return (
+    <RampStateContext.Provider>
+      <PersistenceEffect />
+      {children}
+    </RampStateContext.Provider>
+  );
+};
 
 export function useStellarKycSelector(): SelectedStellarData | undefined {
   const rampActor = useRampActor();

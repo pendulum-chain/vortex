@@ -31,7 +31,7 @@ const initialRampContext: RampContext = {
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  rampSummaryVisible: false, // TODO for BRLA
+  rampSummaryVisible: false,
   siwe: undefined,
   stuff: undefined,
   substrateWalletAccount: undefined
@@ -163,10 +163,15 @@ export const rampMachine = setup({
     },
     KYC: kycStateNode as any,
     KycFailure: {
-      // So far, we only go back to main component
       always: {
         target: "Idle"
-      }
+      },
+      // So far, we only go back to main component
+      entry: assign(({ context }) => ({
+        ...initialRampContext,
+        address: context.address,
+        authToken: context.authToken
+      }))
     },
     RampFollowUp: {
       on: {

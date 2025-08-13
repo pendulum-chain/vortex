@@ -17,7 +17,7 @@ import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
 import { SiweProvider } from "./contexts/siwe";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
-import { RampStateProvider } from "./contexts/rampState";
+import { PersistentRampStateProvider } from "./contexts/rampState";
 
 const queryClient = new QueryClient();
 
@@ -46,7 +46,7 @@ if (!root) {
 createRoot(root).render(
   <QueryClientProvider client={queryClient}>
     <WagmiProvider config={wagmiConfig}>
-      <RampStateProvider>
+      <PersistentRampStateProvider>
         <NetworkProvider>
           <PolkadotNodeProvider>
             <PolkadotWalletStateProvider>
@@ -58,7 +58,7 @@ createRoot(root).render(
             </PolkadotWalletStateProvider>
           </PolkadotNodeProvider>
         </NetworkProvider>
-      </RampStateProvider>
+      </PersistentRampStateProvider>
     </WagmiProvider>
   </QueryClientProvider>
 );
