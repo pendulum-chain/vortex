@@ -1,7 +1,7 @@
 import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { create } from "zustand";
-
+import { persist } from "zustand/middleware";
 import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
@@ -22,12 +22,16 @@ interface QuotePayload {
   outputCurrency: OnChainToken | FiatToken;
 }
 
-interface QuoteState {
+interface QuoteActions {
   actions: {
+    loadQuote: (quoteId: string) => Promise<void>;
     fetchQuote: (params: QuoteParams) => Promise<void>;
     setProvidedQuoteId: (quoteId?: string) => void;
     reset: () => void;
   };
+}
+
+interface QuoteState {
   quote: QuoteResponse | undefined;
   loading: boolean;
   error: string | null; // This is either the error message or the key of the translation
@@ -123,72 +127,124 @@ const processQuoteResponse = (quoteResponse: QuoteResponse) => {
   return { exchangeRate, outputAmount };
 };
 
-export const useQuoteStore = create<QuoteState>((set, get) => ({
-  actions: {
-    fetchQuote: async (params: QuoteParams) => {
-      const { inputAmount, partnerId } = params;
-      const { providedQuoteId } = get();
-
-      if (!inputAmount || inputAmount.eq(0)) {
-        set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
-        return;
-      }
-
-      set({ error: null, loading: true });
-
-      try {
-        const quotePayload = createQuotePayload(params);
-
-        const quoteResponse = providedQuoteId
-          ? await QuoteService.getQuote(providedQuoteId)
-          : await QuoteService.createQuote(
-              quotePayload.rampType,
-              quotePayload.fromDestination,
-              quotePayload.toDestination,
-              quotePayload.inputAmount,
-              quotePayload.inputCurrency,
-              quotePayload.outputCurrency,
-              partnerId
-            );
-
-        const { outputAmount, exchangeRate } = processQuoteResponse(quoteResponse);
-
-        set({
-          exchangeRate,
-          loading: false,
-          outputAmount,
-          quote: quoteResponse
-        });
-      } catch (error) {
-        set({
-          error: getFriendlyErrorMessage(error),
-          loading: false,
-          outputAmount: undefined,
-          quote: undefined
-        });
-      }
-    },
-    reset: () => {
-      set({
-        error: null,
-        exchangeRate: 0,
-        loading: false,
-        outputAmount: undefined,
-        providedQuoteId: undefined,
-        quote: undefined
-      });
-    },
-    setProvidedQuoteId: (quoteId?: string) => {
-      set({ providedQuoteId: quoteId });
-    }
-  },
+const DEFAULT_QUOTE_STORE_VALUES: QuoteState = {
   error: null,
   exchangeRate: 0,
   loading: false,
   outputAmount: undefined,
-  providedQuoteId: undefined,
   quote: undefined
-}));
+};
+
+export const useQuoteStore = create<QuoteState & QuoteActions>()(
+  persist(
+    (set, get) => ({
+      ...DEFAULT_QUOTE_STORE_VALUES,
+      actions: {
+        fetchQuote: async (params: QuoteParams) => {
+          const { inputAmount, partnerId } = params;
+          const { providedQuoteId } = get();
+
+          if (providedQuoteId) {
+            console.log("Skipping quote fetch because providedQuoteId is set:", providedQuoteId);
+          }
+
+          if (!inputAmount || inputAmount.eq(0)) {
+            set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
+            return;
+          }
+
+          set({ error: null, loading: true });
+
+          try {
+            const quotePayload = createQuotePayload(params);
+
+            const quoteResponse = providedQuoteId
+              ? await QuoteService.getQuote(providedQuoteId)
+              : await QuoteService.createQuote(
+                  quotePayload.rampType,
+                  quotePayload.fromDestination,
+                  quotePayload.toDestination,
+                  quotePayload.inputAmount,
+                  quotePayload.inputCurrency,
+                  quotePayload.outputCurrency,
+                  partnerId
+                );
+
+            console.log(`Quote response for ${providedQuoteId}`, quoteResponse);
+
+            const { outputAmount, exchangeRate } = processQuoteResponse(quoteResponse);
+
+            set({
+              exchangeRate,
+              loading: false,
+              outputAmount,
+              quote: quoteResponse
+            });
+          } catch (error) {
+            set({
+              error: getFriendlyErrorMessage(error),
+              loading: false,
+              outputAmount: undefined,
+              quote: undefined
+            });
+          }
+        },
+        loadQuote: async (quoteId: string) => {
+          try {
+            const quoteResponse = await QuoteService.getQuote(quoteId);
+
+            console.log(`Quote response for ${quoteId}`, quoteResponse);
+
+            const { outputAmount, exchangeRate } = processQuoteResponse(quoteResponse);
+            set({
+              exchangeRate,
+              loading: false,
+              outputAmount,
+              quote: quoteResponse
+            });
+          } catch (error) {
+            set({
+              error: getFriendlyErrorMessage(error),
+              loading: false,
+              outputAmount: undefined,
+              quote: undefined
+            });
+          }
+        },
+        reset: () => {
+          set({
+            error: null,
+            exchangeRate: 0,
+            loading: false,
+            outputAmount: undefined,
+            providedQuoteId: undefined,
+            quote: undefined
+          });
+        },
+        setProvidedQuoteId: (quoteId?: string) => {
+          set({ providedQuoteId: quoteId });
+        }
+      },
+      error: null,
+      exchangeRate: 0,
+      loading: false,
+      outputAmount: undefined,
+      providedQuoteId: undefined,
+      quote: undefined
+    }),
+    {
+      name: "useQuoteStore",
+      partialize: state => ({
+        error: state.error,
+        exchangeRate: state.exchangeRate,
+        loading: state.loading,
+        outputAmount: state.outputAmount,
+        providedQuoteId: state.providedQuoteId,
+        quote: state.quote
+      })
+    }
+  )
+);
 
 export const useQuoteOutputAmount = () => useQuoteStore(state => state.outputAmount);
 export const useQuoteExchangeRate = () => useQuoteStore(state => state.exchangeRate);
