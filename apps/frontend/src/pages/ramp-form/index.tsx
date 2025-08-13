@@ -10,6 +10,7 @@ import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButto
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
 import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
+import { useProvidedQuoteId } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
 
@@ -18,6 +19,7 @@ export const RampForm = () => {
   const onSwapDirectionToggle = useRampDirectionToggle();
   const rampKycStarted = useRampKycStarted();
   const rampKycLevel2Started = useRampKycLevel2Started();
+  const providedQuoteId = useProvidedQuoteId();
 
   useSetRampUrlParams();
 
@@ -25,7 +27,7 @@ export const RampForm = () => {
     <main>
       <PoolSelectorModal />
       <RampSummaryDialog />
-      {rampKycStarted || rampKycLevel2Started ? (
+      {rampKycStarted || rampKycLevel2Started || providedQuoteId ? (
         <PIXKYCForm />
       ) : (
         <motion.div

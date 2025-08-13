@@ -46,6 +46,7 @@ interface RampFormState {
   fiatToken: FiatToken;
   taxId?: string;
   pixId?: string;
+  providedQuoteId?: string;
   lastConstraintDirection: RampDirection;
 }
 
@@ -56,6 +57,7 @@ interface RampFormActions {
     setFiatToken: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
     setPixId: (pixId: string) => void;
+    setProvidedQuoteId: (quoteId?: string) => void;
     setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
     reset: () => void;
@@ -68,6 +70,7 @@ export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   lastConstraintDirection: getRampDirectionFromPath(),
   onChainToken: defaultOnChainToken,
   pixId: undefined,
+  providedQuoteId: undefined,
   taxId: undefined
 };
 
@@ -95,6 +98,10 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
         setInputAmount: (amount?: string) => set({ inputAmount: amount }),
         setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
         setPixId: (pixId: string) => set({ pixId }),
+        setProvidedQuoteId: (quoteId?: string) => {
+          console.log("Settnig providedQuoteId in RampFormStore", quoteId);
+          return set({ providedQuoteId: quoteId });
+        },
         setTaxId: (taxId: string) => set({ taxId })
       }
     }),
@@ -106,6 +113,7 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
         lastConstraintDirection: state.lastConstraintDirection,
         onChainToken: state.onChainToken,
         pixId: state.pixId,
+        providedQuoteId: state.providedQuoteId,
         taxId: state.taxId
       })
     }
@@ -117,6 +125,7 @@ export const useOnChainToken = () => useRampFormStore(state => state.onChainToke
 export const useFiatToken = () => useRampFormStore(state => state.fiatToken);
 export const useTaxId = () => useRampFormStore(state => state.taxId);
 export const usePixId = () => useRampFormStore(state => state.pixId);
+export const useProvidedQuoteId = () => useRampFormStore(state => state.providedQuoteId);
 export const useLastConstraintDirection = () => useRampFormStore(state => state.lastConstraintDirection);
 
 export const useQuoteConstraintsValid = () => {
