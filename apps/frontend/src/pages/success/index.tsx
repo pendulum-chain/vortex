@@ -6,7 +6,6 @@ import { Box } from "../../components/Box";
 import { EmailForm } from "../../components/EmailForm";
 import { Rating } from "../../components/Rating";
 import { useRampActor } from "../../contexts/rampState";
-import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 

@@ -103,12 +103,15 @@ export const kycStateNode = {
           {
             // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
             actions: assign({
-              error: ({ event }: { event: any }) => event.output.error
+              initializeFailedMessage: ({ event }) => event.output.error
             }),
             target: "#ramp.KycFailure"
           }
         ],
         onError: {
+          actions: assign({
+            initializeFailedMessage: "Monerium KYC verification failed. Please retry."
+          }),
           target: "#ramp.KycFailure"
         },
         src: "moneriumKyc"
@@ -133,12 +136,15 @@ export const kycStateNode = {
           {
             // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
             actions: assign({
-              error: ({ event }: { event: any }) => event.output.error
+              initializeFailedMessage: ({ event }: { event: any }) => event.output.error
             }),
             target: "#ramp.KycFailure"
           }
         ],
         onError: {
+          actions: assign({
+            initializeFailedMessage: "Stellar KYC verification failed. Please retry."
+          }),
           target: "#ramp.KycFailure"
         },
         src: "stellarKyc"

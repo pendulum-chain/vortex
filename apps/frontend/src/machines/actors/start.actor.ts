@@ -4,7 +4,6 @@ import { RampService } from "../../services/api";
 import { RampContext, RampState } from "../types";
 
 export const startRampActor = async ({ input }: { input: RampContext }): Promise<RampProcess> => {
-  console.log("start actor called");
   const { rampState } = input;
 
   if (!rampState || !rampState.ramp) {

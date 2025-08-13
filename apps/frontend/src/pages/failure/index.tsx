@@ -6,7 +6,6 @@ import { EmailForm } from "../../components/EmailForm";
 import { TransactionInfo } from "../../components/TransactionInfo";
 import { config } from "../../config";
 import { useRampActor } from "../../contexts/rampState";
-import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 
 const ErrorIcon = () => (
   <div className="flex h-20 w-20 items-center justify-center rounded-full border border-orange-200 bg-orange-50">
@@ -16,7 +15,6 @@ const ErrorIcon = () => (
 
 export const FailurePage = () => {
   const { t } = useTranslation();
-  const { finishOfframping } = useRampSubmission();
   const rampActor = useRampActor();
 
   const { rampState } = useSelector(rampActor, state => ({
@@ -25,6 +23,9 @@ export const FailurePage = () => {
 
   const transactionId = rampState?.ramp?.id || "N/A";
 
+  const finishOfframping = () => {
+    rampActor.send({ type: "FINISH_OFFRAMPING" });
+  };
   return (
     <main>
       <Box className="mx-auto mt-12 flex max-w-2xl flex-col items-center justify-center">

@@ -147,11 +147,7 @@ export const rampMachine = setup({
           target: "RampRequested"
         },
         RESET_RAMP: {
-          actions: assign(({ context }) => ({
-            ...initialRampContext,
-            address: context.address,
-            authToken: context.authToken
-          })) // WHY can't I assign it like the others?
+          actions: "resetRamp"
         },
         SET_RAMP_EXECUTION_INPUT: {
           actions: assign({
@@ -166,11 +162,7 @@ export const rampMachine = setup({
         target: "Idle"
       },
       // So far, we only go back to main component
-      entry: assign(({ context }) => ({
-        ...initialRampContext,
-        address: context.address,
-        authToken: context.authToken
-      }))
+      entry: "resetRamp"
     },
     RampFollowUp: {
       on: {
