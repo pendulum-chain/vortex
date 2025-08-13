@@ -137,7 +137,7 @@ export const RampSummaryButton = () => {
 
     if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
-      if (stellarData?.stateValue === "Sep24Second") return true;
+      if (stellarData?.stateValue !== "StartSep24") return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 

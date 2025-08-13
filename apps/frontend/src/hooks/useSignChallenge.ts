@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
 import { storageKeys } from "../constants/localStorage";
-import { useRampActor } from "../contexts/rampState";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
 import { useVortexAccount } from "./useVortexAccount";
 
@@ -24,7 +23,6 @@ function createSiweMessage(address: string, nonce: string) {
 
 export function useSiweSignature() {
   const { address, getMessageSignature } = useVortexAccount();
-  const rampActor = useRampActor();
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
@@ -52,10 +50,9 @@ export function useSiweSignature() {
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
-      rampActor.send({ phase: "login", type: "SIGNING_UPDATE" });
       setSignPromise({ reject, resolve });
     });
-  }, [rampActor, signPromise]);
+  }, [signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -92,10 +89,8 @@ export function useSiweSignature() {
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
-      rampActor.send({ phase: "finished", type: "SIGNING_UPDATE" });
       signPromise.resolve();
     } catch (error) {
-      rampActor.send({ phase: undefined, type: "SIGNING_UPDATE" });
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // First case Assethub, second case EVM
@@ -106,7 +101,7 @@ export function useSiweSignature() {
     } finally {
       setSignPromise(null);
     }
-  }, [address, storageKey, signPromise, getMessageSignature, rampActor]);
+  }, [address, storageKey, signPromise, getMessageSignature]);
 
   useEffect(() => {
     if (signPromise) handleSign();

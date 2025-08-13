@@ -54,11 +54,9 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SET_DISPLAY_USER_REJECT_ERROR"; implementation: DisplayUserRejectError };
 
-export const rampMachine = setup<RampContext, RampMachineEvents>({
+export const rampMachine = setup({
   actions: {
-    actions: {
-      displaySignRejectError: () => Promise<void>
-    },
+    displaySignRejectError: () => Promise<void>,
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
