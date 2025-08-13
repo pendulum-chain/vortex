@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useRampHistory } from "../../hooks/useRampHistory";
-import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useRampHistoryStore } from "../../stores/rampHistoryStore";
 import { PageHeader } from "../PageHeader";
 import { groupRampHistoryByMonth } from "./helpers";
@@ -11,14 +10,13 @@ import { TransactionGroup } from "./types";
 
 export function RampHistory() {
   const { isActive, actions } = useRampHistoryStore();
-  const { address } = useVortexAccount();
-  const { data, isLoading, refetch } = useRampHistory(address);
+  const { data, isLoading, refetch } = useRampHistory();
 
   useEffect(() => {
-    if (isActive && address) {
+    if (isActive) {
       refetch();
     }
-  }, [isActive, address, refetch]);
+  }, [isActive, refetch]);
 
   useEscapeKey(isActive, actions.toggleHistory);
 
