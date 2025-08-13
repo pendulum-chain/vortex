@@ -16,7 +16,7 @@ const TokenSelectionSearchInput = () => {
   return (
     <div
       className={cn(
-        "transition-all duration-300 ease-in-out",
+        "transition-all duration-150 ease-in-out",
         isNetworkDropdownOpen ? "w-0 opacity-0" : "flex-grow opacity-100"
       )}
       style={{

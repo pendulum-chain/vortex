@@ -20,7 +20,7 @@ export const SelectionTokenList = () => {
         isNetworkDropdownOpen ? "pointer-events-none opacity-0" : "opacity-100"
       )}
     >
-      <ul className="mt-3 flex flex-col gap-2 transition-opacity duration-300">
+      <ul className="mt-3 flex flex-col gap-2 transition-opacity duration-150">
         {filteredDefinitions.map(token => (
           <li key={`${token.type}-${token.network}`}>
             <ListItem
