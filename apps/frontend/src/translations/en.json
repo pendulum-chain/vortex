@@ -268,12 +268,9 @@
       "yourConnectedWallet": "your connected wallet to proceed"
     },
     "stepper": {
-      "complete": "Complete",
-      "kyc": "KYC",
-      "payment": "Payment",
-      "processing": "Processing",
-      "quote": "Quote",
-      "sign": "Sign"
+      "confirm": "confirm",
+      "details": "Details",
+      "verification": "Verification"
     },
     "swap": {
       "buyButton": "Buy",

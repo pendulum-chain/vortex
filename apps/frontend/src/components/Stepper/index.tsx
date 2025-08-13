@@ -7,12 +7,11 @@ export interface Step {
 
 export interface StepperProps {
   steps: Step[];
-  currentStep: number;
   onStepClick?: (stepIndex: number) => void;
   className?: string;
 }
 
-export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClick, className = "" }) => {
+export const Stepper: React.FC<StepperProps> = ({ steps, onStepClick, className = "" }) => {
   const handleStepClick = (stepIndex: number) => {
     if (onStepClick) {
       onStepClick(stepIndex);

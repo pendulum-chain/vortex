@@ -15,7 +15,7 @@ interface BaseLayoutProps {
 export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
   const isWidgetMode = useWidgetMode();
   const fetchMaintenanceStatus = useFetchMaintenanceStatus();
-  const { steps, currentStep } = useStepper();
+  const { steps } = useStepper();
 
   // Fetch maintenance status when the app loads
   useEffect(() => {
@@ -38,7 +38,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
       <Navbar />
       <MaintenanceBanner />
       <div className="container mx-auto px-4 pt-6 md:w-120">
-        <Stepper className="mb-6" currentStep={currentStep} steps={steps} />
+        <Stepper className="mb-6" steps={steps} />
       </div>
       {main}
       {!isWidgetMode && <Footer />}
