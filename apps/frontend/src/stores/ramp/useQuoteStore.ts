@@ -223,6 +223,10 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
         },
         setProvidedQuoteId: (quoteId?: string) => {
           set({ providedQuoteId: quoteId });
+          // Call the loadQuote action if a quoteId is provided
+          if (quoteId) {
+            get().actions.loadQuote(quoteId);
+          }
         }
       },
       error: null,
