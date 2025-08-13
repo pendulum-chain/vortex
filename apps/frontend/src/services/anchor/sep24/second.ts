@@ -45,8 +45,8 @@ async function pollTransactionStatus(id: string, sessionParams: IAnchorSessionPa
 
 export async function sep24Second(sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams): Promise<SepResult> {
   if (true) {
-    // sleep 10 secs
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    //TODO testing sleep 10 secs
+    await new Promise(resolve => setTimeout(resolve, 100000));
     return {
       amount: sessionParams.offrampAmount,
       memo: "MYK1722323689",

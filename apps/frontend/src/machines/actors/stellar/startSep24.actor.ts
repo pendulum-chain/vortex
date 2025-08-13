@@ -7,9 +7,8 @@ import { fetchTomlValues } from "../../../services/stellar";
 import { IAnchorSessionParams } from "../../../types/sep";
 import { RampContext } from "../../types";
 
-let intervalId: NodeJS.Timeout;
-
-export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input, receive }) => {
+export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input }) => {
+  let intervalId: NodeJS.Timeout;
   const parent = (self as any)._parent!;
 
   const { executionInput, siwe } = input;
@@ -63,31 +62,22 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
         type: "SEP24_STARTED"
       });
 
+      // TODO edge case, if the Stellar actor is closed before this interval is returned, then nothing stops this interval on exit.
       await fetchAndUpdateSep24Url();
-
+      console.log("setting interval");
       intervalId = setInterval(fetchAndUpdateSep24Url, 20000);
+      sendBack({ intervalId, type: "INTERVAL_STARTED" });
     } catch (error) {
       sendBack({ error, type: "xstate.error" });
     }
   };
 
-  if (!intervalId) {
-    console.log("Starting SEP-24 logic with input:", input);
-    runSep24Logic();
-  }
-
-  // Clean logic
-  receive(event => {
-    console.log("Received event in startSep24Actor:", event);
-    if (event.type === "STOP_SEP24") {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    }
-  });
+  console.log("Starting SEP-24 logic with input:", input);
+  runSep24Logic();
 
   return () => {
     if (intervalId) {
+      console.log("clearing interval", intervalId);
       clearInterval(intervalId);
     }
   };

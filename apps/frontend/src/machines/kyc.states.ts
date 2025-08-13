@@ -1,4 +1,4 @@
-import { FiatToken, PaymentData } from "@packages/shared";
+import { FiatToken } from "@packages/shared";
 import { assign, sendTo } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { RampContext } from "./types";
@@ -23,6 +23,7 @@ export interface StellarKycContext extends RampContext {
   tomlValues?: any;
   id?: string;
   error?: any;
+  sep24IntervalId?: NodeJS.Timeout;
 }
 
 // Logic of the KYC node:
@@ -114,7 +115,6 @@ export const kycStateNode = {
       }
     },
     Stellar: {
-      exit: sendTo("stellarKyc", { type: "Cancel" }),
       invoke: {
         id: "stellarKyc",
         input: ({ context }: { context: RampContext }): StellarKycContext => context,

@@ -66,7 +66,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   };
 
   const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount));
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || isQuoteOutdated; // TODO we should disable ONLY if there is an error requiring user action
   const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (

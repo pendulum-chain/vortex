@@ -371,6 +371,7 @@ export const ProgressPage = () => {
   const { t } = useTranslation();
   const { trackEvent } = useEventsContext();
   const rampActor = useRampActor();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
@@ -397,7 +398,7 @@ export const ProgressPage = () => {
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
   useEffect(() => {
-    if (!rampState?.ramp?.id || !flowType) return;
+    if (!rampState?.ramp?.id || !flowType || intervalRef.current) return;
 
     const rampId = rampState.ramp.id;
 
@@ -433,10 +434,8 @@ export const ProgressPage = () => {
     };
 
     fetchRampState();
-
     const intervalId = setInterval(fetchRampState, 5000);
-
-    return () => clearInterval(intervalId);
+    intervalRef.current = intervalId;
   }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType]);
 
   return (

@@ -55,11 +55,11 @@ export type RampMachineEvents =
 
 export const rampMachine = setup({
   actions: {
-    //displaySignRejectError: () => Promise<void>,
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
-      authToken: context.authToken
+      authToken: context.authToken,
+      initializeFailedMessage: context.initializeFailedMessage
     })),
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
@@ -128,6 +128,7 @@ export const rampMachine = setup({
       })),
       on: {
         FINISH_OFFRAMPING: {
+          actions: "resetRamp",
           target: "#ramp.Idle"
         }
       }
@@ -139,6 +140,8 @@ export const rampMachine = setup({
           actions: assign({
             chainId: ({ event }) => event.input.chainId,
             executionInput: ({ event }) => event.input.executionInput,
+            // Also reset any error from a previous attempt
+            initializeFailedMessage: undefined,
             rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
@@ -171,6 +174,10 @@ export const rampMachine = setup({
     },
     RampFollowUp: {
       on: {
+        FINISH_OFFRAMPING: {
+          actions: "resetRamp",
+          target: "Idle"
+        },
         SET_RAMP_STATE: {
           actions: assign({
             rampState: ({ event }) => event.rampState

@@ -20,7 +20,7 @@ export const stellarKycMachine = setup({
           output: { token: string; sep10Account: any; tomlValues: any };
         }
       | { type: "SEP24_FAILED"; error: any }
-      | { type: "STOP_SEP24" }
+      | { type: "INTERVAL_STARTED"; intervalId: NodeJS.Timeout }
       | { type: "Cancel"; output: PaymentData },
     input: {} as RampContext,
     output: {} as { error?: any; paymentData?: PaymentData }
@@ -28,15 +28,11 @@ export const stellarKycMachine = setup({
 }).createMachine({
   context: ({ input }) => ({
     ...input,
-    redirectUrl: undefined
+    redirectUrl: undefined,
+    sep24IntervalId: undefined
   }),
   id: "stellarKyc",
   initial: "StartSep24",
-  on: {
-    Cancel: {
-      actions: sendTo("startSep24Actor", { type: "STOP_SEP24" })
-    }
-  },
   output: ({ context }) => ({
     error: context.error,
     paymentData: context.paymentData
@@ -87,6 +83,11 @@ export const stellarKycMachine = setup({
         src: "startSep24"
       },
       on: {
+        INTERVAL_STARTED: {
+          actions: assign({
+            sep24IntervalId: ({ event }) => event.intervalId
+          })
+        },
         SEP24_FAILED: {
           actions: assign({
             error: ({ event }) => event.error

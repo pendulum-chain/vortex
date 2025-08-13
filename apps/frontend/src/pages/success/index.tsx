@@ -18,7 +18,6 @@ const Checkmark = () => (
 
 export const SuccessPage = () => {
   const { t } = useTranslation();
-  const { finishOfframping } = useRampSubmission();
   const rampActor = useRampActor();
 
   const { fiatToken } = useRampFormStore();
@@ -39,6 +38,10 @@ export const SuccessPage = () => {
 
   const arrivalTextBuy = t("pages.success.arrivalText.buy");
   const arrivalTextSell = ARRIVAL_TEXT_BY_TOKEN[fiatToken] || t("pages.success.arrivalText.sell.default");
+
+  const finishOfframping = () => {
+    rampActor.send({ type: "FINISH_OFFRAMPING" });
+  };
 
   return (
     <main>

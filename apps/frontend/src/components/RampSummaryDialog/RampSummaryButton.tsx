@@ -153,7 +153,8 @@ export const RampSummaryButton = () => {
     rampState?.ramp?.depositQrCode,
     anchorUrl,
     fiatToken,
-    stellarContext
+    stellarContext,
+    stellarData
   ]);
 
   const buttonContent = useButtonContent({

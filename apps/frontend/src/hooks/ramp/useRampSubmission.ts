@@ -127,9 +127,6 @@ export const useRampSubmission = () => {
   }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
 
   return {
-    finishOfframping: () => {
-      rampActor.send({ type: "FINISH_OFFRAMPING" });
-    },
     isExecutionPreparing: executionPreparing,
     onRampConfirm,
     validateSubmissionData

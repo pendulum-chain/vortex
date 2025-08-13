@@ -15,8 +15,10 @@ import {
 const RAMP_STATE_STORAGE_KEY = "rampState";
 
 const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
-const restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
+let restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
 console.log("restored state: ", restoredState);
+// invalidate restored state if the machine is with error status.
+restoredState = restoredState?.status === "error" ? undefined : restoredState;
 
 export const RampStateContext = createActorContext(rampMachine, {
   snapshot: restoredState
