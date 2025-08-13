@@ -1,5 +1,5 @@
 import { RampProcess } from "@packages/shared";
-import { assign, fromPromise, setup } from "xstate";
+import { assign, emit, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { UseSiweContext } from "../contexts/siwe";
 import { ToastMessage } from "../helpers/notifications";
@@ -13,13 +13,12 @@ import { brlaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { DisplayUserRejectError, GetMessageSignatureCallback, RampContext, RampState } from "./types";
+import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
   chainId: undefined,
-  displayUserRejectError: undefined,
   executionInput: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
@@ -52,11 +51,11 @@ export type RampMachineEvents =
   | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
   | { type: "RESET_RAMP" }
   | { type: "FINISH_OFFRAMPING" }
-  | { type: "SET_DISPLAY_USER_REJECT_ERROR"; implementation: DisplayUserRejectError };
+  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage };
 
 export const rampMachine = setup({
   actions: {
-    displaySignRejectError: () => Promise<void>,
+    //displaySignRejectError: () => Promise<void>,
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
@@ -64,7 +63,8 @@ export const rampMachine = setup({
     })),
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
-    })
+    }),
+    showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" })
   },
   actors: {
     brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
@@ -77,6 +77,7 @@ export const rampMachine = setup({
   },
   types: {
     context: {} as RampContext,
+    emitted: {} as { type: "SHOW_ERROR_TOAST"; message: ToastMessage },
     events: {} as RampMachineEvents
   }
 }).createMachine({
@@ -91,11 +92,6 @@ export const rampMachine = setup({
     SET_ADDRESS: {
       actions: assign({
         address: ({ event }: any) => event.address
-      })
-    },
-    SET_DISPLAY_USER_REJECT_ERROR: {
-      actions: assign({
-        displayUserRejectError: ({ event }: any) => event.displayUserRejectError
       })
     },
     SET_GET_MESSAGE_SIGNATURE: {
@@ -243,20 +239,14 @@ export const rampMachine = setup({
         },
         onError: [
           {
-            actions: [
-              ({ event }) => {
-                console.log("User rejected signing:", event.error);
-              },
-              ({ context }) => {
-                context.displayUserRejectError?.(ToastMessage.SIGNING_REJECTED);
-              },
-              { type: "resetRamp" }
-            ],
+            actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
+            // The user rejected the signature
             guard: ({ event }) => event.error instanceof SignRampError && event.error.type === SignRampErrorType.UserRejected,
             target: "Idle"
           },
           {
             actions: [{ type: "resetRamp" }],
+            // Handle other errors
             target: "Idle"
           }
         ],

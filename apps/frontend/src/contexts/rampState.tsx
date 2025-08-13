@@ -1,5 +1,5 @@
 import { createActorContext, useSelector } from "@xstate/react";
-import React, { PropsWithChildren, useEffect } from "react";
+import React, { PropsWithChildren, use, useEffect } from "react";
 import { MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
@@ -36,6 +36,10 @@ const PersistenceEffect = () => {
     | MoneriumKycActorRef
     | undefined;
 
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state?.value
+  }));
+
   const { moneriumState } = useSelector(moneriumActor, state => ({
     moneriumState: state?.value
   }));
@@ -45,10 +49,9 @@ const PersistenceEffect = () => {
   }));
 
   useEffect(() => {
-    console.log("persisting....");
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-  }, [rampActor, moneriumState, stellarState]);
+  }, [rampState, moneriumState, stellarState]);
 
   return null;
 };

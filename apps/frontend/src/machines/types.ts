@@ -1,18 +1,15 @@
 import { PaymentData } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
-import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
+import { ActorRef, ActorRefFrom, EventObject, SnapshotFrom } from "xstate";
 import { RampDirection } from "../components/RampToggle";
-import { ApiComponents } from "../contexts/polkadotNode";
 import { UseSiweContext } from "../contexts/siwe";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
-import { RampMachineEvents, rampMachine } from "./ramp.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
-export type DisplayUserRejectError = (message: string) => Promise<unknown>;
 export interface RampContext {
   stuff?: string;
   authToken?: string;
@@ -32,11 +29,27 @@ export interface RampContext {
   substrateWalletAccount: WalletAccount | undefined;
   isQuoteExpired: boolean;
   siwe: UseSiweContext | undefined;
-  displayUserRejectError: DisplayUserRejectError | undefined;
 }
 
-export type RampMachineSnapshot = SnapshotFrom<typeof rampMachine>;
-export type RampMachineActor = ActorRef<RampMachineSnapshot, RampMachineEvents>;
+export type RampMachineEvents =
+  | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
+  | { type: "CANCEL_RAMP" }
+  | { type: "onDone"; input: RampState }
+  | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
+  | { type: "SET_ADDRESS"; address: string | undefined }
+  | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
+  | { type: "SubmitLevel1"; formData: any } // KYCFormData
+  | { type: "SummaryConfirm" }
+  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
+  | { type: "PAYMENT_CONFIRMED" }
+  | { type: "SET_RAMP_STATE"; rampState: RampState }
+  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
+  | { type: "RESET_RAMP" }
+  | { type: "FINISH_OFFRAMPING" }
+  | { type: "SHOW_ERROR_TOAST"; message: string };
+
+export type RampMachineActor = ActorRef<any, RampMachineEvents>;
+export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
 export type StellarKycActorRef = ActorRefFrom<typeof stellarKycMachine>;
 export type StellarKycSnapshot = SnapshotFrom<typeof stellarKycMachine>;
 

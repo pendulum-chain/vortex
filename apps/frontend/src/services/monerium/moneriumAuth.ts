@@ -1,7 +1,6 @@
 import { siweMessage } from "@monerium/sdk";
 import CryptoJS from "crypto-js";
 import { polygon } from "viem/chains";
-import { useMoneriumStore } from "../../stores/moneriumStore";
 
 const VORTEX_APP_CLIENT_ID = process.env.REACT_APP_MONERIUM_CLIENT_ID || "eac7a71a-414d-11f0-bea7-ce527adad61b";
 const MONERIUM_API_URL = process.env.REACT_APP_MONERIUM_API_URL || "https://api.monerium.app";
