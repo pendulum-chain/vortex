@@ -86,10 +86,12 @@ export const useVortexAccount = () => {
   );
 
   return {
-    address,
+    address, // currently selected address
     chainId,
+    evmAddress: evmAccountAddress,
     getMessageSignature,
     isDisconnected,
+    substrateAddress: polkadotWalletAccount?.address,
     type
   };
 };
