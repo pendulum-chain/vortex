@@ -33,6 +33,7 @@ import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
+import { validateAmountLimits } from "./validation-helpers";
 
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
@@ -72,6 +73,10 @@ export class QuoteService extends BaseRampService {
       if (!partner) {
         logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
       }
+    }
+
+    if (request.rampType === "on") {
+      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", "buy");
     }
 
     // Determine the target fiat currency for fees
@@ -247,6 +252,10 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
+    if (request.rampType === "off") {
+      validateAmountLimits(nablaSwapResult.nablaOutputAmountDecimal, request.outputCurrency as FiatToken, "max", "sell");
+    }
+
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
@@ -384,6 +393,12 @@ export class QuoteService extends BaseRampService {
         message: QuoteError.InputAmountTooLowToCoverCalculatedFees,
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    if (request.rampType === "on") {
+      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "buy");
+    } else {
+      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "sell");
     }
 
     const finalNetOutputAmountStr =
