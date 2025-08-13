@@ -267,6 +267,14 @@
       "waitingForSignature": "Waiting for signature",
       "yourConnectedWallet": "your connected wallet to proceed"
     },
+    "stepper": {
+      "complete": "Complete",
+      "kyc": "KYC",
+      "payment": "Payment",
+      "processing": "Processing",
+      "quote": "Quote",
+      "sign": "Sign"
+    },
     "swap": {
       "buyButton": "Buy",
       "compareFees": "Compare fees",

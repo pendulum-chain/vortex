@@ -265,6 +265,14 @@
       "waitingForSignature": "Aguardando assinatura",
       "yourConnectedWallet": "sua carteira conectada para prosseguir"
     },
+    "stepper": {
+      "complete": "Completo",
+      "kyc": "KYC",
+      "payment": "Pagamento",
+      "processing": "Processando",
+      "quote": "Cotação",
+      "sign": "Assinar"
+    },
     "swap": {
       "buyButton": "Comprar",
       "compareFees": "Comparar taxas",
