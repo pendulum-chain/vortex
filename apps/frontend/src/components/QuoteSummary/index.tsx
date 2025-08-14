@@ -38,13 +38,17 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
   const outputFiatDetails = getFiatTokenDetails(quote.outputCurrency);
 
   return (
-    <div className="rounded-lg shadow-md p-4 bg-white">
-      <AnimatePresence>
+    <motion.div
+      className="rounded-lg shadow-md p-4 bg-white"
+      layout
+      transition={{ damping: 30, stiffness: 500, type: "spring" }}
+    >
+      <AnimatePresence initial={false}>
         {!isExpanded ? (
           <motion.div
             animate={{ opacity: 1 }}
             className="flex justify-between items-center cursor-pointer"
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, position: "absolute", width: "calc(100% - 2rem)" }}
             initial={{ opacity: 0 }}
             key="collapsed"
             onClick={toggleExpanded}
@@ -59,6 +63,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
                       e.stopPropagation();
                       navigator.clipboard.writeText(quote.id);
                     }}
+                    type="button"
                   >
                     <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
                   </button>
@@ -86,7 +91,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
           <motion.div
             animate={{ opacity: 1 }}
             className="cursor-pointer"
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, position: "absolute", width: "calc(100% - 2rem)" }}
             initial={{ opacity: 0 }}
             key="expanded"
             onClick={toggleExpanded}
@@ -129,6 +134,6 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
