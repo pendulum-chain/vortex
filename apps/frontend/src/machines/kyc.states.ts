@@ -122,7 +122,7 @@ export const kycStateNode = {
     Stellar: {
       invoke: {
         id: "stellarKyc",
-        input: ({ context }: { context: RampContext }) => ({ context }),
+        input: ({ context }: { context: RampContext }) => context,
         onDone: [
           {
             actions: assign(({ context, event }: { context: RampContext; event: any }) => {
@@ -136,6 +136,11 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
+            actions: [{ type: "showSigningRejectedErrorToast" }],
+            guard: ({ event }: { event: any }) => event.output?.error.includes("User rejected"),
+            target: "#ramp.KycFailure"
+          },
+          {
             // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
             actions: assign({
               initializeFailedMessage: ({ event }: { event: any }) => event.output.error
@@ -143,12 +148,14 @@ export const kycStateNode = {
             target: "#ramp.KycFailure"
           }
         ],
-        onError: {
-          actions: assign({
-            initializeFailedMessage: "Stellar KYC verification failed. Please retry."
-          }),
-          target: "#ramp.KycFailure"
-        },
+        onError: [
+          {
+            actions: assign({
+              initializeFailedMessage: "Stellar KYC verification failed. Please retry."
+            }),
+            target: "#ramp.KycFailure"
+          }
+        ],
         src: "stellarKyc"
       }
     },

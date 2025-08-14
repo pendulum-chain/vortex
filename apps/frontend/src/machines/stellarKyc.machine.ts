@@ -1,5 +1,5 @@
 import { PaymentData } from "@packages/shared";
-import { assign, emit, sendTo, setup } from "xstate";
+import { assign, emit, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
@@ -52,10 +52,9 @@ export const stellarKycMachine = setup({
       on: {
         SIGNATURE_FAILURE: [
           {
-            actions: [
-              sendTo("ramp", { message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
-              assign({ error: ({ event }) => event.error })
-            ],
+            actions: assign({
+              error: ({ event }) => event.error
+            }), // Maybe type this kind of error across the app.
             guard: ({ event }) => event.error.includes("User rejected signing request."),
             target: "Failed"
           },

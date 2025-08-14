@@ -31,7 +31,7 @@ export interface RampContext {
 }
 
 export type RampMachineEvents =
-  | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
+  | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }

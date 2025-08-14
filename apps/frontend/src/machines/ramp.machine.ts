@@ -34,7 +34,7 @@ const initialRampContext: RampContext = {
 };
 
 export type RampMachineEvents =
-  | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
+  | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
@@ -132,7 +132,7 @@ export const rampMachine = setup({
     Idle: {
       on: {
         // This is the main confirm button.
-        Confirm: {
+        CONFIRM: {
           actions: assign({
             chainId: ({ event }) => event.input.chainId,
             executionInput: ({ event }) => event.input.executionInput,

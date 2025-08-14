@@ -107,7 +107,7 @@ export const useRampSubmission = () => {
         throw new Error("ChainId must be defined at this stage");
       }
       console.log({ input: { chainId, executionInput, rampDirection } });
-      rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "Confirm" });
+      rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
     } finally {

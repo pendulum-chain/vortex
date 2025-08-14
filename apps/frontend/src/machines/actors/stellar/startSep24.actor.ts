@@ -9,15 +9,10 @@ import { RampContext } from "../../types";
 
 export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input }) => {
   let intervalId: NodeJS.Timeout;
-  const parent = (self as any)._parent!;
 
   const { executionInput } = input;
   if (!executionInput) {
-    parent.send({
-      error: new Error("Missing execution input"),
-      type: "xstate.error"
-    });
-    return;
+    throw new Error("Missing execution input");
   }
 
   const runSep24Logic = async () => {

@@ -118,12 +118,10 @@ export function useSiweSignature(stellarKycActor: ActorRefFrom<typeof stellarKyc
     if (!stellarKycActor) return;
     // We react to the different state changes of the stellarKycActor.
     stellarKycActor.on("CHECK_AUTH_STATUS", event => {
-      console.log("Notification CHECK_AUTH_STATUS!", event);
       checkAuthStatus();
     });
 
     stellarKycActor.on("PROMPT_FOR_SIGNATURE", event => {
-      console.log("Notification PROMPT_FOR_SIGNATURE!", event);
       promptForSignature();
     });
 
