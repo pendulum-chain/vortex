@@ -5,8 +5,8 @@ import { TOKEN_CONFIG } from "@packages/shared/src/tokens/tokenConfig";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import Arrow from "../../assets/arrow.svg";
-import CopyIcon from "../../assets/copy-icon.svg";
 import { FiatIcon } from "../FiatIcon";
+import { CopyablePublicKey } from "../PublicKey/CopyablePublicKey";
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
@@ -37,9 +37,8 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
 
   return (
     <motion.div
-      className="rounded-lg shadow-md p-4 bg-white border border-blue-700 cursor-pointer"
+      className="rounded-lg shadow-md p-4 bg-white border border-blue-700"
       layout
-      onClick={toggleExpanded}
       transition={{ duration: 0.3, type: "spring" }}
     >
       <AnimatePresence initial={false} mode="wait">
@@ -54,24 +53,12 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             <div className="flex items-center">
               <div>
                 <div className="text-gray-500 text-sm">Transaction ID</div>
-                <div className="flex items-center">
-                  <span className="font-bold text-lg mr-2">{quote.id.substring(0, 10)}</span>
-                  <button
-                    className="bg-transparent border-none p-0"
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigator.clipboard.writeText(quote.id);
-                    }}
-                    type="button"
-                  >
-                    <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
-                  </button>
-                </div>
+                <CopyablePublicKey inline={true} publicKey={quote.id} variant="shorter" wrap={true} />
               </div>
             </div>
             <div className="flex-grow border-l border-gray-300 mx-4 h-12" />
-            <div className="text-right">
-              <div className="flex items-center justify-end">
+            <div className="text-sm text-left">
+              <div className="flex items-center">
                 <div className="text-gray-500">
                   {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
                 </div>
@@ -81,29 +68,29 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
                 {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
               </div>
             </div>
-            <div className="p-2 ml-4 bg-blue-100 rounded-full">
+            <button className="p-2 ml-4 btn btn-sm h-8! bg-blue-100 rounded-full" onClick={toggleExpanded} type="button">
               <ChevronDownIcon className="h-4 w-4" />
-            </div>
+            </button>
           </motion.div>
         ) : (
           <motion.div animate={{ opacity: 1 }} exit={{ opacity: 0 }} initial={{ opacity: 0 }} key="expanded">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Exchange details</h2>
-              <div className="p-2 bg-blue-100 rounded-full">
+              <button className="p-2 btn btn-sm h-8! bg-blue-100 rounded-full" onClick={toggleExpanded} type="button">
                 <ChevronUpIcon className="h-4 w-4" />
-              </div>
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
+              <div className="flex flex-col">
                 <div className="text-gray-500">You send</div>
-                <div className="flex items-center font-bold text-lg">
+                <div className="flex items-center font-bold grow">
                   {inputFiatDetails && <FiatIcon className="w-6 h-6 mr-2" fiat={inputFiatDetails} />}
                   {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="flex flex-col">
                 <div className="text-gray-500">You get</div>
-                <div className="flex items-center font-bold text-lg justify-end">
+                <div className="flex items-center font-bold justify-end grow">
                   {outputFiatDetails && <FiatIcon className="w-6 h-6 mr-2" fiat={outputFiatDetails} />}~ {quote.outputAmount}{" "}
                   {quote.outputCurrency.toUpperCase()}
                 </div>
@@ -112,16 +99,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             <div className="mt-4">
               <div className="text-gray-500">Transaction ID</div>
               <div className="flex items-center">
-                <span className="font-bold text-lg mr-2">{quote.id}</span>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(quote.id);
-                  }}
-                  type="button"
-                >
-                  <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
-                </button>
+                <CopyablePublicKey inline={true} publicKey={quote.id} variant="full" wrap={true} />
               </div>
             </div>
           </motion.div>
