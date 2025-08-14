@@ -2,7 +2,6 @@ import { PaymentData } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { ActorRef, ActorRefFrom, EventObject, SnapshotFrom } from "xstate";
 import { RampDirection } from "../components/RampToggle";
-import { UseSiweContext } from "../contexts/siwe";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
@@ -28,14 +27,12 @@ export interface RampContext {
   getMessageSignature: GetMessageSignatureCallback | undefined;
   substrateWalletAccount: WalletAccount | undefined;
   isQuoteExpired: boolean;
-  siwe: UseSiweContext | undefined;
 }
 
 export type RampMachineEvents =
   | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
-  | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: any } // KYCFormData

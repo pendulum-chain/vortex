@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
-import { useSiweContext } from "../../contexts/siwe";
 import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
@@ -36,16 +35,6 @@ export const useRampSubmission = () => {
   const { trackEvent } = useEventsContext();
   const preRampCheck = usePreRampCheck();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
-  const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
-
-  useEffect(() => {
-    if (rampActor) {
-      rampActor.send({
-        siwe: { checkAndWaitForSignature, forceRefreshAndWaitForSignature },
-        type: "SET_SIWE_CONTEXT"
-      });
-    }
-  }, [rampActor, checkAndWaitForSignature, forceRefreshAndWaitForSignature]);
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {

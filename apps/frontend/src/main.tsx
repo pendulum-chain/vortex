@@ -14,7 +14,6 @@ import { EventsProvider } from "./contexts/events";
 import { NetworkProvider } from "./contexts/network";
 import { PolkadotNodeProvider } from "./contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
-import { SiweProvider } from "./contexts/siwe";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
 import { PersistentRampStateProvider } from "./contexts/rampState";
@@ -51,9 +50,7 @@ createRoot(root).render(
           <PolkadotNodeProvider>
             <PolkadotWalletStateProvider>
               <EventsProvider>
-                <SiweProvider>
-                  <App />
-                </SiweProvider>
+                <App />
               </EventsProvider>
             </PolkadotWalletStateProvider>
           </PolkadotNodeProvider>

@@ -11,10 +11,10 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
   let intervalId: NodeJS.Timeout;
   const parent = (self as any)._parent!;
 
-  const { executionInput, siwe } = input;
-  if (!executionInput || !siwe) {
+  const { executionInput } = input;
+  if (!executionInput) {
     parent.send({
-      error: new Error("Missing execution input or siwe context"),
+      error: new Error("Missing execution input"),
       type: "xstate.error"
     });
     return;
@@ -30,9 +30,7 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
         tomlValues,
         stellarEphemeralSecret,
         executionInput.fiatToken,
-        executionInput.userWalletAddress,
-        siwe.checkAndWaitForSignature,
-        siwe.forceRefreshAndWaitForSignature
+        executionInput.userWalletAddress
       );
 
       const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);

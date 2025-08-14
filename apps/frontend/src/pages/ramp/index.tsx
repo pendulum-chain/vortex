@@ -1,9 +1,10 @@
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
-import { useRampActor } from "../../contexts/rampState";
+import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
 import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
+import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
 import { RampForm } from "../ramp-form";
@@ -12,7 +13,9 @@ import { SuccessPage } from "../success";
 export const Ramp = () => {
   const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <RampForm />);
   const rampActor = useRampActor();
+  const stellarKycActor = useStellarKycActor();
   useMoneriumFlow();
+  useSiweSignature(stellarKycActor);
 
   const { showToast } = useToastMessage();
 

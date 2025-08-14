@@ -1,5 +1,6 @@
 import { PaymentData } from "@packages/shared";
-import { assign, sendTo, setup } from "xstate";
+import { assign, emit, sendTo, setup } from "xstate";
+import { ToastMessage } from "../helpers/notifications";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
 import { StellarKycContext } from "./kyc.states";
@@ -21,23 +22,82 @@ export const stellarKycMachine = setup({
         }
       | { type: "SEP24_FAILED"; error: any }
       | { type: "INTERVAL_STARTED"; intervalId: NodeJS.Timeout }
-      | { type: "Cancel"; output: PaymentData },
+      | { type: "Cancel"; output: PaymentData }
+      | { type: "AUTH_VALID" }
+      | { type: "AUTH_INVALID" }
+      | { type: "SIGNATURE_SUCCESS" }
+      | { type: "SIGNATURE_FAILURE"; error: string }
+      | { type: "CHECK_AUTH_STATUS" }
+      | { type: "PROMPT_FOR_SIGNATURE" }
+      | { type: "SIWE_READY" },
     input: {} as RampContext,
     output: {} as { error?: any; paymentData?: PaymentData }
   }
 }).createMachine({
   context: ({ input }) => ({
-    ...input,
+    ...(input as RampContext),
     redirectUrl: undefined,
     sep24IntervalId: undefined
   }),
   id: "stellarKyc",
-  initial: "StartSep24",
+  initial: "Authentication",
   output: ({ context }) => ({
     error: context.error,
     paymentData: context.paymentData
   }),
   states: {
+    // SIWE states.
+    Authentication: {
+      initial: "AwaitSiwe",
+      on: {
+        SIGNATURE_FAILURE: [
+          {
+            actions: [
+              sendTo("ramp", { message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
+              assign({ error: ({ event }) => event.error })
+            ],
+            guard: ({ event }) => event.error.includes("User rejected signing request."),
+            target: "Failed"
+          },
+          {
+            actions: assign({
+              error: ({ event }) => event.error
+            }),
+            target: "Failed"
+          }
+        ]
+      },
+      states: {
+        // We emit this event which will trigger the siwe hooks to subscribe to this actor.
+        // Once that's ready, it will send back a SIWE_READY event
+        AwaitSiwe: {
+          on: {
+            SIWE_READY: {
+              target: "CheckingAuth"
+            }
+          }
+        },
+        CheckingAuth: {
+          entry: emit({ type: "CHECK_AUTH_STATUS" }),
+          on: {
+            AUTH_INVALID: {
+              target: "RequestingSignature"
+            },
+            AUTH_VALID: {
+              target: "#stellarKyc.StartSep24"
+            }
+          }
+        },
+        RequestingSignature: {
+          entry: emit({ type: "PROMPT_FOR_SIGNATURE" }),
+          on: {
+            SIGNATURE_SUCCESS: {
+              target: "#stellarKyc.StartSep24"
+            }
+          }
+        }
+      }
+    },
     Done: {
       type: "final"
     },
@@ -45,7 +105,6 @@ export const stellarKycMachine = setup({
       type: "final"
     },
     Sep24Second: {
-      // TODO important, why this invoked actor does not STOP after we exit this state?
       invoke: {
         input: ({ context }) => ({
           ...context,

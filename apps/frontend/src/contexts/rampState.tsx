@@ -67,6 +67,14 @@ export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ child
   );
 };
 
+export function useStellarKycActor(): StellarKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
+    | StellarKycActorRef
+    | undefined;
+}
+
 export function useStellarKycSelector(): SelectedStellarData | undefined {
   const rampActor = useRampActor();
 

@@ -1,7 +1,6 @@
 import { RampProcess } from "@packages/shared";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
-import { UseSiweContext } from "../contexts/siwe";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
@@ -31,7 +30,6 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   rampSummaryVisible: false,
-  siwe: undefined,
   stuff: undefined,
   substrateWalletAccount: undefined
 };
@@ -40,7 +38,6 @@ export type RampMachineEvents =
   | { type: "Confirm"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
-  | { type: "SET_SIWE_CONTEXT"; siwe: UseSiweContext }
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
@@ -102,11 +99,6 @@ export const rampMachine = setup({
     SET_INITIALIZE_FAILED_MESSAGE: {
       actions: assign({
         initializeFailedMessage: ({ event }: any) => event.message
-      })
-    },
-    SET_SIWE_CONTEXT: {
-      actions: assign({
-        siwe: ({ event }: any) => event.siwe // TODO this must be set using input, for serialization.
       })
     },
     SIGNING_UPDATE: {

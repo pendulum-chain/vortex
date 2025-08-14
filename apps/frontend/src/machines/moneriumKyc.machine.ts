@@ -39,10 +39,11 @@ export const moneriumKycMachine = setup({
   },
   types: {
     context: {} as MoneriumKycContext,
+    input: {} as MoneriumKycContext,
     output: {} as { authToken?: string; error?: any }
   }
 }).createMachine({
-  context: ({ input }) => input as MoneriumKycContext,
+  context: ({ input }) => ({ ...input }),
   id: "moneriumKyc",
   initial: "Started",
   output: ({ context }) => ({
