@@ -1,3 +1,4 @@
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/20/solid";
 import { FiatTokenDetails, RampCurrency } from "@packages/shared";
 import { QuoteResponse } from "@packages/shared/src/endpoints/quote.endpoints";
 import { TOKEN_CONFIG } from "@packages/shared/src/tokens/tokenConfig";
@@ -81,7 +82,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
               </div>
             </div>
             <div className="p-2 ml-4 bg-blue-100 rounded-full">
-              <img alt="Toggle" className="w-4 h-4 transform rotate-180" src={Arrow} />
+              <ChevronDownIcon className="h-4 w-4" />
             </div>
           </motion.div>
         ) : (
@@ -89,7 +90,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Exchange details</h2>
               <div className="p-2 bg-blue-100 rounded-full">
-                <img alt="Toggle" className="w-4 h-4" src={Arrow} />
+                <ChevronUpIcon className="h-4 w-4" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4">
