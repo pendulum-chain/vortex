@@ -1,12 +1,31 @@
+import { FiatTokenDetails, RampCurrency } from "@packages/shared";
 import { QuoteResponse } from "@packages/shared/src/endpoints/quote.endpoints";
+import { TOKEN_CONFIG } from "@packages/shared/src/tokens/tokenConfig";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import Arrow from "../../assets/arrow.svg";
 import CopyIcon from "../../assets/copy-icon.svg";
+import { FiatIcon } from "../FiatIcon";
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
 }
+
+const getFiatTokenDetails = (currency: RampCurrency): FiatTokenDetails | undefined => {
+  const fiatToken = TOKEN_CONFIG[currency as keyof typeof TOKEN_CONFIG];
+  if (fiatToken) {
+    // This is a hack, we need a proper way to get the fiat details
+    return {
+      assetSymbol: currency,
+      fiat: {
+        assetIcon: "",
+        name: currency.toUpperCase(),
+        symbol: currency.toUpperCase()
+      }
+    } as FiatTokenDetails;
+  }
+  return undefined;
+};
 
 export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -14,6 +33,9 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
+
+  const inputFiatDetails = getFiatTokenDetails(quote.inputCurrency);
+  const outputFiatDetails = getFiatTokenDetails(quote.outputCurrency);
 
   return (
     <div className="rounded-lg shadow-md p-4 bg-white">
@@ -35,6 +57,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             </div>
           </div>
         </div>
+        <div className="flex-grow border-l border-gray-300 mx-4 h-12"></div>
         <div className="text-right">
           <div className="text-gray-500">
             {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
@@ -43,7 +66,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
           </div>
         </div>
-        <button className="p-2" type="button">
+        <button className="p-2 ml-4 bg-blue-100 rounded-full" type="button">
           <img
             alt="Toggle"
             className={`w-4 h-4 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -59,17 +82,22 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
             exit={{ height: 0, opacity: 0 }}
             initial={{ height: 0, opacity: 0 }}
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Exchange details</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
                 <div className="text-gray-500">You send</div>
-                <div className="font-bold text-lg">
+                <div className="flex items-center font-bold text-lg">
+                  {inputFiatDetails && <FiatIcon className="w-6 h-6 mr-2" fiat={inputFiatDetails} />}
                   {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-gray-500">You get</div>
-                <div className="font-bold text-lg">
-                  ~ {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
+                <div className="flex items-center font-bold text-lg">
+                  {outputFiatDetails && <FiatIcon className="w-6 h-6 mr-2" fiat={outputFiatDetails} />}~ {quote.outputAmount}{" "}
+                  {quote.outputCurrency.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -77,13 +105,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
               <div className="text-gray-500">Transaction ID</div>
               <div className="flex items-center">
                 <span className="font-bold text-lg mr-2">{quote.id}</span>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(quote.id);
-                  }}
-                  type="button"
-                >
+                <button onClick={() => navigator.clipboard.writeText(quote.id)} type="button">
                   <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
                 </button>
               </div>
