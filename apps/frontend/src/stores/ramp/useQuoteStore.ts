@@ -230,9 +230,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
         }
       },
       error: null,
-      exchangeRate: 0,
       loading: false,
-      outputAmount: undefined,
       providedQuoteId: undefined,
       quote: undefined
     }),
@@ -240,9 +238,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
       name: "useQuoteStore",
       partialize: state => ({
         error: state.error,
-        exchangeRate: state.exchangeRate,
         loading: state.loading,
-        outputAmount: state.outputAmount,
         providedQuoteId: state.providedQuoteId,
         quote: state.quote
       })
