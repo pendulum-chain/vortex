@@ -70,7 +70,6 @@ export const getQuote = async (
   try {
     const { id } = req.params;
 
-    logger.info("Trying to get quote with ID:", id);
     const quote = await quoteService.getQuote(id);
 
     if (!quote) {

@@ -163,8 +163,6 @@ export const useSetRampUrlParams = () => {
     const params = new URLSearchParams(window.location.search);
     const persistState = params.get("code") !== null;
 
-    console.log("In useSetRampUrlParams, persistState:", persistState);
-
     if (persistState) {
       // If the persist flag is set, the ramp direction is already persisted
       // and will be automatically loaded from localStorage by the store.
@@ -198,10 +196,7 @@ export const useSetRampUrlParams = () => {
       setInputAmount(fromAmount);
     }
 
-    console.log("Before setting providedQuoteId:", providedQuoteId);
-
     if (providedQuoteId) {
-      console.log("Setting providedQuoteId:", providedQuoteId);
       setProvidedQuoteId(providedQuoteId);
     } else {
       setProvidedQuoteId(undefined);
