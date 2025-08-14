@@ -1,8 +1,9 @@
 import { motion } from "motion/react";
-import { FormProvider } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { QuoteSummary } from "../../components/QuoteSummary";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useQuote } from "../../stores/ramp/useQuoteStore";
@@ -35,7 +36,7 @@ export const WidgetDetailsPage = () => {
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   useSetRampUrlParams();
-  const { form } = useRampForm();
+  const form = useForm({ disabled: true });
 
   return (
     <FormProvider {...form}>
@@ -47,6 +48,7 @@ export const WidgetDetailsPage = () => {
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
         <div className="mt-8 mb-8 grid gap-3 px-2">{isBrazilLanding ? <BrazilLanding /> : <EuroLanding />}</div>
+        <div className="mt-8 mb-8 grid gap-3 px-2">{quote && <QuoteSummary quote={quote} />}</div>
       </motion.form>
     </FormProvider>
   );
