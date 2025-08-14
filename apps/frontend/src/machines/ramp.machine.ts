@@ -48,10 +48,10 @@ export type RampMachineEvents =
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
   | { type: "RESET_RAMP" }
   | { type: "FINISH_OFFRAMPING" }
-  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage };
+  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
+  | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined };
 
 export const rampMachine = setup({
   actions: {
@@ -97,6 +97,11 @@ export const rampMachine = setup({
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
         getMessageSignature: ({ event }: any) => event.getMessageSignature
+      })
+    },
+    SET_INITIALIZE_FAILED_MESSAGE: {
+      actions: assign({
+        initializeFailedMessage: ({ event }: any) => event.message
       })
     },
     SET_SIWE_CONTEXT: {
@@ -148,11 +153,6 @@ export const rampMachine = setup({
         },
         RESET_RAMP: {
           actions: "resetRamp"
-        },
-        SET_RAMP_EXECUTION_INPUT: {
-          actions: assign({
-            executionInput: ({ event }: any) => event.executionInput
-          })
         }
       }
     },

@@ -43,7 +43,6 @@ export type RampMachineEvents =
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "SET_RAMP_EXECUTION_INPUT"; executionInput: RampExecutionInput }
   | { type: "RESET_RAMP" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: string };

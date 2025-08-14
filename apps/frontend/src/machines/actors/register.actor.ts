@@ -64,12 +64,10 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: address,
-      moneriumAuthToken: authToken,
-      taxId: executionInput.taxId
+      moneriumAuthToken: authToken
     };
   } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
-      paymentData, // We know it exists here, as the KYC machine ensures it is set before reaching this point.
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
@@ -77,10 +75,9 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   } else {
     additionalData = {
-      moneriumAuthToken: authToken,
+      // moneriumAuthToken is only relevant after enabling Monerium offramps.
+      // moneriumAuthToken: authToken,
       paymentData,
-      receiverTaxId: executionInput.taxId,
-      taxId: executionInput.taxId,
       walletAddress: address
     };
   }

@@ -125,16 +125,12 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   useEffect(() => {
     if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
       setTaxId(watchedCpf);
-      if (executionInput)
-        rampActor.send({ executionInput: { ...executionInput, taxId: watchedCpf }, type: "SET_RAMP_EXECUTION_INPUT" });
     }
   }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, rampActor]);
 
   useEffect(() => {
     if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
       setPixId(watchedPixId);
-      if (executionInput)
-        rampActor.send({ executionInput: { ...executionInput, pixId: watchedPixId }, type: "SET_RAMP_EXECUTION_INPUT" });
     }
   }, [watchedPixId, pixIdFromStore, setPixId, executionInput, rampActor]);
 
