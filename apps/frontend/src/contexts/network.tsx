@@ -4,7 +4,6 @@ import { useAccount, useSwitchChain } from "wagmi";
 import { WALLETCONNECT_ASSETHUB_ID } from "../constants/constants";
 import { LocalStorageKeys, useLocalStorage } from "../hooks/useLocalStorage";
 import { useRampUrlParams } from "../hooks/useRampUrlParams";
-import { useSep24Actions } from "../stores/sep24Store";
 import { useRampActor } from "./rampState";
 
 interface NetworkContextType {
@@ -41,7 +40,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(network || selectedNetworkLocalStorage);
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
-  const { cleanup: cleanupSep24Variables } = useSep24Actions();
   const { switchChainAsync } = useSwitchChain();
   const { chain: connectedEvmChain } = useAccount();
 
@@ -49,7 +47,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
     async (network: Networks, resetState = false) => {
       if (resetState) {
         rampActor.send({ type: "RESET_RAMP" });
-        cleanupSep24Variables();
       }
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
@@ -63,7 +60,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         }
       }
     },
-    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, rampActor, cleanupSep24Variables]
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, rampActor]
   );
 
   return (

@@ -58,7 +58,7 @@ export const kycStateNode = {
     Brla: {
       invoke: {
         id: "brlaKyc",
-        input: ({ context }: { self: RampMachineActor; context: RampContext }): BrlaKycContext => ({
+        input: ({ context }: { context: RampContext }): BrlaKycContext => ({
           ...context,
           taxId: context.executionInput!.taxId!
         }),
@@ -87,7 +87,7 @@ export const kycStateNode = {
     Monerium: {
       invoke: {
         id: "moneriumKyc",
-        input: ({ context }: { self: RampMachineActor; context: RampContext }): MoneriumKycContext => ({
+        input: ({ context }: { context: RampContext }): MoneriumKycContext => ({
           ...context
         }),
         onDone: [
@@ -122,7 +122,7 @@ export const kycStateNode = {
     Stellar: {
       invoke: {
         id: "stellarKyc",
-        input: ({ self, context }: { self: RampMachineActor; context: RampContext }) => ({ ...context, parent: self }),
+        input: ({ context }: { context: RampContext }) => ({ context }),
         onDone: [
           {
             actions: assign(({ context, event }: { context: RampContext; event: any }) => {

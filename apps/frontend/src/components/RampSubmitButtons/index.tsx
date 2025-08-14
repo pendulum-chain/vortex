@@ -10,7 +10,6 @@ import { useFeeComparisonStore } from "../../stores/feeComparison";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampExecutionInput } from "../../stores/rampStore";
 import { SwapSubmitButton } from "../buttons/SwapSubmitButton";
 import { RampDirection } from "../RampToggle";
 
@@ -24,7 +23,6 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage } = useRampValidation();
-  const executionInput = useRampExecutionInput();
 
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
@@ -35,7 +33,8 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { quote } = useQuoteStore();
   const quoteInputAmount = quote?.inputAmount;
 
-  const { isRampSummaryDialogVisible, initializeFailedMessage } = useSelector(rampActor, state => ({
+  const { isRampSummaryDialogVisible, initializeFailedMessage, executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
     initializeFailedMessage: state.context.initializeFailedMessage,
     isRampSummaryDialogVisible: state.context.rampSummaryVisible
   }));

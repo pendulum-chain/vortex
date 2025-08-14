@@ -3,7 +3,6 @@ import { useSelector } from "@xstate/react";
 import { useEffect, useState } from "react";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
-import { useSigningRejected } from "../stores/rampStore";
 import { useSafeWalletSignatureStore } from "../stores/safeWalletSignaturesStore";
 import { RampSigningPhase } from "../types/phases";
 

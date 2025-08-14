@@ -1,4 +1,3 @@
-import { RampProcess } from "@packages/shared";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { RampDirection } from "../components/RampToggle";
 import { ToastMessage } from "../helpers/notifications";

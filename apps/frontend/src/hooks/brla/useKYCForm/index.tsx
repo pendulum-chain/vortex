@@ -7,7 +7,6 @@ import * as yup from "yup";
 import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
 import { useRampActor } from "../../../contexts/rampState";
 import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
-import { useRampStore } from "../../../stores/rampStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
 export interface UseKYCFormProps {

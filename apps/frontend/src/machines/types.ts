@@ -2,6 +2,7 @@ import { PaymentData } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { ActorRef, ActorRefFrom, EventObject, SnapshotFrom } from "xstate";
 import { RampDirection } from "../components/RampToggle";
+import { ToastMessage } from "../helpers/notifications";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
@@ -42,7 +43,7 @@ export type RampMachineEvents =
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP" }
   | { type: "FINISH_OFFRAMPING" }
-  | { type: "SHOW_ERROR_TOAST"; message: string };
+  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

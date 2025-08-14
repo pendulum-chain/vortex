@@ -102,21 +102,21 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
 };
 
 export function useKYCProcess() {
-  const { STATUS_MESSAGES } = useStatusMessages();
-  const { showToast, ToastMessage } = useToastMessage();
-  const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
+  // const { STATUS_MESSAGES } = useStatusMessages();
+  // const { showToast, ToastMessage } = useToastMessage();
+  // const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
 
-  const rampActor = useRampActor();
+  // const rampActor = useRampActor();
 
-  const { context: machineContext } = rampActor.state;
+  // const { context: machineContext } = rampActor.state;
 
-  const isSubmitted = !state.matches("Level1") && !state.matches("Started");
-  const isSubmittedDebounced = useDebouncedValue(isSubmitted, 3000);
+  // const isSubmitted = !state.matches("Level1") && !state.matches("Started");
+  // const isSubmittedDebounced = useDebouncedValue(isSubmitted, 3000);
 
-  const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } =
-    useVerificationStatusUI(isSubmittedDebounced);
+  // const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } =
+  //   useVerificationStatusUI(isSubmittedDebounced);
 
-  const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
+  // const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
 
   // const handleBackClick = useCallback(() => {
   // }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
@@ -135,59 +135,61 @@ export function useKYCProcess() {
   //   setRampKycStarted(false);
   // }, [setRampKycLevel2Started, setRampKycStarted]);
 
-  const handleFormSubmit = useCallback(
-    (formData: KYCFormData) => {
-      rampActor.send({ formData, type: "SubmitLevel1" });
-    },
-    [rampActor]
-  );
+  // const handleFormSubmit = useCallback(
+  //   (formData: KYCFormData) => {
+  //     rampActor.send({ formData, type: "SubmitLevel1" });
+  //   },
+  //   [rampActor]
+  // );
 
-  useEffect(() => {
-    if (state.matches("Success")) {
-      updateStatus(KycStatus.APPROVED, desiredLevel, STATUS_MESSAGES.SUCCESS);
-      delay(SUCCESS_DISPLAY_DURATION_MS).then(() => {
-        if (isValidCnpj(taxId || "")) {
-          updateStatus(KycStatus.PENDING, KycLevel.LEVEL_2, STATUS_MESSAGES.PENDING);
-          return proceedWithKYCLevel2();
-        }
-        proceedWithRamp();
-      });
-    } else if (state.matches("Failure")) {
-      updateStatus(KycStatus.REJECTED, desiredLevel, STATUS_MESSAGES.ERROR, machineContext.failureReason);
-      showToast(ToastMessage.KYC_VERIFICATION_FAILED, machineContext.error);
-    } else if (state.matches("RejectedLevel1")) {
-      updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED, machineContext.failureReason);
-    } else if (state.matches("RejectedLevel2")) {
-      updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED, machineContext.failureReason);
-    } else if (state.matches("VerifyingLevel1") || state.matches("VerifyingLevel2")) {
-      updateStatus(KycStatus.PENDING, desiredLevel, STATUS_MESSAGES.PENDING);
-    }
-  }, [
-    state,
-    updateStatus,
-    desiredLevel,
-    STATUS_MESSAGES,
-    machineContext.failureReason,
-    machineContext.error,
-    showToast,
-    ToastMessage.KYC_VERIFICATION_FAILED,
-    proceedWithKYCLevel2,
-    proceedWithRamp,
-    taxId
-  ]);
+  // useEffect(() => {
+  //   if (state.matches("Success")) {
+  //     updateStatus(KycStatus.APPROVED, desiredLevel, STATUS_MESSAGES.SUCCESS);
+  //     delay(SUCCESS_DISPLAY_DURATION_MS).then(() => {
+  //       if (isValidCnpj(taxId || "")) {
+  //         updateStatus(KycStatus.PENDING, KycLevel.LEVEL_2, STATUS_MESSAGES.PENDING);
+  //         return proceedWithKYCLevel2();
+  //       }
+  //       proceedWithRamp();
+  //     });
+  //   } else if (state.matches("Failure")) {
+  //     updateStatus(KycStatus.REJECTED, desiredLevel, STATUS_MESSAGES.ERROR, machineContext.failureReason);
+  //     showToast(ToastMessage.KYC_VERIFICATION_FAILED, machineContext.error);
+  //   } else if (state.matches("RejectedLevel1")) {
+  //     updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED, machineContext.failureReason);
+  //   } else if (state.matches("RejectedLevel2")) {
+  //     updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED, machineContext.failureReason);
+  //   } else if (state.matches("VerifyingLevel1") || state.matches("VerifyingLevel2")) {
+  //     updateStatus(KycStatus.PENDING, desiredLevel, STATUS_MESSAGES.PENDING);
+  //   }
+  // }, [
+  //   state,
+  //   updateStatus,
+  //   desiredLevel,
+  //   STATUS_MESSAGES,
+  //   machineContext.failureReason,
+  //   machineContext.error,
+  //   showToast,
+  //   ToastMessage.KYC_VERIFICATION_FAILED,
+  //   proceedWithKYCLevel2,
+  //   proceedWithRamp,
+  //   taxId
+  // ]);
 
-  return {
-    cpfApiError: machineContext.error,
-    failureMessage,
-    handleBackClick,
-    handleFormSubmit,
-    isSubmitted,
-    kycVerificationError: state.matches("Failure"),
-    proceedWithRamp,
-    resetToDefault,
-    setCpf: () => {},
-    setIsSubmitted: () => {},
-    statusMessage,
-    verificationStatus
-  };
+  // return {
+  //   cpfApiError: machineContext.error,
+  //   failureMessage,
+  //   handleBackClick,
+  //   handleFormSubmit,
+  //   isSubmitted,
+  //   kycVerificationError: state.matches("Failure"),
+  //   proceedWithRamp,
+  //   resetToDefault,
+  //   setCpf: () => {},
+  //   setIsSubmitted: () => {},
+  //   statusMessage,
+  //   verificationStatus
+  // };
+
+  return;
 }

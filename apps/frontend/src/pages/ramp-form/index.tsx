@@ -11,13 +11,12 @@ import { RampDirection, RampToggle } from "../../components/RampToggle";
 
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
-import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
-  const rampKycStarted = useRampKycStarted(); // XSTATE TODO: Refactor after BRLA's new API is defined.
-  const rampKycLevel2Started = useRampKycLevel2Started();
+  const rampKycStarted = false; // XSTATE TODO: Refactor after BRLA's new API is defined.
+  const rampKycLevel2Started = false;
 
   useSetRampUrlParams();
 
