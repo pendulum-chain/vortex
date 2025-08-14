@@ -39,51 +39,67 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
 
   return (
     <div className="rounded-lg shadow-md p-4 bg-white">
-      <div className="flex justify-between items-center cursor-pointer" onClick={toggleExpanded}>
-        <div className="flex items-center">
-          <div>
-            <div className="text-gray-500 text-sm">Transaction ID</div>
-            <div className="flex items-center">
-              <span className="font-bold text-lg mr-2">{quote.id.substring(0, 10)}</span>
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(quote.id);
-                }}
-                type="button"
-              >
-                <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="flex-grow border-l border-gray-300 mx-4 h-12"></div>
-        <div className="text-right">
-          <div className="text-gray-500">
-            {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
-          </div>
-          <div className="font-bold">
-            {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
-          </div>
-        </div>
-        <button className="p-2 ml-4 bg-blue-100 rounded-full" type="button">
-          <img
-            alt="Toggle"
-            className={`w-4 h-4 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
-            src={Arrow}
-          />
-        </button>
-      </div>
       <AnimatePresence>
-        {isExpanded && (
+        {!isExpanded ? (
           <motion.div
-            animate={{ height: "auto", opacity: 1 }}
-            className="mt-4"
-            exit={{ height: 0, opacity: 0 }}
-            initial={{ height: 0, opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-between items-center cursor-pointer"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key="collapsed"
+            onClick={toggleExpanded}
+          >
+            <div className="flex items-center">
+              <div>
+                <div className="text-gray-500 text-sm">Transaction ID</div>
+                <div className="flex items-center">
+                  <span className="font-bold text-lg mr-2">{quote.id.substring(0, 10)}</span>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(quote.id);
+                    }}
+                  >
+                    <img alt="Copy" className="w-4 h-4" src={CopyIcon} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex-grow border-l border-gray-300 mx-4 h-12"></div>
+            <div className="text-right">
+              <div className="text-gray-500">
+                {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
+              </div>
+              <div className="font-bold">
+                {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
+              </div>
+            </div>
+            <button className="p-2 ml-4 bg-blue-100 rounded-full" type="button">
+              <img
+                alt="Toggle"
+                className={`w-4 h-4 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                src={Arrow}
+              />
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="cursor-pointer"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key="expanded"
+            onClick={toggleExpanded}
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Exchange details</h2>
+              <button className="p-2 ml-4 bg-blue-100 rounded-full" type="button">
+                <img
+                  alt="Toggle"
+                  className={`w-4 h-4 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                  src={Arrow}
+                />
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
@@ -95,7 +111,7 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
               </div>
               <div className="text-right">
                 <div className="text-gray-500">You get</div>
-                <div className="flex items-center font-bold text-lg">
+                <div className="flex items-center font-bold text-lg justify-end">
                   {outputFiatDetails && <FiatIcon className="w-6 h-6 mr-2" fiat={outputFiatDetails} />}~ {quote.outputAmount}{" "}
                   {quote.outputCurrency.toUpperCase()}
                 </div>
