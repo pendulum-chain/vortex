@@ -10,7 +10,7 @@ import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButto
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
 import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
-import { useProvidedQuoteId } from "../../stores/ramp/useRampFormStore";
+import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
 
