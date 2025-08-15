@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
 import { Box } from "../../components/Box";
@@ -21,7 +21,7 @@ export const SuccessPage = () => {
 
   const { fiatToken } = useRampFormStore();
   const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === "onramp";
+  const isOnramp = rampDirection === RampDirection.BUY;
 
   const { executionInput } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput

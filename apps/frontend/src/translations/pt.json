@@ -149,9 +149,9 @@
       "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "description": "Continue no app do seu banco",
           "pixCode": "Código PIX",
           "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+          "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
           "timerLabel": "Cotação expira em:",
           "title": "Pagar com PIX"
         },
@@ -265,6 +265,11 @@
       "waitingForSignature": "Aguardando assinatura",
       "yourConnectedWallet": "sua carteira conectada para prosseguir"
     },
+    "stepper": {
+      "confirm": "Confirmar",
+      "details": "Detalhes",
+      "verification": "Verificação"
+    },
     "swap": {
       "buyButton": "Comprar",
       "compareFees": "Comparar taxas",
@@ -300,7 +305,7 @@
     "swapSubmitButton": {
       "confirm": "Confirmar",
       "confirming": "Confirmando",
-      "confirmPayment": "Confirmar pagamento",
+      "confirmPayment": "Eu fiz o pagamento.",
       "processing": "Processando"
     },
     "termsAndConditions": {
@@ -316,6 +321,11 @@
     }
   },
   "hooks": {
+    "useGetRampRegistrationErrorMessage": {
+      "default": "Algo deu errado",
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
+      "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
+    },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
       "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."

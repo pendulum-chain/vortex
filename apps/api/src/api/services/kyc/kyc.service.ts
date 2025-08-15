@@ -1,11 +1,9 @@
-import { BrlaKYCDocType } from "@packages/shared";
+import { BrlaApiService, BrlaKYCDocType, KycLevel2Response } from "@packages/shared";
 import { Transaction } from "sequelize";
 import { v4 as uuidv4 } from "uuid";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import KycLevel2, { KycLevel2Status } from "../../../models/kycLevel2.model";
-import { BrlaApiService } from "../brla/brlaApiService";
-import { KycLevel2Response } from "../brla/types";
 
 export class KycService {
   private brlaApiService: BrlaApiService;

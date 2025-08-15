@@ -1,5 +1,4 @@
-import { AllPricesResponse, BundledPriceResult, Currency, PriceProvider } from "@packages/shared";
-import { RampDirection } from "../../components/RampToggle";
+import { AllPricesResponse, BundledPriceResult, Currency, PriceProvider, RampDirection } from "@packages/shared";
 import { apiRequest } from "./api-client";
 
 /**

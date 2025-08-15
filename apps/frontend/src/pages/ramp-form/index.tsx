@@ -1,3 +1,4 @@
+import { RampDirection } from "@packages/shared";
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { PoolSelectorModal } from "../../components/InputKeys/SelectionModal";
@@ -7,9 +8,9 @@ import { Onramp } from "../../components/Ramp/Onramp";
 import { RampHistory } from "../../components/RampHistory";
 import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
-import { RampDirection, RampToggle } from "../../components/RampToggle";
-
+import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
+import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 
 export const RampForm = () => {
@@ -17,6 +18,7 @@ export const RampForm = () => {
   const onSwapDirectionToggle = useRampDirectionToggle();
   const rampKycStarted = false; // XSTATE TODO: Refactor after BRLA's new API is defined.
   const rampKycLevel2Started = false;
+  const providedQuoteId = useProvidedQuoteId();
 
   useSetRampUrlParams();
 
@@ -24,7 +26,7 @@ export const RampForm = () => {
     <main>
       <PoolSelectorModal />
       <RampSummaryDialog />
-      {rampKycStarted || rampKycLevel2Started ? (
+      {rampKycStarted || rampKycLevel2Started || providedQuoteId ? (
         <PIXKYCForm />
       ) : (
         <motion.div
@@ -39,7 +41,7 @@ export const RampForm = () => {
           </section>
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
-          {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
+          {activeSwapDirection === RampDirection.BUY ? <Onramp /> : <Offramp />}
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>

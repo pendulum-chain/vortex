@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { Direction } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import { config } from "../../../config/vars";
 import { getJsonBody, getPath } from "./helpers";
 
@@ -143,7 +143,7 @@ function createSellQuoteRequest(
  * @returns Request configuration
  */
 export function createQuoteRequest(
-  direction: Direction,
+  direction: RampDirection,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,
@@ -152,7 +152,7 @@ export function createQuoteRequest(
   const { secretKey, baseUrl, appId } = priceProviders.alchemyPay;
   if (!secretKey || !appId) throw new Error("AlchemyPay configuration missing");
 
-  return direction === "onramp"
+  return direction === RampDirection.BUY
     ? createBuyQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network, appId, secretKey, baseUrl)
     : createSellQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network, appId, secretKey, baseUrl);
 }

@@ -1,10 +1,10 @@
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from "@packages/shared";
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
 import { useEffect, useMemo, useRef } from "react";
-import { RampDirection } from "../components/RampToggle";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
+import { useQuoteActions } from "../stores/ramp/useQuoteStore";
 import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
@@ -15,6 +15,7 @@ interface RampUrlParams {
   from?: string;
   fromAmount?: string;
   partnerId?: string;
+  providedQuoteId?: string;
   moneriumCode?: string;
 }
 
@@ -33,7 +34,7 @@ function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatT
   const [_, tokenValue] = matchedFiatToken;
   const foundToken = tokenValue as FiatToken;
 
-  if (rampDirection === RampDirection.ONRAMP && foundToken !== FiatToken.BRL) {
+  if (rampDirection === RampDirection.BUY && foundToken !== FiatToken.BRL) {
     return FiatToken.BRL;
   }
 
@@ -91,27 +92,28 @@ export const useRampUrlParams = (): RampUrlParams => {
     const inputAmountParam = params.get("fromAmount");
     const partnerIdParam = params.get("partnerId");
     const moneriumCode = params.get("code")?.toLowerCase();
+    const providedQuoteId = params.get("quoteId")?.toLowerCase();
 
     const ramp =
       rampParam === undefined
         ? rampDirection
-        : rampParam === "sell"
-          ? RampDirection.OFFRAMP
-          : rampParam === "buy"
-            ? RampDirection.ONRAMP
+        : rampParam === RampDirection.SELL
+          ? RampDirection.SELL
+          : rampParam === RampDirection.BUY
+            ? RampDirection.BUY
             : DEFAULT_RAMP_DIRECTION;
 
     const from =
-      ramp === RampDirection.OFFRAMP
+      ramp === RampDirection.SELL
         ? findOnChainToken(fromTokenParam, networkParam || selectedNetwork)
         : findFiatToken(fromTokenParam, ramp);
     const to =
-      ramp === RampDirection.OFFRAMP
+      ramp === RampDirection.SELL
         ? findFiatToken(toTokenParam, ramp)
         : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
 
     const fromAmount =
-      ramp === RampDirection.OFFRAMP ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
+      ramp === RampDirection.SELL ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
 
     return {
       from,
@@ -119,6 +121,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       moneriumCode,
       network: getNetworkFromParam(networkParam),
       partnerId: partnerIdParam || undefined,
+      providedQuoteId,
       ramp,
       to
     };
@@ -128,13 +131,14 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId, moneriumCode } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId, providedQuoteId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
   const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useRampFormStoreActions();
+  const { setProvidedQuoteId } = useQuoteActions();
 
   const hasInitialized = useRef(false);
 
@@ -173,7 +177,7 @@ export const useSetRampUrlParams = () => {
     onToggle(ramp);
 
     if (to) {
-      if (ramp === RampDirection.OFFRAMP) {
+      if (ramp === RampDirection.SELL) {
         handleFiatToken(to as FiatToken);
       } else {
         setOnChainToken(to as OnChainToken);
@@ -181,7 +185,7 @@ export const useSetRampUrlParams = () => {
     }
 
     if (from) {
-      if (ramp === RampDirection.OFFRAMP) {
+      if (ramp === RampDirection.SELL) {
         setOnChainToken(from as OnChainToken);
       } else {
         handleFiatToken(from as FiatToken);
@@ -190,6 +194,12 @@ export const useSetRampUrlParams = () => {
 
     if (fromAmount) {
       setInputAmount(fromAmount);
+    }
+
+    if (providedQuoteId) {
+      setProvidedQuoteId(providedQuoteId);
+    } else {
+      setProvidedQuoteId(undefined);
     }
 
     hasInitialized.current = true;

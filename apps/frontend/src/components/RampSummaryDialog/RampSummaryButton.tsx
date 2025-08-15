@@ -32,12 +32,12 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     rampState: state.context.rampState
   }));
 
-  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isQuoteExpired = useIsQuoteExpired();
 
   return useMemo(() => {
-    const isOnramp = rampDirection === RampDirection.ONRAMP;
-    const isOfframp = rampDirection === RampDirection.OFFRAMP;
+    const isOnramp = rampDirection === RampDirection.BUY;
+    const isOfframp = rampDirection === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
@@ -122,9 +122,9 @@ export const RampSummaryButton = () => {
   const stellarContext = stellarData?.context;
   const anchorUrl = stellarContext?.redirectUrl;
 
-  const rampDirection = rampState?.ramp?.type === "on" ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
-  const isOfframp = rampDirection === RampDirection.OFFRAMP;
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
+  const isOfframp = rampDirection === RampDirection.SELL;
+  const isOnramp = rampDirection === RampDirection.BUY;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
@@ -165,11 +165,11 @@ export const RampSummaryButton = () => {
   const onSubmit = () => {
     rampActor.send({ type: "SummaryConfirm" });
     // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === "off") {
+    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
       //setCanRegisterRamp(true);
     }
 
-    if (executionInput?.quote.rampType === "on") {
+    if (executionInput?.quote.rampType === RampDirection.BUY) {
       rampActor.send({ type: "PAYMENT_CONFIRMED" });
     } else {
       onRampConfirm();
@@ -188,12 +188,7 @@ export const RampSummaryButton = () => {
   };
 
   return (
-    <button
-      className="btn-vortex-primary btn rounded-xl"
-      disabled={submitButtonDisabled}
-      onClick={onSubmit}
-      style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}
-    >
+    <button className="btn-vortex-primary btn w-full rounded-xl" disabled={submitButtonDisabled} onClick={onSubmit}>
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}

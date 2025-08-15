@@ -1,9 +1,13 @@
-import { Networks, RampPhase } from "@packages/shared";
-
+import {
+  BalanceCheckError,
+  BalanceCheckErrorType,
+  checkEvmBalancePeriodically,
+  ERC20_EURE_POLYGON,
+  Networks,
+  RampPhase
+} from "@packages/shared";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { ERC20_EURE_POLYGON } from "../../monerium";
-import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from "../../moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

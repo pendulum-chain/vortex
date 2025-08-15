@@ -1,10 +1,9 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useFiatToken } from "../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { RampDirection } from "../../RampToggle";
 import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
 
 const containerAnimation: MotionProps = {
@@ -32,42 +31,38 @@ const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, index: 0, label: "
 export const BrlaSwapFields: FC = () => {
   const { t } = useTranslation();
 
-  const fiatToken = useFiatToken();
-
   const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOnramp = rampDirection === RampDirection.BUY;
 
   const FIELDS = isOnramp ? ONRAMP_FIELDS : OFFRAMP_FIELDS;
 
   return (
     <AnimatePresence>
-      {fiatToken === FiatToken.BRL && (
-        <motion.div {...containerAnimation}>
-          {FIELDS.map(field => (
-            <BrlaField
-              className="mt-2"
-              id={field.id}
-              index={field.index}
-              key={field.id}
-              label={t(`components.brlaSwapField.${field.label}`)}
-              placeholder={t("components.brlaSwapField.placeholder", {
-                label: t(`components.brlaSwapField.${field.label}`)
-              })}
-            />
-          ))}
-          <div className="mt-2">
-            {isOnramp ? (
-              <Trans i18nKey="components.brlaSwapField.disclaimerOnramp">
-                CPF must belong to <b>you</b>.
-              </Trans>
-            ) : (
-              <Trans i18nKey="components.brlaSwapField.disclaimerOfframp">
-                CPF and Pix key need to belong to the <b>same person</b>.
-              </Trans>
-            )}
-          </div>
-        </motion.div>
-      )}
+      <motion.div {...containerAnimation}>
+        {FIELDS.map(field => (
+          <BrlaField
+            className="mt-2"
+            id={field.id}
+            index={field.index}
+            key={field.id}
+            label={t(`components.brlaSwapField.${field.label}`)}
+            placeholder={t("components.brlaSwapField.placeholder", {
+              label: t(`components.brlaSwapField.${field.label}`)
+            })}
+          />
+        ))}
+        <div className="mt-2">
+          {isOnramp ? (
+            <Trans i18nKey="components.brlaSwapField.disclaimerOnramp">
+              CPF must belong to <b>you</b>.
+            </Trans>
+          ) : (
+            <Trans i18nKey="components.brlaSwapField.disclaimerOfframp">
+              CPF and Pix key need to belong to the <b>same person</b>.
+            </Trans>
+          )}
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 };
