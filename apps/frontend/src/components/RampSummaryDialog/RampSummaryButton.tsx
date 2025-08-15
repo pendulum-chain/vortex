@@ -4,6 +4,7 @@ import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  RampDirection,
   TokenType
 } from "@packages/shared";
 import { useSelector } from "@xstate/react";
@@ -14,7 +15,6 @@ import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
-import { RampDirection } from "../RampToggle";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -105,7 +105,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, toToken, stellarData]);
+  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, toToken, stellarData, rampPaymentConfirmed]);
 };
 
 export const RampSummaryButton = () => {
@@ -145,17 +145,7 @@ export const RampSummaryButton = () => {
     if (isOnramp && !isDepositQrCodeReady) return true;
 
     return false;
-  }, [
-    executionInput,
-    isQuoteExpired,
-    isOfframp,
-    isOnramp,
-    rampState?.ramp?.depositQrCode,
-    anchorUrl,
-    fiatToken,
-    stellarContext,
-    stellarData
-  ]);
+  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.depositQrCode, anchorUrl, fiatToken, stellarData]);
 
   const buttonContent = useButtonContent({
     submitButtonDisabled,

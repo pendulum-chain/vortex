@@ -1,4 +1,4 @@
-import { getAddressForFormat, getOnChainTokenDetails, RampProcess } from "@packages/shared";
+import { getAddressForFormat, getOnChainTokenDetails, RampDirection } from "@packages/shared";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
@@ -52,7 +52,7 @@ export const signTransactionsActor = async ({
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
-  if (authToken && rampState?.ramp?.type === "off") {
+  if (authToken && rampState?.ramp?.type === RampDirection.SELL) {
     if (!getMessageSignature) throw new Error("getMessageSignature not available");
     const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
     moneriumOfframpSignature = await getMessageSignature(offrampMessage);

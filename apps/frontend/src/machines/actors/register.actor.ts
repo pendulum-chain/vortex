@@ -3,6 +3,7 @@ import {
   FiatToken,
   getAddressForFormat,
   Networks,
+  RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions
 } from "@packages/shared";
@@ -56,17 +57,17 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   let additionalData: RegisterRampRequest["additionalData"] = {};
 
-  if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.BRL) {
+  if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       destinationAddress: address,
       taxId: executionInput.taxId
     };
-  } else if (executionInput.quote.rampType === "on" && executionInput.fiatToken === FiatToken.EURC) {
+  } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: address,
       moneriumAuthToken: authToken
     };
-  } else if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
+  } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,

@@ -1,6 +1,5 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { assign, sendTo } from "xstate";
-import { RampDirection } from "../components/RampToggle";
 import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
@@ -41,7 +40,7 @@ export const kycStateNode = {
             if (context.executionInput?.fiatToken === FiatToken.BRL) {
               return "brlaKyc";
             }
-            if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.ONRAMP) {
+            if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
               return "moneriumKyc";
             }
             return "stellarKyc";
@@ -76,7 +75,7 @@ export const kycStateNode = {
         },
         {
           guard: ({ context }: { context: RampContext }) =>
-            context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.ONRAMP,
+            context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY,
           target: "Monerium"
         },
         {

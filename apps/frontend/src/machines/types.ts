@@ -1,7 +1,6 @@
-import { PaymentData } from "@packages/shared";
+import { PaymentData, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
-import { ActorRef, ActorRefFrom, EventObject, SnapshotFrom } from "xstate";
-import { RampDirection } from "../components/RampToggle";
+import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { MoneriumKycContext, StellarKycContext } from "./kyc.states";

@@ -1,6 +1,4 @@
-import { BrlaErrorResponse, FiatToken } from "@packages/shared";
-
-import { RampDirection } from "../../components/RampToggle";
+import { BrlaErrorResponse, FiatToken, RampDirection } from "@packages/shared";
 import { isValidCnpj, isValidCpf } from "../../hooks/ramp/schema";
 import { BrlaService } from "../../services/api";
 import { RampContext } from "../types";
@@ -37,12 +35,12 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
 
       const remainingLimitInUnits =
-        rampDirection === RampDirection.OFFRAMP
+        rampDirection === RampDirection.SELL
           ? remainingLimitResponse.remainingLimitOfframp
           : remainingLimitResponse.remainingLimitOnramp;
 
       const amountNum = Number(
-        rampDirection === RampDirection.OFFRAMP ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
+        rampDirection === RampDirection.SELL ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
       );
       const remainingLimitNum = Number(remainingLimitInUnits);
 

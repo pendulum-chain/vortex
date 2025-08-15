@@ -1,5 +1,5 @@
+import { RampDirection } from "@packages/shared";
 import { assign, emit, fromPromise, setup } from "xstate";
-import { RampDirection } from "../components/RampToggle";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";

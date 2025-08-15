@@ -1,12 +1,18 @@
+import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Step } from "../components/Stepper";
-import { useRampPaymentConfirmed, useRampRegistered } from "../stores/rampStore";
+import { useRampActor } from "../contexts/rampState";
 
 export const useStepper = () => {
   const { t } = useTranslation();
-  const rampRegistered = useRampRegistered();
-  const rampPaymentConfirmed = useRampPaymentConfirmed();
+  const rampActor = useRampActor();
+
+  const { rampKycStarted, rampPaymentConfirmed, rampSummaryVisible } = useSelector(rampActor, state => ({
+    rampKycStarted: state.context.rampKycStarted,
+    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
+    rampSummaryVisible: state.context.rampSummaryVisible
+  }));
 
   const steps = useMemo((): Step[] => {
     return [
@@ -15,15 +21,15 @@ export const useStepper = () => {
         title: t("stepper.details", "Details")
       },
       {
-        status: rampPaymentConfirmed ? "complete" : rampRegistered ? "active" : "incomplete",
+        status: rampSummaryVisible ? "complete" : rampKycStarted ? "active" : "incomplete",
         title: t("stepper.verification", "Verification")
       },
       {
-        status: rampPaymentConfirmed ? "complete" : "incomplete",
+        status: rampPaymentConfirmed ? "complete" : rampSummaryVisible ? "active" : "incomplete",
         title: t("stepper.confirm", "Confirm")
       }
     ];
-  }, [t, rampRegistered, rampPaymentConfirmed]);
+  }, [t, rampKycStarted, rampPaymentConfirmed, rampSummaryVisible]);
 
   const currentStep = useMemo(() => {
     return steps.findIndex(step => step.status === "active");

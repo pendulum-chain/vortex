@@ -12,14 +12,6 @@ import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import {
-  useRampActions,
-  useRampExecutionInput,
-  useRampRegistrationError,
-  useRampSigningPhase,
-  useRampState,
-  useRampSummaryVisible
-} from "../../stores/rampStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -30,8 +22,6 @@ export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { selectedNetwork } = useNetwork();
-  const { resetRampState } = useRampActions();
-  const rampRegistrationError = useRampRegistrationError();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const {
@@ -40,17 +30,21 @@ export const RampSummaryDialog: FC = () => {
   } = useQuoteStore();
   const partnerId = usePartnerId();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
-  const rampState = useRampState();
-  const signingPhase = useRampSigningPhase();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
-  const { visible, executionInput } = useSelector(rampActor, state => ({
-    executionInput: state.context.executionInput,
-    rampDirection: state.context.rampDirection,
-    visible: state.context.rampSummaryVisible
-  }));
-  const rampType = executionInput?.quote.rampType || RampDirection.BUY;
+  const { visible, executionInput, rampDirection, rampState, signingPhase, rampRegistrationError } = useSelector(
+    rampActor,
+    state => ({
+      executionInput: state.context.executionInput,
+      rampDirection: state.context.rampDirection,
+      rampRegistrationError: state.context.initializeFailedMessage,
+      rampState: state.context.rampState,
+      signingPhase: state.context.rampSigningPhase,
+      visible: state.context.rampSummaryVisible // TODO replace with proper error
+    })
+  );
+  const rampType = rampDirection || RampDirection.BUY;
   const isOnramp = rampType === RampDirection.BUY;
 
   const dialogScrollRef = useRef<HTMLDivElement>(null);
