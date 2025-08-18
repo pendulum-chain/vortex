@@ -158,7 +158,7 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
     return prev;
   }, []);
 
-  return tokensWithBalances.sort((a, b) => Number(b.balance) - Number(a.balance));
+  return tokensWithBalances;
 };
 
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
@@ -193,8 +193,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
         return { ...token, balance: formattedBalance };
       });
 
-      const sortedTokensWithBalances = tokensWithBalances.sort((a, b) => Number(b.balance) - Number(a.balance));
-      setBalances(sortedTokensWithBalances);
+      setBalances(tokensWithBalances);
     };
 
     getBalances();
@@ -212,11 +211,9 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
   const evmNativeBalance = useEvmNativeBalance();
   const assetHubNativeBalance = useAssetHubNativeBalance();
 
-  return useMemo(
-    () =>
-      [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(
-        Boolean
-      ) as OnChainTokenDetailsWithBalance[],
-    [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]
-  );
+  return useMemo(() => {
+    return [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(
+      Boolean
+    ) as OnChainTokenDetailsWithBalance[];
+  }, [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
 };
