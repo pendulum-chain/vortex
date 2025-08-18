@@ -103,19 +103,20 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
   return nativeBalance;
 };
 
+const groupTokensByNetwork = (tokens: EvmTokenDetails[]): Record<string, EvmTokenDetails[]> => {
+  return tokens.reduce<Record<string, EvmTokenDetails[]>>((acc, token) => {
+    if (!acc[token.network]) {
+      acc[token.network] = [];
+    }
+    acc[token.network].push(token);
+    return acc;
+  }, {});
+};
+
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { evmAddress: address } = useVortexAccount();
 
-  // Group tokens by their network
-  const tokensByNetwork = useMemo(() => {
-    return tokens.reduce<Record<string, EvmTokenDetails[]>>((acc, token) => {
-      if (!acc[token.network]) {
-        acc[token.network] = [];
-      }
-      acc[token.network].push(token);
-      return acc;
-    }, {});
-  }, [tokens]);
+  const tokensByNetwork = useMemo(() => groupTokensByNetwork(tokens), [tokens]);
 
   // Create contract calls for all networks
   const contractCalls = useMemo(() => {
@@ -157,7 +158,7 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
     return prev;
   }, []);
 
-  return tokensWithBalances;
+  return tokensWithBalances.sort((a, b) => Number(b.balance) - Number(a.balance));
 };
 
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
@@ -192,7 +193,8 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
         return { ...token, balance: formattedBalance };
       });
 
-      setBalances(tokensWithBalances);
+      const sortedTokensWithBalances = tokensWithBalances.sort((a, b) => Number(b.balance) - Number(a.balance));
+      setBalances(sortedTokensWithBalances);
     };
 
     getBalances();
@@ -209,11 +211,6 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
   const substrateBalances = useAssetHubBalances(substrateTokens);
   const evmNativeBalance = useEvmNativeBalance();
   const assetHubNativeBalance = useAssetHubNativeBalance();
-
-  console.log("evmBalances", evmBalances);
-  console.log("substrateBalances", substrateBalances);
-  console.log("assetHubNativeBalance", assetHubNativeBalance);
-  console.log("evmNativeBalance", evmNativeBalance);
 
   return useMemo(
     () =>
