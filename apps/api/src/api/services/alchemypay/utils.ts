@@ -9,7 +9,7 @@ const NETWORK_MAP: Record<string, string> = {
 const CRYPTO_MAP: Record<string, string> = {
   eth: "ETH",
   usdc: "USDC",
-  usdce: "USDC.e",
+  "usdc.e": "USDC.e",
   usdt: "USDT"
 };
 

@@ -9,7 +9,7 @@ import { BaseTokenDetails, TokenType } from "./base";
 export enum EvmToken {
   USDC = "usdc",
   USDT = "usdt",
-  USDCE = "usdce",
+  USDCE = "usdc.e",
   ETH = "eth"
 }
 
