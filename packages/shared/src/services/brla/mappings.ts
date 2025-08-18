@@ -8,7 +8,11 @@ import {
   OfframpPayload,
   OnChainOutPayload,
   OnchainLog,
+  PixInputTicketOutput,
+  PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketPayload,
+  QuoteResponse,
   RegisterSubaccountPayload,
   SubaccountData,
   SwapLog,
@@ -32,7 +36,9 @@ export enum Endpoint {
   OnChainHistoryOut = "/on-chain/history/out",
   KycLevel2 = "/kyc/level2",
   KycRetry = "/kyc/retry",
-  OnChainOut = "/on-chain/transfer"
+  OnChainOut = "/on-chain/transfer",
+  FixedRateQuote = "/v2/account/quote/fixed-rate",
+  Tickets = "/v2/account/tickets"
 }
 
 export interface EndpointMapping {
@@ -236,6 +242,34 @@ export interface EndpointMapping {
     POST: {
       body: OnChainOutPayload;
       response: { id: string };
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.FixedRateQuote]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: QuoteResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Tickets]: {
+    POST: {
+      body: PixInputTicketPayload | PixOutputTicketPayload;
+      response: PixInputTicketOutput;
     };
     GET: {
       body: undefined;

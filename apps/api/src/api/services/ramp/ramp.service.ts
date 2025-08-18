@@ -1,6 +1,8 @@
 import {
   AccountMeta,
   BrlaApiService,
+  BrlaCurrency,
+  BrlaPaymentMethod,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -131,7 +133,12 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+    const brCode = await this.validateBrlaOnrampRequest(
+      additionalData.taxId,
+      quote,
+      quote.inputAmount,
+      moonbeamEphemeralEntry.address
+    );
 
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(
       quote,
@@ -639,9 +646,14 @@ export class RampService extends BaseRampService {
   /**
    * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
    */
-  public async validateBrlaOnrampRequest(taxId: string, quote: QuoteTicket, amount: string): Promise<string> {
+  public async validateBrlaOnrampRequest(
+    taxId: string,
+    quote: QuoteTicket,
+    amount: string,
+    moonbeamEphemeralAddress: string
+  ): Promise<string> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
+    const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
       throw new APIError({
         message: "Subaccount not found.",
@@ -649,29 +661,49 @@ export class RampService extends BaseRampService {
       });
     }
 
-    if (subaccount.kyc.level < 1) {
-      throw new APIError({
-        message: "KYC invalid.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    // if (subaccount.kyc.level < 1) {
+    //   throw new APIError({
+    //     message: "KYC invalid.",
+    //     status: httpStatus.BAD_REQUEST
+    //   });
+    // }
 
-    const { limitMint } = subaccount.kyc.limits;
+    //AVENIA-MIGRATION: We assume if subaccount is returned, KYC is valid? quote handles the limits?
 
-    if (Number(amount) > limitMint) {
-      throw new APIError({
-        message: "Amount exceeds KYC limits.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    //const { limitMint } = subaccount.kyc.limits;
 
-    const brCode = await brlaApiService.generateBrCode({
-      amount: String(amount),
-      referenceLabel: generateReferenceLabel(quote),
-      subaccountId: subaccount.id
+    // if (Number(amount) > limitMint) {
+    //   throw new APIError({
+    //     message: "Amount exceeds KYC limits.",
+    //     status: httpStatus.BAD_REQUEST
+    //   });
+    // }
+
+    const aveniaQuote = await brlaApiService.createPayInQuote({
+      inputAmount: String(amount),
+      inputCurrency: BrlaCurrency.BRL,
+      inputPaymentMethod: BrlaPaymentMethod.PIX,
+      inputThirdParty: false,
+      outputCurrency: BrlaCurrency.BRLA,
+      outputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
+      outputThirdParty: false,
+      subAccountId: subaccount.subAccountId
     });
 
-    return brCode.brCode;
+    const aveniaTicket = await brlaApiService.createPixInputTicket({
+      quoteToken: aveniaQuote.quoteToken,
+      ticketBlockchainOutput: {
+        walletAddress: moonbeamEphemeralAddress,
+        walletChain: "Moonbeam"
+      },
+      ticketBrlPixInput: {
+        additionalData: generateReferenceLabel(quote)
+      }
+    });
+
+    // AVENIA-MIGRATION: we need to save the ticket in our backend for querying.
+
+    return aveniaTicket.brlPixInputInfo.brCode;
   }
 }
 

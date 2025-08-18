@@ -297,3 +297,97 @@ export interface OnChainOutPayload {
   inputCoin: string;
   outputCoin: string;
 }
+
+export enum BrlaCurrency {
+  BRL = "BRL",
+  BRLA = "BRLA",
+  USDC = "USDC",
+  USDCe = "USDCe",
+  USDT = "USDT",
+  USDM = "USDM"
+}
+
+export enum BrlaPaymentMethod {
+  PIX = "PIX",
+  INTERNAL = "INTERNAL",
+  BASE = "BASE",
+  CELO = "CELO",
+  ETHEREUM = "ETHEREUM",
+  GNOSIS = "GNOSIS",
+  MOONBEAM = "MOONBEAM",
+  POLYGON = "POLYGON",
+  TRON = "TRON"
+}
+
+export interface PayInQuoteParams {
+  inputCurrency: BrlaCurrency;
+  inputPaymentMethod: BrlaPaymentMethod;
+  inputAmount: string;
+  outputCurrency: BrlaCurrency;
+  outputPaymentMethod: BrlaPaymentMethod;
+  inputThirdParty: boolean;
+  outputThirdParty: boolean;
+  subAccountId: string;
+}
+
+export interface QuoteResponse {
+  quoteToken: string;
+  inputCurrency: string;
+  inputPaymentMethod: string;
+  inputAmount: string;
+  outputCurrency: string;
+  outputPaymentMethod: string;
+  outputAmount: string;
+  markupAmount: string;
+  markupCurrency: string;
+  inputThirdParty: boolean;
+  outputThirdParty: boolean;
+  appliedFees: any[];
+  basePrice: string;
+  pairName: string;
+}
+
+// /account/tickets endpoint related types
+export interface BaseTicket {
+  id: string;
+  status: string;
+  reason: string;
+  failureReason: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  quote: {
+    id: string;
+    ticketId: string;
+  };
+}
+
+export interface PixInputTicketPayload {
+  quoteToken: string;
+  ticketBrlPixInput: {
+    additionalData: string;
+  };
+  ticketBlockchainOutput: {
+    walletChain: string;
+    walletAddress: string;
+  };
+}
+
+// TODO verify ticket endpoint outputs for this modality
+export interface PixOutputTicketPayload {
+  ticket: BaseTicket;
+  ticketBrlPixOutput: {
+    beneficiaryBrlBankAccountId: string;
+    pixMessage: string;
+  };
+}
+export interface PixInputTicketOutput {
+  ticket: BaseTicket;
+  brlPixInputInfo: {
+    id: string;
+    ticketId: string;
+    referenceLabel: string;
+    additionalData: string;
+    brCode: string;
+  };
+}

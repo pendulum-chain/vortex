@@ -11,9 +11,12 @@ import {
   OfframpPayload,
   OnchainLog,
   OnrampPayload,
+  PayInQuoteParams,
+  PixInputTicketOutput,
+  PixInputTicketPayload,
   PixKeyData,
+  QuoteResponse,
   RegisterSubaccountPayload,
-  SubaccountData,
   SwapPayload,
   UsedLimitData
 } from "./types";
@@ -232,5 +235,23 @@ export class BrlaApiService {
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
+  }
+
+  public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<QuoteResponse> {
+    const query = new URLSearchParams({
+      inputAmount: quoteParams.inputAmount,
+      inputCurrency: quoteParams.inputCurrency,
+      inputPaymentMethod: quoteParams.inputPaymentMethod,
+      inputThirdParty: String(quoteParams.inputThirdParty),
+      outputCurrency: quoteParams.outputCurrency,
+      outputPaymentMethod: quoteParams.outputPaymentMethod,
+      outputThirdParty: String(quoteParams.outputThirdParty),
+      subAccountId: quoteParams.subAccountId
+    }).toString();
+    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+  }
+
+  public async createPixInputTicket(payload: PixInputTicketPayload): Promise<PixInputTicketOutput> {
+    return await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
   }
 }
