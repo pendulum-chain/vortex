@@ -16,7 +16,6 @@ import {
   stellarTokenConfig
 } from "@packages/shared";
 import { useMemo } from "react";
-import { useOnchainTokenBalances } from "../../../hooks/useOnchainTokenBalances";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
@@ -25,19 +24,16 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
 
-  // Get all supported tokens
   const allDefinitions = useMemo(
     () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection),
     [tokenSelectModalType, rampDirection]
   );
 
-  // Get available networks from the token definitions
   const availableNetworks = useMemo(() => {
     const networks = new Set(allDefinitions.map(token => token.network));
     return Array.from(networks).sort();
   }, [allDefinitions]);
 
-  // Filter by selected network
   const networkFilteredDefinitions = useMemo(() => {
     if (selectedNetworkFilter === "all") {
       return allDefinitions;
@@ -45,49 +41,17 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
     return allDefinitions.filter(token => token.network === selectedNetworkFilter);
   }, [allDefinitions, selectedNetworkFilter]);
 
-  const tokenDetails = useMemo(() => networkFilteredDefinitions.map(d => d.details), [networkFilteredDefinitions]);
-  const definitionsWithBalance = useOnchainTokenBalances(tokenDetails as OnChainTokenDetails[]);
-
-  const balanceMap = useMemo(() => {
-    if (!definitionsWithBalance.length) return {};
-
-    return definitionsWithBalance.reduce(
-      (acc, token) => {
-        acc[token.assetSymbol] = token.balance;
-        return acc;
-      },
-      {} as Record<string, string>
-    );
-  }, [definitionsWithBalance]);
-
-  const sortedDefinitions = useMemo(() => {
-    if (!definitionsWithBalance.length) return networkFilteredDefinitions;
-    return sortTokenDefinitions(networkFilteredDefinitions, balanceMap);
-  }, [networkFilteredDefinitions, balanceMap, definitionsWithBalance.length]);
-
-  // Filter by search term (including network name)
   const filteredDefinitions = useMemo(() => {
     const searchTerm = filter.toLowerCase();
-    return sortedDefinitions.filter(
+    return networkFilteredDefinitions.filter(
       ({ assetSymbol, name, networkDisplayName }) =>
         assetSymbol.toLowerCase().includes(searchTerm) ||
         (name && name.toLowerCase().includes(searchTerm)) ||
         networkDisplayName.toLowerCase().includes(searchTerm)
     );
-  }, [sortedDefinitions, filter]);
+  }, [networkFilteredDefinitions, filter]);
 
   return { availableNetworks, definitions: allDefinitions, filteredDefinitions };
-}
-
-function sortTokenDefinitions(
-  definitions: ExtendedTokenDefinition[],
-  balanceMap: Record<string, string>
-): ExtendedTokenDefinition[] {
-  return [...definitions].sort((a, b) => {
-    const balanceA = balanceMap[a.assetSymbol] || "0";
-    const balanceB = balanceMap[b.assetSymbol] || "0";
-    return Number(balanceB) - Number(balanceA);
-  });
 }
 
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
@@ -115,10 +79,8 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
 function getAllOnChainTokens(): ExtendedTokenDefinition[] {
   const allTokens: ExtendedTokenDefinition[] = [];
 
-  // AssetHub tokens
   allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
 
-  // EVM network tokens
   const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
   for (const network of evmNetworks) {
     if (evmTokenConfig[network]) {
