@@ -2,6 +2,7 @@ import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
+  AveniaSubaccount,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
@@ -74,12 +75,17 @@ export class BrlaApiService {
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]["body"]
+    payload?: EndpointMapping[E][M]["body"],
+    pathParam?: string
   ): Promise<EndpointMapping[E][M]["response"]> {
     if (!this.token) {
       await this.login();
     }
     let fullUrl = `${BRLA_BASE_URL}${endpoint}`;
+
+    if (pathParam) {
+      fullUrl += `/${pathParam}`;
+    }
 
     if (queryParams) {
       fullUrl += `?${queryParams}`;
@@ -142,10 +148,8 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.OnChainOut, "POST", undefined, payload);
   }
 
-  public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
-    const query = `taxId=${encodeURIComponent(taxId)}`;
-    const response = await this.sendRequest(Endpoint.Subaccounts, "GET", query);
-    return response.subaccounts[0];
+  public async getSubaccount(subaccountId: string): Promise<AveniaSubaccount | undefined> {
+    return await this.sendRequest(Endpoint.GetSubaccount, "GET", undefined, undefined, subaccountId);
   }
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {

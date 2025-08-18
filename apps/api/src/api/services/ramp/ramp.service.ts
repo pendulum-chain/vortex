@@ -597,7 +597,7 @@ export class RampService extends BaseRampService {
     amount: string
   ): Promise<SubaccountData> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
 
     if (!subaccount) {
       throw new APIError({
@@ -641,7 +641,7 @@ export class RampService extends BaseRampService {
    */
   public async validateBrlaOnrampRequest(taxId: string, quote: QuoteTicket, amount: string): Promise<string> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
     if (!subaccount) {
       throw new APIError({
         message: "Subaccount not found.",

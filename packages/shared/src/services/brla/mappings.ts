@@ -1,4 +1,5 @@
 import {
+  AveniaSubaccount,
   DepositLog,
   FastQuoteResponse,
   KycLevel2Payload,
@@ -17,6 +18,7 @@ import {
 import { Event } from "./webhooks";
 
 export enum Endpoint {
+  GetSubaccount = "/v2/account/sub-accounts",
   Subaccounts = "/subaccounts",
   PayOut = "/pay-out",
   BrCode = "/pay-in/br-code",
@@ -34,6 +36,20 @@ export enum Endpoint {
 }
 
 export interface EndpointMapping {
+  [Endpoint.GetSubaccount]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaSubaccount;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
   [Endpoint.Subaccounts]: {
     POST: {
       body: RegisterSubaccountPayload;

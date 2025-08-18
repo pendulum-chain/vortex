@@ -18,6 +18,17 @@ export interface SubaccountData {
   brCode: string;
 }
 
+export interface AveniaSubaccount {
+  subAccountId: string;
+  mainAccountId: string;
+  createdAt: string;
+  accountInfo: {
+    id: string;
+    accountType: string;
+    name: string;
+  };
+}
+
 export interface KYCData {
   level: number;
   documentData: string;
