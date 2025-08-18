@@ -1,5 +1,6 @@
 import { useNetwork } from "../../../../contexts/network";
 import { cn } from "../../../../helpers/cn";
+import { useTokensSortedByBalance } from "../../../../hooks/useTokensSortedByBalance";
 import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";
 import { ListItem } from "../../../ListItem";
 import { useTokenDefinitions } from "../helpers";
@@ -11,6 +12,8 @@ export const SelectionTokenList = () => {
   const selectedNetworkFilter = useSelectedNetworkFilter();
   const { selectedNetwork } = useNetwork();
   const { filteredDefinitions } = useTokenDefinitions(searchFilter, selectedNetworkFilter);
+  const sortedDefinitions = useTokensSortedByBalance(filteredDefinitions);
+
   const { handleTokenSelect, selectedToken } = useTokenSelection();
 
   return (
@@ -21,7 +24,7 @@ export const SelectionTokenList = () => {
       )}
     >
       <ul className="mt-3 flex flex-col gap-2 transition-opacity duration-150">
-        {filteredDefinitions.map(token => (
+        {sortedDefinitions.map(token => (
           <li key={`${token.type}-${token.network}`}>
             <ListItem
               isSelected={selectedToken === token.type && selectedNetwork === token.network}
