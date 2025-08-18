@@ -51,7 +51,11 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
     );
   }, [networkFilteredDefinitions, filter]);
 
-  return { availableNetworks, definitions: allDefinitions, filteredDefinitions };
+  return {
+    availableNetworks,
+    definitions: allDefinitions,
+    filteredDefinitions: isFiatDirection(tokenSelectModalType, rampDirection) ? allDefinitions : filteredDefinitions
+  };
 }
 
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
@@ -109,11 +113,33 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
   }));
 }
 
-function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
+function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
+  const isBuy = direction === RampDirection.BUY;
+  if (isBuy && type === "from") {
+    return true;
+  }
+  return false;
+}
+
+export function useIsFiatDirection() {
+  const { tokenSelectModalType } = useTokenSelectionState();
+  const rampDirection = useRampDirection();
+  return isFiatDirection(tokenSelectModalType, rampDirection);
+}
+
+function isFiatDirection(type: "from" | "to", direction: RampDirection) {
   const isBuy = direction === RampDirection.BUY;
 
   if ((isBuy && type === "from") || (!isBuy && type === "to")) {
-    return getFiatTokens(isBuy && type === "from");
+    return true;
+  }
+
+  return false;
+}
+
+function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
+  if (isFiatDirection(type, direction)) {
+    return getFiatTokens(isFilterEurcOnly(type, direction));
   } else {
     return getAllOnChainTokens();
   }
