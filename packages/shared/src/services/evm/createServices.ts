@@ -1,5 +1,5 @@
 import { createConfig } from "@wagmi/core";
-import { MOONBEAM_WSS } from "src/constants";
+import { MOONBEAM_WSS } from "src/tokens";
 import { Chain, createPublicClient, createWalletClient, http, webSocket } from "viem";
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 
