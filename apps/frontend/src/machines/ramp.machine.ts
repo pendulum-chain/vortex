@@ -222,11 +222,22 @@ export const rampMachine = setup({
       invoke: {
         id: "signingActor",
         input: ({ self, context }) => ({ context, parent: self }),
-        onDone: {
-          actions: assign({
-            rampState: ({ event }) => event.output as RampState
-          })
-        },
+        // If offramp, we continue to StartRamp. For onramps we wait for payment confirmation.
+        onDone: [
+          {
+            actions: assign({
+              rampState: ({ event }) => event.output as RampState
+            }),
+            guard: ({ context }) => context.rampDirection === RampDirection.BUY
+          },
+          {
+            actions: assign({
+              rampState: ({ event }) => event.output as RampState
+            }),
+            guard: ({ context }) => context.rampDirection === RampDirection.SELL,
+            target: "StartRamp"
+          }
+        ],
         onError: [
           {
             actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
