@@ -62,12 +62,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 
   const sortedDefinitions = useMemo(() => {
     if (!definitionsWithBalance.length) return networkFilteredDefinitions;
-
-    return [...networkFilteredDefinitions].sort((a, b) => {
-      const balanceA = balanceMap[a.assetSymbol] || "0";
-      const balanceB = balanceMap[b.assetSymbol] || "0";
-      return Number(balanceB) - Number(balanceA);
-    });
+    return sortTokenDefinitions(networkFilteredDefinitions, balanceMap);
   }, [networkFilteredDefinitions, balanceMap, definitionsWithBalance.length]);
 
   // Filter by search term (including network name)
@@ -82,6 +77,17 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
   }, [sortedDefinitions, filter]);
 
   return { availableNetworks, definitions: allDefinitions, filteredDefinitions };
+}
+
+function sortTokenDefinitions(
+  definitions: ExtendedTokenDefinition[],
+  balanceMap: Record<string, string>
+): ExtendedTokenDefinition[] {
+  return [...definitions].sort((a, b) => {
+    const balanceA = balanceMap[a.assetSymbol] || "0";
+    const balanceB = balanceMap[b.assetSymbol] || "0";
+    return Number(balanceB) - Number(balanceA);
+  });
 }
 
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
