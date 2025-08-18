@@ -1,13 +1,13 @@
-import { squidRouterConfigBase } from "@packages/shared";
-import { createConfig, http, readContract } from "@wagmi/core";
+import { MOONBEAM_WSS, squidRouterConfigBase } from "@packages/shared";
+import { createConfig, readContract } from "@wagmi/core";
 import { moonbeam } from "@wagmi/core/chains";
-import { encodePacked, sha256 } from "viem";
+import { encodePacked, sha256, webSocket } from "viem";
 import { squidReceiverABI } from "../contracts/SquidReceiver";
 
 export const moonbeamConfig = createConfig({
   chains: [moonbeam],
   transports: {
-    [moonbeam.id]: http()
+    [moonbeam.id]: webSocket(MOONBEAM_WSS)
   }
 });
 

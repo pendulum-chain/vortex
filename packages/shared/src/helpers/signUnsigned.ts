@@ -3,10 +3,17 @@ import { AddressOrPair } from "@polkadot/api/types";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
-import { createWalletClient, http, WalletClient } from "viem";
+import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
-import { decodeSubmittableExtrinsic, EphemeralAccount, isEvmTransactionData, PresignedTx, UnsignedTx } from "../index";
+import {
+  decodeSubmittableExtrinsic,
+  EphemeralAccount,
+  isEvmTransactionData,
+  MOONBEAM_WSS,
+  PresignedTx,
+  UnsignedTx
+} from "../index";
 import logger from "../logger";
 
 // Number of transactions to pre-sign for each transaction
@@ -121,11 +128,10 @@ function createEvmWalletClients(
 
   const privateKey = u8aToHex(hdEthereum(mnemonicToLegacySeed(moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey);
   const evmAccount = privateKeyToAccount(privateKey);
-
   const moonbeamClient = createWalletClient({
     account: evmAccount,
     chain: moonbeam,
-    transport: http()
+    transport: webSocket(MOONBEAM_WSS)
   });
 
   const polygonTransport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();

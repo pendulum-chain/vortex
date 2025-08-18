@@ -1,5 +1,6 @@
 import { createConfig } from "@wagmi/core";
-import { Chain, createPublicClient, createWalletClient, http } from "viem";
+import { MOONBEAM_WSS } from "src/constants";
+import { Chain, createPublicClient, createWalletClient, http, webSocket } from "viem";
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 
 // @ts-ignore
@@ -7,21 +8,22 @@ export function createEvmClientsAndConfig(
   executorAccount: ReturnType<typeof mnemonicToAccount> | ReturnType<typeof privateKeyToAccount>,
   chain: Chain
 ) {
+  const transport = chain.name === "moonbeam" ? webSocket(MOONBEAM_WSS) : http();
   const walletClient = createWalletClient({
     account: executorAccount,
     chain,
-    transport: http()
+    transport
   });
 
   const publicClient = createPublicClient({
     chain,
-    transport: http()
+    transport
   });
 
   const evmConfig = createConfig({
     chains: [chain],
     transports: {
-      [chain.id]: http()
+      [chain.id]: transport
     }
   });
 
