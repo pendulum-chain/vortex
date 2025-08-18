@@ -8,3 +8,4 @@ export const BRLA_LOGIN_USERNAME = getEnvVar("BRLA_LOGIN_USERNAME");
 export const BRLA_LOGIN_PASSWORD = getEnvVar("BRLA_LOGIN_PASSWORD");
 
 export const ALCHEMY_API_KEY = getEnvVar("ALCHEMY_API_KEY");
+export const MOONBEAM_WSS = getEnvVar("MOONBEAM_WSS", "wss://moonbeam-rpc.n.dwellir.com");
