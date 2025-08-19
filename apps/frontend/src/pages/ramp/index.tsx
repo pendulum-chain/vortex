@@ -7,18 +7,11 @@ import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
 import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
-import { RampForm } from "../ramp-form";
 import { SuccessPage } from "../success";
-import { WidgetDetailsPage } from "../widget";
+import { WidgetDetailsPage } from "./widget";
 
 export const Ramp = () => {
-  const { getCurrentComponent } = useRampNavigation(
-    <SuccessPage />,
-    <FailurePage />,
-    <ProgressPage />,
-    <RampForm />,
-    <WidgetDetailsPage />
-  );
+  const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <WidgetDetailsPage />);
   const rampActor = useRampActor();
   const stellarKycActor = useStellarKycActor();
   useMoneriumFlow();

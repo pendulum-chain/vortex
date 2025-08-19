@@ -1,21 +1,18 @@
 import { useSelector } from "@xstate/react";
 import { ReactNode, useCallback } from "react";
 import { useRampActor } from "../../contexts/rampState";
-import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
 
 export const useRampNavigation = (
   successComponent: ReactNode,
   failureComponent: ReactNode,
   progressComponent: ReactNode,
-  formComponent: ReactNode,
-  widgetComponent: ReactNode
+  formComponent: ReactNode
 ) => {
   const rampActor = useRampActor();
   const { rampState, rampMachineState } = useSelector(rampActor, state => ({
     rampMachineState: state,
     rampState: state.context.rampState
   }));
-  const providedQuoteId = useProvidedQuoteId();
 
   const getCurrentComponent = useCallback(() => {
     if (rampState?.ramp?.currentPhase === "complete") {
@@ -30,12 +27,8 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    if (providedQuoteId) {
-      return widgetComponent;
-    }
-
     return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, providedQuoteId, widgetComponent]);
+  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,
