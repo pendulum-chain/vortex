@@ -1,12 +1,22 @@
 import { BaseLayout } from "../../layouts";
+import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
+import { Quote } from "../quote";
 import { Ramp } from "../ramp";
 import MainSections from "./MainSections";
 
 export const Main = () => {
+  const providedQuoteId = useProvidedQuoteId();
+
   const main = (
     <main>
-      <Ramp />
-      <MainSections />
+      {providedQuoteId ? (
+        <Ramp />
+      ) : (
+        <>
+          <Quote />
+          <MainSections />
+        </>
+      )}
     </main>
   );
 
