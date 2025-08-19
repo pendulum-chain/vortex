@@ -63,7 +63,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   // Get payout addresses
   const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex" }
+    where: { isActive: true, name: "vortex", rampType: quote.rampType }
   });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
@@ -75,7 +75,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
     const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true }
+      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
     });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;

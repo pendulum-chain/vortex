@@ -64,7 +64,8 @@ export class QuoteService extends BaseRampService {
       partner = await Partner.findOne({
         where: {
           isActive: true,
-          name: request.partnerId
+          name: request.partnerId,
+          rampType: request.rampType
         }
       });
 
@@ -386,6 +387,43 @@ export class QuoteService extends BaseRampService {
       });
     }
 
+    // Apply discount subsidy if partner has discount > 0
+    let discountSubsidyAmount = new Big(0);
+    let discountSubsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
+    // The subsidy partner is either the partner provided in the request or the default "vortex" partner
+    const discountSubsidyPartner = partner
+      ? partner
+      : await Partner.findOne({
+          where: {
+            isActive: true,
+            name: "vortex",
+            rampType: request.rampType
+          }
+        });
+
+    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
+    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+
+    if (discountSubsidyPartner && discountSubsidyPartner.discount > 0) {
+      // Calculate discount subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
+      discountSubsidyAmount = finalNetOutputAmount.mul(discountSubsidyPartner.discount);
+
+      // Add discount subsidy to finalNetOutputAmount (relevant for the subsidy of off-ramps)
+      finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
+
+      // Add subsidy to the output amount on Moonbeam (relevant for the subsidy of on-ramps)
+      if (request.rampType === RampDirection.BUY) {
+        const subsidyAmountRaw = multiplyByPowerOfTen(discountSubsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
+        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
+      }
+
+      discountSubsidyInfo = {
+        discount: discountSubsidyPartner.discount.toString(),
+        partnerId: discountSubsidyPartner.id,
+        subsidyAmountInOutputToken: discountSubsidyAmount.toFixed(6, 0)
+      };
+    }
+
     const finalNetOutputAmountStr =
       request.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
@@ -412,9 +450,6 @@ export class QuoteService extends BaseRampService {
     const offrampAmountBeforeAnchorFees =
       request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
-    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    const onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
-
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -427,6 +462,7 @@ export class QuoteService extends BaseRampService {
         inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
+        subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
       outputAmount: finalNetOutputAmountStr,
