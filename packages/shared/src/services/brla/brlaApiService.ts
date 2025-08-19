@@ -259,7 +259,7 @@ export class BrlaApiService {
   public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<QuoteResponse> {
     const query = new URLSearchParams({
       blockchainSendMethod: quoteParams.blockchainSendMethod,
-      inputCurrency: quoteParams.inputCurrency,
+      inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
       inputPaymentMethod: quoteParams.inputPaymentMethod,
       inputThirdParty: String(quoteParams.inputThirdParty), // Fixed to FIAT out
       outputCurrency: BrlaCurrency.BRL, // Fixed to PIX

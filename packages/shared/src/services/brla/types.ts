@@ -328,13 +328,11 @@ export enum BlockchainSendMethod {
 
 export interface PayOutQuoteParams {
   subAccountId: string;
-  inputCurrency: BrlaCurrency;
   inputPaymentMethod: BrlaPaymentMethod;
   inputThirdParty: boolean;
   outputThirdParty: boolean;
   blockchainSendMethod: BlockchainSendMethod;
-  inputAmount?: string;
-  outputAmount?: string;
+  inputAmount: string;
 }
 
 export interface QuoteResponse {
@@ -408,7 +406,7 @@ export interface PixOutputTicketPayload {
   };
   ticketBlockchainInput?: {
     walletAddress: string;
-    permit: {
+    permit?: {
       r: string;
       s: string;
       v: number;
