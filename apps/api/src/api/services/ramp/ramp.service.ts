@@ -117,7 +117,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
     if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
       throw new APIError({
         message: "Parameters destinationAddress and taxId are required for onramp",
@@ -133,7 +133,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const brCode = await this.validateBrlaOnrampRequest(
+    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(
       additionalData.taxId,
       quote,
       quote.inputAmount,
@@ -147,7 +147,7 @@ export class RampService extends BaseRampService {
       additionalData.taxId
     );
 
-    return { depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareMoneriumOnrampTransactions(
@@ -237,6 +237,7 @@ export class RampService extends BaseRampService {
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
     depositQrCode?: string;
+    aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
     if (quote.rampType === RampDirection.SELL) {
@@ -293,7 +294,7 @@ export class RampService extends BaseRampService {
 
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData } = await this.prepareRampTransactions(
+      const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
@@ -313,6 +314,7 @@ export class RampService extends BaseRampService {
         processingLock: { locked: false, lockedAt: null },
         quoteId: quote.id,
         state: {
+          aveniaTicketId,
           depositQrCode,
           ibanPaymentData,
           inputAmount: quote.inputAmount,
@@ -651,7 +653,7 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     amount: string,
     moonbeamEphemeralAddress: string
-  ): Promise<string> {
+  ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
@@ -710,9 +712,7 @@ export class RampService extends BaseRampService {
       }
     });
 
-    // AVENIA-MIGRATION: we need to save the ticket in our backend for querying.
-
-    return aveniaTicket.brlPixInputInfo.brCode;
+    return { aveniaTicketId: aveniaTicket.ticket.id, brCode: aveniaTicket.brlPixInputInfo.brCode };
   }
 }
 

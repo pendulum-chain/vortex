@@ -10,6 +10,7 @@ import {
   BrlaTriggerOfframpRequest,
   BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyResponse,
+  RampDirection,
   StartKYC2Request
 } from "@packages/shared";
 import { apiRequest } from "./api-client";
@@ -68,11 +69,12 @@ export class BrlaService {
   /**
    * Get the remaining limit for a user
    * @param taxId The user's tax ID
-   * @returns The remaining limit for onramp and offramp
+   * @param direction The ramp direction
+   * @returns The remaining limit
    */
-  static async getUserRemainingLimit(taxId: string): Promise<BrlaGetUserRemainingLimitResponse> {
+  static async getUserRemainingLimit(taxId: string, direction: RampDirection): Promise<BrlaGetUserRemainingLimitResponse> {
     return apiRequest<BrlaGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
-      params: { taxId }
+      params: { direction, taxId }
     });
   }
 

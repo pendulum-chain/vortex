@@ -2,6 +2,7 @@ import {
   BrlaApiService,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
+  BrlaCurrency,
   BrlaErrorResponse,
   BrlaGetKycStatusRequest,
   BrlaGetKycStatusResponse,
@@ -18,6 +19,7 @@ import {
   BrlaValidatePixKeyResponse,
   Kyc2FailureReason,
   KycFailureReason,
+  RampDirection,
   RegisterSubaccountPayload,
   StartKYC2Request,
   validateMaskedNumber
@@ -133,40 +135,36 @@ export const getBrlaUserRemainingLimit = async (
   res: Response<BrlaGetUserRemainingLimitResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId } = req.query;
+    const { taxId, direction } = req.query;
 
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameter" });
+    if (!taxId || !direction) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId or direction query parameter" });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    const limitsData = await brlaApiService.getSubaccountUsedLimit(taxId);
 
-    if (!subaccount) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
-
-    const totalLimit = subaccount.kyc.limits;
-    const usedLimit = await brlaApiService.getSubaccountUsedLimit(subaccount.id);
-    if (!usedLimit) {
+    if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
       return;
     }
 
-    // BRLA is using cents, so we need to divide by 100
-    const remainingLimitOfframp = (totalLimit.limitBRLAOutOwnAccount - usedLimit.limitBRLAOutOwnAccount) / 100;
-    // TODO it's not 100% clear if this is the right limit to use for onramp
-    const remainingLimitOnramp = (totalLimit.limitMint - usedLimit.limitMint) / 100;
+    const brlLimits = limitsData.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
 
-    // Calculate the remaining limits
-    const remainingLimits = {
-      remainingLimitOfframp: remainingLimitOfframp < 0 ? 0 : remainingLimitOfframp,
-      remainingLimitOnramp: remainingLimitOnramp < 0 ? 0 : remainingLimitOnramp
-    };
+    if (!brlLimits) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "BRL limits not found" });
+      return;
+    }
 
-    res.json(remainingLimits);
+    let remainingLimit = 0;
+    if (direction === RampDirection.BUY) {
+      remainingLimit = Number(brlLimits.maxFiatIn) - Number(brlLimits.usedLimit.usedFiatIn);
+    } else if (direction === RampDirection.SELL) {
+      remainingLimit = Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
+    }
+
+    res.json({ remainingLimit: remainingLimit < 0 ? 0 : remainingLimit });
     return;
   } catch (error) {
     handleApiError(error, res, "getBrlaUserRemainingLimit");

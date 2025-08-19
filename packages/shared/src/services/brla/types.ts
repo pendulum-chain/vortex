@@ -350,6 +350,7 @@ export interface BaseTicket {
   quote: {
     id: string;
     ticketId: string;
+    inputPaymentMethod: string;
   };
 }
 
@@ -364,14 +365,6 @@ export interface PixInputTicketPayload {
   };
 }
 
-// TODO verify ticket endpoint outputs for this modality
-export interface PixOutputTicketPayload {
-  ticket: BaseTicket;
-  ticketBrlPixOutput: {
-    beneficiaryBrlBankAccountId: string;
-    pixMessage: string;
-  };
-}
 export interface PixInputTicketOutput {
   ticket: BaseTicket;
   brlPixInputInfo: {
@@ -380,6 +373,23 @@ export interface PixInputTicketOutput {
     referenceLabel: string;
     additionalData: string;
     brCode: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+}
+
+// TODO verify ticket endpoint outputs for this modality
+export interface PixOutputTicketPayload {
+  ticket: BaseTicket;
+  ticketBrlPixOutput: {
+    beneficiaryBrlBankAccountId: string;
+    pixMessage: string;
   };
 }
 

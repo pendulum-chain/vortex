@@ -1,3 +1,5 @@
+import { RampDirection } from "../types/rampDirection";
+
 export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
@@ -47,11 +49,11 @@ export interface BrlaValidatePixKeyResponse {
 
 export interface BrlaGetUserRemainingLimitRequest {
   taxId: string;
+  direction: RampDirection;
 }
 
 export interface BrlaGetUserRemainingLimitResponse {
-  remainingLimitOnramp: number;
-  remainingLimitOfframp: number;
+  remainingLimit: number;
 }
 
 // POST /brla/triggerOfframp
