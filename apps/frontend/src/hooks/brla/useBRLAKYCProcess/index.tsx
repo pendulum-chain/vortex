@@ -5,7 +5,7 @@ import { storageKeys } from "../../../constants/localStorage";
 import { useRampActor } from "../../../contexts/rampState";
 import { useToastMessage } from "../../../helpers/notifications";
 import { KycStatus } from "../../../services/signingService";
-import { useTaxId } from "../../../stores/ramp/useRampFormStore";
+import { useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { isValidCnpj } from "../../ramp/schema";
 import { useDebouncedValue } from "../../useDebouncedValue";
 import { KYCFormData } from "../useKYCForm";

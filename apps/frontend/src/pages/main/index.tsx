@@ -1,5 +1,5 @@
 import { BaseLayout } from "../../layouts";
-import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
+import { useProvidedQuoteId } from "../../stores/quote/useQuoteStore";
 import { Quote } from "../quote";
 import { Ramp } from "../ramp";
 import MainSections from "./MainSections";

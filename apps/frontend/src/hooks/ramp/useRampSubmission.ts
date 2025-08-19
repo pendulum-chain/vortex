@@ -8,8 +8,8 @@ import {
   createPendulumEphemeral,
   createStellarEphemeral
 } from "../../services/transactions/ephemerals";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
 import { useVortexAccount } from "../useVortexAccount";
@@ -28,7 +28,7 @@ const createEphemerals = () => ({
 export const useRampSubmission = () => {
   const rampActor = useRampActor();
   const [executionPreparing, setExecutionPreparing] = useState(false);
-  const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
+  const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useQuoteFormStore();
   const { quote } = useQuoteStore();
   const { address, chainId } = useVortexAccount();
   const { selectedNetwork } = useNetwork();

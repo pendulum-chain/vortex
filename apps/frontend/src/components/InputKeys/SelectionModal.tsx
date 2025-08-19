@@ -18,7 +18,7 @@ import { isFiatTokenDisabled } from "../../config/tokenAvailability";
 
 import { useNetwork } from "../../contexts/network";
 import { useOnchainTokenBalances } from "../../hooks/useOnchainTokenBalances";
-import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../stores/ramp/useRampFormStore";
+import { useFiatToken, useOnChainToken, useQuoteFormStoreActions } from "../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useRampModalActions, useRampModalState } from "../../stores/rampModalStore";
 import { Dialog } from "../Dialog";
@@ -65,7 +65,7 @@ function TokenSelectionList() {
   const { closeTokenSelectModal } = useRampModalActions();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const { setFiatToken, setOnChainToken } = useRampFormStoreActions();
+  const { setFiatToken, setOnChainToken } = useQuoteFormStoreActions();
   const rampDirection = useRampDirection();
 
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {

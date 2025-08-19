@@ -1,12 +1,12 @@
 import { motion } from "motion/react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
-import { useQuote } from "../../stores/ramp/useQuoteStore";
+import { useQuote } from "../../stores/quote/useQuoteStore";
 
 function BrazilLanding() {
   const { t } = useTranslation();
@@ -36,7 +36,7 @@ export const WidgetDetailsPage = () => {
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   useSetRampUrlParams();
-  const form = useForm({ disabled: true });
+  const { form } = useRampForm();
 
   return (
     <FormProvider {...form}>
@@ -44,6 +44,7 @@ export const WidgetDetailsPage = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 min-h-[480px] rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
         initial={{ opacity: 0, scale: 0.9 }}
+        onSubmit={() => undefined}
         transition={{ duration: 0.3 }}
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { storageKeys } from "../../constants/localStorage";
-import { useRampFormStoreActions, useTaxId } from "../../stores/ramp/useRampFormStore";
+import { useQuoteFormStoreActions, useTaxId } from "../../stores/quote/useQuoteFormStore";
 
 export const useBrlaKycTaxIdLocalStorage = () => {
   const storeTaxId = useTaxId();
 
-  const { setTaxId: setStoreTaxId } = useRampFormStoreActions();
+  const { setTaxId: setStoreTaxId } = useQuoteFormStoreActions();
 
   const [localStorageTaxId, setLocalStorageTaxId] = useState<string | undefined>(() => {
     try {

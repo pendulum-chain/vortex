@@ -8,8 +8,8 @@ import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { useFeeComparisonStore } from "../../stores/feeComparison";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { SwapSubmitButton } from "../buttons/SwapSubmitButton";
 

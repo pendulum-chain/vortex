@@ -6,7 +6,7 @@ import { Box } from "../../components/Box";
 import { EmailForm } from "../../components/EmailForm";
 import { Rating } from "../../components/Rating";
 import { useRampActor } from "../../contexts/rampState";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 const Checkmark = () => (
@@ -19,7 +19,7 @@ export const SuccessPage = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { fiatToken } = useRampFormStore();
+  const { fiatToken } = useQuoteFormStore();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
 

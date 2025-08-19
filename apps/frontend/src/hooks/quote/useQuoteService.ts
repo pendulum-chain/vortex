@@ -4,8 +4,8 @@ import { useCallback, useEffect } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { usePartnerId } from "../../stores/partnerStore";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useQuoteConstraintsValid } from "../../stores/ramp/useRampFormStore";
+import { useQuoteConstraintsValid } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 // @TODO: Rethink this hook, because now

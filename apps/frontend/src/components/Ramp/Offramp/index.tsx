@@ -5,13 +5,13 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
-import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
-import { useRampForm } from "../../../hooks/ramp/useRampForm";
+import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
+import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
-import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
+import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
 import { useRampModalActions } from "../../../stores/rampModalStore";
 import { useValidateTerms } from "../../../stores/termsStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
@@ -27,7 +27,7 @@ export const Offramp = () => {
 
   const { setTrackPrice } = useFeeComparisonStore();
 
-  const { form } = useRampForm();
+  const { form } = useQuoteForm();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();

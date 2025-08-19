@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { activeOptions, cacheKeys } from "../../../../constants/cache";
 import { useNetwork } from "../../../../contexts/network";
 import { PriceService } from "../../../../services/api";
-import { useQuote } from "../../../../stores/ramp/useQuoteStore";
+import { useQuote } from "../../../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
 import { PriceProviderDetails } from "../../priceProviders";
 

@@ -7,7 +7,8 @@ import { Field, FieldProps } from "../../Field";
 
 export enum StandardBrlaFieldOptions {
   TAX_ID = "taxId",
-  PIX_ID = "pixId"
+  PIX_ID = "pixId",
+  WALLET_ADDRESS = "walletAddress"
 }
 
 export enum ExtendedBrlaFieldOptions {

@@ -3,8 +3,8 @@ import Big from "big.js";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useInputAmount } from "../../stores/ramp/useRampFormStore";
+import { useInputAmount } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { Spinner } from "../Spinner";
 

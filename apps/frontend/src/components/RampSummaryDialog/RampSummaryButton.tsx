@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { Spinner } from "../Spinner";
 

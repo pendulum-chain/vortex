@@ -16,8 +16,8 @@ import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenA
 import { TrackableEvent, useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
-import { useQuote, useQuoteError } from "../../stores/ramp/useQuoteStore";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
+import { useQuote, useQuoteError } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useOnchainTokenBalance } from "../useOnchainTokenBalance";
 import { useVortexAccount } from "../useVortexAccount";
@@ -159,7 +159,7 @@ function validateTokenAvailability(
 export const useRampValidation = () => {
   const { t } = useTranslation();
 
-  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
+  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useQuoteFormStore();
   const quote = useQuote();
   const quoteError = useQuoteError();
   const { selectedNetwork } = useNetwork();
