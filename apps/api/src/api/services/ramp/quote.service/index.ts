@@ -396,7 +396,8 @@ export class QuoteService extends BaseRampService {
       : await Partner.findOne({
           where: {
             isActive: true,
-            name: "vortex"
+            name: "vortex",
+            rampType: request.rampType
           }
         });
 
