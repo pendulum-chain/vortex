@@ -250,6 +250,10 @@
       "howItWorks": "Como funciona",
       "sellCrypto": "Vender Cripto"
     },
+    "quoteSubmitButton": {
+      "buy": "Comprar",
+      "sell": "Vender"
+    },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
       "thankYou": "Obrigado!",

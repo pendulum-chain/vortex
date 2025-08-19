@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
 import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
@@ -17,12 +16,10 @@ import { useRampModalActions } from "../../../stores/rampModalStore";
 import { useValidateTerms } from "../../../stores/termsStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
-import { BrlaSwapFields } from "../../BrlaComponents/BrlaSwapFields";
 import { LabeledInput } from "../../LabeledInput";
+import { QuoteSubmitButtons } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
-import { RampSubmitButtons } from "../../RampSubmitButtons";
-import { RampTerms } from "../../RampTerms";
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -120,12 +117,8 @@ export const Onramp = () => {
         <section className="mt-5 flex w-full items-center justify-center">
           <BenefitsList />
         </section>
-        <BrlaSwapFields />
         <RampErrorMessage />
-        <section className="mt-5 w-full">
-          <RampTerms />
-        </section>
-        <RampSubmitButtons toAmount={toAmount} />
+        <QuoteSubmitButtons />
       </motion.form>
     </FormProvider>
   );
