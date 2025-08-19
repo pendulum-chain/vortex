@@ -67,15 +67,6 @@ export interface RegisterSubaccountPayload {
   cnpj?: string;
 }
 
-export interface UsedLimitData {
-  limitMint: number;
-  limitBurn: number;
-  limitSwapBuy: number;
-  limitSwapSell: number;
-  limitBRLAOutOwnAccount: number;
-  limitBRLAOutThirdParty: number;
-}
-
 export interface OfframpPayload {
   pixKey: string;
   amount: number;
@@ -390,4 +381,33 @@ export interface PixInputTicketOutput {
     additionalData: string;
     brCode: string;
   };
+}
+
+// Limit types
+export interface UsedLimitDetails {
+  year: number;
+  month: number;
+  usedFiatIn: string;
+  usedFiatOut: string;
+  usedChainIn: string;
+  usedChainOut: string;
+}
+
+export interface Limit {
+  currency: string;
+  maxFiatIn: string;
+  maxFiatOut: string;
+  maxChainIn: string;
+  maxChainOut: string;
+  usedLimit: UsedLimitDetails;
+}
+
+export interface LimitInfo {
+  blocked: boolean;
+  createdAt: string;
+  limits: Limit[];
+}
+
+export interface AccountLimitsResponse {
+  limitInfo: LimitInfo;
 }

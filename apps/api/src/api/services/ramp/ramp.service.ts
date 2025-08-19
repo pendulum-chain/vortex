@@ -668,16 +668,25 @@ export class RampService extends BaseRampService {
     //   });
     // }
 
-    //AVENIA-MIGRATION: We assume if subaccount is returned, KYC is valid? quote handles the limits?
+    //AVENIA-MIGRATION: We assume if subaccount is returned, KYC is valid?
 
-    //const { limitMint } = subaccount.kyc.limits;
+    const accountLimits = await brlaApiService.getSubaccountUsedLimit(subaccount.subAccountId);
+    // Filter for BRL specific limits
+    const brlaLimits = accountLimits?.limitInfo.limits.filter(entry => entry.currency === BrlaCurrency.BRL);
+    if (!brlaLimits || brlaLimits.length === 0) {
+      throw new APIError({
+        message: "BRL limits not found.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    const { maxFiatIn } = brlaLimits[0] || {};
 
-    // if (Number(amount) > limitMint) {
-    //   throw new APIError({
-    //     message: "Amount exceeds KYC limits.",
-    //     status: httpStatus.BAD_REQUEST
-    //   });
-    // }
+    if (Number(amount) > Number(maxFiatIn)) {
+      throw new APIError({
+        message: "Amount exceeds KYC limits.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const aveniaQuote = await brlaApiService.createPayInQuote({
       inputAmount: String(amount),

@@ -1,4 +1,5 @@
 import {
+  AccountLimitsResponse,
   AveniaSubaccount,
   DepositLog,
   FastQuoteResponse,
@@ -26,6 +27,7 @@ export enum Endpoint {
   Subaccounts = "/subaccounts",
   PayOut = "/pay-out",
   BrCode = "/pay-in/br-code",
+  AccountLimits = "/v2/account/limits",
   UsedLimit = "/used-limit",
   WebhookEvents = "/webhooks/events",
   PixInfo = "/pay-out/pix-info",
@@ -84,14 +86,14 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.UsedLimit]: {
+  [Endpoint.AccountLimits]: {
     POST: {
       body: undefined;
       response: undefined;
     };
     GET: {
       body: undefined;
-      response: UsedLimitData;
+      response: AccountLimitsResponse;
     };
     PATCH: {
       body: undefined;

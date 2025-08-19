@@ -2,6 +2,7 @@ import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
+  AccountLimitsResponse,
   AveniaSubaccount,
   DepositLog,
   FastQuoteQueryParams,
@@ -17,8 +18,7 @@ import {
   PixKeyData,
   QuoteResponse,
   RegisterSubaccountPayload,
-  SwapPayload,
-  UsedLimitData
+  SwapPayload
 } from "./types";
 import { Event } from "./webhooks";
 
@@ -155,9 +155,9 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.GetSubaccount, "GET", undefined, undefined, subaccountId);
   }
 
-  public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
+  public async getSubaccountUsedLimit(subaccountId: string): Promise<AccountLimitsResponse | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.UsedLimit, "GET", query);
+    return await this.sendRequest(Endpoint.AccountLimits, "GET", query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
