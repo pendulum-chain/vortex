@@ -12,13 +12,14 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketOutput,
   PixOutputTicketPayload,
   QuoteResponse,
   RegisterSubaccountPayload,
   SubaccountData,
   SwapLog,
   SwapPayload,
-  UsedLimitData
+  UsedLimitDetails
 } from "./types";
 import { Event } from "./webhooks";
 
@@ -271,7 +272,7 @@ export interface EndpointMapping {
   [Endpoint.Tickets]: {
     POST: {
       body: PixInputTicketPayload | PixOutputTicketPayload;
-      response: PixInputTicketOutput;
+      response: PixInputTicketOutput | PixOutputTicketOutput;
     };
     GET: {
       body: undefined;

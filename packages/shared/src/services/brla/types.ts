@@ -321,6 +321,22 @@ export interface PayInQuoteParams {
   subAccountId: string;
 }
 
+export enum BlockchainSendMethod {
+  TRANSFER = "TRANSFER",
+  PERMIT = "PERMIT"
+}
+
+export interface PayOutQuoteParams {
+  subAccountId: string;
+  inputCurrency: BrlaCurrency;
+  inputPaymentMethod: BrlaPaymentMethod;
+  inputThirdParty: boolean;
+  outputThirdParty: boolean;
+  blockchainSendMethod: BlockchainSendMethod;
+  inputAmount?: string;
+  outputAmount?: string;
+}
+
 export interface QuoteResponse {
   quoteToken: string;
   inputCurrency: string;
@@ -386,10 +402,53 @@ export interface PixInputTicketOutput {
 
 // TODO verify ticket endpoint outputs for this modality
 export interface PixOutputTicketPayload {
-  ticket: BaseTicket;
+  quoteToken: string;
   ticketBrlPixOutput: {
-    beneficiaryBrlBankAccountId: string;
+    pixKey: string;
+  };
+  ticketBlockchainInput?: {
+    walletAddress: string;
+    permit: {
+      r: string;
+      s: string;
+      v: number;
+      nonce: number;
+      deadline: number;
+    };
+  };
+}
+
+export interface PixOutputTicketOutput {
+  ticket: BaseTicket;
+  brazilianFiatReceiverInfo: {
+    id: string;
+    ticketId: string;
+    pixKey: string;
+    endToEndId: string;
+  };
+  blockchainSenderInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    txHash: string;
+  };
+  brlPixOutputInfo: {
+    id: string;
+    ticketId: string;
     pixMessage: string;
+    senderAccountBankName: string;
+    senderAccountNumber: string;
+  };
+  blockchainInputInfo: {
+    id: string;
+    ticketId: string;
+    r: string;
+    s: string;
+    v: number;
+    nonce: number;
+    deadline: number;
+    personalSignature: string;
+    personalSignatureDeadline: number;
   };
 }
 

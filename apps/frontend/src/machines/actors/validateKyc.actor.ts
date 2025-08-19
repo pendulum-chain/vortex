@@ -32,17 +32,12 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
     try {
       const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
-      const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-
-      const remainingLimitInUnits =
-        rampDirection === RampDirection.SELL
-          ? remainingLimitResponse.remainingLimitOfframp
-          : remainingLimitResponse.remainingLimitOnramp;
+      const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 
       const amountNum = Number(
         rampDirection === RampDirection.SELL ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
       );
-      const remainingLimitNum = Number(remainingLimitInUnits);
+      const remainingLimitNum = Number(remainingLimitResponse.remainingLimit);
 
       if (amountNum > remainingLimitNum) {
         return { kycNeeded: true };

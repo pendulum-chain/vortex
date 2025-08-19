@@ -4,6 +4,8 @@ import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
   AveniaSubaccount,
+  BrlaCurrency,
+  BrlaPaymentMethod,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
@@ -13,9 +15,12 @@ import {
   OnchainLog,
   OnrampPayload,
   PayInQuoteParams,
+  PayOutQuoteParams,
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketOutput,
+  PixOutputTicketPayload,
   QuoteResponse,
   RegisterSubaccountPayload,
   SwapPayload
@@ -251,7 +256,34 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
+  public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<QuoteResponse> {
+    const query = new URLSearchParams({
+      blockchainSendMethod: quoteParams.blockchainSendMethod,
+      inputCurrency: quoteParams.inputCurrency,
+      inputPaymentMethod: quoteParams.inputPaymentMethod,
+      inputThirdParty: String(quoteParams.inputThirdParty), // Fixed to FIAT out
+      outputCurrency: BrlaCurrency.BRL, // Fixed to PIX
+      outputPaymentMethod: BrlaPaymentMethod.PIX,
+      outputThirdParty: String(quoteParams.outputThirdParty),
+      subAccountId: quoteParams.subAccountId
+    }).toString();
+    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+  }
+
   public async createPixInputTicket(payload: PixInputTicketPayload): Promise<PixInputTicketOutput> {
-    return await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    if ("brlPixInputInfo" in response) {
+      return response;
+    }
+    // To satisfy TypeScript
+    throw new Error("Invalid response from BRLA API for createPixInputTicket");
+  }
+
+  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<PixOutputTicketOutput> {
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    if ("brazilianFiatReceiverInfo" in response) {
+      return response;
+    }
+    throw new Error("Invalid response from BRLA API for createPixOutputTicket");
   }
 }
