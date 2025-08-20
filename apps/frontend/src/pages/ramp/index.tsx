@@ -43,14 +43,17 @@ export const Ramp = () => {
     if (!providedQuoteId) {
       // No quote ID was provided. Navigate to the quote page
       window.location.href = "/";
-    }
-
-    if (providedQuoteId && !quote && quoteError?.toLowerCase().includes("notfound")) {
+    } else if (providedQuoteId && !quote && quoteError?.toLowerCase().includes("notfound")) {
       // The quote expired. Navigate to the quote page with an error message
       console.log("The quote has expired. Please try again to get a new quote.");
       window.location.href = "/";
+    } else if (providedQuoteId && quote && !quoteError) {
+      rampActor.send({
+        quote,
+        type: "SET_QUOTE"
+      });
     }
-  }, [providedQuoteId, quote, quoteError]);
+  }, [providedQuoteId, quote, quoteError, rampActor.send]);
 
   useEffect(() => {
     // How to restrict this to only send one notification?
