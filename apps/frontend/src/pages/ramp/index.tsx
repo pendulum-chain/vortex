@@ -31,7 +31,7 @@ export const Ramp = () => {
 
   useEffect(() => {
     // If the provided quote does not match the quote in the ramp actor, we need to update the quote in the ramp actor
-    if (providedQuoteId && executionInput?.quote.id !== providedQuoteId) {
+    if (providedQuoteId && executionInput?.quote.id && executionInput.quote.id !== providedQuoteId) {
       console.log("Resetting ramp actor due to quote ID mismatch");
       rampActor.send({
         type: "RESET_RAMP"

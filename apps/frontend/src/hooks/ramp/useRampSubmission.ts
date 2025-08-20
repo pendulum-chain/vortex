@@ -113,7 +113,7 @@ export const useRampSubmission = () => {
     } finally {
       setExecutionPreparing(false);
     }
-  }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
+  }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError, rampDirection, chainId, rampActor.send]);
 
   return {
     isExecutionPreparing: executionPreparing,
