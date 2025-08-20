@@ -64,7 +64,11 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
         </div>
         <div className="mt-8 mb-8 grid gap-3">
           <div className="flex gap-3">
-            <button className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick} type="button">
+            <button
+              className="btn-vortex-primary-inverse btn flex-1"
+              onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
+              type="button"
+            >
               {t("components.brlaKYCForm.buttons.back")}
             </button>
             <button className="btn-vortex-primary btn flex-1" type="submit" {...buttonProps}>
