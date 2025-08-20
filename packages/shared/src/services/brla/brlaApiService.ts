@@ -281,12 +281,12 @@ export class BrlaApiService {
     throw new Error("Invalid response from BRLA API for createPixInputTicket");
   }
 
-  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<PixOutputTicketOutput> {
+  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<{ id: string }> {
     const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
-    if ("brazilianFiatReceiverInfo" in response) {
-      return response;
+    if ("brlPixInputInfo" in response) {
+      throw new Error("Invalid response from BRLA API for createPixOutputTicket");
     }
-    throw new Error("Invalid response from BRLA API for createPixOutputTicket");
+    return response;
   }
 
   public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {

@@ -274,7 +274,7 @@ export interface EndpointMapping {
   [Endpoint.Tickets]: {
     POST: {
       body: PixInputTicketPayload | PixOutputTicketPayload;
-      response: PixInputTicketOutput | PixOutputTicketOutput;
+      response: PixInputTicketOutput | { id: string };
     };
     GET: {
       body: undefined;

@@ -96,8 +96,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         }
       };
 
-      const payOutTicket = await brlaApiService.createPixOutputTicket(payOutTicketParams);
-
+      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams);
       // Avenia migration: implement a wait and check after the request, or ticket follow-up.
 
       return this.transitionToNextPhase(state, "complete");
