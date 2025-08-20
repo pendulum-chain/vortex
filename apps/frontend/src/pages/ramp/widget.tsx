@@ -6,14 +6,15 @@ import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButto
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampFormValues } from "../../hooks/ramp/schema";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
+import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 
-function NextButton({ onClick }: { onClick?: () => void }) {
+function NextButton({ onClick, type = "submit" }: { onClick?: () => void; type?: "button" | "submit" }) {
   const { t } = useTranslation();
 
   return (
-    <button className="btn-vortex-primary btn mt-auto mb-4 rounded-xl" onClick={onClick} type={onClick ? "button" : "submit"}>
+    <button className="btn-vortex-primary btn mt-auto mb-4 rounded-xl" onClick={onClick} type={type}>
       {t("pages.widget.details.buttons.next")}
     </button>
   );
@@ -46,9 +47,11 @@ export const WidgetDetailsPage = () => {
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
+  const { onRampConfirm } = useRampSubmission();
+
   const handleConfirm = (data: RampFormValues) => {
-    console.log(data);
-    // TODO start the KYC checks
+    // TODO show add terms and conditions somewhere
+    onRampConfirm();
   };
 
   return (
