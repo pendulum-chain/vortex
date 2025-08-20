@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { QuoteResponse, RampDirection } from "@packages/shared";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -22,6 +22,7 @@ const initialRampContext: RampContext = {
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
   paymentData: undefined,
+  quote: undefined,
   rampDirection: undefined,
   rampKycLevel2Started: false,
   rampKycStarted: false,
@@ -29,7 +30,6 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   rampSummaryVisible: false,
-  stuff: undefined,
   substrateWalletAccount: undefined
 };
 
@@ -48,6 +48,7 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
+  | { type: "SET_QUOTE"; quote: QuoteResponse }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined };
 
 export const rampMachine = setup({
@@ -92,21 +93,21 @@ export const rampMachine = setup({
     },
     SET_ADDRESS: {
       actions: assign({
-        address: ({ event }: any) => event.address
+        address: ({ event }) => event.address
       })
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({ event }: any) => event.getMessageSignature
+        getMessageSignature: ({ event }) => event.getMessageSignature
       })
     },
     SET_INITIALIZE_FAILED_MESSAGE: {
       actions: assign({
-        initializeFailedMessage: ({ event }: any) => event.message
+        initializeFailedMessage: ({ event }) => event.message
       })
     },
     SIGNING_UPDATE: {
-      actions: assign({ rampSigningPhase: ({ event }: any) => event.phase })
+      actions: assign({ rampSigningPhase: ({ event }) => event.phase })
     }
   },
   states: {
@@ -136,21 +137,19 @@ export const rampMachine = setup({
     },
     Idle: {
       on: {
-        // This is the main confirm button.
-        CONFIRM: {
+        SET_QUOTE: {
           actions: assign({
-            chainId: ({ event }) => event.input.chainId,
-            executionInput: ({ event }) => event.input.executionInput,
-            // Also reset any error from a previous attempt
-            initializeFailedMessage: undefined,
-            rampDirection: ({ event }) => event.input.rampDirection
+            quote: ({ event }) => event.quote
           }),
-          target: "RampRequested"
+          target: "QuoteReady"
         }
       }
     },
     KYC: kycStateNode as any,
     KycComplete: {
+      entry: assign({
+        rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.
+      }),
       on: {
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
@@ -163,6 +162,21 @@ export const rampMachine = setup({
       },
       // So far, we only go back to main component
       entry: "resetRamp"
+    },
+    QuoteReady: {
+      on: {
+        // This is the main confirm button.
+        CONFIRM: {
+          actions: assign({
+            chainId: ({ event }) => event.input.chainId,
+            executionInput: ({ event }) => event.input.executionInput,
+            // Also reset any error from a previous attempt
+            initializeFailedMessage: undefined,
+            rampDirection: ({ event }) => event.input.rampDirection
+          }),
+          target: "RampRequested"
+        }
+      }
     },
     RampFollowUp: {
       on: {
@@ -178,9 +192,6 @@ export const rampMachine = setup({
       }
     },
     RampRequested: {
-      entry: assign({
-        rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.
-      }),
       invoke: {
         input: ({ context }) => context,
         onDone: {

@@ -1,4 +1,4 @@
-import { PaymentData, RampDirection } from "@packages/shared";
+import { PaymentData, QuoteResponse, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
@@ -10,23 +10,23 @@ import { stellarKycMachine } from "./stellarKyc.machine";
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 export interface RampContext {
-  stuff?: string;
-  authToken?: string;
-  paymentData?: PaymentData;
   address: string | undefined;
+  authToken?: string;
   chainId: number | undefined;
-  rampDirection: RampDirection | undefined;
-  rampState: RampState | undefined;
-  rampSigningPhase: RampSigningPhase | undefined;
   executionInput: RampExecutionInput | undefined;
-  rampKycStarted: boolean;
-  rampKycLevel2Started: boolean;
-  rampPaymentConfirmed: boolean;
-  initializeFailedMessage: string | undefined;
-  rampSummaryVisible: boolean;
   getMessageSignature: GetMessageSignatureCallback | undefined;
-  substrateWalletAccount: WalletAccount | undefined;
+  initializeFailedMessage: string | undefined;
   isQuoteExpired: boolean;
+  paymentData?: PaymentData;
+  quote: QuoteResponse | undefined;
+  rampDirection: RampDirection | undefined;
+  rampKycLevel2Started: boolean;
+  rampKycStarted: boolean;
+  rampPaymentConfirmed: boolean;
+  rampSigningPhase: RampSigningPhase | undefined;
+  rampState: RampState | undefined;
+  rampSummaryVisible: boolean;
+  substrateWalletAccount: WalletAccount | undefined;
 }
 
 export type RampMachineEvents =
