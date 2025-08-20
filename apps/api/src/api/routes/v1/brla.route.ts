@@ -20,4 +20,6 @@ router.route("/createSubaccount").post(validataSubaccountCreation, brlaControlle
 
 router.route("/startKYC2").post(validateStartKyc2, brlaController.startKYC2);
 
+router.route("/newKyc").post(brlaController.newKyc);
+
 export default router;

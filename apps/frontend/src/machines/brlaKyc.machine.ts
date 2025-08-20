@@ -2,137 +2,103 @@ import { KycFailureReason } from "@packages/shared";
 import { assign, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
-import { submitLevel1Actor } from "./actors/brla/submitLevel1.actor";
+import { submitActor } from "./actors/brla/submitLevel1.actor";
 import { verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
+import { BrlaKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
-export interface BRLAKycContext extends RampContext {
-  kycFormData?: KYCFormData;
-  taxId: string;
-  error?: string;
-  failureReason?: KycFailureReason;
-}
+export type UploadIds = {
+  uploadedSelfieId: string;
+  uploadedDocumentId: string;
+};
 
 export const brlaKycMachine = setup({
   actors: {
     decideInitialStateActor,
-    submitLevel1Actor,
+    submitActor,
     verifyStatusActor
   },
   types: {
-    context: {} as BRLAKycContext,
+    context: {} as BrlaKycContext,
     events: {} as
-      | { type: "SubmitLevel1"; formData: KYCFormData }
-      | { type: "SubmitLevel2"; formData: KYCFormData }
-      | { type: "CloseSuccessModal" },
-    input: {} as { taxId: string },
-    output: {} as BRLAKycContext
+      | { type: "FORM_SUBMIT"; formData: KYCFormData }
+      | { type: "DOCUMENTS_SUBMIT"; documentsId: UploadIds }
+      | { type: "CLOSE_SUCCESS_MODAL" }
+      | { type: "CANCEL_RETRY" }
+      | { type: "RETRY" },
+    input: {} as RampContext,
+    output: {} as { error?: any }
   }
 }).createMachine({
-  context: ({ input }) =>
-    ({
-      error: undefined,
-      failureReason: undefined,
-      kycFormData: undefined,
-      taxId: input.taxId
-    }) as BRLAKycContext,
+  context: ({ input }) => ({ ...input }) as BrlaKycContext,
   id: "brlaKyc",
-  initial: "Started",
-  output: ({ context }) => context,
+  initial: "FormFilling",
+  output: ({ context }) => ({
+    error: context.error
+  }),
   states: {
-    Failure: {},
+    DocumentUpload: {
+      on: {
+        DOCUMENTS_SUBMIT: {
+          actions: assign({
+            documentUploadIds: ({ event }) => event.documentsId
+          })
+        }
+      }
+    },
+    Failure: {
+      type: "final"
+    },
     Finish: {
       type: "final"
     },
-    Level1: {
+    FormFilling: {
       on: {
         // Waits for user's submission of Level 1 KYC form.
-        SubmitLevel1: {
+        FORM_SUBMIT: {
           actions: assign({
             kycFormData: ({ event }) => event.formData
           }),
-          invoke: {
-            input: ({
-              context,
-              event
-            }: {
-              context: BRLAKycContext;
-              event: { type: "SubmitLevel1"; formData: KYCFormData };
-            }) => ({
-              formData: event.formData,
-              taxId: context.taxId
-            }),
-            onDone: {
-              target: "VerifyingLevel1"
-            },
-            onError: {
-              actions: assign({
-                error: ({ event }) => (event.error as Error).message
-              }),
-              target: "Failure"
-            },
-            src: "submitLevel1Actor"
-          },
-          target: "VerifyingLevel1"
+          target: "DocumentUpload"
         }
       }
     },
-    Level2: {
+    Rejected: {
       on: {
-        SubmitLevel2: {
-          target: "VerifyingLevel2"
-          // actions: assign({ kycFormData: ({ event }) => event.formData })
+        CANCEL_RETRY: {
+          target: "Finish"
+        },
+        RETRY: {
+          target: "..."
         }
       }
     },
-    RejectedLevel1: {},
-    RejectedLevel2: {},
-    Started: {
+    Submit: {
+      // On entry, it will send the actual KYC submission for verification. Then wait.
       invoke: {
-        onDone: [
-          {
-            guard: ({ event }) => event.output === "Level1",
-            target: "Level1"
-          },
-          {
-            guard: ({ event }) => event.output === "Level2",
-            target: "Level2"
-          }
-        ],
+        input: ({ context }) => context,
+        onDone: {
+          target: "Verifying"
+        },
         onError: {
           actions: assign({
             error: ({ event }) => (event.error as Error).message
           }),
           target: "Failure"
         },
-        src: "decideInitialStateActor"
+        src: "submitActor"
       }
     },
     Success: {
       on: {
-        CloseSuccessModal: {
+        CLOSE_SUCCESS_MODAL: {
           target: "Finish"
         }
       }
     },
-    VerifyingLevel1: {
+    Verifying: {
       invoke: {
-        input: ({ context }) => ({ taxId: context.taxId }),
-        onDone: {
-          target: "Success"
-        },
-        onError: {
-          actions: assign({
-            error: ({ event }) => (event.error as Error).message
-          }),
-          target: "Failure"
-        },
-        src: "verifyStatusActor"
-      }
-    },
-    VerifyingLevel2: {
-      invoke: {
-        input: ({ context }) => ({ taxId: context.taxId }),
+        input: ({ context }) => context,
         onDone: {
           target: "Success"
         },

@@ -1,9 +1,10 @@
 import { fromPromise } from "xstate";
 import { fetchKycStatus, KycStatus } from "../../../services/signingService";
+import { BRLAKycContext } from "../../brlaKyc.machine";
 
 const POLLING_INTERVAL_MS = 2000;
 
-export const verifyStatusActor = fromPromise(async ({ input }: { input: { taxId: string } }) => {
+export const verifyStatusActor = fromPromise(async ({ input }: { input: BRLAKycContext }) => {
   const { taxId } = input;
   if (!taxId) {
     throw new Error("Tax ID is required");

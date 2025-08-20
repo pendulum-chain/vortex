@@ -497,3 +497,22 @@ export interface AveniaAccountInfoResponse {
   brCode: string;
   createdAt: string;
 }
+
+export interface KycLevel1Payload {
+  fullName: string;
+  dateOfBirth: string;
+  countryOfTaxId: string;
+  taxIdNumber: string;
+  email: string;
+  country: string;
+  state: string;
+  city: string;
+  zipCode: string;
+  streetAddress: string;
+  uploadedSelfieId: string;
+  uploadedDocumentId: string;
+}
+
+export interface KycLevel1Response {
+  id: string;
+}

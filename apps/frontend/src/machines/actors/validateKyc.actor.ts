@@ -31,6 +31,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     }
 
     try {
+      // Avenia-Migration: this must be changed. No more levels. Either subaccount exists, or not.
       const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 

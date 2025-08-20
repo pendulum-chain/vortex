@@ -1,42 +1,35 @@
 import { fromPromise } from "xstate";
-import { KYCFormData } from "../../../hooks/brla/useKYCForm";
-import { isValidCnpj } from "../../../hooks/ramp/schema";
-import { createSubaccount } from "../../../services/signingService";
+import { submitNewKyc } from "../../../services/signingService";
+import { BrlaKycContext } from "../../kyc.states";
 
-export const submitLevel1Actor = fromPromise(async ({ input }: { input: { taxId: string; formData: KYCFormData } }) => {
-  const { taxId, formData } = input;
+function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  const addressObject = {
-    cep: formData.cep,
-    city: formData.city,
-    district: formData.district,
-    number: formData.number,
-    state: formData.state,
-    street: formData.street
+export const submitLevel1Actor = fromPromise(async ({ input }: { input: BrlaKycContext }) => {
+  const { taxId, kycFormData, documentUploadIds } = input;
+
+  if (!documentUploadIds || !documentUploadIds.uploadedSelfieId || !documentUploadIds.uploadedDocumentId || !kycFormData) {
+    throw new Error("Invalid input state. This is a Bug.");
+  }
+
+  const payload = {
+    city: kycFormData.city,
+    country: "BRA",
+    countryOfTaxId: "BRA",
+    dateOfBirth: formatDate(kycFormData.birthdate),
+    email: "john.doe@example.com", // Mocking email as it is not in the form
+    fullName: kycFormData.fullName,
+    state: kycFormData.state,
+    streetAddress: `${kycFormData.street} ${kycFormData.number}`.trim(),
+    taxIdNumber: taxId,
+    uploadedDocumentId: documentUploadIds.uploadedDocumentId,
+    uploadedSelfieId: documentUploadIds.uploadedSelfieId,
+    zipCode: kycFormData.cep
   };
 
-  if (isValidCnpj(taxId)) {
-    if (!formData.partnerCpf) {
-      throw new Error("useKYCProcess: Partner CPF must be defined at this point");
-    }
-
-    await createSubaccount({
-      ...formData,
-      address: addressObject,
-      birthdate: formData.birthdate.getTime(),
-      cnpj: taxId,
-      cpf: formData.partnerCpf,
-      startDate: formData.startDate?.getTime(),
-      taxIdType: "CNPJ"
-    });
-  } else {
-    await createSubaccount({
-      ...formData,
-      address: addressObject,
-      birthdate: formData.birthdate.getTime(),
-      cpf: taxId,
-      startDate: formData.startDate?.getTime(),
-      taxIdType: "CPF"
-    });
-  }
+  await submitNewKyc(payload);
 });

@@ -1,10 +1,16 @@
-import { FiatToken, RampDirection } from "@packages/shared";
+import { FiatToken, KycFailureReason, RampDirection } from "@packages/shared";
 import { assign, sendTo } from "xstate";
+import { KYCFormData } from "../hooks/brla/useKYCForm";
+import { UploadIds } from "./brlaKyc.machine";
 import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
 export interface BrlaKycContext extends RampContext {
+  kycFormData?: KYCFormData;
   taxId: string;
+  error?: string;
+  failureReason?: KycFailureReason;
+  documentUploadIds?: UploadIds;
 }
 
 export interface MoneriumKycContext extends RampContext {
@@ -61,8 +67,23 @@ export const kycStateNode = {
           ...context,
           taxId: context.executionInput!.taxId!
         }),
-        onDone: {
-          target: "VerificationComplete"
+        onDone: [
+          {
+            guard: ({ event }: { event: any }) => !!event.output.authToken,
+            target: "VerificationComplete"
+          },
+          {
+            actions: assign({
+              initializeFailedMessage: ({ event }) => event.output.error
+            }),
+            target: "#ramp.KycFailure"
+          }
+        ],
+        onError: {
+          actions: assign({
+            initializeFailedMessage: "Avenia KYC verification failed. Please retry."
+          }),
+          target: "#ramp.KycFailure"
         },
         src: "brlaKyc"
       }

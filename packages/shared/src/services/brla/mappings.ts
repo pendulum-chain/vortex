@@ -4,6 +4,8 @@ import {
   AveniaSubaccount,
   DepositLog,
   FastQuoteResponse,
+  KycLevel1Payload,
+  KycLevel1Response,
   KycLevel2Payload,
   KycLevel2Response,
   KycRetryPayload,
@@ -41,6 +43,7 @@ export enum Endpoint {
   KycLevel2 = "/kyc/level2",
   KycRetry = "/kyc/retry",
   OnChainOut = "/on-chain/transfer",
+  KycLevel1 = "/v2/kyc/new-level-1/api",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info"
@@ -233,6 +236,20 @@ export interface EndpointMapping {
     POST: {
       body: KycRetryPayload;
       response: unknown; // Doesn't return anything. 201.
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.KycLevel1]: {
+    POST: {
+      body: KycLevel1Payload;
+      response: KycLevel1Response;
     };
     GET: {
       body: undefined;

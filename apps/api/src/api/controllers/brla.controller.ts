@@ -19,6 +19,8 @@ import {
   BrlaValidatePixKeyResponse,
   Kyc2FailureReason,
   KycFailureReason,
+  KycLevel1Payload,
+  KycLevel1Response,
   RampDirection,
   RegisterSubaccountPayload,
   StartKYC2Request,
@@ -448,5 +450,18 @@ export const startKYC2 = async (
     res.status(httpStatus.OK).json({ uploadUrls: kycLevel2Response });
   } catch (error) {
     handleApiError(error, res, "startKYC2");
+  }
+};
+
+export const newKyc = async (
+  req: Request<unknown, unknown, KycLevel1Payload>,
+  res: Response<KycLevel1Response | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const brlaApiService = BrlaApiService.getInstance();
+    const response = await brlaApiService.submitKycLevel1(req.body);
+    res.status(httpStatus.OK).json(response);
+  } catch (error) {
+    handleApiError(error, res, "newKyc");
   }
 };

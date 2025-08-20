@@ -11,6 +11,8 @@ import {
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
+  KycLevel1Payload,
+  KycLevel1Response,
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
@@ -292,5 +294,9 @@ export class BrlaApiService {
   public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.AccountInfo, "GET", query);
+  }
+
+  public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
+    return await this.sendRequest(Endpoint.KycLevel1, "POST", undefined, payload);
   }
 }
