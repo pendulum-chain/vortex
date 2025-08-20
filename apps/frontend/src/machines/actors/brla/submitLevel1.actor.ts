@@ -9,7 +9,7 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export const submitLevel1Actor = fromPromise(async ({ input }: { input: BrlaKycContext }) => {
+export const submitActor = fromPromise(async ({ input }: { input: BrlaKycContext }) => {
   const { taxId, kycFormData, documentUploadIds } = input;
 
   if (!documentUploadIds || !documentUploadIds.uploadedSelfieId || !documentUploadIds.uploadedDocumentId || !kycFormData) {

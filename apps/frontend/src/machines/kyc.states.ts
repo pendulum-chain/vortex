@@ -6,10 +6,10 @@ import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
 export interface BrlaKycContext extends RampContext {
-  kycFormData?: KYCFormData;
   taxId: string;
+  kycFormData?: KYCFormData;
   error?: string;
-  failureReason?: KycFailureReason;
+  rejectReason?: KycFailureReason;
   documentUploadIds?: UploadIds;
 }
 
@@ -69,7 +69,7 @@ export const kycStateNode = {
         }),
         onDone: [
           {
-            guard: ({ event }: { event: any }) => !!event.output.authToken,
+            guard: ({ event }: { event: any }) => !event.output.error,
             target: "VerificationComplete"
           },
           {

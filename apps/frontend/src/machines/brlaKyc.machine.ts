@@ -1,9 +1,9 @@
 import { KycFailureReason } from "@packages/shared";
-import { assign, setup } from "xstate";
+import { assign, DoneActorEvent, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
 import { submitActor } from "./actors/brla/submitLevel1.actor";
-import { verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
+import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
 import { BrlaKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
@@ -81,6 +81,7 @@ export const brlaKycMachine = setup({
           target: "Verifying"
         },
         onError: {
+          // Avenia-Migration: we must parse the error message, distinguish between Avenia rejections (invalid tax id for instance) or server/network issues.
           actions: assign({
             error: ({ event }) => (event.error as Error).message
           }),
@@ -99,9 +100,24 @@ export const brlaKycMachine = setup({
     Verifying: {
       invoke: {
         input: ({ context }) => context,
-        onDone: {
-          target: "Success"
-        },
+        onDone: [
+          {
+            guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "APPROVED",
+            target: "Success"
+          },
+          {
+            actions: assign({
+              rejectReason: ({ event }) => {
+                // For type safety.
+                if (event.output.type === "REJECTED") {
+                  return event.output.reason;
+                }
+              }
+            }),
+            guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "REJECTED",
+            target: "Rejected"
+          }
+        ],
         onError: {
           actions: assign({
             error: ({ event }) => (event.error as Error).message

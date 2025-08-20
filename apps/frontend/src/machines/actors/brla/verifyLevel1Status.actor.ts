@@ -1,10 +1,13 @@
+import { KycFailureReason } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { fetchKycStatus, KycStatus } from "../../../services/signingService";
-import { BRLAKycContext } from "../../brlaKyc.machine";
+import { BrlaKycContext } from "../../kyc.states";
 
 const POLLING_INTERVAL_MS = 2000;
 
-export const verifyStatusActor = fromPromise(async ({ input }: { input: BRLAKycContext }) => {
+export type VerifyStatusActorOutput = { type: "APPROVED" } | { type: "REJECTED"; reason: KycFailureReason };
+
+export const verifyStatusActor = fromPromise<VerifyStatusActorOutput, BrlaKycContext>(async ({ input }) => {
   const { taxId } = input;
   if (!taxId) {
     throw new Error("Tax ID is required");
