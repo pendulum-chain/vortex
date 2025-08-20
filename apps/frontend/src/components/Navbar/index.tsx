@@ -24,8 +24,10 @@ export const Navbar = () => {
         }}
       >
         <div className="flex">
-          <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
-          <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
+          <a className="flex items-center" href="/" referrerPolicy="no-referrer">
+            <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
+            <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
+          </a>
         </div>
         <div className="flex items-center">
           <LanguageSelector disabled={networkSelectorDisabled} />
