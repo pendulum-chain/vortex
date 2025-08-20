@@ -85,6 +85,10 @@ export const rampMachine = setup({
     CANCEL_RAMP: {
       target: ".Cancel"
     },
+    RESET_RAMP: {
+      actions: "resetRamp",
+      target: ".Idle"
+    },
     SET_ADDRESS: {
       actions: assign({
         address: ({ event }: any) => event.address
@@ -141,9 +145,6 @@ export const rampMachine = setup({
             rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
-        },
-        RESET_RAMP: {
-          actions: "resetRamp"
         }
       }
     },
