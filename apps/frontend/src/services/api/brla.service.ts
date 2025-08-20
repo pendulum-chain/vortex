@@ -1,12 +1,11 @@
 import {
+  AveniaKYCDataUpload,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
-  BrlaKYCDataUploadFileFiles,
-  BrlaStartKYC2Response,
   BrlaTriggerOfframpRequest,
   BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyResponse,
@@ -15,7 +14,6 @@ import {
 } from "@packages/shared";
 import { apiRequest } from "./api-client";
 
-export type KYCDataUploadFileFiles = BrlaKYCDataUploadFileFiles;
 /**
  * Service for interacting with BRLA API endpoints
  */
@@ -96,12 +94,8 @@ export class BrlaService {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
-  /**
-   * Start KYC level 2 process
-   * @param request Tax id and document type that will be used.
-   * @returns The url's to upload the documents.
-   */
-  static async startKYC2(request: StartKYC2Request): Promise<BrlaStartKYC2Response> {
-    return apiRequest<BrlaStartKYC2Response>("post", `${this.BASE_PATH}/startKYC2`, request);
+  // AVENIA-MIGRATION: define the proper endpoint after created.
+  static async getUploadUrls(request: StartKYC2Request): Promise<AveniaKYCDataUpload> {
+    return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/...`, request);
   }
 }

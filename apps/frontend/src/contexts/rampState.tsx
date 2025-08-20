@@ -1,11 +1,14 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, use, useEffect } from "react";
-import { MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
+  AveniaKycActorRef,
+  AveniaKycSnapshot,
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
   RampMachineSnapshot,
+  SelectedAveniaData,
   SelectedMoneriumData,
   SelectedStellarData,
   StellarKycActorRef,
@@ -125,6 +128,41 @@ export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {
       }
       return {
         context: snapshot.context as MoneriumKycContext,
+        stateValue: snapshot.value
+      };
+    },
+    (prev, next) => {
+      if (!prev || !next) {
+        return prev === next;
+      }
+      return prev.stateValue === next.stateValue && prev.context === next.context;
+    }
+  );
+}
+
+export function useAveniaKycActor(): AveniaKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+}
+
+export function useAveniaKycSelector(): SelectedAveniaData | undefined {
+  const rampActor = useRampActor();
+
+  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+
+  return useSelector(
+    aveniaActor,
+    (snapshot: AveniaKycSnapshot | undefined) => {
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        context: snapshot.context as AveniaKycContext,
         stateValue: snapshot.value
       };
     },

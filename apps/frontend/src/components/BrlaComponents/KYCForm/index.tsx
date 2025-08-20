@@ -4,16 +4,16 @@ import { Trans, useTranslation } from "react-i18next";
 
 import { KYCFormData } from "../../../hooks/brla/useKYCForm";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
+import { AveniaKycActorRef } from "../../../machines/types";
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from "../BrlaField";
 
 interface KYCFormProps {
   fields: BrlaFieldProps[];
   form: UseFormReturn<KYCFormData>;
-  onSubmit: (formData: KYCFormData) => Promise<void>;
-  onBackClick: () => void;
+  aveniaKycActor: AveniaKycActorRef;
 }
 
-export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) => {
+export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
@@ -24,7 +24,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 min-h-[480px] rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
         initial={{ opacity: 0, scale: 0.9 }}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(aveniaKycActor.send({ formData: form.getFieldState("*"), type: "FORM_SUBMIT" }))}
         transition={{ duration: 0.3 }}
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("components.brlaKYCForm.title")}</h1>

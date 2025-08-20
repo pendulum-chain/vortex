@@ -113,13 +113,7 @@ export interface StartKYC2Request {
   taxId: string;
 }
 
-export interface BrlaStartKYC2Response {
-  uploadUrls: BrlaKYCDataUploadFileFiles;
-}
-
-export interface BrlaKYCDataUploadFileFiles {
-  selfieUploadUrl: string;
-  RGFrontUploadUrl: string;
-  RGBackUploadUrl: string;
-  CNHUploadUrl: string;
+export interface AveniaKYCDataUpload {
+  selfieUpload: { id: string; selfieUploadUrl: string };
+  idUpload: { id: string; uploadURLFront: string; uploadURLBack: string };
 }

@@ -1,4 +1,5 @@
 import {
+  AveniaKYCDataUpload,
   BrlaApiService,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
@@ -424,9 +425,12 @@ export const validatePixKey = async (
  * @throws 400 - User does not exist, or is not yet KYC level 1 verified.
  * @throws 500 - For any server-side errors during processing.
  */
+
+// AVENIA-MIGRATION: Must transform this into Avenia v2. Now it will asks for both buckets to
+// upload id (front and back) and selfie. Must return AveniaKYCDataUpload now.
 export const startKYC2 = async (
   req: Request<unknown, unknown, StartKYC2Request>,
-  res: Response<BrlaStartKYC2Response | BrlaErrorResponse>
+  res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId, documentType } = req.body;

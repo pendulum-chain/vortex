@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
+import { AveniaKycActorRef } from "../../../machines/types";
 import { BrlaService } from "../../../services/api";
 import { KycLevel2Toggle } from "../../KycLevel2Toggle";
 
@@ -11,8 +12,7 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 
 interface DocumentUploadProps {
-  onSubmitHandler: () => void;
-  onBackClick: () => void;
+  aveniaKycActor: AveniaKycActorRef;
   taxId: string;
 }
 
@@ -35,7 +35,7 @@ async function uploadFileAsBuffer(file: File, url: string) {
   }
 }
 
-export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick, taxId }) => {
+export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, taxId }) => {
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
@@ -106,7 +106,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
     }
     setLoading(true);
     try {
-      const response = await BrlaService.startKYC2({
+      const response = await BrlaService.getUploadUrls({
         documentType: docType,
         taxId
       });
@@ -119,9 +119,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           return;
         }
         uploads.push(
-          uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
-          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
+          uploadFileAsBuffer(selfie, response.selfieUpload.selfieUploadUrl),
+          uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
+          uploadFileAsBuffer(back, response.idUpload.uploadURLBack)
         );
       } else {
         if (!selfie || !front) {
@@ -130,13 +130,19 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           return;
         }
         uploads.push(
-          uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
+          uploadFileAsBuffer(selfie, response.selfieUpload.selfieUploadUrl),
+          uploadFileAsBuffer(front, response.idUpload.uploadURLFront)
         );
       }
 
       await Promise.all(uploads);
-      onSubmitHandler();
+      aveniaKycActor.send({
+        documentsId: {
+          uploadedDocumentId: response.idUpload.id,
+          uploadedSelfieId: response.selfieUpload.id
+        },
+        type: "DOCUMENTS_SUBMIT"
+      });
     } catch {
       setError(t("components.documentUpload.uploadFailed"));
     } finally {
@@ -205,7 +211,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
       {error && <p className="mt-4 text-center text-red-500">{error}</p>}
 
       <div className="mt-8 flex gap-3">
-        <button className="btn-vortex-primary-inverse btn flex-1" disabled={loading} onClick={onBackClick} type="button">
+        <button
+          className="btn-vortex-primary-inverse btn flex-1"
+          disabled={loading}
+          onClick={() => aveniaKycActor.send({ type: "DOCUMENTS_BACK" })}
+          type="button"
+        >
           {t("components.documentUpload.buttons.back")}
         </button>
         <button
