@@ -162,7 +162,7 @@ export const RampSummaryButton = () => {
     if (executionInput?.quote.rampType === RampDirection.BUY) {
       rampActor.send({ type: "PAYMENT_CONFIRMED" });
     } else {
-      onRampConfirm();
+      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
     }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {

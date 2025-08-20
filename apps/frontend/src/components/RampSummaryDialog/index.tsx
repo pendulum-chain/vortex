@@ -142,13 +142,10 @@ export const RampSummaryDialog: FC = () => {
   );
 
   return (
-    <Dialog
-      actions={actions}
-      content={content}
-      dialogScrollRef={dialogScrollRef}
-      headerText={headerText}
-      onClose={onClose}
-      visible={visible}
-    />
+    <div>
+      {headerText}
+      {content}
+      {actions}
+    </div>
   );
 };
