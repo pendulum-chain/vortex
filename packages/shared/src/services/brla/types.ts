@@ -18,15 +18,23 @@ export interface SubaccountData {
   brCode: string;
 }
 
+export interface AveniaSubaccountAccountInfo {
+  id: string;
+  countrySubdivisionTaxResidence: string;
+  accountType: string;
+  name: string;
+  countryTaxResidence: string;
+  identityStatus: string;
+  fullName: string;
+  birthdate: string;
+  taxId: string;
+}
+
 export interface AveniaSubaccount {
   subAccountId: string;
   mainAccountId: string;
   createdAt: string;
-  accountInfo: {
-    id: string;
-    accountType: string;
-    name: string;
-  };
+  accountInfo: AveniaSubaccountAccountInfo;
 }
 
 export interface KYCData {
@@ -327,12 +335,8 @@ export enum BlockchainSendMethod {
 }
 
 export interface PayOutQuoteParams {
-  subAccountId: string;
-  inputPaymentMethod: BrlaPaymentMethod;
-  inputThirdParty: boolean;
   outputThirdParty: boolean;
-  blockchainSendMethod: BlockchainSendMethod;
-  inputAmount: string;
+  outputAmount: string;
 }
 
 export interface QuoteResponse {
@@ -477,4 +481,19 @@ export interface LimitInfo {
 
 export interface AccountLimitsResponse {
   limitInfo: LimitInfo;
+}
+
+export interface AveniaSubaccountWallet {
+  id: string;
+  walletAddress: string;
+  chain: string;
+}
+
+export interface AveniaAccountInfoResponse {
+  id: string;
+  accountInfo: AveniaSubaccountAccountInfo;
+  wallets: AveniaSubaccountWallet[];
+  pixKey: string;
+  brCode: string;
+  createdAt: string;
 }

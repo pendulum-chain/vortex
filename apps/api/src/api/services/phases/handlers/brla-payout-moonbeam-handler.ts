@@ -75,25 +75,21 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       const amount = new Big(outputAmountBeforeFinalStep.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
       const brlaApiService = BrlaApiService.getInstance();
-      const subaccount = await brlaApiService.getSubaccount(taxId);
+      const subaccount = await brlaApiService.subaccountInfo(taxId);
 
       if (!subaccount) {
         throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount not found.");
       }
-
+      const subaccountEvmAddress = subaccount.wallets.filter(wallet => wallet.chain === "EVM")[0];
       const payOutQuote = await brlaApiService.createPayOutQuote({
-        blockchainSendMethod: BlockchainSendMethod.PERMIT, // TODO verify: decimals?
-        inputAmount: amount.toString(),
-        inputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
-        inputThirdParty: false,
-        outputThirdParty: false,
-        subAccountId: subaccount.subAccountId
+        outputAmount: amount.toString(),
+        outputThirdParty: false
       });
 
       const payOutTicketParams: PixOutputTicketPayload = {
         quoteToken: payOutQuote.quoteToken,
         ticketBlockchainInput: {
-          walletAddress: moonbeamEphemeralAddress
+          walletAddress: subaccountEvmAddress.walletAddress
         },
         ticketBrlPixOutput: {
           pixKey: pixDestination

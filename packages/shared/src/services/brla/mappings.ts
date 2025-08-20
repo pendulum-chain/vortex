@@ -1,5 +1,6 @@
 import {
   AccountLimitsResponse,
+  AveniaAccountInfoResponse,
   AveniaSubaccount,
   DepositLog,
   FastQuoteResponse,
@@ -41,7 +42,8 @@ export enum Endpoint {
   KycRetry = "/kyc/retry",
   OnChainOut = "/on-chain/transfer",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
-  Tickets = "/v2/account/tickets"
+  Tickets = "/v2/account/tickets",
+  AccountInfo = "/v2/account/account-info"
 }
 
 export interface EndpointMapping {
@@ -277,6 +279,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.AccountInfo]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaAccountInfoResponse;
     };
     PATCH: {
       body: undefined;

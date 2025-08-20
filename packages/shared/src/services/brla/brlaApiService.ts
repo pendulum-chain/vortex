@@ -3,7 +3,9 @@ import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
+  AveniaAccountInfoResponse,
   AveniaSubaccount,
+  BlockchainSendMethod,
   BrlaCurrency,
   BrlaPaymentMethod,
   DepositLog,
@@ -258,14 +260,14 @@ export class BrlaApiService {
 
   public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<QuoteResponse> {
     const query = new URLSearchParams({
-      blockchainSendMethod: quoteParams.blockchainSendMethod,
+      blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
-      inputPaymentMethod: quoteParams.inputPaymentMethod,
-      inputThirdParty: String(quoteParams.inputThirdParty), // Fixed to FIAT out
-      outputCurrency: BrlaCurrency.BRL, // Fixed to PIX
+      inputPaymentMethod: BrlaPaymentMethod.INTERNAL, // Subtract from user's account
+      inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
+      outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
+      outputCurrency: BrlaCurrency.BRL,
       outputPaymentMethod: BrlaPaymentMethod.PIX,
-      outputThirdParty: String(quoteParams.outputThirdParty),
-      subAccountId: quoteParams.subAccountId
+      outputThirdParty: String(quoteParams.outputThirdParty)
     }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
@@ -285,5 +287,10 @@ export class BrlaApiService {
       return response;
     }
     throw new Error("Invalid response from BRLA API for createPixOutputTicket");
+  }
+
+  public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.AccountInfo, "GET", query);
   }
 }
