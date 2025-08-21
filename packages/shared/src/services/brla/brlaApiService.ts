@@ -1,9 +1,20 @@
-import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType, SwapLog } from "../..";
+import {
+  BRLA_BASE_URL,
+  BRLA_LOGIN_PASSWORD,
+  BRLA_LOGIN_USERNAME,
+  BrlaKYCDocType,
+  CreateAveniaSubaccountRequest,
+  DocumentType,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
+  SwapLog
+} from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
+  AveniaAccountType,
   AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
@@ -169,13 +180,16 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.AccountLimits, "GET", query);
   }
 
-  public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.PayOut, "POST", query, offrampParams);
-  }
-
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
     return await this.sendRequest(Endpoint.Subaccounts, "POST", undefined, registerSubaccountPayload);
+  }
+
+  public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string } | undefined> {
+    const payload: CreateAveniaSubaccountRequest = {
+      accountType,
+      name
+    };
+    return await this.sendRequest(Endpoint.GetSubaccount, "POST", undefined, payload);
   }
 
   public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
@@ -236,9 +250,17 @@ export class BrlaApiService {
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, "GET", query)).onchainLogs;
   }
 
-  public async startKYC2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
+  public async getDocumentUploadUrls(
+    subaccountId: string,
+    documentType: DocumentType,
+    isDoubleSided: boolean
+  ): Promise<DocumentUploadResponse> {
+    const payload: DocumentUploadRequest = {
+      documentType,
+      isDoubleSided
+    };
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel2, "POST", query, { documentType });
+    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {

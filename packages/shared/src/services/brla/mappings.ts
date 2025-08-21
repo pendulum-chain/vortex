@@ -2,7 +2,10 @@ import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
   AveniaSubaccount,
+  CreateAveniaSubaccountRequest,
   DepositLog,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
   FastQuoteResponse,
   KycLevel1Payload,
   KycLevel1Response,
@@ -15,14 +18,12 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
-  PixOutputTicketOutput,
   PixOutputTicketPayload,
   QuoteResponse,
   RegisterSubaccountPayload,
   SubaccountData,
   SwapLog,
-  SwapPayload,
-  UsedLimitDetails
+  SwapPayload
 } from "./types";
 import { Event } from "./webhooks";
 
@@ -46,14 +47,15 @@ export enum Endpoint {
   KycLevel1 = "/v2/kyc/new-level-1/api",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
-  AccountInfo = "/v2/account/account-info"
+  AccountInfo = "/v2/account/account-info",
+  Documents = "/v2/documents"
 }
 
 export interface EndpointMapping {
   [Endpoint.GetSubaccount]: {
     POST: {
-      body: undefined;
-      response: undefined;
+      body: CreateAveniaSubaccountRequest;
+      response: { id: string };
     };
     GET: {
       body: undefined;
@@ -310,6 +312,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: AveniaAccountInfoResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Documents]: {
+    POST: {
+      body: DocumentUploadRequest;
+      response: DocumentUploadResponse;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
     };
     PATCH: {
       body: undefined;

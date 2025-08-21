@@ -9,7 +9,6 @@ import {
   RegisterSubaccountPayload,
   StartKYC2Request,
   TokenConfig,
-  TriggerOfframpRequest,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
@@ -361,32 +360,6 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 
   if (!siweMessage) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Missing param: siweMessage" });
-    return;
-  }
-
-  next();
-};
-
-export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) => {
-  const { taxId, pixKey, amount, receiverTaxId } = req.body as TriggerOfframpRequest;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId parameter" });
-    return;
-  }
-
-  if (!pixKey) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing pixKey parameter" });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing or invalid amount parameter" });
-    return;
-  }
-
-  if (!receiverTaxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing receiverTaxId parameter" });
     return;
   }
 

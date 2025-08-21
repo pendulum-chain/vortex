@@ -1,12 +1,5 @@
 import { BrlaKYCDocType } from "../..";
 
-export interface TriggerOfframpRequest {
-  taxId: string;
-  pixKey: string;
-  amount: string;
-  receiverTaxId: string;
-}
-
 export interface SubaccountData {
   id: string;
   fullName: string;
@@ -18,13 +11,19 @@ export interface SubaccountData {
   brCode: string;
 }
 
+export type AveniaIdentityStatus = "NOT-IDENTIFIED" | "CONFIRMED";
+
+export enum AveniaAccountType {
+  INDIVIDUAL = "INDIVIDUAL"
+}
+
 export interface AveniaSubaccountAccountInfo {
   id: string;
   countrySubdivisionTaxResidence: string;
-  accountType: string;
+  accountType: AveniaAccountType;
   name: string;
   countryTaxResidence: string;
-  identityStatus: string;
+  identityStatus: AveniaIdentityStatus;
   fullName: string;
   birthdate: string;
   taxId: string;
@@ -515,4 +514,27 @@ export interface KycLevel1Payload {
 
 export interface KycLevel1Response {
   id: string;
+}
+
+export enum DocumentType {
+  ID = "ID",
+  DRIVERS_LICENSE = "DRIVERS-LICENSE",
+  PASSPORT = "PASSPORT",
+  SELFIE = "SELFIE"
+}
+
+export interface DocumentUploadRequest {
+  documentType: DocumentType;
+  isDoubleSided?: boolean;
+}
+
+export interface DocumentUploadResponse {
+  id: string;
+  uploadURLFront: string;
+  uploadURLBack?: string;
+}
+
+export interface CreateAveniaSubaccountRequest {
+  accountType: AveniaAccountType;
+  name: string;
 }

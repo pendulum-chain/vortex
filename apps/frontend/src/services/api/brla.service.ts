@@ -6,8 +6,6 @@ import {
   BrlaGetRampStatusResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
-  BrlaTriggerOfframpRequest,
-  BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyResponse,
   RampDirection,
   StartKYC2Request
@@ -74,15 +72,6 @@ export class BrlaService {
     return apiRequest<BrlaGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
       params: { direction, taxId }
     });
-  }
-
-  /**
-   * Trigger an offramp operation
-   * @param request The offramp request
-   * @returns The offramp ID
-   */
-  static async triggerOfframp(request: BrlaTriggerOfframpRequest): Promise<BrlaTriggerOfframpResponse> {
-    return apiRequest<BrlaTriggerOfframpResponse>("post", `${this.BASE_PATH}/triggerOfframp`, request);
   }
 
   /**
