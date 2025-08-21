@@ -142,10 +142,10 @@ export const RampSummaryDialog: FC = () => {
   );
 
   return (
-    <div>
-      {headerText}
+    <div className="flex flex-col justify-center">
+      <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
       {content}
-      {actions}
+      <div className="flex grow-1 my-4">{actions}</div>
     </div>
   );
 };

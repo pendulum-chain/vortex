@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
@@ -46,9 +47,23 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
+      if (isOnramp && isAnchorWithoutRedirect) {
+        return {
+          icon: null,
+          text: t("components.dialogs.RampSummaryDialog.confirm")
+        };
+      } else {
+        return {
+          icon: null,
+          text: t("components.dialogs.RampSummaryDialog.signIn")
+        };
+      }
+    }
+
+    if (machineState === "KycComplete") {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.next")
+        text: t("components.dialogs.RampSummaryDialog.confirm")
       };
     }
 
@@ -133,7 +148,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
   ]);
 };
 
-export const RampSummaryButton = () => {
+export const RampSummaryButton = ({ className }: { className?: string }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
@@ -158,6 +173,14 @@ export const RampSummaryButton = () => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
+    if (machineState === "QuoteReady") {
+      return false;
+    }
+
+    if (machineState === "KycComplete") {
+      return false;
+    }
+
     if (!executionInput) return true;
     if (isQuoteExpired) return true;
 
@@ -196,16 +219,20 @@ export const RampSummaryButton = () => {
       return;
     }
 
+    if (machineState === "KycComplete") {
+      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      return;
+    }
+
     rampActor.send({ type: "SummaryConfirm" });
+
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
       //setCanRegisterRamp(true);
     }
 
     if (isOnramp) {
-      if (machineState === "KycComplete") {
-        rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
-      } else if (machineState === "UpdateRamp") {
+      if (machineState === "UpdateRamp") {
         rampActor.send({ type: "PAYMENT_CONFIRMED" });
       }
     }
@@ -223,7 +250,11 @@ export const RampSummaryButton = () => {
   };
 
   return (
-    <button className="btn-vortex-primary btn w-full rounded-xl" disabled={submitButtonDisabled} onClick={onSubmit}>
+    <button
+      className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
+      disabled={submitButtonDisabled}
+      onClick={onSubmit}
+    >
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}
