@@ -1,3 +1,4 @@
+import { AveniaAccountType } from "src/endpoints";
 import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
@@ -9,7 +10,6 @@ import {
   FastQuoteResponse,
   KycLevel1Payload,
   KycLevel1Response,
-  KycLevel2Payload,
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
@@ -54,7 +54,7 @@ export enum Endpoint {
 export interface EndpointMapping {
   [Endpoint.GetSubaccount]: {
     POST: {
-      body: CreateAveniaSubaccountRequest;
+      body: { name: string; accountType: AveniaAccountType };
       response: { id: string };
     };
     GET: {
@@ -214,20 +214,6 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: { onchainLogs: OnchainLog[] };
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-  [Endpoint.KycLevel2]: {
-    POST: {
-      body: KycLevel2Payload;
-      response: KycLevel2Response;
-    };
-    GET: {
-      body: undefined;
-      response: undefined;
     };
     PATCH: {
       body: undefined;

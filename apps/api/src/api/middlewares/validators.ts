@@ -367,68 +367,35 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
+export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
     req.body as RegisterSubaccountPayload;
 
-  if (taxIdType !== "CPF" && taxIdType !== "CNPJ") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "taxIdType parameter must be either CPF or CNPJ" });
-    return;
-  }
+  // if (!phone) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
+  //   return;
+  // }
 
-  if (!cpf) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF"
-    });
-    return;
-  }
+  // if (!address) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
+  //   return;
+  // }
 
-  if (!phone) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
-    return;
-  }
+  // if (!fullName) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
+  //   return;
+  // }
 
-  if (!address) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
-    return;
-  }
-
-  if (!fullName) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
-    return;
-  }
-
-  if (!birthdate) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
-    return;
-  }
-
-  // CNPJ specific validations
-  if (taxIdType === "CNPJ" && !companyName) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing companyName parameter" });
-    return;
-  }
-
-  if (taxIdType === "CNPJ" && !startDate) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing startDate parameter" });
-    return;
-  }
-
-  if (taxIdType === "CNPJ" && !cnpj) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cnpj parameter" });
-    return;
-  }
+  // if (!birthdate) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
+  //   return;
+  // }
 
   next();
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { taxId, documentType } = req.body as AveniaKYCDataUploadRequest;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId parameter" });
-    return;
-  }
+  const { documentType } = req.body as AveniaKYCDataUploadRequest;
 
   if (!isValidKYCDocType(documentType)) {
     res.status(httpStatus.BAD_REQUEST).json({

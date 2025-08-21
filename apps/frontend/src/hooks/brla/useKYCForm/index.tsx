@@ -54,7 +54,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
       [ExtendedBrlaFieldOptions.STATE]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.state.required"))
-        .min(3, t("components.brlaExtendedForm.validation.state.minLength")),
+        .min(2, t("components.brlaExtendedForm.validation.state.minLength")),
 
       [ExtendedBrlaFieldOptions.STREET]: yup
         .string()

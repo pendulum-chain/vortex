@@ -534,4 +534,5 @@ export interface DocumentUploadResponse {
 export interface CreateAveniaSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
+  taxId: string;
 }

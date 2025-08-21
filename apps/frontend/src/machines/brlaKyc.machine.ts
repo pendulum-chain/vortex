@@ -47,13 +47,12 @@ export const aveniaKycMachine = setup({
         DOCUMENTS_SUBMIT: {
           actions: assign({
             documentUploadIds: ({ event }) => event.documentsId
-          })
+          }),
+          target: "Submit"
         }
       }
     },
-    Failure: {
-      type: "final"
-    },
+    Failure: {},
     Finish: {
       type: "final"
     },

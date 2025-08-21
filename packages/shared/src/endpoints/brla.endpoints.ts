@@ -76,6 +76,7 @@ export type AveniaAccountType = "INDIVIDUAL";
 export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
+  taxId: string;
 }
 
 export interface BrlaCreateSubaccountResponse {
@@ -95,7 +96,6 @@ export enum BrlaKYCDocType {
 // POST /brla/startKYC2
 export interface AveniaKYCDataUploadRequest {
   documentType: AveniaDocumentType;
-  taxId: string;
   isDoubleSided?: boolean;
 }
 

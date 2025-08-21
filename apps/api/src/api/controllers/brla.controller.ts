@@ -243,10 +243,16 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { accountType, name } = req.body;
+    const { accountType, name, taxId } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(AveniaAccountType.INDIVIDUAL, name); // So far, we only know this type.
+
+    await TaxId.create({
+      accountType: AveniaAccountType.INDIVIDUAL,
+      subAccountId: id,
+      taxId: taxId
+    });
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
@@ -351,35 +357,13 @@ export const getUploadUrls = async (
   res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId, documentType, isDoubleSided } = req.body;
+    const { documentType, isDoubleSided } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
-
-    const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
-    if (!accountInfo) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
-      return;
-    }
-
-    if (accountInfo.accountInfo.identityStatus === "CONFIRMED") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount already confirmed." });
-      return;
-    }
-
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
-      taxIdRecord.subAccountId,
-      AveniaDocumentType.SELFIE,
-      isDoubleSided ?? false
-    );
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, isDoubleSided ?? false);
 
     const idUrls = await brlaApiService.getDocumentUploadUrls(
-      taxIdRecord.subAccountId,
       AveniaDocumentType.ID, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
       isDoubleSided ?? false
     );
@@ -396,6 +380,7 @@ export const getUploadUrls = async (
       }
     });
   } catch (error) {
+    console.log(error);
     handleApiError(error, res, "getUploadUrls");
   }
 };
@@ -406,13 +391,10 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    const response = await brlaApiService.submitKycLevel1(req.body);
 
-    await TaxId.create({
-      accountType: AveniaAccountType.INDIVIDUAL,
-      subAccountId: response.id,
-      taxId: req.body.taxIdNumber
-    });
+    // artificial delay 10 seconds... solves  Request failed with status '503'. Error: {"error":"unavailable"}?
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {

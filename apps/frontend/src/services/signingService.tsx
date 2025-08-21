@@ -199,10 +199,11 @@ export const fetchKycStatus = async (taxId: string) => {
 
 export const createSubaccount = async ({
   name,
-  accountType
+  accountType,
+  taxId
 }: CreateAveniaSubaccountRequest): Promise<{ subAccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify({ accountType, name }),
+    body: JSON.stringify({ accountType, name, taxId }),
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     method: "POST"

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
-import { validataSubaccountCreation, validateStartKyc2 } from "../../middlewares/validators";
+import { validateStartKyc2, validateSubaccountCreation } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -14,7 +14,7 @@ router.route("/getKycStatus").get(brlaController.fetchSubaccountKycStatus);
 
 router.route("/validatePixKey").get(brlaController.validatePixKey);
 
-router.route("/createSubaccount").post(validataSubaccountCreation, brlaController.createSubaccount);
+router.route("/createSubaccount").post(validateSubaccountCreation, brlaController.createSubaccount);
 
 router.route("/getUploadUrls").post(validateStartKyc2, brlaController.getUploadUrls);
 

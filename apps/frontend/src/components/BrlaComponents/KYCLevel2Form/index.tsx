@@ -23,8 +23,8 @@ async function uploadFileAsBuffer(file: File, url: string) {
   const res = await fetch(url, {
     body: arrayBuffer,
     headers: {
-      "Content-Length": String(uint8.length),
-      "Content-Type": file.type
+      "Content-Type": "image/png",
+      "If-None-Match": "*"
     },
     method: "PUT"
   });
@@ -108,8 +108,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     setLoading(true);
     try {
       const response = await BrlaService.getUploadUrls({
-        documentType: docType,
-        taxId
+        documentType: docType
       });
 
       const uploads: Promise<void>[] = [];

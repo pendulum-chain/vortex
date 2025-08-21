@@ -184,7 +184,7 @@ export class BrlaApiService {
   }
 
   public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string }> {
-    const payload: CreateAveniaSubaccountRequest = {
+    const payload = {
       accountType,
       name
     };
@@ -250,7 +250,6 @@ export class BrlaApiService {
   }
 
   public async getDocumentUploadUrls(
-    subaccountId: string,
     documentType: AveniaDocumentType,
     isDoubleSided: boolean
   ): Promise<DocumentUploadResponse> {
@@ -258,8 +257,7 @@ export class BrlaApiService {
       documentType,
       isDoubleSided
     };
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+    return await this.sendRequest(Endpoint.Documents, "POST", undefined, payload);
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
@@ -318,6 +316,7 @@ export class BrlaApiService {
   }
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
-    return await this.sendRequest(Endpoint.KycLevel1, "POST", undefined, payload);
+    const query = `subaccountId=${encodeURIComponent(payload.subAccountId)}`;
+    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
   }
 }
