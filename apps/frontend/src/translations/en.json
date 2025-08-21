@@ -132,7 +132,7 @@
     },
     "dialogs": {
       "connectWallet": {
-        "connect": "Connect Wallet",
+        "connect": "Connect",
         "wrongNetwork": "Wrong network"
       },
       "polkadotDisconnectWallet": {
@@ -174,12 +174,14 @@
           "buy": "Payment Summary",
           "sell": "Payment Summary"
         },
+        "next": "Next",
         "offrampFee": "Total fee",
         "onrampFee": "Total fee",
         "partner": "Partner",
         "processing": "Processing",
         "quote": "Quote",
         "quoteExpired": "Quote expired. Please close the dialog and try again.",
+        "signIn": "Sign in",
         "tryAgain": "Try again"
       },
       "selectionModal": {
