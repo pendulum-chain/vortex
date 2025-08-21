@@ -1,3 +1,4 @@
+import { RampDirection } from "@packages/shared";
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { PoolSelectorModal } from "../../components/InputKeys/SelectionModal";
@@ -7,8 +8,7 @@ import { Onramp } from "../../components/Ramp/Onramp";
 import { RampHistory } from "../../components/RampHistory";
 import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
-import { RampDirection, RampToggle } from "../../components/RampToggle";
-
+import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
@@ -40,7 +40,7 @@ export const RampForm = () => {
           </section>
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
-          {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
+          {activeSwapDirection === RampDirection.BUY ? <Onramp /> : <Offramp />}
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>

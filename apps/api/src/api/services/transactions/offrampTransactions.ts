@@ -2,7 +2,12 @@ import {
   AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  ApiManager,
   addAdditionalTransactionsToMeta,
+  createAssethubToPendulumXCM,
+  createNablaTransactionsForOfframp,
+  createOfframpSquidrouterTransactions,
+  createPendulumToMoonbeamTransfer,
   EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
@@ -29,17 +34,12 @@ import { Keypair } from "stellar-sdk";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
-import { ApiManager } from "../pendulum/apiManager";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
-import { createNablaTransactionsForOfframp } from "./nabla";
 import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
 import { prepareSpacewalkRedeemTransaction } from "./spacewalk/redeem";
-import { createOfframpSquidrouterTransactions } from "./squidrouter/offramp";
 import { buildPaymentAndMergeTx } from "./stellar/offrampTransaction";
-import { createAssethubToPendulumXCM } from "./xcm/assethubToPendulum";
-import { createPendulumToMoonbeamTransfer } from "./xcm/pendulumToMoonbeam";
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -63,7 +63,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   // Get payout addresses
   const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex" }
+    where: { isActive: true, name: "vortex", rampType: quote.rampType }
   });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
@@ -75,7 +75,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
     const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true }
+      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
     });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;

@@ -1,4 +1,4 @@
-import { Direction } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import { config } from "../../../config";
 
 const { priceProviders } = config;
@@ -59,13 +59,13 @@ type RequestConfig = {
 };
 
 export function createQuoteRequest(
-  direction: Direction,
+  direction: RampDirection,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,
   extraFeePercentage?: number
 ): RequestConfig {
-  return direction === "onramp"
+  return direction === RampDirection.BUY
     ? createBuyQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount)
     : createSellQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, extraFeePercentage ?? 0);
 }

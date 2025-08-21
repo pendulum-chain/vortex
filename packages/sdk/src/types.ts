@@ -8,40 +8,40 @@ import type {
   UnsignedTx
 } from "@packages/shared";
 // Types re-exported used to create quotes.
-import { EvmToken, FiatToken, Networks } from "@packages/shared";
+import { EvmToken, FiatToken, Networks, RampDirection } from "@packages/shared";
 
 export type { PaymentMethod };
-export { EvmToken, FiatToken, Networks };
+export { EvmToken, FiatToken, Networks, RampDirection };
 
 export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 
 export type BrlOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "pix";
 };
 
 export type EurOnrampQuote = QuoteResponse & {
-  rampType: "on";
+  rampType: RampDirection.BUY;
   from: "sepa";
 };
 
 export type BrlOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "pix";
 };
 
 export type EurOfframpQuote = QuoteResponse & {
-  rampType: "off";
+  rampType: RampDirection.SELL;
   to: "sepa";
 };
 
-export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: "on"; from: "pix" }
+export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: RampDirection.BUY; from: "pix" }
   ? BrlOnrampQuote
-  : T extends { rampType: "on"; from: "sepa" }
+  : T extends { rampType: RampDirection.BUY; from: "sepa" }
     ? EurOnrampQuote
-    : T extends { rampType: "off"; to: "pix" }
+    : T extends { rampType: RampDirection.SELL; to: "pix" }
       ? BrlOfframpQuote
-      : T extends { rampType: "off"; to: "sepa" }
+      : T extends { rampType: RampDirection.SELL; to: "sepa" }
         ? EurOfframpQuote
         : AnyQuote;
 
@@ -49,10 +49,7 @@ export type AnyAdditionalData =
   | BrlOfframpAdditionalData
   | EurOfframpAdditionalData
   | BrlOnrampAdditionalData
-  | EurOnrampAdditionalData
-  | EurOnrampUpdateAdditionalData
-  | EurOfframpUpdateAdditionalData
-  | BrlOfframpUpdateAdditionalData;
+  | EurOnrampAdditionalData;
 
 export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? BrlOnrampAdditionalData
@@ -77,11 +74,18 @@ export interface BrlOfframpAdditionalData {
   pixDestination: string;
   receiverTaxId: string;
   taxId: string;
+  walletAddress: string;
 }
 
 export interface EurOfframpAdditionalData {
   paymentData: PaymentData;
+  walletAddress: string;
 }
+
+export type AnyUpdateAdditionalData =
+  | EurOnrampUpdateAdditionalData
+  | BrlOfframpUpdateAdditionalData
+  | EurOfframpUpdateAdditionalData;
 
 export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? never // No additional data required from the user for this type of ramp.
@@ -91,7 +95,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnr
       ? BrlOfframpUpdateAdditionalData
       : Q extends EurOfframpQuote
         ? EurOfframpUpdateAdditionalData
-        : AnyAdditionalData;
+        : AnyUpdateAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
   squidRouterApproveHash: string;
@@ -100,14 +104,14 @@ export interface EurOnrampUpdateAdditionalData {
 }
 
 export interface BrlOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 export interface EurOfframpUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  assetHubToPendulumHash: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+  assetHubToPendulumHash?: string;
 }
 
 export interface BrlKycResponse {
@@ -142,10 +146,8 @@ export interface VortexSdkConfig {
 }
 
 // Handler interface for ramp-specific operations
-export interface RampHandler {
-  // Each handler implements the register-update-start flow
-  // The update step may be invisible to the user (like in BRL onramp)
-}
+// biome-ignore lint/complexity/noBannedTypes: TBD in the future
+export type RampHandler = {};
 
 // Context methods that handlers can use from VortexSdk
 export interface VortexSdkContext {

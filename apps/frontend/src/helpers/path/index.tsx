@@ -1,7 +1,7 @@
-import { RampDirection } from "../../components/RampToggle";
+import { RampDirection } from "@packages/shared";
 import { getLanguageFromPath, Language } from "../../translations/helpers";
 
-const DEFAULT_RAMP_DIRECTION = RampDirection.ONRAMP;
+const DEFAULT_RAMP_DIRECTION = RampDirection.BUY;
 
 const getRampDirectionFromPath = (): RampDirection => {
   if (typeof window === "undefined") {
@@ -9,16 +9,17 @@ const getRampDirectionFromPath = (): RampDirection => {
   }
 
   const params = new URLSearchParams(window.location.search);
-  const rampParam = params.get("ramp")?.toLowerCase();
+  const rampParam = params.get("ramp")?.toUpperCase();
 
-  const rampDirection =
-    rampParam === "buy"
-      ? RampDirection.ONRAMP
-      : getLanguageFromPath() === Language.Portuguese_Brazil
-        ? RampDirection.ONRAMP
-        : RampDirection.OFFRAMP;
+  const normalizedRampParam = rampParam?.toUpperCase();
 
-  return rampDirection;
+  if (normalizedRampParam === RampDirection.SELL || normalizedRampParam === RampDirection.BUY) {
+    return normalizedRampParam;
+  }
+
+  // If the language is Portuguese, we default to BUY, otherwise we default to SELL
+  const isLanguagePortuguese = getLanguageFromPath()?.toUpperCase() === Language.Portuguese_Brazil.toUpperCase();
+  return isLanguagePortuguese ? RampDirection.BUY : RampDirection.SELL;
 };
 
 export { getRampDirectionFromPath, DEFAULT_RAMP_DIRECTION };

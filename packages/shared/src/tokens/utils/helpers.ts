@@ -3,6 +3,7 @@
  */
 
 import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
+import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
@@ -27,7 +28,7 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
       } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {
-    console.error(`Error getting input token details: ${error}`);
+    logger.current.error(`Error getting input token details: ${error}`);
     throw error;
   }
 }
@@ -41,7 +42,7 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
     return maybeOnChainTokenDetails;
   }
 
-  console.error(`Invalid input token type: ${onChainToken}`);
+  logger.current.error(`Invalid input token type: ${onChainToken}`);
   if (network === Networks.AssetHub) {
     const firstAvailableToken = Object.values(assetHubTokenConfig)[0];
     if (!firstAvailableToken) {

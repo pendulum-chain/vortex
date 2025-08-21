@@ -1,11 +1,10 @@
-import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
 import RampState from "../../../../models/rampState.model";
-import { ApiManager } from "../../pendulum/apiManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {

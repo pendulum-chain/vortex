@@ -1,11 +1,16 @@
-import { getNetworkId, Networks, RampPhase } from "@packages/shared";
+import {
+  ERC20_EURE_POLYGON,
+  EvmClientManager,
+  getEvmTokenBalance,
+  getNetworkId,
+  Networks,
+  RampDirection,
+  RampPhase
+} from "@packages/shared";
 import Big from "big.js";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { EvmClientManager } from "../../evm/clientManager";
-import { ERC20_EURE_POLYGON } from "../../monerium";
-import { getEvmTokenBalance } from "../../moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -35,7 +40,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing moneriumOnrampSelfTransfer phase for ramp ${state.id}`);
 
-    if (state.type === "off") {
+    if (state.type === RampDirection.SELL) {
       logger.info("MoneriumOnrampSelfTransfer phase is not supported for off-ramp");
       return state;
     }

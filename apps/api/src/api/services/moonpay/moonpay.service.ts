@@ -1,4 +1,4 @@
-import { Direction, MoonpayPriceResponse } from "@packages/shared";
+import { MoonpayPriceResponse, RampDirection } from "@packages/shared";
 import { config } from "../../../config";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
@@ -62,7 +62,7 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   extraFeePercentage: number,
-  direction: Direction
+  direction: RampDirection
 ): Promise<MoonpayPriceResponse> {
   const { baseUrl, apiKey } = priceProviders.moonpay;
   if (!apiKey) throw new Error("Moonpay API key not configured");
@@ -86,13 +86,13 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string,
-  direction: Direction
+  direction: RampDirection
 ): Promise<MoonpayPriceResponse> => {
   // We can specify a custom fee percentage here added on top of the Moonpay fee but we don't
   const extraFeePercentage = 0;
 
-  const cryptoCurrency = direction === "onramp" ? targetCurrency : sourceCurrency;
-  const fiatCurrency = direction === "onramp" ? sourceCurrency : targetCurrency;
+  const cryptoCurrency = direction === RampDirection.BUY ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === RampDirection.BUY ? sourceCurrency : targetCurrency;
 
   return priceQuery(getCryptoCode(cryptoCurrency), getFiatCode(fiatCurrency), amount, extraFeePercentage, direction);
 };

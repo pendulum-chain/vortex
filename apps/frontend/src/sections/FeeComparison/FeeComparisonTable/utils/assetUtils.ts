@@ -1,5 +1,11 @@
-import { FiatToken, getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, Networks, OnChainToken } from "@packages/shared";
-import { RampDirection } from "../../../../components/RampToggle";
+import {
+  FiatToken,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
 
 /**
  * Determines source and target asset symbols based on ramp direction
@@ -15,7 +21,7 @@ export function getAssetSymbols(
   onChainToken: OnChainToken,
   fiatToken: FiatToken
 ) {
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOnramp = rampDirection === RampDirection.BUY;
   const onChainTokenDetails = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
   const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
 
