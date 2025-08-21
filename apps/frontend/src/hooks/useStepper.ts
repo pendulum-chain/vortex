@@ -16,7 +16,8 @@ export const useStepper = () => {
   }));
 
   const secondStepActive = state === "KycComplete" || rampKycStarted;
-  const secondStepComplete = state === "KycComplete" || rampPaymentConfirmed;
+  const secondStepComplete =
+    state === "KycComplete" || state === "RegisterRamp" || state === "UpdateRamp" || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
   const thirdStepComplete = rampPaymentConfirmed;

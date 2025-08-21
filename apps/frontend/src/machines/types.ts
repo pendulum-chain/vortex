@@ -19,6 +19,7 @@ export interface RampContext {
   isQuoteExpired: boolean;
   paymentData?: PaymentData;
   quote: QuoteResponse | undefined;
+  quoteId: string | undefined;
   rampDirection: RampDirection | undefined;
   rampKycLevel2Started: boolean;
   rampKycStarted: boolean;

@@ -2,6 +2,7 @@ import { QuoteResponse, RampDirection } from "@packages/shared";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
+import { QuoteService } from "../services/api";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
@@ -23,6 +24,7 @@ const initialRampContext: RampContext = {
   isQuoteExpired: false,
   paymentData: undefined,
   quote: undefined,
+  quoteId: undefined,
   rampDirection: undefined,
   rampKycLevel2Started: false,
   rampKycStarted: false,
@@ -48,7 +50,7 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quote: QuoteResponse }
+  | { type: "SET_QUOTE"; quoteId: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined };
 
 export const rampMachine = setup({
@@ -66,6 +68,19 @@ export const rampMachine = setup({
   },
   actors: {
     brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
+    loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
+      if (!input.quoteId) {
+        throw new Error("Quote ID is required to load quote.");
+      }
+
+      console.log("Loading quote with ID:", input.quoteId);
+      const quote = await QuoteService.getQuote(input.quoteId);
+      if (!quote) {
+        throw new Error(`Quote with ID ${input.quoteId} not found.`);
+      }
+      console.log("Loaded quote:", quote);
+      return quote;
+    }),
     moneriumKyc: moneriumKycMachine,
     registerRamp: fromPromise(registerRampActor),
     signTransactions: fromPromise(signTransactionsActor),
@@ -138,10 +153,7 @@ export const rampMachine = setup({
     Idle: {
       on: {
         SET_QUOTE: {
-          actions: assign({
-            quote: ({ event }) => event.quote
-          }),
-          target: "QuoteReady"
+          target: "LoadingQuote"
         }
       }
     },
@@ -162,6 +174,26 @@ export const rampMachine = setup({
       },
       // So far, we only go back to main component
       entry: "resetRamp"
+    },
+    LoadingQuote: {
+      invoke: {
+        id: "loadQuote",
+        input: ({ event }) => ({ quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId }),
+        onDone: {
+          actions: assign({
+            quote: ({ event }) => event.output as QuoteResponse
+          }),
+          target: "QuoteReady"
+        },
+        onError: {
+          actions: assign({
+            isQuoteExpired: true,
+            quote: undefined
+          }),
+          target: "Idle"
+        },
+        src: "loadQuote"
+      }
     },
     QuoteReady: {
       on: {

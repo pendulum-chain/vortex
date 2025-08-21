@@ -2,10 +2,10 @@ import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirecti
 import { useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
+import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
 import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
-import { useQuoteActions } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
@@ -137,8 +137,9 @@ export const useSetRampUrlParams = () => {
   const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
+  const rampActor = useRampActor();
+
   const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useQuoteFormStoreActions();
-  const { setProvidedQuoteId } = useQuoteActions();
 
   const hasInitialized = useRef(false);
 
@@ -197,9 +198,7 @@ export const useSetRampUrlParams = () => {
     }
 
     if (providedQuoteId) {
-      setProvidedQuoteId(providedQuoteId);
-    } else {
-      setProvidedQuoteId(undefined);
+      rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
     }
 
     hasInitialized.current = true;
