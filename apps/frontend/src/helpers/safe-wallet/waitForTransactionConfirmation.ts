@@ -24,6 +24,7 @@ export async function waitForTransactionConfirmation(hash: Hash, chainId: number
   }
 
   const params: WaitForTransactionReceiptParameters = {
+    hash,
     pollingInterval: 10_000,
     retryCount: 20,
     timeout: 60_000
