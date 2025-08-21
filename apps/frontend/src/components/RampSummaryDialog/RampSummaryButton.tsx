@@ -27,12 +27,13 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
 
-  const { rampState, rampPaymentConfirmed } = useSelector(rampActor, state => ({
+  const { rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+    machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
 
-  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isQuoteExpired = useIsQuoteExpired();
 
   return useMemo(() => {
@@ -43,6 +44,13 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
+
+    if (machineState === "QuoteReady") {
+      return {
+        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.next")
+      };
+    }
 
     if ((isOnramp && isDepositQrCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
@@ -88,6 +96,13 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       };
     }
 
+    if (isOnramp && !isDepositQrCodeReady) {
+      return {
+        icon: null,
+        text: t("components.dialogs.RampSummaryDialog.confirm")
+      };
+    }
+
     if (isOfframp && isAnchorWithRedirect) {
       if (stellarData?.stateValue === "Sep24Second") {
         return {
@@ -105,7 +120,17 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, toToken, stellarData, rampPaymentConfirmed]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampDirection,
+    rampState,
+    machineState,
+    t,
+    toToken,
+    stellarData,
+    rampPaymentConfirmed
+  ]);
 };
 
 export const RampSummaryButton = () => {
@@ -113,16 +138,17 @@ export const RampSummaryButton = () => {
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
 
-  const { rampState, executionInput, isQuoteExpired } = useSelector(rampActor, state => ({
+  const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
+    machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampState: state.context.rampState
   }));
 
   const stellarContext = stellarData?.context;
   const anchorUrl = stellarContext?.redirectUrl;
 
-  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isOfframp = rampDirection === RampDirection.SELL;
   const isOnramp = rampDirection === RampDirection.BUY;
   const fiatToken = useFiatToken();
@@ -141,11 +167,23 @@ export const RampSummaryButton = () => {
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
-    const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
-    if (isOnramp && !isDepositQrCodeReady) return true;
+    if (machineState === "UpdateRamp") {
+      const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
+      if (isOnramp && !isDepositQrCodeReady) return true;
+    }
 
     return false;
-  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.depositQrCode, anchorUrl, fiatToken, stellarData]);
+  }, [
+    executionInput,
+    isQuoteExpired,
+    isOfframp,
+    isOnramp,
+    rampState?.ramp?.depositQrCode,
+    anchorUrl,
+    fiatToken,
+    stellarData,
+    machineState
+  ]);
 
   const buttonContent = useButtonContent({
     submitButtonDisabled,
@@ -153,16 +191,23 @@ export const RampSummaryButton = () => {
   });
 
   const onSubmit = () => {
+    if (machineState === "QuoteReady") {
+      onRampConfirm();
+      return;
+    }
+
     rampActor.send({ type: "SummaryConfirm" });
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
       //setCanRegisterRamp(true);
     }
 
-    if (executionInput?.quote.rampType === RampDirection.BUY) {
-      rampActor.send({ type: "PAYMENT_CONFIRMED" });
-    } else {
-      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+    if (isOnramp) {
+      if (machineState === "KycComplete") {
+        rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      } else if (machineState === "UpdateRamp") {
+        rampActor.send({ type: "PAYMENT_CONFIRMED" });
+      }
     }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {

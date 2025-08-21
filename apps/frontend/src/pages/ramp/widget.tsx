@@ -1,10 +1,12 @@
+import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
 import { QuoteSummary } from "../../components/QuoteSummary";
-import { RampFormValues } from "../../hooks/ramp/schema";
+import { RampSummaryDialog } from "../../components/RampSummaryDialog";
+import { useRampActor } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
@@ -45,22 +47,31 @@ export const WidgetDetailsPage = () => {
   const { form } = useRampForm();
   const quote = useQuote();
 
+  const rampActor = useRampActor();
+  const { rampSummaryVisible } = useSelector(rampActor, state => ({
+    rampSummaryVisible: state.context.rampSummaryVisible
+  }));
+
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   const { onRampConfirm } = useRampSubmission();
 
-  const handleConfirm = (data: RampFormValues) => {
-    // TODO show add terms and conditions somewhere
-    onRampConfirm();
-  };
-
-  return (
+  const content = rampSummaryVisible ? (
+    <motion.div
+      animate={{ opacity: 1, scale: 1 }}
+      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
+      initial={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3 }}
+    >
+      <RampSummaryDialog />
+    </motion.div>
+  ) : (
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
         initial={{ opacity: 0, scale: 0.9 }}
-        onSubmit={form.handleSubmit(handleConfirm)}
+        onSubmit={form.handleSubmit(onRampConfirm)}
         transition={{ duration: 0.3 }}
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
@@ -69,4 +80,6 @@ export const WidgetDetailsPage = () => {
       </motion.form>
     </FormProvider>
   );
+
+  return content;
 };
