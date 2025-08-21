@@ -16,7 +16,7 @@ router.route("/validatePixKey").get(brlaController.validatePixKey);
 
 router.route("/createSubaccount").post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route("/startKYC2").post(validateStartKyc2, brlaController.startKYC2);
+router.route("/getUploadUrls").post(validateStartKyc2, brlaController.getUploadUrls);
 
 router.route("/newKyc").post(brlaController.newKyc);
 

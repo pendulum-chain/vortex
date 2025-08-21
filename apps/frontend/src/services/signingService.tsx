@@ -1,4 +1,4 @@
-import { BrlaGetKycStatusResponse, FiatToken, KycLevel1Payload } from "@packages/shared";
+import { BrlaGetKycStatusResponse, CreateAveniaSubaccountRequest, FiatToken, KycLevel1Payload } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
@@ -197,9 +197,12 @@ export const fetchKycStatus = async (taxId: string) => {
   return eventStatus;
 };
 
-export const createSubaccount = async (kycData: RegisterSubaccountPayload): Promise<{ subaccountId: string }> => {
+export const createSubaccount = async ({
+  name,
+  accountType
+}: CreateAveniaSubaccountRequest): Promise<{ subAccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify(kycData),
+    body: JSON.stringify({ accountType, name }),
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     method: "POST"

@@ -1,5 +1,5 @@
 import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
-import { BrlaKYCDocType } from "@packages/shared";
+import { AveniaDocumentType } from "@packages/shared";
 import { motion } from "motion/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +39,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
-  const [docType, setDocType] = useState<BrlaKYCDocType>(BrlaKYCDocType.RG);
+  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.ID);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -92,14 +92,15 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     validateAndSetFile(file, setter, validSetter);
   };
 
-  const isSubmitDisabled = loading || !selfieValid || (docType === BrlaKYCDocType.RG ? !frontValid || !backValid : !frontValid);
+  const isSubmitDisabled =
+    loading || !selfieValid || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError("");
     if (
       !selfieValid ||
-      (docType === BrlaKYCDocType.RG && (!frontValid || !backValid)) ||
-      (docType === BrlaKYCDocType.CNH && !frontValid)
+      (docType === AveniaDocumentType.ID && (!frontValid || !backValid)) ||
+      (docType === AveniaDocumentType.DRIVERS_LICENSE && !frontValid)
     ) {
       setError(t("components.documentUpload.validation.validationError"));
       return;
@@ -112,16 +113,16 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       });
 
       const uploads: Promise<void>[] = [];
-      if (docType === BrlaKYCDocType.RG) {
+      if (docType === AveniaDocumentType.ID) {
         if (!selfie || !front || !back) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
         uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.selfieUploadUrl),
+          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
-          uploadFileAsBuffer(back, response.idUpload.uploadURLBack)
+          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!)
         );
       } else {
         if (!selfie || !front) {
@@ -130,7 +131,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           return;
         }
         uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.selfieUploadUrl),
+          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront)
         );
       }
@@ -183,7 +184,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           selfieValid,
           CameraIcon
         )}
-        {docType === BrlaKYCDocType.RG && (
+        {docType === AveniaDocumentType.ID && (
           <>
             {renderField(
               t("components.documentUpload.fields.rgFront"),
@@ -199,7 +200,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
             )}
           </>
         )}
-        {docType === BrlaKYCDocType.CNH &&
+        {docType === AveniaDocumentType.DRIVERS_LICENSE &&
           renderField(
             t("components.documentUpload.fields.cnhDocument"),
             e => handleFileChange(e, setFront, setFrontValid),

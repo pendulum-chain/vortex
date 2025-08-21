@@ -1,5 +1,7 @@
 import {
+  AveniaDocumentType,
   AveniaKYCDataUpload,
+  AveniaKYCDataUploadRequest,
   BrlaApiService,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
@@ -15,16 +17,13 @@ import {
   BrlaGetUserResponse,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
-  DocumentType,
   Kyc2FailureReason,
   KycFailureReason,
   KycLevel1Payload,
   KycLevel1Response,
-  RampDirection,
-  RegisterSubaccountPayload,
-  StartKYC2Request,
-  validateMaskedNumber
+  RampDirection
 } from "@packages/shared";
+import { AveniaAccountType } from "@packages/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
@@ -229,9 +228,9 @@ export const createSubaccount = async (
     const { accountType, name } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
-    const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
+    const { id } = await brlaApiService.createAveniaSubaccount(AveniaAccountType.INDIVIDUAL, name); // So far, we only know this type.
 
-    res.status(httpStatus.OK).json({ subaccountId: id });
+    res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
     handleApiError(error, res, "createSubaccount");
   }
@@ -321,19 +320,17 @@ export const validatePixKey = async (
 };
 
 /**
- * Creates a request for KYC level 2
+ * Gets the upload URLs for KYC documents
  *
- * Existing KYC level 1 user can request KYC level 2.
- * This endpoint call brla and fetch the upload URLs for the documents.
  *
- * @returns Returns 200 if the documents were received successfully, and the corresponding URLs.
+ * @returns Returns 200 with the upload URLs for the KYC documents.
  *
  * @throws 400 - User does not exist, or is not yet KYC level 1 verified.
  * @throws 500 - For any server-side errors during processing.
  */
 
-export const startKYC2 = async (
-  req: Request<unknown, unknown, StartKYC2Request>,
+export const getUploadUrls = async (
+  req: Request<unknown, unknown, AveniaKYCDataUploadRequest>,
   res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
@@ -357,21 +354,31 @@ export const startKYC2 = async (
       return;
     }
 
-    const kycLevel2Response = await brlaApiService.getDocumentUploadUrls(
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
       subaccount.subAccountId,
-      documentType,
+      AveniaDocumentType.SELFIE,
+      isDoubleSided ?? false
+    );
+
+    const idUrls = await brlaApiService.getDocumentUploadUrls(
+      subaccount.subAccountId,
+      AveniaDocumentType.DRIVERS_LICENSE, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
       isDoubleSided ?? false
     );
 
     res.status(httpStatus.OK).json({
-      uploadUrls: {
-        id: kycLevel2Response.id,
-        uploadURLBack: kycLevel2Response.uploadURLBack,
-        uploadURLFront: kycLevel2Response.uploadURLFront
+      idUpload: {
+        id: idUrls.id,
+        uploadURLBack: idUrls.uploadURLBack,
+        uploadURLFront: idUrls.uploadURLFront
+      },
+      selfieUpload: {
+        id: selfieUrl.id,
+        uploadURLFront: selfieUrl.uploadURLFront
       }
     });
   } catch (error) {
-    handleApiError(error, res, "startKYC2");
+    handleApiError(error, res, "getUploadUrls");
   }
 };
 

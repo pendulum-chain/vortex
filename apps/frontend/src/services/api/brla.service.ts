@@ -1,5 +1,6 @@
 import {
   AveniaKYCDataUpload,
+  AveniaKYCDataUploadRequest,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
@@ -7,8 +8,7 @@ import {
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
-  RampDirection,
-  StartKYC2Request
+  RampDirection
 } from "@packages/shared";
 import { apiRequest } from "./api-client";
 
@@ -83,8 +83,7 @@ export class BrlaService {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
-  // AVENIA-MIGRATION: define the proper endpoint after created.
-  static async getUploadUrls(request: StartKYC2Request): Promise<AveniaKYCDataUpload> {
-    return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/...`, request);
+  static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
+    return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
   }
 }

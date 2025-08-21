@@ -1,6 +1,7 @@
+import { AveniaAccountType } from "@packages/shared/src/services";
 import { fromPromise } from "xstate";
-import { submitNewKyc } from "../../../services/signingService";
-import { BrlaKycContext } from "../../kyc.states";
+import { createSubaccount, submitNewKyc } from "../../../services/signingService";
+import { AveniaKycContext } from "../../kyc.states";
 
 function formatDate(date: Date): string {
   const year = date.getFullYear();
@@ -9,14 +10,14 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export const submitActor = fromPromise(async ({ input }: { input: BrlaKycContext }) => {
+export const submitActor = fromPromise(async ({ input }: { input: AveniaKycContext }) => {
   const { taxId, kycFormData, documentUploadIds } = input;
 
   if (!documentUploadIds || !documentUploadIds.uploadedSelfieId || !documentUploadIds.uploadedDocumentId || !kycFormData) {
     throw new Error("Invalid input state. This is a Bug.");
   }
 
-  const payload = {
+  let payload = {
     city: kycFormData.city,
     country: "BRA",
     countryOfTaxId: "BRA",
@@ -31,5 +32,7 @@ export const submitActor = fromPromise(async ({ input }: { input: BrlaKycContext
     zipCode: kycFormData.cep
   };
 
-  await submitNewKyc(payload);
+  const { subAccountId } = await createSubaccount({ accountType: AveniaAccountType.INDIVIDUAL, name: kycFormData.fullName });
+
+  await submitNewKyc({ ...payload, subAccountId });
 });

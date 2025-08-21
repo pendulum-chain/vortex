@@ -1,4 +1,4 @@
-import { DocumentType } from "../services/brla/types";
+import { AveniaDocumentType } from "src/services";
 import { RampDirection } from "../types/rampDirection";
 
 export enum KycFailureReason {
@@ -78,7 +78,7 @@ export interface BrlaCreateSubaccountRequest {
 }
 
 export interface BrlaCreateSubaccountResponse {
-  subaccountId: string;
+  subAccountId: string;
 }
 
 export interface BrlaErrorResponse {
@@ -93,13 +93,17 @@ export enum BrlaKYCDocType {
 
 // POST /brla/startKYC2
 export interface AveniaKYCDataUploadRequest {
-  documentType: DocumentType;
+  documentType: AveniaDocumentType;
   taxId: string;
   isDoubleSided?: boolean;
 }
 
 export interface AveniaKYCDataUpload {
-  uploadUrls: {
+  selfieUpload: {
+    id: string;
+    uploadURLFront: string;
+  };
+  idUpload: {
     id: string;
     uploadURLFront: string;
     uploadURLBack?: string;

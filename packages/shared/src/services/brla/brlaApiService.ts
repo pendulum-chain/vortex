@@ -2,9 +2,7 @@ import {
   BRLA_BASE_URL,
   BRLA_LOGIN_PASSWORD,
   BRLA_LOGIN_USERNAME,
-  BrlaKYCDocType,
   CreateAveniaSubaccountRequest,
-  DocumentType,
   DocumentUploadRequest,
   DocumentUploadResponse,
   SwapLog
@@ -15,6 +13,7 @@ import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
   AveniaAccountType,
+  AveniaDocumentType,
   AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
@@ -184,7 +183,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Subaccounts, "POST", undefined, registerSubaccountPayload);
   }
 
-  public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string } | undefined> {
+  public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string }> {
     const payload: CreateAveniaSubaccountRequest = {
       accountType,
       name
@@ -252,7 +251,7 @@ export class BrlaApiService {
 
   public async getDocumentUploadUrls(
     subaccountId: string,
-    documentType: DocumentType,
+    documentType: AveniaDocumentType,
     isDoubleSided: boolean
   ): Promise<DocumentUploadResponse> {
     const payload: DocumentUploadRequest = {

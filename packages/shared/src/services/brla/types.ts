@@ -498,6 +498,7 @@ export interface AveniaAccountInfoResponse {
 }
 
 export interface KycLevel1Payload {
+  subAccountId: string;
   fullName: string;
   dateOfBirth: string;
   countryOfTaxId: string;
@@ -516,7 +517,7 @@ export interface KycLevel1Response {
   id: string;
 }
 
-export enum DocumentType {
+export enum AveniaDocumentType {
   ID = "ID",
   DRIVERS_LICENSE = "DRIVERS-LICENSE",
   PASSPORT = "PASSPORT",
@@ -524,7 +525,7 @@ export enum DocumentType {
 }
 
 export interface DocumentUploadRequest {
-  documentType: DocumentType;
+  documentType: AveniaDocumentType;
   isDoubleSided?: boolean;
 }
 
