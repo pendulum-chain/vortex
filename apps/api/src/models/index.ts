@@ -6,6 +6,7 @@ import Partner from "./partner.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
 import Subsidy from "./subsidy.model";
+import TaxId from "./taxId.model";
 
 // Define associations
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
@@ -23,7 +24,8 @@ const models = {
   Partner,
   QuoteTicket,
   RampState,
-  Subsidy
+  Subsidy,
+  TaxId
 };
 
 // Export models and sequelize instance

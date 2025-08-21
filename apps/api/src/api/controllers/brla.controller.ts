@@ -29,6 +29,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
 import logger from "../../config/logger";
+import TaxId from "../../models/taxId.model";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
@@ -113,10 +114,13 @@ export const getAveniaUser = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    // AVENIA-MIGRATION: use our own map taxId-subaccountId
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
 
-    const accountInfo = await brlaApiService.subaccountInfo(subaccount.subAccountId);
+    const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
     if (!accountInfo) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
       return;
@@ -158,7 +162,12 @@ export const getAveniaUserRemainingLimit = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const limitsData = await brlaApiService.getSubaccountUsedLimit(taxId);
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+    const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
@@ -198,14 +207,13 @@ export const getRampStatus = async (
       return;
     }
 
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount not found" });
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
 
-    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.subAccountId);
+    const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId);
 
     if (!lastEventCached) {
       res.status(httpStatus.NOT_FOUND).json({ error: `No status events found for ${taxId}` });
@@ -258,15 +266,14 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount not found" });
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
 
     // TODO replace subscription type with an enum, all codebase.
-    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.subAccountId, "KYC");
+    const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId, "KYC");
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== "KYC") {
@@ -274,7 +281,7 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    const lastInteraction = lastInteractionMap.get(subaccount.subAccountId);
+    const lastInteraction = lastInteractionMap.get(taxIdRecord.subAccountId);
     if (!lastInteraction) {
       res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
     }
@@ -347,13 +354,14 @@ export const getUploadUrls = async (
     const { taxId, documentType, isDoubleSided } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
 
-    if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount not found" });
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
-    const accountInfo = await brlaApiService.subaccountInfo(subaccount.subAccountId);
+
+    const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
     if (!accountInfo) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
       return;
@@ -365,13 +373,13 @@ export const getUploadUrls = async (
     }
 
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
-      subaccount.subAccountId,
+      taxIdRecord.subAccountId,
       AveniaDocumentType.SELFIE,
       isDoubleSided ?? false
     );
 
     const idUrls = await brlaApiService.getDocumentUploadUrls(
-      subaccount.subAccountId,
+      taxIdRecord.subAccountId,
       AveniaDocumentType.ID, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
       isDoubleSided ?? false
     );
@@ -399,6 +407,13 @@ export const newKyc = async (
   try {
     const brlaApiService = BrlaApiService.getInstance();
     const response = await brlaApiService.submitKycLevel1(req.body);
+
+    await TaxId.create({
+      accountType: AveniaAccountType.INDIVIDUAL,
+      subAccountId: response.id,
+      taxId: req.body.taxIdNumber
+    });
+
     res.status(httpStatus.OK).json(response);
   } catch (error) {
     handleApiError(error, res, "newKyc");

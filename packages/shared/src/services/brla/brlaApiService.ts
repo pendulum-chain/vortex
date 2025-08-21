@@ -44,7 +44,7 @@ import { Event } from "./webhooks";
 export class BrlaApiService {
   private static instance: BrlaApiService;
 
-  private token: string | null = null;
+  private token: string = "";
 
   private brlaBusinessUsername: string;
 
@@ -170,7 +170,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.OnChainOut, "POST", undefined, payload);
   }
 
-  public async getSubaccount(subaccountId: string): Promise<AveniaSubaccount | undefined> {
+  public async getSubaccount(subaccountId: string): Promise<AveniaSubaccount> {
     return await this.sendRequest(Endpoint.GetSubaccount, "GET", undefined, undefined, subaccountId);
   }
 
