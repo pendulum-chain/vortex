@@ -1,11 +1,9 @@
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { isValidCnpj } from "../../hooks/ramp/schema";
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
-import { useKYCFormLocalStorage } from "./KYCForm/useKYCFormLocalStorage";
 import { DocumentUpload } from "./KYCLevel2Form";
 import { VerificationStatus } from "./VerificationStatus";
 
@@ -16,11 +14,10 @@ export const PIXKYCForm = () => {
   if (!aveniaKycActor) return null;
   if (!aveniaState) return null;
 
-  const { kycForm } = useKYCForm({ cpfApiError });
-  const { clearStorage } = useKYCFormLocalStorage(kycForm);
+  const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
 
-  if (aveniaState.context.taxId) {
+  if (!aveniaState.context.taxId) {
     return null;
   }
 
@@ -155,21 +152,7 @@ export const PIXKYCForm = () => {
 
   return (
     <div className="relative">
-      <KYCForm
-        fields={pixformFields}
-        form={kycForm}
-        onBackClick={() => {
-          handleBackClick();
-          clearTaxId();
-          clearPixId();
-          clearStorage();
-        }}
-        onSubmit={async formData => {
-          await handleKYCFormSubmit(formData);
-          clearStorage();
-        }}
-      />
+      <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />
     </div>
   );
-  return <div></div>;
 };

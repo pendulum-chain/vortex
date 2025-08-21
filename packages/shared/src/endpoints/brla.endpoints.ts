@@ -1,4 +1,4 @@
-import { AveniaDocumentType } from "src/services";
+import { AveniaDocumentType, AveniaIdentityStatus } from "src/services";
 import { RampDirection } from "../types/rampDirection";
 
 export enum KycFailureReason {
@@ -15,6 +15,7 @@ export interface BrlaGetUserRequest {
 export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
+  identityStatus: AveniaIdentityStatus;
 }
 
 // GET /brla/getRampStatus?taxId=:taxId

@@ -1,5 +1,6 @@
 import {
   AveniaDocumentType,
+  AveniaIdentityStatus,
   AveniaKYCDataUpload,
   AveniaKYCDataUploadRequest,
   BrlaApiService,
@@ -99,7 +100,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
-export const getBrlaUser = async (
+export const getAveniaUser = async (
   req: Request<unknown, unknown, unknown, BrlaGetUserRequest>,
   res: Response<BrlaGetUserResponse | BrlaErrorResponse>
 ): Promise<void> => {
@@ -114,10 +115,7 @@ export const getBrlaUser = async (
     const brlaApiService = BrlaApiService.getInstance();
     // AVENIA-MIGRATION: use our own map taxId-subaccountId
     const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
+
     const accountInfo = await brlaApiService.subaccountInfo(subaccount.subAccountId);
     if (!accountInfo) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
@@ -128,14 +126,26 @@ export const getBrlaUser = async (
       return;
     }
 
-    res.json({ evmAddress: accountInfo.wallets.find(w => w.chain === "EVM")?.walletAddress ?? "", kycLevel: 1 });
+    res.json({
+      evmAddress: accountInfo.wallets.find(w => w.chain === "EVM")?.walletAddress ?? "",
+      identityStatus: accountInfo.accountInfo.identityStatus,
+      kycLevel: 1
+    });
     return;
   } catch (error) {
-    handleApiError(error, res, "getBrlaUser");
+    console.log(error);
+    if (
+      error instanceof Error &&
+      (error.message.includes("sub-account-id does not exist") || error.message.includes("sub-account-id is invalid"))
+    ) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+    handleApiError(error, res, "getAveniaUser");
   }
 };
 
-export const getBrlaUserRemainingLimit = async (
+export const getAveniaUserRemainingLimit = async (
   req: Request<unknown, unknown, unknown, BrlaGetUserRemainingLimitRequest>,
   res: Response<BrlaGetUserRemainingLimitResponse | BrlaErrorResponse>
 ): Promise<void> => {
@@ -172,7 +182,7 @@ export const getBrlaUserRemainingLimit = async (
     res.json({ remainingLimit: remainingLimit < 0 ? 0 : remainingLimit });
     return;
   } catch (error) {
-    handleApiError(error, res, "getBrlaUserRemainingLimit");
+    handleApiError(error, res, "getAveniaUserRemainingLimit");
   }
 };
 
@@ -362,7 +372,7 @@ export const getUploadUrls = async (
 
     const idUrls = await brlaApiService.getDocumentUploadUrls(
       subaccount.subAccountId,
-      AveniaDocumentType.DRIVERS_LICENSE, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
+      AveniaDocumentType.ID, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
       isDoubleSided ?? false
     );
 

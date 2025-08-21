@@ -16,11 +16,12 @@ function useRampAmountWithinAllowedLimits() {
     async (amountUnits: string, taxId: string): Promise<boolean> => {
       try {
         const subaccount = await BrlaService.getUser(taxId);
-        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
-        if (subaccount.kycLevel < 2) {
+        // This check passes if subaccount is not created, or if identity status is not confirmed
+        if (subaccount.identityStatus !== "CONFIRMED") {
           return true;
         }
 
+        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
         const remainingLimitInUnits = remainingLimitResponse.remainingLimit;
 
         const amountNum = Number(amountUnits);

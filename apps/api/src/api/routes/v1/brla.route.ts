@@ -4,9 +4,9 @@ import { validataSubaccountCreation, validateStartKyc2 } from "../../middlewares
 
 const router: Router = Router({ mergeParams: true });
 
-router.route("/getUser").get(brlaController.getBrlaUser);
+router.route("/getUser").get(brlaController.getAveniaUser);
 
-router.route("/getUserRemainingLimit").get(brlaController.getBrlaUserRemainingLimit);
+router.route("/getUserRemainingLimit").get(brlaController.getAveniaUserRemainingLimit);
 
 router.route("/getRampStatus").get(brlaController.getRampStatus);
 

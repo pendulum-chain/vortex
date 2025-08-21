@@ -239,12 +239,8 @@ export enum SmartContractOperationType {
   BURN = "BURN"
 }
 
-export function isValidKYCDocType(value: string): value is BrlaKYCDocType {
-  return Object.values(BrlaKYCDocType).includes(value as unknown as BrlaKYCDocType);
-}
-
-export interface KycLevel2Payload {
-  documentType: BrlaKYCDocType;
+export function isValidKYCDocType(value: string): value is AveniaDocumentType {
+  return Object.values(AveniaDocumentType).includes(value as unknown as AveniaDocumentType);
 }
 
 export interface KycLevel2Response {

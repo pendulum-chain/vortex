@@ -17,14 +17,14 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
-
+  console.log("form");
   return (
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 min-h-[480px] rounded-lg px-4 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
         initial={{ opacity: 0, scale: 0.9 }}
-        onSubmit={handleSubmit(aveniaKycActor.send({ formData: form.getFieldState("*"), type: "FORM_SUBMIT" }))}
+        onSubmit={handleSubmit(() => aveniaKycActor.send({ formData: form.getValues(), type: "FORM_SUBMIT" }))}
         transition={{ duration: 0.3 }}
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("components.brlaKYCForm.title")}</h1>

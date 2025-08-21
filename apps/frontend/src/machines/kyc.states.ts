@@ -46,7 +46,7 @@ export const kycStateNode = {
         sendTo(
           ({ context }) => {
             if (context.executionInput?.fiatToken === FiatToken.BRL) {
-              return "brlaKyc";
+              return "aveniaKyc";
             }
             if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
               return "moneriumKyc";
@@ -94,7 +94,7 @@ export const kycStateNode = {
       always: [
         {
           guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
-          target: "Brla"
+          target: "Avenia"
         },
         {
           guard: ({ context }: { context: RampContext }) =>

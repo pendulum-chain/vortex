@@ -1,4 +1,5 @@
 import {
+  AveniaKYCDataUploadRequest,
   Currency,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -422,7 +423,7 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { taxId, documentType } = req.body as StartKYC2Request;
+  const { taxId, documentType } = req.body as AveniaKYCDataUploadRequest;
 
   if (!taxId) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId parameter" });

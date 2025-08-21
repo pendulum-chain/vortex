@@ -9,6 +9,7 @@ import { RampHistory } from "../../components/RampHistory";
 import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampSummaryDialog } from "../../components/RampSummaryDialog";
 import { RampToggle } from "../../components/RampToggle";
+import { useAveniaKycSelector } from "../../contexts/rampState";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useProvidedQuoteId } from "../../stores/ramp/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
@@ -16,8 +17,9 @@ import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirec
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
-  const rampKycStarted = false; // XSTATE TODO: Refactor after BRLA's new API is defined.
-  const rampKycLevel2Started = false;
+  const aveniaKycState = useAveniaKycSelector();
+  console.log(aveniaKycState);
+
   const providedQuoteId = useProvidedQuoteId();
 
   useSetRampUrlParams();
@@ -25,8 +27,8 @@ export const RampForm = () => {
   return (
     <main>
       <PoolSelectorModal />
-      <RampSummaryDialog />
-      {rampKycStarted || rampKycLevel2Started || providedQuoteId ? (
+      {!aveniaKycState ? <RampSummaryDialog /> : <div></div>}
+      {aveniaKycState ? (
         <PIXKYCForm />
       ) : (
         <motion.div
