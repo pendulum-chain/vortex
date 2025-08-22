@@ -43,7 +43,11 @@ export type RampMachineEvents =
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP" }
   | { type: "FINISH_OFFRAMPING" }
-  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage };
+  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
+  | { type: "PROCEED_TO_REGISTRATION" }
+  | { type: "SET_QUOTE"; quoteId: string }
+  | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
+  | { type: "EXPIRE_QUOTE" };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

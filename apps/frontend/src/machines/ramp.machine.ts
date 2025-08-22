@@ -51,7 +51,8 @@ export type RampMachineEvents =
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
   | { type: "SET_QUOTE"; quoteId: string }
-  | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined };
+  | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
+  | { type: "EXPIRE_QUOTE" };
 
 export const rampMachine = setup({
   actions: {
@@ -79,7 +80,7 @@ export const rampMachine = setup({
         throw new Error(`Quote with ID ${input.quoteId} not found.`);
       }
       console.log("Loaded quote:", quote);
-      return quote;
+      return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
     registerRamp: fromPromise(registerRampActor),
@@ -101,6 +102,11 @@ export const rampMachine = setup({
   on: {
     CANCEL_RAMP: {
       target: ".Cancel"
+    },
+    EXPIRE_QUOTE: {
+      actions: assign({
+        isQuoteExpired: true
+      })
     },
     RESET_RAMP: {
       actions: "resetRamp",
@@ -181,7 +187,8 @@ export const rampMachine = setup({
         input: ({ event }) => ({ quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId }),
         onDone: {
           actions: assign({
-            quote: ({ event }) => event.output as QuoteResponse
+            isQuoteExpired: ({ event }) => event.output.isExpired,
+            quote: ({ event }) => event.output.quote
           }),
           target: "QuoteReady"
         },

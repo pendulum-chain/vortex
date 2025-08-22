@@ -5,15 +5,15 @@ import { useTranslation } from "react-i18next";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
 import { QuoteSummary } from "../../components/QuoteSummary";
-import { RampSummaryDialog } from "../../components/RampSummaryDialog";
-import { RampSummaryButton } from "../../components/RampSummaryDialog/RampSummaryButton";
+import { RampSummaryCard } from "../../components/RampSummaryCard";
+import { RampSummaryButton } from "../../components/RampSummaryCard/RampSummaryButton";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 
-function BrazilLanding() {
+function BrazilDetails() {
   return (
     <div className="mx-auto flex h-full w-full flex-col justify-center">
       <BrlaSwapFields />
@@ -21,7 +21,7 @@ function BrazilLanding() {
   );
 }
 
-function EuroLanding() {
+function EuroDetails() {
   return (
     <div className="mx-auto flex h-full w-full flex-col justify-center">
       <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon={true} />
@@ -29,7 +29,7 @@ function EuroLanding() {
   );
 }
 
-export const WidgetDetailsPage = () => {
+export const WidgetCards = () => {
   useSetRampUrlParams();
 
   const { t } = useTranslation();
@@ -53,17 +53,17 @@ export const WidgetDetailsPage = () => {
       transition={{ duration: 0.3 }}
     >
       {rampSummaryVisible ? (
-        <RampSummaryDialog />
+        <RampSummaryCard />
       ) : (
         <FormProvider {...form}>
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(onRampConfirm)}>
             <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
-            <div className="mt-8 grid flex-grow gap-3 px-2">{isBrazilLanding ? <BrazilLanding /> : <EuroLanding />}</div>
+            <div className="mt-8 grid flex-grow gap-3 px-2">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
             <RampSummaryButton className="mb-4" />
           </form>
+          <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
         </FormProvider>
       )}
-      <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
     </motion.div>
   );
 };

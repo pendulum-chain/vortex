@@ -1,17 +1,16 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
-import { FC, useEffect } from "react";
+import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../contexts/rampState";
-import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { CopyButton } from "../CopyButton";
 
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const isQuoteExpired = useIsQuoteExpired();
-  const { rampState, signingPhase } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, signingPhase } = useSelector(rampActor, state => ({
+    isQuoteExpired: state.context.isQuoteExpired,
     rampState: state.context.rampState,
     signingPhase: state.context.rampSigningPhase
   }));
@@ -28,20 +27,20 @@ export const EUROnrampDetails: FC = () => {
   return (
     <section>
       <hr className="my-5" />
-      <h1 className="text-center font-bold text-lg">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.title")}</h1>
+      <h1 className="text-center font-bold text-lg">{t("components.RampSummaryCard.EUROnrampDetails.title")}</h1>
       <div className="my-4 rounded-lg border-1 border-gray-300 p-3">
         <div className="flex items-center justify-between">
-          <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.amount")}</span>
+          <span>{t("components.RampSummaryCard.EUROnrampDetails.amount")}</span>
           <strong>{amount} EUR</strong>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.iban")}</span>
+          <span>{t("components.RampSummaryCard.EUROnrampDetails.iban")}</span>
           <div className="flex items-center">
             <CopyButton text={iban} />
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span>{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.bic")}</span>
+          <span>{t("components.RampSummaryCard.EUROnrampDetails.bic")}</span>
           <div className="flex items-center">
             <CopyButton text={bic} />
           </div>
@@ -62,8 +61,8 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       )}
-      <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.hint")}</p>
-      <p className="text-center">{t("components.dialogs.RampSummaryDialog.EUROnrampDetails.footer")}</p>
+      <p className="text-center">{t("components.RampSummaryCard.EUROnrampDetails.hint")}</p>
+      <p className="text-center">{t("components.RampSummaryCard.EUROnrampDetails.footer")}</p>
     </section>
   );
 };

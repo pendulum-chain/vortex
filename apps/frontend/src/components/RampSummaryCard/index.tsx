@@ -18,7 +18,7 @@ import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxCon
 import { RampSummaryButton } from "./RampSummaryButton";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
-export const RampSummaryDialog: FC = () => {
+export const RampSummaryCard: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { selectedNetwork } = useNetwork();
@@ -97,12 +97,12 @@ export const RampSummaryDialog: FC = () => {
   const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
 
   const headerText = isOnramp
-    ? t("components.dialogs.RampSummaryDialog.headerText.buy")
-    : t("components.dialogs.RampSummaryDialog.headerText.sell");
+    ? t("components.RampSummaryCard.headerText.buy")
+    : t("components.RampSummaryCard.headerText.sell");
 
   const actions = rampRegistrationErrorMessage ? (
     <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onClose}>
-      {t("components.dialogs.RampSummaryDialog.tryAgain")}
+      {t("components.RampSummaryCard.tryAgain")}
     </button>
   ) : signingBoxVisible ? (
     <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
@@ -145,7 +145,7 @@ export const RampSummaryDialog: FC = () => {
     <div className="flex flex-col justify-center">
       <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
       {content}
-      <div className="flex grow-1 my-4">{actions}</div>
+      <div className="my-4 flex grow-1">{actions}</div>
     </div>
   );
 };

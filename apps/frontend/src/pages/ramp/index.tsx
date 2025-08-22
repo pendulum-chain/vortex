@@ -8,10 +8,10 @@ import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
 import { SuccessPage } from "../success";
-import { WidgetDetailsPage } from "./widget";
+import { WidgetCards } from "./widget";
 
 export const Ramp = () => {
-  const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <WidgetDetailsPage />);
+  const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <WidgetCards />);
   const rampActor = useRampActor();
   const stellarKycActor = useStellarKycActor();
   useMoneriumFlow();

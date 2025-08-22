@@ -15,7 +15,6 @@ import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
-import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -28,14 +27,13 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
 
-  const { rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+    isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
     rampDirection: state.context.rampDirection,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
-
-  const isQuoteExpired = useIsQuoteExpired();
 
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.BUY;
@@ -50,12 +48,12 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
-          text: t("components.dialogs.RampSummaryDialog.confirm")
+          text: t("components.RampSummaryCard.confirm")
         };
       } else {
         return {
           icon: null,
-          text: t("components.dialogs.RampSummaryDialog.signIn")
+          text: t("components.RampSummaryCard.signIn")
         };
       }
     }
@@ -63,14 +61,14 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     if (machineState === "KycComplete") {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.confirm")
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
-    if ((isOnramp && isDepositQrCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
+    if (isQuoteExpired) {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.quoteExpired")
+        text: t("components.RampSummaryCard.quoteExpired")
       };
     }
 
@@ -79,7 +77,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     // if (signingRejected) {
     //   return {
     //     icon: null,
-    //     text: t("components.dialogs.RampSummaryDialog.tryAgain")
+    //     text: t("components.RampSummaryCard.tryAgain")
     //   };
     // }
 
@@ -93,14 +91,14 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     if (isOfframp && isAnchorWithoutRedirect) {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.confirm")
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
     if (isOfframp && rampState !== undefined) {
       return {
         icon: <Spinner />,
-        text: t("components.dialogs.RampSummaryDialog.processing")
+        text: t("components.RampSummaryCard.processing")
       };
     }
 
@@ -114,7 +112,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     if (isOnramp && !isDepositQrCodeReady) {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.confirm")
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
@@ -122,12 +120,12 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       if (stellarData?.stateValue === "Sep24Second") {
         return {
           icon: <Spinner />,
-          text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage")
+          text: t("components.RampSummaryCard.continueOnPartnersPage")
         };
       } else {
         return {
           icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-          text: t("components.dialogs.RampSummaryDialog.continueWithPartner")
+          text: t("components.RampSummaryCard.continueWithPartner")
         };
       }
     }
@@ -181,8 +179,10 @@ export const RampSummaryButton = ({ className }: { className?: string }) => {
       return false;
     }
 
+    // The button is enabled because we let the user click the button to get back
+    if (isQuoteExpired) return false;
+
     if (!executionInput) return true;
-    if (isQuoteExpired) return true;
 
     if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
@@ -214,6 +214,14 @@ export const RampSummaryButton = ({ className }: { className?: string }) => {
   });
 
   const onSubmit = () => {
+    if (isQuoteExpired) {
+      // Reset the ramp state and go back to the home page
+      rampActor.send({ type: "RESET_RAMP" });
+      const cleanUrl = window.location.origin;
+      window.history.replaceState({}, "", cleanUrl);
+      return;
+    }
+
     if (machineState === "QuoteReady") {
       onRampConfirm();
       return;
