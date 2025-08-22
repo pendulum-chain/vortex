@@ -1,17 +1,15 @@
-import { QuoteResponse } from "../../../src/endpoints";
 import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
+  AveniaQuoteResponse,
   AveniaSubaccount,
-  CreateAveniaSubaccountRequest,
   DepositLog,
   DocumentUploadRequest,
   DocumentUploadResponse,
   FastQuoteResponse,
   KycLevel1Payload,
   KycLevel1Response,
-  KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
   OnChainOutPayload,
@@ -269,7 +267,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: QuoteResponse;
+      response: AveniaQuoteResponse;
     };
     PATCH: {
       body: undefined;

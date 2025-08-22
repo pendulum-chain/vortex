@@ -169,6 +169,13 @@ export enum BrlaSupportedChain {
   // etc
 }
 
+export interface AveniaQuoteResponse {
+  quoteToken: string;
+  inputCurrency: string;
+  inputPaymentMethod: string;
+  inputAmount: string;
+}
+
 export interface FastQuoteQueryParams {
   subaccountId: string | undefined;
   operation: FastQuoteOperationType;

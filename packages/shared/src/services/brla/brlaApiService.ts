@@ -1,7 +1,8 @@
+import { createPrivateKey, sign } from "crypto";
 import {
+  BRLA_API_KEY,
   BRLA_BASE_URL,
-  BRLA_LOGIN_PASSWORD,
-  BRLA_LOGIN_USERNAME,
+  BRLA_PRIVATE_KEY,
   CreateAveniaSubaccountRequest,
   DocumentUploadRequest,
   DocumentUploadResponse,
@@ -14,6 +15,7 @@ import {
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentType,
+  AveniaQuoteResponse,
   AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
@@ -35,7 +37,6 @@ import {
   PixKeyData,
   PixOutputTicketOutput,
   PixOutputTicketPayload,
-  QuoteResponse,
   RegisterSubaccountPayload,
   SwapPayload
 } from "./types";
@@ -44,20 +45,16 @@ import { Event } from "./webhooks";
 export class BrlaApiService {
   private static instance: BrlaApiService;
 
-  private token: string = "";
+  private apiKey: string;
 
-  private brlaBusinessUsername: string;
-
-  private brlaBusinessPassword: string;
-
-  private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;
+  private privateKey: string;
 
   private constructor() {
-    if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
-      throw new Error("BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined");
+    if (!BRLA_API_KEY || !BRLA_PRIVATE_KEY) {
+      throw new Error("BRLA_API_KEY or BRLA_PRIVATE_KEY not defined");
     }
-    this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
-    this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
+    this.apiKey = BRLA_API_KEY;
+    this.privateKey = BRLA_PRIVATE_KEY;
   }
 
   public static getInstance(): BrlaApiService {
@@ -67,32 +64,6 @@ export class BrlaApiService {
     return BrlaApiService.instance;
   }
 
-  private async login(): Promise<void> {
-    const response = await fetch(this.loginUrl, {
-      body: JSON.stringify({
-        email: this.brlaBusinessUsername,
-        password: this.brlaBusinessPassword
-      }),
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      method: "POST"
-    });
-
-    if (!response.ok) {
-      throw new Error(`Login failed with status ${response.status}`);
-    }
-
-    const token = (await response.json()).accessToken;
-
-    if (!token) {
-      throw new Error("No token returned from login.");
-    }
-
-    this.token = token;
-  }
-
   public async sendRequest<M extends Methods, E extends Endpoints>(
     endpoint: E,
     method: M,
@@ -100,45 +71,50 @@ export class BrlaApiService {
     payload?: EndpointMapping[E][M]["body"],
     pathParam?: string
   ): Promise<EndpointMapping[E][M]["response"]> {
-    if (!this.token) {
-      await this.login();
-    }
-    let fullUrl = `${BRLA_BASE_URL}${endpoint}`;
+    const timestamp = Date.now().toString();
+    const body = payload ? JSON.stringify(payload) : "";
+    let requestUri = endpoint as string;
 
     if (pathParam) {
-      fullUrl += `/${pathParam}`;
+      requestUri += `/${pathParam}`;
     }
-
     if (queryParams) {
-      fullUrl += `?${queryParams}`;
+      requestUri += `?${queryParams}`;
     }
-    const buildOptions = () => {
-      const options: RequestInit = {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json"
-        },
-        method
-      };
 
-      if (payload !== undefined) {
-        options.body = JSON.stringify(payload);
-      }
-      return options;
+    const stringToSign = timestamp + method + requestUri + body;
+
+    const key = createPrivateKey(this.privateKey);
+
+    const signature = sign("sha256", Buffer.from(stringToSign), key);
+
+    const signatureBase64 = signature.toString("base64");
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-API-Key": this.apiKey,
+      "X-API-Signature": signatureBase64,
+      "X-API-Timestamp": timestamp
     };
+
+    const options: RequestInit = {
+      headers,
+      method
+    };
+
+    if (payload !== undefined) {
+      options.body = body;
+    }
+
+    const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
 
     logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
-    let response = await fetch(fullUrl, buildOptions());
+    const response = await fetch(fullUrl, options);
 
     if (response.status === 401) {
-      await this.login();
-      response = await fetch(fullUrl, buildOptions());
-
-      if (response.status === 401) {
-        throw new Error("Authorization error after re-login.");
-      }
+      throw new Error("Authorization error.");
     }
 
     if (!response.ok) {
@@ -265,7 +241,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
   }
 
-  public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<QuoteResponse> {
+  public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {
     const query = new URLSearchParams({
       inputAmount: quoteParams.inputAmount,
       inputCurrency: quoteParams.inputCurrency,
@@ -279,7 +255,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
-  public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<QuoteResponse> {
+  public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<AveniaQuoteResponse> {
     const query = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
