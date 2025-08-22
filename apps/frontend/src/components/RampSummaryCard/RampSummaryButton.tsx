@@ -58,17 +58,17 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       }
     }
 
-    if (machineState === "KycComplete") {
-      return {
-        icon: null,
-        text: t("components.RampSummaryCard.confirm")
-      };
-    }
-
     if (isQuoteExpired) {
       return {
         icon: null,
         text: t("components.RampSummaryCard.quoteExpired")
+      };
+    }
+
+    if (machineState === "KycComplete") {
+      return {
+        icon: null,
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
