@@ -20,7 +20,10 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const partnerId = usePartnerId();
   const quoteConstraintsValid = useQuoteConstraintsValid();
 
-  const { fetchQuote, outputAmount } = useQuoteStore();
+  const {
+    actions: { fetchQuote },
+    outputAmount
+  } = useQuoteStore();
 
   const getQuote = useCallback(async () => {
     // Wait for constraints to be valid before fetching

@@ -35,7 +35,10 @@ export const RampSummaryDialog: FC = () => {
   const rampRegistrationError = useRampRegistrationError();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const { quote, fetchQuote } = useQuoteStore();
+  const {
+    quote,
+    actions: { fetchQuote }
+  } = useQuoteStore();
   const partnerId = usePartnerId();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
   const rampState = useRampState();

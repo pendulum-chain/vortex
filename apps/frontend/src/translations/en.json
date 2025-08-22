@@ -267,6 +267,11 @@
       "waitingForSignature": "Waiting for signature",
       "yourConnectedWallet": "your connected wallet to proceed"
     },
+    "stepper": {
+      "confirm": "confirm",
+      "details": "Details",
+      "verification": "Verification"
+    },
     "swap": {
       "buyButton": "Buy",
       "compareFees": "Compare fees",
