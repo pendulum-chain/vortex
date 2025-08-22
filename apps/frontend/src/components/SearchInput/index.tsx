@@ -3,16 +3,17 @@ import { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
 interface SearchInputProps {
-  set: Dispatch<SetStateAction<string>>;
+  set: Dispatch<SetStateAction<string>> | ((value: string) => void);
   placeholder?: string;
+  className?: string;
 }
 
-export const SearchInput = ({ set, placeholder, ...p }: SearchInputProps) => {
+export const SearchInput = ({ set, placeholder, className, ...p }: SearchInputProps) => {
   const { t } = useTranslation();
 
   return (
     <label
-      className="input-vortex-primary input input-bordered flex h-[3rem] w-full items-center text-base focus:outline-primary"
+      className={` ${className || "w-full"} input-vortex-primary input input-bordered flex h-[3rem] items-center text-base focus:outline-primary`}
       htmlFor="search"
     >
       <MagnifyingGlassIcon className="mr-1 size-5 text-neutral-400" />

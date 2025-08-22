@@ -1,18 +1,18 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { FiatToken, isFiatToken, isOnChainToken, OnChainToken, OnChainTokenDetails } from "@packages/shared";
 import { useTranslation } from "react-i18next";
-import { getTokenDisabledReason, isFiatTokenDisabled } from "../../../config/tokenAvailability";
-import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
-import { UserBalance } from "../../UserBalance";
-import { TokenDefinition } from "../SelectionModal";
+import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
+import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
+import { UserBalance } from "../UserBalance";
 
-interface PoolListItemProps {
+interface ListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
-  token: TokenDefinition;
+  token: ExtendedTokenDefinition;
 }
 
-export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps) {
+export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
   const { t } = useTranslation();
   const tokenIcon = useGetAssetIcon(token.assetIcon);
 
@@ -23,8 +23,8 @@ export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps)
 
   return (
     <button
-      className={`btn w-full items-center justify-start gap-4 border-0 bg-gray-200 px-3 py-3 text-left shadow-xs ${
-        isDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-gray-300 hover:opacity-80"
+      className={`btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left transition-transform hover:bg-gray-100 active:scale-[0.98] ${
+        isDisabled ? "cursor-not-allowed opacity-50" : ""
       }`}
       key={token.assetSymbol}
       onClick={() => !isDisabled && onSelect(token.type)}
@@ -47,7 +47,10 @@ export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps)
             {isDisabled ? (
               <span className="text-red-500">{disabledReason || "Unavailable"}</span>
             ) : (
-              token.name || token.assetSymbol
+              <>
+                {token.name && <div>{token.name}</div>}
+                {isOnChainToken(token.type) && <div>({token.networkDisplayName})</div>}
+              </>
             )}
           </span>
         </span>

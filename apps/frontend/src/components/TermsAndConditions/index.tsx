@@ -56,7 +56,7 @@ const TermsText = ({ error }: { error: boolean }) => {
     >
       {t("components.termsAndConditions.text")}{" "}
       <a
-        className={cn("link link-accent transition-all duration-300", error && "font-bold text-red-600")}
+        className={cn("link link-accent transition-all duration-150", error && "font-bold text-red-600")}
         href="https://www.vortexfinance.co/terms-conditions"
         rel="noreferrer"
         style={{ textDecoration: "underline" }}

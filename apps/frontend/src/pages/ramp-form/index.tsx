@@ -1,7 +1,6 @@
 import { RampDirection } from "@packages/shared";
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
-import { PoolSelectorModal } from "../../components/InputKeys/SelectionModal";
 import { PoweredBy } from "../../components/PoweredBy";
 import { Offramp } from "../../components/Ramp/Offramp";
 import { Onramp } from "../../components/Ramp/Onramp";
@@ -12,6 +11,7 @@ import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 import { useRampKycLevel2Started, useRampKycStarted } from "../../stores/rampStore";
+import { TokenSelectionPage } from "../token-selection";
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -23,7 +23,6 @@ export const RampForm = () => {
 
   return (
     <main>
-      <PoolSelectorModal />
       <RampSummaryDialog />
       {rampKycStarted || rampKycLevel2Started ? (
         <PIXKYCForm />
@@ -34,6 +33,7 @@ export const RampForm = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.3 }}
         >
+          <TokenSelectionPage />
           <RampHistory />
           <section className="flex w-full justify-end pb-1">
             <RampHistoryButton />

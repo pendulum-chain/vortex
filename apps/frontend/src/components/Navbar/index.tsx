@@ -2,14 +2,10 @@ import { motion } from "motion/react";
 
 import whiteMobileLogo from "../../assets/logo/circle.png";
 import whiteLogo from "../../assets/logo/white.png";
-import { useNetwork } from "../../contexts/network";
 import { ConnectWalletButton } from "../buttons/ConnectWalletButton";
 import { LanguageSelector } from "../LanguageSelector";
-import { NetworkSelector } from "../NetworkSelector";
 
 export const Navbar = () => {
-  const { networkSelectorDisabled } = useNetwork();
-
   return (
     <>
       <motion.header
@@ -28,8 +24,7 @@ export const Navbar = () => {
           <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
         </div>
         <div className="flex items-center">
-          <LanguageSelector disabled={networkSelectorDisabled} />
-          <NetworkSelector disabled={networkSelectorDisabled} />
+          <LanguageSelector />
           <ConnectWalletButton />
         </div>
       </motion.header>

@@ -182,6 +182,7 @@
         "tryAgain": "Try again"
       },
       "selectionModal": {
+        "allNetworks": "All Networks",
         "searchPlaceholder": "Find by name or address",
         "title": "Select a token"
       }

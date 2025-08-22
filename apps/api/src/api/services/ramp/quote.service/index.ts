@@ -143,6 +143,7 @@ export class QuoteService extends BaseRampService {
       const inputTokenDetails = { erc20AddressSourceChain: ERC20_EURE_POLYGON } as unknown as EvmTokenDetails;
       const fromNetwork = Networks.Polygon; // Always Polygon for EUR onramp
       const toNetwork = getNetworkFromDestination(request.to);
+
       // validate networks, tokens.
       if (!toNetwork) {
         throw new APIError({

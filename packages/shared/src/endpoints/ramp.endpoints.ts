@@ -151,17 +151,19 @@ export interface GetRampHistoryRequest {
   walletAddress: string;
 }
 
+export interface GetRampHistoryTransaction {
+  id: string;
+  type: RampDirection;
+  fromNetwork: string;
+  toNetwork: string;
+  fromAmount: string;
+  toAmount: string;
+  fromCurrency: string;
+  toCurrency: string;
+  status: string;
+  date: string;
+}
+
 export type GetRampHistoryResponse = {
-  transactions: {
-    id: string;
-    type: RampDirection;
-    fromNetwork: string;
-    toNetwork: string;
-    fromAmount: string;
-    toAmount: string;
-    fromCurrency: string;
-    toCurrency: string;
-    status: string;
-    date: string;
-  }[];
+  transactions: GetRampHistoryTransaction[];
 };
