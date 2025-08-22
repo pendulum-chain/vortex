@@ -1,12 +1,12 @@
-import { RampDirection } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useNetwork } from "../../../contexts/network";
+import { useRampActor } from "../../../contexts/rampState";
 import { usePartnerId } from "../../../stores/partnerStore";
 import { useQuote, useQuoteStore } from "../../../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { useRampSummaryVisible } from "../../../stores/rampStore";
 
 interface UseQuoteRefreshDataReturn {
   hasValidQuote: boolean;
@@ -15,6 +15,7 @@ interface UseQuoteRefreshDataReturn {
 }
 
 export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
+  const rampActor = useRampActor();
   const quote = useQuote();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
@@ -22,9 +23,11 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
   const { selectedNetwork } = useNetwork();
   const rampType = useRampDirection();
   const partnerId = usePartnerId();
-  const { fetchQuote } = useQuoteStore();
-  const rampSummaryVisible = useRampSummaryVisible();
+  const {
+    actions: { fetchQuote }
+  } = useQuoteStore();
 
+  const rampSummaryVisible = useSelector(rampActor, state => state.context.rampSummaryVisible);
   const hasValidQuote = Boolean(quote && inputAmount && onChainToken && fiatToken);
   const shouldRefresh = hasValidQuote && !rampSummaryVisible;
 

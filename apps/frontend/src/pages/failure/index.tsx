@@ -1,11 +1,11 @@
 import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
 import { Box } from "../../components/Box";
 import { EmailForm } from "../../components/EmailForm";
 import { TransactionInfo } from "../../components/TransactionInfo";
 import { config } from "../../config";
-import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { useRampState } from "../../stores/rampStore";
+import { useRampActor } from "../../contexts/rampState";
 
 const ErrorIcon = () => (
   <div className="flex h-20 w-20 items-center justify-center rounded-full border border-orange-200 bg-orange-50">
@@ -15,10 +15,17 @@ const ErrorIcon = () => (
 
 export const FailurePage = () => {
   const { t } = useTranslation();
-  const { finishOfframping } = useRampSubmission();
-  const rampState = useRampState();
+  const rampActor = useRampActor();
+
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
+
   const transactionId = rampState?.ramp?.id || "N/A";
 
+  const finishOfframping = () => {
+    rampActor.send({ type: "FINISH_OFFRAMPING" });
+  };
   return (
     <main>
       <Box className="mx-auto mt-12 flex max-w-2xl flex-col items-center justify-center">

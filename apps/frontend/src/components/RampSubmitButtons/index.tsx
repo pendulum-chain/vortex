@@ -1,15 +1,16 @@
 import { RampDirection } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../contexts/events";
+import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { useFeeComparisonStore } from "../../stores/feeComparison";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useInitializeFailedMessage, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
 import { SwapSubmitButton } from "../buttons/SwapSubmitButton";
 
 interface RampSubmitButtonsProps {
@@ -18,21 +19,25 @@ interface RampSubmitButtonsProps {
 
 export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { t } = useTranslation();
-
+  const rampActor = useRampActor();
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage } = useRampValidation();
-  const executionInput = useRampExecutionInput();
-  const initializeFailedMessage = useInitializeFailedMessage();
-  const isRampSummaryDialogVisible = useRampSummaryVisible();
+
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const rampDirection = useRampDirection();
+  const rampDirection = useRampDirection(); // XSTATE: maybe move into state.
   const isWidgetMode = useWidgetMode();
 
   const inputAmount = useInputAmount();
   const { quote } = useQuoteStore();
   const quoteInputAmount = quote?.inputAmount;
+
+  const { isRampSummaryDialogVisible, initializeFailedMessage, executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
+    initializeFailedMessage: state.context.initializeFailedMessage,
+    isRampSummaryDialogVisible: state.context.rampSummaryVisible
+  }));
 
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
@@ -60,7 +65,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   };
 
   const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount));
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || isQuoteOutdated; // TODO we should disable ONLY if there is an error requiring user action
   const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
@@ -9,10 +10,8 @@ import {
 } from "../../services/transactions/ephemerals";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
-import { useRampActions } from "../../stores/rampStore";
+import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
-import { useRegisterRamp } from "../offramp/useRampService/useRegisterRamp";
-import { useStartRamp } from "../offramp/useRampService/useStartRamp";
 import { useVortexAccount } from "../useVortexAccount";
 
 interface SubmissionError extends Error {
@@ -27,16 +26,15 @@ const createEphemerals = () => ({
 });
 
 export const useRampSubmission = () => {
+  const rampActor = useRampActor();
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
   const { quote } = useQuoteStore();
-  const { address } = useVortexAccount();
+  const { address, chainId } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
-  const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
-  const { registerRamp } = useRegisterRamp();
   const preRampCheck = usePreRampCheck();
-  useStartRamp(); // This will automatically start the ramp process when the conditions are met
+  const rampDirection = useRampDirectionStore(state => state.activeDirection);
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
@@ -94,9 +92,8 @@ export const useRampSubmission = () => {
         to_amount: quote?.outputAmount || "0",
         to_asset: onChainToken
       });
-      setRampInitiating(false);
     },
-    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating]
+    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount]
   );
 
   const onRampConfirm = useCallback(async () => {
@@ -106,19 +103,19 @@ export const useRampSubmission = () => {
     try {
       const executionInput = prepareExecutionInput();
       await preRampCheck(executionInput);
-      setRampExecutionInput(executionInput);
-      await registerRamp(executionInput);
+      if (!chainId) {
+        throw new Error("ChainId must be defined at this stage");
+      }
+      console.log({ input: { chainId, executionInput, rampDirection } });
+      rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
     } finally {
       setExecutionPreparing(false);
     }
-  }, [executionPreparing, prepareExecutionInput, preRampCheck, setRampExecutionInput, registerRamp, handleSubmissionError]);
+  }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError]);
 
   return {
-    finishOfframping: () => {
-      resetRampState();
-    },
     isExecutionPreparing: executionPreparing,
     onRampConfirm,
     validateSubmissionData

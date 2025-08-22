@@ -3,7 +3,7 @@ import { Keypair, Memo, MemoType, Operation, Transaction } from "stellar-sdk";
 import { TomlValues } from "../../../types/sep";
 
 import { fetchAndValidateChallenge } from "./challenge";
-import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from "./utils";
+import { exists, fetchSep10Signatures, getUrlParams } from "./utils";
 
 interface Sep10Response {
   token: string;
@@ -36,9 +36,7 @@ export async function sep10(
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: FiatToken,
-  address: string,
-  checkAndWaitForSignature: () => Promise<void>,
-  forceRefreshAndWaitForSignature: () => Promise<void>
+  address: string
 ): Promise<Sep10Response> {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
@@ -53,20 +51,13 @@ export async function sep10(
   const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address);
   const transactionSigned = await fetchAndValidateChallenge(webAuthEndpoint, urlParams, signingKey);
 
-  if (usesMemo) {
-    await checkAndWaitForSignature();
-  }
-
-  const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(
-    forceRefreshAndWaitForSignature,
-    {
-      address: address,
-      challengeXDR: transactionSigned.toXDR(),
-      clientPublicKey: sep10Account,
-      outToken: outputToken,
-      usesMemo
-    }
-  );
+  const { masterClientSignature, clientSignature, clientPublic } = await fetchSep10Signatures({
+    address: address,
+    challengeXDR: transactionSigned.toXDR(),
+    clientPublicKey: sep10Account,
+    outToken: outputToken,
+    usesMemo
+  });
 
   if (supportsClientDomain) {
     transactionSigned.addSignature(clientPublic, clientSignature);

@@ -1,6 +1,7 @@
 import { RefObject } from "react";
 import { create } from "zustand";
 
+//XSTATE migrate: what to do with this?
 interface RampSummaryState {
   isQuoteExpired: boolean;
   dialogScrollRef: RefObject<HTMLDivElement | null> | null;

@@ -1,11 +1,12 @@
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
+import { useRampActor } from "../../../contexts/rampState";
 import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
-import { useRampStore } from "../../../stores/rampStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
 export interface UseKYCFormProps {
@@ -99,10 +100,10 @@ export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const { taxId: taxIdFromStore, pixId: pixIdFromStore } = useRampFormStore();
-  const {
-    rampExecutionInput: executionInput,
-    actions: { setRampExecutionInput }
-  } = useRampStore();
+  const rampActor = useRampActor();
+  const { executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput
+  }));
   const { setTaxId, setPixId } = useRampFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
@@ -123,16 +124,14 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   useEffect(() => {
     if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
       setTaxId(watchedCpf);
-      if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
     }
-  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, setRampExecutionInput]);
+  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, rampActor]);
 
   useEffect(() => {
     if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
       setPixId(watchedPixId);
-      if (executionInput) setRampExecutionInput({ ...executionInput, pixId: watchedPixId });
     }
-  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, setRampExecutionInput]);
+  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, rampActor]);
 
   useEffect(() => {
     if (cpfApiError) {

@@ -265,6 +265,11 @@
       "waitingForSignature": "Aguardando assinatura",
       "yourConnectedWallet": "sua carteira conectada para prosseguir"
     },
+    "stepper": {
+      "confirm": "Confirmar",
+      "details": "Detalhes",
+      "verification": "Verificação"
+    },
     "swap": {
       "buyButton": "Comprar",
       "compareFees": "Comparar taxas",

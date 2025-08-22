@@ -1,7 +1,8 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { FiatToken, RampDirection } from "@packages/shared";
+import { FiatToken } from "@packages/shared";
 import { useCallback, useEffect } from "react";
 import { UseFormReturn, useForm } from "react-hook-form";
+import { useRampActor } from "../../contexts/rampState";
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
@@ -35,6 +36,7 @@ export const useRampForm = (): {
     resolver: yupResolver(formSchema)
   });
 
+  const rampActor = useRampActor();
   const taxId = useTaxId();
   const pixId = usePixId();
   const inputAmount = useInputAmount();
@@ -78,21 +80,28 @@ export const useRampForm = (): {
   useEffect(() => {
     const currentInputAmount = form.getValues("inputAmount");
     const storeInputAmountStr = inputAmount?.toString() || "0";
+    rampActor.send({ message: undefined, type: "SET_INITIALIZE_FAILED_MESSAGE" });
+
     if (storeInputAmountStr !== "0" && currentInputAmount !== storeInputAmountStr) {
       form.setValue("inputAmount", storeInputAmountStr);
     }
-  }, [form, inputAmount]);
+  }, [form, inputAmount, rampActor]);
 
   useEffect(() => {
     const currentOnChainToken = form.getValues("onChainToken");
+    rampActor.send({ message: undefined, type: "SET_INITIALIZE_FAILED_MESSAGE" });
+
     if (onChainToken && onChainToken !== currentOnChainToken) {
       form.setValue("onChainToken", onChainToken);
     }
-  }, [form, onChainToken]);
+  }, [form, onChainToken, rampActor]);
 
   useEffect(() => {
     const currentFiatToken = form.getValues("fiatToken");
     const constrainedToken = enforceTokenConstraints(fiatToken);
+
+    rampActor.send({ message: undefined, type: "SET_INITIALIZE_FAILED_MESSAGE" });
+
     if (constrainedToken !== currentFiatToken) {
       form.setValue("fiatToken", constrainedToken);
       setFiatToken(constrainedToken);
@@ -101,21 +110,34 @@ export const useRampForm = (): {
     if (lastConstraintDirection !== direction) {
       setConstraintDirection(direction);
     }
-  }, [form, fiatToken, direction, enforceTokenConstraints, setFiatToken, setConstraintDirection, lastConstraintDirection]);
+  }, [
+    form,
+    fiatToken,
+    direction,
+    enforceTokenConstraints,
+    setFiatToken,
+    setConstraintDirection,
+    lastConstraintDirection,
+    rampActor
+  ]);
 
   useEffect(() => {
     const currentTaxId = form.getValues("taxId");
+    rampActor.send({ message: undefined, type: "SET_INITIALIZE_FAILED_MESSAGE" });
+
     if (taxId !== currentTaxId) {
       form.setValue("taxId", taxId || "");
     }
-  }, [form, taxId]);
+  }, [form, taxId, rampActor]);
 
   useEffect(() => {
     const currentPixId = form.getValues("pixId");
+
+    rampActor.send({ message: undefined, type: "SET_INITIALIZE_FAILED_MESSAGE" });
     if (pixId !== currentPixId) {
       form.setValue("pixId", pixId || "");
     }
-  }, [form, pixId]);
+  }, [form, pixId, rampActor]);
 
   const reset = () => {
     resetStore();

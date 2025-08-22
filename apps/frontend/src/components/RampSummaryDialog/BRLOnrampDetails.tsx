@@ -1,15 +1,19 @@
+import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useRampState } from "../../stores/rampStore";
+import { useRampActor } from "../../contexts/rampState";
 import { useIsQuoteExpired } from "../../stores/rampSummary";
 import { CopyButton } from "../CopyButton";
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();
-  const rampState = useRampState();
+  const rampActor = useRampActor();
   const isQuoteExpired = useIsQuoteExpired();
 
+  const { rampState } = useSelector(rampActor, state => ({
+    rampState: state.context.rampState
+  }));
   if (!rampState?.ramp?.depositQrCode) return null;
   if (isQuoteExpired) return null;
 

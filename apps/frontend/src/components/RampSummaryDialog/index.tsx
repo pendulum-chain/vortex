@@ -1,23 +1,17 @@
 import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
 import { FiatToken, RampDirection } from "@packages/shared";
 import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
+import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { useGetRampRegistrationErrorMessage } from "../../hooks/offramp/useRampService/useRegisterRamp/helpers";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
 import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
 import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import {
-  useRampActions,
-  useRampExecutionInput,
-  useRampRegistrationError,
-  useRampSigningPhase,
-  useRampState,
-  useRampSummaryVisible
-} from "../../stores/rampStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
@@ -26,22 +20,32 @@ import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
+  const rampActor = useRampActor();
   const { selectedNetwork } = useNetwork();
-  const { resetRampState } = useRampActions();
-  const executionInput = useRampExecutionInput();
-  const visible = useRampSummaryVisible();
-  const rampType = executionInput?.quote.rampType || RampDirection.BUY;
-  const isOnramp = rampType === RampDirection.BUY;
-  const rampRegistrationError = useRampRegistrationError();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const { quote, fetchQuote } = useQuoteStore();
+  const {
+    quote,
+    actions: { fetchQuote }
+  } = useQuoteStore();
   const partnerId = usePartnerId();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
-  const rampState = useRampState();
-  const signingPhase = useRampSigningPhase();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
+
+  const { visible, executionInput, rampDirection, rampState, signingPhase, rampRegistrationError } = useSelector(
+    rampActor,
+    state => ({
+      executionInput: state.context.executionInput,
+      rampDirection: state.context.rampDirection,
+      rampRegistrationError: state.context.initializeFailedMessage,
+      rampState: state.context.rampState,
+      signingPhase: state.context.rampSigningPhase,
+      visible: state.context.rampSummaryVisible // TODO replace with proper error
+    })
+  );
+  const rampType = rampDirection || RampDirection.BUY;
+  const isOnramp = rampType === RampDirection.BUY;
 
   const dialogScrollRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +80,7 @@ export const RampSummaryDialog: FC = () => {
   if (!executionInput) return null;
 
   const onClose = () => {
-    resetRampState();
+    rampActor.send({ type: "CANCEL_RAMP" });
     fetchQuote({
       fiatToken,
       inputAmount: Big(quote?.inputAmount || "0"),

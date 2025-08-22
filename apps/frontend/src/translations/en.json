@@ -131,7 +131,7 @@
     },
     "dialogs": {
       "connectWallet": {
-        "connect": "Connect",
+        "connect": "Connect Wallet",
         "wrongNetwork": "Wrong network"
       },
       "polkadotDisconnectWallet": {
@@ -266,6 +266,11 @@
       "signatures": "Signatures",
       "waitingForSignature": "Waiting for signature",
       "yourConnectedWallet": "your connected wallet to proceed"
+    },
+    "stepper": {
+      "confirm": "confirm",
+      "details": "Details",
+      "verification": "Verification"
     },
     "swap": {
       "buyButton": "Buy",
@@ -421,6 +426,14 @@
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
         "tryLargerAmount": "Input amount too low. Please try a larger amount."
+      }
+    },
+    "widget": {
+      "details": {
+        "buttons": {
+          "next": "Next"
+        },
+        "title": "Enter Details"
       }
     }
   },

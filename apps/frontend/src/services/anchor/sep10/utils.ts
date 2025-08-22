@@ -3,7 +3,7 @@ import { Keyring } from "@polkadot/api";
 import { keccak256 } from "viem/utils";
 import { config } from "../../../config";
 import { SIGNING_SERVICE_URL } from "../../../constants/constants";
-import { fetchSep10Signatures, SignerServiceSep10Request } from "../../signingService";
+import { fetchSep10Signatures as fetchSignatures, SignerServiceSep10Request } from "../../signingService";
 
 // Returns the hash value for the address.
 // If it's a polkadot address, it will return raw data of the address.
@@ -25,14 +25,10 @@ async function deriveMemoFromAddress(address: string) {
 
 export const exists = (value?: string | null): value is string => !!value && value?.length > 0;
 
-export async function sep10SignaturesWithLoginRefresh(refreshFunction: () => Promise<void>, args: SignerServiceSep10Request) {
+export async function fetchSep10Signatures(args: SignerServiceSep10Request) {
   try {
-    return await fetchSep10Signatures(args);
+    return await fetchSignatures(args);
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === "Invalid signature") {
-      await refreshFunction();
-      return await fetchSep10Signatures(args);
-    }
     throw new Error("Could not fetch sep 10 signatures from backend");
   }
 }
