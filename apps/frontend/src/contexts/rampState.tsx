@@ -41,6 +41,10 @@ const PersistenceEffect = () => {
     | MoneriumKycActorRef
     | undefined;
 
+  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state?.value
   }));
@@ -53,10 +57,14 @@ const PersistenceEffect = () => {
     stellarState: state?.value
   }));
 
+  const { aveniaState } = useSelector(aveniaActor, state => ({
+    aveniaState: state?.value
+  }));
+
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-  }, [rampState, moneriumState, stellarState]);
+  }, [rampState, moneriumState, stellarState, aveniaState]);
 
   return null;
 };
