@@ -519,6 +519,34 @@ export interface DocumentUploadResponse {
   uploadURLBack?: string;
 }
 
+export enum KycAttemptStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  COMPLETED = "COMPLETED",
+  EXPIRED = "EXPIRED"
+}
+
+export enum KycAttemptResult {
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED"
+}
+
+export interface KycAttempt {
+  id: string;
+  levelName: "level-1";
+  submissionData: unknown;
+  status: KycAttemptStatus;
+  result: KycAttemptResult;
+  resultMessage: string;
+  retryable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetKycAttemptResponse {
+  attempt: KycAttempt;
+}
+
 export interface CreateAveniaSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;

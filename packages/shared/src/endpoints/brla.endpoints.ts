@@ -4,6 +4,7 @@ import { RampDirection } from "../types/rampDirection";
 export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
+  BIRTHDATE = "birthdate",
   UNKNOWN = "unknown"
 }
 
@@ -36,7 +37,7 @@ export interface BrlaGetKycStatusRequest {
 export interface BrlaGetKycStatusResponse {
   type: string;
   status: string;
-  level: number;
+  level: string;
   failureReason: KycFailureReason;
 }
 

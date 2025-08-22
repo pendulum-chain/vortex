@@ -15,6 +15,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: DataTypes.NOW,
       type: DataTypes.DATE
     },
+    kyc_attempt: {
+      allowNull: true,
+      type: DataTypes.STRING
+    },
     sub_account_id: {
       allowNull: false,
       type: DataTypes.STRING

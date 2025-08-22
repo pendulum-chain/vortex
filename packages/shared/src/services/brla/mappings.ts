@@ -8,6 +8,7 @@ import {
   DocumentUploadRequest,
   DocumentUploadResponse,
   FastQuoteResponse,
+  GetKycAttemptResponse,
   KycLevel1Payload,
   KycLevel1Response,
   KycRetryPayload,
@@ -46,7 +47,8 @@ export enum Endpoint {
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info",
-  Documents = "/v2/documents"
+  Documents = "/v2/documents",
+  GetKycAttempt = "/v2/kyc/attempts"
 }
 
 export interface EndpointMapping {
@@ -310,6 +312,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.GetKycAttempt]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: GetKycAttemptResponse;
     };
     PATCH: {
       body: undefined;

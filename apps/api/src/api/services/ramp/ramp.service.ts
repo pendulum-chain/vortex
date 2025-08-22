@@ -32,6 +32,7 @@ import logger from "../../../config/logger";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -655,24 +656,16 @@ export class RampService extends BaseRampService {
     moonbeamEphemeralAddress: string
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    // if (subaccount.kyc.level < 1) {
-    //   throw new APIError({
-    //     message: "KYC invalid.",
-    //     status: httpStatus.BAD_REQUEST
-    //   });
-    // }
-
-    //AVENIA-MIGRATION: We assume if subaccount is returned, KYC is valid?
-
-    const accountLimits = await brlaApiService.getSubaccountUsedLimit(subaccount.subAccountId);
+    const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
     // Filter for BRL specific limits
     const brlaLimits = accountLimits?.limitInfo.limits.filter(entry => entry.currency === BrlaCurrency.BRL);
     if (!brlaLimits || brlaLimits.length === 0) {
@@ -698,7 +691,7 @@ export class RampService extends BaseRampService {
       outputCurrency: BrlaCurrency.BRLA,
       outputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
       outputThirdParty: false,
-      subAccountId: subaccount.subAccountId
+      subAccountId: taxIdRecord.subAccountId
     });
 
     const aveniaTicket = await brlaApiService.createPixInputTicket({

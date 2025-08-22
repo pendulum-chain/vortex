@@ -28,7 +28,6 @@ import { AveniaAccountType } from "@packages/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
-import logger from "../../config/logger";
 import TaxId from "../../models/taxId.model";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
@@ -41,6 +40,8 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
       return KycFailureReason.FACE;
     case "name does not match":
       return KycFailureReason.NAME;
+    case "birthdate does not match":
+      return KycFailureReason.BIRTHDATE;
     default:
       return KycFailureReason.UNKNOWN; // default
   }
@@ -278,43 +279,20 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    console.log("fetchSubaccountKycStatus: ", taxId);
+    const brlaApiService = BrlaApiService.getInstance();
+    const kycAttemptStatus = await brlaApiService.getKycAttempt(taxIdRecord.subAccountId);
 
-    // MOCKING A PENDING
-    const lastEventCached = {
-      data: {
-        failureReason: null,
-        kycStatus: "PENDING",
-        level: "LEVEL_1"
-      },
-      subscription: "KYC"
-    };
-    // // TODO replace subscription type with an enum, all codebase.
-    // const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId, "KYC");
+    if (!kycAttemptStatus) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
+      return;
+    }
 
-    // // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
-    // if (!lastEventCached || lastEventCached.subscription !== "KYC") {
-    //   res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
-    //   return;
-    // }
-
-    // const lastInteraction = lastInteractionMap.get(taxIdRecord.subAccountId);
-    // if (!lastInteraction) {
-    //   res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
-    // }
-    // if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 2000) {
-    //   // If the last event is older than 2 seconds from the last interaction, we assume it's not a new event.
-    //   // So it is ignored.
-    //   res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
-    //   return;
-    // }
-
-    // res.status(httpStatus.OK).json({
-    //   failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
-    //   level: lastEventCached.data.level,
-    //   status: lastEventCached.data.kycStatus,
-    //   type: lastEventCached.subscription
-    // });
+    res.status(httpStatus.OK).json({
+      failureReason: mapKycFailureReason(kycAttemptStatus.attempt.resultMessage),
+      level: kycAttemptStatus.attempt.levelName,
+      status: kycAttemptStatus.attempt.status,
+      type: "KYC"
+    });
   } catch (error) {
     handleApiError(error, res, "fetchSubaccountKycStatus");
   }

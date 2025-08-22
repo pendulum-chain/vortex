@@ -7,18 +7,20 @@ export interface TaxIdAttributes {
   taxId: string;
   subAccountId: string;
   accountType: AveniaAccountType;
+  kycAttempt: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Define the attributes that can be set during creation
-type TaxIdCreationAttributes = Optional<TaxIdAttributes, "createdAt" | "updatedAt">;
+type TaxIdCreationAttributes = Optional<TaxIdAttributes, "createdAt" | "updatedAt" | "kycAttempt">;
 
 // Define the TaxId model
 class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements TaxIdAttributes {
   declare taxId: string;
   declare subAccountId: string;
   declare accountType: AveniaAccountType;
+  declare kycAttempt: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -36,6 +38,11 @@ TaxId.init(
       defaultValue: DataTypes.NOW,
       field: "created_at",
       type: DataTypes.DATE
+    },
+    kycAttempt: {
+      allowNull: true,
+      field: "kyc_attempt",
+      type: DataTypes.STRING
     },
     subAccountId: {
       allowNull: false,

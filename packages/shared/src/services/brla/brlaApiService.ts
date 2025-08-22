@@ -24,6 +24,7 @@ import {
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
+  GetKycAttemptResponse,
   KycLevel1Payload,
   KycLevel1Response,
   KycLevel2Response,
@@ -298,5 +299,9 @@ export class BrlaApiService {
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subaccountId=${encodeURIComponent(payload.subAccountId)}`;
     return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
+  }
+
+  public async getKycAttempt(attemptId: string): Promise<GetKycAttemptResponse> {
+    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", undefined, undefined, attemptId);
   }
 }

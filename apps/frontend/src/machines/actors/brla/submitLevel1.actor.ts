@@ -3,7 +3,7 @@ import { fromPromise } from "xstate";
 import { createSubaccount, submitNewKyc } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
 
-export const submitActor = fromPromise(async ({ input }: { input: AveniaKycContext }) => {
+export const submitActor = fromPromise(async ({ input }: { input: AveniaKycContext }): Promise<void> => {
   const { taxId, kycFormData, documentUploadIds } = input;
 
   if (!documentUploadIds || !documentUploadIds.uploadedSelfieId || !documentUploadIds.uploadedDocumentId || !kycFormData) {
@@ -14,7 +14,7 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     city: kycFormData.city,
     country: "BRA",
     countryOfTaxId: "BRA",
-    dateOfBirth: "1990-01-01", // TODO format date to string
+    dateOfBirth: kycFormData.birthdate.toISOString().split("T")[0],
     email: "john.doe@example.com", // Mocking email as it is not in the form
     fullName: kycFormData.fullName,
     state: kycFormData.state,

@@ -31,7 +31,6 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     }
 
     try {
-      // Avenia-Migration: this must be changed. No more levels. Either subaccount exists, or not.
       const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 
@@ -41,7 +40,8 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
       const remainingLimitNum = Number(remainingLimitResponse.remainingLimit);
 
       if (amountNum > remainingLimitNum) {
-        return { kycNeeded: true };
+        // Avenia-Migration: this must be changed. No more levels. TOAST?
+        throw new Error("Insufficient remaining limit for this transaction.");
       }
 
       return { brlaEvmAddress, kycNeeded: false };
