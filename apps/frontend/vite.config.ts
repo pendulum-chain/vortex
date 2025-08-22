@@ -27,9 +27,5 @@ export default defineConfig({
   },
   server: {
     host: true
-  },
-  test: {
-    globals: true,
-    testTimeout: 15000
   }
 });
