@@ -1,4 +1,5 @@
-import { AveniaAccountType } from "src/endpoints";
+import { QuoteResponse } from "../../../src/endpoints";
+import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
@@ -19,7 +20,6 @@ import {
   PixInputTicketPayload,
   PixKeyData,
   PixOutputTicketPayload,
-  QuoteResponse,
   RegisterSubaccountPayload,
   SubaccountData,
   SwapLog,

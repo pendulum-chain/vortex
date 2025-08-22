@@ -134,7 +134,7 @@ export const PIXKYCForm = () => {
     });
   }
 
-  if (aveniaState.stateValue === "Verifying") {
+  if (aveniaState.stateValue === "Verifying" || aveniaState.stateValue === "Submit") {
     return (
       <div className="relative">
         <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />

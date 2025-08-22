@@ -278,32 +278,43 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    // TODO replace subscription type with an enum, all codebase.
-    const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId, "KYC");
+    console.log("fetchSubaccountKycStatus: ", taxId);
 
-    // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
-    if (!lastEventCached || lastEventCached.subscription !== "KYC") {
-      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
-      return;
-    }
+    // MOCKING A PENDING
+    const lastEventCached = {
+      data: {
+        failureReason: null,
+        kycStatus: "PENDING",
+        level: "LEVEL_1"
+      },
+      subscription: "KYC"
+    };
+    // // TODO replace subscription type with an enum, all codebase.
+    // const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId, "KYC");
 
-    const lastInteraction = lastInteractionMap.get(taxIdRecord.subAccountId);
-    if (!lastInteraction) {
-      res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
-    }
-    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 2000) {
-      // If the last event is older than 2 seconds from the last interaction, we assume it's not a new event.
-      // So it is ignored.
-      res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
-      return;
-    }
+    // // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
+    // if (!lastEventCached || lastEventCached.subscription !== "KYC") {
+    //   res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
+    //   return;
+    // }
 
-    res.status(httpStatus.OK).json({
-      failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
-      level: lastEventCached.data.level,
-      status: lastEventCached.data.kycStatus,
-      type: lastEventCached.subscription
-    });
+    // const lastInteraction = lastInteractionMap.get(taxIdRecord.subAccountId);
+    // if (!lastInteraction) {
+    //   res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
+    // }
+    // if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 2000) {
+    //   // If the last event is older than 2 seconds from the last interaction, we assume it's not a new event.
+    //   // So it is ignored.
+    //   res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
+    //   return;
+    // }
+
+    // res.status(httpStatus.OK).json({
+    //   failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
+    //   level: lastEventCached.data.level,
+    //   status: lastEventCached.data.kycStatus,
+    //   type: lastEventCached.subscription
+    // });
   } catch (error) {
     handleApiError(error, res, "fetchSubaccountKycStatus");
   }
@@ -392,8 +403,6 @@ export const newKyc = async (
   try {
     const brlaApiService = BrlaApiService.getInstance();
 
-    // artificial delay 10 seconds... solves  Request failed with status '503'. Error: {"error":"unavailable"}?
-    await new Promise(resolve => setTimeout(resolve, 10000));
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);

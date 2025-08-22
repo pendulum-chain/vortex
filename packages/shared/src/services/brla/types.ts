@@ -334,23 +334,6 @@ export interface PayOutQuoteParams {
   outputAmount: string;
 }
 
-export interface QuoteResponse {
-  quoteToken: string;
-  inputCurrency: string;
-  inputPaymentMethod: string;
-  inputAmount: string;
-  outputCurrency: string;
-  outputPaymentMethod: string;
-  outputAmount: string;
-  markupAmount: string;
-  markupCurrency: string;
-  inputThirdParty: boolean;
-  outputThirdParty: boolean;
-  appliedFees: any[];
-  basePrice: string;
-  pairName: string;
-}
-
 // /account/tickets endpoint related types
 export interface BaseTicket {
   id: string;

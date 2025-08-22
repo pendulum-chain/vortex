@@ -1,4 +1,4 @@
-import { AveniaDocumentType, AveniaIdentityStatus } from "src/services";
+import { AveniaAccountType, AveniaDocumentType, AveniaIdentityStatus } from "../../src/services";
 import { RampDirection } from "../types/rampDirection";
 
 export enum KycFailureReason {
@@ -70,8 +70,6 @@ export interface BrlaAddress {
 }
 
 export type TaxIdType = "CPF" | "CNPJ";
-
-export type AveniaAccountType = "INDIVIDUAL";
 
 export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
