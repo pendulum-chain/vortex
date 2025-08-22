@@ -82,11 +82,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       const now = Date.now();
       const diff = targetTimestamp - now;
 
-      console.log("Time left in milliseconds:", diff, "now", now, "targetTimestamp", targetTimestamp);
-
       if (diff <= 0) {
         setTimeLeft({ minutes: 0, seconds: 0 });
-        console.log("Sending message to expire quote");
         rampActor.send({ type: "EXPIRE_QUOTE" });
         clearInterval(intervalId);
         return;

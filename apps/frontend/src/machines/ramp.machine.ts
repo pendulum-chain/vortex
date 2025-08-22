@@ -74,12 +74,10 @@ export const rampMachine = setup({
         throw new Error("Quote ID is required to load quote.");
       }
 
-      console.log("Loading quote with ID:", input.quoteId);
       const quote = await QuoteService.getQuote(input.quoteId);
       if (!quote) {
         throw new Error(`Quote with ID ${input.quoteId} not found.`);
       }
-      console.log("Loaded quote:", quote);
       return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
