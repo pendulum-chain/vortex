@@ -1,8 +1,8 @@
 import { RampDirection } from "@packages/shared";
 import { useCallback } from "react";
 import { useEventsContext } from "../contexts/events";
-import { useQuoteStore } from "../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection } from "../stores/rampDirectionStore";
 
 export const useTrackRampConfirmation = () => {

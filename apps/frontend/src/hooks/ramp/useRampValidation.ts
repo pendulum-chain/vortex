@@ -16,8 +16,8 @@ import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenA
 import { TrackableEvent, useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
-import { useQuote, useQuoteError } from "../../stores/ramp/useQuoteStore";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
+import { useQuote, useQuoteError } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useOnchainTokenBalance } from "../useOnchainTokenBalance";
 import { useVortexAccount } from "../useVortexAccount";
@@ -89,15 +89,15 @@ function validateOfframp(
   if (typeof userInputTokenBalance === "string") {
     const isNativeToken = fromToken.isNative;
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-      // trackEvent({
-      //   error_message: "insufficient_balance",
-      //   event: "form_error",
-      //   input_amount: inputAmount ? inputAmount.toString() : "0"
-      // });
-      // return t("pages.swap.error.insufficientFunds", {
-      //   assetSymbol: fromToken?.assetSymbol,
-      //   userInputTokenBalance
-      // });
+      trackEvent({
+        error_message: "insufficient_balance",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
+      });
+      return t("pages.swap.error.insufficientFunds", {
+        assetSymbol: fromToken?.assetSymbol,
+        userInputTokenBalance
+      });
       // If the user chose the max amount, show a warning for native tokens due to gas fees
     } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
       return t("pages.swap.error.gasWarning");
@@ -159,7 +159,7 @@ function validateTokenAvailability(
 export const useRampValidation = () => {
   const { t } = useTranslation();
 
-  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
+  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useQuoteFormStore();
   const quote = useQuote();
   const quoteError = useQuoteError();
   const { selectedNetwork } = useNetwork();
@@ -198,6 +198,7 @@ export const useRampValidation = () => {
         trackEvent
       });
     } else {
+      console.log("validating offramp");
       validationError = validateOfframp(t, {
         fromToken: fromToken as OnChainTokenDetails,
         inputAmount,

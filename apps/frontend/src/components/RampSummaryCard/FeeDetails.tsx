@@ -36,11 +36,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   return (
     <section className="mt-6">
       <div className="mb-2 flex justify-between">
-        <p>
-          {isOfframp
-            ? t("components.dialogs.RampSummaryDialog.offrampFee")
-            : t("components.dialogs.RampSummaryDialog.onrampFee")}{" "}
-        </p>
+        <p>{isOfframp ? t("components.RampSummaryCard.offrampFee") : t("components.RampSummaryCard.onrampFee")} </p>
         <p className="flex items-center gap-2">
           <strong>
             {feesCost.total} {feesCost.currency.toUpperCase()}
@@ -48,7 +44,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         </p>
       </div>
       <div className="mb-2 flex justify-between">
-        <p>{t("components.dialogs.RampSummaryDialog.quote")}</p>
+        <p>{t("components.RampSummaryCard.quote")}</p>
         <p>
           <InterbankExchangeRate
             asSpan={true}
@@ -60,12 +56,12 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
       </div>
       {destinationAddress && (
         <div className="mb-2 flex justify-between">
-          <p>{t("components.dialogs.RampSummaryDialog.destination")}</p>
+          <p>{t("components.RampSummaryCard.destination")}</p>
           {destinationAddress}
         </div>
       )}
       <div className="flex justify-between">
-        <p>{t("components.dialogs.RampSummaryDialog.partner")}</p>
+        <p>{t("components.RampSummaryCard.partner")}</p>
         <a className="text-blue-500 hover:underline" href={partnerUrl} rel="noopener noreferrer" target="_blank">
           {partnerUrl}
         </a>

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
 import { useRampActor } from "../../../contexts/rampState";
-import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore, useQuoteFormStoreActions } from "../../../stores/quote/useQuoteFormStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
 export interface UseKYCFormProps {
@@ -99,12 +99,12 @@ export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
 export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
-  const { taxId: taxIdFromStore, pixId: pixIdFromStore } = useRampFormStore();
+  const { taxId: taxIdFromStore, pixId: pixIdFromStore } = useQuoteFormStore();
   const rampActor = useRampActor();
   const { executionInput } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput
   }));
-  const { setTaxId, setPixId } = useRampFormStoreActions();
+  const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
 

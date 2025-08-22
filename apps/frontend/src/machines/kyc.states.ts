@@ -160,7 +160,7 @@ export const kycStateNode = {
     },
     VerificationComplete: {
       always: {
-        target: "#ramp.RegisterRamp"
+        target: "#ramp.KycComplete"
       },
       entry: {
         actions: [

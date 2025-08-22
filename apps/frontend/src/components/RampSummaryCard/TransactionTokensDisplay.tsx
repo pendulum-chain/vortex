@@ -49,9 +49,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     seconds: 0
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
-  const { setIsQuoteExpired } = useRampSummaryActions();
 
-  const { rampState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState } = useSelector(rampActor, state => ({
+    isQuoteExpired: state.context.isQuoteExpired,
     rampState: state.context.rampState
   }));
 
@@ -75,7 +75,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (targetTimestamp === null) {
       // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
-      //setIsQuoteExpired(true);
       return;
     }
 
@@ -85,7 +84,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
       if (diff <= 0) {
         setTimeLeft({ minutes: 0, seconds: 0 });
-        setIsQuoteExpired(true);
+        rampActor.send({ type: "EXPIRE_QUOTE" });
         clearInterval(intervalId);
         return;
       }
@@ -93,11 +92,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
       setTimeLeft({ minutes, seconds });
-      setIsQuoteExpired(false);
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, setIsQuoteExpired]);
+  }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, rampActor.send]);
 
   const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
 
@@ -159,9 +157,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
-      {targetTimestamp !== null && (
+      {targetTimestamp !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
-          {t("components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
+          {t("components.RampSummaryCard.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>
       )}
     </div>

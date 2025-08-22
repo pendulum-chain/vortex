@@ -38,7 +38,8 @@ const PersistenceEffect = () => {
     | MoneriumKycActorRef
     | undefined;
 
-  const { rampState } = useSelector(rampActor, state => ({
+  const { rampState, isQuoteExpired } = useSelector(rampActor, state => ({
+    isQuoteExpired: state?.context.isQuoteExpired,
     rampState: state?.value
   }));
 
@@ -50,10 +51,12 @@ const PersistenceEffect = () => {
     stellarState: state?.value
   }));
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-  }, [rampState, moneriumState, stellarState]);
+    // It's important to have `isQuoteExpired` here in the deps array to persist it when it changes
+  }, [rampState, moneriumState, stellarState, isQuoteExpired, rampActor.getPersistedSnapshot]);
 
   return null;
 };

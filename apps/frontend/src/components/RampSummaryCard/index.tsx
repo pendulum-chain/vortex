@@ -10,25 +10,17 @@ import { useRampActor } from "../../contexts/rampState";
 import { useGetRampRegistrationErrorMessage } from "../../hooks/offramp/useRampService/useRegisterRamp/helpers";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { usePartnerId } from "../../stores/partnerStore";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
+import { RampSubmitButton } from "../RampSubmitButton/RampSubmitButton";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
-import { RampSummaryButton } from "./RampSummaryButton";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
-export const RampSummaryDialog: FC = () => {
+export const RampSummaryCard: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { selectedNetwork } = useNetwork();
-  const fiatToken = useFiatToken();
-  const onChainToken = useOnChainToken();
-  const {
-    quote,
-    actions: { fetchQuote }
-  } = useQuoteStore();
-  const partnerId = usePartnerId();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
@@ -79,35 +71,19 @@ export const RampSummaryDialog: FC = () => {
   if (!visible) return null;
   if (!executionInput) return null;
 
-  const onClose = () => {
-    rampActor.send({ type: "CANCEL_RAMP" });
-    fetchQuote({
-      fiatToken,
-      inputAmount: Big(quote?.inputAmount || "0"),
-      onChainToken,
-      partnerId: partnerId === null ? undefined : partnerId,
-      rampType,
-      selectedNetwork
-    });
-  };
-
   const isUserMintAddressNotFound =
     rampRegistrationError && rampRegistrationError === MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND;
 
   const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
 
   const headerText = isOnramp
-    ? t("components.dialogs.RampSummaryDialog.headerText.buy")
-    : t("components.dialogs.RampSummaryDialog.headerText.sell");
+    ? t("components.RampSummaryCard.headerText.buy")
+    : t("components.RampSummaryCard.headerText.sell");
 
-  const actions = rampRegistrationErrorMessage ? (
-    <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onClose}>
-      {t("components.dialogs.RampSummaryDialog.tryAgain")}
-    </button>
-  ) : signingBoxVisible ? (
+  const actions = signingBoxVisible ? (
     <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
   ) : (
-    <RampSummaryButton />
+    <RampSubmitButton />
   );
 
   const content = (
@@ -142,13 +118,10 @@ export const RampSummaryDialog: FC = () => {
   );
 
   return (
-    <Dialog
-      actions={actions}
-      content={content}
-      dialogScrollRef={dialogScrollRef}
-      headerText={headerText}
-      onClose={onClose}
-      visible={visible}
-    />
+    <div className="flex grow-1 flex-col justify-center">
+      <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
+      {content}
+      <div className="my-4 mt-auto flex">{actions}</div>
+    </div>
   );
 };
