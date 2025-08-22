@@ -118,10 +118,10 @@ export const RampSummaryCard: FC = () => {
   );
 
   return (
-    <div className="flex flex-col justify-center">
+    <div className="flex grow-1 flex-col justify-center">
       <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
       {content}
-      <div className="my-4 flex grow-1">{actions}</div>
+      <div className="my-4 mt-auto flex">{actions}</div>
     </div>
   );
 };
