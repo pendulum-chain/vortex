@@ -89,15 +89,15 @@ function validateOfframp(
   if (typeof userInputTokenBalance === "string") {
     const isNativeToken = fromToken.isNative;
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-      // trackEvent({
-      //   error_message: "insufficient_balance",
-      //   event: "form_error",
-      //   input_amount: inputAmount ? inputAmount.toString() : "0"
-      // });
-      // return t("pages.swap.error.insufficientFunds", {
-      //   assetSymbol: fromToken?.assetSymbol,
-      //   userInputTokenBalance
-      // });
+      trackEvent({
+        error_message: "insufficient_balance",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
+      });
+      return t("pages.swap.error.insufficientFunds", {
+        assetSymbol: fromToken?.assetSymbol,
+        userInputTokenBalance
+      });
       // If the user chose the max amount, show a warning for native tokens due to gas fees
     } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
       return t("pages.swap.error.gasWarning");
@@ -198,6 +198,7 @@ export const useRampValidation = () => {
         trackEvent
       });
     } else {
+      console.log("validating offramp");
       validationError = validateOfframp(t, {
         fromToken: fromToken as OnChainTokenDetails,
         inputAmount,
