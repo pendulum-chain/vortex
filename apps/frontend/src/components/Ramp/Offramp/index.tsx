@@ -17,7 +17,7 @@ import { useValidateTerms } from "../../../stores/termsStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
 import { LabeledInput } from "../../LabeledInput";
-import { QuoteSubmitButtons } from "../../QuoteSubmitButtons";
+import { WalletConnectedSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
 import { UserBalance } from "../../UserBalance";
@@ -123,7 +123,7 @@ export const Offramp = () => {
           <BenefitsList />
         </section>
         <RampErrorMessage />
-        <QuoteSubmitButtons />
+        <WalletConnectedSubmitButton className="mt-4" needsWalletConnection />
       </motion.form>
     </FormProvider>
   );

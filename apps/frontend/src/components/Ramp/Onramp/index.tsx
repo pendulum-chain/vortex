@@ -17,7 +17,7 @@ import { useValidateTerms } from "../../../stores/termsStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
 import { LabeledInput } from "../../LabeledInput";
-import { QuoteSubmitButtons } from "../../QuoteSubmitButtons";
+import { QuoteSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
 
@@ -118,7 +118,7 @@ export const Onramp = () => {
           <BenefitsList />
         </section>
         <RampErrorMessage />
-        <QuoteSubmitButtons />
+        <QuoteSubmitButton className="mt-4" />
       </motion.form>
     </FormProvider>
   );
