@@ -1,4 +1,5 @@
 import { createPrivateKey, sign } from "crypto";
+import * as forge from "node-forge";
 import {
   BRLA_API_KEY,
   BRLA_BASE_URL,
@@ -84,11 +85,14 @@ export class BrlaApiService {
 
     const stringToSign = timestamp + method + requestUri + body;
 
-    const key = createPrivateKey(this.privateKey);
+    const privateKey = forge.pki.privateKeyFromPem(this.privateKey);
 
-    const signature = sign("sha256", Buffer.from(stringToSign), key);
+    const md = forge.md.sha256.create();
+    md.update(stringToSign, "utf8");
 
-    const signatureBase64 = signature.toString("base64");
+    const signatureBytes = privateKey.sign(md);
+
+    const signatureBase64 = forge.util.encode64(signatureBytes);
 
     const headers = {
       Accept: "application/json",

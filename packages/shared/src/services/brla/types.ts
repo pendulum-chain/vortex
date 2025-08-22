@@ -1,5 +1,3 @@
-import { BrlaKYCDocType } from "../..";
-
 export interface SubaccountData {
   id: string;
   fullName: string;
