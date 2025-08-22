@@ -14,21 +14,13 @@ import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormSt
 import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampSummaryActions } from "../../stores/rampSummary";
 import { Dialog } from "../Dialog";
+import { RampSubmitButton } from "../RampSubmitButton/RampSubmitButton";
 import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
-import { RampSummaryButton } from "./RampSummaryButton";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const RampSummaryCard: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { selectedNetwork } = useNetwork();
-  const fiatToken = useFiatToken();
-  const onChainToken = useOnChainToken();
-  const {
-    quote,
-    actions: { fetchQuote }
-  } = useQuoteStore();
-  const partnerId = usePartnerId();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
@@ -79,18 +71,6 @@ export const RampSummaryCard: FC = () => {
   if (!visible) return null;
   if (!executionInput) return null;
 
-  const onClose = () => {
-    rampActor.send({ type: "CANCEL_RAMP" });
-    fetchQuote({
-      fiatToken,
-      inputAmount: Big(quote?.inputAmount || "0"),
-      onChainToken,
-      partnerId: partnerId === null ? undefined : partnerId,
-      rampType,
-      selectedNetwork
-    });
-  };
-
   const isUserMintAddressNotFound =
     rampRegistrationError && rampRegistrationError === MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND;
 
@@ -100,14 +80,10 @@ export const RampSummaryCard: FC = () => {
     ? t("components.RampSummaryCard.headerText.buy")
     : t("components.RampSummaryCard.headerText.sell");
 
-  const actions = rampRegistrationErrorMessage ? (
-    <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onClose}>
-      {t("components.RampSummaryCard.tryAgain")}
-    </button>
-  ) : signingBoxVisible ? (
+  const actions = signingBoxVisible ? (
     <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
   ) : (
-    <RampSummaryButton />
+    <RampSubmitButton />
   );
 
   const content = (

@@ -22,7 +22,7 @@ interface UseButtonContentProps {
   submitButtonDisabled: boolean;
 }
 
-export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
+const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
@@ -146,7 +146,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
   ]);
 };
 
-export const RampSummaryButton = ({ className }: { className?: string }) => {
+export const RampSubmitButton = ({ className }: { className?: string }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();

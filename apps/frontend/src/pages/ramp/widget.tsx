@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
 import { QuoteSummary } from "../../components/QuoteSummary";
+import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
-import { RampSummaryButton } from "../../components/RampSummaryCard/RampSummaryButton";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
@@ -59,7 +59,7 @@ export const WidgetCards = () => {
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(onRampConfirm)}>
             <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
             <div className="mt-8 grid flex-grow gap-3 px-2">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
-            <RampSummaryButton className="mb-4" />
+            <RampSubmitButton className="mb-4" />
           </form>
           <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
         </FormProvider>

@@ -50,9 +50,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
-  const { rampState } = useSelector(rampActor, state => ({
-    executionInput: state.context.executionInput,
-    rampDirection: state.context.rampDirection,
+  const { isQuoteExpired, rampState } = useSelector(rampActor, state => ({
+    isQuoteExpired: state.context.isQuoteExpired,
     rampState: state.context.rampState
   }));
 
@@ -76,7 +75,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (targetTimestamp === null) {
       // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
-      //setIsQuoteExpired(true);
       return;
     }
 
@@ -162,7 +160,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
-      {targetTimestamp !== null && (
+      {targetTimestamp !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.RampSummaryCard.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>
