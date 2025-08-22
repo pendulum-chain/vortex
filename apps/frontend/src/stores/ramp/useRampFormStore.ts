@@ -99,6 +99,12 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
       }
     }),
     {
+      migrate: (persistedState, version) => {
+        if (version !== 2) {
+          return null;
+        }
+        return persistedState;
+      },
       name: "useRampFormStore",
       partialize: state => ({
         fiatToken: state.fiatToken,
@@ -107,7 +113,8 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
         onChainToken: state.onChainToken,
         pixId: state.pixId,
         taxId: state.taxId
-      })
+      }),
+      version: 2
     }
   )
 );
