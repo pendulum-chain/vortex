@@ -2,7 +2,7 @@ import { FiatToken, RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useFiatToken } from "../../../stores/ramp/useRampFormStore";
+import { useFiatToken } from "../../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
 
@@ -18,7 +18,10 @@ const OFFRAMP_FIELDS = [
   { id: StandardBrlaFieldOptions.PIX_ID, index: 1, label: "pixKey" }
 ];
 
-const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" }];
+const ONRAMP_FIELDS = [
+  { id: StandardBrlaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
+  { id: StandardBrlaFieldOptions.WALLET_ADDRESS, index: 1, label: "walletAddress" }
+];
 
 /**
  * BrlaSwapFields component

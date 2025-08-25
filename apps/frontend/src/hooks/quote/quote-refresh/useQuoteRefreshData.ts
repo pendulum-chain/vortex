@@ -4,8 +4,8 @@ import { useCallback } from "react";
 import { useNetwork } from "../../../contexts/network";
 import { useRampActor } from "../../../contexts/rampState";
 import { usePartnerId } from "../../../stores/partnerStore";
-import { useQuote, useQuoteStore } from "../../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
+import { useQuote, useQuoteStore } from "../../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 
 interface UseQuoteRefreshDataReturn {

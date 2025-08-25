@@ -33,6 +33,11 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   if (!executionInput) {
     throw new RegisterRampError("Execution input is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
+
+  if (!address) {
+    throw new RegisterRampError("Wallet address is required to register ramp.", RegisterRampErrorType.InvalidInput);
+  }
+
   const pendulumApiComponents = await pendulumApiService.getApi();
   const moonbeamApiComponents = await moonbeamApiService.getApi();
   if (!chainId) {

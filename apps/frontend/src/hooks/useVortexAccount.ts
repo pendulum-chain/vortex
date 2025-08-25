@@ -88,7 +88,7 @@ export const useVortexAccount = () => {
 
   // update the ramp actor with the current context
   useEffect(() => {
-    if (rampActor) {
+    if (rampActor && address) {
       rampActor.send({
         address,
         type: "SET_ADDRESS"

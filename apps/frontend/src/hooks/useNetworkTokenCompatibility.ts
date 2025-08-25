@@ -1,11 +1,11 @@
 import { Networks } from "@packages/shared";
 import { useNetwork } from "../contexts/network";
-import { useRampFormStore } from "../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../stores/quote/useQuoteFormStore";
 
 export function useNetworkTokenCompatibility() {
   const {
     actions: { handleNetworkChange }
-  } = useRampFormStore();
+  } = useQuoteFormStore();
   const { setSelectedNetwork } = useNetwork();
 
   const handleNetworkSelect = async (network: Networks, resetState = true) => {

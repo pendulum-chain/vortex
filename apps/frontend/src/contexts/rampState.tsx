@@ -45,7 +45,8 @@ const PersistenceEffect = () => {
     | AveniaKycActorRef
     | undefined;
 
-  const { rampState } = useSelector(rampActor, state => ({
+  const { rampState, isQuoteExpired } = useSelector(rampActor, state => ({
+    isQuoteExpired: state?.context.isQuoteExpired,
     rampState: state?.value
   }));
 
@@ -65,6 +66,12 @@ const PersistenceEffect = () => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
   }, [rampState, moneriumState, stellarState, aveniaState]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  useEffect(() => {
+    const persistedSnapshot = rampActor.getPersistedSnapshot();
+    localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
+    // It's important to have `isQuoteExpired` here in the deps array to persist it when it changes
+  }, [rampState, moneriumState, stellarState, isQuoteExpired, rampActor.getPersistedSnapshot]);
 
   return null;
 };

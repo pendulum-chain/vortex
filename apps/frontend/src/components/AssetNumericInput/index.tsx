@@ -1,7 +1,7 @@
 import type { ChangeEvent, FC } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { cn } from "../../helpers/cn";
-import type { RampFormValues } from "../../hooks/ramp/schema";
+import type { QuoteFormValues } from "../../hooks/ramp/schema";
 import { AssetButton } from "../buttons/AssetButton";
 import { NumericInput } from "../NumericInput";
 
@@ -19,7 +19,7 @@ interface AssetNumericInputProps {
   disabled?: boolean;
   readOnly?: boolean;
   loading?: boolean;
-  registerInput: UseFormRegisterReturn<keyof RampFormValues>;
+  registerInput: UseFormRegisterReturn<keyof QuoteFormValues>;
   id: string;
 }
 

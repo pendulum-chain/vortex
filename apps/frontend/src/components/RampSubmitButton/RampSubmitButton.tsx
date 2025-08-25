@@ -12,9 +12,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
-import { useIsQuoteExpired } from "../../stores/rampSummary";
+import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -22,18 +22,18 @@ interface UseButtonContentProps {
   submitButtonDisabled: boolean;
 }
 
-export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
+const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
 
-  const { rampState, rampPaymentConfirmed } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+    isQuoteExpired: state.context.isQuoteExpired,
+    machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
-
-  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
-  const isQuoteExpired = useIsQuoteExpired();
 
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.BUY;
@@ -44,10 +44,31 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
-    if ((isOnramp && isDepositQrCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
+    if (machineState === "QuoteReady") {
+      if (isOnramp && isAnchorWithoutRedirect) {
+        return {
+          icon: null,
+          text: t("components.RampSummaryCard.confirm")
+        };
+      } else {
+        return {
+          icon: null,
+          text: t("components.RampSummaryCard.signIn")
+        };
+      }
+    }
+
+    if (isQuoteExpired) {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.quoteExpired")
+        text: t("components.RampSummaryCard.quoteExpired")
+      };
+    }
+
+    if (machineState === "KycComplete") {
+      return {
+        icon: null,
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
@@ -56,7 +77,7 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     // if (signingRejected) {
     //   return {
     //     icon: null,
-    //     text: t("components.dialogs.RampSummaryDialog.tryAgain")
+    //     text: t("components.RampSummaryCard.tryAgain")
     //   };
     // }
 
@@ -70,14 +91,14 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
     if (isOfframp && isAnchorWithoutRedirect) {
       return {
         icon: null,
-        text: t("components.dialogs.RampSummaryDialog.confirm")
+        text: t("components.RampSummaryCard.confirm")
       };
     }
 
     if (isOfframp && rampState !== undefined) {
       return {
         icon: <Spinner />,
-        text: t("components.dialogs.RampSummaryDialog.processing")
+        text: t("components.RampSummaryCard.processing")
       };
     }
 
@@ -88,16 +109,23 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       };
     }
 
+    if (isOnramp && !isDepositQrCodeReady) {
+      return {
+        icon: null,
+        text: t("components.RampSummaryCard.confirm")
+      };
+    }
+
     if (isOfframp && isAnchorWithRedirect) {
       if (stellarData?.stateValue === "Sep24Second") {
         return {
           icon: <Spinner />,
-          text: t("components.dialogs.RampSummaryDialog.continueOnPartnersPage")
+          text: t("components.RampSummaryCard.continueOnPartnersPage")
         };
       } else {
         return {
           icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-          text: t("components.dialogs.RampSummaryDialog.continueWithPartner")
+          text: t("components.RampSummaryCard.continueWithPartner")
         };
       }
     }
@@ -105,24 +133,35 @@ export const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonCon
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, toToken, stellarData, rampPaymentConfirmed]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampDirection,
+    rampState,
+    machineState,
+    t,
+    toToken,
+    stellarData,
+    rampPaymentConfirmed
+  ]);
 };
 
-export const RampSummaryButton = () => {
+export const RampSubmitButton = ({ className }: { className?: string }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
 
-  const { rampState, executionInput, isQuoteExpired } = useSelector(rampActor, state => ({
+  const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
+    machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampState: state.context.rampState
   }));
 
   const stellarContext = stellarData?.context;
   const anchorUrl = stellarContext?.redirectUrl;
 
-  const rampDirection = rampState?.ramp?.type || RampDirection.SELL;
   const isOfframp = rampDirection === RampDirection.SELL;
   const isOnramp = rampDirection === RampDirection.BUY;
   const fiatToken = useFiatToken();
@@ -132,8 +171,18 @@ export const RampSummaryButton = () => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
+    if (machineState === "QuoteReady") {
+      return false;
+    }
+
+    if (machineState === "KycComplete") {
+      return false;
+    }
+
+    // The button is enabled because we let the user click the button to get back
+    if (isQuoteExpired) return false;
+
     if (!executionInput) return true;
-    if (isQuoteExpired) return true;
 
     if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
@@ -141,11 +190,23 @@ export const RampSummaryButton = () => {
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
-    const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
-    if (isOnramp && !isDepositQrCodeReady) return true;
+    if (machineState === "UpdateRamp") {
+      const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
+      if (isOnramp && !isDepositQrCodeReady) return true;
+    }
 
     return false;
-  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.depositQrCode, anchorUrl, fiatToken, stellarData]);
+  }, [
+    executionInput,
+    isQuoteExpired,
+    isOfframp,
+    isOnramp,
+    rampState?.ramp?.depositQrCode,
+    anchorUrl,
+    fiatToken,
+    stellarData,
+    machineState
+  ]);
 
   const buttonContent = useButtonContent({
     submitButtonDisabled,
@@ -153,16 +214,35 @@ export const RampSummaryButton = () => {
   });
 
   const onSubmit = () => {
+    if (isQuoteExpired) {
+      // Reset the ramp state and go back to the home page
+      rampActor.send({ type: "RESET_RAMP" });
+      const cleanUrl = window.location.origin;
+      window.history.replaceState({}, "", cleanUrl);
+      return;
+    }
+
+    if (machineState === "QuoteReady") {
+      onRampConfirm();
+      return;
+    }
+
+    if (machineState === "KycComplete") {
+      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      return;
+    }
+
     rampActor.send({ type: "SummaryConfirm" });
+
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
       //setCanRegisterRamp(true);
     }
 
-    if (executionInput?.quote.rampType === RampDirection.BUY) {
-      rampActor.send({ type: "PAYMENT_CONFIRMED" });
-    } else {
-      onRampConfirm();
+    if (isOnramp) {
+      if (machineState === "UpdateRamp") {
+        rampActor.send({ type: "PAYMENT_CONFIRMED" });
+      }
     }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
@@ -178,7 +258,11 @@ export const RampSummaryButton = () => {
   };
 
   return (
-    <button className="btn-vortex-primary btn w-full rounded-xl" disabled={submitButtonDisabled} onClick={onSubmit}>
+    <button
+      className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
+      disabled={submitButtonDisabled}
+      onClick={onSubmit}
+    >
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}

@@ -23,7 +23,8 @@ export const signTransactionsActor = async ({
 }: {
   input: { parent: RampMachineActor; context: RampContext };
 }): Promise<RampState> => {
-  const { rampState, address, chainId, authToken, executionInput, substrateWalletAccount, getMessageSignature } = input.context;
+  const { rampState, rampDirection, quote, address, chainId, executionInput, substrateWalletAccount, getMessageSignature } =
+    input.context;
 
   if (!rampState || !address || chainId === undefined) {
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
@@ -52,7 +53,8 @@ export const signTransactionsActor = async ({
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
-  if (authToken && rampState?.ramp?.type === RampDirection.SELL) {
+  // Monerium onramp
+  if (rampDirection === RampDirection.SELL && quote?.from === "sepa") {
     if (!getMessageSignature) throw new Error("getMessageSignature not available");
     const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
     moneriumOfframpSignature = await getMessageSignature(offrampMessage);

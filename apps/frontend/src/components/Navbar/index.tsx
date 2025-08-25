@@ -3,12 +3,22 @@ import { motion } from "motion/react";
 import whiteMobileLogo from "../../assets/logo/circle.png";
 import whiteLogo from "../../assets/logo/white.png";
 import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { ConnectWalletButton } from "../buttons/ConnectWalletButton";
 import { LanguageSelector } from "../LanguageSelector";
 import { NetworkSelector } from "../NetworkSelector";
 
 export const Navbar = () => {
   const { networkSelectorDisabled } = useNetwork();
+  const rampActor = useRampActor();
+
+  const onLogoClick = () => {
+    // Reset the ramp state and go back to the home page
+    const cleanUrl = window.location.origin;
+    window.history.replaceState({}, "", cleanUrl);
+
+    rampActor.send({ type: "RESET_RAMP" });
+  };
 
   return (
     <>
@@ -24,8 +34,10 @@ export const Navbar = () => {
         }}
       >
         <div className="flex">
-          <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
-          <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
+          <button className="cursor-pointer" onClick={onLogoClick}>
+            <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
+            <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
+          </button>
         </div>
         <div className="flex items-center">
           <LanguageSelector disabled={networkSelectorDisabled} />

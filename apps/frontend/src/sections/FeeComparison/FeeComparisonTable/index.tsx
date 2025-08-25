@@ -1,5 +1,5 @@
 import { useNetwork } from "../../../contexts/network";
-import { useRampFormStore } from "../../../stores/ramp/useRampFormStore";
+import { useQuoteFormStore } from "../../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 
 import { FeeComparisonHeader } from "./components/FeeComparisonHeader";
@@ -7,7 +7,7 @@ import { FeeComparisonProviderList } from "./components/FeeComparisonProviderLis
 import { getAssetSymbols } from "./utils/assetUtils";
 
 export function FeeComparisonTable() {
-  const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
+  const { inputAmount, onChainToken, fiatToken } = useQuoteFormStore();
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
 

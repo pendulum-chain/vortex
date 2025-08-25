@@ -44,8 +44,6 @@ interface RampFormState {
   inputAmount: string;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
-  taxId?: string;
-  pixId?: string;
   lastConstraintDirection: RampDirection;
 }
 
@@ -54,27 +52,23 @@ interface RampFormActions {
     setInputAmount: (amount?: string) => void;
     setOnChainToken: (token: OnChainToken) => void;
     setFiatToken: (token: FiatToken) => void;
-    setTaxId: (taxId: string) => void;
-    setPixId: (pixId: string) => void;
     setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
     reset: () => void;
   };
 }
 
-export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
+export const DEFAULT_QUOTE_FORM_STORE_VALUES: RampFormState = {
   fiatToken: defaultFiatToken,
   inputAmount: defaultFiatAmount,
   lastConstraintDirection: getRampDirectionFromPath(),
-  onChainToken: defaultOnChainToken,
-  pixId: undefined,
-  taxId: undefined
+  onChainToken: defaultOnChainToken
 };
 
-export const useRampFormStore = create<RampFormState & RampFormActions>()(
+export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
   persist(
     (set, get) => ({
-      ...DEFAULT_RAMP_FORM_STORE_VALUES,
+      ...DEFAULT_QUOTE_FORM_STORE_VALUES,
       actions: {
         handleNetworkChange: (network: Networks) => {
           const { onChainToken } = get();
@@ -87,15 +81,13 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
 
         reset: () => {
           set({
-            ...DEFAULT_RAMP_FORM_STORE_VALUES
+            ...DEFAULT_QUOTE_FORM_STORE_VALUES
           });
         },
         setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
         setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
         setInputAmount: (amount?: string) => set({ inputAmount: amount }),
-        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
-        setPixId: (pixId: string) => set({ pixId }),
-        setTaxId: (taxId: string) => set({ taxId })
+        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token })
       }
     }),
     {
@@ -104,20 +96,16 @@ export const useRampFormStore = create<RampFormState & RampFormActions>()(
         fiatToken: state.fiatToken,
         inputAmount: state.inputAmount,
         lastConstraintDirection: state.lastConstraintDirection,
-        onChainToken: state.onChainToken,
-        pixId: state.pixId,
-        taxId: state.taxId
+        onChainToken: state.onChainToken
       })
     }
   )
 );
 
-export const useInputAmount = () => useRampFormStore(state => state.inputAmount);
-export const useOnChainToken = () => useRampFormStore(state => state.onChainToken);
-export const useFiatToken = () => useRampFormStore(state => state.fiatToken);
-export const useTaxId = () => useRampFormStore(state => state.taxId);
-export const usePixId = () => useRampFormStore(state => state.pixId);
-export const useLastConstraintDirection = () => useRampFormStore(state => state.lastConstraintDirection);
+export const useInputAmount = () => useQuoteFormStore(state => state.inputAmount);
+export const useOnChainToken = () => useQuoteFormStore(state => state.onChainToken);
+export const useFiatToken = () => useQuoteFormStore(state => state.fiatToken);
+export const useLastConstraintDirection = () => useQuoteFormStore(state => state.lastConstraintDirection);
 
 export const useQuoteConstraintsValid = () => {
   const direction = useRampDirection();
@@ -125,4 +113,4 @@ export const useQuoteConstraintsValid = () => {
   return direction === lastConstraintDirection;
 };
 
-export const useRampFormStoreActions = () => useRampFormStore(state => state.actions);
+export const useQuoteFormStoreActions = () => useQuoteFormStore(state => state.actions);
