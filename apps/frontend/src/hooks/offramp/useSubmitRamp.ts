@@ -95,6 +95,7 @@ export const useSubmitRamp = () => {
               );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
+                // Temporary disabling account creation
                 setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
                 setRampStarted(false);
                 setRampInitiating(false);
@@ -117,6 +118,7 @@ export const useSubmitRamp = () => {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (isValidCpf(taxId) || isValidCnpj(taxId)) {
+                // Temporary disabling account creation
                 setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
                 setRampStarted(false);
                 setRampInitiating(false);
