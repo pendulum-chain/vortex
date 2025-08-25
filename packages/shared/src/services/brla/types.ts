@@ -1,12 +1,3 @@
-import { BrlaKYCDocType } from "../..";
-
-export interface TriggerOfframpRequest {
-  taxId: string;
-  pixKey: string;
-  amount: string;
-  receiverTaxId: string;
-}
-
 export interface SubaccountData {
   id: string;
   fullName: string;
@@ -16,6 +7,31 @@ export interface SubaccountData {
   createdAt: string;
   wallets: { evm: string; tron: string };
   brCode: string;
+}
+
+export type AveniaIdentityStatus = "NOT-IDENTIFIED" | "CONFIRMED";
+
+export enum AveniaAccountType {
+  INDIVIDUAL = "INDIVIDUAL"
+}
+
+export interface AveniaSubaccountAccountInfo {
+  id: string;
+  countrySubdivisionTaxResidence: string;
+  accountType: AveniaAccountType;
+  name: string;
+  countryTaxResidence: string;
+  identityStatus: AveniaIdentityStatus;
+  fullName: string;
+  birthdate: string;
+  taxId: string;
+}
+
+export interface AveniaSubaccount {
+  subAccountId: string;
+  mainAccountId: string;
+  createdAt: string;
+  accountInfo: AveniaSubaccountAccountInfo;
 }
 
 export interface KYCData {
@@ -54,15 +70,6 @@ export interface RegisterSubaccountPayload {
   companyName?: string;
   startDate?: string;
   cnpj?: string;
-}
-
-export interface UsedLimitData {
-  limitMint: number;
-  limitBurn: number;
-  limitSwapBuy: number;
-  limitSwapSell: number;
-  limitBRLAOutOwnAccount: number;
-  limitBRLAOutThirdParty: number;
 }
 
 export interface OfframpPayload {
@@ -160,6 +167,13 @@ export enum BrlaSupportedChain {
   // etc
 }
 
+export interface AveniaQuoteResponse {
+  quoteToken: string;
+  inputCurrency: string;
+  inputPaymentMethod: string;
+  inputAmount: string;
+}
+
 export interface FastQuoteQueryParams {
   subaccountId: string | undefined;
   operation: FastQuoteOperationType;
@@ -230,12 +244,8 @@ export enum SmartContractOperationType {
   BURN = "BURN"
 }
 
-export function isValidKYCDocType(value: string): value is BrlaKYCDocType {
-  return Object.values(BrlaKYCDocType).includes(value as unknown as BrlaKYCDocType);
-}
-
-export interface KycLevel2Payload {
-  documentType: BrlaKYCDocType;
+export function isValidKYCDocType(value: string): value is AveniaDocumentType {
+  return Object.values(AveniaDocumentType).includes(value as unknown as AveniaDocumentType);
 }
 
 export interface KycLevel2Response {
@@ -285,4 +295,260 @@ export interface OnChainOutPayload {
   exactOutput: boolean;
   inputCoin: string;
   outputCoin: string;
+}
+
+export enum BrlaCurrency {
+  BRL = "BRL",
+  BRLA = "BRLA",
+  USDC = "USDC",
+  USDCe = "USDCe",
+  USDT = "USDT",
+  USDM = "USDM"
+}
+
+export enum BrlaPaymentMethod {
+  PIX = "PIX",
+  INTERNAL = "INTERNAL",
+  BASE = "BASE",
+  CELO = "CELO",
+  ETHEREUM = "ETHEREUM",
+  GNOSIS = "GNOSIS",
+  MOONBEAM = "MOONBEAM",
+  POLYGON = "POLYGON",
+  TRON = "TRON"
+}
+
+export interface PayInQuoteParams {
+  inputCurrency: BrlaCurrency;
+  inputPaymentMethod: BrlaPaymentMethod;
+  inputAmount: string;
+  outputCurrency: BrlaCurrency;
+  outputPaymentMethod: BrlaPaymentMethod;
+  inputThirdParty: boolean;
+  outputThirdParty: boolean;
+  subAccountId: string;
+}
+
+export enum BlockchainSendMethod {
+  TRANSFER = "TRANSFER",
+  PERMIT = "PERMIT"
+}
+
+export interface PayOutQuoteParams {
+  outputThirdParty: boolean;
+  outputAmount: string;
+}
+
+// /account/tickets endpoint related types
+export interface BaseTicket {
+  id: string;
+  status: string;
+  reason: string;
+  failureReason: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  quote: {
+    id: string;
+    ticketId: string;
+    inputPaymentMethod: string;
+  };
+}
+
+export interface PixInputTicketPayload {
+  quoteToken: string;
+  ticketBrlPixInput: {
+    additionalData: string;
+  };
+  ticketBlockchainOutput: {
+    walletChain: string;
+    walletAddress: string;
+  };
+}
+
+export interface PixInputTicketOutput {
+  ticket: BaseTicket;
+  brlPixInputInfo: {
+    id: string;
+    ticketId: string;
+    referenceLabel: string;
+    additionalData: string;
+    brCode: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+}
+
+// TODO verify ticket endpoint outputs for this modality
+export interface PixOutputTicketPayload {
+  quoteToken: string;
+  ticketBrlPixOutput: {
+    pixKey: string;
+  };
+  ticketBlockchainInput?: {
+    walletAddress: string;
+    permit?: {
+      r: string;
+      s: string;
+      v: number;
+      nonce: number;
+      deadline: number;
+    };
+  };
+}
+
+export interface PixOutputTicketOutput {
+  ticket: BaseTicket;
+  brazilianFiatReceiverInfo: {
+    id: string;
+    ticketId: string;
+    pixKey: string;
+    endToEndId: string;
+  };
+  blockchainSenderInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    txHash: string;
+  };
+  brlPixOutputInfo: {
+    id: string;
+    ticketId: string;
+    pixMessage: string;
+    senderAccountBankName: string;
+    senderAccountNumber: string;
+  };
+  blockchainInputInfo: {
+    id: string;
+    ticketId: string;
+    r: string;
+    s: string;
+    v: number;
+    nonce: number;
+    deadline: number;
+    personalSignature: string;
+    personalSignatureDeadline: number;
+  };
+}
+
+// Limit types
+export interface UsedLimitDetails {
+  year: number;
+  month: number;
+  usedFiatIn: string;
+  usedFiatOut: string;
+  usedChainIn: string;
+  usedChainOut: string;
+}
+
+export interface Limit {
+  currency: string;
+  maxFiatIn: string;
+  maxFiatOut: string;
+  maxChainIn: string;
+  maxChainOut: string;
+  usedLimit: UsedLimitDetails;
+}
+
+export interface LimitInfo {
+  blocked: boolean;
+  createdAt: string;
+  limits: Limit[];
+}
+
+export interface AccountLimitsResponse {
+  limitInfo: LimitInfo;
+}
+
+export interface AveniaSubaccountWallet {
+  id: string;
+  walletAddress: string;
+  chain: string;
+}
+
+export interface AveniaAccountInfoResponse {
+  id: string;
+  accountInfo: AveniaSubaccountAccountInfo;
+  wallets: AveniaSubaccountWallet[];
+  pixKey: string;
+  brCode: string;
+  createdAt: string;
+}
+
+export interface KycLevel1Payload {
+  subAccountId: string;
+  fullName: string;
+  dateOfBirth: string;
+  countryOfTaxId: string;
+  taxIdNumber: string;
+  email: string;
+  country: string;
+  state: string;
+  city: string;
+  zipCode: string;
+  streetAddress: string;
+  uploadedSelfieId: string;
+  uploadedDocumentId: string;
+}
+
+export interface KycLevel1Response {
+  id: string;
+}
+
+export enum AveniaDocumentType {
+  ID = "ID",
+  DRIVERS_LICENSE = "DRIVERS-LICENSE",
+  PASSPORT = "PASSPORT",
+  SELFIE = "SELFIE"
+}
+
+export interface DocumentUploadRequest {
+  documentType: AveniaDocumentType;
+  isDoubleSided?: boolean;
+}
+
+export interface DocumentUploadResponse {
+  id: string;
+  uploadURLFront: string;
+  uploadURLBack?: string;
+}
+
+export enum KycAttemptStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  COMPLETED = "COMPLETED",
+  EXPIRED = "EXPIRED"
+}
+
+export enum KycAttemptResult {
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED"
+}
+
+export interface KycAttempt {
+  id: string;
+  levelName: "level-1";
+  submissionData: unknown;
+  status: KycAttemptStatus;
+  result: KycAttemptResult;
+  resultMessage: string;
+  retryable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetKycAttemptResponse {
+  attempt: KycAttempt;
+}
+
+export interface CreateAveniaSubaccountRequest {
+  accountType: AveniaAccountType;
+  name: string;
+  taxId: string;
 }

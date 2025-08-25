@@ -1,11 +1,14 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, use, useEffect } from "react";
-import { MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
+  AveniaKycActorRef,
+  AveniaKycSnapshot,
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
   RampMachineSnapshot,
+  SelectedAveniaData,
   SelectedMoneriumData,
   SelectedStellarData,
   StellarKycActorRef,
@@ -38,6 +41,10 @@ const PersistenceEffect = () => {
     | MoneriumKycActorRef
     | undefined;
 
+  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+
   const { rampState, isQuoteExpired } = useSelector(rampActor, state => ({
     isQuoteExpired: state?.context.isQuoteExpired,
     rampState: state?.value
@@ -51,6 +58,14 @@ const PersistenceEffect = () => {
     stellarState: state?.value
   }));
 
+  const { aveniaState } = useSelector(aveniaActor, state => ({
+    aveniaState: state?.value
+  }));
+
+  useEffect(() => {
+    const persistedSnapshot = rampActor.getPersistedSnapshot();
+    localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
+  }, [rampState, moneriumState, stellarState, aveniaState]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
@@ -128,6 +143,41 @@ export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {
       }
       return {
         context: snapshot.context as MoneriumKycContext,
+        stateValue: snapshot.value
+      };
+    },
+    (prev, next) => {
+      if (!prev || !next) {
+        return prev === next;
+      }
+      return prev.stateValue === next.stateValue && prev.context === next.context;
+    }
+  );
+}
+
+export function useAveniaKycActor(): AveniaKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+}
+
+export function useAveniaKycSelector(): SelectedAveniaData | undefined {
+  const rampActor = useRampActor();
+
+  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+    | AveniaKycActorRef
+    | undefined;
+
+  return useSelector(
+    aveniaActor,
+    (snapshot: AveniaKycSnapshot | undefined) => {
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        context: snapshot.context as AveniaKycContext,
         stateValue: snapshot.value
       };
     },

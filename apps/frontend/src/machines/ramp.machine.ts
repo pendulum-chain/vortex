@@ -8,7 +8,7 @@ import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
-import { brlaKycMachine } from "./brlaKyc.machine";
+import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
@@ -68,7 +68,7 @@ export const rampMachine = setup({
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" })
   },
   actors: {
-    brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
+    aveniaKyc: aveniaKycMachine,
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
       if (!input.quoteId) {
         throw new Error("Quote ID is required to load quote.");

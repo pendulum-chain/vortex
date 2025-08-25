@@ -1,9 +1,13 @@
+import { KycFailureReason } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { fetchKycStatus, KycStatus } from "../../../services/signingService";
+import { AveniaKycContext } from "../../kyc.states";
 
 const POLLING_INTERVAL_MS = 2000;
 
-export const verifyStatusActor = fromPromise(async ({ input }: { input: { taxId: string } }) => {
+export type VerifyStatusActorOutput = { type: "APPROVED" } | { type: "REJECTED"; reason: KycFailureReason };
+
+export const verifyStatusActor = fromPromise<VerifyStatusActorOutput, AveniaKycContext>(async ({ input }) => {
   const { taxId } = input;
   if (!taxId) {
     throw new Error("Tax ID is required");
@@ -13,6 +17,7 @@ export const verifyStatusActor = fromPromise(async ({ input }: { input: { taxId:
     const interval = setInterval(async () => {
       try {
         const response = await fetchKycStatus(taxId);
+        console.log("KYC Status Response:", response);
         if (response.level === 1) {
           if (response.status === KycStatus.APPROVED) {
             clearInterval(interval);

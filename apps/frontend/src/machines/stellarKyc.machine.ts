@@ -1,6 +1,5 @@
 import { PaymentData } from "@packages/shared";
 import { assign, emit, setup } from "xstate";
-import { ToastMessage } from "../helpers/notifications";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
 import { StellarKycContext } from "./kyc.states";

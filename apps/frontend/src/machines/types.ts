@@ -3,7 +3,8 @@ import { WalletAccount } from "@talismn/connect-wallets";
 import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
-import { MoneriumKycContext, StellarKycContext } from "./kyc.states";
+import { aveniaKycMachine } from "./brlaKyc.machine";
+import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 
@@ -51,11 +52,15 @@ export type RampMachineEvents =
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
+
 export type StellarKycActorRef = ActorRefFrom<typeof stellarKycMachine>;
 export type StellarKycSnapshot = SnapshotFrom<typeof stellarKycMachine>;
 
 export type MoneriumKycActorRef = ActorRefFrom<typeof moneriumKycMachine>;
 export type MoneriumKycSnapshot = SnapshotFrom<typeof moneriumKycMachine>;
+
+export type AveniaKycActorRef = ActorRefFrom<typeof aveniaKycMachine>;
+export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
 
 export type SelectedStellarData = {
   stateValue: StellarKycSnapshot["value"];
@@ -65,4 +70,9 @@ export type SelectedStellarData = {
 export type SelectedMoneriumData = {
   stateValue: MoneriumKycSnapshot["value"];
   context: MoneriumKycContext;
+};
+
+export type SelectedAveniaData = {
+  stateValue: AveniaKycSnapshot["value"];
+  context: AveniaKycContext;
 };
