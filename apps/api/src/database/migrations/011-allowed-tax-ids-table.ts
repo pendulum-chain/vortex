@@ -20,8 +20,4 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.DATE
     }
   });
-
-  await queryInterface.addIndex("tax_ids", ["sub_account_id"], {
-    name: "idx_tax_ids_sub_account_id"
-  });
 }

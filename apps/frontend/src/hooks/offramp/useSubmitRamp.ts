@@ -95,9 +95,11 @@ export const useSubmitRamp = () => {
               );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
-                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
-                // handling of level 0 users.
-                setRampKycLevel2Started(true);
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
+                setRampStarted(false);
+                setRampInitiating(false);
+                resetRampState();
+                cleanupSEP24();
                 return;
               }
 
@@ -115,12 +117,16 @@ export const useSubmitRamp = () => {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (isValidCpf(taxId) || isValidCnpj(taxId)) {
-                console.log("User doesn't exist yet.");
-                setRampKycStarted(true);
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
+                setRampStarted(false);
+                setRampInitiating(false);
+                resetRampState();
+                cleanupSEP24();
               } else if (errorResponse.error.includes("KYC invalid")) {
                 setInitializeFailedMessage(t("hooks.useSubmitOfframp.kycInvalid"));
                 setRampStarted(false);
                 setRampInitiating(false);
+                resetRampState();
                 cleanupSEP24();
                 return;
               }

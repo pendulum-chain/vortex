@@ -30,6 +30,7 @@ import logger from "../../../config/logger";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -234,6 +235,7 @@ export class RampService extends BaseRampService {
   }> {
     if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
+        await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -247,6 +249,7 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
+      await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -672,6 +675,16 @@ export class RampService extends BaseRampService {
     });
 
     return brCode.brCode;
+  }
+
+  public async validateBrlaWhitelistedAccount(taxId: string | undefined): Promise<void> {
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "BRL Ramp disabled",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 }
 
