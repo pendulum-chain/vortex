@@ -30,6 +30,6 @@ export const Ramp = () => {
     state: state.value
   }));
 
-  console.log("Current Ramp State:", state);
+  console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();
 };

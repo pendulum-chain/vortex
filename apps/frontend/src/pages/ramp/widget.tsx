@@ -2,15 +2,15 @@ import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
-import { useRampActor } from "../../contexts/rampState";
+import { useAveniaKycActor, useRampActor } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 
 function BrazilDetails() {
@@ -30,13 +30,12 @@ function EuroDetails() {
 }
 
 export const WidgetCards = () => {
-  useSetRampUrlParams();
-
   const { t } = useTranslation();
   const { form } = useRampForm();
   const quote = useQuote();
 
   const rampActor = useRampActor();
+  const aveniaKycActor = useAveniaKycActor();
   const { rampSummaryVisible } = useSelector(rampActor, state => ({
     rampSummaryVisible: state.context.rampSummaryVisible
   }));
@@ -54,9 +53,11 @@ export const WidgetCards = () => {
     >
       {rampSummaryVisible ? (
         <RampSummaryCard />
+      ) : aveniaKycActor ? (
+        <PIXKYCForm />
       ) : (
         <FormProvider {...form}>
-          <form className="flex grow flex-col" onSubmit={form.handleSubmit(onRampConfirm)}>
+          <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
             <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
             <div className="mt-8 grid flex-grow gap-3 px-2">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
             <RampSubmitButton className="mb-4" />

@@ -1,4 +1,4 @@
-import { getNetworkId, Networks } from "@packages/shared";
+import { getNetworkId, Networks, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -10,10 +10,8 @@ import {
   createStellarEphemeral
 } from "../../services/transactions/ephemerals";
 import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
-import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
-import { useVortexAccount } from "../useVortexAccount";
 
 interface SubmissionError extends Error {
   code?: string;
@@ -37,9 +35,6 @@ export const useRampSubmission = () => {
   }));
 
   const { inputAmount, fiatToken, onChainToken } = useQuoteFormStore();
-  // FIXME replace once BRLA API is implemented
-  const pixId = undefined;
-  const taxId = undefined;
   const network = quote
     ? ((Object.values(Networks).includes(quote.to as Networks) ? quote.to : quote.from) as Networks)
     : Networks.Moonbeam;
@@ -49,48 +44,58 @@ export const useRampSubmission = () => {
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
 
   // @TODO: implement Error boundary
-  const validateSubmissionData = useCallback(() => {
-    if (!address) {
-      throw new Error("No wallet address found. Please connect your wallet.");
-    }
-    if (!quote) {
-      throw new Error("No quote available. Please try again.");
-    }
-    if (!inputAmount) {
-      throw new Error("No amount specified. Please enter an amount.");
-    }
-    if (fiatToken === "brl") {
-      if (!taxId) {
-        throw new Error("Tax ID is required for BRL transactions.");
+  const validateSubmissionData = useCallback(
+    (data: { taxId?: string }) => {
+      if (!address) {
+        throw new Error("No wallet address found. Please connect your wallet.");
       }
-    }
-  }, [address, quote, inputAmount, fiatToken, taxId]);
+      if (!quote) {
+        throw new Error("No quote available. Please try again.");
+      }
+      if (!inputAmount) {
+        throw new Error("No amount specified. Please enter an amount.");
+      }
+      if (fiatToken === "brl") {
+        if (!data.taxId) {
+          throw new Error("Tax ID is required for BRL transactions.");
+        }
+      }
+    },
+    [address, quote, inputAmount, fiatToken]
+  );
 
-  const prepareExecutionInput = useCallback(() => {
-    validateSubmissionData();
-    if (!quote) {
-      throw new Error("No quote available. Please try again.");
-    }
-    if (!address) {
-      throw new Error("No address found. Please connect your wallet.");
-    }
+  const prepareExecutionInput = useCallback(
+    (data: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+      validateSubmissionData(data);
+      if (!quote) {
+        throw new Error("No quote available. Please try again.");
+      }
 
-    const ephemerals = createEphemerals();
-    const executionInput: RampExecutionInput = {
-      ephemerals,
-      fiatToken,
-      network,
-      onChainToken,
-      pixId,
-      quote,
-      setInitializeFailed: message => {
-        console.error("Initialization failed:", message);
-      },
-      taxId,
-      userWalletAddress: address
-    };
-    return executionInput;
-  }, [validateSubmissionData, quote, onChainToken, fiatToken, address, taxId, pixId, network]);
+      // We prioritize the wallet address from the form field.
+      const userWalletAddress = rampDirection === RampDirection.BUY && data.walletAddress ? data.walletAddress : address;
+
+      if (!userWalletAddress) {
+        throw new Error("No address found. Please connect your wallet or provide a destination address.");
+      }
+
+      const ephemerals = createEphemerals();
+      const executionInput: RampExecutionInput = {
+        ephemerals,
+        fiatToken,
+        network,
+        onChainToken,
+        pixId: data.pixId,
+        quote,
+        setInitializeFailed: message => {
+          console.error("Initialization failed:", message);
+        },
+        taxId: data.taxId,
+        userWalletAddress
+      };
+      return executionInput;
+    },
+    [validateSubmissionData, quote, onChainToken, fiatToken, address, network, rampDirection]
+  );
 
   const handleSubmissionError = useCallback(
     (error: SubmissionError) => {
@@ -108,24 +113,32 @@ export const useRampSubmission = () => {
     [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount]
   );
 
-  const onRampConfirm = useCallback(async () => {
-    if (executionPreparing) return;
-    setExecutionPreparing(true);
+  const onRampConfirm = useCallback(
+    async (data?: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+      if (executionPreparing) return;
+      setExecutionPreparing(true);
 
-    try {
-      const executionInput = prepareExecutionInput();
-      await preRampCheck(executionInput);
-      if (chainId === undefined) {
-        throw new Error("ChainId must be defined at this stage");
+      try {
+        if (!data) {
+          // This calback is generic and used for any ramp type.
+          // The submission logic must ensure these fields are passed if BRL
+          throw new Error("TaxID, Address must be provided");
+        }
+        const executionInput = prepareExecutionInput(data);
+        await preRampCheck(executionInput);
+        if (chainId === undefined) {
+          throw new Error("ChainId must be defined at this stage");
+        }
+        console.log({ input: { chainId, executionInput, rampDirection } });
+        rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
+      } catch (error) {
+        handleSubmissionError(error as SubmissionError);
+      } finally {
+        setExecutionPreparing(false);
       }
-      console.log({ input: { chainId, executionInput, rampDirection } });
-      rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
-    } catch (error) {
-      handleSubmissionError(error as SubmissionError);
-    } finally {
-      setExecutionPreparing(false);
-    }
-  }, [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError, rampDirection, chainId, rampActor.send]);
+    },
+    [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError, rampDirection, chainId, rampActor]
+  );
 
   return {
     isExecutionPreparing: executionPreparing,
