@@ -14,8 +14,6 @@ router.route("/getKycStatus").get(brlaController.fetchSubaccountKycStatus);
 
 router.route("/validatePixKey").get(brlaController.validatePixKey);
 
-router.route("/triggerOfframp").post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
-
 router.route("/createSubaccount").post(validataSubaccountCreation, brlaController.createSubaccount);
 
 router.route("/startKYC2").post(validateStartKyc2, brlaController.startKYC2);

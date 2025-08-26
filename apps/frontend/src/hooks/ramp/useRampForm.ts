@@ -13,6 +13,7 @@ import {
   useTaxId
 } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampActions } from "../../stores/rampStore";
 import { RampFormValues, useSchema } from "./schema";
 import { useDebouncedFormValue } from "./useDebouncedFormValue";
 
@@ -43,6 +44,8 @@ export const useRampForm = (): {
   const direction = useRampDirection();
   const lastConstraintDirection = useLastConstraintDirection();
 
+  const { resetInitializeFailedMessage } = useRampActions();
+
   const {
     setInputAmount,
     setOnChainToken,
@@ -66,6 +69,7 @@ export const useRampForm = (): {
       } else if (name === "onChainToken" && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
       }
+      resetInitializeFailedMessage();
     });
 
     return () => subscription.unsubscribe();
