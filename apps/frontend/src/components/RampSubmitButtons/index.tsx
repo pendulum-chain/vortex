@@ -60,7 +60,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   };
 
   const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount));
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || isQuoteOutdated;
   const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (

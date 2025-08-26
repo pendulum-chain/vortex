@@ -69,12 +69,15 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ initializeFailedMessage: undefined });
         saveState();
       },
+      resetInitializeFailedMessage: () => {
+        set({ initializeFailedMessage: undefined });
+        saveState();
+      },
       resetRampState: () => {
         clearRampingState();
 
         set({
           canRegisterRamp: false,
-          initializeFailedMessage: undefined,
           rampExecutionInput: undefined,
           rampInitiating: false,
           rampKycStarted: false,
