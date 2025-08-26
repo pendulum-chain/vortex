@@ -45,6 +45,8 @@ interface RampFormState {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   lastConstraintDirection: RampDirection;
+  taxId?: string;
+  pixId?: string;
 }
 
 interface RampFormActions {
@@ -55,6 +57,8 @@ interface RampFormActions {
     setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
     reset: () => void;
+    setTaxId: (taxId: string) => void;
+    setPixId: (pixId: string) => void;
   };
 }
 
@@ -62,7 +66,9 @@ export const DEFAULT_QUOTE_FORM_STORE_VALUES: RampFormState = {
   fiatToken: defaultFiatToken,
   inputAmount: defaultFiatAmount,
   lastConstraintDirection: getRampDirectionFromPath(),
-  onChainToken: defaultOnChainToken
+  onChainToken: defaultOnChainToken,
+  pixId: "",
+  taxId: ""
 };
 
 export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
@@ -87,7 +93,9 @@ export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
         setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
         setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
         setInputAmount: (amount?: string) => set({ inputAmount: amount }),
-        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token })
+        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
+        setPixId: (pixId: string) => set({ pixId }),
+        setTaxId: (taxId: string) => set({ taxId })
       }
     }),
     {
@@ -106,6 +114,8 @@ export const useInputAmount = () => useQuoteFormStore(state => state.inputAmount
 export const useOnChainToken = () => useQuoteFormStore(state => state.onChainToken);
 export const useFiatToken = () => useQuoteFormStore(state => state.fiatToken);
 export const useLastConstraintDirection = () => useQuoteFormStore(state => state.lastConstraintDirection);
+export const useTaxId = () => useQuoteFormStore(state => state.taxId);
+export const usePixId = () => useQuoteFormStore(state => state.pixId);
 
 export const useQuoteConstraintsValid = () => {
   const direction = useRampDirection();

@@ -9,7 +9,7 @@ import {
   createPendulumEphemeral,
   createStellarEphemeral
 } from "../../services/transactions/ephemerals";
-import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
+import { useQuoteFormStore, useQuoteFormStoreActions } from "../../stores/quote/useQuoteFormStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
 
@@ -28,6 +28,8 @@ export const useRampSubmission = () => {
   const rampActor = useRampActor();
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const { trackEvent } = useEventsContext();
+
+  const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
   const { address, quote } = useSelector(rampActor, state => ({
     address: state.context.address,
@@ -119,17 +121,20 @@ export const useRampSubmission = () => {
       setExecutionPreparing(true);
 
       try {
-        if (!data) {
+        if (!data || !data.taxId) {
           // This calback is generic and used for any ramp type.
           // The submission logic must ensure these fields are passed if BRL
           throw new Error("TaxID, Address must be provided");
         }
+        setTaxId(data.taxId);
+        setPixId(data.taxId);
+
         const executionInput = prepareExecutionInput(data);
         await preRampCheck(executionInput);
         if (chainId === undefined) {
           throw new Error("ChainId must be defined at this stage");
         }
-        console.log({ input: { chainId, executionInput, rampDirection } });
+        console.log("DEBUG: Ramp Execution Input: ", { input: { chainId, executionInput, rampDirection } });
         rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
       } catch (error) {
         handleSubmissionError(error as SubmissionError);

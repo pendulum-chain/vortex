@@ -167,7 +167,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 rounded-lg bg-white px-4 pt-6 pb-8 shadow-custom md:mx-auto md:w-96"
+      className="mx-4 mt-8 mb-4  px-4 pt-6 pb-8  md:mx-auto"
       initial={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
     >

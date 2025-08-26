@@ -14,8 +14,8 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     city: kycFormData.city,
     country: "BRA",
     countryOfTaxId: "BRA",
-    dateOfBirth: kycFormData.birthdate.toISOString().split("T")[0],
-    email: "john.doe@example.com", // Mocking email as it is not in the form
+    dateOfBirth: kycFormData.birthdate as unknown as string,
+    email: kycFormData.email,
     fullName: kycFormData.fullName,
     state: kycFormData.state,
     streetAddress: `${kycFormData.street} ${kycFormData.number}`.trim(),

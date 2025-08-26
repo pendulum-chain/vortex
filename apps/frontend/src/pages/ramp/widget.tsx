@@ -8,9 +8,11 @@ import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButto
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
-import { useAveniaKycActor, useRampActor } from "../../contexts/rampState";
+import { useAveniaKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { useVortexAccount } from "../../hooks/useVortexAccount";
+import { usePixId, useTaxId } from "../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 
 function BrazilDetails() {
@@ -31,7 +33,15 @@ function EuroDetails() {
 
 export const WidgetCards = () => {
   const { t } = useTranslation();
-  const { form } = useRampForm();
+  const { address } = useVortexAccount();
+  const taxId = useTaxId();
+  const pixId = usePixId();
+
+  const { form } = useRampForm({
+    pixId,
+    taxId,
+    walletAddress: address
+  });
   const quote = useQuote();
 
   const rampActor = useRampActor();

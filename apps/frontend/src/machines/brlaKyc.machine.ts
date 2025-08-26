@@ -52,7 +52,9 @@ export const aveniaKycMachine = setup({
         }
       }
     },
-    Failure: {},
+    Failure: {
+      type: "final"
+    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Finish: {
       type: "final"
     },

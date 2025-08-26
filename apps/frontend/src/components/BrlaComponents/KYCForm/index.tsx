@@ -17,7 +17,7 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
-  console.log("form");
+
   return (
     <FormProvider {...form}>
       <motion.form
@@ -35,9 +35,7 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
                 [
                   ExtendedBrlaFieldOptions.PIX_ID,
                   ExtendedBrlaFieldOptions.TAX_ID,
-                  ExtendedBrlaFieldOptions.PHONE,
                   ExtendedBrlaFieldOptions.FULL_NAME,
-                  ExtendedBrlaFieldOptions.BIRTHDATE,
                   ExtendedBrlaFieldOptions.COMPANY_NAME
                 ].includes(field.id as ExtendedBrlaFieldOptions)
                   ? "col-span-2"

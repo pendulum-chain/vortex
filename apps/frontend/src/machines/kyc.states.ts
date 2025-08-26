@@ -78,7 +78,7 @@ export const kycStateNode = {
             actions: assign({
               initializeFailedMessage: ({ event }) => event.output.error
             }),
-            target: "#ramp.KycFailure"
+            target: "#ramp.QuoteReady"
           }
         ],
         onError: {
