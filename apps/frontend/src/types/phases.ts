@@ -68,6 +68,7 @@ export interface RampActions {
   setRampPaymentConfirmed: (paymentConfirmed: boolean) => void;
   setRampExecutionInput: (executionInput: RampExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
+  resetInitializeFailedMessage: () => void;
   setRampSummaryVisible: (visible: boolean) => void;
   clearInitializeFailedMessage: () => void;
   resetRampState: () => void;

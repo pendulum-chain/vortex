@@ -96,7 +96,7 @@ export const useSubmitRamp = () => {
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
                 // Temporary disabling account creation
-                setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.maintenance"));
                 setRampStarted(false);
                 setRampInitiating(false);
                 resetRampState();
@@ -119,7 +119,7 @@ export const useSubmitRamp = () => {
               // to be valid, or retry.
               if (isValidCpf(taxId) || isValidCnpj(taxId)) {
                 // Temporary disabling account creation
-                setInitializeFailedMessage(t("hooks.useSubmitOfframp.cnpjUserDoesntExist"));
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.maintenance"));
                 setRampStarted(false);
                 setRampInitiating(false);
                 resetRampState();
