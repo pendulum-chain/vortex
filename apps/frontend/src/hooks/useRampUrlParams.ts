@@ -2,9 +2,10 @@ import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirecti
 import { useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
+import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
-import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
+import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
@@ -14,6 +15,7 @@ interface RampUrlParams {
   from?: string;
   fromAmount?: string;
   partnerId?: string;
+  providedQuoteId?: string;
   moneriumCode?: string;
 }
 
@@ -90,6 +92,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const inputAmountParam = params.get("fromAmount");
     const partnerIdParam = params.get("partnerId");
     const moneriumCode = params.get("code")?.toLowerCase();
+    const providedQuoteId = params.get("quoteId")?.toLowerCase();
 
     const ramp =
       rampParam === undefined
@@ -118,6 +121,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       moneriumCode,
       network: getNetworkFromParam(networkParam),
       partnerId: partnerIdParam || undefined,
+      providedQuoteId,
       ramp,
       to
     };
@@ -127,13 +131,15 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId, providedQuoteId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
-  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useRampFormStoreActions();
+  const rampActor = useRampActor();
+
+  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useQuoteFormStoreActions();
 
   const hasInitialized = useRef(false);
 
@@ -189,6 +195,10 @@ export const useSetRampUrlParams = () => {
 
     if (fromAmount) {
       setInputAmount(fromAmount);
+    }
+
+    if (providedQuoteId) {
+      rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
     }
 
     hasInitialized.current = true;

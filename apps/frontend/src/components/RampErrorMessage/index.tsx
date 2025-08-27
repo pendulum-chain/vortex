@@ -1,7 +1,11 @@
-import { useInitializeFailedMessage } from "../../stores/rampStore";
+import { useSelector } from "@xstate/react";
+import { useRampActor } from "../../contexts/rampState";
 
 export const RampErrorMessage = () => {
-  const initializeFailedMessage = useInitializeFailedMessage();
+  const rampActor = useRampActor();
+  const { initializeFailedMessage } = useSelector(rampActor, state => ({
+    initializeFailedMessage: state.context.initializeFailedMessage
+  }));
 
   if (!initializeFailedMessage) {
     return null;

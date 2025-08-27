@@ -5,23 +5,21 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
-import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
-import { useRampForm } from "../../../hooks/ramp/useRampForm";
+import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
+import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
-import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
+import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
 import { useValidateTerms } from "../../../stores/termsStore";
 import { useTokenSelectionActions } from "../../../stores/tokenSelectionStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
-import { BrlaSwapFields } from "../../BrlaComponents/BrlaSwapFields";
 import { LabeledInput } from "../../LabeledInput";
+import { WalletConnectedSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
-import { RampSubmitButtons } from "../../RampSubmitButtons";
-import { RampTerms } from "../../RampTerms";
 import { UserBalance } from "../../UserBalance";
 
 export const Offramp = () => {
@@ -29,7 +27,7 @@ export const Offramp = () => {
 
   const { setTrackPrice } = useFeeComparisonStore();
 
-  const { form } = useRampForm();
+  const { form } = useQuoteForm();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
@@ -124,12 +122,8 @@ export const Offramp = () => {
         <section className="mt-5 flex w-full items-center justify-center">
           <BenefitsList />
         </section>
-        <BrlaSwapFields />
         <RampErrorMessage />
-        <section className="mt-5 w-full">
-          <RampTerms />
-        </section>
-        <RampSubmitButtons toAmount={toAmount} />
+        <WalletConnectedSubmitButton className="mt-4" needsWalletConnection />
       </motion.form>
     </FormProvider>
   );

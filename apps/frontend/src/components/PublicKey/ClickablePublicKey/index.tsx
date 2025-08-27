@@ -19,12 +19,12 @@ export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
     style={props.inline ? { height: "inherit", minHeight: "0", padding: 0 } : {}}
     type="button"
   >
+    <PublicKey {...props} />
     {props.icon ? (
       <>
         {props.icon}
         &nbsp;
       </>
     ) : null}
-    <PublicKey {...props} />
   </button>
 );

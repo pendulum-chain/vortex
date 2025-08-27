@@ -48,7 +48,7 @@ async function runBrlOnrampExample() {
 
     const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
 
-    console.log(`✅ BRL Onramp registered successfully:`);
+    console.log("✅ BRL Onramp registered successfully:");
     console.log(`   Ramp ID: ${rampProcess.id}`);
 
     if (rampProcess.depositQrCode) {

@@ -1,5 +1,15 @@
-import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "@packages/shared";
-import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
+import { ALCHEMY_API_KEY, EvmNetworks, MOONBEAM_WSS, Networks } from "@packages/shared";
+import {
+  Account,
+  Chain,
+  createPublicClient,
+  createWalletClient,
+  http,
+  PublicClient,
+  Transport,
+  WalletClient,
+  webSocket
+} from "viem";
 import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon } from "viem/chains";
 import logger from "../../logger";
 
@@ -18,8 +28,8 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     },
     {
       chain: moonbeam,
-      name: Networks.Moonbeam
-      // No custom RPC URL for Moonbeam, always using default from viem
+      name: Networks.Moonbeam,
+      rpcUrl: MOONBEAM_WSS
     },
     {
       chain: arbitrum,
@@ -77,7 +87,11 @@ export class EvmClientManager {
   private createClient(networkName: EvmNetworks): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
-    const transport = network.rpcUrl ? http(network.rpcUrl) : http(); // Uses default RPC from chain config
+    const transport = network.rpcUrl
+      ? network.name === Networks.Moonbeam
+        ? webSocket(MOONBEAM_WSS)
+        : http(network.rpcUrl)
+      : http();
 
     const client = createPublicClient({
       chain: network.chain,
@@ -94,8 +108,12 @@ export class EvmClientManager {
   private createWalletClient(networkName: EvmNetworks, account: Account): WalletClient<Transport, Chain, Account> {
     const network = this.getNetworkConfig(networkName);
 
-    const transport = network.rpcUrl ? http(network.rpcUrl) : http(); // Uses default RPC from chain config
-
+    // if moonbeam, provide websocket transport. If not, use http
+    const transport = network.rpcUrl
+      ? network.name === Networks.Moonbeam
+        ? webSocket(network.rpcUrl)
+        : http(network.rpcUrl)
+      : http();
     const walletClient = createWalletClient({
       account,
       chain: network.chain,

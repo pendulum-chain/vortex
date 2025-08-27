@@ -15,6 +15,7 @@ export interface PartnerAttributes {
   rampType: RampDirection;
   vortexFeeType: "absolute" | "relative" | "none";
   vortexFeeValue: number;
+  discount: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +48,8 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare vortexFeeValue: number;
 
+  declare discount: number;
+
   declare isActive: boolean;
 
   declare createdAt: Date;
@@ -62,6 +65,12 @@ Partner.init(
       defaultValue: DataTypes.NOW,
       field: "created_at",
       type: DataTypes.DATE
+    },
+    discount: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "discount",
+      type: DataTypes.DECIMAL(10, 4)
     },
     displayName: {
       allowNull: false,

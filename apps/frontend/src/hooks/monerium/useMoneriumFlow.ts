@@ -1,53 +1,30 @@
-import { useCallback, useEffect } from "react";
-import { exchangeMoneriumCode } from "../../services/monerium/moneriumAuth";
-import { useMoneriumStore } from "../../stores/moneriumStore";
-import { useRampActions } from "../../stores/rampStore";
+import { useEffect, useRef } from "react";
+import { useMoneriumKycActor, useMoneriumKycSelector, useRampActor } from "../../contexts/rampState";
 
 /**
- * Hook to manage Monerium authentication flow state and handle redirects
+ * Hook to manage Monerium's KYC state machine self-transitions for authentication flow.
  */
 export const useMoneriumFlow = () => {
-  const { triggered, flowState, codeVerifier, authToken, reset } = useMoneriumStore();
-  const { resetRampState } = useRampActions();
+  const moneriumKycActor = useMoneriumKycActor();
+  const moneriumState = useMoneriumKycSelector();
 
-  // Reset function for cleanup
-  const resetFlow = useCallback(() => {
-    reset();
-  }, [reset]);
-
-  // Handle redirect from Monerium
+  const codeProcessedRef = useRef(false);
   useEffect(() => {
-    // only listen if a Monerium ramp has been triggered, and the flow state is redirecting or in siwe mode.
-    if (!triggered || flowState === "completed" || flowState === "idle" || flowState === "authenticating") {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    if (moneriumState && !code && moneriumState.stateValue === "Redirect") {
+      const { authUrl } = moneriumState.context;
+      if (!authUrl) {
+        return;
+      }
+      window.location.assign(authUrl);
+    }
+    if (!moneriumKycActor || codeProcessedRef.current || !code) {
       return;
     }
 
-    const handleRedirect = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
-
-      if (code && codeVerifier) {
-        try {
-          // Exchange the code for tokens
-          await exchangeMoneriumCode(code);
-
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-          console.error("Error exchanging Monerium code:", error);
-          resetFlow();
-          resetRampState();
-        }
-      }
-    };
-
-    handleRedirect();
-  }, [triggered, codeVerifier, flowState, resetRampState, resetFlow]);
-
-  return {
-    authToken,
-    flowState,
-    isAuthenticated: flowState === "completed" && !!authToken,
-    resetFlow
-  };
+    codeProcessedRef.current = true;
+    moneriumKycActor.send({ code, type: "CODE_RECEIVED" });
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, [moneriumKycActor, moneriumState]);
 };

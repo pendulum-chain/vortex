@@ -8,4 +8,6 @@ router.route("/create").post(validateSiweCreate, siweController.sendSiweMessage)
 
 router.route("/validate").post(validateSiweValidate, siweController.validateSiweSignature);
 
+router.route("/check").get(siweController.checkAuth);
+
 export default router;

@@ -1,6 +1,6 @@
 import SafeApiKit from "@safe-global/api-kit";
-import { getChainId, waitForTransactionReceipt } from "@wagmi/core";
-import { Hash } from "viem";
+import { getChainId, getPublicClient, waitForTransactionReceipt } from "@wagmi/core";
+import { Hash, WaitForTransactionReceiptParameters } from "viem";
 
 import { useSafeWalletSignatureStore } from "../../stores/safeWalletSignaturesStore";
 import { wagmiConfig } from "../../wagmiConfig";
@@ -12,21 +12,34 @@ import { isTransactionHashSafeWallet } from "./isTransactionSafeWallet";
  * For regular transactions, it simply waits for blockchain confirmation.
  *
  * @param hash - The transaction hash to monitor
+ * @param chainId - The chain ID of the network where the transaction is being processed
  * @returns A promise that resolves to the final transaction hash
  */
 export async function waitForTransactionConfirmation(hash: Hash, chainId: number): Promise<Hash> {
   const isSafeWalletTransaction = await isTransactionHashSafeWallet(hash, chainId);
+
+  const publicClient = getPublicClient(wagmiConfig, { chainId });
+  if (!publicClient) {
+    throw new Error(`No public client found for chain ID ${chainId}. Ensure the chain is configured correctly in wagmiConfig.`);
+  }
+
+  const params: WaitForTransactionReceiptParameters = {
+    hash,
+    pollingInterval: 10_000,
+    retryCount: 20,
+    timeout: 60_000
+  };
 
   if (isSafeWalletTransaction) {
     // Wait for all required signatures via Safe API
     const transactionHash = await pollSafeWalletTransaction(hash);
 
     // Wait for on-chain confirmation
-    await waitForTransactionReceipt(wagmiConfig, { hash: transactionHash });
+    await publicClient.waitForTransactionReceipt({ ...params, hash: transactionHash });
     return transactionHash;
   }
 
-  await waitForTransactionReceipt(wagmiConfig, { hash });
+  await publicClient.waitForTransactionReceipt({ ...params, hash });
   return hash;
 }
 

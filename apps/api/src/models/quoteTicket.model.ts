@@ -29,6 +29,11 @@ export interface QuoteTicketMetadata {
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
   usdFeeStructure: QuoteFeeStructure;
+  subsidy?: {
+    partnerId: string;
+    discount: string;
+    subsidyAmountInOutputToken: string;
+  };
 }
 
 // Define the attributes that can be set during creation

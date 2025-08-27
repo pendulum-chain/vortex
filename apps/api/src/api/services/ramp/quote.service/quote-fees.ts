@@ -64,7 +64,7 @@ async function calculateFeeComponent(
  * Calculate partner markup and Vortex fees
  * @param inputAmount - The input amount for the transaction
  * @param rampType - The type of ramp operation
- * @param partnerName - Optional partner name for custom fees
+ * @param partnerId - Optional partner id for custom fees
  * @param inputCurrency - The input currency
  * @param feeCurrency - The target fee currency
  * @returns Object containing partner markup and vortex fees as Big numbers
@@ -72,7 +72,7 @@ async function calculateFeeComponent(
 async function calculatePartnerAndVortexFees(
   inputAmount: string,
   rampType: RampDirection,
-  partnerName: string | undefined,
+  partnerId: string | undefined,
   inputCurrency: RampCurrency,
   feeCurrency: RampCurrency
 ): Promise<{ partnerMarkupFee: Big; vortexFee: Big }> {
@@ -80,12 +80,12 @@ async function calculatePartnerAndVortexFees(
   let totalVortexFeeInFeeCurrency = new Big(0);
 
   // 1. Fetch and process partner-specific configurations if partnerName is provided
-  if (partnerName) {
+  if (partnerId) {
     // Query all records where name matches partnerName AND rampType matches rampType
     const partnerRecords = await Partner.findAll({
       where: {
+        id: partnerId,
         isActive: true,
-        name: partnerName,
         rampType: rampType
       }
     });
@@ -141,16 +141,16 @@ async function calculatePartnerAndVortexFees(
 
       // Log warning if partner found but no applicable custom fees
       if (!hasApplicableFees) {
-        logger.warn(`Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`);
+        logger.warn(`Partner with name '${partnerId}' found, but no active markup defined. Proceeding with default fees.`);
       }
     } else {
       // No specific partner records found, will use default Vortex fee below
-      logger.warn(`No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`);
+      logger.warn(`No fee configuration found for partner with name '${partnerId}'. Proceeding with default fees.`);
     }
   }
 
   // 2. If no partner was provided initially, use default Vortex fees
-  if (!partnerName) {
+  if (!partnerId) {
     // Query all vortex records for this ramp type
     const vortexFoundationPartners = await Partner.findAll({
       where: {
@@ -260,7 +260,7 @@ async function calculateAnchorFee(
  * @param rampType - The type of ramp operation
  * @param from - The source destination type
  * @param to - The target destination type
- * @param partnerName - Optional partner name for custom fees
+ * @param partnerId - Optional partner id for custom fees
  * @returns Promise resolving to the pre-Nabla deductible fees
  */
 export async function calculatePreNablaDeductibleFees(
@@ -270,7 +270,7 @@ export async function calculatePreNablaDeductibleFees(
   rampType: RampDirection,
   from: DestinationType,
   to: DestinationType,
-  partnerName?: string
+  partnerId?: string
 ): Promise<PreNablaDeductibleFeesResult> {
   try {
     // Validate chain support
@@ -297,7 +297,7 @@ export async function calculatePreNablaDeductibleFees(
       const { partnerMarkupFee, vortexFee } = await calculatePartnerAndVortexFees(
         inputAmount,
         rampType,
-        partnerName,
+        partnerId,
         inputCurrency,
         feeCurrency
       );

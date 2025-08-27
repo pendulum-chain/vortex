@@ -127,11 +127,13 @@
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
       "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
       "pixKey": "Chave Pix",
-      "placeholder": "Digite seu {{label}}"
+      "placeholder": "Digite seu {{label}}",
+      "walletAddress": "Endereço da Carteira"
     },
     "dialogs": {
       "connectWallet": {
-        "connect": "Conectar"
+        "connect": "Conectar",
+        "wrongNetwork": "Rede errada"
       },
       "polkadotDisconnectWallet": {
         "disconnect": "Desconectar"
@@ -145,39 +147,6 @@
       "polkadotWalletSelectorDialogLoading": {
         "description": "Por favor, aprove {selectedWallet} e aprove a transação.",
         "title": "Conectando wallet"
-      },
-      "RampSummaryDialog": {
-        "BRLOnrampDetails": {
-          "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "pixCode": "Código PIX",
-          "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
-          "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
-          "timerLabel": "Cotação expira em:",
-          "title": "Pagar com PIX"
-        },
-        "confirm": "Confirmar",
-        "continue": "Continuar",
-        "continueOnPartnersPage": "Continuar na página do Parceiro",
-        "continueWithPartner": "Continuar com Parceiro",
-        "destination": "Conta de destino",
-        "EUROnrampDetails": {
-          "amount": "Valor",
-          "bic": "BIC",
-          "footer": "Por favor, garanta que o valor seja exato.",
-          "iban": "IBAN",
-          "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
-        },
-        "headerText": {
-          "buy": "Resumo do pagamento",
-          "sell": "Resumo do pagamento"
-        },
-        "offrampFee": "Taxa total",
-        "onrampFee": "Taxa total",
-        "partner": "Parceiro",
-        "processing": "Processando",
-        "quote": "Cotação",
-        "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
-        "tryAgain": "Tentar novamente"
       },
       "selectionModal": {
         "allNetworks": "Todas as Redes",
@@ -251,6 +220,43 @@
       "howItWorks": "Como funciona",
       "sellCrypto": "Vender Cripto"
     },
+    "quoteSubmitButton": {
+      "buy": "Comprar",
+      "sell": "Vender"
+    },
+    "RampSummaryCard": {
+      "BRLOnrampDetails": {
+        "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
+        "pixCode": "Código PIX",
+        "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "timerLabel": "Cotação expira em:",
+        "title": "Pagar com PIX"
+      },
+      "confirm": "Confirmar",
+      "continue": "Continuar",
+      "continueOnPartnersPage": "Continuar na página do Parceiro",
+      "continueWithPartner": "Continuar com Parceiro",
+      "destination": "Conta de destino",
+      "EUROnrampDetails": {
+        "amount": "Valor",
+        "bic": "BIC",
+        "footer": "Por favor, garanta que o valor seja exato.",
+        "iban": "IBAN",
+        "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
+      },
+      "headerText": {
+        "buy": "Resumo do pagamento",
+        "sell": "Resumo do pagamento"
+      },
+      "offrampFee": "Taxa total",
+      "onrampFee": "Taxa total",
+      "partner": "Parceiro",
+      "processing": "Processando",
+      "quote": "Cotação",
+      "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
+      "tryAgain": "Tentar novamente"
+    },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
       "thankYou": "Obrigado!",
@@ -265,6 +271,11 @@
       "signatures": "Assinaturas",
       "waitingForSignature": "Aguardando assinatura",
       "yourConnectedWallet": "sua carteira conectada para prosseguir"
+    },
+    "stepper": {
+      "confirm": "Confirmar",
+      "details": "Detalhes",
+      "verification": "Verificação"
     },
     "swap": {
       "buyButton": "Comprar",

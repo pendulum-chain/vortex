@@ -5,12 +5,13 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { usePolkadotWalletState } from "../contexts/polkadotWallet";
+import { useRampActor } from "../contexts/rampState";
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
 export const useVortexAccount = () => {
   const { selectedNetwork } = useNetwork();
-
+  const rampActor = useRampActor();
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
   const { chainId: evmChainId, address: evmAccountAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -84,6 +85,20 @@ export const useVortexAccount = () => {
     },
     [polkadotWalletAccount, selectedNetwork, signMessageAsync]
   );
+
+  // update the ramp actor with the current context
+  useEffect(() => {
+    if (rampActor && address) {
+      rampActor.send({
+        address,
+        type: "SET_ADDRESS"
+      });
+    }
+    rampActor?.send({
+      getMessageSignature,
+      type: "SET_GET_MESSAGE_SIGNATURE"
+    });
+  }, [address, rampActor, getMessageSignature]);
 
   return {
     address, // currently selected address

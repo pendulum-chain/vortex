@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { storageKeys } from "../../constants/localStorage";
-import { usePixId, useRampFormStoreActions } from "../../stores/ramp/useRampFormStore";
+import { usePixId, useQuoteFormStoreActions } from "../../stores/quote/useQuoteFormStore";
 
 export const useBrlaKycPixKeyLocalStorage = () => {
   const storePixId = usePixId();
 
-  const { setPixId: setStorePixId } = useRampFormStoreActions();
+  const { setPixId: setStorePixId } = useQuoteFormStoreActions();
 
   const [localStoragePixId, setLocalStoragePixId] = useState<string | undefined>(() => {
     try {

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Skeleton } from "../../../components/Skeleton";
 import { RampParameters, useEventsContext } from "../../../contexts/events";
 import { cn } from "../../../helpers/cn";
-import { useQuote } from "../../../stores/ramp/useQuoteStore";
+import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { formatPrice } from "../helpers";
 import { PriceProviderDetails } from "../priceProviders";

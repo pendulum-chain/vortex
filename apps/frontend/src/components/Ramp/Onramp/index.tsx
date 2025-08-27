@@ -3,40 +3,36 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
-import { useQuoteService } from "../../../hooks/ramp/useQuoteService";
-import { useRampForm } from "../../../hooks/ramp/useRampForm";
+import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
+import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
-import { useQuoteLoading } from "../../../stores/ramp/useQuoteStore";
-import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/ramp/useRampFormStore";
+import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
+import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
 import { useValidateTerms } from "../../../stores/termsStore";
 import { useTokenSelectionActions } from "../../../stores/tokenSelectionStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
-import { BrlaSwapFields } from "../../BrlaComponents/BrlaSwapFields";
 import { LabeledInput } from "../../LabeledInput";
+import { QuoteSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
-import { RampSubmitButtons } from "../../RampSubmitButtons";
-import { RampTerms } from "../../RampTerms";
 
 export const Onramp = () => {
   const { t } = useTranslation();
 
   const { setTrackPrice } = useFeeComparisonStore();
 
-  const { form } = useRampForm();
+  const { form } = useQuoteForm();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
   const quoteLoading = useQuoteLoading();
 
   const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
-
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
     form.setValue("outputAmount", toAmount?.toFixed(6, 0) || "0");
@@ -121,12 +117,8 @@ export const Onramp = () => {
         <section className="mt-5 flex w-full items-center justify-center">
           <BenefitsList />
         </section>
-        <BrlaSwapFields />
         <RampErrorMessage />
-        <section className="mt-5 w-full">
-          <RampTerms />
-        </section>
-        <RampSubmitButtons toAmount={toAmount} />
+        <QuoteSubmitButton className="mt-4" />
       </motion.form>
     </FormProvider>
   );
