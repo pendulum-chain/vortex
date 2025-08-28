@@ -91,7 +91,7 @@ export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
       }
     }),
     {
-      name: "useRampFormStore",
+      name: "useQuoteFormStore",
       partialize: state => ({
         fiatToken: state.fiatToken,
         inputAmount: state.inputAmount,

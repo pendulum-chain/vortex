@@ -1,7 +1,7 @@
 import { FiatToken, FiatTokenDetails, Networks, OnChainToken, OnChainTokenDetails, RampDirection } from "@packages/shared";
 import { isFiatTokenDisabled } from "../../../../config/tokenAvailability";
 import { useNetwork } from "../../../../contexts/network";
-import { useFiatToken, useOnChainToken, useRampFormStoreActions } from "../../../../stores/ramp/useRampFormStore";
+import { useFiatToken, useOnChainToken, useQuoteFormStoreActions } from "../../../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
 import { useTokenSelectionActions, useTokenSelectionState } from "../../../../stores/tokenSelectionStore";
 
@@ -24,7 +24,7 @@ export const useTokenSelection = () => {
   const { setSelectedNetwork } = useNetwork();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const { setFiatToken, setOnChainToken } = useRampFormStoreActions();
+  const { setFiatToken, setOnChainToken } = useQuoteFormStoreActions();
   const rampDirection = useRampDirection();
 
   const handleTokenSelect = async (token: OnChainToken | FiatToken, tokenDefinition: ExtendedTokenDefinition) => {
