@@ -19,7 +19,7 @@ import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
  * Get token details for a specific network and token
  */
 export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
-  const normalizedOnChainToken = onChainToken.toLowerCase();
+  const normalizedOnChainToken = onChainToken.toUpperCase();
 
   try {
     if (network === Networks.AssetHub) {

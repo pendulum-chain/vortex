@@ -1,4 +1,5 @@
 import { AssetHubToken, EvmToken, FiatToken, OnChainToken } from "../tokens";
+import { isOnChainToken } from "../tokens/utils/typeGuards";
 import { RampDirection } from "../types";
 
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
@@ -19,8 +20,7 @@ export const isValidPriceProvider = (value: unknown): value is PriceProvider =>
 
 export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency => {
   if (typeof value !== "string") return false;
-  const normalizedValue = value.toUpperCase();
-  return VALID_CRYPTO_CURRENCIES.includes(normalizedValue as CryptoCurrency);
+  return isOnChainToken(value);
 };
 
 export const isValidFiatCurrency = (value: unknown): value is FiatCurrency => {
