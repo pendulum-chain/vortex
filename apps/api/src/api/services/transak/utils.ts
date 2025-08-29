@@ -9,7 +9,7 @@
  */
 export function getCryptoCode(fromCrypto: string): string {
   const normalizedCrypto = fromCrypto.toLowerCase();
-  if (["usdc", "usdc.e", "usdc.e"].includes(normalizedCrypto)) {
+  if (["usdc", "usdc.e", "usdce"].includes(normalizedCrypto)) {
     return "USDC";
   }
   if (normalizedCrypto === "usdt") {

@@ -14,7 +14,7 @@ export enum FiatToken {
 }
 
 export enum AssetHubToken {
-  USDC = "usdc"
+  USDC = "USDC"
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;

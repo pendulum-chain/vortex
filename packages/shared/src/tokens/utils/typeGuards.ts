@@ -81,11 +81,11 @@ export function isFiatToken(token: string): token is FiatToken {
 }
 
 export function isAssetHubToken(token: string): token is AssetHubToken {
-  return Object.values(AssetHubToken).includes(token.toLowerCase() as AssetHubToken);
+  return Object.values(AssetHubToken).includes(token.toUpperCase() as AssetHubToken);
 }
 
 export function isEvmToken(token: string): token is EvmToken {
-  return Object.values(EvmToken).includes(token.toLowerCase() as EvmToken);
+  return Object.values(EvmToken).includes(token.toUpperCase() as EvmToken);
 }
 
 export function isOnChainToken(token: string): token is OnChainToken {
