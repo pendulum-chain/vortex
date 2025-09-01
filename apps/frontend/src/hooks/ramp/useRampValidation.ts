@@ -198,7 +198,6 @@ export const useRampValidation = () => {
         trackEvent
       });
     } else {
-      console.log("validating offramp");
       validationError = validateOfframp(t, {
         fromToken: fromToken as OnChainTokenDetails,
         inputAmount,

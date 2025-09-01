@@ -1,4 +1,4 @@
-import { getNetworkId, Networks, RampDirection } from "@packages/shared";
+import { EvmToken, FiatToken, getNetworkId, Networks, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -121,15 +121,22 @@ export const useRampSubmission = () => {
       setExecutionPreparing(true);
 
       try {
-        if (!data || !data.taxId) {
-          // This calback is generic and used for any ramp type.
-          // The submission logic must ensure these fields are passed if BRL
-          throw new Error("TaxID, Address must be provided");
+        if (!data) {
+          throw new Error("Invalid ramp data.");
         }
-        setTaxId(data.taxId);
-        setPixId(data.taxId);
 
         const executionInput = prepareExecutionInput(data);
+
+        // This callback is generic and used for any ramp type.
+        // The submission logic must ensure these fields are set if BRL
+        if (executionInput.fiatToken === FiatToken.BRL) {
+          if (!data.taxId) {
+            throw new Error("TaxID, Address must be provided");
+          }
+          setTaxId(data.taxId);
+          setPixId(data.taxId);
+        }
+
         await preRampCheck(executionInput);
         if (chainId === undefined) {
           throw new Error("ChainId must be defined at this stage");
