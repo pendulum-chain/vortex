@@ -1,5 +1,6 @@
 import {
-  AccountMeta,
+  createOfframpSquidrouterTransactionsToEvm,
+  ERC20_EURE_POLYGON,
   EvmTokenDetails,
   EvmTransactionData,
   getAnyFiatTokenDetails,
@@ -12,14 +13,12 @@ import {
   Networks,
   UnsignedTx
 } from "@packages/shared";
-
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { ERC20_EURE_POLYGON, getFirstMoneriumLinkedAddress } from "../monerium";
+import { getFirstMoneriumLinkedAddress } from "../monerium";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
-import { createOfframpSquidrouterTransactionsToEvm } from "./squidrouter/offramp";
 
 export interface MoneriumOfframpTransactionParams {
   quote: QuoteTicketAttributes;

@@ -1,4 +1,4 @@
-import { Direction, MoonpayPriceResponse } from "@packages/shared";
+import { MoonpayPriceResponse, RampDirection } from "@packages/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -41,7 +41,11 @@ function handleMoonpayError(response: Response, body: MoonpayErrorResponse): nev
   throw new InvalidParameterError(`Moonpay API error: ${errorMessage}`);
 }
 
-function validateMoonpayResponse(body: MoonpayResponse, requestedAmount: string, direction: Direction): MoonpayPriceResponse {
+function validateMoonpayResponse(
+  body: MoonpayResponse,
+  requestedAmount: string,
+  direction: RampDirection
+): MoonpayPriceResponse {
   if (body.baseCurrencyAmount === undefined || body.quoteCurrencyAmount === undefined || body.feeAmount === undefined) {
     throw new ProviderInternalError("Moonpay response missing essential data fields");
   }
@@ -79,7 +83,7 @@ export async function processMoonpayResponse(
   response: Response,
   body: MoonpayResponse,
   requestedAmount: string,
-  direction: Direction
+  direction: RampDirection
 ): Promise<MoonpayPriceResponse> {
   if (!response.ok) {
     return handleMoonpayError(response, body);

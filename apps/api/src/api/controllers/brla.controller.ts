@@ -1,4 +1,5 @@
 import {
+  BrlaApiService,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaErrorResponse,
@@ -15,7 +16,9 @@ import {
   BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
+  Kyc2FailureReason,
   KycFailureReason,
+  RegisterSubaccountPayload,
   StartKYC2Request,
   validateMaskedNumber
 } from "@packages/shared";
@@ -23,9 +26,8 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
 import logger from "../../config/logger";
-import { BrlaApiService } from "../services/brla/brlaApiService";
-import { RegisterSubaccountPayload } from "../services/brla/types";
-import { Kyc2FailureReason } from "../services/brla/webhooks";
+import TaxId from "../../models/taxId.model";
+import { APIError } from "../errors/api-error";
 import kycService from "../services/kyc/kyc.service";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
@@ -140,6 +142,14 @@ export const getBrlaUserRemainingLimit = async (
       return;
     }
 
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "Ramp disabled",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
@@ -170,53 +180,6 @@ export const getBrlaUserRemainingLimit = async (
     return;
   } catch (error) {
     handleApiError(error, res, "getBrlaUserRemainingLimit");
-  }
-};
-
-export const triggerBrlaOfframp = async (
-  req: Request<unknown, unknown, BrlaTriggerOfframpRequest>,
-  res: Response<BrlaTriggerOfframpResponse | BrlaErrorResponse>
-): Promise<void> => {
-  try {
-    const { taxId, pixKey, amount, receiverTaxId } = req.body;
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-
-    if (!subaccount) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
-
-    // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
-    try {
-      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
-
-      // validate the recipient's taxId with partial information
-      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
-        res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid pixKey or receiverTaxId" });
-        return;
-      }
-    } catch {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid pixKey or receiverTaxId" });
-      return;
-    }
-
-    const { limitBurn } = subaccount.kyc.limits;
-    if (Number(amount) > limitBurn) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Amount exceeds limit" });
-      return;
-    }
-
-    const subaccountId = subaccount.id;
-    const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
-      amount: Number(amount),
-      pixKey,
-      taxId: receiverTaxId
-    });
-    res.status(httpStatus.OK).json({ offrampId });
-    return;
-  } catch (error) {
-    handleApiError(error, res, "triggerOfframp");
   }
 };
 
@@ -266,68 +229,70 @@ export const getRampStatus = async (
 
 export const createSubaccount = async (
   req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
-  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
+  res: Response<void>
 ): Promise<void> => {
-  try {
-    const { cpf, cnpj, taxIdType } = req.body;
+  handleApiError("Endpoint Disabled", res, "createSubaccount");
 
-    const taxId = taxIdType === "CNPJ" ? cnpj : cpf;
+  // try {
+  //   const { cpf, cnpj, taxIdType } = req.body;
 
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cpf or cnpj" });
-      return;
-    }
+  //   const taxId = taxIdType === "CNPJ" ? cnpj : cpf;
 
-    const brlaApiService = BrlaApiService.getInstance();
-    // Convert birthdate from number to BRLA format
-    const birthdate = convertDateToBRLAFormat(req.body.birthdate);
-    // if company startDate field was provided, convert it to BRLA format
-    const startDate = convertDateToBRLAFormat(req.body.startDate);
+  //   if (!taxId) {
+  //     res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cpf or cnpj" });
+  //     return;
+  //   }
 
-    let subaccountPayload: RegisterSubaccountPayload = { ...req.body, birthdate, startDate };
+  //   const brlaApiService = BrlaApiService.getInstance();
+  //   // Convert birthdate from number to BRLA format
+  //   const birthdate = convertDateToBRLAFormat(req.body.birthdate);
+  //   // if company startDate field was provided, convert it to BRLA format
+  //   const startDate = convertDateToBRLAFormat(req.body.startDate);
 
-    // Extra validation for company fields
-    if (taxIdType === "CNPJ") {
-      if (!req.body.companyName) {
-        res.status(httpStatus.BAD_REQUEST).json({ error: "Missing companyName" });
-        return;
-      }
-      if (!req.body.cpf) {
-        res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cpf. Partner cpf is required" });
-        return;
-      }
-      if (startDate === "") {
-        res.status(httpStatus.BAD_REQUEST).json({ error: "Missing startDate" });
-        return;
-      }
-    }
+  //   let subaccountPayload: RegisterSubaccountPayload = { ...req.body, birthdate, startDate };
 
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (subaccount && subaccount.kyc.level !== 0) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount already created" });
-      return;
-    }
+  //   // Extra validation for company fields
+  //   if (taxIdType === "CNPJ") {
+  //     if (!req.body.companyName) {
+  //       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing companyName" });
+  //       return;
+  //     }
+  //     if (!req.body.cpf) {
+  //       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cpf. Partner cpf is required" });
+  //       return;
+  //     }
+  //     if (startDate === "") {
+  //       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing startDate" });
+  //       return;
+  //     }
+  //   }
 
-    if (subaccount && subaccount.kyc.level === 0) {
-      logger.info("Subaccount Payload", subaccountPayload);
+  //   const subaccount = await brlaApiService.getSubaccount(taxId);
+  //   if (subaccount && subaccount.kyc.level !== 0) {
+  //     res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount already created" });
+  //     return;
+  //   }
 
-      await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
+  //   if (subaccount && subaccount.kyc.level === 0) {
+  //     logger.info("Subaccount Payload", subaccountPayload);
 
-      lastInteractionMap.set(subaccount.id, Date.now());
-      res.status(httpStatus.OK).json({ subaccountId: "" });
-      return;
-    }
+  //     await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
 
-    subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
-    logger.info("Subaccount Payload", subaccountPayload);
+  //     lastInteractionMap.set(subaccount.id, Date.now());
+  //     res.status(httpStatus.OK).json({ subaccountId: "" });
+  //     return;
+  //   }
 
-    const { id } = await brlaApiService.createSubaccount(subaccountPayload);
+  //   subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
+  //   logger.info("Subaccount Payload", subaccountPayload);
 
-    lastInteractionMap.set(id, Date.now());
-    res.status(httpStatus.OK).json({ subaccountId: id });
-  } catch (error) {
-    handleApiError(error, res, "createSubaccount");
-  }
+  //   const { id } = await brlaApiService.createSubaccount(subaccountPayload);
+
+  //   lastInteractionMap.set(id, Date.now());
+  //   res.status(httpStatus.OK).json({ subaccountId: id });
+  // } catch (error) {
+  //   handleApiError(error, res, "createSubaccount");
+  // }
 };
 
 export const fetchSubaccountKycStatus = async (
@@ -428,27 +393,28 @@ export const startKYC2 = async (
   req: Request<unknown, unknown, StartKYC2Request>,
   res: Response<BrlaStartKYC2Response | BrlaErrorResponse>
 ): Promise<void> => {
-  try {
-    const { taxId, documentType } = req.body;
+  handleApiError("Endpoint Disabled", res, "startKYC2");
+  // try {
+  //   const { taxId, documentType } = req.body;
 
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+  //   const brlaApiService = BrlaApiService.getInstance();
+  //   const subaccount = await brlaApiService.getSubaccount(taxId);
 
-    if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount not found" });
-      return;
-    }
+  //   if (!subaccount) {
+  //     res.status(httpStatus.BAD_REQUEST).json({ error: "Subaccount not found" });
+  //     return;
+  //   }
 
-    if (subaccount.kyc.level !== 1) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid. User must have a valid KYC level 1 status" });
-      return;
-    }
+  //   if (subaccount.kyc.level !== 1) {
+  //     res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid. User must have a valid KYC level 1 status" });
+  //     return;
+  //   }
 
-    const kycLevel2Response = await kycService.requestKycLevel2(subaccount.id, documentType);
+  //   const kycLevel2Response = await kycService.requestKycLevel2(subaccount.id, documentType);
 
-    lastInteractionMap.set(subaccount.id, Date.now());
-    res.status(httpStatus.OK).json({ uploadUrls: kycLevel2Response });
-  } catch (error) {
-    handleApiError(error, res, "startKYC2");
-  }
+  //   lastInteractionMap.set(subaccount.id, Date.now());
+  //   res.status(httpStatus.OK).json({ uploadUrls: kycLevel2Response });
+  // } catch (error) {
+  //   handleApiError(error, res, "startKYC2");
+  // }
 };

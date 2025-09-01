@@ -1,10 +1,16 @@
 import {
   AccountMeta,
+  BrlaApiService,
+  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
+  generateReferenceLabel,
   IbanPaymentData,
+  MoneriumErrors,
   Networks,
+  QuoteError,
+  RampDirection,
   RampErrorLog,
   RampPhase,
   RampProcess,
@@ -12,6 +18,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  SubaccountData,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
@@ -23,11 +30,9 @@ import logger from "../../../config/logger";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
-import { BrlaApiService } from "../brla/brlaApiService";
-import { generateReferenceLabel } from "../brla/helpers";
-import { SubaccountData } from "../brla/types";
-import { createEpcQrCodeData, getAuthContext, getMoneriumUserIban, getMoneriumUserProfile } from "../monerium";
+import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
@@ -156,35 +161,46 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
-      moneriumAuthToken: additionalData.moneriumAuthToken,
-      quote,
-      signingAccounts: normalizedSigningAccounts
-    });
+    try {
+      // Validate the user mint address
+      const ibanData = await getIbanForAddress(
+        additionalData.destinationAddress,
+        additionalData.moneriumAuthToken,
+        quote.to as EvmNetworks // Fixme: assethub network type issue.
+      );
 
-    const userContext = await getAuthContext(additionalData.moneriumAuthToken);
-    const ibanData = await getMoneriumUserIban({
-      authToken: additionalData.moneriumAuthToken,
-      profileId: userContext.defaultProfile
-    });
-    const ibanPaymentData = {
-      bic: ibanData.bic,
-      iban: ibanData.iban
-    };
+      const userProfile = await getMoneriumUserProfile({
+        authToken: additionalData.moneriumAuthToken,
+        profileId: ibanData.profile
+      });
 
-    const userProfile = await getMoneriumUserProfile({
-      authToken: additionalData.moneriumAuthToken,
-      profileId: ibanData.profile
-    });
+      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+        destinationAddress: additionalData.destinationAddress,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      });
 
-    const ibanCode = createEpcQrCodeData({
-      amount: quote.inputAmount,
-      bic: ibanData.bic,
-      iban: ibanData.iban,
-      name: userProfile.name
-    });
-    return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+      const ibanPaymentData = {
+        bic: ibanData.bic,
+        iban: ibanData.iban
+      };
+
+      const ibanCode = createEpcQrCodeData({
+        amount: quote.inputAmount,
+        bic: ibanData.bic,
+        iban: ibanData.iban,
+        name: userProfile.name
+      });
+      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
+        throw new APIError({
+          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      throw error;
+    }
   }
 
   private async prepareMoneriumOfframpTransactions(
@@ -217,8 +233,9 @@ export class RampService extends BaseRampService {
     depositQrCode?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (quote.rampType === "off") {
+    if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
+        await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -232,6 +249,7 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
+      await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -248,7 +266,7 @@ export class RampService extends BaseRampService {
 
       if (!quote) {
         throw new APIError({
-          message: "Quote not found",
+          message: QuoteError.QuoteNotFound,
           status: httpStatus.NOT_FOUND
         });
       }
@@ -657,6 +675,16 @@ export class RampService extends BaseRampService {
     });
 
     return brCode.brCode;
+  }
+
+  public async validateBrlaWhitelistedAccount(taxId: string | undefined): Promise<void> {
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "BRL Ramp disabled",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 }
 

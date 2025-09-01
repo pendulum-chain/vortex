@@ -1,4 +1,4 @@
-import { RampCurrency } from "@packages/shared";
+import { RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -12,9 +12,10 @@ export interface PartnerAttributes {
   markupValue: number;
   markupCurrency: RampCurrency;
   payoutAddress: string;
-  rampType: "on" | "off";
+  rampType: RampDirection;
   vortexFeeType: "absolute" | "relative" | "none";
   vortexFeeValue: number;
+  discount: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -41,11 +42,13 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare payoutAddress: string;
 
-  declare rampType: "on" | "off";
+  declare rampType: RampDirection;
 
   declare vortexFeeType: "absolute" | "relative" | "none";
 
   declare vortexFeeValue: number;
+
+  declare discount: number;
 
   declare isActive: boolean;
 
@@ -62,6 +65,12 @@ Partner.init(
       defaultValue: DataTypes.NOW,
       field: "created_at",
       type: DataTypes.DATE
+    },
+    discount: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "discount",
+      type: DataTypes.DECIMAL(10, 4)
     },
     displayName: {
       allowNull: false,
@@ -113,7 +122,7 @@ Partner.init(
     rampType: {
       allowNull: false,
       field: "ramp_type",
-      type: DataTypes.ENUM("on", "off")
+      type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
     },
     updatedAt: {
       allowNull: false,

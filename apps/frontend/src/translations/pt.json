@@ -149,9 +149,9 @@
       "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "description": "Continue no app do seu banco",
           "pixCode": "Código PIX",
           "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+          "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
           "timerLabel": "Cotação expira em:",
           "title": "Pagar com PIX"
         },
@@ -163,10 +163,9 @@
         "EUROnrampDetails": {
           "amount": "Valor",
           "bic": "BIC",
-          "description": "Por favor, faça uma transferência bancária com os seguintes detalhes.",
           "footer": "Por favor, garanta que o valor seja exato.",
           "iban": "IBAN",
-          "title": "Detalhes da Transferência Bancária"
+          "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
         },
         "headerText": {
           "buy": "Resumo do pagamento",
@@ -301,7 +300,7 @@
     "swapSubmitButton": {
       "confirm": "Confirmar",
       "confirming": "Confirmando",
-      "confirmPayment": "Confirmar pagamento",
+      "confirmPayment": "Eu fiz o pagamento.",
       "processing": "Processando"
     },
     "termsAndConditions": {
@@ -317,9 +316,15 @@
     }
   },
   "hooks": {
+    "useGetRampRegistrationErrorMessage": {
+      "default": "Algo deu errado",
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
+      "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
+    },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
-      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
+      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte.",
+      "maintenance": "Manutenção temporária em andamento - por favor, volte mais tarde."
     },
     "useTokenAmountOut": {
       "default": "Algo deu errado",
@@ -348,14 +353,14 @@
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
-      "createStellarAccount": "Criando conta Stellar",
       "closeProgressScreenText": "💡 Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
+      "createStellarAccount": "Criando conta Stellar",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "fundEphemeral": "Financiando contas efêmeras",
       "initial": "Iniciando processo",
-      "moneriumOnrampMint": "Transferindo EUR.e",
+      "moneriumOnrampMint": "Aguardando pagamento",
       "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
@@ -389,6 +394,7 @@
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
         "fetchingQuote": "Falha ao obter cotação",
         "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",
         "initializeFailed": {
@@ -400,14 +406,20 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
         "invalidInputAmount": "Valor de entrada inválido",
+        "invalidRampType": "Tipo de rampa inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
+        "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
-        }
+        },
+        "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
+        "quoteNotFound": "Cotação não encontrada",
+        "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
       }
     }
   },

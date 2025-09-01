@@ -1,11 +1,11 @@
-import { DestinationType, QuoteFeeStructure, RampCurrency } from "@packages/shared";
+import { DestinationType, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
-  rampType: "on" | "off";
+  rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
@@ -29,6 +29,11 @@ export interface QuoteTicketMetadata {
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
   usdFeeStructure: QuoteFeeStructure;
+  subsidy?: {
+    partnerId: string;
+    discount: string;
+    subsidyAmountInOutputToken: string;
+  };
 }
 
 // Define the attributes that can be set during creation
@@ -38,7 +43,7 @@ export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id"
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
 
-  declare rampType: "on" | "off";
+  declare rampType: RampDirection;
 
   declare from: DestinationType;
 
@@ -133,7 +138,7 @@ QuoteTicket.init(
     rampType: {
       allowNull: false,
       field: "ramp_type",
-      type: DataTypes.ENUM("on", "off")
+      type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
     },
     status: {
       allowNull: false,

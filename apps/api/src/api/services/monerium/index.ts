@@ -1,22 +1,23 @@
-import { Networks } from "@packages/shared";
-import logger from "../../../config/logger";
-import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 import {
   AddressExistsResponse,
   AuthContext,
   BeneficiaryDetails,
+  EvmNetworks,
   FetchIbansParams,
   FetchProfileParams,
   IbanData,
   IbanDataResponse,
+  MoneriumAddressStatus,
+  MoneriumErrors,
   MoneriumResponse,
   MoneriumTokenResponse,
-  MoneriumUserProfile
-} from "./types";
+  MoneriumUserProfile,
+  Networks
+} from "@packages/shared";
+import logger from "../../../config/logger";
+import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
 
 const MONERIUM_API_URL = "https://api.monerium.app";
-export const ERC20_EURE_POLYGON: `0x${string}` = "0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6"; // EUR.e on Polygon
-export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals
 
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };
@@ -66,7 +67,7 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
     }
     return null;
   } catch (error) {
-    console.error("Failed to fetch address:", error);
+    logger.error("Failed to fetch address:", error);
     return null;
   }
 };
@@ -88,15 +89,20 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
     const data: MoneriumResponse = await response.json();
 
     if (data.addresses && data.addresses.length > 0) {
-      const firstAddress = data.addresses[data.addresses.length - 1].address; // Ordered by creation date, so last is the most recent.
-      return firstAddress;
+      const mostRecentAddress = data.addresses[data.addresses.length - 1]; // Ordered by creation date, so last is the most recent.
+
+      if (mostRecentAddress.status === MoneriumAddressStatus.REQUESTED) {
+        throw new Error(MoneriumErrors.USER_MINT_ADDRESS_IS_NOT_READY);
+      }
+
+      return mostRecentAddress.address;
     } else {
       logger.info("No addresses found in the response.");
       return null;
     }
   } catch (error) {
-    console.error("Failed to fetch addresses:", error);
-    return null;
+    logger.error("Failed to fetch addresses:", error);
+    throw error;
   }
 };
 
@@ -116,7 +122,7 @@ export const getAuthContext = async (authToken: string): Promise<AuthContext> =>
 
     return response.json();
   } catch (error) {
-    console.error("Failed to fetch auth context:", error);
+    logger.error("Failed to fetch auth context:", error);
     throw error;
   }
 };
@@ -125,6 +131,21 @@ export const getMoneriumEvmDefaultMintAddress = async (token: string): Promise<s
   // Assumption is the first linked address is the default mint address for Monerium EVM transactions.
   // TODO: this needs to be confirmed.
   return getFirstMoneriumLinkedAddress(token);
+};
+
+export const getIbanForAddress = async (walletAddress: string, authToken: string, network: EvmNetworks): Promise<IbanData> => {
+  const approvedAddresses = await getMoneriumLinkedIbans(authToken);
+
+  // Check if the wallet address is in the list of approved addresses
+  // and that it matches the polygon network.
+  const ibanData = approvedAddresses.find(
+    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === "polygon"
+  );
+
+  if (!ibanData) {
+    throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
+  }
+  return ibanData;
 };
 
 export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansParams): Promise<IbanData> => {
@@ -146,7 +167,6 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
     }
-
     const data: IbanDataResponse = await response.json();
     // Look for the IBAN data specifically for the Polygon chain.
     // We choose Polygon as the default chain for Monerium EUR minting,
@@ -158,7 +178,44 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
 
     return ibanData;
   } catch (error) {
-    console.error("Error fetching IBANs:", error);
+    logger.error("Error fetching IBANs:", error);
+    throw error;
+  }
+};
+
+export const getMoneriumLinkedIbans = async (authToken: string): Promise<IbanData[]> => {
+  const authContext = await getAuthContext(authToken);
+  const profileId = authContext.defaultProfile;
+
+  const baseUrl = `${MONERIUM_API_URL}/ibans`;
+  const url = new URL(baseUrl);
+
+  url.searchParams.append("profile", profileId);
+  const headers = new Headers({
+    ...HEADER_ACCEPT_V2,
+    Authorization: `Bearer ${authToken}`
+  });
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: headers,
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { ibans: Array<IbanData & { state: string; emailNotifications?: boolean }> };
+    const approvedIbans = data.ibans.filter(item => item.state === "approved" && item.iban !== undefined && item.iban !== null);
+
+    if (approvedIbans.length === 0) {
+      throw new Error(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND);
+    }
+
+    return approvedIbans;
+  } catch (error) {
+    logger.error("Error fetching linked IBANs:", error);
     throw error;
   }
 };
@@ -183,7 +240,7 @@ export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProf
     const profileData: MoneriumUserProfile = await profileResponse.json();
     return profileData;
   } catch (error) {
-    console.error("Error fetching user profile:", error);
+    logger.error("Error fetching user profile:", error);
     throw error;
   }
 };

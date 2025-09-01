@@ -17,7 +17,9 @@ In the project directory, you can run:
 
 ### `bun install`
 
-Install dependencies
+Install dependencies. 
+
+If you encounter issues with the `bun install` command, you can try upgrading your `bun` version with `bun upgrade`. The installation is confirmed to work in bun v1.2.19. 
 
 ### `bun dev`
 

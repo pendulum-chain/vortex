@@ -1,4 +1,4 @@
-import { CleanupPhase, FiatToken, HORIZON_URL } from "@packages/shared";
+import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@packages/shared";
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
@@ -22,7 +22,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    if (state.type !== "off" || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
+    if (state.type !== RampDirection.SELL || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
       return false;
     }
 

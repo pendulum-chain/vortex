@@ -1,10 +1,9 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useFiatToken } from "../../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { RampDirection } from "../../RampToggle";
 import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
 
 const containerAnimation: MotionProps = {
@@ -35,7 +34,7 @@ export const BrlaSwapFields: FC = () => {
   const fiatToken = useFiatToken();
 
   const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOnramp = rampDirection === RampDirection.BUY;
 
   const FIELDS = isOnramp ? ONRAMP_FIELDS : OFFRAMP_FIELDS;
 

@@ -1,17 +1,24 @@
 import {
   CreateQuoteRequest,
+  createGenericRouteParams,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   EvmTokenDetails,
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getRoute,
   isAssetHubTokenDetails,
   isOnChainToken,
   Networks,
   OnChainToken,
+  parseContractBalanceResponse,
+  QuoteError,
   QuoteFeeStructure,
   QuoteResponse,
-  RampCurrency
+  RampCurrency,
+  RampDirection
 } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
@@ -20,11 +27,8 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
 import { APIError } from "../../../errors/api-error";
-import { parseContractBalanceResponse } from "../../../helpers/contracts";
-import { ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS } from "../../monerium";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
-import { createGenericRouteParams, getRoute } from "../../transactions/squidrouter/route";
 import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
@@ -36,7 +40,7 @@ async function calculateInputAmountForNablaSwap(
   preNablaDeductibleFeeInInputCurrency: Big.BigSource,
   preNablaDeductibleFeeAmount: Big.BigSource
 ) {
-  if (request.rampType === "off" && request.from !== "assethub") {
+  if (request.rampType === RampDirection.SELL && request.from !== "assethub") {
     // Check squidrouter rate and adjust the input amount accordingly
     const bridgeQuote = await getEvmBridgeQuote({
       amountDecimal: request.inputAmount,
@@ -61,7 +65,8 @@ export class QuoteService extends BaseRampService {
       partner = await Partner.findOne({
         where: {
           isActive: true,
-          name: request.partnerId
+          name: request.partnerId,
+          rampType: request.rampType
         }
       });
 
@@ -71,7 +76,7 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    if (request.rampType === "on") {
+    if (request.rampType === RampDirection.BUY) {
       validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", "buy");
     }
 
@@ -106,7 +111,7 @@ export class QuoteService extends BaseRampService {
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover fees.",
+        message: QuoteError.InputAmountTooLowToCoverFees,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -115,7 +120,7 @@ export class QuoteService extends BaseRampService {
     // Determine nablaOutputCurrency based on ramp type and destination
     let nablaOutputCurrency: RampCurrency;
 
-    if (request.rampType === "on") {
+    if (request.rampType === RampDirection.BUY) {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
       if (request.to === "assethub") {
         nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
@@ -138,7 +143,7 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    if (request.rampType === "on" && request.inputCurrency === FiatToken.EURC) {
+    if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC) {
       const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(request.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
       const inputTokenDetails = { erc20AddressSourceChain: ERC20_EURE_POLYGON } as unknown as EvmTokenDetails;
       const fromNetwork = Networks.Polygon; // Always Polygon for EUR onramp
@@ -248,7 +253,7 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
-    if (request.rampType === "off") {
+    if (request.rampType === RampDirection.SELL) {
       validateAmountLimits(nablaSwapResult.nablaOutputAmountDecimal, request.outputCurrency as FiatToken, "max", "sell");
     }
 
@@ -301,7 +306,7 @@ export class QuoteService extends BaseRampService {
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    if (request.rampType === "on" && request.to !== "assethub") {
+    if (request.rampType === RampDirection.BUY && request.to !== "assethub") {
       // Do a first call to get a rough estimate of network fees
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         finalEvmDestination: request.to,
@@ -354,7 +359,7 @@ export class QuoteService extends BaseRampService {
     // h. Calculate Final Net Output Amount
     let finalNetOutputAmount: Big;
 
-    if (request.rampType === "on") {
+    if (request.rampType === RampDirection.BUY) {
       if (request.to === "assethub") {
         // Convert totalFeeFiat to output currency
         const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
@@ -386,19 +391,50 @@ export class QuoteService extends BaseRampService {
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
-        message: "Input amount too low to cover calculated fees.",
+        message: QuoteError.InputAmountTooLowToCoverCalculatedFees,
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    if (request.rampType === "on") {
-      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "buy");
-    } else {
-      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", "sell");
+    // Apply discount subsidy if partner has discount > 0
+    let discountSubsidyAmount = new Big(0);
+    let discountSubsidyInfo: { partnerId: string; discount: string; subsidyAmountInOutputToken: string } | undefined;
+    // The subsidy partner is either the partner provided in the request or the default "vortex" partner
+    const discountSubsidyPartner = partner
+      ? partner
+      : await Partner.findOne({
+          where: {
+            isActive: true,
+            name: "vortex",
+            rampType: request.rampType
+          }
+        });
+
+    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
+    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+
+    if (discountSubsidyPartner && discountSubsidyPartner.discount > 0) {
+      // Calculate discount subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
+      discountSubsidyAmount = finalNetOutputAmount.mul(discountSubsidyPartner.discount);
+
+      // Add discount subsidy to finalNetOutputAmount (relevant for the subsidy of off-ramps)
+      finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
+
+      // Add subsidy to the output amount on Moonbeam (relevant for the subsidy of on-ramps)
+      if (request.rampType === RampDirection.BUY) {
+        const subsidyAmountRaw = multiplyByPowerOfTen(discountSubsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
+        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
+      }
+
+      discountSubsidyInfo = {
+        discount: discountSubsidyPartner.discount.toString(),
+        partnerId: discountSubsidyPartner.id,
+        subsidyAmountInOutputToken: discountSubsidyAmount.toFixed(6, 0)
+      };
     }
 
     const finalNetOutputAmountStr =
-      request.rampType === "on" ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
+      request.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
     // i. Store and Return Quote
     const feeToStore: QuoteFeeStructure = {
@@ -421,10 +457,7 @@ export class QuoteService extends BaseRampService {
 
     // This is the final net output amount before anchor fees are deducted
     const offrampAmountBeforeAnchorFees =
-      request.rampType === "off" ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
-
-    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    const onrampOutputAmountMoonbeamRaw = request.rampType === "on" ? outputAmountMoonbeamRaw : undefined;
+      request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
@@ -438,6 +471,7 @@ export class QuoteService extends BaseRampService {
         inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
+        subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
       outputAmount: finalNetOutputAmountStr,

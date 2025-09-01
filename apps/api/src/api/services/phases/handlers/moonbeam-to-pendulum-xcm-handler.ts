@@ -1,11 +1,6 @@
-import { decodeSubmittableExtrinsic, RampPhase } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
 import Big from "big.js";
-
-import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { waitUntilTrue } from "../../../helpers/functions";
-import { ApiManager } from "../../pendulum/apiManager";
-import { submitMoonbeamXcm } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -46,7 +41,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         const txNonce = xcmTransaction.nonce.toNumber();
         const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(moonbeamEphemeralAddress);
         if (txNonce !== accountNonce.toNumber()) {
-          logger.warn(
+          logger.current.warn(
             `Nonce mismatch for XCM transaction of account ${moonbeamEphemeralAddress}: expected ${accountNonce.toNumber()}, got ${txNonce}`
           );
         }
@@ -60,7 +55,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      logger.info("waiting for token to arrive on pendulum...");
+      logger.current.info("waiting for token to arrive on pendulum...");
       await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
       console.error("Error while waiting for transaction receipt:", e);

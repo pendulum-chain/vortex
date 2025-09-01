@@ -20,18 +20,10 @@ export const CopyButton = (props: CopyButtonProps) => {
 
   return (
     <button
-      className={`btn m-0 inline-flex items-center break-all rounded p-1 ${props.className}`}
+      className={`btn m-0 inline-flex items-center break-all rounded bg-gray-50 p-1 hover:bg-gray-100 ${props.className}`}
       onClick={onClick}
       type="button"
     >
-      <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-4 0a2 2 0 00-4 0v2a2 2 0 004 0V5z"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-        />
-      </svg>
       {props.text}
     </button>
   );

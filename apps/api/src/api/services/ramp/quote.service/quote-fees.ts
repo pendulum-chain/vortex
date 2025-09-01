@@ -1,4 +1,4 @@
-import { DestinationType, RampCurrency } from "@packages/shared";
+import { DestinationType, QuoteError, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
@@ -11,7 +11,7 @@ import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 export interface CalculateFeeComponentsRequest {
   inputAmount: string;
   outputAmountOfframp: string; // This is only needed for offramp quotes
-  rampType: "on" | "off";
+  rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
   partnerName?: string;
@@ -64,15 +64,15 @@ async function calculateFeeComponent(
  * Calculate partner markup and Vortex fees
  * @param inputAmount - The input amount for the transaction
  * @param rampType - The type of ramp operation
- * @param partnerName - Optional partner name for custom fees
+ * @param partnerId - Optional partner id for custom fees
  * @param inputCurrency - The input currency
  * @param feeCurrency - The target fee currency
  * @returns Object containing partner markup and vortex fees as Big numbers
  */
 async function calculatePartnerAndVortexFees(
   inputAmount: string,
-  rampType: "on" | "off",
-  partnerName: string | undefined,
+  rampType: RampDirection,
+  partnerId: string | undefined,
   inputCurrency: RampCurrency,
   feeCurrency: RampCurrency
 ): Promise<{ partnerMarkupFee: Big; vortexFee: Big }> {
@@ -80,12 +80,12 @@ async function calculatePartnerAndVortexFees(
   let totalVortexFeeInFeeCurrency = new Big(0);
 
   // 1. Fetch and process partner-specific configurations if partnerName is provided
-  if (partnerName) {
+  if (partnerId) {
     // Query all records where name matches partnerName AND rampType matches rampType
     const partnerRecords = await Partner.findAll({
       where: {
+        id: partnerId,
         isActive: true,
-        name: partnerName,
         rampType: rampType
       }
     });
@@ -141,16 +141,16 @@ async function calculatePartnerAndVortexFees(
 
       // Log warning if partner found but no applicable custom fees
       if (!hasApplicableFees) {
-        logger.warn(`Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`);
+        logger.warn(`Partner with name '${partnerId}' found, but no active markup defined. Proceeding with default fees.`);
       }
     } else {
       // No specific partner records found, will use default Vortex fee below
-      logger.warn(`No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`);
+      logger.warn(`No fee configuration found for partner with name '${partnerId}'. Proceeding with default fees.`);
     }
   }
 
   // 2. If no partner was provided initially, use default Vortex fees
-  if (!partnerName) {
+  if (!partnerId) {
     // Query all vortex records for this ramp type
     const vortexFoundationPartners = await Partner.findAll({
       where: {
@@ -205,7 +205,7 @@ async function calculatePartnerAndVortexFees(
  * @returns The calculated anchor fee as a Big number
  */
 async function calculateAnchorFee(
-  rampType: "on" | "off",
+  rampType: RampDirection,
   from: DestinationType,
   to: DestinationType,
   inputAmount: string,
@@ -213,13 +213,13 @@ async function calculateAnchorFee(
 ): Promise<Big> {
   // Determine anchor identifier based on ramp type and destination
   let anchorIdentifier = "default";
-  if (rampType === "on" && from === "pix") {
+  if (rampType === RampDirection.BUY && from === "pix") {
     anchorIdentifier = "moonbeam_brla";
-  } else if (rampType === "off" && to === "pix") {
+  } else if (rampType === RampDirection.SELL && to === "pix") {
     anchorIdentifier = "moonbeam_brla";
-  } else if (rampType === "off" && to === "sepa") {
+  } else if (rampType === RampDirection.SELL && to === "sepa") {
     anchorIdentifier = "stellar_eurc";
-  } else if (rampType === "off" && to === "cbu") {
+  } else if (rampType === RampDirection.SELL && to === "cbu") {
     anchorIdentifier = "stellar_ars";
   }
 
@@ -241,7 +241,7 @@ async function calculateAnchorFee(
       }
       if (feeConfig.valueType === "relative") {
         // Calculate relative fee based on the input or output amount
-        const amount = rampType === "on" ? inputAmount : outputAmount;
+        const amount = rampType === RampDirection.BUY ? inputAmount : outputAmount;
         const relativeFee = new Big(amount).mul(feeConfig.value);
         return total.plus(relativeFee);
       }
@@ -257,20 +257,20 @@ async function calculateAnchorFee(
  * @param inputAmount - The original user input amount
  * @param inputCurrency - The input currency
  * @param outputCurrency - The output currency
- * @param rampType - The type of ramp operation ('on' or 'off')
+ * @param rampType - The type of ramp operation
  * @param from - The source destination type
  * @param to - The target destination type
- * @param partnerName - Optional partner name for custom fees
+ * @param partnerId - Optional partner id for custom fees
  * @returns Promise resolving to the pre-Nabla deductible fees
  */
 export async function calculatePreNablaDeductibleFees(
   inputAmount: string,
   inputCurrency: RampCurrency,
   outputCurrency: RampCurrency,
-  rampType: "on" | "off",
+  rampType: RampDirection,
   from: DestinationType,
   to: DestinationType,
-  partnerName?: string
+  partnerId?: string
 ): Promise<PreNablaDeductibleFeesResult> {
   try {
     // Validate chain support
@@ -281,7 +281,7 @@ export async function calculatePreNablaDeductibleFees(
 
     let preNablaDeductibleFeeAmount = new Big(0);
 
-    if (rampType === "on") {
+    if (rampType === RampDirection.BUY) {
       // For on-ramp: Only Anchor Fee is deducted before Nabla
       const anchorFee = await calculateAnchorFee(rampType, from, to, inputAmount, inputAmount);
 
@@ -297,7 +297,7 @@ export async function calculatePreNablaDeductibleFees(
       const { partnerMarkupFee, vortexFee } = await calculatePartnerAndVortexFees(
         inputAmount,
         rampType,
-        partnerName,
+        partnerId,
         inputCurrency,
         feeCurrency
       );
@@ -311,8 +311,9 @@ export async function calculatePreNablaDeductibleFees(
     };
   } catch (error) {
     logger.error("Error calculating pre-Nabla deductible fees:", error);
+
     throw new APIError({
-      message: "Failed to calculate pre-Nabla deductible fees",
+      message: QuoteError.FailedToCalculatePreNablaDeductibleFees,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }
@@ -353,7 +354,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
     let anchorFeeInFeeCurrency = anchorFee;
     if (feeCurrency !== request.inputCurrency && feeCurrency !== request.outputCurrency) {
       // Determine the base currency for anchor fee conversion
-      const baseCurrency = request.rampType === "on" ? request.inputCurrency : request.outputCurrency;
+      const baseCurrency = request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency;
       const anchorFeeConverted = await priceFeedService.convertCurrency(anchorFee.toString(), baseCurrency, feeCurrency);
       anchorFeeInFeeCurrency = new Big(anchorFeeConverted);
     }
@@ -367,7 +368,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
   } catch (error) {
     logger.error("Error calculating fee components:", error);
     throw new APIError({
-      message: "Failed to calculate fee components",
+      message: QuoteError.FailedToCalculateFeeComponents,
       status: httpStatus.INTERNAL_SERVER_ERROR
     });
   }

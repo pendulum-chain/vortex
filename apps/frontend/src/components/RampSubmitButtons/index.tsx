@@ -1,3 +1,4 @@
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { FC, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +11,6 @@ import { useFiatToken, useInputAmount, useOnChainToken } from "../../stores/ramp
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useInitializeFailedMessage, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
 import { SwapSubmitButton } from "../buttons/SwapSubmitButton";
-import { RampDirection } from "../RampToggle";
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;
@@ -44,9 +44,9 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
       trackEvent({
         event: "compare_quote",
         from_amount: inputAmount?.toString() || "0",
-        from_asset: rampDirection === RampDirection.OFFRAMP ? onChainToken : fiatToken,
+        from_asset: rampDirection === RampDirection.SELL ? onChainToken : fiatToken,
         to_amount: toAmount?.toString() || "0",
-        to_asset: rampDirection === RampDirection.OFFRAMP ? fiatToken : onChainToken
+        to_asset: rampDirection === RampDirection.SELL ? fiatToken : onChainToken
       });
     },
     [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, toAmount, feeComparisonRef]
@@ -60,7 +60,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   };
 
   const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount));
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || isQuoteOutdated;
   const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (

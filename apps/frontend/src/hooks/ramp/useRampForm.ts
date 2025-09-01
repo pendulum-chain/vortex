@@ -1,8 +1,7 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { FiatToken } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { useCallback, useEffect } from "react";
 import { UseFormReturn, useForm } from "react-hook-form";
-import { RampDirection } from "../../components/RampToggle";
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
@@ -14,6 +13,7 @@ import {
   useTaxId
 } from "../../stores/ramp/useRampFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampActions } from "../../stores/rampStore";
 import { RampFormValues, useSchema } from "./schema";
 import { useDebouncedFormValue } from "./useDebouncedFormValue";
 
@@ -44,6 +44,8 @@ export const useRampForm = (): {
   const direction = useRampDirection();
   const lastConstraintDirection = useLastConstraintDirection();
 
+  const { resetInitializeFailedMessage } = useRampActions();
+
   const {
     setInputAmount,
     setOnChainToken,
@@ -67,6 +69,7 @@ export const useRampForm = (): {
       } else if (name === "onChainToken" && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
       }
+      resetInitializeFailedMessage();
     });
 
     return () => subscription.unsubscribe();

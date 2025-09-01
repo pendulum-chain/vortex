@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { create } from "zustand";
 
@@ -9,14 +9,12 @@ interface QuoteParams {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
-  rampType: RampType;
+  rampType: RampDirection;
   partnerId?: string;
 }
 
-type RampType = "on" | "off";
-
 interface QuotePayload {
-  rampType: RampType;
+  rampType: RampDirection;
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
@@ -49,6 +47,34 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   return destinationMap[fiatToken] || "sepa";
 };
 
+const friendlyErrorMessages: Record<QuoteError, string> = {
+  // Validation errors - show specific messages
+  [QuoteError.MissingRequiredFields]: "pages.swap.error.missingFields",
+  [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
+  [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
+
+  // Amount too low - suggest larger amount
+  [QuoteError.InputAmountTooLowToCoverFees]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountForSwapMustBeGreaterThanZero]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLow]: "pages.swap.error.tryLargerAmount",
+  [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
+
+  // Calculation failures - suggest different amount
+  [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount"
+};
+
+function getFriendlyErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    const friendlyErrorMessage = friendlyErrorMessages[error.message as QuoteError];
+    return friendlyErrorMessage || error.message;
+  }
+
+  return "pages.swap.error.fetchingQuote";
+}
+
 /**
  * Creates a quote payload based on ramp parameters
  * @param params Quote parameters
@@ -59,21 +85,21 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
   const fiatDestination = mapFiatToDestination(fiatToken);
   const inputAmountStr = inputAmount?.toString() || "0";
 
-  const payloadMap: Record<RampType, QuotePayload> = {
-    off: {
+  const payloadMap: Record<RampDirection, QuotePayload> = {
+    [RampDirection.SELL]: {
       fromDestination: selectedNetwork,
       inputAmount: inputAmountStr,
       inputCurrency: onChainToken,
       outputCurrency: fiatToken,
-      rampType: "off",
+      rampType: RampDirection.SELL,
       toDestination: fiatDestination
     },
-    on: {
+    [RampDirection.BUY]: {
       fromDestination: fiatDestination,
       inputAmount: inputAmountStr,
       inputCurrency: fiatToken,
       outputCurrency: onChainToken,
-      rampType: "on",
+      rampType: RampDirection.BUY,
       toDestination: selectedNetwork
     }
   };
@@ -128,10 +154,8 @@ export const useQuoteStore = create<QuoteState>(set => ({
         quote: quoteResponse
       });
     } catch (error) {
-      console.error("Error fetching quote:", error);
-      const errorMessage = error instanceof Error ? error.message : "pages.swap.error.fetchingQuote";
       set({
-        error: errorMessage,
+        error: getFriendlyErrorMessage(error),
         loading: false,
         outputAmount: undefined,
         quote: undefined

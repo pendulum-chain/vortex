@@ -1,16 +1,15 @@
-import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse, Networks } from "@packages/shared";
+import { EvmClientManager, MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse, Networks } from "@packages/shared";
+import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import splitReceiverABI from "../../../mooncontracts/splitReceiverABI.json";
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS
 } from "../../constants/constants";
-import { EvmClientManager } from "../services/evm/clientManager";
 import { SlackNotifier } from "../services/slack.service";
 
 interface StatusResponse {

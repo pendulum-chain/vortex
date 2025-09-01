@@ -54,6 +54,7 @@ export interface RampZustand {
   rampSummaryVisible: boolean;
   canRegisterRamp: boolean;
   signingRejected: boolean;
+  rampRegistrationError: unknown;
 }
 
 export interface RampActions {
@@ -67,9 +68,11 @@ export interface RampActions {
   setRampPaymentConfirmed: (paymentConfirmed: boolean) => void;
   setRampExecutionInput: (executionInput: RampExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
+  resetInitializeFailedMessage: () => void;
   setRampSummaryVisible: (visible: boolean) => void;
   clearInitializeFailedMessage: () => void;
   resetRampState: () => void;
   setCanRegisterRamp: (canRegister: boolean) => void;
   setSigningRejected: (rejected: boolean) => void;
+  setRampRegistrationError: (error: unknown) => void;
 }

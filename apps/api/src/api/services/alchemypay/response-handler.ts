@@ -1,4 +1,4 @@
-import { AlchemyPayPriceResponse, Direction } from "@packages/shared";
+import { AlchemyPayPriceResponse, RampDirection } from "@packages/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -80,7 +80,7 @@ function handleLogicError(body: AlchemyPayResponse): never {
 function parseSuccessResponse(
   data: AlchemyPayResponse["data"],
   requestedAmount: string,
-  direction: Direction
+  direction: RampDirection
 ): AlchemyPayPriceResponse {
   if (!data) {
     throw new ProviderInternalError("AlchemyPay response data is undefined");
@@ -91,13 +91,14 @@ function parseSuccessResponse(
   const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
   // According to a comment in the response sample, the `fiatQuantity` does not yet include the fees
   // so we need to subtract them.
-  const fiatAmount = direction === "onramp" ? Number(requestedAmount) : Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
-  const cryptoAmount = direction === "onramp" ? Number(cryptoQuantity) : Number(requestedAmount);
+  const fiatAmount =
+    direction === RampDirection.BUY ? Number(requestedAmount) : Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
+  const cryptoAmount = direction === RampDirection.BUY ? Number(cryptoQuantity) : Number(requestedAmount);
 
   return {
     direction,
     provider: "alchemypay",
-    quoteAmount: direction === "onramp" ? cryptoAmount : fiatAmount,
+    quoteAmount: direction === RampDirection.BUY ? cryptoAmount : fiatAmount,
     requestedAmount: Number(requestedAmount),
     totalFee
   };
@@ -115,7 +116,7 @@ export function processAlchemyPayResponse(
   response: Response,
   body: AlchemyPayResponse,
   requestedAmount: string,
-  direction: Direction
+  direction: RampDirection
 ): AlchemyPayPriceResponse {
   if (!response.ok) {
     // Handle HTTP errors (4xx, 5xx)

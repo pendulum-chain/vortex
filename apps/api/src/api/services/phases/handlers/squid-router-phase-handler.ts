@@ -1,11 +1,16 @@
-import { FiatToken, getNetworkFromDestination, getNetworkId, Networks, RampPhase } from "@packages/shared";
+import {
+  EvmClientManager,
+  FiatToken,
+  getNetworkFromDestination,
+  getNetworkId,
+  Networks,
+  RampDirection,
+  RampPhase
+} from "@packages/shared";
 import { PublicClient } from "viem";
-import { moonbeam, polygon } from "viem/chains";
-
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { EvmClientManager } from "../../evm/clientManager";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -66,7 +71,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    if (state.type === "off") {
+    if (state.type === RampDirection.SELL) {
       logger.info("SquidRouter phase is not supported for off-ramp");
       return state;
     }

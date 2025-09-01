@@ -1,6 +1,5 @@
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from "@packages/shared";
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
 import { useEffect, useMemo, useRef } from "react";
-import { RampDirection } from "../components/RampToggle";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
@@ -33,7 +32,7 @@ function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatT
   const [_, tokenValue] = matchedFiatToken;
   const foundToken = tokenValue as FiatToken;
 
-  if (rampDirection === RampDirection.ONRAMP && foundToken !== FiatToken.BRL) {
+  if (rampDirection === RampDirection.BUY && foundToken !== FiatToken.BRL) {
     return FiatToken.BRL;
   }
 
@@ -95,23 +94,23 @@ export const useRampUrlParams = (): RampUrlParams => {
     const ramp =
       rampParam === undefined
         ? rampDirection
-        : rampParam === "sell"
-          ? RampDirection.OFFRAMP
-          : rampParam === "buy"
-            ? RampDirection.ONRAMP
+        : rampParam === RampDirection.SELL
+          ? RampDirection.SELL
+          : rampParam === RampDirection.BUY
+            ? RampDirection.BUY
             : DEFAULT_RAMP_DIRECTION;
 
     const from =
-      ramp === RampDirection.OFFRAMP
+      ramp === RampDirection.SELL
         ? findOnChainToken(fromTokenParam, networkParam || selectedNetwork)
         : findFiatToken(fromTokenParam, ramp);
     const to =
-      ramp === RampDirection.OFFRAMP
+      ramp === RampDirection.SELL
         ? findFiatToken(toTokenParam, ramp)
         : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
 
     const fromAmount =
-      ramp === RampDirection.OFFRAMP ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
+      ramp === RampDirection.SELL ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
 
     return {
       from,
@@ -128,7 +127,7 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId, moneriumCode } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const resetRampDirection = useRampDirectionReset();
@@ -173,7 +172,7 @@ export const useSetRampUrlParams = () => {
     onToggle(ramp);
 
     if (to) {
-      if (ramp === RampDirection.OFFRAMP) {
+      if (ramp === RampDirection.SELL) {
         handleFiatToken(to as FiatToken);
       } else {
         setOnChainToken(to as OnChainToken);
@@ -181,7 +180,7 @@ export const useSetRampUrlParams = () => {
     }
 
     if (from) {
-      if (ramp === RampDirection.OFFRAMP) {
+      if (ramp === RampDirection.SELL) {
         setOnChainToken(from as OnChainToken);
       } else {
         handleFiatToken(from as FiatToken);

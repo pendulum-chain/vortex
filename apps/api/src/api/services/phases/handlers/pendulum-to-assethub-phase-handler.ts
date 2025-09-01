@@ -1,8 +1,5 @@
-import { decodeSubmittableExtrinsic, getAddressForFormat, RampPhase } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXTokens } from "@packages/shared";
 import RampState from "../../../../models/rampState.model";
-import { ApiManager } from "../../pendulum/apiManager";
-
-import { submitXTokens } from "../../xcm/send";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 

@@ -1,6 +1,6 @@
+import { RampDirection } from "@packages/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { RampDirection } from "../components/RampToggle";
 import { getRampDirectionFromPath } from "../helpers/path";
 
 const defaultRampDirection = getRampDirectionFromPath();
@@ -19,7 +19,14 @@ export const useRampDirectionStore = create<RampDirectionStore>()(
       reset: () => set({ activeDirection: defaultRampDirection })
     }),
     {
-      name: "rampDirectionStore"
+      migrate: (persistedState, version) => {
+        if (version !== 2) {
+          return null;
+        }
+        return persistedState;
+      },
+      name: "rampDirectionStore",
+      version: 2
     }
   )
 );
