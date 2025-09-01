@@ -5,11 +5,18 @@ import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 /**
- * Get token limit units for a given fiat token and limit type
+ * Get token limit units for a given fiat token, limit type, and operation type
  */
-export function getTokenLimitUnits(currency: FiatToken, limitType: "min" | "max"): Big {
+export function getTokenLimitUnits(currency: FiatToken, limitType: "min" | "max", operationType: "buy" | "sell"): Big {
   const tokenDetails = getAnyFiatTokenDetails(currency);
-  const limitRaw = limitType === "min" ? tokenDetails.minWithdrawalAmountRaw : tokenDetails.maxWithdrawalAmountRaw;
+
+  let limitRaw: string;
+
+  if (operationType === "buy") {
+    limitRaw = limitType === "min" ? tokenDetails.minBuyAmountRaw : tokenDetails.maxBuyAmountRaw;
+  } else {
+    limitRaw = limitType === "min" ? tokenDetails.minSellAmountRaw : tokenDetails.maxSellAmountRaw;
+  }
 
   return multiplyByPowerOfTen(Big(limitRaw), -tokenDetails.decimals);
 }
@@ -24,7 +31,7 @@ export function validateAmountLimits(
   operationType: "buy" | "sell"
 ): void {
   const amountBig = new Big(amount);
-  const limitUnits = getTokenLimitUnits(currency, limitType);
+  const limitUnits = getTokenLimitUnits(currency, limitType, operationType);
   const tokenDetails = getAnyFiatTokenDetails(currency);
 
   let shouldThrowError = false;
