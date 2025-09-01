@@ -48,58 +48,69 @@ interface NetworkMetadata {
   id: number;
   displayName: string;
   isEVM: boolean;
+  supportsRamp: boolean;
 }
 
 const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.AssetHub]: {
     displayName: "Polkadot AssetHub",
     id: ASSETHUB_CHAIN_ID,
-    isEVM: false
+    isEVM: false,
+    supportsRamp: true
   },
   [Networks.Polygon]: {
     displayName: "Polygon",
     id: polygon.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.Ethereum]: {
     displayName: "Ethereum",
     id: ethereum.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.BSC]: {
     displayName: "BNB Smart Chain",
     id: bsc.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.Arbitrum]: {
     displayName: "Arbitrum One",
     id: arbitrum.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.Base]: {
     displayName: "Base",
     id: base.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.Avalanche]: {
     displayName: "Avalanche",
     id: avalanche.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: true
   },
   [Networks.Moonbeam]: {
     displayName: "Moonbeam",
     id: moonbeam.id,
-    isEVM: true
+    isEVM: true,
+    supportsRamp: false
   },
   [Networks.Pendulum]: {
     displayName: "Pendulum",
     id: PENDULUM_CHAIN_ID,
-    isEVM: false
+    isEVM: false,
+    supportsRamp: false
   },
   [Networks.Stellar]: {
     displayName: "Stellar",
     id: STELLAR_CHAIN_ID,
-    isEVM: false
+    isEVM: false,
+    supportsRamp: false
   }
 };
 
@@ -111,6 +122,10 @@ export function getCaseSensitiveNetwork(network: string): Networks | undefined {
 export function getNetworkMetadata(network: string): NetworkMetadata | undefined {
   const normalizedNetwork = getCaseSensitiveNetwork(network);
   return normalizedNetwork ? NETWORK_METADATA[normalizedNetwork] : undefined;
+}
+
+export function doesNetworkSupportRamp(network: Networks): boolean {
+  return getNetworkMetadata(network)?.supportsRamp ?? false;
 }
 
 export function isNetworkEVM(network: Networks): network is EvmNetworks {

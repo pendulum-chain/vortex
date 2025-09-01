@@ -16,7 +16,7 @@ The refactored code follows this structure:
 /stores
   /ramp
     useQuoteStore.ts       # Manages quote data
-    useRampFormStore.ts    # Manages form state
+    useQuoteFormStore.ts    # Manages form state
     useTokenStore.ts       # Manages token selection
 
 /hooks
@@ -42,7 +42,7 @@ The refactored code follows this structure:
 ### Stores
 
 - **useQuoteStore**: Manages quote data, loading states, and errors
-- **useRampFormStore**: Manages form values, token selection, and related state
+- **useQuoteFormStore**: Manages form values, token selection, and related state
 - **useRampProcessStore** (existing): Enhanced to better handle ramp process flow
 
 ### Hooks
@@ -124,4 +124,4 @@ const { onSwapConfirm, handleOfframpSubmit } = useRampSubmission();
 1. Add comprehensive tests for all hooks and stores
 2. Enhance type safety for events and parameters
 3. Add more detailed documentation for each hook and store
-4. Consider splitting larger hooks into smaller, more focused ones 
+4. Consider splitting larger hooks into smaller, more focused ones

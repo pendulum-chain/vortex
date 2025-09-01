@@ -7,6 +7,7 @@ import { AssetHubToken, FiatToken, OnChainToken, TokenType } from "../types/base
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { StellarTokenDetails } from "../types/stellar";
+import { normalizeTokenSymbol } from "./normalization";
 
 export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarTokenDetails | MoonbeamTokenDetails;
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
@@ -81,11 +82,13 @@ export function isFiatToken(token: string): token is FiatToken {
 }
 
 export function isAssetHubToken(token: string): token is AssetHubToken {
-  return Object.values(AssetHubToken).includes(token.toLowerCase() as AssetHubToken);
+  const normalized = normalizeTokenSymbol(token);
+  return Object.values(AssetHubToken).includes(normalized as AssetHubToken);
 }
 
 export function isEvmToken(token: string): token is EvmToken {
-  return Object.values(EvmToken).includes(token.toLowerCase() as EvmToken);
+  const normalized = normalizeTokenSymbol(token);
+  return Object.values(EvmToken).includes(normalized as EvmToken);
 }
 
 export function isOnChainToken(token: string): token is OnChainToken {

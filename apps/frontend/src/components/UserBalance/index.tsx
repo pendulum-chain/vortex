@@ -1,5 +1,8 @@
 import { OnChainTokenDetails } from "@packages/shared";
+import { useAccount } from "wagmi";
+
 import wallet from "../../assets/wallet-bifold-outline.svg";
+import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
 import { useOnchainTokenBalance } from "../../hooks/useOnchainTokenBalance";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 
@@ -46,7 +49,10 @@ const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: 
 
 export const UserBalance = ({ token, onClick, className }: UserBalanceProps) => {
   const { isDisconnected } = useVortexAccount();
+  const { address: evmAddress } = useAccount();
+  const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
+  const hasNoWallets = !evmAddress && !polkadotWalletAccount;
 
-  if (isDisconnected) return null;
+  if (isDisconnected || hasNoWallets) return null;
   return onClick ? <FullBalance onClick={onClick} token={token} /> : <SimpleBalance className={className} token={token} />;
 };

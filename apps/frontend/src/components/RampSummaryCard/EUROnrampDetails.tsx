@@ -1,4 +1,5 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { EvmToken } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
@@ -46,7 +47,7 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       </div>
-      {rampState.quote.outputCurrency === "eth" && (
+      {rampState.quote.outputCurrency === EvmToken.ETH && (
         <div className="my-4 flex items-center rounded-lg border-1 border-yellow-400 bg-yellow-50 p-3 text-yellow-700">
           <ExclamationTriangleIcon className="mr-2 h-5 w-5" />
           <p className="text-sm">

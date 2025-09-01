@@ -8,7 +8,7 @@ import {PriceFeedService, priceFeedService} from "./priceFeed.service";
 mock.module("shared", () => ({
   EvmToken: {
     USDC: "USDC",
-    USDCE: "USDCE",
+    USDCE: "USDC.e",
     USDT: "USDT"
   },
   getPendulumDetails: mock((currency: string) => {
@@ -49,7 +49,7 @@ mock.module("shared", () => ({
     MATIC: "MATIC",
     USD: "USD",
     USDC: "USDC",
-    USDCE: "USDCE",
+    USDCE: "USDC.e",
     USDT: "USDT"
   }
 }));
