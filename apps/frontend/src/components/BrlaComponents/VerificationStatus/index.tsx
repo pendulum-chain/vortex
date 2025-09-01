@@ -17,7 +17,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center rounded-lg px-4 py-4 shadow-custom md:mx-auto md:w-96"
+      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center px-4 py-4 md:mx-auto md:w-96"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
@@ -56,7 +56,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
             initial={{ opacity: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            {undefined}
+            {aveniaState.context.error}
           </motion.p>
 
           {aveniaState.context.kycStatus === KycStatus.REJECTED && aveniaState.context.rejectReason && (

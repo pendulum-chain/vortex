@@ -53,7 +53,14 @@ export const aveniaKycMachine = setup({
       }
     },
     Failure: {
-      type: "final"
+      on: {
+        CANCEL_RETRY: {
+          target: "Finish"
+        },
+        RETRY: {
+          target: "..."
+        }
+      }
     }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Finish: {
       type: "final"
@@ -86,6 +93,9 @@ export const aveniaKycMachine = setup({
       }
     },
     Submit: {
+      entry: assign({
+        kycStatus: () => KycStatus.PENDING
+      }),
       // On entry, it will send the actual KYC submission for verification. Then wait.
       invoke: {
         input: ({ context }: { context: AveniaKycContext }) => context,
@@ -110,18 +120,19 @@ export const aveniaKycMachine = setup({
       }
     },
     Verifying: {
-      entry: assign({
-        kycStatus: () => KycStatus.PENDING
-      }),
       invoke: {
         input: ({ context }: { context: AveniaKycContext }) => context,
         onDone: [
           {
+            actions: assign({
+              kycStatus: () => KycStatus.APPROVED
+            }),
             guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "APPROVED",
             target: "Success"
           },
           {
             actions: assign({
+              kycStatus: () => KycStatus.REJECTED,
               rejectReason: ({ event }) => {
                 // For type safety.
                 if (event.output.type === "REJECTED") {
