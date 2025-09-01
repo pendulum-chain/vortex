@@ -5,10 +5,11 @@ import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
-import { useAveniaKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
+import { useAveniaKycActor, useMoneriumKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
@@ -46,10 +47,18 @@ export const WidgetCards = () => {
 
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
+  const moneriumKycActor = useMoneriumKycActor();
   const { rampSummaryVisible } = useSelector(rampActor, state => ({
     rampSummaryVisible: state.context.rampSummaryVisible
   }));
 
+  const isMoneriumRedirect = useSelector(moneriumKycActor, state => {
+    if (state) {
+      return state.value === "Redirect";
+    }
+    return false;
+  });
+  console.log("mr", isMoneriumRedirect);
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   const { onRampConfirm } = useRampSubmission();
@@ -61,7 +70,9 @@ export const WidgetCards = () => {
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
-      {rampSummaryVisible ? (
+      {isMoneriumRedirect ? (
+        <MoneriumRedirectComponent />
+      ) : rampSummaryVisible ? (
         <RampSummaryCard />
       ) : aveniaKycActor ? (
         <PIXKYCForm />

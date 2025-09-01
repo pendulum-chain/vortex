@@ -114,10 +114,28 @@ export const moneriumKycMachine = setup({
     },
     // This state will redirect on entry and must be restored after redirect-back/refresh.
     Redirect: {
+      entry: ({ context }) => {
+        if (context.authUrl) {
+          window.location.assign(context.authUrl);
+        }
+      },
       on: {
+        CANCEL: {
+          actions: assign({
+            error: () => "Cancelled by the user"
+          }),
+          target: "Failure"
+        },
         CODE_RECEIVED: {
           actions: assign({ authCode: ({ event }) => event.code }),
           target: "ExchangingCode"
+        },
+        RETRY_REDIRECT: {
+          actions: ({ context }) => {
+            if (context.authUrl) {
+              window.location.assign(context.authUrl);
+            }
+          }
         }
       }
     },
