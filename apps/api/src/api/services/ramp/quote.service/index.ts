@@ -76,9 +76,7 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    if (request.rampType === RampDirection.BUY) {
-      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", "buy");
-    }
+    validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
 
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
@@ -253,9 +251,12 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
-    if (request.rampType === RampDirection.SELL) {
-      validateAmountLimits(nablaSwapResult.nablaOutputAmountDecimal, request.outputCurrency as FiatToken, "max", "sell");
-    }
+    validateAmountLimits(
+      nablaSwapResult.nablaOutputAmountDecimal,
+      request.outputCurrency as FiatToken,
+      "max",
+      request.rampType
+    );
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
@@ -395,6 +396,8 @@ export class QuoteService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", request.rampType);
 
     // Apply discount subsidy if partner has discount > 0
     let discountSubsidyAmount = new Big(0);

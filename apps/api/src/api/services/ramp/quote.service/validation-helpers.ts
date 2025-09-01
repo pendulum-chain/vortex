@@ -1,4 +1,4 @@
-import { FiatToken, getAnyFiatTokenDetails } from "@packages/shared";
+import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
@@ -7,12 +7,12 @@ import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 /**
  * Get token limit units for a given fiat token, limit type, and operation type
  */
-export function getTokenLimitUnits(currency: FiatToken, limitType: "min" | "max", operationType: "buy" | "sell"): Big {
+export function getTokenLimitUnits(currency: FiatToken, limitType: "min" | "max", operationType: RampDirection): Big {
   const tokenDetails = getAnyFiatTokenDetails(currency);
 
   let limitRaw: string;
 
-  if (operationType === "buy") {
+  if (operationType === RampDirection.BUY) {
     limitRaw = limitType === "min" ? tokenDetails.minBuyAmountRaw : tokenDetails.maxBuyAmountRaw;
   } else {
     limitRaw = limitType === "min" ? tokenDetails.minSellAmountRaw : tokenDetails.maxSellAmountRaw;
@@ -28,7 +28,7 @@ export function validateAmountLimits(
   amount: Big.BigSource,
   currency: FiatToken,
   limitType: "min" | "max",
-  operationType: "buy" | "sell"
+  operationType: RampDirection
 ): void {
   const amountBig = new Big(amount);
   const limitUnits = getTokenLimitUnits(currency, limitType, operationType);
@@ -37,8 +37,8 @@ export function validateAmountLimits(
   const shouldThrowError = limitType === "max" ? amountBig.gt(limitUnits) : amountBig.lt(limitUnits);
   const errorMessage =
     limitType === "max"
-      ? `${operationType === "buy" ? "Input" : "Output"} amount exceeds maximum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`
-      : `${operationType === "buy" ? "Input" : "Output"} amount below minimum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`;
+      ? `${operationType === RampDirection.BUY ? "Input" : "Output"} amount exceeds maximum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`
+      : `${operationType === RampDirection.BUY ? "Input" : "Output"} amount below minimum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`;
 
   if (shouldThrowError) {
     throw new APIError({
