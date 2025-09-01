@@ -13,13 +13,14 @@ import { EvmToken } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
 import { StellarTokenDetails } from "../types/stellar";
+import { normalizeTokenSymbol } from "./normalization";
 import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
 
 /**
  * Get token details for a specific network and token
  */
 export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
-  const normalizedOnChainToken = onChainToken.toUpperCase();
+  const normalizedOnChainToken = normalizeTokenSymbol(onChainToken);
 
   try {
     if (network === Networks.AssetHub) {
