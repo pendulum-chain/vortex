@@ -58,7 +58,6 @@ export const WidgetCards = () => {
     }
     return false;
   });
-  console.log("mr", isMoneriumRedirect);
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   const { onRampConfirm } = useRampSubmission();

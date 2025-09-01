@@ -66,7 +66,9 @@ export const moneriumKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: ({ event }) => event.error
+            error: ({ event }) => {
+              return "Error exchanging Monerium code";
+            }
           }),
           target: "Failure"
         },
