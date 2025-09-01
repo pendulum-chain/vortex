@@ -34,16 +34,11 @@ export function validateAmountLimits(
   const limitUnits = getTokenLimitUnits(currency, limitType, operationType);
   const tokenDetails = getAnyFiatTokenDetails(currency);
 
-  let shouldThrowError = false;
-  let errorMessage = "";
-
-  if (limitType === "max") {
-    shouldThrowError = amountBig.gt(limitUnits);
-    errorMessage = `${operationType === "buy" ? "Input" : "Output"} amount exceeds maximum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`;
-  } else {
-    shouldThrowError = amountBig.lt(limitUnits);
-    errorMessage = `${operationType === "buy" ? "Output" : "Output"} amount below minimum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`;
-  }
+  const shouldThrowError = limitType === "max" ? amountBig.gt(limitUnits) : amountBig.lt(limitUnits);
+  const errorMessage =
+    limitType === "max"
+      ? `${operationType === "buy" ? "Input" : "Output"} amount exceeds maximum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`
+      : `${operationType === "buy" ? "Input" : "Output"} amount below minimum ${operationType} limit of ${limitUnits.toFixed(2)} ${tokenDetails.fiat.symbol}`;
 
   if (shouldThrowError) {
     throw new APIError({
