@@ -21,7 +21,7 @@ export function MoneriumRedirectComponent({ className }: MoneriumRedirectCompone
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <button
-          className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
+          className={cn("btn-vortex-danger btn w-full rounded-xl", className)}
           onClick={() => moneriumKycActor.send({ type: "CANCEL" })}
         >
           {t("components.moneriumRedirect.cancel")}

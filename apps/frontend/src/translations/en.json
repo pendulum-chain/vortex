@@ -135,11 +135,6 @@
         "connect": "Connect",
         "wrongNetwork": "Wrong network"
       },
-      "moneriumRedirect": {
-        "cancel": "Cancel",
-        "description": "You've been redirected to our partner...",
-        "goToPartner": "Go to partner"
-      },
       "polkadotDisconnectWallet": {
         "disconnect": "Disconnect"
       },
@@ -219,6 +214,11 @@
         "started": "Started"
       },
       "button": "Maintenance Mode"
+    },
+    "moneriumRedirect": {
+      "cancel": "Cancel",
+      "description": "You have been redirected to our partner...",
+      "goToPartner": "Go to partner"
     },
     "navbar": {
       "community": "Community",
