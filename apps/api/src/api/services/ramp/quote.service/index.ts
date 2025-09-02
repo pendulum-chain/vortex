@@ -47,7 +47,7 @@ async function calculateInputAmountForNablaSwap(
       rampType: request.rampType,
       sourceOrDestination: request.from
     });
-    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputCurrency);
   } else {
     return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
   }
