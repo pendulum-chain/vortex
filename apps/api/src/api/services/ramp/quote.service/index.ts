@@ -33,6 +33,7 @@ import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
+import { validateAmountLimits } from "./validation-helpers";
 
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
@@ -74,6 +75,8 @@ export class QuoteService extends BaseRampService {
         logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
       }
     }
+
+    validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
 
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
@@ -248,6 +251,13 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
+    validateAmountLimits(
+      nablaSwapResult.nablaOutputAmountDecimal,
+      request.outputCurrency as FiatToken,
+      "max",
+      request.rampType
+    );
+
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
@@ -386,6 +396,8 @@ export class QuoteService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", request.rampType);
 
     // Apply discount subsidy if partner has discount > 0
     let discountSubsidyAmount = new Big(0);
