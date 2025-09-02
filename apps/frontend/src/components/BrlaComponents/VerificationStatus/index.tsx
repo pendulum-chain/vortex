@@ -17,7 +17,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center px-4 py-4 md:mx-auto md:w-96"
+      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center px-4 py-4 md:mx-auto"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >

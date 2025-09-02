@@ -19,6 +19,8 @@ import {
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
   Kyc2FailureReason,
+  KycAttemptResult,
+  KycAttemptStatus,
   KycFailureReason,
   KycLevel1Payload,
   KycLevel1Response,
@@ -283,6 +285,16 @@ export const fetchSubaccountKycStatus = async (
     const kycAttemptStatus = await brlaApiService.getKycAttempt(taxIdRecord.subAccountId);
 
     if (!kycAttemptStatus) {
+      const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
+        res.status(httpStatus.OK).json({
+          level: "KYC_1",
+          result: KycAttemptResult.APPROVED,
+          status: KycAttemptStatus.COMPLETED,
+          type: "KYC"
+        });
+        return;
+      }
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
     }
@@ -290,6 +302,7 @@ export const fetchSubaccountKycStatus = async (
     res.status(httpStatus.OK).json({
       failureReason: mapKycFailureReason(kycAttemptStatus.attempt.resultMessage),
       level: kycAttemptStatus.attempt.levelName,
+      result: kycAttemptStatus.attempt.result,
       status: kycAttemptStatus.attempt.status,
       type: "KYC"
     });
@@ -380,7 +393,8 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-
+    //await 30 seconds
+    await new Promise(resolve => setTimeout(resolve, 30000));
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);

@@ -1,6 +1,11 @@
-import { AveniaAccountType, AveniaDocumentType, AveniaIdentityStatus } from "../../src/services";
+import {
+  AveniaAccountType,
+  AveniaDocumentType,
+  AveniaIdentityStatus,
+  KycAttemptResult,
+  KycAttemptStatus
+} from "../../src/services";
 import { RampDirection } from "../types/rampDirection";
-
 export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
@@ -36,9 +41,10 @@ export interface BrlaGetKycStatusRequest {
 
 export interface BrlaGetKycStatusResponse {
   type: string;
-  status: string;
+  status: KycAttemptStatus;
   level: string;
-  failureReason: KycFailureReason;
+  result: KycAttemptResult;
+  failureReason?: KycFailureReason;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey

@@ -1,9 +1,10 @@
-import { KycFailureReason } from "@packages/shared";
+import { KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@packages/shared";
 import { fromPromise } from "xstate";
-import { fetchKycStatus, KycStatus } from "../../../services/signingService";
+import { fetchKycStatus } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
 
 const POLLING_INTERVAL_MS = 2000;
+const MAX_FAILURES = 10;
 
 export type VerifyStatusActorOutput = { type: "APPROVED" } | { type: "REJECTED"; reason: KycFailureReason };
 
@@ -13,24 +14,28 @@ export const verifyStatusActor = fromPromise<VerifyStatusActorOutput, AveniaKycC
     throw new Error("Tax ID is required");
   }
 
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
+    let failureCount = 0;
     const interval = setInterval(async () => {
       try {
         const response = await fetchKycStatus(taxId);
         console.log("KYC Status Response:", response);
-        if (response.level === 1) {
-          if (response.status === KycStatus.APPROVED) {
-            clearInterval(interval);
-            resolve({ type: "APPROVED" });
-          } else if (response.status === KycStatus.REJECTED) {
-            clearInterval(interval);
-            resolve({ reason: response.failureReason, type: "REJECTED" });
-          }
+        failureCount = 0;
+
+        if (response.result === KycAttemptResult.APPROVED) {
+          clearInterval(interval);
+          resolve({ type: "APPROVED" });
+        } else if (response.result === KycAttemptResult.REJECTED) {
+          clearInterval(interval);
+          const reason = response.failureReason || KycFailureReason.UNKNOWN;
+          resolve({ reason, type: "REJECTED" });
         }
       } catch (error) {
-        clearInterval(interval);
-        // The actor will transition to the onError state
-        throw error;
+        failureCount++;
+        if (failureCount >= MAX_FAILURES) {
+          clearInterval(interval);
+          reject(new Error(`Failed to fetch KYC status after ${MAX_FAILURES} attempts.`));
+        }
       }
     }, POLLING_INTERVAL_MS);
   });

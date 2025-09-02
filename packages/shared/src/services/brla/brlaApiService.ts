@@ -111,9 +111,7 @@ export class BrlaApiService {
     if (payload !== undefined) {
       options.body = body;
     }
-
     const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
-
     logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
     const response = await fetch(fullUrl, options);
@@ -156,7 +154,7 @@ export class BrlaApiService {
   }
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<AccountLimitsResponse | undefined> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.AccountLimits, "GET", query);
   }
 
@@ -226,7 +224,7 @@ export class BrlaApiService {
   }
 
   public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
-    const query = `subaccountId=${encodeURIComponent(userId)}`;
+    const query = `subAccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, "GET", query)).onchainLogs;
   }
 
@@ -242,7 +240,7 @@ export class BrlaApiService {
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
   }
 
@@ -292,12 +290,12 @@ export class BrlaApiService {
   }
 
   public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.AccountInfo, "GET", query);
   }
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
-    const query = `subaccountId=${encodeURIComponent(payload.subAccountId)}`;
+    const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
     return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
   }
 
