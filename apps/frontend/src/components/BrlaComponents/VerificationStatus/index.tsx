@@ -1,42 +1,27 @@
 import { motion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { ActorRefFrom } from "xstate";
+import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
 
 interface VerificationStatusProps {
-  status: { status: KycStatus; level: number };
-  message: string;
-  failureMessage?: string;
-  isLevel2: boolean;
-  kycVerificationError?: boolean;
-  onContinue: () => void;
-  onBack: () => void;
-  onRetry: () => void;
+  aveniaKycActor: AveniaKycActorRef;
+  aveniaState: SelectedAveniaData;
 }
 
-export const VerificationStatus: React.FC<VerificationStatusProps> = ({
-  status,
-  message,
-  failureMessage,
-  isLevel2,
-  kycVerificationError = false,
-  onContinue,
-  onRetry,
-  onBack
-}) => {
-  const { status: kycStatus, level } = status;
-  const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKycActor, aveniaState }) => {
   const { t } = useTranslation();
 
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center rounded-lg px-4 py-4 shadow-custom md:mx-auto md:w-96"
+      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center px-4 py-4 md:mx-auto md:w-96"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
-      {kycVerificationError ? (
+      {aveniaState.stateValue === "Failure" ? (
         <>
           <ErrorIcon />
           <motion.p
@@ -51,7 +36,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
             animate={{ opacity: 1, y: 0 }}
             className="btn-vortex-primary btn mt-6 px-8"
             initial={{ opacity: 0, y: 20 }}
-            onClick={onBack}
+            onClick={() => aveniaKycActor.send({ type: "CANCEL_RETRY" })} // TODO do we really want this action?
             transition={{ delay: 0.6, duration: 0.3 }}
           >
             {t("components.brlaExtendedForm.buttons.back")}
@@ -59,11 +44,11 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
         </>
       ) : (
         <>
-          {kycStatus === KycStatus.PENDING && <Spinner size="lg" theme="dark" />}
+          {aveniaState.context.kycStatus === KycStatus.PENDING && <Spinner size="lg" theme="dark" />}
 
-          {showSuccess && <SuccessIcon />}
+          {aveniaState.context.kycStatus === KycStatus.APPROVED && <SuccessIcon />}
 
-          {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
+          {aveniaState.context.kycStatus === KycStatus.REJECTED && <ErrorIcon />}
 
           <motion.p
             animate={{ opacity: 1 }}
@@ -71,38 +56,38 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
             initial={{ opacity: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            {message}
+            {aveniaState.context.error}
           </motion.p>
 
-          {kycStatus === KycStatus.REJECTED && failureMessage && (
+          {aveniaState.context.kycStatus === KycStatus.REJECTED && aveniaState.context.rejectReason && (
             <motion.p
               animate={{ opacity: 1 }}
               className="mt-2 px-4 text-center text-red-600 text-sm"
               initial={{ opacity: 0 }}
               transition={{ delay: 0.5, duration: 0.5 }}
             >
-              {failureMessage}
+              {aveniaState.context.rejectReason}
             </motion.p>
           )}
 
-          {showSuccess && (
+          {aveniaState.context.kycStatus === KycStatus.APPROVED && (
             <motion.button
               animate={{ opacity: 1, y: 0 }}
               className="btn-vortex-primary btn mt-6 px-8"
               initial={{ opacity: 0, y: 20 }}
-              onClick={onContinue}
+              onClick={() => aveniaKycActor.send({ type: "CLOSE_SUCCESS_MODAL" })}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
               {t("components.brlaExtendedForm.buttons.continue")}
             </motion.button>
           )}
 
-          {kycStatus === KycStatus.REJECTED && (
+          {aveniaState.context.kycStatus === KycStatus.REJECTED && (
             <motion.button
               animate={{ opacity: 1, y: 0 }}
               className="btn-vortex-primary btn mt-6 px-8"
               initial={{ opacity: 0, y: 20 }}
-              onClick={onRetry}
+              onClick={() => aveniaKycActor.send({ type: "RETRY" })}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
               {t("components.brlaExtendedForm.buttons.tryAgain")}

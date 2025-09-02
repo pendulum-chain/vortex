@@ -76,7 +76,6 @@ export const handleMoneriumSiweAuth = async (
 
 export const exchangeMoneriumCode = async (code: string, codeVerifier: string): Promise<{ authToken: string }> => {
   console.log("Exchanging Monerium code:", code, "with verifier:", codeVerifier);
-
   const response = await fetch("https://api.monerium.app/auth/token", {
     body: new URLSearchParams({
       client_id: VORTEX_APP_CLIENT_ID,

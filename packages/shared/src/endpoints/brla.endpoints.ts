@@ -1,6 +1,10 @@
+import { AveniaAccountType, AveniaDocumentType, AveniaIdentityStatus } from "../../src/services";
+import { RampDirection } from "../types/rampDirection";
+
 export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
+  BIRTHDATE = "birthdate",
   UNKNOWN = "unknown"
 }
 
@@ -12,6 +16,7 @@ export interface BrlaGetUserRequest {
 export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
+  identityStatus: AveniaIdentityStatus;
 }
 
 // GET /brla/getRampStatus?taxId=:taxId
@@ -32,7 +37,7 @@ export interface BrlaGetKycStatusRequest {
 export interface BrlaGetKycStatusResponse {
   type: string;
   status: string;
-  level: number;
+  level: string;
   failureReason: KycFailureReason;
 }
 
@@ -47,23 +52,11 @@ export interface BrlaValidatePixKeyResponse {
 
 export interface BrlaGetUserRemainingLimitRequest {
   taxId: string;
+  direction: RampDirection;
 }
 
 export interface BrlaGetUserRemainingLimitResponse {
-  remainingLimitOnramp: number;
-  remainingLimitOfframp: number;
-}
-
-// POST /brla/triggerOfframp
-export interface BrlaTriggerOfframpRequest {
-  taxId: string;
-  pixKey: string;
-  amount: string;
-  receiverTaxId: string;
-}
-
-export interface BrlaTriggerOfframpResponse {
-  offrampId: string;
+  remainingLimit: number;
 }
 
 // POST /brla/createSubaccount
@@ -80,19 +73,13 @@ export interface BrlaAddress {
 export type TaxIdType = "CPF" | "CNPJ";
 
 export interface BrlaCreateSubaccountRequest {
-  phone: string;
-  taxIdType: TaxIdType;
-  address: BrlaAddress;
-  fullName: string;
-  cpf: string;
-  birthdate: number; // Timestamp
-  companyName?: string;
-  startDate?: number;
-  cnpj?: string;
+  accountType: AveniaAccountType;
+  name: string;
+  taxId: string;
 }
 
 export interface BrlaCreateSubaccountResponse {
-  subaccountId: string;
+  subAccountId: string;
 }
 
 export interface BrlaErrorResponse {
@@ -106,18 +93,19 @@ export enum BrlaKYCDocType {
 }
 
 // POST /brla/startKYC2
-export interface StartKYC2Request {
-  documentType: BrlaKYCDocType;
-  taxId: string;
+export interface AveniaKYCDataUploadRequest {
+  documentType: AveniaDocumentType;
+  isDoubleSided?: boolean;
 }
 
-export interface BrlaStartKYC2Response {
-  uploadUrls: BrlaKYCDataUploadFileFiles;
-}
-
-export interface BrlaKYCDataUploadFileFiles {
-  selfieUploadUrl: string;
-  RGFrontUploadUrl: string;
-  RGBackUploadUrl: string;
-  CNHUploadUrl: string;
+export interface AveniaKYCDataUpload {
+  selfieUpload: {
+    id: string;
+    uploadURLFront: string;
+  };
+  idUpload: {
+    id: string;
+    uploadURLFront: string;
+    uploadURLBack?: string;
+  };
 }

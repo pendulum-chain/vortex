@@ -171,9 +171,9 @@ export const useSetRampUrlParams = () => {
       hasInitialized.current = true;
       return;
     }
-
-    resetRampDirection();
-    resetRampForm();
+    // TODO clarify: why do we want to reset this?
+    // resetRampDirection();
+    // resetRampForm();
 
     onToggle(ramp);
 
@@ -198,7 +198,10 @@ export const useSetRampUrlParams = () => {
     }
 
     if (providedQuoteId) {
-      rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
+      const quote = rampActor.getSnapshot()?.context.quote;
+      if (quote?.id !== providedQuoteId) {
+        rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
+      }
     }
 
     hasInitialized.current = true;

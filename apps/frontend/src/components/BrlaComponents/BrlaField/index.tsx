@@ -42,6 +42,7 @@ export interface BrlaFieldProps extends FieldProps {
     value: RegExp;
     message: string;
   };
+  options?: string[];
 }
 
 export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {

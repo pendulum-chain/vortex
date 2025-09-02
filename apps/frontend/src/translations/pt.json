@@ -135,6 +135,11 @@
         "connect": "Conectar",
         "wrongNetwork": "Rede errada"
       },
+      "moneriumRedirect": {
+        "cancel": "Cancelar",
+        "description": "Você foi redirecionado para nosso parceiro...",
+        "goToPartner": "Ir para o parceiro"
+      },
       "polkadotDisconnectWallet": {
         "disconnect": "Desconectar"
       },

@@ -1,4 +1,5 @@
 import {
+  AveniaKYCDataUploadRequest,
   Currency,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -9,7 +10,6 @@ import {
   RegisterSubaccountPayload,
   StartKYC2Request,
   TokenConfig,
-  TriggerOfframpRequest,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
@@ -367,94 +367,35 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) => {
-  const { taxId, pixKey, amount, receiverTaxId } = req.body as TriggerOfframpRequest;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId parameter" });
-    return;
-  }
-
-  if (!pixKey) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing pixKey parameter" });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing or invalid amount parameter" });
-    return;
-  }
-
-  if (!receiverTaxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing receiverTaxId parameter" });
-    return;
-  }
-
-  next();
-};
-
-export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
+export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
     req.body as RegisterSubaccountPayload;
 
-  if (taxIdType !== "CPF" && taxIdType !== "CNPJ") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "taxIdType parameter must be either CPF or CNPJ" });
-    return;
-  }
+  // if (!phone) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
+  //   return;
+  // }
 
-  if (!cpf) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF"
-    });
-    return;
-  }
+  // if (!address) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
+  //   return;
+  // }
 
-  if (!phone) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
-    return;
-  }
+  // if (!fullName) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
+  //   return;
+  // }
 
-  if (!address) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
-    return;
-  }
-
-  if (!fullName) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
-    return;
-  }
-
-  if (!birthdate) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
-    return;
-  }
-
-  // CNPJ specific validations
-  if (taxIdType === "CNPJ" && !companyName) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing companyName parameter" });
-    return;
-  }
-
-  if (taxIdType === "CNPJ" && !startDate) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing startDate parameter" });
-    return;
-  }
-
-  if (taxIdType === "CNPJ" && !cnpj) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing cnpj parameter" });
-    return;
-  }
+  // if (!birthdate) {
+  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
+  //   return;
+  // }
 
   next();
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { taxId, documentType } = req.body as StartKYC2Request;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId parameter" });
-    return;
-  }
+  const { documentType } = req.body as AveniaKYCDataUploadRequest;
 
   if (!isValidKYCDocType(documentType)) {
     res.status(httpStatus.BAD_REQUEST).json({

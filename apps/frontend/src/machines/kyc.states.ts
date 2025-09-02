@@ -1,10 +1,18 @@
-import { FiatToken, RampDirection } from "@packages/shared";
+import { FiatToken, KycFailureReason, RampDirection } from "@packages/shared";
 import { assign, sendTo } from "xstate";
+import { KYCFormData } from "../hooks/brla/useKYCForm";
+import { KycStatus } from "../services/signingService";
+import { UploadIds } from "./brlaKyc.machine";
 import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
-export interface BrlaKycContext extends RampContext {
+export interface AveniaKycContext extends RampContext {
   taxId: string;
+  kycFormData?: KYCFormData;
+  kycStatus?: KycStatus;
+  rejectReason?: KycFailureReason;
+  documentUploadIds?: UploadIds;
+  error?: string;
 }
 
 export interface MoneriumKycContext extends RampContext {
@@ -38,7 +46,7 @@ export const kycStateNode = {
         sendTo(
           ({ context }) => {
             if (context.executionInput?.fiatToken === FiatToken.BRL) {
-              return "brlaKyc";
+              return "aveniaKyc";
             }
             if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
               return "moneriumKyc";
@@ -54,24 +62,39 @@ export const kycStateNode = {
     }
   },
   states: {
-    Brla: {
+    Avenia: {
       invoke: {
-        id: "brlaKyc",
-        input: ({ context }: { context: RampContext }): BrlaKycContext => ({
+        id: "aveniaKyc",
+        input: ({ context }: { context: RampContext }): AveniaKycContext => ({
           ...context,
           taxId: context.executionInput!.taxId!
         }),
-        onDone: {
-          target: "VerificationComplete"
+        onDone: [
+          {
+            guard: ({ event }: { event: any }) => !event.output.error,
+            target: "VerificationComplete"
+          },
+          {
+            actions: assign({
+              initializeFailedMessage: ({ event }) => event.output.error
+            }),
+            target: "#ramp.QuoteReady"
+          }
+        ],
+        onError: {
+          actions: assign({
+            initializeFailedMessage: "Avenia KYC verification failed. Please retry."
+          }),
+          target: "#ramp.KycFailure"
         },
-        src: "brlaKyc"
+        src: "aveniaKyc"
       }
     },
     Deciding: {
       always: [
         {
           guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
-          target: "Brla"
+          target: "Avenia"
         },
         {
           guard: ({ context }: { context: RampContext }) =>

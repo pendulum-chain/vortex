@@ -94,7 +94,7 @@
           "tooOld": "Invalid company start date"
         },
         "state": {
-          "minLength": "State must be at least 3 characters",
+          "minLength": "State must be at least 2 characters",
           "required": "State is required"
         },
         "street": {
@@ -134,6 +134,11 @@
       "connectWallet": {
         "connect": "Connect",
         "wrongNetwork": "Wrong network"
+      },
+      "moneriumRedirect": {
+        "cancel": "Cancel",
+        "description": "You've been redirected to our partner...",
+        "goToPartner": "Go to partner"
       },
       "polkadotDisconnectWallet": {
         "disconnect": "Disconnect"

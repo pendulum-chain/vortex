@@ -1,6 +1,5 @@
-import { PaymentData } from "@packages/shared";
+import { FiatToken, isFiatTokenDetails, PaymentData } from "@packages/shared";
 import { assign, emit, setup } from "xstate";
-import { ToastMessage } from "../helpers/notifications";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
 import { StellarKycContext } from "./kyc.states";
@@ -48,7 +47,7 @@ export const stellarKycMachine = setup({
   states: {
     // SIWE states.
     Authentication: {
-      initial: "AwaitSiwe",
+      initial: "PreCheck",
       on: {
         SIGNATURE_FAILURE: [
           {
@@ -86,6 +85,18 @@ export const stellarKycMachine = setup({
               target: "#stellarKyc.StartSep24"
             }
           }
+        },
+        PreCheck: {
+          always: [
+            {
+              // Only ARS offramp requires SIWE
+              guard: ({ context }) => context.executionInput?.fiatToken === FiatToken.ARS,
+              target: "AwaitSiwe"
+            },
+            {
+              target: "#stellarKyc.StartSep24"
+            }
+          ]
         },
         RequestingSignature: {
           entry: emit({ type: "PROMPT_FOR_SIGNATURE" }),

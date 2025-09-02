@@ -1,4 +1,4 @@
-import { BrlaGetKycStatusResponse, FiatToken } from "@packages/shared";
+import { BrlaGetKycStatusResponse, CreateAveniaSubaccountRequest, FiatToken, KycLevel1Payload } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
@@ -197,9 +197,13 @@ export const fetchKycStatus = async (taxId: string) => {
   return eventStatus;
 };
 
-export const createSubaccount = async (kycData: RegisterSubaccountPayload): Promise<{ subaccountId: string }> => {
+export const createSubaccount = async ({
+  name,
+  accountType,
+  taxId
+}: CreateAveniaSubaccountRequest): Promise<{ subAccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify(kycData),
+    body: JSON.stringify({ accountType, name, taxId }),
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     method: "POST"
@@ -215,4 +219,24 @@ export const createSubaccount = async (kycData: RegisterSubaccountPayload): Prom
   }
 
   return await accountCreationResponse.json();
+};
+
+export const submitNewKyc = async (kycData: KycLevel1Payload): Promise<{ id: string }> => {
+  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/newKyc`, {
+    body: JSON.stringify(kycData),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST"
+  });
+
+  if (response.status === 400) {
+    const { details } = await response.json();
+    throw new Error("Failed to submit KYC. Reason: " + details.error);
+  }
+
+  if (response.status !== 200) {
+    throw new Error(`Failed to submit KYC: ${response.statusText}`);
+  }
+
+  return await response.json();
 };
