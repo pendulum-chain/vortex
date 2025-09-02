@@ -1,6 +1,9 @@
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ConfirmIcon from "../assets/steps/confirm.png";
+import DetailsIcon from "../assets/steps/details.png";
+import VerificationIcon from "../assets/steps/verification.png";
 import { Step } from "../components/Stepper";
 import { useRampActor } from "../contexts/rampState";
 
@@ -25,14 +28,17 @@ export const useStepper = () => {
   const steps = useMemo((): Step[] => {
     return [
       {
+        icon: DetailsIcon,
         status: secondStepActive || secondStepComplete ? "complete" : "active",
         title: t("stepper.details", "Details")
       },
       {
+        icon: VerificationIcon,
         status: secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
         title: t("stepper.verification", "Verification")
       },
       {
+        icon: ConfirmIcon,
         status: thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
         title: t("stepper.confirm", "Confirm")
       }

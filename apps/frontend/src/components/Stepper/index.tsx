@@ -1,6 +1,7 @@
 import React from "react";
 
 export interface Step {
+  icon?: string;
   title: string;
   status: "complete" | "active" | "incomplete";
 }
@@ -50,7 +51,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, onStepClick, className 
                   />
                 </svg>
               ) : (
-                <span>{index + 1}</span>
+                <span>{step.icon ? <img alt={step.title} className="h-5 w-5" src={step.icon} /> : index + 1}</span>
               )}
             </button>
             {/* Step Title */}
