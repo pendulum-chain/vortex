@@ -35,6 +35,12 @@ import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridge
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 
+/*
+ * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
+ * @param request - The quote request details.
+ * @param preNablaDeductibleFeeAmount - The total pre-Nabla deductible fee amount in feeCurrency.
+ * @param feeCurrency - The currency in which the pre-Nabla deductible fee amount is denoted.
+ */
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
   preNablaDeductibleFeeAmount: Big.BigSource,
