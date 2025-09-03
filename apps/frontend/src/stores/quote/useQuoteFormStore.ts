@@ -99,13 +99,22 @@ export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
       }
     }),
     {
-      name: "useQuoteFormStore",
+      migrate: (persistedState, version) => {
+        if (version !== 3) {
+          return null;
+        }
+        return persistedState;
+      },
+      name: "useRampFormStore",
       partialize: state => ({
         fiatToken: state.fiatToken,
         inputAmount: state.inputAmount,
         lastConstraintDirection: state.lastConstraintDirection,
-        onChainToken: state.onChainToken
-      })
+        onChainToken: state.onChainToken,
+        pixId: state.pixId,
+        taxId: state.taxId
+      }),
+      version: 3
     }
   )
 );

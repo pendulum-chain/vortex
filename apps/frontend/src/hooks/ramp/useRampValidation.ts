@@ -34,12 +34,10 @@ function validateOnramp(
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
+  const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxBuyAmountRaw), -fromToken.decimals);
   // Set minimum amount for EURC to 1 unit as an arbitrary limit.
   const minAmountUnits =
-    fromToken.assetSymbol === "EURC"
-      ? new Big(1)
-      : multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
+    fromToken.assetSymbol === "EURC" ? new Big(1) : multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
 
   if (inputAmount && maxAmountUnits.lt(inputAmount)) {
     trackEvent({
@@ -104,19 +102,18 @@ function validateOfframp(
     }
   }
 
-  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
-  const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
+  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
 
-  if (inputAmount && exchangeRate && maxAmountUnits.lt(inputAmount.mul(exchangeRate))) {
+  if (inputAmount && quote && maxAmountUnits.lt(Big(quote.outputAmount))) {
     trackEvent({
       error_message: "more_than_maximum_withdrawal",
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.moreThanMinimumWithdrawal.sell", {
+    return t("pages.swap.error.moreThanMaximumWithdrawal.sell", {
       assetSymbol: toToken.fiat.symbol,
-      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
     });
   }
 

@@ -8,6 +8,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getPendulumDetails,
   getRoute,
   isAssetHubTokenDetails,
   isOnChainToken,
@@ -33,12 +34,32 @@ import { BaseRampService } from "../base.service";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
+import { validateAmountLimits } from "./validation-helpers";
 
+/*
+ * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
+ * @param request - The quote request details.
+ * @param preNablaDeductibleFeeAmount - The total pre-Nabla deductible fee amount in feeCurrency.
+ * @param feeCurrency - The currency in which the pre-Nabla deductible fee amount is denoted.
+ */
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
-  preNablaDeductibleFeeInInputCurrency: Big.BigSource,
-  preNablaDeductibleFeeAmount: Big.BigSource
+  preNablaDeductibleFeeAmount: Big.BigSource,
+  feeCurrency: RampCurrency
 ) {
+  // Convert the preNablaDeductibleFeeAmount from feeCurrency to the respective input currency used for the nabla swap
+  // Since some assets are not directly supported by Nabla, we need to convert the fee to the representative currency
+  // For example, the representative for ETH on Pendulum is axlUSDC.
+  const network = getNetworkFromDestination(request.from);
+  const representativeCurrency = getPendulumDetails(request.inputCurrency, network).currency;
+  const preNablaDeductibleFeeInInputRepresentativeCurrency = await priceFeedService.convertCurrency(
+    preNablaDeductibleFeeAmount.toString(),
+    feeCurrency,
+    representativeCurrency
+  );
+
+  // For off-ramps using squidrouter (non-Assethub), we need to adjust the input amount based on the bridge rate.
+  // For Assethub offramps and all onramps, we can directly deduct the fees from the input amount.
   if (request.rampType === RampDirection.SELL && request.from !== "assethub") {
     // Check squidrouter rate and adjust the input amount accordingly
     const bridgeQuote = await getEvmBridgeQuote({
@@ -47,9 +68,9 @@ async function calculateInputAmountForNablaSwap(
       rampType: request.rampType,
       sourceOrDestination: request.from
     });
-    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   } else {
-    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   }
 }
 
@@ -75,6 +96,8 @@ export class QuoteService extends BaseRampService {
       }
     }
 
+    validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
+
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
@@ -90,18 +113,7 @@ export class QuoteService extends BaseRampService {
     );
 
     // c. Calculate inputAmountForNablaSwap
-    // Convert preNablaDeductibleFeeAmount from feeCurrency to request.inputCurrency
-    const preNablaDeductibleFeeInInputCurrency = await priceFeedService.convertCurrency(
-      preNablaDeductibleFeeAmount.toString(),
-      feeCurrency,
-      request.inputCurrency
-    );
-
-    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(
-      request,
-      preNablaDeductibleFeeInInputCurrency,
-      preNablaDeductibleFeeAmount
-    );
+    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency);
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -249,6 +261,13 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
+    validateAmountLimits(
+      nablaSwapResult.nablaOutputAmountDecimal,
+      request.outputCurrency as FiatToken,
+      "max",
+      request.rampType
+    );
+
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
@@ -387,6 +406,8 @@ export class QuoteService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", request.rampType);
 
     // Apply discount subsidy if partner has discount > 0
     let discountSubsidyAmount = new Big(0);
