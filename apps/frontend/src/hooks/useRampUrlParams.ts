@@ -25,7 +25,7 @@ function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatT
   }
 
   const fiatTokenEntries = Object.entries(FiatToken);
-  const matchedFiatToken = fiatTokenEntries.find(([_, token]) => token.toLowerCase() === fiatToken);
+  const matchedFiatToken = fiatTokenEntries.find(([_, token]) => token.toUpperCase() === fiatToken);
 
   if (!matchedFiatToken) {
     return undefined;
@@ -50,7 +50,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
 
   if (isAssetHub) {
     const assetHubTokenEntries = Object.entries(AssetHubToken);
-    const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
+    const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
     if (!matchedToken) {
       return AssetHubToken.USDC;
@@ -60,7 +60,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     return tokenValue as unknown as OnChainToken;
   } else {
     const evmTokenEntries = Object.entries(EvmToken);
-    const matchedToken = evmTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
+    const matchedToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
     if (!matchedToken) {
       return EvmToken.USDC;
@@ -87,8 +87,8 @@ export const useRampUrlParams = (): RampUrlParams => {
   const urlParams = useMemo(() => {
     const rampParam = params.get("ramp")?.toLowerCase();
     const networkParam = params.get("network")?.toLowerCase();
-    const toTokenParam = params.get("to")?.toLowerCase();
-    const fromTokenParam = params.get("from")?.toLowerCase();
+    const toTokenParam = params.get("to")?.toUpperCase();
+    const fromTokenParam = params.get("from")?.toUpperCase();
     const inputAmountParam = params.get("fromAmount");
     const partnerIdParam = params.get("partnerId");
     const moneriumCode = params.get("code")?.toLowerCase();

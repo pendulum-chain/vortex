@@ -78,7 +78,7 @@ export function isMoonbeamOutputTokenDetails(
 }
 
 export function isFiatToken(token: string): token is FiatToken {
-  return Object.values(FiatToken).includes(token.toLowerCase() as FiatToken);
+  return Object.values(FiatToken).includes(token.toUpperCase() as FiatToken);
 }
 
 export function isAssetHubToken(token: string): token is AssetHubToken {

@@ -8,9 +8,9 @@ export enum TokenType {
 }
 
 export enum FiatToken {
-  EURC = "eur",
-  ARS = "ars",
-  BRL = "brl"
+  EURC = "EUR",
+  ARS = "ARS",
+  BRL = "BRL"
 }
 
 export enum AssetHubToken {

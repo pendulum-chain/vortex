@@ -96,7 +96,9 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
+    if (request.rampType === RampDirection.BUY) {
+      //validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
+    }
 
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
