@@ -263,12 +263,16 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
-    validateAmountLimits(
-      nablaSwapResult.nablaOutputAmountDecimal,
-      request.outputCurrency as FiatToken,
-      "max",
-      request.rampType
-    );
+    if (request.rampType === RampDirection.SELL) {
+      validateAmountLimits(
+        nablaSwapResult.nablaOutputAmountDecimal,
+        request.outputCurrency as FiatToken,
+        "max",
+        request.rampType
+      );
+    } else {
+      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
+    }
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
@@ -409,7 +413,11 @@ export class QuoteService extends BaseRampService {
       });
     }
 
-    validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", request.rampType);
+    if (request.rampType === RampDirection.SELL) {
+      validateAmountLimits(finalNetOutputAmount, request.outputCurrency as FiatToken, "min", request.rampType);
+    } else {
+      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "min", request.rampType);
+    }
 
     // Apply discount subsidy if partner has discount > 0
     let discountSubsidyAmount = new Big(0);

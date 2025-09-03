@@ -30,7 +30,6 @@ async function uploadFileAsBuffer(file: File, url: string) {
   });
 
   if (!res.ok) {
-    console.log("upload failed", res.statusText);
     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
   }
 }
