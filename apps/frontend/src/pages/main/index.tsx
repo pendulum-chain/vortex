@@ -1,4 +1,5 @@
 import { useSelector } from "@xstate/react";
+import { QuoteBackground } from "../../components/QuoteBackground";
 import { useRampActor } from "../../contexts/rampState";
 import { BaseLayout } from "../../layouts";
 import { Quote } from "../quote";
@@ -15,7 +16,9 @@ export const Main = () => {
     <main>
       {machineState === "Idle" ? (
         <>
-          <Quote />
+          <QuoteBackground>
+            <Quote />
+          </QuoteBackground>
           <MainSections />
         </>
       ) : (
