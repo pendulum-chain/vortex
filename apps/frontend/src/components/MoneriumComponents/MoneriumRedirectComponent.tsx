@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useMoneriumKycActor } from "../../contexts/rampState";
+import { useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 
 interface MoneriumRedirectComponentProps {
@@ -9,10 +9,19 @@ interface MoneriumRedirectComponentProps {
 export function MoneriumRedirectComponent({ className }: MoneriumRedirectComponentProps) {
   const { t } = useTranslation();
   const moneriumKycActor = useMoneriumKycActor();
+  const rampActor = useRampActor();
 
   if (!moneriumKycActor) {
     return <div />;
   }
+
+  const onCancelClick = () => {
+    // Reset the ramp state and go back to the home page
+    const cleanUrl = window.location.origin;
+    window.history.replaceState({}, "", cleanUrl);
+
+    rampActor.send({ type: "RESET_RAMP" });
+  };
 
   return (
     <div className="flex grow-1 flex-col justify-center">
@@ -20,10 +29,7 @@ export function MoneriumRedirectComponent({ className }: MoneriumRedirectCompone
         <p>{t("components.moneriumRedirect.description")}</p>
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <button
-          className={cn("btn-vortex-danger btn w-full rounded-xl", className)}
-          onClick={() => moneriumKycActor.send({ type: "CANCEL" })}
-        >
+        <button className={cn("btn-vortex-danger btn w-full rounded-xl", className)} onClick={onCancelClick}>
           {t("components.moneriumRedirect.cancel")}
         </button>
         <button
