@@ -26,8 +26,7 @@ const initialRampContext: RampContext = {
   quote: undefined,
   quoteId: undefined,
   rampDirection: undefined,
-  rampKycLevel2Started: false,
-  rampKycStarted: false,
+
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
