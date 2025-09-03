@@ -117,7 +117,11 @@ export const rampMachine = setup({
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({ event }) => event.getMessageSignature
+        getMessageSignature: ({
+          event
+        }: {
+          event: { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined };
+        }) => event.getMessageSignature
       })
     },
     SET_INITIALIZE_FAILED_MESSAGE: {
