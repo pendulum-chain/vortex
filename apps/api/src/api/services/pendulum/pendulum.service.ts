@@ -34,7 +34,7 @@ export const fundEphemeralAccount = async (
 
     if (requiresGlmr) {
       const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
-      const { pendulumCurrencyId } = TOKEN_CONFIG.glmr;
+      const { pendulumCurrencyId } = TOKEN_CONFIG.GLMR;
 
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
       const glmrFundingTx = apiData.api.tx.tokens.transfer(ephemeralAddress, pendulumCurrencyId, GLMR_FUNDING_AMOUNT_RAW);
