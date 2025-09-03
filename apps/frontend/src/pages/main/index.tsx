@@ -17,7 +17,12 @@ export const Main = () => {
       {machineState === "Idle" ? (
         <>
           <QuoteBackground>
-            <Quote />
+            <div className="flex flex-row items-center grow-1 justify-evenly">
+              <div className="text-2xl font-semibold text-white text-end md:text-3xl lg:text-4xl">
+                The <span className="text-[rgb(238,201,115)]">Lowest-Cost</span> On <br /> and Off Ramping <br /> Solution
+              </div>
+              <Quote />
+            </div>
           </QuoteBackground>
           <MainSections />
         </>

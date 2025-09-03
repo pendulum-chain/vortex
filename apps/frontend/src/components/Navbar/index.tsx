@@ -30,19 +30,20 @@ export const Navbar = () => {
           ease: "easeInOut"
         }}
       >
-        <div className="flex max-w-4xl grow items-center gap-8">
-          <button className="cursor-pointer" onClick={onLogoClick}>
-            <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
-            <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
-          </button>
-          <span className="ml-3 text-white text-xl">Solutions</span>
-          <a className="ml-3 text-white text-xl" href="https://pendulum.gitbook.io/vortex" target="_blank">
-            Docs
-          </a>
-          {/*<div className="flex items-center">*/}
-          {/*<LanguageSelector />*/}
-          {/*<ConnectWalletButton />*/}
-          {/*</div>*/}
+        <div className="flex max-w-4xl grow-1 justify-between">
+          <div className="flex grow items-center gap-8">
+            <button className="cursor-pointer" onClick={onLogoClick}>
+              <img alt="Vortex Logo" className="hidden max-w-38 sm:block" src={whiteLogo} />
+              <img alt="Vortex Logo" className="block max-w-12 sm:hidden" src={whiteMobileLogo} />
+            </button>
+            <span className="ml-3 text-white text-xl">Solutions</span>
+            <a className="ml-3 text-white text-xl" href="https://pendulum.gitbook.io/vortex" target="_blank">
+              Docs
+            </a>
+          </div>
+          <div className="flex items-center">
+            <button className="btn btn-vortex-secondary rounded-3xl">Book demo</button>
+          </div>
         </div>
       </motion.header>
     </>

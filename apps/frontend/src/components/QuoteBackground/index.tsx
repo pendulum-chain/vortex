@@ -23,9 +23,7 @@ export function QuoteBackground({ children }: QuoteBackgroundProps) {
 
       <div className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-25" />
 
-      <div className="relative z-20 flex h-full items-center justify-center px-4 text-center text-white">
-        <div>{children}</div>
-      </div>
+      <div className="relative z-20 flex h-full px-4">{children}</div>
     </div>
   );
 }
