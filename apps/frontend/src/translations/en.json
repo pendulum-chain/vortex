@@ -375,6 +375,11 @@
       "tapToReset": "",
       "title": "Transaction Interrupted"
     },
+    "main": {
+      "hero": {
+        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+      }
+    },
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",

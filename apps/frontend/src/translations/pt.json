@@ -372,6 +372,11 @@
       "tapToReset": "Clique aqui",
       "title": "Transação Interrompida"
     },
+    "main": {
+      "hero": {
+        "title": "A <1>Menor Custo</1> Solução <br /> de Entrada e Saída Criptomoedas"
+      }
+    },
     "progress": {
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
