@@ -8,6 +8,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getPendulumDetails,
   getRoute,
   isAssetHubTokenDetails,
   isOnChainToken,
@@ -36,9 +37,22 @@ import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote
 
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
-  preNablaDeductibleFeeInInputCurrency: Big.BigSource,
-  preNablaDeductibleFeeAmount: Big.BigSource
+  preNablaDeductibleFeeAmount: Big.BigSource,
+  feeCurrency: RampCurrency
 ) {
+  // Convert the preNablaDeductibleFeeAmount from feeCurrency to the respective input currency used for the nabla swap
+  // Since some assets are not directly supported by Nabla, we need to convert the fee to the representative currency
+  // For example, the representative for ETH on Pendulum is axlUSDC.
+  const network = getNetworkFromDestination(request.from);
+  const representativeCurrency = getPendulumDetails(request.inputCurrency, network).currency;
+  const preNablaDeductibleFeeInInputRepresentativeCurrency = await priceFeedService.convertCurrency(
+    preNablaDeductibleFeeAmount.toString(),
+    feeCurrency,
+    representativeCurrency
+  );
+
+  // For off-ramps using squidrouter (non-Assethub), we need to adjust the input amount based on the bridge rate.
+  // For Assethub offramps and all onramps, we can directly deduct the fees from the input amount.
   if (request.rampType === RampDirection.SELL && request.from !== "assethub") {
     // Check squidrouter rate and adjust the input amount accordingly
     const bridgeQuote = await getEvmBridgeQuote({
@@ -47,9 +61,9 @@ async function calculateInputAmountForNablaSwap(
       rampType: request.rampType,
       sourceOrDestination: request.from
     });
-    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputCurrency);
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   } else {
-    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   }
 }
 
@@ -90,18 +104,7 @@ export class QuoteService extends BaseRampService {
     );
 
     // c. Calculate inputAmountForNablaSwap
-    // Convert preNablaDeductibleFeeAmount from feeCurrency to request.inputCurrency
-    const preNablaDeductibleFeeInInputCurrency = await priceFeedService.convertCurrency(
-      preNablaDeductibleFeeAmount.toString(),
-      feeCurrency,
-      request.inputCurrency
-    );
-
-    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(
-      request,
-      preNablaDeductibleFeeInInputCurrency,
-      preNablaDeductibleFeeAmount
-    );
+    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency);
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
