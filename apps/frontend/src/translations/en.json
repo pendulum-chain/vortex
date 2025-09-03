@@ -221,9 +221,16 @@
       "goToPartner": "Go to partner"
     },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Book demo",
       "community": "Community",
+      "docs": "Docs",
       "howItWorks": "How it works",
-      "sellCrypto": "Sell Crypto"
+      "sellCrypto": "Sell Crypto",
+      "solutions": "Solutions",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "vortexLogo": "Vortex Logo",
+      "widget": "Widget"
     },
     "quoteSubmitButton": {
       "buy": "Buy",

@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { HamburgerButton } from "./HamburgerButton";
 import { useNavbarHandlers } from "./hooks/useNavbarHandlers";
@@ -9,6 +10,7 @@ import { SolutionsDropdown } from "./SolutionsDropdown";
 import { SubmenuItem } from "./types";
 
 export const Navbar = () => {
+  const { t } = useTranslation();
   const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -23,8 +25,8 @@ export const Navbar = () => {
   };
 
   const submenuItems: SubmenuItem[] = [
-    { label: "Widget", onClick: handleWidgetClick },
-    { label: "API", onClick: handleAPIClick }
+    { label: t("components.navbar.widget"), onClick: handleWidgetClick },
+    { label: t("components.navbar.api"), onClick: handleAPIClick }
   ];
 
   const navLinkStyles = "text-white text-xl";
@@ -53,7 +55,7 @@ export const Navbar = () => {
               submenuItems={submenuItems}
             />
             <a className={`ml-3 ${navLinkStyles}`} href="https://pendulum.gitbook.io/vortex" target="_blank">
-              Docs
+              {t("components.navbar.docs")}
             </a>
           </div>
 
@@ -65,7 +67,7 @@ export const Navbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden items-center sm:flex">
-            <button className="btn btn-vortex-secondary rounded-3xl">Book demo</button>
+            <button className="btn btn-vortex-secondary rounded-3xl">{t("components.navbar.bookDemo")}</button>
           </div>
         </div>
       </motion.header>
