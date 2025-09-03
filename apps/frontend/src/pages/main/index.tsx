@@ -17,8 +17,8 @@ export const Main = () => {
       {machineState === "Idle" ? (
         <>
           <QuoteBackground>
-            <div className="flex flex-row items-center grow-1 justify-evenly">
-              <div className="text-2xl font-semibold text-white text-end md:text-3xl lg:text-4xl">
+            <div className="flex grow-1 flex-col items-center justify-evenly md:flex-row">
+              <div className="pt-8 text-center font-semibold text-2xl text-white md:pt-0 md:text-3xl lg:text-end lg:text-4xl">
                 The <span className="text-[rgb(238,201,115)]">Lowest-Cost</span> On <br /> and Off Ramping <br /> Solution
               </div>
               <Quote />
