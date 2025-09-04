@@ -35,7 +35,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
-    "concurrently": "^9.1.2"
+    "@storybook/react-vite": "^9.1.4",
+    "concurrently": "^9.1.2",
+    "esbuild": "^0.25.9",
+    "storybook": "^9.1.4"
   },
   "lint-staged": {
     "*": [
@@ -50,6 +53,7 @@
   "private": true,
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",
+    "build-storybook": "storybook build",
     "build:backend": "bun run --cwd apps/api build",
     "build:frontend": "bun run --cwd apps/frontend build",
     "dev": "concurrently -n 'backend,frontend' -c '#007755,#2f6da3,#550077' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
@@ -62,6 +66,7 @@
     "prepare": "husky",
     "serve:backend": "bun run --cwd apps/api serve",
     "serve:frontend": "bun run --cwd apps/frontend preview",
+    "storybook": "storybook dev -p 6006",
     "typecheck": "bun x --bun tsc",
     "verify": "biome check --no-errors-on-unmatched"
   },
