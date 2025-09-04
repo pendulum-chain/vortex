@@ -5,6 +5,7 @@ import wallet from "../../assets/wallet-bifold-outline.svg";
 import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
 import { useOnchainTokenBalance } from "../../hooks/useOnchainTokenBalance";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
+import { ConnectWalletButton } from "../buttons/ConnectWalletButton";
 
 interface UserBalanceProps {
   token: OnChainTokenDetails;
@@ -27,22 +28,25 @@ const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: 
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
   const onchainTokenBalance = onchainTokenBalanceRaw?.balance || "0";
 
-  const hasBalance = onchainTokenBalance !== undefined && Number(onchainTokenBalance) !== 0;
+  const hasBalance = onchainTokenBalance !== undefined;
 
   if (!hasBalance) return null;
   return (
-    <div className="mt-1 mr-0.5 flex items-center justify-end">
-      <img alt="Available" className="mr-0.5 h-5 w-5" src={wallet} />
-      <p>
-        {onchainTokenBalance} {token.assetSymbol}
-      </p>
-      <button
-        className="ml-1 cursor-pointer rounded-md bg-blue-100 px-1 text-primary hover:underline"
-        onClick={() => onClick(onchainTokenBalance)}
-        type="button"
-      >
-        Max
-      </button>
+    <div className="flex grow-1 flex-row justify-between">
+      <ConnectWalletButton customStyles="h-10! rounded-lg text-md" hideIcon />
+      <div className="mt-1 mr-0.5 flex items-center justify-end">
+        <img alt="Available" className="mr-0.5 h-5 w-5" src={wallet} />
+        <p>
+          {onchainTokenBalance} {token.assetSymbol}
+        </p>
+        <button
+          className="ml-1 cursor-pointer rounded-md bg-blue-100 px-1 text-primary hover:underline"
+          onClick={() => onClick(onchainTokenBalance)}
+          type="button"
+        >
+          Max
+        </button>
+      </div>
     </div>
   );
 };

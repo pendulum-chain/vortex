@@ -27,7 +27,7 @@ function BrazilDetails() {
 function EuroDetails() {
   return (
     <div className="mx-auto flex h-full w-full flex-col justify-center">
-      <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon={true} />
+      <ConnectWalletButton customStyles="w-full btn-vortex-secondary rounded-xl" hideIcon={true} />
     </div>
   );
 }
@@ -79,7 +79,7 @@ export const WidgetCards = () => {
         <FormProvider {...form}>
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
             <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
-            <div className="mt-8 grid flex-grow gap-3 px-2">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
+            <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
             <RampSubmitButton className="mb-4" />
           </form>
           <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
