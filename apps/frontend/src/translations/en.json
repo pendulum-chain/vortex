@@ -221,9 +221,16 @@
       "goToPartner": "Go to partner"
     },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Book demo",
       "community": "Community",
+      "docs": "Docs",
       "howItWorks": "How it works",
-      "sellCrypto": "Sell Crypto"
+      "sellCrypto": "Sell Crypto",
+      "solutions": "Solutions",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "vortexLogo": "Vortex Logo",
+      "widget": "Widget"
     },
     "quoteSubmitButton": {
       "buy": "Buy",
@@ -368,6 +375,11 @@
       "resetAndRestart": "Start New Transaction",
       "tapToReset": "",
       "title": "Transaction Interrupted"
+    },
+    "main": {
+      "hero": {
+        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+      }
     },
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",

@@ -221,9 +221,16 @@
       "goToPartner": "Ir para o parceiro"
     },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Agendar demo",
       "community": "Comunidade",
+      "docs": "Documentação",
       "howItWorks": "Como funciona",
-      "sellCrypto": "Vender Cripto"
+      "sellCrypto": "Vender Cripto",
+      "solutions": "Soluções",
+      "toggleMobileMenu": "Alternar menu móvel",
+      "vortexLogo": "Logo Vortex",
+      "widget": "Widget"
     },
     "quoteSubmitButton": {
       "buy": "Comprar",
@@ -365,6 +372,11 @@
       "resetAndRestart": "Iniciar Nova Transação",
       "tapToReset": "Clique aqui",
       "title": "Transação Interrompida"
+    },
+    "main": {
+      "hero": {
+        "title": "A <1>Menor Custo</1> Solução <br /> de Entrada e Saída Criptomoedas"
+      }
     },
     "progress": {
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
