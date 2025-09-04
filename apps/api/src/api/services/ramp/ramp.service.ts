@@ -1,6 +1,8 @@
 import {
   AccountMeta,
   BrlaApiService,
+  BrlaCurrency,
+  BrlaPaymentMethod,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -30,6 +32,7 @@ import logger from "../../../config/logger";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -115,7 +118,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string }> {
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
     if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
       throw new APIError({
         message: "Parameters destinationAddress and taxId are required for onramp",
@@ -131,7 +134,12 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(
+      additionalData.taxId,
+      quote,
+      quote.inputAmount,
+      moonbeamEphemeralEntry.address
+    );
 
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(
       quote,
@@ -140,7 +148,7 @@ export class RampService extends BaseRampService {
       additionalData.taxId
     );
 
-    return { depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareMoneriumOnrampTransactions(
@@ -230,10 +238,12 @@ export class RampService extends BaseRampService {
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
     depositQrCode?: string;
+    aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
     if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
+        await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -247,6 +257,7 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
+      await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -286,7 +297,7 @@ export class RampService extends BaseRampService {
 
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData } = await this.prepareRampTransactions(
+      const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
@@ -306,6 +317,7 @@ export class RampService extends BaseRampService {
         processingLock: { locked: false, lockedAt: null },
         quoteId: quote.id,
         state: {
+          aveniaTicketId,
           depositQrCode,
           ibanPaymentData,
           inputAmount: quote.inputAmount,
@@ -597,7 +609,7 @@ export class RampService extends BaseRampService {
     amount: string
   ): Promise<SubaccountData> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
 
     if (!subaccount) {
       throw new APIError({
@@ -639,39 +651,73 @@ export class RampService extends BaseRampService {
   /**
    * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
    */
-  public async validateBrlaOnrampRequest(taxId: string, quote: QuoteTicket, amount: string): Promise<string> {
+  public async validateBrlaOnrampRequest(
+    taxId: string,
+    quote: QuoteTicket,
+    amount: string,
+    moonbeamEphemeralAddress: string
+  ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    if (subaccount.kyc.level < 1) {
+    const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    // Filter for BRL specific limits
+    const brlaLimits = accountLimits?.limitInfo.limits.filter(entry => entry.currency === BrlaCurrency.BRL);
+    if (!brlaLimits || brlaLimits.length === 0) {
       throw new APIError({
-        message: "KYC invalid.",
+        message: "BRL limits not found.",
         status: httpStatus.BAD_REQUEST
       });
     }
+    const { maxFiatIn } = brlaLimits[0] || {};
 
-    const { limitMint } = subaccount.kyc.limits;
-
-    if (Number(amount) > limitMint) {
+    if (Number(amount) > Number(maxFiatIn)) {
       throw new APIError({
         message: "Amount exceeds KYC limits.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    const brCode = await brlaApiService.generateBrCode({
-      amount: String(amount),
-      referenceLabel: generateReferenceLabel(quote),
-      subaccountId: subaccount.id
+    const aveniaQuote = await brlaApiService.createPayInQuote({
+      inputAmount: String(amount),
+      inputCurrency: BrlaCurrency.BRL,
+      inputPaymentMethod: BrlaPaymentMethod.PIX,
+      inputThirdParty: false,
+      outputCurrency: BrlaCurrency.BRLA,
+      outputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
+      outputThirdParty: false,
+      subAccountId: taxIdRecord.subAccountId
     });
 
-    return brCode.brCode;
+    const aveniaTicket = await brlaApiService.createPixInputTicket({
+      quoteToken: aveniaQuote.quoteToken,
+      ticketBlockchainOutput: {
+        walletAddress: moonbeamEphemeralAddress,
+        walletChain: "Moonbeam"
+      },
+      ticketBrlPixInput: {
+        additionalData: generateReferenceLabel(quote)
+      }
+    });
+
+    return { aveniaTicketId: aveniaTicket.ticket.id, brCode: aveniaTicket.brlPixInputInfo.brCode };
+  }
+
+  public async validateBrlaWhitelistedAccount(taxId: string | undefined): Promise<void> {
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "BRL Ramp disabled",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 }
 

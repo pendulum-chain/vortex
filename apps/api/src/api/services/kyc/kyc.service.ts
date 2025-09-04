@@ -58,45 +58,6 @@ export class KycService {
     }
   }
 
-  public async requestKycLevel2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
-    try {
-      // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
-      const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
-
-      // TODO what if the process gets delayed and the urls invalid? this will lead to deadlock.
-      // if (existingKycLevel2 &&  existingKycLevel2.status === KycLevel2Status.REQUESTED) {
-      //   throw new Error(`KYC Level 2 process already in progress for subaccount ${subaccountId}`);
-      // }
-
-      if (existingKycLevel2 && existingKycLevel2.status === KycLevel2Status.ACCEPTED) {
-        throw new Error(`Subaccount ${subaccountId} is already KYC Level 2 verified`);
-      }
-
-      const kycResponse = await this.brlaApiService.startKYC2(subaccountId, documentType);
-
-      return this.withTransaction(async transaction => {
-        const kycLevel2 = await this.createKycLevel2(
-          {
-            documentType,
-            status: KycLevel2Status.REQUESTED,
-            subaccountId,
-            uploadData: kycResponse
-          },
-          transaction
-        );
-
-        logger.info(`KYC Level 2 verification requested for subaccount ${subaccountId}`, {
-          kycLevel2Id: kycLevel2.id
-        });
-
-        return kycLevel2.uploadData;
-      });
-    } catch (error) {
-      logger.error("Failed to request KYC Level 2 verification:", error);
-      throw error;
-    }
-  }
-
   public async hasCompletedKycLevel2(subaccountId: string): Promise<boolean> {
     const kycLevel2 = (await this.getLatestKycLevel2BySubaccount(subaccountId)) as KycLevel2 | null;
 

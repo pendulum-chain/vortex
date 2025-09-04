@@ -8,7 +8,7 @@ import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
-import { brlaKycMachine } from "./brlaKyc.machine";
+import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
@@ -26,12 +26,10 @@ const initialRampContext: RampContext = {
   quote: undefined,
   quoteId: undefined,
   rampDirection: undefined,
-  rampKycLevel2Started: false,
-  rampKycStarted: false,
+
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  rampSummaryVisible: false,
   substrateWalletAccount: undefined
 };
 
@@ -56,19 +54,23 @@ export type RampMachineEvents =
 
 export const rampMachine = setup({
   actions: {
-    resetRamp: assign(({ context }) => ({
-      ...initialRampContext,
-      address: context.address,
-      authToken: context.authToken,
-      initializeFailedMessage: context.initializeFailedMessage
-    })),
+    resetRamp: () => {
+      assign(({ context }) => ({
+        ...initialRampContext,
+        address: context.address,
+        authToken: context.authToken,
+        initializeFailedMessage: context.initializeFailedMessage
+      }));
+      const cleanUrl = window.location.origin;
+      window.history.replaceState({}, "", cleanUrl);
+    },
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
     }),
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" })
   },
   actors: {
-    brlaKyc: brlaKycMachine, // TODO how can I strongly type this, instead of it beign defined by the impl? Like rust traits
+    aveniaKyc: aveniaKycMachine,
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
       if (!input.quoteId) {
         throw new Error("Quote ID is required to load quote.");
@@ -117,7 +119,11 @@ export const rampMachine = setup({
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({ event }) => event.getMessageSignature
+        getMessageSignature: ({
+          event
+        }: {
+          event: { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined };
+        }) => event.getMessageSignature
       })
     },
     SET_INITIALIZE_FAILED_MESSAGE: {
@@ -163,9 +169,6 @@ export const rampMachine = setup({
     },
     KYC: kycStateNode as any,
     KycComplete: {
-      entry: assign({
-        rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.
-      }),
       on: {
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"

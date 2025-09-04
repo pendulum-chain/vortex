@@ -1,6 +1,9 @@
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ConfirmIcon from "../assets/steps/confirm.png";
+import DetailsIcon from "../assets/steps/details.png";
+import VerificationIcon from "../assets/steps/verification.png";
 import { Step } from "../components/Stepper";
 import { useRampActor } from "../contexts/rampState";
 
@@ -8,16 +11,18 @@ export const useStepper = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { rampKycStarted, rampPaymentConfirmed, rampSummaryVisible, state } = useSelector(rampActor, state => ({
-    rampKycStarted: state.context.rampKycStarted,
-    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-    rampSummaryVisible: state.context.rampSummaryVisible,
-    state: state.value
-  }));
+  const { isKycActive, isKycComplete, isKycFailure, isRegisterOrUpdate, rampPaymentConfirmed, rampSummaryVisible } =
+    useSelector(rampActor, state => ({
+      isKycActive: state.matches("KYC"),
+      isKycComplete: state.matches("KycComplete"),
+      isKycFailure: state.matches("KycFailure"),
+      isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
+      rampPaymentConfirmed: state.context.rampPaymentConfirmed,
+      rampSummaryVisible: state.matches("KycComplete")
+    }));
 
-  const secondStepActive = state === "KycComplete" || rampKycStarted;
-  const secondStepComplete =
-    state === "KycComplete" || state === "RegisterRamp" || state === "UpdateRamp" || rampPaymentConfirmed;
+  const secondStepActive = isKycComplete || isKycActive || isKycFailure;
+  const secondStepComplete = isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
   const thirdStepComplete = rampPaymentConfirmed;
@@ -25,14 +30,17 @@ export const useStepper = () => {
   const steps = useMemo((): Step[] => {
     return [
       {
+        icon: DetailsIcon,
         status: secondStepActive || secondStepComplete ? "complete" : "active",
         title: t("stepper.details", "Details")
       },
       {
+        icon: VerificationIcon,
         status: secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
         title: t("stepper.verification", "Verification")
       },
       {
+        icon: ConfirmIcon,
         status: thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
         title: t("stepper.confirm", "Confirm")
       }

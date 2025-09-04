@@ -107,13 +107,13 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   const minimumBalanceFundingAccount = multiplyByPowerOfTen(Big(PENDULUM_FUNDING_AMOUNT_UNITS), apiData.decimals);
   const minimumGlmrBalanceFundingAccount = multiplyByPowerOfTen(
     Big(PENDULUM_GLMR_FUNDING_AMOUNT_UNITS),
-    TOKEN_CONFIG.glmr.decimals
+    TOKEN_CONFIG.GLMR.decimals
   );
 
   const nativeBalance = Big(balance?.free?.toString() ?? "0");
   const glmrBalanceResponse = await apiData.api.query.tokens.accounts(
     fundingAccountKeypair.address,
-    TOKEN_CONFIG.glmr.pendulumCurrencyId
+    TOKEN_CONFIG.GLMR.pendulumCurrencyId
   );
   const glmrData = glmrBalanceResponse.toHuman() as {
     free: string;
@@ -133,7 +133,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     slackNotifier.sendMessage({
       text: `Current balance of funding account is ${nativeToDecimal(nativeBalance).toString()} PEN and ${nativeToDecimal(
         glmrBalance,
-        TOKEN_CONFIG.glmr.decimals
+        TOKEN_CONFIG.GLMR.decimals
       ).toString()} GLMR, please charge the account ${fundingAccountKeypair.address}.`
     });
   }

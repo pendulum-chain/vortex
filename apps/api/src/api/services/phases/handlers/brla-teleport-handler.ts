@@ -28,78 +28,81 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
+    // This phase is potentially not needed after Avenia migration.
+    // TODO verify and remove if true.
 
-    if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
-      throw new Error("BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.");
-    }
+    // const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
 
-    const teleportService = BrlaTeleportService.getInstance();
-    let subaccountId: string;
-    let memo: string;
+    // if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
+    //   throw new Error("BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.");
+    // }
 
-    try {
-      const inputAmountBrla = new Big(inputAmountUnits).mul(100); // BRLA understands raw amount with 2 decimal places.
+    // const teleportService = BrlaTeleportService.getInstance();
+    // let subaccountId: string;
+    // let memo: string;
 
-      const brlaApiService = BrlaApiService.getInstance();
-      const subaccount = await brlaApiService.getSubaccount(taxId);
+    // try {
+    //   const inputAmountBrla = new Big(inputAmountUnits).mul(100); // BRLA understands raw amount with 2 decimal places.
 
-      if (!subaccount) {
-        throw new Error("Subaccount not found");
-      }
-      subaccountId = subaccount.id;
+    //   const brlaApiService = BrlaApiService.getInstance();
+    //   const subaccount = await brlaApiService.getSubaccount(taxId);
 
-      memo = generateReferenceLabel(state.quoteId);
-      logger.info(
-        `Requesting teleport for ${subaccountId} with ${inputAmountBrla} BRLA to ${moonbeamEphemeralAddress} and memo ${memo}`
-      );
+    //   if (!subaccount) {
+    //     throw new Error("Subaccount not found");
+    //   }
+    //   subaccountId = subaccount.id;
 
-      await teleportService.requestTeleport(
-        subaccountId,
-        Number(inputAmountBrla),
-        moonbeamEphemeralAddress as `0x${string}`,
-        memo
-      );
+    //   memo = generateReferenceLabel(state.quoteId);
+    //   logger.info(
+    //     `Requesting teleport for ${subaccountId} with ${inputAmountBrla} BRLA to ${moonbeamEphemeralAddress} and memo ${memo}`
+    //   );
 
-      // now we wait and verify that funds have arrived at the actual destination ephemeral.
-    } catch (e) {
-      logger.error("Error in brlaTeleport", e);
-      throw new Error(
-        `BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in. Cause: ${e instanceof Error ? e.message : String(e)}`
-      );
-    }
+    //   await teleportService.requestTeleport(
+    //     subaccountId,
+    //     Number(inputAmountBrla),
+    //     moonbeamEphemeralAddress as `0x${string}`,
+    //     memo
+    //   );
 
-    try {
-      const pollingTimeMs = 1000;
+    //   // now we wait and verify that funds have arrived at the actual destination ephemeral.
+    // } catch (e) {
+    //   logger.error("Error in brlaTeleport", e);
+    //   throw new Error(
+    //     `BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in. Cause: ${e instanceof Error ? e.message : String(e)}`
+    //   );
+    // }
 
-      const tokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+    // try {
+    //   const pollingTimeMs = 1000;
 
-      await checkEvmBalancePeriodically(
-        tokenDetails.moonbeamErc20Address,
-        moonbeamEphemeralAddress,
-        inputAmountBeforeSwapRaw,
-        pollingTimeMs,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Moonbeam
-      );
+    //   const tokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
 
-      // Add delay to ensure the transaction is settled
-      await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds.
-    } catch (error) {
-      if (!(error instanceof BalanceCheckError)) throw error;
+    //   await checkEvmBalancePeriodically(
+    //     tokenDetails.moonbeamErc20Address,
+    //     moonbeamEphemeralAddress,
+    //     inputAmountBeforeSwapRaw,
+    //     pollingTimeMs,
+    //     EVM_BALANCE_CHECK_TIMEOUT_MS,
+    //     Networks.Moonbeam
+    //   );
 
-      const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
-      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
-        logger.error("Payment timeout. Cancelling ramp.");
+    //   // Add delay to ensure the transaction is settled
+    //   await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds.
+    // } catch (error) {
+    //   if (!(error instanceof BalanceCheckError)) throw error;
 
-        teleportService.cancelPendingTeleport(subaccountId, memo);
-        return this.transitionToNextPhase(state, "failed");
-      }
+    //   const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
+    //   if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+    //     logger.error("Payment timeout. Cancelling ramp.");
 
-      throw isCheckTimeout
-        ? this.createRecoverableError(`BrlaTeleportPhaseHandler: ${error}`)
-        : new Error(`Error checking Moonbeam balance: ${error}`);
-    }
+    //     teleportService.cancelPendingTeleport(subaccountId, memo);
+    //     return this.transitionToNextPhase(state, "failed");
+    //   }
+
+    //   throw isCheckTimeout
+    //     ? this.createRecoverableError(`BrlaTeleportPhaseHandler: ${error}`)
+    //     : new Error(`Error checking Moonbeam balance: ${error}`);
+    // }
 
     return this.transitionToNextPhase(state, "fundEphemeral");
   }

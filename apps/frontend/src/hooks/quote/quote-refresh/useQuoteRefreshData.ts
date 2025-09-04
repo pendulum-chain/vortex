@@ -27,7 +27,11 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
     actions: { fetchQuote }
   } = useQuoteStore();
 
-  const rampSummaryVisible = useSelector(rampActor, state => state.context.rampSummaryVisible);
+  const rampSummaryVisible = useSelector(
+    rampActor,
+    state =>
+      state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
+  );
   const hasValidQuote = Boolean(quote && inputAmount && onChainToken && fiatToken);
   const shouldRefresh = hasValidQuote && !rampSummaryVisible;
 

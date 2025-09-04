@@ -339,8 +339,8 @@ export class PriceFeedService {
     toCurrency: RampCurrency,
     decimals = 6
   ): Promise<string> {
-    fromCurrency = fromCurrency.toLowerCase() as RampCurrency;
-    toCurrency = toCurrency.toLowerCase() as RampCurrency;
+    fromCurrency = fromCurrency.toUpperCase() as RampCurrency;
+    toCurrency = toCurrency.toUpperCase() as RampCurrency;
     try {
       // If currencies are the same, return the original amount
       if (fromCurrency === toCurrency) {

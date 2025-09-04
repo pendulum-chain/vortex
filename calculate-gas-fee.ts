@@ -31,7 +31,6 @@ interface AxelarScanStatusResponse {
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "800000";
 
 function calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {
-  console.log("fee response object", feeResponse);
   const baseFeeInUnitsBig = Big(feeResponse.source_base_fee);
 
   const estimatedGasBig = Big(estimatedGas);
