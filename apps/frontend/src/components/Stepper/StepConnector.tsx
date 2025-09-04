@@ -1,24 +1,22 @@
 import React from "react";
+import { cn } from "../../helpers/cn";
 import { Step, StepConnectorProps } from "./types";
 
 /**
  * Determines the styling classes for a connector line between steps
  */
 const getConnectorStyles = (currentStepStatus: Step["status"], nextStepStatus: Step["status"]): string => {
-  const baseStyles = "mx-2 h-0.5 flex-1";
+  const baseStyles = "mx-2 min-w-5 h-0.5 bg-gray-300 flex-1 ";
 
-  // Connector is green if next step is complete or if next step is active and current is complete
   if (nextStepStatus === "complete" || (nextStepStatus === "active" && currentStepStatus === "complete")) {
-    return `${baseStyles} bg-green-500`;
+    return cn(baseStyles, "bg-green-500");
   }
 
-  // Connector is blue if current step is complete
   if (currentStepStatus === "complete") {
-    return `${baseStyles} bg-blue-500`;
+    return cn(baseStyles, "bg-blue-500");
   }
 
-  // Default gray connector
-  return `${baseStyles} bg-gray-300`;
+  return cn(baseStyles, "bg-gray-300");
 };
 
 /**
