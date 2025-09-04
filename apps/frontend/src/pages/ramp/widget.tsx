@@ -9,9 +9,11 @@ import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/M
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
+import { SigningBoxButton, SigningBoxContent } from "../../components/SigningBox/SigningBoxContent";
 import { useAveniaKycActor, useMoneriumKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../stores/quote/useQuoteStore";
@@ -53,6 +55,8 @@ export const WidgetCards = () => {
       state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
   }));
 
+  const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
+
   const isMoneriumRedirect = useSelector(moneriumKycActor, state => {
     if (state) {
       return state.value === "Redirect";
@@ -62,6 +66,14 @@ export const WidgetCards = () => {
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   const { onRampConfirm } = useRampSubmission();
+
+  const actions = signingBoxVisible ? (
+    <div className="flex grow text-center">
+      <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
+    </div>
+  ) : (
+    <RampSubmitButton className="mb-4" />
+  );
 
   return (
     <motion.div
@@ -81,7 +93,12 @@ export const WidgetCards = () => {
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
             <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
             <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
-            <RampSubmitButton className="mb-4" />
+            {signingBoxVisible && (
+              <div className="mx-auto mt-6 max-w-[320px]">
+                <SigningBoxContent progress={progress} />
+              </div>
+            )}
+            {actions}
           </form>
           <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
         </FormProvider>

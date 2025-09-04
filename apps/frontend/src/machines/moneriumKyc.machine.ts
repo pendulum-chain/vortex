@@ -97,6 +97,12 @@ export const moneriumKycMachine = setup({
       ]
     }
   },
+  onDone: {
+    actions: sendParent(() => ({
+      phase: undefined,
+      type: "SIGNING_UPDATE"
+    }))
+  },
   output: ({ context }) => ({
     authToken: context.authToken,
     error: context.error

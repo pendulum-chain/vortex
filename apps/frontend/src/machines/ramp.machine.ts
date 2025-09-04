@@ -26,7 +26,6 @@ const initialRampContext: RampContext = {
   quote: undefined,
   quoteId: undefined,
   rampDirection: undefined,
-
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
@@ -54,16 +53,12 @@ export type RampMachineEvents =
 
 export const rampMachine = setup({
   actions: {
-    resetRamp: () => {
-      assign(({ context }) => ({
-        ...initialRampContext,
-        address: context.address,
-        authToken: context.authToken,
-        initializeFailedMessage: context.initializeFailedMessage
-      }));
-      const cleanUrl = window.location.origin;
-      window.history.replaceState({}, "", cleanUrl);
-    },
+    resetRamp: assign(({ context }) => ({
+      ...initialRampContext,
+      address: context.address,
+      authToken: context.authToken,
+      initializeFailedMessage: context.initializeFailedMessage
+    })),
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
     }),
@@ -87,6 +82,17 @@ export const rampMachine = setup({
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
     stellarKyc: stellarKycMachine,
+    urlCleaner: fromPromise(
+      () =>
+        new Promise<void>(resolve => {
+          setTimeout(() => {
+            console.log("Clearing URL parameters");
+            const cleanUrl = window.location.origin;
+            window.history.replaceState({}, "", cleanUrl);
+            resolve();
+          }, 15000);
+        })
+    ),
     validateKyc: fromPromise(validateKycActor)
   },
   types: {
@@ -101,7 +107,7 @@ export const rampMachine = setup({
   initial: "Idle",
   on: {
     CANCEL_RAMP: {
-      target: ".Cancel"
+      target: ".Resetting"
     },
     EXPIRE_QUOTE: {
       actions: assign({
@@ -109,8 +115,7 @@ export const rampMachine = setup({
       })
     },
     RESET_RAMP: {
-      actions: "resetRamp",
-      target: ".Idle"
+      target: ".Resetting"
     },
     SET_ADDRESS: {
       actions: assign({
@@ -136,16 +141,6 @@ export const rampMachine = setup({
     }
   },
   states: {
-    Cancel: {
-      always: {
-        target: "#ramp.Idle"
-      },
-      entry: assign(({ context }) => ({
-        ...initialRampContext,
-        address: context.address,
-        authToken: context.authToken
-      }))
-    },
     Failure: {
       // TODO We also need to display the "final" error message in the UI.
       entry: assign(({ context }) => ({
@@ -155,8 +150,7 @@ export const rampMachine = setup({
       })),
       on: {
         FINISH_OFFRAMPING: {
-          actions: "resetRamp",
-          target: "#ramp.Idle"
+          target: "#ramp.Resetting"
         }
       }
     },
@@ -177,10 +171,8 @@ export const rampMachine = setup({
     },
     KycFailure: {
       always: {
-        target: "Idle"
-      },
-      // So far, we only go back to main component
-      entry: "resetRamp"
+        target: "Resetting"
+      }
     },
     LoadingQuote: {
       invoke: {
@@ -221,8 +213,7 @@ export const rampMachine = setup({
     RampFollowUp: {
       on: {
         FINISH_OFFRAMPING: {
-          actions: "resetRamp",
-          target: "Idle"
+          target: "Resetting"
         },
         SET_RAMP_STATE: {
           actions: assign({
@@ -259,10 +250,19 @@ export const rampMachine = setup({
           target: "UpdateRamp"
         },
         onError: {
-          actions: [{ type: "setFailedMessage" }, { type: "resetRamp" }],
-          target: "Idle"
+          actions: [{ type: "setFailedMessage" }],
+          target: "Resetting"
         },
         src: "registerRamp"
+      }
+    },
+    Resetting: {
+      entry: "resetRamp",
+      invoke: {
+        onDone: {
+          target: "Idle"
+        },
+        src: "urlCleaner"
       }
     },
     StartRamp: {
@@ -272,8 +272,8 @@ export const rampMachine = setup({
           target: "RampFollowUp"
         },
         onError: {
-          actions: [{ type: "setFailedMessage" }, { type: "resetRamp" }],
-          target: "Idle"
+          actions: [{ type: "setFailedMessage" }],
+          target: "Resetting"
         },
         src: "startRamp"
       }
@@ -300,15 +300,14 @@ export const rampMachine = setup({
         ],
         onError: [
           {
-            actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
+            actions: [{ type: "showSigningRejectedErrorToast" }],
             // The user rejected the signature
             guard: ({ event }) => event.error instanceof SignRampError && event.error.type === SignRampErrorType.UserRejected,
-            target: "Idle"
+            target: "Resetting"
           },
           {
-            actions: [{ type: "resetRamp" }],
             // Handle other errors
-            target: "Idle"
+            target: "Resetting"
           }
         ],
         src: "signTransactions"

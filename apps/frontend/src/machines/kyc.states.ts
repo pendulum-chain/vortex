@@ -126,7 +126,7 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
+            actions: [{ type: "showSigningRejectedErrorToast" }],
             guard: ({ event }: { event: any }) =>
               (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
             target: "#ramp.KycFailure"
