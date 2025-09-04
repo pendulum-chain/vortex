@@ -1,8 +1,27 @@
 import { assign, fromPromise, log, setup } from "xstate";
 
 import { MoneriumService } from "../services/api/monerium.service";
-import { exchangeMoneriumCode, handleMoneriumSiweAuth, initiateMoneriumAuth } from "../services/monerium/moneriumAuth";
+import {
+  exchangeMoneriumCode,
+  handleMoneriumSiweAuth,
+  initiateMoneriumAuth,
+  MoneriumAuthError,
+  MoneriumAuthErrorType
+} from "../services/monerium/moneriumAuth";
 import { MoneriumKycContext } from "./kyc.states";
+
+export enum MoneriumKycMachineErrorType {
+  UserRejected = "USER_REJECTED",
+  UnknownError = "UNKNOWN_ERROR"
+}
+
+export class MoneriumKycMachineError extends Error {
+  type: MoneriumKycMachineErrorType;
+  constructor(message: string, type: MoneriumKycMachineErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
 
 export const moneriumKycMachine = setup({
   actors: {
@@ -40,7 +59,7 @@ export const moneriumKycMachine = setup({
   types: {
     context: {} as MoneriumKycContext,
     input: {} as MoneriumKycContext,
-    output: {} as { authToken?: string; error?: any }
+    output: {} as { authToken?: string; error?: MoneriumKycMachineError }
   }
 }).createMachine({
   context: ({ input }) => ({ ...input }),
@@ -66,9 +85,7 @@ export const moneriumKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: ({ event }) => {
-              return "Error exchanging Monerium code";
-            }
+            error: () => new MoneriumKycMachineError("Error exchanging Monerium code", MoneriumKycMachineErrorType.UnknownError)
           }),
           target: "Failure"
         },
@@ -90,7 +107,9 @@ export const moneriumKycMachine = setup({
           target: "Redirect"
         },
         onError: {
-          actions: assign({ error: ({ event }) => event.error }),
+          actions: assign({
+            error: () => new MoneriumKycMachineError("An unknown error occurred", MoneriumKycMachineErrorType.UnknownError)
+          }),
           target: "Failure"
         },
         src: "initiateMonerium"
@@ -108,7 +127,17 @@ export const moneriumKycMachine = setup({
           target: "Redirect"
         },
         onError: {
-          actions: assign({ error: ({ event }) => event.error }),
+          actions: assign({
+            error: ({ event }) => {
+              if (event.error instanceof MoneriumAuthError && event.error.type === MoneriumAuthErrorType.UserRejected) {
+                return new MoneriumKycMachineError(event.error.message, MoneriumKycMachineErrorType.UserRejected);
+              }
+              return new MoneriumKycMachineError(
+                "An unknown error occurred during Monerium SIWE",
+                MoneriumKycMachineErrorType.UnknownError
+              );
+            }
+          }),
           target: "Failure"
         },
         src: "handleMoneriumSiwe"
@@ -124,7 +153,7 @@ export const moneriumKycMachine = setup({
       on: {
         CANCEL: {
           actions: assign({
-            error: () => "Cancelled by the user"
+            error: () => new MoneriumKycMachineError("Cancelled by the user", MoneriumKycMachineErrorType.UserRejected)
           }),
           target: "Failure"
         },
@@ -155,7 +184,9 @@ export const moneriumKycMachine = setup({
           }
         ],
         onError: {
-          actions: assign({ error: ({ event }) => event.error }),
+          actions: assign({
+            error: () => new MoneriumKycMachineError("An unknown error occurred", MoneriumKycMachineErrorType.UnknownError)
+          }),
           target: "Failure"
         },
         src: "checkUserStatus"

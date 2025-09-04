@@ -3,6 +3,7 @@ import { assign, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import { UploadIds } from "./brlaKyc.machine";
+import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
@@ -19,7 +20,7 @@ export interface MoneriumKycContext extends RampContext {
   authCode?: string;
   authUrl?: string;
   codeVerifier?: string;
-  error?: any;
+  error?: MoneriumKycMachineError;
   redirectReady?: boolean;
 }
 
@@ -125,9 +126,15 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
+            actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
+            guard: ({ event }: { event: any }) =>
+              (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
+            target: "#ramp.KycFailure"
+          },
+          {
             actions: assign({
-              initializeFailedMessage: ({ event }) => event.output.error
+              initializeFailedMessage: ({ event }) =>
+                (event.output.error as MoneriumKycMachineError)?.message || "An unknown error occurred"
             }),
             target: "#ramp.KycFailure"
           }

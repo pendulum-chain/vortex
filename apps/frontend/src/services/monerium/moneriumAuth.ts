@@ -2,6 +2,18 @@ import { siweMessage } from "@monerium/sdk";
 import CryptoJS from "crypto-js";
 import { polygon } from "viem/chains";
 
+export enum MoneriumAuthErrorType {
+  UserRejected = "USER_REJECTED",
+  UnknownError = "UNKNOWN_ERROR"
+}
+export class MoneriumAuthError extends Error {
+  type: MoneriumAuthErrorType;
+  constructor(message: string, type: MoneriumAuthErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
+
 const VORTEX_APP_CLIENT_ID = process.env.REACT_APP_MONERIUM_CLIENT_ID || "eac7a71a-414d-11f0-bea7-ce527adad61b";
 const MONERIUM_API_URL = process.env.REACT_APP_MONERIUM_API_URL || "https://api.monerium.app";
 const LINK_MESSAGE = "I hereby declare that I am the address owner.";
@@ -57,21 +69,29 @@ export const handleMoneriumSiweAuth = async (
 
   const message = createMoneriumSiweMessage(address);
 
-  const signature = await signMessage(message);
+  try {
+    const signature = await signMessage(message);
 
-  const params = new URLSearchParams({
-    authentication_method: "siwe",
-    client_id: VORTEX_APP_CLIENT_ID,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    message: message,
-    redirect_uri: window.location.origin,
-    signature: signature
-  });
+    const params = new URLSearchParams({
+      authentication_method: "siwe",
+      client_id: VORTEX_APP_CLIENT_ID,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      message: message,
+      redirect_uri: window.location.origin,
+      signature: signature
+    });
 
-  const authUrl = `${MONERIUM_API_URL}/auth?${params}`;
-  console.log("Monerium auth URL:", authUrl);
-  return { authUrl, codeVerifier };
+    const authUrl = `${MONERIUM_API_URL}/auth?${params}`;
+    console.log("Monerium auth URL:", authUrl);
+    return { authUrl, codeVerifier };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("User rejected the request")) {
+      throw new MoneriumAuthError("User rejected the request.", MoneriumAuthErrorType.UserRejected);
+    }
+    console.log("Error during Monerium SIWE auth:", error);
+    throw error;
+  }
 };
 
 export const exchangeMoneriumCode = async (code: string, codeVerifier: string): Promise<{ authToken: string }> => {
