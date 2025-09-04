@@ -48,15 +48,15 @@ export function isXCMTokenConfig(config: StellarTokenConfig | XCMTokenConfig): c
 }
 
 export type TokenConfig = {
-  ars: StellarTokenConfig;
-  eurc: StellarTokenConfig;
-  brl: MoonbeamTokenConfig;
-  usdc: XCMTokenConfig;
-  glmr: XCMTokenConfig;
-  "usdc.axl": XCMTokenConfig;
+  ARS: StellarTokenConfig;
+  EURC: StellarTokenConfig;
+  BRL: MoonbeamTokenConfig;
+  USDC: XCMTokenConfig;
+  GLMR: XCMTokenConfig;
+  "USDC.AXL": XCMTokenConfig;
 };
 
-const eurc: StellarTokenConfig = {
+const EURC: StellarTokenConfig = {
   assetCode: "EURC",
   assetIssuer: "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
   clientDomainEnabled: true,
@@ -76,7 +76,7 @@ const eurc: StellarTokenConfig = {
   vaultAccountId: "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm"
 };
 
-const ars: StellarTokenConfig = {
+const ARS: StellarTokenConfig = {
   assetCode: "ARS",
   assetIssuer: "GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS",
   clientDomainEnabled: true,
@@ -97,24 +97,24 @@ const ars: StellarTokenConfig = {
 };
 
 export const TOKEN_CONFIG: TokenConfig = {
-  ars,
-  brl: {
+  ARS,
+  BRL: {
     decimals: 18,
     maximumSubsidyAmountRaw: "86000000000000000000", // 86 units = 15 usd @ Mar/2025
     pendulumCurrencyId: { XCM: 13 }
   },
-  eurc,
-  glmr: {
+  EURC,
+  GLMR: {
     decimals: 18,
     maximumSubsidyAmountRaw: "0", // This definition is not used to subsidize swaps.
     pendulumCurrencyId: { XCM: 6 }
   },
-  usdc: {
+  USDC: {
     decimals: 6,
     maximumSubsidyAmountRaw: "15000000", // 15 units
     pendulumCurrencyId: { XCM: 2 }
   },
-  "usdc.axl": {
+  "USDC.AXL": {
     decimals: 6,
     maximumSubsidyAmountRaw: "15000000", // 15 units
     pendulumCurrencyId: { XCM: 12 }

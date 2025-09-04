@@ -1,40 +1,62 @@
-import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BrlaKYCDocType, SwapLog } from "../..";
+import { createPrivateKey, sign } from "crypto";
+import * as forge from "node-forge";
+import {
+  BRLA_API_KEY,
+  BRLA_BASE_URL,
+  BRLA_PRIVATE_KEY,
+  CreateAveniaSubaccountRequest,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
+  SwapLog
+} from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
+  AccountLimitsResponse,
+  AveniaAccountInfoResponse,
+  AveniaAccountType,
+  AveniaDocumentType,
+  AveniaQuoteResponse,
+  AveniaSubaccount,
+  BlockchainSendMethod,
+  BrlaCurrency,
+  BrlaPaymentMethod,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
+  GetKycAttemptResponse,
+  KycLevel1Payload,
+  KycLevel1Response,
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
   OnchainLog,
   OnrampPayload,
+  PayInQuoteParams,
+  PayOutQuoteParams,
+  PixInputTicketOutput,
+  PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketOutput,
+  PixOutputTicketPayload,
   RegisterSubaccountPayload,
-  SubaccountData,
-  SwapPayload,
-  UsedLimitData
+  SwapPayload
 } from "./types";
 import { Event } from "./webhooks";
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
 
-  private token: string | null = null;
+  private apiKey: string;
 
-  private brlaBusinessUsername: string;
-
-  private brlaBusinessPassword: string;
-
-  private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;
+  private privateKey: string;
 
   private constructor() {
-    if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
-      throw new Error("BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined");
+    if (!BRLA_API_KEY || !BRLA_PRIVATE_KEY) {
+      throw new Error("BRLA_API_KEY or BRLA_PRIVATE_KEY not defined");
     }
-    this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
-    this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
+    this.apiKey = BRLA_API_KEY;
+    this.privateKey = BRLA_PRIVATE_KEY;
   }
 
   public static getInstance(): BrlaApiService {
@@ -44,73 +66,58 @@ export class BrlaApiService {
     return BrlaApiService.instance;
   }
 
-  private async login(): Promise<void> {
-    const response = await fetch(this.loginUrl, {
-      body: JSON.stringify({
-        email: this.brlaBusinessUsername,
-        password: this.brlaBusinessPassword
-      }),
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      method: "POST"
-    });
-
-    if (!response.ok) {
-      throw new Error(`Login failed with status ${response.status}`);
-    }
-
-    const token = (await response.json()).accessToken;
-
-    if (!token) {
-      throw new Error("No token returned from login.");
-    }
-
-    this.token = token;
-  }
-
   public async sendRequest<M extends Methods, E extends Endpoints>(
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]["body"]
+    payload?: EndpointMapping[E][M]["body"],
+    pathParam?: string
   ): Promise<EndpointMapping[E][M]["response"]> {
-    if (!this.token) {
-      await this.login();
-    }
-    let fullUrl = `${BRLA_BASE_URL}${endpoint}`;
+    const timestamp = Date.now().toString();
+    const body = payload ? JSON.stringify(payload) : "";
+    let requestUri = endpoint as string;
 
+    if (pathParam) {
+      requestUri += `/${pathParam}`;
+    }
     if (queryParams) {
-      fullUrl += `?${queryParams}`;
+      requestUri += `?${queryParams}`;
     }
-    const buildOptions = () => {
-      const options: RequestInit = {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json"
-        },
-        method
-      };
 
-      if (payload !== undefined) {
-        options.body = JSON.stringify(payload);
-      }
-      return options;
+    const stringToSign = timestamp + method + requestUri + body;
+
+    const privateKey = forge.pki.privateKeyFromPem(this.privateKey);
+
+    const md = forge.md.sha256.create();
+    md.update(stringToSign, "utf8");
+
+    const signatureBytes = privateKey.sign(md);
+
+    const signatureBase64 = forge.util.encode64(signatureBytes);
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-API-Key": this.apiKey,
+      "X-API-Signature": signatureBase64,
+      "X-API-Timestamp": timestamp
     };
 
+    const options: RequestInit = {
+      headers,
+      method
+    };
+
+    if (payload !== undefined) {
+      options.body = body;
+    }
+    const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
     logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
-    let response = await fetch(fullUrl, buildOptions());
+    const response = await fetch(fullUrl, options);
 
     if (response.status === 401) {
-      await this.login();
-      response = await fetch(fullUrl, buildOptions());
-
-      if (response.status === 401) {
-        throw new Error("Authorization error after re-login.");
-      }
+      throw new Error("Authorization error.");
     }
 
     if (!response.ok) {
@@ -142,24 +149,25 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.OnChainOut, "POST", undefined, payload);
   }
 
-  public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
-    const query = `taxId=${encodeURIComponent(taxId)}`;
-    const response = await this.sendRequest(Endpoint.Subaccounts, "GET", query);
-    return response.subaccounts[0];
+  public async getSubaccount(subaccountId: string): Promise<AveniaSubaccount> {
+    return await this.sendRequest(Endpoint.GetSubaccount, "GET", undefined, undefined, subaccountId);
   }
 
-  public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.UsedLimit, "GET", query);
-  }
-
-  public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.PayOut, "POST", query, offrampParams);
+  public async getSubaccountUsedLimit(subaccountId: string): Promise<AccountLimitsResponse | undefined> {
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.AccountLimits, "GET", query);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
     return await this.sendRequest(Endpoint.Subaccounts, "POST", undefined, registerSubaccountPayload);
+  }
+
+  public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string }> {
+    const payload = {
+      accountType,
+      name
+    };
+    return await this.sendRequest(Endpoint.GetSubaccount, "POST", undefined, payload);
   }
 
   public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
@@ -216,17 +224,82 @@ export class BrlaApiService {
   }
 
   public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
-    const query = `subaccountId=${encodeURIComponent(userId)}`;
+    const query = `subAccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, "GET", query)).onchainLogs;
   }
 
-  public async startKYC2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel2, "POST", query, { documentType });
+  public async getDocumentUploadUrls(
+    documentType: AveniaDocumentType,
+    isDoubleSided: boolean
+  ): Promise<DocumentUploadResponse> {
+    const payload: DocumentUploadRequest = {
+      documentType,
+      isDoubleSided
+    };
+    return await this.sendRequest(Endpoint.Documents, "POST", undefined, payload);
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
-    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
+  }
+
+  public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {
+    const query = new URLSearchParams({
+      inputAmount: quoteParams.inputAmount,
+      inputCurrency: quoteParams.inputCurrency,
+      inputPaymentMethod: quoteParams.inputPaymentMethod,
+      inputThirdParty: String(quoteParams.inputThirdParty),
+      outputCurrency: quoteParams.outputCurrency,
+      outputPaymentMethod: quoteParams.outputPaymentMethod,
+      outputThirdParty: String(quoteParams.outputThirdParty),
+      subAccountId: quoteParams.subAccountId
+    }).toString();
+    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+  }
+
+  public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<AveniaQuoteResponse> {
+    const query = new URLSearchParams({
+      blockchainSendMethod: BlockchainSendMethod.PERMIT,
+      inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
+      inputPaymentMethod: BrlaPaymentMethod.INTERNAL, // Subtract from user's account
+      inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
+      outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
+      outputCurrency: BrlaCurrency.BRL,
+      outputPaymentMethod: BrlaPaymentMethod.PIX,
+      outputThirdParty: String(quoteParams.outputThirdParty)
+    }).toString();
+    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+  }
+
+  public async createPixInputTicket(payload: PixInputTicketPayload): Promise<PixInputTicketOutput> {
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    if ("brlPixInputInfo" in response) {
+      return response;
+    }
+    // To satisfy TypeScript
+    throw new Error("Invalid response from BRLA API for createPixInputTicket");
+  }
+
+  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<{ id: string }> {
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    if ("brlPixInputInfo" in response) {
+      throw new Error("Invalid response from BRLA API for createPixOutputTicket");
+    }
+    return response;
+  }
+
+  public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {
+    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.AccountInfo, "GET", query);
+  }
+
+  public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
+    const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
+    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
+  }
+
+  public async getKycAttempt(attemptId: string): Promise<GetKycAttemptResponse> {
+    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", undefined, undefined, attemptId);
   }
 }

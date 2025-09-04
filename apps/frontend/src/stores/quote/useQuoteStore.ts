@@ -44,9 +44,9 @@ interface QuoteState {
  */
 const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
-    ars: "cbu",
-    brl: "pix",
-    eur: "sepa"
+    ARS: "cbu",
+    BRL: "pix",
+    EUR: "sepa"
   };
 
   return destinationMap[fiatToken] || "sepa";

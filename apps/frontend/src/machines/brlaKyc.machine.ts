@@ -1,141 +1,149 @@
-import { KycFailureReason } from "@packages/shared";
-import { assign, setup } from "xstate";
+import { assign, DoneActorEvent, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
+import { KycStatus } from "../services/signingService";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
-import { submitLevel1Actor } from "./actors/brla/submitLevel1.actor";
-import { verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
+import { submitActor } from "./actors/brla/submitLevel1.actor";
+import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
+import { AveniaKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
-export interface BRLAKycContext extends RampContext {
-  kycFormData?: KYCFormData;
-  taxId: string;
-  error?: string;
-  failureReason?: KycFailureReason;
-}
+export type UploadIds = {
+  uploadedSelfieId: string;
+  uploadedDocumentId: string;
+};
 
-export const brlaKycMachine = setup({
+export const aveniaKycMachine = setup({
   actors: {
     decideInitialStateActor,
-    submitLevel1Actor,
+    submitActor,
     verifyStatusActor
   },
   types: {
-    context: {} as BRLAKycContext,
+    context: {} as AveniaKycContext,
     events: {} as
-      | { type: "SubmitLevel1"; formData: KYCFormData }
-      | { type: "SubmitLevel2"; formData: KYCFormData }
-      | { type: "CloseSuccessModal" },
-    input: {} as { taxId: string },
-    output: {} as BRLAKycContext
+      | { type: "FORM_SUBMIT"; formData: KYCFormData }
+      | { type: "DOCUMENTS_SUBMIT"; documentsId: UploadIds }
+      | { type: "CLOSE_SUCCESS_MODAL" }
+      | { type: "CANCEL_RETRY" }
+      | { type: "RETRY" }
+      | { type: "DOCUMENTS_BACK" }
+      | { type: "CANCEL" },
+    input: {} as RampContext,
+    output: {} as { error?: any }
   }
 }).createMachine({
-  context: ({ input }) =>
-    ({
-      error: undefined,
-      failureReason: undefined,
-      kycFormData: undefined,
-      taxId: input.taxId
-    }) as BRLAKycContext,
+  context: ({ input }) => ({ ...input }) as AveniaKycContext,
   id: "brlaKyc",
-  initial: "Started",
-  output: ({ context }) => context,
+  initial: "FormFilling",
+  output: ({ context }) => ({
+    error: context.error
+  }),
   states: {
-    Failure: {},
+    DocumentUpload: {
+      on: {
+        DOCUMENTS_BACK: {
+          target: "FormFilling"
+        },
+        DOCUMENTS_SUBMIT: {
+          actions: assign({
+            documentUploadIds: ({ event }) => event.documentsId
+          }),
+          target: "Submit"
+        }
+      }
+    },
+    Failure: {
+      on: {
+        CANCEL_RETRY: {
+          target: "Finish"
+        },
+        RETRY: {
+          target: "..."
+        }
+      }
+    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Finish: {
       type: "final"
     },
-    Level1: {
+    FormFilling: {
       on: {
+        CANCEL: {
+          actions: assign({
+            error: ({ event }) => "User cancelled the operation"
+          }),
+          target: "Finish"
+        },
         // Waits for user's submission of Level 1 KYC form.
-        SubmitLevel1: {
+        FORM_SUBMIT: {
           actions: assign({
             kycFormData: ({ event }) => event.formData
           }),
-          invoke: {
-            input: ({
-              context,
-              event
-            }: {
-              context: BRLAKycContext;
-              event: { type: "SubmitLevel1"; formData: KYCFormData };
-            }) => ({
-              formData: event.formData,
-              taxId: context.taxId
-            }),
-            onDone: {
-              target: "VerifyingLevel1"
-            },
-            onError: {
-              actions: assign({
-                error: ({ event }) => (event.error as Error).message
-              }),
-              target: "Failure"
-            },
-            src: "submitLevel1Actor"
-          },
-          target: "VerifyingLevel1"
+          target: "DocumentUpload"
         }
       }
     },
-    Level2: {
+    Rejected: {
       on: {
-        SubmitLevel2: {
-          target: "VerifyingLevel2"
-          // actions: assign({ kycFormData: ({ event }) => event.formData })
+        CANCEL_RETRY: {
+          target: "Finish"
+        },
+        RETRY: {
+          target: "..."
         }
       }
     },
-    RejectedLevel1: {},
-    RejectedLevel2: {},
-    Started: {
+    Submit: {
+      entry: assign({
+        kycStatus: () => KycStatus.PENDING
+      }),
+      // On entry, it will send the actual KYC submission for verification. Then wait.
       invoke: {
-        onDone: [
-          {
-            guard: ({ event }) => event.output === "Level1",
-            target: "Level1"
-          },
-          {
-            guard: ({ event }) => event.output === "Level2",
-            target: "Level2"
-          }
-        ],
+        input: ({ context }: { context: AveniaKycContext }) => context,
+        onDone: {
+          target: "Verifying"
+        },
         onError: {
+          // Avenia-Migration: we must parse the error message, distinguish between Avenia rejections (invalid tax id for instance) or server/network issues.
           actions: assign({
             error: ({ event }) => (event.error as Error).message
           }),
           target: "Failure"
         },
-        src: "decideInitialStateActor"
+        src: "submitActor"
       }
     },
     Success: {
       on: {
-        CloseSuccessModal: {
+        CLOSE_SUCCESS_MODAL: {
           target: "Finish"
         }
       }
     },
-    VerifyingLevel1: {
+    Verifying: {
       invoke: {
-        input: ({ context }) => ({ taxId: context.taxId }),
-        onDone: {
-          target: "Success"
-        },
-        onError: {
-          actions: assign({
-            error: ({ event }) => (event.error as Error).message
-          }),
-          target: "Failure"
-        },
-        src: "verifyStatusActor"
-      }
-    },
-    VerifyingLevel2: {
-      invoke: {
-        input: ({ context }) => ({ taxId: context.taxId }),
-        onDone: {
-          target: "Success"
-        },
+        input: ({ context }: { context: AveniaKycContext }) => context,
+        onDone: [
+          {
+            actions: assign({
+              kycStatus: () => KycStatus.APPROVED
+            }),
+            guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "APPROVED",
+            target: "Success"
+          },
+          {
+            actions: assign({
+              kycStatus: () => KycStatus.REJECTED,
+              rejectReason: ({ event }) => {
+                // For type safety.
+                if (event.output.type === "REJECTED") {
+                  return event.output.reason;
+                }
+              }
+            }),
+            guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "REJECTED",
+            target: "Rejected"
+          }
+        ],
         onError: {
           actions: assign({
             error: ({ event }) => (event.error as Error).message

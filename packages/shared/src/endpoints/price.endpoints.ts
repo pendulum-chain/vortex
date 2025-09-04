@@ -26,7 +26,7 @@ export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =
 export const isValidFiatCurrency = (value: unknown): value is FiatCurrency => {
   if (typeof value !== "string") return false;
 
-  const normalizedValue = value.toLowerCase();
+  const normalizedValue = value.toUpperCase();
   return VALID_FIAT_CURRENCIES.includes(normalizedValue as FiatCurrency);
 };
 

@@ -232,6 +232,35 @@ div[data-rk] {
   @apply border-pink-600;
 }
 
+.btn-vortex-danger {
+  @apply bg-red-600;
+  @apply text-white;
+  @apply rounded-xl;
+  @apply border;
+  @apply border-red-600;
+  @apply shadow-none;
+}
+
+.btn-vortex-danger:hover {
+  @apply bg-white;
+  @apply text-red-600;
+  @apply border-red-600;
+}
+
+.btn-vortex-danger:disabled {
+  @apply bg-red-600;
+  @apply text-white;
+  @apply border-red-600;
+  @apply opacity-40;
+}
+
+.btn-vortex-danger:active,
+.btn-vortex-danger:focus {
+  @apply bg-red-200;
+  @apply text-red-700;
+  @apply border-red-700;
+}
+
 .btn-vortex-primary {
   background-color: var(--color-blue-700);
   color: white;

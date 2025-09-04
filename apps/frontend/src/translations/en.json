@@ -94,7 +94,7 @@
           "tooOld": "Invalid company start date"
         },
         "state": {
-          "minLength": "State must be at least 3 characters",
+          "minLength": "State must be at least 2 characters",
           "required": "State is required"
         },
         "street": {
@@ -215,10 +215,22 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumRedirect": {
+      "cancel": "Cancel",
+      "description": "You have been redirected to our partner...",
+      "goToPartner": "Go to partner"
+    },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Book demo",
       "community": "Community",
+      "docs": "Docs",
       "howItWorks": "How it works",
-      "sellCrypto": "Sell Crypto"
+      "sellCrypto": "Sell Crypto",
+      "solutions": "Solutions",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "vortexLogo": "Vortex Logo",
+      "widget": "Widget"
     },
     "quoteSubmitButton": {
       "buy": "Buy",
@@ -338,7 +350,8 @@
     },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
-      "kycInvalid": "Your KYC level is invalid. Please contact support."
+      "kycInvalid": "Your KYC level is invalid. Please contact support.",
+      "maintenance": "Temporary maintenance in progress — please check back later."
     },
     "useTokenAmountOut": {
       "default": "Something went wrong",
@@ -362,6 +375,11 @@
       "resetAndRestart": "Start New Transaction",
       "tapToReset": "",
       "title": "Transaction Interrupted"
+    },
+    "main": {
+      "hero": {
+        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+      }
     },
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",

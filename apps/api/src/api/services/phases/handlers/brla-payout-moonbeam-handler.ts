@@ -1,9 +1,12 @@
 import {
+  BlockchainSendMethod,
   BrlaApiService,
+  BrlaPaymentMethod,
   checkEvmBalancePeriodically,
   getAnyFiatTokenDetailsMoonbeam,
   isFiatTokenEnum,
   Networks,
+  PixOutputTicketPayload,
   RampPhase
 } from "@packages/shared";
 import Big from "big.js";
@@ -18,10 +21,24 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, pixDestination, outputAmountBeforeFinalStep, brlaEvmAddress, outputTokenType, receiverTaxId } =
-      state.state as StateMetadata;
+    const {
+      taxId,
+      pixDestination,
+      outputAmountBeforeFinalStep,
+      brlaEvmAddress,
+      outputTokenType,
+      receiverTaxId,
+      moonbeamEphemeralAddress
+    } = state.state as StateMetadata;
 
-    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !brlaEvmAddress || !outputTokenType) {
+    if (
+      !taxId ||
+      !pixDestination ||
+      !outputAmountBeforeFinalStep ||
+      !brlaEvmAddress ||
+      !outputTokenType ||
+      !moonbeamEphemeralAddress
+    ) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -58,18 +75,29 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       const amount = new Big(outputAmountBeforeFinalStep.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
       const brlaApiService = BrlaApiService.getInstance();
-      const subaccount = await brlaApiService.getSubaccount(taxId);
+      const subaccount = await brlaApiService.subaccountInfo(taxId);
 
       if (!subaccount) {
         throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount not found.");
       }
-
-      const subaccountId = subaccount.id;
-      await brlaApiService.triggerOfframp(subaccountId, {
-        amount: Number(amount),
-        pixKey: pixDestination,
-        taxId: receiverTaxId
+      const subaccountEvmAddress = subaccount.wallets.filter(wallet => wallet.chain === "EVM")[0];
+      const payOutQuote = await brlaApiService.createPayOutQuote({
+        outputAmount: amount.toString(),
+        outputThirdParty: false
       });
+
+      const payOutTicketParams: PixOutputTicketPayload = {
+        quoteToken: payOutQuote.quoteToken,
+        ticketBlockchainInput: {
+          walletAddress: subaccountEvmAddress.walletAddress
+        },
+        ticketBrlPixOutput: {
+          pixKey: pixDestination
+        }
+      };
+
+      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams);
+      // Avenia migration: implement a wait and check after the request, or ticket follow-up.
 
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {

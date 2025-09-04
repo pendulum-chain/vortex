@@ -9,7 +9,7 @@ import { NumericInput } from "../NumericInput";
 // A helper function to determine the number of decimals based on the token symbol.
 // For now, it assumes that ETH-based tokens have 4 decimals and others have 2.
 function getMaxDecimalsForToken(tokenSymbol: string): number {
-  return tokenSymbol.toLowerCase().includes(EvmToken.ETH) ? 4 : 2;
+  return tokenSymbol.toUpperCase().includes(EvmToken.ETH) ? 4 : 2;
 }
 
 interface AssetNumericInputProps {
