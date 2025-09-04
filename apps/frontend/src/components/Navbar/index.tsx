@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
+import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { HamburgerButton } from "./HamburgerButton";
 import { useNavbarHandlers } from "./hooks/useNavbarHandlers";
 import { LogoButton } from "./LogoButton";
@@ -13,6 +13,7 @@ export const Navbar = () => {
   const { t } = useTranslation();
   const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isWidgetMode = useWidgetMode();
 
   const { handleLogoClick, handleAPIClick, handleWidgetClick, handleDocsClick } = useNavbarHandlers();
 
@@ -45,30 +46,36 @@ export const Navbar = () => {
         }}
       >
         <div className="flex w-full max-w-4xl grow-1 justify-between">
-          {/* Desktop Navigation */}
-          <div className="hidden grow items-center gap-8 sm:flex">
+          {isWidgetMode ? (
             <LogoButton onClick={handleLogoClick} />
-            <SolutionsDropdown
-              isOpen={isSubmenuOpen}
-              onMouseEnter={() => setIsSubmenuOpen(true)}
-              onMouseLeave={() => setIsSubmenuOpen(false)}
-              submenuItems={submenuItems}
-            />
-            <a className={`ml-3 ${navLinkStyles}`} href="https://pendulum.gitbook.io/vortex" target="_blank">
-              {t("components.navbar.docs")}
-            </a>
-          </div>
+          ) : (
+            <>
+              {/* Desktop Navigation */}
+              <div className="hidden grow items-center gap-8 sm:flex">
+                <LogoButton onClick={handleLogoClick} />
+                <SolutionsDropdown
+                  isOpen={isSubmenuOpen}
+                  onMouseEnter={() => setIsSubmenuOpen(true)}
+                  onMouseLeave={() => setIsSubmenuOpen(false)}
+                  submenuItems={submenuItems}
+                />
+                <a className={`ml-3 ${navLinkStyles}`} href="https://pendulum.gitbook.io/vortex" target="_blank">
+                  {t("components.navbar.docs")}
+                </a>
+              </div>
 
-          {/* Mobile Navigation */}
-          <div className="flex grow items-center justify-between sm:hidden">
-            <LogoButton onClick={handleLogoClick} />
-            <HamburgerButton isOpen={isMobileMenuOpen} onClick={toggleMobileMenu} />
-          </div>
+              {/* Mobile Navigation */}
+              <div className="flex grow items-center justify-between sm:hidden">
+                <LogoButton onClick={handleLogoClick} />
+                <HamburgerButton isOpen={isMobileMenuOpen} onClick={toggleMobileMenu} />
+              </div>
 
-          {/* Desktop Actions */}
-          <div className="hidden items-center sm:flex">
-            <button className="btn btn-vortex-secondary rounded-3xl">{t("components.navbar.bookDemo")}</button>
-          </div>
+              {/* Desktop Actions */}
+              <div className="hidden items-center sm:flex">
+                <button className="btn btn-vortex-secondary rounded-3xl">{t("components.navbar.bookDemo")}</button>
+              </div>
+            </>
+          )}
         </div>
       </motion.header>
 
