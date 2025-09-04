@@ -49,7 +49,8 @@ export const WidgetCards = () => {
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
   const { rampSummaryVisible } = useSelector(rampActor, state => ({
-    rampSummaryVisible: state.context.rampSummaryVisible
+    rampSummaryVisible:
+      state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
   }));
 
   const isMoneriumRedirect = useSelector(moneriumKycActor, state => {

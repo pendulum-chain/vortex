@@ -30,7 +30,6 @@ const initialRampContext: RampContext = {
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  rampSummaryVisible: false,
   substrateWalletAccount: undefined
 };
 
@@ -55,12 +54,16 @@ export type RampMachineEvents =
 
 export const rampMachine = setup({
   actions: {
-    resetRamp: assign(({ context }) => ({
-      ...initialRampContext,
-      address: context.address,
-      authToken: context.authToken,
-      initializeFailedMessage: context.initializeFailedMessage
-    })),
+    resetRamp: () => {
+      assign(({ context }) => ({
+        ...initialRampContext,
+        address: context.address,
+        authToken: context.authToken,
+        initializeFailedMessage: context.initializeFailedMessage
+      }));
+      const cleanUrl = window.location.origin;
+      window.history.replaceState({}, "", cleanUrl);
+    },
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
     }),
@@ -166,9 +169,6 @@ export const rampMachine = setup({
     },
     KYC: kycStateNode as any,
     KycComplete: {
-      entry: assign({
-        rampSummaryVisible: true // TODO maybe we can get rid and just match this state and RampRequested, etc.
-      }),
       on: {
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"

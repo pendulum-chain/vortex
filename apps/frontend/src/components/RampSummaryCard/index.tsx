@@ -33,7 +33,11 @@ export const RampSummaryCard: FC = () => {
       rampRegistrationError: state.context.initializeFailedMessage,
       rampState: state.context.rampState,
       signingPhase: state.context.rampSigningPhase,
-      visible: state.context.rampSummaryVisible // TODO replace with proper error
+      visible:
+        state.matches("KycComplete") ||
+        state.matches("RegisterRamp") ||
+        state.matches("UpdateRamp") ||
+        state.matches("StartRamp")
     })
   );
   const rampType = rampDirection || RampDirection.BUY;

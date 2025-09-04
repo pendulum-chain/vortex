@@ -171,12 +171,12 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
-    if (machineState === "QuoteReady") {
+    if (machineState === "QuoteReady" || machineState === "KycComplete") {
       return false;
     }
 
-    if (machineState === "KycComplete") {
-      return false;
+    if (machineState === "RegisterRamp") {
+      return true;
     }
 
     // The button is enabled because we let the user click the button to get back

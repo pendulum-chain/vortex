@@ -25,7 +25,6 @@ export interface RampContext {
   rampPaymentConfirmed: boolean;
   rampSigningPhase: RampSigningPhase | undefined;
   rampState: RampState | undefined;
-  rampSummaryVisible: boolean;
   substrateWalletAccount: WalletAccount | undefined;
 }
 

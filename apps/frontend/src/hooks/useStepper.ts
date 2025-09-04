@@ -18,7 +18,7 @@ export const useStepper = () => {
       isKycFailure: state.matches("KycFailure"),
       isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
       rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-      rampSummaryVisible: state.context.rampSummaryVisible
+      rampSummaryVisible: state.matches("KycComplete")
     }));
 
   const secondStepActive = isKycComplete || isKycActive || isKycFailure;
