@@ -63,7 +63,7 @@ const StepperWrapper = (args: StoryArgs) => {
       args.longTitles || false
     );
 
-  return <Stepper className={args.className} onStepClick={args.onStepClick} steps={steps} />;
+  return <Stepper onStepClick={args.onStepClick} steps={steps} />;
 };
 
 const FormWizardDemo = () => {
@@ -177,7 +177,7 @@ const FormWizardDemo = () => {
   };
 
   return (
-    <div className="w-full max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       <Stepper onStepClick={handleStepClick} steps={steps} />
 
       <div className="min-h-48 rounded border p-6">{renderStepContent()}</div>
