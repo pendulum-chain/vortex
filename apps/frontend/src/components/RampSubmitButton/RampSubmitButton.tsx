@@ -11,7 +11,7 @@ import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
-import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
@@ -151,6 +151,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
 
+  const moneriumKycActor = useMoneriumKycActor();
+
   const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
@@ -175,7 +177,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
       return false;
     }
 
-    if (machineState === "RegisterRamp") {
+    if (machineState === "RegisterRamp" || moneriumKycActor) {
       return true;
     }
 

@@ -1,4 +1,4 @@
-import { assign, fromPromise, log, setup } from "xstate";
+import { AnyActorRef, assign, fromPromise, sendParent, setup } from "xstate";
 
 import { MoneriumService } from "../services/api/monerium.service";
 import {
@@ -8,6 +8,7 @@ import {
   MoneriumAuthError,
   MoneriumAuthErrorType
 } from "../services/monerium/moneriumAuth";
+import { RampSigningPhase } from "../types/phases";
 import { MoneriumKycContext } from "./kyc.states";
 
 export enum MoneriumKycMachineErrorType {
@@ -38,26 +39,47 @@ export const moneriumKycMachine = setup({
       return exchangeMoneriumCode(input.authCode, input.codeVerifier!);
     }),
     handleMoneriumSiwe: fromPromise(
-      async ({ input }: { input: MoneriumKycContext }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        if (!input.address || !input.getMessageSignature) {
+      async ({
+        input
+      }: {
+        input: { context: MoneriumKycContext; parent: AnyActorRef };
+      }): Promise<{ authUrl: string; codeVerifier: string }> => {
+        if (!input.context.address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }
-        const { authUrl, codeVerifier } = await handleMoneriumSiweAuth(input.address, input.getMessageSignature);
+        const { authUrl, codeVerifier } = await handleMoneriumSiweAuth(
+          input.context.address,
+          input.context.getMessageSignature,
+          input.parent
+        );
         return { authUrl, codeVerifier };
       }
     ),
     initiateMonerium: fromPromise(
-      async ({ input }: { input: MoneriumKycContext }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        if (!input.address || !input.getMessageSignature) {
+      async ({
+        input
+      }: {
+        input: { context: MoneriumKycContext; parent: AnyActorRef };
+      }): Promise<{ authUrl: string; codeVerifier: string }> => {
+        if (!input.context.address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }
-        const { authUrl, codeVerifier } = await initiateMoneriumAuth(input.address, input.getMessageSignature);
+        const { authUrl, codeVerifier } = await initiateMoneriumAuth(
+          input.context.address,
+          input.context.getMessageSignature,
+          input.parent
+        );
         return { authUrl, codeVerifier };
       }
     )
   },
   types: {
     context: {} as MoneriumKycContext,
+    events: {} as
+      | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
+      | { type: "CANCEL" }
+      | { type: "CODE_RECEIVED"; code: string }
+      | { type: "RETRY_REDIRECT" },
     input: {} as MoneriumKycContext,
     output: {} as { authToken?: string; error?: MoneriumKycMachineError }
   }
@@ -65,6 +87,16 @@ export const moneriumKycMachine = setup({
   context: ({ input }) => ({ ...input }),
   id: "moneriumKyc",
   initial: "Started",
+  on: {
+    SIGNING_UPDATE: {
+      actions: [
+        sendParent(({ event }) => ({
+          phase: event.phase,
+          type: "SIGNING_UPDATE"
+        }))
+      ]
+    }
+  },
   output: ({ context }) => ({
     authToken: context.authToken,
     error: context.error
@@ -98,7 +130,7 @@ export const moneriumKycMachine = setup({
     MoneriumRedirect: {
       invoke: {
         id: "initiateMonerium",
-        input: ({ context }) => context,
+        input: ({ context, self }) => ({ context, parent: self }),
         onDone: {
           actions: assign({
             authUrl: ({ event }) => event.output.authUrl,
@@ -118,7 +150,7 @@ export const moneriumKycMachine = setup({
     MoneriumSiwe: {
       invoke: {
         id: "handleMoneriumSiwe",
-        input: ({ context }) => context,
+        input: ({ context, self }) => ({ context, parent: self }),
         onDone: {
           actions: assign({
             authUrl: ({ event }) => event.output.authUrl,

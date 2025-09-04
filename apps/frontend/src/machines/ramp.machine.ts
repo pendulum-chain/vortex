@@ -132,7 +132,7 @@ export const rampMachine = setup({
       })
     },
     SIGNING_UPDATE: {
-      actions: assign({ rampSigningPhase: ({ event }) => event.phase })
+      actions: [assign({ rampSigningPhase: ({ event }) => event.phase })]
     }
   },
   states: {

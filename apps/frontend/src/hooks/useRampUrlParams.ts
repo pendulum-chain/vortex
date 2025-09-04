@@ -171,9 +171,8 @@ export const useSetRampUrlParams = () => {
       hasInitialized.current = true;
       return;
     }
-    // TODO clarify: why do we want to reset this?
     // resetRampDirection();
-    // resetRampForm();
+    resetRampForm();
 
     onToggle(ramp);
 
