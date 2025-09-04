@@ -31,6 +31,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
 import TaxId from "../../models/taxId.model";
+import { APIError } from "../errors/api-error";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
@@ -164,8 +165,15 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
 
-    const brlaApiService = BrlaApiService.getInstance();
     const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "Ramp disabled",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
@@ -243,7 +251,7 @@ export const getRampStatus = async (
 
 export const createSubaccount = async (
   req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
-  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
+  res: Response<BrlaCreateSubaccountResponse>
 ): Promise<void> => {
   try {
     const { accountType, name, taxId } = req.body;

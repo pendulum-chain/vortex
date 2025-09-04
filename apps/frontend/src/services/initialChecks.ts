@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -51,7 +51,7 @@ export function usePreRampCheck() {
   return useCallback(
     async (executionInput: RampExecutionInput) => {
       // For BRL ramps, check if the user is within the limits
-      if (executionInput.fiatToken === "brl") {
+      if (executionInput.fiatToken === FiatToken.BRL) {
         if (!executionInput.taxId) {
           throw new Error("Tax ID is required for BRL transactions.");
         }

@@ -26,8 +26,7 @@ const initialRampContext: RampContext = {
   quote: undefined,
   quoteId: undefined,
   rampDirection: undefined,
-  rampKycLevel2Started: false,
-  rampKycStarted: false,
+
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
@@ -117,7 +116,11 @@ export const rampMachine = setup({
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({ event }) => event.getMessageSignature
+        getMessageSignature: ({
+          event
+        }: {
+          event: { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined };
+        }) => event.getMessageSignature
       })
     },
     SET_INITIALIZE_FAILED_MESSAGE: {

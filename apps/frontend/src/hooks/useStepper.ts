@@ -11,16 +11,18 @@ export const useStepper = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { rampKycStarted, rampPaymentConfirmed, rampSummaryVisible, state } = useSelector(rampActor, state => ({
-    rampKycStarted: state.context.rampKycStarted,
-    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-    rampSummaryVisible: state.context.rampSummaryVisible,
-    state: state.value
-  }));
+  const { isKycActive, isKycComplete, isKycFailure, isRegisterOrUpdate, rampPaymentConfirmed, rampSummaryVisible } =
+    useSelector(rampActor, state => ({
+      isKycActive: state.matches("KYC"),
+      isKycComplete: state.matches("KycComplete"),
+      isKycFailure: state.matches("KycFailure"),
+      isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
+      rampPaymentConfirmed: state.context.rampPaymentConfirmed,
+      rampSummaryVisible: state.context.rampSummaryVisible
+    }));
 
-  const secondStepActive = state === "KycComplete" || rampKycStarted;
-  const secondStepComplete =
-    state === "KycComplete" || state === "RegisterRamp" || state === "UpdateRamp" || rampPaymentConfirmed;
+  const secondStepActive = isKycComplete || isKycActive || isKycFailure;
+  const secondStepComplete = isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
   const thirdStepComplete = rampPaymentConfirmed;

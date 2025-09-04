@@ -57,7 +57,7 @@ export const useRampSubmission = () => {
       if (!inputAmount) {
         throw new Error("No amount specified. Please enter an amount.");
       }
-      if (fiatToken === "brl") {
+      if (fiatToken === FiatToken.BRL) {
         if (!data.taxId) {
           throw new Error("Tax ID is required for BRL transactions.");
         }

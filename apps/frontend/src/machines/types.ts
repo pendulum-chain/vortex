@@ -22,8 +22,6 @@ export interface RampContext {
   quote: QuoteResponse | undefined;
   quoteId: string | undefined;
   rampDirection: RampDirection | undefined;
-  rampKycLevel2Started: boolean;
-  rampKycStarted: boolean;
   rampPaymentConfirmed: boolean;
   rampSigningPhase: RampSigningPhase | undefined;
   rampState: RampState | undefined;

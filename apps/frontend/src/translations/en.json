@@ -350,7 +350,8 @@
     },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
-      "kycInvalid": "Your KYC level is invalid. Please contact support."
+      "kycInvalid": "Your KYC level is invalid. Please contact support.",
+      "maintenance": "Temporary maintenance in progress — please check back later."
     },
     "useTokenAmountOut": {
       "default": "Something went wrong",

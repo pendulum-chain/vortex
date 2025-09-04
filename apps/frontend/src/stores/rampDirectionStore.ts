@@ -19,7 +19,14 @@ export const useRampDirectionStore = create<RampDirectionStore>()(
       reset: () => set({ activeDirection: defaultRampDirection })
     }),
     {
-      name: "rampDirectionStore"
+      migrate: (persistedState, version) => {
+        if (version !== 2) {
+          return null;
+        }
+        return persistedState;
+      },
+      name: "rampDirectionStore",
+      version: 2
     }
   )
 );

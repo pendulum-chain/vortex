@@ -8,7 +8,6 @@ import {
   PriceProvider,
   RampDirection,
   RegisterSubaccountPayload,
-  StartKYC2Request,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
