@@ -5,7 +5,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.dropTable("tax_ids");
 }
 export async function up(queryInterface: QueryInterface): Promise<void> {
-  await queryInterface.dropTable("tax_ids");
+  await queryInterface.sequelize.query('DROP TABLE IF EXISTS "tax_ids" CASCADE;');
   await queryInterface.createTable("tax_ids", {
     account_type: {
       allowNull: false,
