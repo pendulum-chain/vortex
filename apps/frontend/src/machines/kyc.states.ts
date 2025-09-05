@@ -129,7 +129,7 @@ export const kycStateNode = {
             actions: [{ type: "showSigningRejectedErrorToast" }],
             guard: ({ event }: { event: any }) =>
               (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
-            target: "#ramp.KycFailure"
+            target: "#ramp.QuoteReady"
           },
           {
             actions: assign({

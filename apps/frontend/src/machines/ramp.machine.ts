@@ -56,7 +56,6 @@ export const rampMachine = setup({
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
-      authToken: context.authToken,
       initializeFailedMessage: context.initializeFailedMessage
     })),
     setFailedMessage: assign({
@@ -90,7 +89,7 @@ export const rampMachine = setup({
             const cleanUrl = window.location.origin;
             window.history.replaceState({}, "", cleanUrl);
             resolve();
-          }, 15000);
+          }, 5);
         })
     ),
     validateKyc: fromPromise(validateKycActor)
@@ -145,8 +144,7 @@ export const rampMachine = setup({
       // TODO We also need to display the "final" error message in the UI.
       entry: assign(({ context }) => ({
         ...initialRampContext,
-        address: context.address,
-        authToken: context.authToken
+        address: context.address
       })),
       on: {
         FINISH_OFFRAMPING: {

@@ -29,22 +29,30 @@ export const initiateMoneriumAuth = async (
   const codeVerifier = CryptoJS.lib.WordArray.random(64).toString();
   const codeChallenge = CryptoJS.enc.Base64url.stringify(CryptoJS.SHA256(codeVerifier));
 
-  parent.send({ phase: "login", type: "SIGNING_UPDATE" });
-  const signature = await signMessage(LINK_MESSAGE);
-  parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+  try {
+    parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+    const signature = await signMessage(LINK_MESSAGE);
+    parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
 
-  const params = new URLSearchParams({
-    address: address,
-    chain: polygon.name.toString().toLowerCase(),
-    client_id: VORTEX_APP_CLIENT_ID,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    redirect_uri: window.location.origin,
-    signature
-  });
+    const params = new URLSearchParams({
+      address: address,
+      chain: polygon.name.toString().toLowerCase(),
+      client_id: VORTEX_APP_CLIENT_ID,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      redirect_uri: window.location.origin,
+      signature
+    });
 
-  const authUrl = `${MONERIUM_API_URL}/auth?${params.toString()}`;
-  return { authUrl, codeVerifier };
+    const authUrl = `${MONERIUM_API_URL}/auth?${params.toString()}`;
+    return { authUrl, codeVerifier };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("User rejected the request")) {
+      throw new MoneriumAuthError("User rejected the request.", MoneriumAuthErrorType.UserRejected);
+    }
+    console.log("Error during Monerium auth:", error);
+    throw error;
+  }
 };
 
 export const createMoneriumSiweMessage = (address: string) => {
