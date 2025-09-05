@@ -1,26 +1,12 @@
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/react/20/solid";
 import { getAddressForFormat } from "@packages/shared";
-import { Wallet, WalletAccount } from "@talismn/connect-wallets";
+import { WalletAccount } from "@talismn/connect-wallets";
 import { useTranslation } from "react-i18next";
-import accountBalanceWalletIcon from "../../../../assets/account-balance-wallet.svg";
-import accountBalanceWalletIconPink from "../../../../assets/account-balance-wallet-pink.svg";
 import { useAssetHubNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
-import { trimAddress } from "../../../../helpers/addressFormatter";
 import { CopyablePublicKey } from "../../../PublicKey/CopyablePublicKey";
 import { WalletButtonVariant } from "../../ConnectWalletButton";
-
-interface WalletButtonProps {
-  address: string;
-}
-
-const WalletButton = ({ address }: WalletButtonProps) => (
-  <button className="btn-vortex-secondary btn group rounded-3xl" type="button">
-    <img alt="wallet account button" className="block group-hover:hidden" src={accountBalanceWalletIcon} />
-    <img alt="wallet account button hovered" className="hidden group-hover:block" src={accountBalanceWalletIconPink} />
-    <p className="hidden font-thin md:block ">{trimAddress(address)}</p>
-  </button>
-);
+import { BaseWalletButton } from "../../ConnectWalletButton/BaseWalletButton";
 
 interface WalletDropdownMenuProps {
   address: string;
@@ -62,7 +48,7 @@ export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { va
   return (
     <div className="dropdown dropdown-bottom" role="listbox">
       <label tabIndex={0}>
-        <WalletButton address={addressForNetwork} />
+        <BaseWalletButton address={addressForNetwork} showWalletIcons variant={variant} />
       </label>
       <WalletDropdownMenu address={addressForNetwork} removeWalletAccount={removeWalletAccount} walletAccount={walletAccount} />
     </div>
