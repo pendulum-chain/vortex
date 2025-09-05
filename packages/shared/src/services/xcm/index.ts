@@ -1,4 +1,5 @@
 export * from "./assethubToPendulum";
+export * from "./moonbeamToAssethub";
 export * from "./moonbeamToPendulum";
 export * from "./pendulumToAssethub";
 export * from "./pendulumToMoonbeam";

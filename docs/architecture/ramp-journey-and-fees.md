@@ -34,53 +34,55 @@ The ramp process is managed by a state machine, transitioning through various ph
 1.  **Quote Request:** User requests a quote (`quote.service.ts`). Fees are calculated and applied as described above.
 2.  **Register Ramp:** User accepts the quote. The system validates the quote, prepares necessary unsigned transactions based on the fee-adjusted amounts, and creates a `RampState` record (`ramp.service.ts`). The initial phase is set to `initial`.
 3.  **Start Ramp:** User signs transactions client-side and submits them. The system validates signatures, updates the `RampState`, and triggers the `phaseProcessor` (`ramp.service.ts`).
-4.  **Phase: `initial` (`initial-phase-handler.ts`):** Checks for signed transactions (off-ramp). If Stellar is involved, submits the pre-signed `stellarCreateAccount` transaction. Transitions to `fundEphemeral`.
+4.  **Phase: `initial` (`initial-phase-handler.ts`):** Checks for signed transactions (off-ramp). If Stellar is involved, submits the pre-signed `stellarCreateAccount` transaction. The next phase depends on the journey: it transitions to `brlaTeleport` for the BRL on-ramp, and `fundEphemeral` for others.
 5.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Checks and funds the required Pendulum and/or Moonbeam ephemeral accounts with small amounts of native tokens (PEN, GLMR) to cover transaction fees for subsequent steps. Transitions based on ramp type and source/destination.
 
 ---
 
 ### On-Ramp Journey (Fiat BRL -> Crypto on EVM/AssetHub)
 
-*   **Starts After:** `fundEphemeral`
+*   **Starts After:** `initial`
 *   **Next Phase:** `brlaTeleport`
 
 6.  **Phase: `brlaTeleport` (`brla-teleport-handler.ts`):**
-    *   Interacts with BRLA services to request the transfer of the input BRL amount to the Moonbeam ephemeral address. **Note:** The BRLA anchor fee is deducted by BRLA during this process.
-    *   Polls Moonbeam until the corresponding BRLA ERC20 tokens (input amount minus anchor fee) arrive.
+    *   This phase is currently a no-op and immediately transitions to `fundEphemeral`. It is intended to interact with BRLA services to transfer the input BRL amount.
+    *   Transitions to `fundEphemeral`.
+7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):**
+    *   Checks and funds the required Pendulum and/or Moonbeam ephemeral accounts with small amounts of native tokens (PEN, GLMR) to cover transaction fees for subsequent steps.
     *   Transitions to `moonbeamToPendulumXcm`.
-7.  **Phase: `moonbeamToPendulumXcm` (`moonbeam-to-pendulum-xcm-handler.ts`):**
+8.  **Phase: `moonbeamToPendulumXcm` (`moonbeam-to-pendulum-xcm-handler.ts`):**
     *   Submits the pre-signed XCM transaction to transfer the BRLA tokens from Moonbeam ephemeral to Pendulum ephemeral.
     *   Waits for BRLA tokens to arrive on Pendulum.
     *   Transitions to `subsidizePreSwap`.
-8.  **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):**
+9.  **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):**
     *   Checks the BRLA balance on Pendulum ephemeral.
     *   Tops up if necessary to match the exact amount needed for the swap (original input minus anchor fee).
     *   Transitions to `nablaApprove`.
-9.  **Phase: `nablaApprove` (`nabla-approve-handler.ts`):**
+10. **Phase: `nablaApprove` (`nabla-approve-handler.ts`):**
     *   Submits pre-signed approval for Nabla swap.
     *   Transitions to `nablaSwap`.
-10. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):**
+11. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):**
     *   Gets live quote, checks slippage.
     *   Submits pre-signed swap (e.g., BRLA -> USDC) on Pendulum.
     *   Transitions to `distributeFees`.
-11. **Phase: `distributeFees` (New Handler):**
+12. **Phase: `distributeFees` (New Handler):**
     *   Calculates the amounts for Vortex, Network, and Partner fees based on the quote.
     *   Transfers these fee amounts (likely in a stablecoin like USDC from the ephemeral or a funding account) to the respective destination accounts (Vortex treasury, partner account, potentially a gas fund).
     *   Transitions to `subsidizePostSwap`.
-12. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):**
+13. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):**
     *   Checks the balance of the output crypto asset (e.g., USDC) on Pendulum ephemeral.
     *   Tops up if necessary to match the exact `grossOutputAmount` (post-swap amount).
     *   Transitions to `pendulumToMoonbeam` (for EVM destination) or `pendulumToAssethub` (for AssetHub destination).
 
 **Final Delivery (On-Ramp):**
 
-13. **Path A (EVM Destination):**
+14. **Path A (EVM Destination):**
     *   **Phase: `pendulumToMoonbeam` (`pendulum-moonbeam-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral to Moonbeam ephemeral. Transitions to `squidRouterSwap`.
     *   **Phase: `squidRouterSwap` (`squid-router-phase-handler.ts`):** Submits pre-signed Approve and Swap transactions interacting with Squid Router on Moonbeam to bridge/swap the asset to the user's final destination address on the target EVM chain. Transitions to `complete`.
-14. **Path B (AssetHub Destination):**
+15. **Path B (AssetHub Destination):**
     *   **Phase: `pendulumToAssethub` (`pendulum-to-assethub-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral directly to the user's final destination address on AssetHub. Transitions to `complete`.
 
-15. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state. Marks the ramp as finished.
+16. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state. Marks the ramp as finished.
 
 ---
 
