@@ -97,12 +97,6 @@ export const moneriumKycMachine = setup({
       ]
     }
   },
-  onDone: {
-    actions: sendParent(() => ({
-      phase: undefined,
-      type: "SIGNING_UPDATE"
-    }))
-  },
   output: ({ context }) => ({
     authToken: context.authToken,
     error: context.error
@@ -134,6 +128,7 @@ export const moneriumKycMachine = setup({
       type: "final"
     },
     MoneriumRedirect: {
+      exit: sendParent({ phase: undefined, type: "SIGNING_UPDATE" }),
       invoke: {
         id: "initiateMonerium",
         input: ({ context, self }) => ({ context, parent: self }),
@@ -146,7 +141,12 @@ export const moneriumKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: () => new MoneriumKycMachineError("An unknown error occurred", MoneriumKycMachineErrorType.UnknownError)
+            error: ({ event }) => {
+              if (event.error instanceof MoneriumAuthError && event.error.type === MoneriumAuthErrorType.UserRejected) {
+                return new MoneriumKycMachineError(event.error.message, MoneriumKycMachineErrorType.UserRejected);
+              }
+              return new MoneriumKycMachineError("An unknown error occurred", MoneriumKycMachineErrorType.UnknownError);
+            }
           }),
           target: "Failure"
         },
@@ -154,6 +154,7 @@ export const moneriumKycMachine = setup({
       }
     },
     MoneriumSiwe: {
+      exit: sendParent({ phase: undefined, type: "SIGNING_UPDATE" }),
       invoke: {
         id: "handleMoneriumSiwe",
         input: ({ context, self }) => ({ context, parent: self }),
