@@ -8,6 +8,7 @@ import { useAssetHubNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
 import { trimAddress } from "../../../../helpers/addressFormatter";
 import { CopyablePublicKey } from "../../../PublicKey/CopyablePublicKey";
+import { WalletButtonVariant } from "../../ConnectWalletButton";
 
 interface WalletButtonProps {
   address: string;
@@ -48,7 +49,7 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
   );
 };
 
-export const DisconnectModal = () => {
+export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { variant?: WalletButtonVariant }) => {
   const { walletAccount, removeWalletAccount } = usePolkadotWalletState();
   const { apiComponents } = useAssetHubNode();
   const { address } = walletAccount || {};

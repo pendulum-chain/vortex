@@ -3,8 +3,17 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../../../helpers/cn";
 import { PolkadotWalletSelectorDialog } from "../../../PolkadotWalletSelectorDialog";
+import { WalletButtonVariant } from "../../ConnectWalletButton";
 
-export const PolkadotConnectWallet = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
+export const PolkadotConnectWallet = ({
+  customStyles,
+  hideIcon,
+  variant = WalletButtonVariant.Standard
+}: {
+  customStyles?: string;
+  hideIcon?: boolean;
+  variant?: WalletButtonVariant;
+}) => {
   const [showPolkadotDialog, setShowPolkadotDialog] = useState(false);
   const { t } = useTranslation();
 

@@ -8,6 +8,7 @@ import { trimAddress } from "../../../helpers/addressFormatter";
 import { cn } from "../../../helpers/cn";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { wagmiConfig } from "../../../wagmiConfig";
+import { WalletButtonVariant } from "../ConnectWalletButton";
 
 interface WalletButtonProps {
   address?: string;
@@ -43,7 +44,15 @@ const WalletButton = ({
   </button>
 );
 
-export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) {
+export function EVMWalletButton({
+  customStyles,
+  hideIcon,
+  variant = WalletButtonVariant.Standard
+}: {
+  customStyles?: string;
+  hideIcon?: boolean;
+  variant?: WalletButtonVariant;
+}) {
   const { address, chainId: walletChainId } = useVortexAccount();
   const { isConnected } = useAppKitAccount();
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
