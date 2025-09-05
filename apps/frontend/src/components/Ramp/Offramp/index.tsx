@@ -9,6 +9,7 @@ import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -28,6 +29,7 @@ export const Offramp = () => {
 
   const { setTrackPrice } = useFeeComparisonStore();
 
+  const { isDisconnected } = useVortexAccount();
   const { form } = useQuoteForm();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
@@ -83,12 +85,12 @@ export const Offramp = () => {
           tokenSymbol={fromToken.assetSymbol}
         />
         <div className="flex grow-1 flex-row justify-between">
-          <ConnectWalletButton variant={WalletButtonVariant.Minimal} />
+          {!isDisconnected && <ConnectWalletButton variant={WalletButtonVariant.Minimal} />}
           <UserBalance onClick={handleBalanceClick} token={fromToken} />
         </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick]
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected]
   );
 
   const ReceiveNumericInput = useMemo(
