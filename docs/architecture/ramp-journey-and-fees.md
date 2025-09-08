@@ -39,50 +39,52 @@ The ramp process is managed by a state machine, transitioning through various ph
 
 ---
 
-### On-Ramp Journey (Fiat BRL -> Crypto on EVM/AssetHub)
+### On-Ramp Journey: Monerium (EUR)
 
 *   **Starts After:** `initial`
-*   **Next Phase:** `brlaTeleport`
+*   **Next Phase:** `moneriumOnrampMint`
 
-6.  **Phase: `brlaTeleport` (`brla-teleport-handler.ts`):**
-    *   This phase is currently a no-op and immediately transitions to `fundEphemeral`. It is intended to interact with BRLA services to transfer the input BRL amount.
+6.  **Phase: `moneriumOnrampMint` (`monerium-onramp-mint-handler.ts`):**
+    *   Mints Monerium EUR tokens.
     *   Transitions to `fundEphemeral`.
 7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):**
-    *   Checks and funds the required Pendulum and/or Moonbeam ephemeral accounts with small amounts of native tokens (PEN, GLMR) to cover transaction fees for subsequent steps.
-    *   Transitions to `moonbeamToPendulumXcm`.
-8.  **Phase: `moonbeamToPendulumXcm` (`moonbeam-to-pendulum-xcm-handler.ts`):**
-    *   Submits the pre-signed XCM transaction to transfer the BRLA tokens from Moonbeam ephemeral to Pendulum ephemeral.
-    *   Waits for BRLA tokens to arrive on Pendulum.
-    *   Transitions to `subsidizePreSwap`.
-9.  **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):**
-    *   Checks the BRLA balance on Pendulum ephemeral.
-    *   Tops up if necessary to match the exact amount needed for the swap (original input minus anchor fee).
-    *   Transitions to `nablaApprove`.
-10. **Phase: `nablaApprove` (`nabla-approve-handler.ts`):**
-    *   Submits pre-signed approval for Nabla swap.
-    *   Transitions to `nablaSwap`.
-11. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):**
-    *   Gets live quote, checks slippage.
-    *   Submits pre-signed swap (e.g., BRLA -> USDC) on Pendulum.
-    *   Transitions to `distributeFees`.
-12. **Phase: `distributeFees` (New Handler):**
-    *   Calculates the amounts for Vortex, Network, and Partner fees based on the quote.
-    *   Transfers these fee amounts (likely in a stablecoin like USDC from the ephemeral or a funding account) to the respective destination accounts (Vortex treasury, partner account, potentially a gas fund).
-    *   Transitions to `subsidizePostSwap`.
-13. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):**
-    *   Checks the balance of the output crypto asset (e.g., USDC) on Pendulum ephemeral.
-    *   Tops up if necessary to match the exact `grossOutputAmount` (post-swap amount).
-    *   Transitions to `pendulumToMoonbeam` (for EVM destination) or `pendulumToAssethub` (for AssetHub destination).
+    *   Funds the ephemeral account with native tokens.
+    *   Transitions to `moneriumOnrampSelfTransfer`.
+8.  **Phase: `moneriumOnrampSelfTransfer` (`monerium-onramp-self-transfer-handler.ts`):**
+    *   Transfers the minted tokens to the ephemeral account.
+    *   Transitions to `squidRouterSwap`.
+9.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):**
+    *   Swaps the EUR tokens for the destination asset.
+    *   Transitions to `squidRouterPay`.
+10. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):**
+    *   Pays the gas for the squidrouter transaction and wait for its completion.
+    *   Transitions to `moonbeamXcmToAssethub` if the destination is AssetHub, otherwise to `complete`.
+11. **Phase: `moonbeamXcmToAssethub` (`moonbeam-xcm-to-assethub-handler.ts`):**
+    *   Transfers the asset from Moonbeam to AssetHub.
+    *   Transitions to `complete`.
+12. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
-**Final Delivery (On-Ramp):**
+### On-Ramp Journey: BRLA (BRL)
 
-14. **Path A (EVM Destination):**
-    *   **Phase: `pendulumToMoonbeam` (`pendulum-moonbeam-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral to Moonbeam ephemeral. Transitions to `squidRouterSwap`.
-    *   **Phase: `squidRouterSwap` (`squid-router-phase-handler.ts`):** Submits pre-signed Approve and Swap transactions interacting with Squid Router on Moonbeam to bridge/swap the asset to the user's final destination address on the target EVM chain. Transitions to `complete`.
-15. **Path B (AssetHub Destination):**
-    *   **Phase: `pendulumToAssethub` (`pendulum-to-assethub-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral directly to the user's final destination address on AssetHub. Transitions to `complete`.
+*   **Starts After:** `initial`
+*   **Next Phase:** `brlaTransfer`
 
-16. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state. Marks the ramp as finished.
+6.  **Phase: `brlaTransfer` (`brla-transfer-handler.ts`):**
+    *   Transfers BRLA tokens.
+    *   Transitions to `fundEphemeral`.
+7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):**
+    *   Funds the ephemeral account with native tokens.
+    *   Transitions to `squidRouterSwap`.
+8.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):**
+    *   Swaps the BRLA tokens for the destination asset.
+    *   Transitions to `squidRouterPay`.
+9.  **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):**
+    *   Pays the gas for the squidrouter transaction and wait for its completion.
+    *   Transitions to `moonbeamXcmToAssethub` if the destination is AssetHub, otherwise to `complete`.
+10. **Phase: `moonbeamXcmToAssethub` (`moonbeam-xcm-to-assethub-handler.ts`):**
+    *   Transfers the asset from Moonbeam to AssetHub.
+    *   Transitions to `complete`.
+11. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 ---
 
@@ -156,9 +158,51 @@ The ramp process is managed by a state machine, transitioning through various ph
     *   Transitions to `complete`.
 14. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
+### Complete Ramp Flow Diagram
+
+```mermaid
+graph TD
+    subgraph On-Ramp
+        direction LR
+        A[Start On-Ramp] --> B{Input Currency?};
+        B -->|BRL| C[brlaTransfer];
+        B -->|EUR| D[moneriumOnrampMint];
+        D --> E[moneriumOnrampSelfTransfer];
+        C --> F[fundEphemeral];
+        E --> F;
+        F --> G[squidRouterSwap];
+        G --> H[squidRouterPay];
+        H --> I{Destination?};
+        I -->|EVM| J[Complete];
+        I -->|AssetHub| K[moonbeamXcmToAssethub];
+        K --> J;
+    end
+
+    subgraph Off-Ramp
+        direction LR
+        M[Start Off-Ramp] --> N{Input Asset Source?};
+        N -->|EVM| O[moonbeamToPendulum];
+        N -->|AssetHub| P[distributeFees_assetHub];
+        O --> Q[distributeFees_evm];
+        P --> R[subsidizePreSwap];
+        Q --> R;
+        R --> S[nablaApprove];
+        S --> T[nablaSwap];
+        T --> U[subsidizePostSwap];
+        U --> V{Output Fiat?};
+        V -->|BRL| W[pendulumToMoonbeam];
+        W --> X[brlaPayoutOnMoonbeam];
+        X --> Y[Complete];
+        V -->|EUR/ARS| Z[spacewalkRedeem];
+        Z --> AA[stellarPayment];
+        AA --> Y;
+    end
+
+    Start --> |On-Ramp| A;
+    Start --> |Off-Ramp| M;
+```
 
 ## Amendments
 
 The 'FeeRefactoring' table was renamed to 'Anchors'.
 - The `fee_type` fields were renamed to `ramp_type` to better reflect the type.
-
