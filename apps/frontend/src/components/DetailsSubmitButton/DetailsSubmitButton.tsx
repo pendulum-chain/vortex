@@ -81,13 +81,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       };
     }
 
-    if (machineState === "KycComplete") {
-      return {
-        icon: null,
-        text: t("components.RampSummaryCard.confirm")
-      };
-    }
-
     if (isOfframp && !isAnchorWithoutRedirect) {
       if (stellarData?.stateValue === "Sep24Second") {
         return {
@@ -155,13 +148,12 @@ export const DetailsSubmitButton = ({ className }: { className?: string }) => {
 
     if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
-      if (stellarData?.stateValue !== "StartSep24") return true;
     }
 
     if (stellarData?.stateValue === "Sep24Second") return true;
 
     return false;
-  }, [isQuoteExpired, isOfframp, machineState, address]);
+  }, [isQuoteExpired, isOfframp, machineState, address, stellarData, anchorUrl, fiatToken]);
 
   const buttonContent = useButtonContent({
     submitButtonDisabled,

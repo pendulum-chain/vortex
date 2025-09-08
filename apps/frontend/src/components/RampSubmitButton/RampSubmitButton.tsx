@@ -79,6 +79,13 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       };
     }
 
+    if (machineState === "KycComplete") {
+      return {
+        icon: null,
+        text: t("components.RampSummaryCard.confirm")
+      };
+    }
+
     return {
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
@@ -152,29 +159,13 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   });
 
   const onSubmit = () => {
-    rampActor.send({ type: "SummaryConfirm" });
-
-    // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
-      //setCanRegisterRamp(true);
-    }
+    rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
 
     if (isOnramp) {
       if (machineState === "UpdateRamp") {
         rampActor.send({ type: "PAYMENT_CONFIRMED" });
       }
     }
-
-    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
-      // If signing was rejected, we do not open the anchor URL again
-      // if (!signingRejected) {
-      //   window.open(anchorUrl, "_blank");
-      // }
-    }
-
-    // if (signingRejected) {
-    //   setSigningRejected(false);
-    // }
   };
 
   return (
