@@ -15,6 +15,7 @@ import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
+import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -26,11 +27,12 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
+  const fiatToken = useFiatToken();
+  const rampDirection = useRampDirectionStore(state => state.activeDirection);
 
-  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
-    rampDirection: state.context.rampDirection,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
@@ -45,6 +47,24 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
+      if (fiatToken === FiatToken.BRL) {
+        return {
+          icon: null,
+          text: t("components.RampSummaryCard.continue")
+        };
+      }
+      if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.SELL) {
+        return {
+          icon: null,
+          text: t("components.RampSummaryCard.signIn")
+        };
+      }
+      if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.BUY) {
+        return {
+          icon: null,
+          text: t("components.RampSummaryCard.verifyWallet")
+        };
+      }
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
@@ -53,7 +73,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       } else {
         return {
           icon: null,
-          text: t("components.RampSummaryCard.signIn")
+          text: t("components.RampSummaryCard.next")
         };
       }
     }

@@ -261,13 +261,15 @@
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
       },
+      "next": "Próximo",
       "offrampFee": "Taxa total",
       "onrampFee": "Taxa total",
       "partner": "Parceiro",
       "processing": "Processando",
       "quote": "Cotação",
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
-      "tryAgain": "Tentar novamente"
+      "tryAgain": "Tentar novamente",
+      "verifyWallet": "Verificar carteira"
     },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",

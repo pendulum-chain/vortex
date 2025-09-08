@@ -1,5 +1,7 @@
+import { FiatToken, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
+import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
@@ -15,8 +17,9 @@ import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
-import { usePixId, useTaxId } from "../../stores/quote/useQuoteFormStore";
+import { usePixId, useQuoteFormStore, useTaxId } from "../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 
 function BrazilDetails() {
   return (
@@ -50,7 +53,8 @@ export const WidgetCards = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
-  const { rampSummaryVisible } = useSelector(rampActor, state => ({
+  const { rampSummaryVisible, canAutoConfirm } = useSelector(rampActor, state => ({
+    canAutoConfirm: state.matches("QuoteReady"),
     rampSummaryVisible:
       state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
   }));
@@ -66,6 +70,15 @@ export const WidgetCards = () => {
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
 
   const { onRampConfirm } = useRampSubmission();
+  const { fiatToken } = useQuoteFormStore();
+  const rampDirection = useRampDirectionStore(state => state.activeDirection);
+
+  useEffect(() => {
+    if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.SELL && address && canAutoConfirm) {
+      console.log("Auto-confirming Euro offramp because we have wallet address and KYC is not needed.");
+      onRampConfirm(form.getValues());
+    }
+  }, [fiatToken, rampDirection, address, onRampConfirm, form]);
 
   const actions = signingBoxVisible ? (
     <div className="flex grow text-center">

@@ -270,7 +270,8 @@
       "quote": "Quote",
       "quoteExpired": "Quote expired. Go back and try again.",
       "signIn": "Sign in",
-      "tryAgain": "Try again"
+      "tryAgain": "Try again",
+      "verifyWallet": "Verify wallet"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",
