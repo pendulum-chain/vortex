@@ -2,9 +2,22 @@
  * Moonbeam token configuration
  */
 
-import { PENDULUM_BRLA_MOONBEAM } from "../constants/pendulum";
+import { Networks } from "../../helpers";
+import { AXL_USDC_MOONBEAM, PENDULUM_BRLA_MOONBEAM, PENDULUM_USDC_AXL } from "../constants/pendulum";
 import { FiatToken, TokenType } from "../types/base";
+import { EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
+
+export const AXL_USDC_MOONBEAM_DETAILS: EvmTokenDetails = {
+  assetSymbol: "axlUSDC",
+  decimals: 6,
+  erc20AddressSourceChain: AXL_USDC_MOONBEAM,
+  isNative: false,
+  network: Networks.Moonbeam,
+  networkAssetIcon: "moonbeamUSDC",
+  pendulumRepresentative: PENDULUM_USDC_AXL,
+  type: TokenType.Evm
+};
 
 export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails>> = {
   [FiatToken.BRL]: {

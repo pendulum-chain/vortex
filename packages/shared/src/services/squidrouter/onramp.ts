@@ -1,5 +1,6 @@
 import {
   AXL_USDC_MOONBEAM,
+  AXL_USDC_MOONBEAM_DETAILS,
   ERC20_EURE_POLYGON,
   EvmAddress,
   EvmClientManager,
@@ -15,6 +16,7 @@ export interface OnrampSquidrouterParams {
   outputTokenDetails: EvmTokenDetails;
   toNetwork: Networks;
   addressDestination: string;
+  moonbeamEphemeralAddress: string;
   moonbeamEphemeralStartingNonce: number;
 }
 
@@ -50,19 +52,18 @@ export interface OnrampTransactionData {
 }
 
 export async function createOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<OnrampTransactionData> {
-  if (params.toNetwork === Networks.AssetHub) {
-    throw new Error("AssetHub is not supported for Squidrouter onramp");
-  }
-
   const evmClientManager = EvmClientManager.getInstance();
-  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  const isToAssetHub = params.toNetwork === Networks.AssetHub;
 
   const routeParams = createOnrampRouteParams(
     params.fromAddress,
     params.rawAmount,
-    params.outputTokenDetails,
-    params.toNetwork,
-    params.addressDestination
+    // If the destination is AssetHub, we need to override the token details to xcUSDC on Moonbeam
+    isToAssetHub ? AXL_USDC_MOONBEAM_DETAILS : params.outputTokenDetails,
+    isToAssetHub ? Networks.Moonbeam : params.toNetwork,
+    isToAssetHub ? params.moonbeamEphemeralAddress : params.addressDestination
   );
 
   try {
@@ -72,7 +73,7 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
     return await createTransactionDataFromRoute({
       inputTokenErc20Address: AXL_USDC_MOONBEAM,
       nonce: params.moonbeamEphemeralStartingNonce,
-      publicClient: moonbeamClient,
+      publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
       swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
