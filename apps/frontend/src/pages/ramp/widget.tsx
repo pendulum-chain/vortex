@@ -1,15 +1,15 @@
 import { FiatToken, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { DetailsSubmitButton } from "../../components/DetailsSubmitButton/DetailsSubmitButton";
 import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
-import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
 import { SigningBoxButton, SigningBoxContent } from "../../components/SigningBox/SigningBoxContent";
 import { useAveniaKycActor, useMoneriumKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
@@ -72,20 +72,23 @@ export const WidgetCards = () => {
   const { onRampConfirm } = useRampSubmission();
   const { fiatToken } = useQuoteFormStore();
   const rampDirection = useRampDirectionStore(state => state.activeDirection);
+  const autoConfirmTriggered = useRef(false);
 
   useEffect(() => {
-    if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.SELL && address && canAutoConfirm) {
-      console.log("Auto-confirming Euro offramp because we have wallet address and KYC is not needed.");
-      onRampConfirm(form.getValues());
+    if (!autoConfirmTriggered.current && !canAutoConfirm) {
+      autoConfirmTriggered.current = true;
+      if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.SELL && address) {
+        onRampConfirm(form.getValues());
+      }
     }
-  }, [fiatToken, rampDirection, address, onRampConfirm, form]);
+  }, [fiatToken, rampDirection, address, onRampConfirm, form, canAutoConfirm]);
 
   const actions = signingBoxVisible ? (
     <div className="flex grow text-center">
       <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
     </div>
   ) : (
-    <RampSubmitButton className="mb-4" />
+    <DetailsSubmitButton className="mb-4" />
   );
 
   return (

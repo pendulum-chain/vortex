@@ -17,6 +17,7 @@ interface WalletConnectedSubmitButtonProps extends QuoteSubmitButtonProps {
   needsWalletConnection?: boolean;
 }
 
+// TODO to be depricated. Use QuoteSubmitButton instead and handle connection on the widgets.
 export const WalletConnectedSubmitButton: FC<WalletConnectedSubmitButtonProps> = ({
   className,
   disabled,

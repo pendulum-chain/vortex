@@ -17,7 +17,7 @@ import { useTokenSelectionActions } from "../../../stores/tokenSelectionStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
 import { LabeledInput } from "../../LabeledInput";
-import { WalletConnectedSubmitButton } from "../../QuoteSubmitButtons";
+import { QuoteSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
 import { RampFeeCollapse } from "../../RampFeeCollapse";
 import { UserBalance } from "../../UserBalance";
@@ -123,7 +123,7 @@ export const Offramp = () => {
           <BenefitsList />
         </section>
         <RampErrorMessage />
-        <WalletConnectedSubmitButton className="mt-4" needsWalletConnection />
+        <QuoteSubmitButton className="mt-4" />
       </motion.form>
     </FormProvider>
   );
