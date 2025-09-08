@@ -1,4 +1,5 @@
 import { AXL_USDC_MOONBEAM, createMoonbeamToAssethubTransfer, RampPhase } from "@packages/shared";
+import { Keyring } from "@polkadot/api";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -30,10 +31,10 @@ export class MoonbeamXcmToAssethubPhaseHandler extends BasePhaseHandler {
       AXL_USDC_MOONBEAM
     );
 
-    logger.info({
-      message: `MoonbeamXcmToAssethubPhaseHandler: Created transfer extrinsic: ${transferExtrinsic.toString()}`,
-      rampId: state.id
-    });
+    const keyring = new Keyring({ type: "sr25519" });
+    const moonbeamAccount = keyring.addFromUri(moonbeamEphemeralAccount.secret);
+
+    await transferExtrinsic.signAndSend(moonbeamAccount);
 
     logger.info({
       message: "MoonbeamXcmToAssethubPhaseHandler: XCM transfer successful.",
