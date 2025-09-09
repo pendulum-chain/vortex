@@ -80,9 +80,8 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
         text: t("components.RampSummaryCard.quoteExpired")
       };
     }
-
     if (isOfframp && !isAnchorWithoutRedirect) {
-      if (stellarData?.stateValue === "Sep24Second") {
+      if (!stellarData?.context.redirectUrl) {
         return {
           icon: <Spinner />,
           text: t("components.RampSummaryCard.continueOnPartnersPage")
