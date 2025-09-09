@@ -103,7 +103,10 @@ export const WidgetCards = () => {
       ) : rampSummaryVisible ? (
         <RampSummaryCard />
       ) : aveniaKycActor ? (
-        <PIXKYCForm />
+        <div>
+          <PIXKYCForm />
+          <div className="mt-auto mb-2">{quote && <QuoteSummary quote={quote} />}</div>
+        </div>
       ) : (
         <FormProvider {...form}>
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>

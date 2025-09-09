@@ -26,6 +26,7 @@
         "city": "Cidade",
         "companyName": "Nome da Empresa",
         "district": "Bairro",
+        "email": "E-mail",
         "fullName": "Nome Completo",
         "number": "Número",
         "partnerCpff": "CPF do Parceiro",
@@ -67,6 +68,10 @@
         "district": {
           "minLength": "Bairro deve ter pelo menos 3 caracteres",
           "required": "Bairro é obrigatório"
+        },
+        "email": {
+          "format": "Formato de e-mail inválido",
+          "required": "E-mail é obrigatório"
         },
         "fullName": {
           "format": "O nome só pode conter letras e espaços",
@@ -117,7 +122,8 @@
       "buttons": {
         "back": "Voltar",
         "compareFees": "Comparar Taxas",
-        "finish": "Finalizar"
+        "finish": "Finalizar",
+        "next": "Próximo"
       },
       "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
