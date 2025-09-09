@@ -75,9 +75,9 @@ export const WidgetCards = () => {
   const autoConfirmTriggered = useRef(false);
 
   useEffect(() => {
-    if (!autoConfirmTriggered.current && !canAutoConfirm) {
-      autoConfirmTriggered.current = true;
+    if (!autoConfirmTriggered.current && canAutoConfirm) {
       if (fiatToken === FiatToken.EURC && rampDirection === RampDirection.SELL && address) {
+        autoConfirmTriggered.current = true;
         onRampConfirm(form.getValues());
       }
     }
