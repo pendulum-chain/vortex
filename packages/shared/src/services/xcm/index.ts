@@ -1,4 +1,5 @@
 export * from "./assethubToPendulum";
+export * from "./dryRun";
 export * from "./moonbeamToAssethub";
 export * from "./moonbeamToPendulum";
 export * from "./pendulumToAssethub";
