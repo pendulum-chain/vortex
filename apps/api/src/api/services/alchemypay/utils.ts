@@ -1,3 +1,5 @@
+import { EvmToken } from "@packages/shared";
+
 const NETWORK_MAP: Record<string, string> = {
   ARBITRUM: "ARBITRUM",
   AVALANCHE: "AVAX",
@@ -7,10 +9,10 @@ const NETWORK_MAP: Record<string, string> = {
 };
 
 const CRYPTO_MAP: Record<string, string> = {
-  eth: "ETH",
-  usdc: "USDC",
-  usdce: "USDC.e",
-  usdt: "USDT"
+  [EvmToken.ETH]: "ETH",
+  [EvmToken.USDC]: "USDC",
+  [EvmToken.USDCE]: "USDC.e",
+  [EvmToken.USDT]: "USDT"
 };
 
 /**

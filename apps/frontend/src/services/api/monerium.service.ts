@@ -11,6 +11,7 @@ export const MoneriumService = {
    */
   async checkUserStatus(address: string): Promise<MoneriumUserStatus> {
     try {
+      console.log("Checking Monerium user status for address:", address);
       await apiClient.get("/monerium/address-exists", {
         params: { address, network: "polygon" }
       });
@@ -20,6 +21,7 @@ export const MoneriumService = {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         if (error.response && error.response.status === 404) {
+          console.log("Monerium user not found");
           return {
             isNewUser: true
           };

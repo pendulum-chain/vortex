@@ -9,6 +9,16 @@ import { cn } from "../../../helpers/cn";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { wagmiConfig } from "../../../wagmiConfig";
 
+interface WalletButtonProps {
+  address?: string;
+  children?: ReactNode;
+  customStyles?: string;
+  hideIcon?: boolean;
+  onClick: () => void;
+  showPlayIcon?: boolean;
+  showWalletIcons?: boolean;
+}
+
 const WalletButton = ({
   onClick,
   children,
@@ -17,25 +27,16 @@ const WalletButton = ({
   showPlayIcon = false,
   showWalletIcons = false,
   address
-}: {
-  onClick: () => void;
-  children?: ReactNode;
-  customStyles?: string;
-  hideIcon?: boolean;
-  showPlayIcon?: boolean;
-  showWalletIcons?: boolean;
-  address?: string;
-}) => (
-  <button className={cn(customStyles || "btn-vortex-secondary", "btn group rounded-3xl")} onClick={onClick} type="button">
+}: WalletButtonProps) => (
+  <button className={cn("btn group rounded-3xl", customStyles || "btn-vortex-secondary")} onClick={onClick} type="button">
     {showWalletIcons ? (
       <>
         <img alt="wallet account button" className="block group-hover:hidden" src={accountBalanceWalletIcon} />
         <img alt="wallet account button hovered" className="hidden group-hover:block" src={accountBalanceWalletIconPink} />
-        <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ""}</p>
       </>
     ) : (
       <>
-        {children}
+        {children ? children : <p className="font-thin">{address ? trimAddress(address) : ""}</p>}
         {!hideIcon && showPlayIcon && <PlayCircleIcon className="w-5 group-hover:text-pink-600" />}
       </>
     )}
@@ -86,10 +87,12 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   return (
     <WalletButton
       address={address}
+      customStyles={customStyles}
+      hideIcon={hideIcon}
       onClick={() => {
         open({ view: "Account" });
       }}
-      showWalletIcons
+      showWalletIcons={false}
     />
   );
 }

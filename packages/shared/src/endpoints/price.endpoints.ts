@@ -1,13 +1,16 @@
-import { EvmToken } from "../tokens";
+import { AssetHubToken, EvmToken, FiatToken, OnChainToken } from "../tokens";
+import { isOnChainToken } from "../tokens/utils/typeGuards";
 import { RampDirection } from "../types";
 
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
 export const VALID_PROVIDERS = ["alchemypay", "moonpay", "transak"] as const;
-export const VALID_CRYPTO_CURRENCIES = Object.values(EvmToken);
-export const VALID_FIAT_CURRENCIES = ["eur", "ars", "brl"] as const;
+
+export const VALID_CRYPTO_CURRENCIES = [...Object.values(EvmToken), ...Object.values(AssetHubToken)] as const;
+
+export const VALID_FIAT_CURRENCIES = Object.values(FiatToken);
 
 export type PriceProvider = (typeof VALID_PROVIDERS)[number];
-export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
+export type CryptoCurrency = OnChainToken;
 export type FiatCurrency = (typeof VALID_FIAT_CURRENCIES)[number];
 export type Currency = CryptoCurrency | FiatCurrency;
 
@@ -15,11 +18,17 @@ export type Currency = CryptoCurrency | FiatCurrency;
 export const isValidPriceProvider = (value: unknown): value is PriceProvider =>
   typeof value === "string" && VALID_PROVIDERS.includes(value.toLowerCase() as PriceProvider);
 
-export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =>
-  typeof value === "string" && VALID_CRYPTO_CURRENCIES.includes(value.toLowerCase() as CryptoCurrency);
+export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency => {
+  if (typeof value !== "string") return false;
+  return isOnChainToken(value);
+};
 
-export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
-  typeof value === "string" && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
+export const isValidFiatCurrency = (value: unknown): value is FiatCurrency => {
+  if (typeof value !== "string") return false;
+
+  const normalizedValue = value.toUpperCase();
+  return VALID_FIAT_CURRENCIES.includes(normalizedValue as FiatCurrency);
+};
 
 export interface PriceRequest {
   provider: PriceProvider;

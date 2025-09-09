@@ -35,6 +35,7 @@ async function pollTransactionStatus(id: string, sessionParams: IAnchorSessionPa
   }
 
   do {
+    console.log(`Polling SEP-24 transaction status for ID: ${id}`);
     await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
     status = await fetchTransactionStatus(id, token, tomlValues.sep24Url);
   } while (status.status !== "pending_user_transfer_start");
@@ -44,13 +45,13 @@ async function pollTransactionStatus(id: string, sessionParams: IAnchorSessionPa
 
 export async function sep24Second(sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams): Promise<SepResult> {
   if (config.test.mockSep24) {
-    // sleep 10 secs
+    //TODO testing sleep 10 secs
     await new Promise(resolve => setTimeout(resolve, 10000));
     return {
       amount: sessionParams.offrampAmount,
       memo: "MYK1722323689",
       memoType: "text",
-      offrampingAccount: (await fetchSigningServiceAccountId()).stellar.public
+      offrampingAccount: "GBKGDLVV53YX36A32TGOGUJJPVFLL2FXBIALATAOYSQBNKLRDSNDEP3Y"
     };
   }
 

@@ -94,7 +94,7 @@
           "tooOld": "Invalid company start date"
         },
         "state": {
-          "minLength": "State must be at least 3 characters",
+          "minLength": "State must be at least 2 characters",
           "required": "State is required"
         },
         "street": {
@@ -127,7 +127,8 @@
       "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
       "disclaimerOnramp": "CPF must belong to <1>you</1>.",
       "pixKey": "Pix key",
-      "placeholder": "Enter your {{label}}"
+      "placeholder": "Enter your {{label}}",
+      "walletAddress": "Wallet Address"
     },
     "dialogs": {
       "connectWallet": {
@@ -147,41 +148,8 @@
         "description": "Please approve {selectedWallet} and approve the transaction.",
         "title": "Connecting wallet"
       },
-      "RampSummaryDialog": {
-        "BRLOnrampDetails": {
-          "copyCode": "or copy the PIX code below and paste it in your bank app",
-          "pixCode": "Pix code",
-          "qrCode": "Select Pix in your bank's app and scan the QR code below.",
-          "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
-          "timerLabel": "Quote expires in:",
-          "title": "Pay with Pix"
-        },
-        "confirm": "Confirm",
-        "continue": "Continue",
-        "continueOnPartnersPage": "Continue on Partner's page",
-        "continueWithPartner": "Continue with Partner",
-        "destination": "Destination Account",
-        "EUROnrampDetails": {
-          "amount": "Amount",
-          "bic": "BIC",
-          "footer": "Please ensure the amount is exact.",
-          "hint": "Scan this QR code in your banking app to start the payment instantly.",
-          "iban": "IBAN",
-          "title": "Do an instant bank transfer with the following details"
-        },
-        "headerText": {
-          "buy": "Payment Summary",
-          "sell": "Payment Summary"
-        },
-        "offrampFee": "Total fee",
-        "onrampFee": "Total fee",
-        "partner": "Partner",
-        "processing": "Processing",
-        "quote": "Quote",
-        "quoteExpired": "Quote expired. Please close the dialog and try again.",
-        "tryAgain": "Try again"
-      },
       "selectionModal": {
+        "allNetworks": "All Networks",
         "searchPlaceholder": "Find by name or address",
         "title": "Select a token"
       }
@@ -247,10 +215,62 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumRedirect": {
+      "cancel": "Cancel",
+      "description": "You have been redirected to our partner...",
+      "goToPartner": "Go to partner"
+    },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Book demo",
       "community": "Community",
+      "docs": "Docs",
       "howItWorks": "How it works",
-      "sellCrypto": "Sell Crypto"
+      "sellCrypto": "Sell Crypto",
+      "solutions": "Solutions",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "vortexLogo": "Vortex Logo",
+      "widget": "Widget"
+    },
+    "quoteSubmitButton": {
+      "buy": "Buy",
+      "sell": "Sell"
+    },
+    "RampSummaryCard": {
+      "BRLOnrampDetails": {
+        "copyCode": "or copy the PIX code below and paste it in your bank app",
+        "pixCode": "Pix code",
+        "qrCode": "Select Pix in your bank's app and scan the QR code below.",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "timerLabel": "Quote expires in:",
+        "title": "Pay with Pix"
+      },
+      "confirm": "Confirm",
+      "continue": "Continue",
+      "continueOnPartnersPage": "Continue on Partner's page",
+      "continueWithPartner": "Continue with Partner",
+      "destination": "Destination Account",
+      "EUROnrampDetails": {
+        "amount": "Amount",
+        "bic": "BIC",
+        "footer": "Please ensure the amount is exact.",
+        "hint": "Scan this QR code in your banking app to start the payment instantly.",
+        "iban": "IBAN",
+        "title": "Do an instant bank transfer with the following details"
+      },
+      "headerText": {
+        "buy": "Payment Summary",
+        "sell": "Payment Summary"
+      },
+      "next": "Next",
+      "offrampFee": "Total fee",
+      "onrampFee": "Total fee",
+      "partner": "Partner",
+      "processing": "Processing",
+      "quote": "Quote",
+      "quoteExpired": "Quote expired. Go back and try again.",
+      "signIn": "Sign in",
+      "tryAgain": "Try again"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",
@@ -266,6 +286,11 @@
       "signatures": "Signatures",
       "waitingForSignature": "Waiting for signature",
       "yourConnectedWallet": "your connected wallet to proceed"
+    },
+    "stepper": {
+      "confirm": "confirm",
+      "details": "Details",
+      "verification": "Verification"
     },
     "swap": {
       "buyButton": "Buy",
@@ -351,6 +376,11 @@
       "tapToReset": "",
       "title": "Transaction Interrupted"
     },
+    "main": {
+      "hero": {
+        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+      }
+    },
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
@@ -422,6 +452,14 @@
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
         "tryLargerAmount": "Input amount too low. Please try a larger amount."
+      }
+    },
+    "widget": {
+      "details": {
+        "buttons": {
+          "next": "Next"
+        },
+        "title": "Enter Details"
       }
     }
   },

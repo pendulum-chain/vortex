@@ -29,7 +29,8 @@ export const signSep10Challenge = async (
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
-  const outToken = fiatToken === "eur" ? "eurc" : fiatToken;
+  // TODO improve this mapping. Use at least the TOKEN_CONFIG key, not just the "EURC" string.
+  const outToken = fiatToken === FiatToken.EURC ? "EURC" : fiatToken;
 
   const outTokenConfig = getOutToken(outToken);
   const { signingKey: anchorSigningKey } = (await fetchTomlValues(outTokenConfig.tomlFileUrl)) as TomlValues;

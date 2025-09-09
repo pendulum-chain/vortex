@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
 import { useCallback, useEffect } from "react";
 
-import { useCircularProgressAnimation } from "../../hooks/ramp/quote-refresh/useCircularProgressAnimation";
-import { useQuoteRefreshData } from "../../hooks/ramp/quote-refresh/useQuoteRefreshData";
-import { useRefreshTimer } from "../../hooks/ramp/quote-refresh/useRefreshTimer";
+import { useCircularProgressAnimation } from "../../hooks/quote/quote-refresh/useCircularProgressAnimation";
+import { useQuoteRefreshData } from "../../hooks/quote/quote-refresh/useQuoteRefreshData";
+import { useRefreshTimer } from "../../hooks/quote/quote-refresh/useRefreshTimer";
 
 export function QuoteRefreshProgress() {
   const radius = 12;

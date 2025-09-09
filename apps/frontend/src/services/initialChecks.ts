@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,15 +16,13 @@ function useRampAmountWithinAllowedLimits() {
     async (amountUnits: string, taxId: string): Promise<boolean> => {
       try {
         const subaccount = await BrlaService.getUser(taxId);
-        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-        if (subaccount.kycLevel < 2) {
+        // This check passes if subaccount is not created, or if identity status is not confirmed
+        if (subaccount.identityStatus !== "CONFIRMED") {
           return true;
         }
 
-        const remainingLimitInUnits =
-          rampDirection === RampDirection.SELL
-            ? remainingLimitResponse.remainingLimitOfframp
-            : remainingLimitResponse.remainingLimitOnramp;
+        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
+        const remainingLimitInUnits = remainingLimitResponse.remainingLimit;
 
         const amountNum = Number(amountUnits);
         const remainingLimitNum = Number(remainingLimitInUnits);
@@ -53,7 +51,7 @@ export function usePreRampCheck() {
   return useCallback(
     async (executionInput: RampExecutionInput) => {
       // For BRL ramps, check if the user is within the limits
-      if (executionInput.fiatToken === "brl") {
+      if (executionInput.fiatToken === FiatToken.BRL) {
         if (!executionInput.taxId) {
           throw new Error("Tax ID is required for BRL transactions.");
         }

@@ -180,7 +180,6 @@ function calculateFinalExchangeRate(
 export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promise<NablaSwapResult> {
   const { inputAmountForSwap, inputCurrency, nablaOutputCurrency, rampType, fromPolkadotDestination, toPolkadotDestination } =
     request;
-
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
@@ -211,7 +210,6 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
         status: httpStatus.BAD_REQUEST
       });
     }
-
     // Perform the Nabla swap
     const swapResult = await getNablaSwapOutAmount(
       pendulumApi,
@@ -219,7 +217,6 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
       inputTokenPendulumDetails,
       outputTokenPendulumDetails
     );
-
     return {
       effectiveExchangeRate: swapResult.effectiveExchangeRate,
       nablaOutputAmountDecimal: swapResult.preciseQuotedAmountOut.preciseBigDecimal,

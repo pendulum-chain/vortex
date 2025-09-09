@@ -7,7 +7,8 @@ import { Field, FieldProps } from "../../Field";
 
 export enum StandardBrlaFieldOptions {
   TAX_ID = "taxId",
-  PIX_ID = "pixId"
+  PIX_ID = "pixId",
+  WALLET_ADDRESS = "walletAddress"
 }
 
 export enum ExtendedBrlaFieldOptions {
@@ -41,6 +42,7 @@ export interface BrlaFieldProps extends FieldProps {
     value: RegExp;
     message: string;
   };
+  options?: string[];
 }
 
 export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {

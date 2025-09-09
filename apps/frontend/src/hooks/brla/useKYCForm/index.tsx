@@ -1,11 +1,12 @@
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
-import { useRampFormStore, useRampFormStoreActions } from "../../../stores/ramp/useRampFormStore";
-import { useRampStore } from "../../../stores/rampStore";
+import { useRampActor } from "../../../contexts/rampState";
+import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
 export interface UseKYCFormProps {
@@ -29,10 +30,6 @@ const createKycFormSchema = (t: (key: string) => string) =>
           return isValidCpf(value) || isValidCnpj(value);
         }),
       [ExtendedBrlaFieldOptions.PIX_ID]: yup.string().required(t("components.brlaExtendedForm.validation.pixId.required")),
-      [ExtendedBrlaFieldOptions.PHONE]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.phone.required"))
-        .matches(/^\+?[1-9]\d{9,14}$/, t("components.brlaExtendedForm.validation.phone.format")),
 
       [ExtendedBrlaFieldOptions.FULL_NAME]: yup
         .string()
@@ -53,7 +50,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
       [ExtendedBrlaFieldOptions.STATE]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.state.required"))
-        .min(3, t("components.brlaExtendedForm.validation.state.minLength")),
+        .min(2, t("components.brlaExtendedForm.validation.state.minLength")),
 
       [ExtendedBrlaFieldOptions.STREET]: yup
         .string()
@@ -61,11 +58,6 @@ const createKycFormSchema = (t: (key: string) => string) =>
         .min(5, t("components.brlaExtendedForm.validation.street.minLength")),
 
       [ExtendedBrlaFieldOptions.NUMBER]: yup.string().required(t("components.brlaExtendedForm.validation.number.required")),
-
-      [ExtendedBrlaFieldOptions.DISTRICT]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.district.required"))
-        .min(3, t("components.brlaExtendedForm.validation.district.minLength")),
 
       [ExtendedBrlaFieldOptions.BIRTHDATE]: yup
         .date()
@@ -90,7 +82,11 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
       [ExtendedBrlaFieldOptions.PARTNER_CPF]: yup
         .string()
-        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format"))
+        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format")),
+      [ExtendedBrlaFieldOptions.EMAIL]: yup
+        .string()
+        .email(t("components.brlaExtendedForm.validation.email.format"))
+        .required(t("components.brlaExtendedForm.validation.email.required"))
     })
     .required();
 
@@ -98,12 +94,13 @@ export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
 export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
-  const { taxId: taxIdFromStore, pixId: pixIdFromStore } = useRampFormStore();
-  const {
-    rampExecutionInput: executionInput,
-    actions: { setRampExecutionInput }
-  } = useRampStore();
-  const { setTaxId, setPixId } = useRampFormStoreActions();
+  const taxIdFromStore = useTaxId();
+  const pixIdFromStore = usePixId();
+  const rampActor = useRampActor();
+  const { executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput
+  }));
+  const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
 
@@ -123,16 +120,14 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   useEffect(() => {
     if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
       setTaxId(watchedCpf);
-      if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
     }
-  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, setRampExecutionInput]);
+  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, rampActor]);
 
   useEffect(() => {
     if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
       setPixId(watchedPixId);
-      if (executionInput) setRampExecutionInput({ ...executionInput, pixId: watchedPixId });
     }
-  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, setRampExecutionInput]);
+  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, rampActor]);
 
   useEffect(() => {
     if (cpfApiError) {

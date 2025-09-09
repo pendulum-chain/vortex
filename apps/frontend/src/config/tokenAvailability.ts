@@ -1,5 +1,5 @@
 import { FiatToken } from "@packages/shared";
-import { DEFAULT_FIAT_TOKEN } from "../stores/ramp/useRampFormStore";
+import { DEFAULT_FIAT_TOKEN } from "../stores/quote/useQuoteFormStore";
 
 export interface TokenAvailabilityConfig {
   enabled: boolean;

@@ -20,5 +20,6 @@ export * from "./types/moonbeam";
 export * from "./types/pendulum";
 export * from "./types/stellar";
 export * from "./utils/helpers";
+export * from "./utils/normalization";
 // Utils
 export * from "./utils/typeGuards";
