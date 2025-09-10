@@ -1,10 +1,9 @@
 import { RampDirection } from "@packages/shared";
 import { motion } from "motion/react";
+import { MenuButtons } from "../../components/MenuButtons";
 import { PoweredBy } from "../../components/PoweredBy";
 import { Offramp } from "../../components/Ramp/Offramp";
 import { Onramp } from "../../components/Ramp/Onramp";
-import { RampHistory } from "../../components/RampHistory";
-import { RampHistoryButton } from "../../components/RampHistory/RampHistoryButton";
 import { RampToggle } from "../../components/RampToggle";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
@@ -23,7 +22,7 @@ export const QuoteForm = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.3 }}
       >
-        <RampHistory />
+        <MenuButtons />
         <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
         {activeSwapDirection === RampDirection.BUY ? <Onramp /> : <Offramp />}
         <div className="mb-16" />

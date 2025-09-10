@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
-import { CardHeader } from "../../components/CardHeader";
+import { MenuButtons } from "../../components/MenuButtons";
 import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
@@ -92,7 +92,12 @@ export const WidgetCards = () => {
       ) : (
         <FormProvider {...form}>
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
-            <CardHeader title={t("pages.widget.details.title")} />
+            <div className="flex items-center justify-between">
+              <div className="flex-1 text-center">
+                <h1 className="font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
+              </div>
+              <MenuButtons />
+            </div>
             <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
             {signingBoxVisible && (
               <div className="mx-auto mt-6 max-w-[320px]">
