@@ -5,12 +5,13 @@ import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { CardHeader } from "../../components/CardHeader";
 import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
 import { RampSummaryCard } from "../../components/RampSummaryCard";
 import { SigningBoxButton, SigningBoxContent } from "../../components/SigningBox/SigningBoxContent";
-import { useAveniaKycActor, useMoneriumKycActor, useRampActor, useRampStateSelector } from "../../contexts/rampState";
+import { useAveniaKycActor, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
@@ -78,7 +79,7 @@ export const WidgetCards = () => {
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-6 mt-8 mb-4 flex min-h-[480px] flex-col rounded-lg px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
+      className="relative mx-6 mt-8 mb-4 flex min-h-[620px] flex-col overflow-hidden rounded-lg px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
@@ -91,7 +92,7 @@ export const WidgetCards = () => {
       ) : (
         <FormProvider {...form}>
           <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
-            <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
+            <CardHeader title={t("pages.widget.details.title")} />
             <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>
             {signingBoxVisible && (
               <div className="mx-auto mt-6 max-w-[320px]">
