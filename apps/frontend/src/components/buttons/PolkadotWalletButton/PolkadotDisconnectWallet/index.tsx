@@ -48,7 +48,7 @@ export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { va
   return (
     <div className="dropdown dropdown-bottom" role="listbox">
       <label tabIndex={0}>
-        <BaseWalletButton address={addressForNetwork} showWalletIcons variant={variant} />
+        <BaseWalletButton address={addressForNetwork} variant={variant} />
       </label>
       <WalletDropdownMenu address={addressForNetwork} removeWalletAccount={removeWalletAccount} walletAccount={walletAccount} />
     </div>

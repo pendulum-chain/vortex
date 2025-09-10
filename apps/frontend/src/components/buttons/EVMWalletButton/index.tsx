@@ -64,7 +64,6 @@ export function EVMWalletButton({
       onClick={() => {
         open({ view: "Account" });
       }}
-      showWalletIcons={false}
       variant={variant}
     />
   );
