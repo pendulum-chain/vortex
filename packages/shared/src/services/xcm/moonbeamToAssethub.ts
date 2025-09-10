@@ -63,12 +63,10 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
           {
             fun: { Fungible: rawAmount },
             id: {
-              Concrete: {
-                interior: {
-                  X2: [{ PalletInstance: 110 }, { AccountKey20: { key: assetAccountKey, network: undefined } }]
-                },
-                parents: 0
-              }
+              interior: {
+                X2: [{ PalletInstance: 110 }, { AccountKey20: { key: assetAccountKey, network: undefined } }]
+              },
+              parents: 0
             }
           }
         ]
@@ -95,16 +93,14 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                 fees: {
                   fun: { Fungible: hydrationFeeAmount },
                   id: {
-                    Concrete: {
-                      interior: {
-                        X3: [
-                          { Parachain: 1000 }, // AssetHub
-                          { PalletInstance: 50 },
-                          { GeneralIndex: 1984 } // USDT
-                        ]
-                      },
-                      parents: 1
-                    }
+                    interior: {
+                      X3: [
+                        { Parachain: 1000 }, // AssetHub
+                        { PalletInstance: 50 },
+                        { GeneralIndex: 1984 } // USDT
+                      ]
+                    },
+                    parents: 1
                   }
                 },
                 weightLimit: "Unlimited"
@@ -122,10 +118,8 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                   {
                     fun: { Fungible: minDotAmountOut },
                     id: {
-                      Concrete: {
-                        interior: "Here",
-                        parents: 1 // DOT on Hydration
-                      }
+                      interior: "Here",
+                      parents: 1 // DOT on Hydration
                     }
                   }
                 ]
@@ -138,10 +132,8 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                     AllOf: {
                       fun: "Fungible",
                       id: {
-                        Concrete: {
-                          interior: "Here",
-                          parents: 1
-                        }
+                        interior: "Here",
+                        parents: 1
                       }
                     }
                   }
@@ -156,10 +148,8 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                       fees: {
                         fun: { Fungible: assetHubFeeAmount },
                         id: {
-                          Concrete: {
-                            interior: "Here",
-                            parents: 1 // DOT on AssetHub
-                          }
+                          interior: "Here",
+                          parents: 1 // DOT on AssetHub
                         }
                       },
                       weightLimit: "Unlimited"
@@ -172,10 +162,8 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                           AllOf: {
                             fun: "Fungible",
                             id: {
-                              Concrete: {
-                                interior: "Here",
-                                parents: 1
-                              }
+                              interior: "Here",
+                              parents: 1
                             }
                           }
                         }
@@ -204,7 +192,7 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
     ]
   };
 
-  const maxWeight = { proofSize: "222222", refTime: "22000000000" };
+  const maxWeight = { proofSize: "2222220", refTime: "220000000000" };
 
   return moonbeamNode.api.tx.polkadotXcm.execute(xcmMessage, maxWeight);
 }
