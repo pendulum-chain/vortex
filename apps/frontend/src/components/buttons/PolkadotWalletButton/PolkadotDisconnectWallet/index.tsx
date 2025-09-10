@@ -20,7 +20,7 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
   const { t } = useTranslation();
 
   return (
-    <ul className="dropdown-content menu right-0 mt-2 min-w-[240px] rounded-2xl border border-base-300 bg-base-200 p-3 text-center shadow-lg">
+    <ul className="dropdown-content menu left-0 mt-2 min-w-[240px] rounded-2xl border border-base-300 bg-base-200 p-3 text-center shadow-lg">
       <li className="text-neutral-400 text-sm">{walletAccount?.name}</li>
       <li className="mt-2 text-neutral-500">
         <CopyablePublicKey inline={true} publicKey={address} variant="short" />
