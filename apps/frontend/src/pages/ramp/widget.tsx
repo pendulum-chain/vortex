@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
 import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { DetailsDescription } from "../../components/DetailsDescription";
 import { MenuButtons } from "../../components/MenuButtons";
 import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
@@ -29,8 +30,16 @@ function BrazilDetails() {
 
 function EuroDetails() {
   return (
-    <div className="mx-auto flex h-full w-full flex-col justify-center">
-      <ConnectWalletButton customStyles="w-full btn-vortex-secondary rounded-xl" hideIcon={true} />
+    <div className="mx-auto flex h-full w-full flex-col justify-center gap-4">
+      <DetailsDescription />
+
+      {true ? (
+        <div className="flex flex-col gap-4">
+          <ConnectWalletButton customStyles="w-full btn-vortex-secondary rounded-xl" hideIcon={false} />
+        </div>
+      ) : (
+        <ConnectWalletButton customStyles="w-full btn-vortex-primary rounded-xl" hideIcon={true} />
+      )}
     </div>
   );
 }
