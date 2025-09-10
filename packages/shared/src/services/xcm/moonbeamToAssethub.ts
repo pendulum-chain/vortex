@@ -40,6 +40,11 @@ export async function createMoonbeamToAssethubTransfer(
   return xcm;
 }
 
+/// This function creates an XCM transfer from Moonbeam to AssetHub via Hydration with an asset swap on Hydration.
+/// It withdraws the specified asset from Moonbeam, sends it to Hydration, swaps it for DOT, and then forwards the DOT to AssetHub.
+/// Finally, it deposits the DOT into the receiver's account on AssetHub.
+/// Note: Fee amounts and minimum output amounts are hardcoded for demonstration purposes and should be made configurable.
+/// **WARNING**: The resulting XCM transaction does not work because Moonbeam does not allow polkadotXcm::execute calls, see [here](https://github.com/moonbeam-foundation/moonbeam/blob/d4afe3ef43edc1e2c25e478eb14c0a266f1c5f77/runtime/moonbeam/src/xcm_config.rs#L358)
 export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
   receiverAddress: string,
   rawAmount: string,
@@ -52,9 +57,9 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
   const receiverAccountHex = u8aToHex(decodeAddress(receiverAddress));
 
   // TODO: Make fee amounts and minAmountOut configurable
-  const hydrationFeeAmount = "100000";
-  const assetHubFeeAmount = "500000000";
-  const minDotAmountOut = "1000000000";
+  const hydrationFeeAmount = "500000"; // 0.5 USDT
+  const assetHubFeeAmount = "900000000"; // 0.09 DOT
+  const minDotAmountOut = "1000000000"; // 0.1 DOT
 
   const xcmMessage = {
     V4: [
@@ -95,9 +100,9 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
                   id: {
                     interior: {
                       X3: [
-                        { Parachain: 1000 }, // AssetHub
-                        { PalletInstance: 50 },
-                        { GeneralIndex: 1984 } // USDT
+                        { Parachain: 2004 },
+                        { PalletInstance: 110 },
+                        { AccountKey20: { key: assetAccountKey, network: undefined } }
                       ]
                     },
                     parents: 1
