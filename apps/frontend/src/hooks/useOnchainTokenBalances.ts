@@ -67,8 +67,17 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
   }, []);
 
   useEffect(() => {
-    if (!nativeToken || !substrateAddress || !assetHubNode || selectedNetwork !== "assethub") {
+    if (!nativeToken || selectedNetwork !== "assethub") {
       setNativeBalance(null);
+      return;
+    }
+
+    // If we don't have a substrate address or node connection, still show the token with zero balance
+    if (!substrateAddress || !assetHubNode) {
+      setNativeBalance({
+        ...nativeToken,
+        balance: "0.0000"
+      });
       return;
     }
 
@@ -93,7 +102,10 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
         });
       } catch (error) {
         console.error("Error fetching AssetHub native balance:", error);
-        setNativeBalance(null);
+        setNativeBalance({
+          ...nativeToken,
+          balance: "0.0000"
+        });
       }
     };
 
@@ -167,7 +179,19 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
   useEffect(() => {
-    if (!substrateAddress || !assetHubNode) return;
+    // If there are no tokens to process, return early
+    if (tokens.length === 0) return;
+
+    // If substrate wallet is not connected or node is not available,
+    // still show the tokens with zero balances
+    if (!substrateAddress || !assetHubNode) {
+      const tokensWithZeroBalances = tokens.map(token => ({
+        ...token,
+        balance: "0.00"
+      }));
+      setBalances(tokensWithZeroBalances);
+      return;
+    }
 
     const getBalances = async () => {
       const { api } = assetHubNode;

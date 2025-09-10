@@ -68,5 +68,17 @@ export const useTokensSortedByBalance = (
     }));
   }, [sortedTokensWithBalances]);
 
-  return sortedTokenDefinitions as ExtendedTokenDefinition[];
+  // Filter the sorted token definitions to match the original tokenDefinitions networks
+  const filteredSortedTokenDefinitions = useMemo(() => {
+    if (isExtendedTokenDefinitionArray(tokenDefinitions)) {
+      // Create a set of unique network-token combinations from the original tokenDefinitions
+      const allowedNetworkTokens = new Set(tokenDefinitions.map(token => `${token.network}-${token.assetSymbol}`));
+
+      // Only include tokens that were in the original list
+      return sortedTokenDefinitions.filter(token => allowedNetworkTokens.has(`${token.network}-${token.assetSymbol}`));
+    }
+    return sortedTokenDefinitions;
+  }, [sortedTokenDefinitions, tokenDefinitions]);
+
+  return filteredSortedTokenDefinitions as ExtendedTokenDefinition[];
 };
