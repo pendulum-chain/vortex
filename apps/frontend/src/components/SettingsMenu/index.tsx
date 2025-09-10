@@ -1,10 +1,8 @@
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useSettingsMenuActions, useSettingsMenuState } from "../../stores/settingsMenuStore";
-
 import { LanguageSelector } from "../LanguageSelector";
-import { PageHeader } from "../PageHeader";
+import { Menu, MenuAnimationDirection } from "../Menu";
 
 interface MenuItemProps {
   label: string;
@@ -38,8 +36,6 @@ export const SettingsMenu = () => {
   const isOpen = useSettingsMenuState();
   const { closeMenu } = useSettingsMenuActions();
 
-  useEscapeKey(isOpen, closeMenu);
-
   const handleExternalLink = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
     closeMenu();
@@ -60,35 +56,25 @@ export const SettingsMenu = () => {
     }
   ];
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.section
-          animate={{ y: 0 }}
-          className="absolute top-0 right-0 bottom-0 left-0 z-40 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
-          exit={{ y: "-100%" }}
-          initial={{ y: "-100%" }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="no-scrollbar flex-1 overflow-y-auto">
-            <PageHeader onClose={closeMenu} title="Settings" />
-            <hr />
-            <div className="space-y-2 pt-4">
-              <div className="space-y-1">
-                {menuItems.map((item, index) => (
-                  <MenuItem key={index} label={item.label} onClick={item.onClick} />
-                ))}
-              </div>
+  const renderContent = () => (
+    <div className="space-y-2 pt-4">
+      <div className="space-y-1">
+        {menuItems.map((item, index) => (
+          <MenuItem key={index} label={item.label} onClick={item.onClick} />
+        ))}
+      </div>
 
-              <div className="mt-6 border-gray-200 border-t pt-4">
-                <div className="flex justify-center">
-                  <LanguageSelector />
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-      )}
-    </AnimatePresence>
+      <div className="mt-6 border-gray-200 border-t pt-4">
+        <div className="flex justify-center">
+          <LanguageSelector />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <Menu animationDirection={MenuAnimationDirection.TOP} isOpen={isOpen} onClose={closeMenu} title="Settings">
+      {renderContent()}
+    </Menu>
   );
 };
