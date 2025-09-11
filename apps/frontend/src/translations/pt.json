@@ -236,7 +236,12 @@
       "buy": "Comprar",
       "sell": "Vender"
     },
-    "RampSummaryCard": {
+    "rating": {
+      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
+      "thankYou": "Obrigado!",
+      "title": "Sua opinião é importante!"
+    },
+    "SummaryPage": {
       "BRLOnrampDetails": {
         "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
         "pixCode": "Código PIX",
@@ -268,11 +273,6 @@
       "quote": "Cotação",
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
       "tryAgain": "Tentar novamente"
-    },
-    "rating": {
-      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
-      "thankYou": "Obrigado!",
-      "title": "Sua opinião é importante!"
     },
     "searchInput": {
       "placeholder": "Pesquisar"

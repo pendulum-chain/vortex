@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useSettingsMenuActions, useSettingsMenuState } from "../../stores/settingsMenuStore";
 import { LanguageSelector } from "../LanguageSelector";
@@ -15,19 +14,17 @@ const MenuItem = ({ label, onClick, icon, disabled }: MenuItemProps) => {
   const { t } = useTranslation();
 
   return (
-    <motion.button
+    <button
       className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition-colors ${
         disabled ? "cursor-not-allowed text-gray-400" : "text-gray-700 hover:bg-gray-100"
       }`}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
-      whileHover={disabled ? {} : { scale: 1.02 }}
-      whileTap={disabled ? {} : { scale: 0.98 }}
     >
       {icon && <span className={disabled ? "text-gray-300" : "text-gray-500"}>{icon}</span>}
       <span className="font-medium text-sm">{label}</span>
       {disabled && <span className="ml-auto text-gray-400 text-xs">{t("Connect wallet")}</span>}
-    </motion.button>
+    </button>
   );
 };
 
@@ -73,7 +70,7 @@ export const SettingsMenu = () => {
   );
 
   return (
-    <Menu animationDirection={MenuAnimationDirection.TOP} isOpen={isOpen} onClose={closeMenu} title="Settings">
+    <Menu animationDirection={MenuAnimationDirection.RIGHT} isOpen={isOpen} onClose={closeMenu} title="Settings">
       {renderContent()}
     </Menu>
   );

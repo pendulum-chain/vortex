@@ -5,7 +5,7 @@ export const getWalletButtonStyles = (variant: WalletButtonVariant, customStyles
   const baseStyles = "btn group";
 
   const variantStyles = {
-    [WalletButtonVariant.Standard]: "btn-vortex-secondary rounded-3xl",
+    [WalletButtonVariant.Standard]: "btn-vortex-primary rounded-3xl",
     [WalletButtonVariant.Minimal]: "h-auto! border-gray-300! text-gray-600!"
   };
 

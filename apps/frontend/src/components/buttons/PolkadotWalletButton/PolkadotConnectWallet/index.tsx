@@ -28,7 +28,7 @@ export const PolkadotConnectWallet = ({
         variant={variant}
       >
         <p className="flex">
-          {t("components.dialogs.connectWallet.connect")} <span className="hidden lg:ml-1 lg:block">Wallet</span>
+          {t("components.dialogs.connectWallet.connect")} <span className="hidden sm:ml-1 sm:block">Wallet</span>
         </p>
       </BaseWalletButton>
       <PolkadotWalletSelectorDialog onClose={() => setShowPolkadotDialog(false)} visible={showPolkadotDialog} />

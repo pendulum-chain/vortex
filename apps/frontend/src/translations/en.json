@@ -130,6 +130,10 @@
       "placeholder": "Enter your {{label}}",
       "walletAddress": "Wallet Address"
     },
+    "detailsDescription": {
+      "connectWallet": "Connect your wallet to continue the process",
+      "signToConfirm": "Verify you are the owner of the wallet"
+    },
     "dialogs": {
       "connectWallet": {
         "connect": "Connect",
@@ -236,7 +240,12 @@
       "buy": "Buy",
       "sell": "Sell"
     },
-    "RampSummaryCard": {
+    "rating": {
+      "howWouldYouRateYourExperience": "How would you rate your experience?",
+      "thankYou": "Thank you!",
+      "title": "Your opinion matters!"
+    },
+    "SummaryPage": {
       "BRLOnrampDetails": {
         "copyCode": "or copy the PIX code below and paste it in your bank app",
         "pixCode": "Pix code",
@@ -269,13 +278,8 @@
       "processing": "Processing",
       "quote": "Quote",
       "quoteExpired": "Quote expired. Go back and try again.",
-      "signIn": "Sign in",
-      "tryAgain": "Try again"
-    },
-    "rating": {
-      "howWouldYouRateYourExperience": "How would you rate your experience?",
-      "thankYou": "Thank you!",
-      "title": "Your opinion matters!"
+      "tryAgain": "Try again",
+      "verifyWallet": "Verify Wallet"
     },
     "searchInput": {
       "placeholder": "Search"

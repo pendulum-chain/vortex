@@ -159,7 +159,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {targetTimestamp !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
-          {t("components.RampSummaryCard.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
+          {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>
       )}
     </div>

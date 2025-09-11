@@ -5,15 +5,16 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { BrlaSwapFields } from "../../components/BrlaComponents/BrlaSwapFields";
-import { ConnectWalletButton } from "../../components/buttons/ConnectWalletButton";
+import { ConnectWalletButton, WalletButtonVariant } from "../../components/buttons/ConnectWalletButton";
 import { DetailsDescription } from "../../components/DetailsDescription";
 import { MenuButtons } from "../../components/MenuButtons";
 import { MoneriumRedirectComponent } from "../../components/MoneriumComponents/MoneriumRedirectComponent";
 import { QuoteSummary } from "../../components/QuoteSummary";
 import { RampSubmitButton } from "../../components/RampSubmitButton/RampSubmitButton";
-import { RampSummaryCard } from "../../components/RampSummaryCard";
 import { SigningBoxButton, SigningBoxContent } from "../../components/SigningBox/SigningBoxContent";
+import { SummaryPage } from "../../components/SummaryPage";
 import { useAveniaKycActor, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
+import { cn } from "../../helpers/cn";
 import { useRampForm } from "../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../hooks/useSigningBoxState";
@@ -29,25 +30,21 @@ function BrazilDetails() {
   );
 }
 
-function EuroDetails() {
-  const { address } = useVortexAccount();
-  const isConnected = !!address;
+function ConnectWalletButtonWrapper() {
+  const { isConnected } = useVortexAccount();
 
   return (
-    <div className="mx-auto flex h-full w-full flex-col justify-center gap-4">
-      <DetailsDescription />
+    <div className={cn("mb-4 w-full ", isConnected && "mb-2")}>
       {isConnected ? (
-        <div className="flex flex-col gap-4">
-          <ConnectWalletButton customStyles="w-full btn-vortex-secondary rounded-xl" hideIcon={false} />
-        </div>
+        <ConnectWalletButton customStyles="w-full" variant={WalletButtonVariant.Minimal} />
       ) : (
-        <ConnectWalletButton customStyles="w-full btn-vortex-primary rounded-xl" hideIcon={true} />
+        <ConnectWalletButton customStyles="w-full" hideIcon />
       )}
     </div>
   );
 }
 
-function WidgetForm() {
+function DetailsPage() {
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
   const { address } = useVortexAccount();
@@ -69,6 +66,7 @@ function WidgetForm() {
       <form className="flex grow flex-col" onSubmit={form.handleSubmit(data => onRampConfirm(data))}>
         <WidgetFormHeader />
         <WidgetFormDetails isBrazilLanding={isBrazilLanding} />
+
         {signingBoxVisible && (
           <div className="mx-auto mt-6 max-w-[320px]">
             <SigningBoxContent progress={progress} />
@@ -88,17 +86,18 @@ function WidgetForm() {
 function WidgetFormHeader() {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex-1 text-center">
-        <h1 className="font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
-      </div>
+    <div>
       <MenuButtons />
+      <div className="mt-4 text-center">
+        <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
+        <DetailsDescription />
+      </div>
     </div>
   );
 }
 
 function WidgetFormDetails({ isBrazilLanding }: { isBrazilLanding: boolean }) {
-  return <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding ? <BrazilDetails /> : <EuroDetails />}</div>;
+  return <div className="mt-8 grid flex-grow gap-3">{isBrazilLanding && <BrazilDetails />}</div>;
 }
 
 function WidgetFormActions({
@@ -110,6 +109,8 @@ function WidgetFormActions({
   signatureState: { current: number; max: number };
   confirmations: { current: number; required: number };
 }) {
+  const { isConnected } = useVortexAccount();
+
   if (signingBoxVisible) {
     return (
       <div className="flex grow text-center">
@@ -117,7 +118,13 @@ function WidgetFormActions({
       </div>
     );
   }
-  return <RampSubmitButton className="mb-4" />;
+
+  return (
+    <>
+      <ConnectWalletButtonWrapper />
+      {isConnected && <RampSubmitButton className="mb-4" />}
+    </>
+  );
 }
 
 function WidgetFormQuoteSummary({ quote }: { quote: QuoteResponse | undefined }) {
@@ -162,11 +169,11 @@ function WidgetCardsContent() {
     return <MoneriumRedirectComponent />;
   }
   if (rampSummaryVisible) {
-    return <RampSummaryCard />;
+    return <SummaryPage />;
   }
   if (aveniaKycActor) {
     return <PIXKYCForm />;
   }
 
-  return <WidgetForm />;
+  return <DetailsPage />;
 }

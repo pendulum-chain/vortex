@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Skeleton } from "../../components/Skeleton";
-import { TokenSelectionList } from "../../components/TokenSelection/TokenSelectionList";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useTokenSelectionActions, useTokenSelectionState } from "../../stores/tokenSelectionStore";
+import { Skeleton } from "../Skeleton";
+import { TokenSelectionList } from "../TokenSelection/TokenSelectionList";
 
-export function TokenSelectionPage() {
+export function TokenSelectionMenu() {
   const { isOpen, isLoading } = useTokenSelectionState();
   const { closeTokenSelectModal } = useTokenSelectionActions();
   const content = isLoading ? <LoadingContent /> : <TokenSelectionList />;
