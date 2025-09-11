@@ -29,7 +29,7 @@ export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
         <p>{t("components.moneriumRedirect.description")}</p>
       </div>
       <div className="mb-4 grid grid-cols-2 gap-4">
-        <button className={cn("btn-vortex-danger btn w-full rounded-xl", className)} onClick={onCancelClick}>
+        <button className={cn("btn-vortex-secondary btn w-full rounded-xl", className)} onClick={onCancelClick}>
           {t("components.moneriumRedirect.cancel")}
         </button>
         <button
