@@ -21,18 +21,11 @@ export async function dryRunExtrinsic(
   const origin = { system: { Signed: accountId } };
   const resultXcmVersions = 4;
 
-  console.log("hex extrinsic", extrinsic.toHex());
-  console.log("hex extrinsic (bare)", extrinsic.toHex(true));
-
   // Remove the first 6 characters after the "0x" prefix which represent the length of the extrinsic.
-  // This is required because the dryRunCall expects the extrinsic without the length prefix for Moonbeam.
+  // This is required because the dryRunCall expects the extrinsic without the length prefix.
   const extrinsicHexWithoutLength = "0x" + extrinsic.toHex().slice(8);
-  console.log("hex extrinsic without length", extrinsicHexWithoutLength);
-
-  console.log("origin", origin);
 
   // The dryRunApi is a runtime call, so we use api.call.
-  // biome-ignore lint/suspicious/noExplicitAny: It might not be available on all chains, hence the `any` cast.
   const dryRunResult = await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength, resultXcmVersions);
 
   return dryRunResult;
