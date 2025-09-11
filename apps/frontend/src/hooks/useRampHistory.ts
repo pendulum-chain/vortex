@@ -2,7 +2,7 @@ import { GetRampHistoryTransaction } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 
-import { Transaction, TransactionDestination, TransactionStatus } from "../components/HistoryMenu/types";
+import { Transaction, TransactionDestination, TransactionStatus } from "../components/menus/HistoryMenu/types";
 import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import { RampService } from "../services/api/ramp.service";
 
