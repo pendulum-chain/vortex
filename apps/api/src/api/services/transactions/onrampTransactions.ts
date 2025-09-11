@@ -198,19 +198,17 @@ async function createSquidrouterTransactions(
     rawAmount: string;
     destinationAddress: string;
     account: AccountMeta;
+    moonbeamEphemeralAddress?: string;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  const { outputTokenDetails, toNetwork, rawAmount, destinationAddress, account } = params;
-
-  if (!isEvmTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
-  }
+  const { outputTokenDetails, toNetwork, rawAmount, moonbeamEphemeralAddress, destinationAddress, account } = params;
 
   const { approveData, swapData } = await createOnrampSquidrouterTransactions({
     addressDestination: destinationAddress,
     fromAddress: account.address,
+    moonbeamEphemeralAddress,
     moonbeamEphemeralStartingNonce: nextNonce,
     outputTokenDetails,
     rawAmount,
