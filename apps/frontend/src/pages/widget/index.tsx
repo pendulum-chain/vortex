@@ -1,9 +1,9 @@
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
-import { SummaryPage } from "../../components/SummaryPage";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
+import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 
@@ -47,7 +47,7 @@ const WidgetContent = () => {
   }
 
   if (rampSummaryVisible) {
-    return <SummaryPage />;
+    return <SummaryStep />;
   }
 
   if (aveniaKycActor) {
