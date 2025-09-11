@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { useSettingsMenuActions, useSettingsMenuState } from "../../stores/settingsMenuStore";
-import { LanguageSelector } from "../LanguageSelector";
+import { useSettingsMenuActions, useSettingsMenuState } from "../../../stores/settingsMenuStore";
+import { LanguageSelector } from "../../LanguageSelector";
 import { Menu, MenuAnimationDirection } from "../Menu";
 
 interface MenuItemProps {

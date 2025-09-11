@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ReactNode } from "react";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
-import { PageHeader } from "../PageHeader";
+import { useEscapeKey } from "../../../hooks/useEscapeKey";
+import { PageHeader } from "../../PageHeader";
 
 export enum MenuAnimationDirection {
   RIGHT = "RIGHT",

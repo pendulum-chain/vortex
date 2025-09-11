@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
-import { useTokenSelectionActions, useTokenSelectionState } from "../../stores/tokenSelectionStore";
-import { Skeleton } from "../Skeleton";
-import { TokenSelectionList } from "../TokenSelection/TokenSelectionList";
+import { useEscapeKey } from "../../../hooks/useEscapeKey";
+import { useTokenSelectionActions, useTokenSelectionState } from "../../../stores/tokenSelectionStore";
+import { Skeleton } from "../../Skeleton";
+import { TokenSelectionList } from "../../TokenSelection/TokenSelectionList";
 
 export function TokenSelectionMenu() {
   const { isOpen, isLoading } = useTokenSelectionState();

@@ -1,5 +1,5 @@
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { useRampHistoryStore } from "../../../stores/rampHistoryStore";
+import { useRampHistoryStore } from "../../../../stores/rampHistoryStore";
 import { HistoryMenu } from "..";
 
 export function HistoryMenuButton() {

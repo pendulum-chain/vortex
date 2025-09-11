@@ -2,8 +2,8 @@ import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@packages/shared";
 import Big from "big.js";
 import { FC } from "react";
-import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
-import { StatusBadge } from "../../StatusBadge";
+import { useGetAssetIcon } from "../../../../hooks/useGetAssetIcon";
+import { StatusBadge } from "../../../StatusBadge";
 import { Transaction } from "../types";
 
 interface TransactionItemProps {

@@ -1,5 +1,5 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { useSettingsMenuActions, useSettingsMenuState } from "../../../stores/settingsMenuStore";
+import { useSettingsMenuActions, useSettingsMenuState } from "../../../../stores/settingsMenuStore";
 import { SettingsMenu } from "..";
 
 export const SettingsButton = () => {

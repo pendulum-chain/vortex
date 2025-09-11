@@ -1,10 +1,10 @@
 import { RampDirection } from "@packages/shared";
 import { motion } from "motion/react";
+import { TokenSelectionMenu } from "../../components/menus/TokenSelectionMenu";
 import { PoweredBy } from "../../components/PoweredBy";
 import { Offramp } from "../../components/Ramp/Offramp";
 import { Onramp } from "../../components/Ramp/Onramp";
 import { RampToggle } from "../../components/RampToggle";
-import { TokenSelectionMenu } from "../../components/TokenSelectionMenu";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 

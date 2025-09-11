@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { useRampHistory } from "../../hooks/useRampHistory";
-import { useRampHistoryStore } from "../../stores/rampHistoryStore";
+import { useRampHistory } from "../../../hooks/useRampHistory";
+import { useRampHistoryStore } from "../../../stores/rampHistoryStore";
 import { Menu, MenuAnimationDirection } from "../Menu";
 import { groupRampHistoryByMonth } from "./helpers";
 import { TransactionItem } from "./TransactionItem";
