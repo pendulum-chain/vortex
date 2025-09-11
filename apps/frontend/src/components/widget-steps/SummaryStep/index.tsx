@@ -4,16 +4,16 @@ import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useRampActor } from "../../contexts/rampState";
-import { useGetRampRegistrationErrorMessage } from "../../hooks/offramp/useRampService/useRegisterRamp/helpers";
-import { useSigningBoxState } from "../../hooks/useSigningBoxState";
-import { useRampSummaryActions } from "../../stores/rampSummary";
-import { MenuButtons } from "../MenuButtons";
-import { RampSubmitButton } from "../RampSubmitButton/RampSubmitButton";
-import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
+import { useRampActor } from "../../../contexts/rampState";
+import { useGetRampRegistrationErrorMessage } from "../../../hooks/offramp/useRampService/useRegisterRamp/helpers";
+import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
+import { useRampSummaryActions } from "../../../stores/rampSummary";
+import { MenuButtons } from "../../MenuButtons";
+import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
+import { SigningBoxButton, SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
-export const SummaryPage: FC = () => {
+export const SummaryStep: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();

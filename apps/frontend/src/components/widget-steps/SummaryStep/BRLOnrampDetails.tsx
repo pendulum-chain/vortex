@@ -2,8 +2,8 @@ import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useRampActor } from "../../contexts/rampState";
-import { CopyButton } from "../CopyButton";
+import { useRampActor } from "../../../contexts/rampState";
+import { CopyButton } from "../../CopyButton";
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();

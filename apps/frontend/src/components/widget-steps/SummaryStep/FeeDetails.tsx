@@ -1,7 +1,7 @@
 import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, RampDirection } from "@packages/shared";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
-import { InterbankExchangeRate } from "../InterbankExchangeRate";
+import { InterbankExchangeRate } from "../../InterbankExchangeRate";
 
 interface FeeDetailsProps {
   feesCost: QuoteFeeStructure;
