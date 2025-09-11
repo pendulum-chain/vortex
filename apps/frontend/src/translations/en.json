@@ -26,6 +26,7 @@
         "city": "City",
         "companyName": "Company Name",
         "district": "District",
+        "email": "E-mail",
         "fullName": "Full Name",
         "number": "Number",
         "partnerCpf": "Partner CPF",
@@ -67,6 +68,10 @@
         "district": {
           "minLength": "District must be at least 3 characters",
           "required": "District is required"
+        },
+        "email": {
+          "format": "Invalid email format",
+          "required": "Email is required"
         },
         "fullName": {
           "format": "Name can only contain letters and spaces",
@@ -117,7 +122,8 @@
       "buttons": {
         "back": "Back",
         "compareFees": "Compare Fees",
-        "finish": "Finish"
+        "finish": "Finish",
+        "next": "Next"
       },
       "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
       "title": "Fast-Track Verification"
