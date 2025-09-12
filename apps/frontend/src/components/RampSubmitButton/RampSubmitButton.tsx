@@ -13,9 +13,8 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
-import { useVortexAccount } from "../../hooks/useVortexAccount";
-import { useFiatToken, useOnChainToken, useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
-import { useRampDirectionStore } from "../../stores/rampDirectionStore";
+import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -27,11 +26,11 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
-  const rampDirection = useRampDirectionStore(state => state.activeDirection);
 
-  const { rampState, rampPaymentConfirmed, machineState, isQuoteExpired } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
@@ -130,26 +129,35 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
         };
       }
     }
-
     return {
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, rampDirection, rampState, machineState, t, toToken, stellarData, rampPaymentConfirmed]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampDirection,
+    rampState,
+    machineState,
+    t,
+    toToken,
+    stellarData,
+    rampPaymentConfirmed
+  ]);
 };
 
 export const RampSubmitButton = ({ className }: { className?: string }) => {
   const rampActor = useRampActor();
+  const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
-  const { address } = useVortexAccount();
-  const { lastConstraintDirection: rampDirection } = useQuoteFormStore();
 
   const moneriumKycActor = useMoneriumKycActor();
 
-  const { rampState, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
+  const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
+    rampDirection: state.context.rampDirection,
     rampState: state.context.rampState
   }));
 
@@ -165,22 +173,28 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
-    if (isOfframp) {
-      if (!executionInput?.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
+    if (machineState === "QuoteReady" || machineState === "KycComplete") {
+      return false;
     }
 
     if (machineState === "RegisterRamp" || moneriumKycActor) {
       return true;
     }
 
+    // The button is enabled because we let the user click the button to get back
+    if (isQuoteExpired) return false;
+
+    if (!executionInput) return true;
+
+    if (isOfframp) {
+      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
+      if (stellarData?.stateValue !== "StartSep24") return true;
+      if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
+    }
+
     if (machineState === "UpdateRamp") {
       const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
       if (isOnramp && !isDepositQrCodeReady) return true;
-    }
-
-    // The button is enabled because we let the user click the button to get back
-    if (isQuoteExpired) {
-      return true;
     }
 
     return false;
@@ -203,13 +217,47 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   });
 
   const onSubmit = () => {
-    rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+    if (isQuoteExpired) {
+      // Reset the ramp state and go back to the home page
+      rampActor.send({ type: "RESET_RAMP" });
+      const cleanUrl = window.location.origin;
+      window.history.replaceState({}, "", cleanUrl);
+      return;
+    }
+
+    if (machineState === "QuoteReady") {
+      onRampConfirm();
+      return;
+    }
+
+    if (machineState === "KycComplete") {
+      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      return;
+    }
+
+    rampActor.send({ type: "SummaryConfirm" });
+
+    // For BRL offramps, set canRegisterRamp to true
+    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
+      //setCanRegisterRamp(true);
+    }
 
     if (isOnramp) {
       if (machineState === "UpdateRamp") {
         rampActor.send({ type: "PAYMENT_CONFIRMED" });
       }
     }
+
+    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
+      // If signing was rejected, we do not open the anchor URL again
+      // if (!signingRejected) {
+      //   window.open(anchorUrl, "_blank");
+      // }
+    }
+
+    // if (signingRejected) {
+    //   setSigningRejected(false);
+    // }
   };
 
   return (
