@@ -298,7 +298,7 @@
       "yourConnectedWallet": "your connected wallet to proceed"
     },
     "stepper": {
-      "confirm": "confirm",
+      "confirm": "Confirm",
       "details": "Details",
       "verification": "Verification"
     },
@@ -366,6 +366,20 @@
     "useTokenAmountOut": {
       "default": "Something went wrong",
       "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later."
+    }
+  },
+  "menus": {
+    "history": {
+      "noHistory": "Your ramp history will appear here.",
+      "title": "History"
+    },
+    "settings": {
+      "item": {
+        "imprint": "Imprint",
+        "support": "Support",
+        "termsAndConditions": "Terms & Conditions"
+      },
+      "title": "Settings"
     }
   },
   "pages": {

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useRampHistory } from "../../../hooks/useRampHistory";
 import { useRampHistoryStore } from "../../../stores/rampHistoryStore";
 import { Menu, MenuAnimationDirection } from "../Menu";
@@ -9,6 +10,8 @@ import { TransactionGroup } from "./types";
 export function HistoryMenu() {
   const { isActive, actions } = useRampHistoryStore();
   const { data, isLoading, refetch } = useRampHistory();
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isActive) {
@@ -30,7 +33,7 @@ export function HistoryMenu() {
     if (rampHistoryGroups.length === 0) {
       return (
         <div className="flex h-full items-center justify-center">
-          <p className="text-gray-500">Your ramp history will appear here.</p>
+          <p className="text-gray-500">{t("menus.history.noHistory")}</p>
         </div>
       );
     }
@@ -46,7 +49,12 @@ export function HistoryMenu() {
   };
 
   return (
-    <Menu animationDirection={MenuAnimationDirection.RIGHT} isOpen={isActive} onClose={actions.toggleHistory} title="History">
+    <Menu
+      animationDirection={MenuAnimationDirection.RIGHT}
+      isOpen={isActive}
+      onClose={actions.toggleHistory}
+      title={t("menus.history.title")}
+    >
       {renderContent()}
     </Menu>
   );

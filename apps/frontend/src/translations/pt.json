@@ -136,6 +136,10 @@
       "placeholder": "Digite seu {{label}}",
       "walletAddress": "Endereço da Carteira"
     },
+    "detailsDescription": {
+      "connectWallet": "Conecte sua carteira para continuar o processo",
+      "signToConfirm": "Verifique se você é o proprietário da carteira"
+    },
     "dialogs": {
       "connectWallet": {
         "connect": "Conectar",
@@ -363,6 +367,20 @@
       "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde."
     }
   },
+  "menus": {
+    "history": {
+      "noHistory": "Seu histórico de rampa aparecerá aqui.",
+      "title": "História"
+    },
+    "settings": {
+      "item": {
+        "imprint": "Imprimir",
+        "support": "Apoiar",
+        "termsAndConditions": "Termos e Condições"
+      },
+      "title": "Configurações"
+    }
+  },
   "pages": {
     "failure": {
       "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
@@ -457,6 +475,14 @@
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
         "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+      }
+    },
+    "widget": {
+      "details": {
+        "buttons": {
+          "next": "Próximo"
+        },
+        "title": "Insira os detalhes"
       }
     }
   },

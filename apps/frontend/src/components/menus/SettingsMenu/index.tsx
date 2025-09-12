@@ -41,15 +41,15 @@ export const SettingsMenu = () => {
 
   const menuItems = [
     {
-      label: t("Support"),
+      label: t("menus.settings.item.support"),
       onClick: () => handleExternalLink("https://forms.gle/3eqWZWzR8voMQwkY8")
     },
     {
-      label: t("Terms and Conditions"),
+      label: t("menus.settings.item.termsAndConditions"),
       onClick: () => handleExternalLink("https://www.vortexfinance.co/terms-conditions")
     },
     {
-      label: t("Imprint"),
+      label: t("menus.settings.item.imprint"),
       onClick: () => handleExternalLink("https://www.satoshipay.io/legal/imprint")
     }
   ];
@@ -71,7 +71,12 @@ export const SettingsMenu = () => {
   );
 
   return (
-    <Menu animationDirection={MenuAnimationDirection.RIGHT} isOpen={isOpen} onClose={closeMenu} title="Settings">
+    <Menu
+      animationDirection={MenuAnimationDirection.RIGHT}
+      isOpen={isOpen}
+      onClose={closeMenu}
+      title={t("menus.settings.title")}
+    >
       {renderContent()}
     </Menu>
   );

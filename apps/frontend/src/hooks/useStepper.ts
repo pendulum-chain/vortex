@@ -42,17 +42,17 @@ export const useStepper = () => {
       {
         Icon: DetailsIcon,
         status: secondStepActive || secondStepComplete ? "complete" : "active",
-        title: t("stepper.details", "Details")
+        title: t("components.stepper.details", "Details")
       },
       {
         Icon: VerificationIcon,
         status: secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
-        title: t("stepper.verification", "Verification")
+        title: t("components.stepper.verification", "Verification")
       },
       {
         Icon: ConfirmIcon,
         status: thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
-        title: t("stepper.confirm", "Confirm")
+        title: t("components.stepper.confirm", "Confirm")
       }
     ];
   }, [t, secondStepActive, secondStepComplete, thirdStepActive, thirdStepComplete]);
