@@ -2,23 +2,18 @@ import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
 import { FiatToken, RampDirection } from "@packages/shared";
 import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
 import { useSelector } from "@xstate/react";
-import Big from "big.js";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useNetwork } from "../../contexts/network";
-import { useRampActor } from "../../contexts/rampState";
-import { useGetRampRegistrationErrorMessage } from "../../hooks/offramp/useRampService/useRegisterRamp/helpers";
-import { useSigningBoxState } from "../../hooks/useSigningBoxState";
-import { usePartnerId } from "../../stores/partnerStore";
-import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
-import { useQuoteStore } from "../../stores/quote/useQuoteStore";
-import { useRampSummaryActions } from "../../stores/rampSummary";
-import { Dialog } from "../Dialog";
-import { RampSubmitButton } from "../RampSubmitButton/RampSubmitButton";
-import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
+import { useRampActor } from "../../../contexts/rampState";
+import { useGetRampRegistrationErrorMessage } from "../../../hooks/offramp/useRampService/useRegisterRamp/helpers";
+import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
+import { useRampSummaryActions } from "../../../stores/rampSummary";
+import { MenuButtons } from "../../MenuButtons";
+import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
+import { SigningBoxButton, SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
-export const RampSummaryCard: FC = () => {
+export const SummaryStep: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { setDialogScrollRef, scrollToBottom } = useRampSummaryActions();
@@ -80,9 +75,7 @@ export const RampSummaryCard: FC = () => {
 
   const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
 
-  const headerText = isOnramp
-    ? t("components.RampSummaryCard.headerText.buy")
-    : t("components.RampSummaryCard.headerText.sell");
+  const headerText = isOnramp ? t("components.SummaryPage.headerText.buy") : t("components.SummaryPage.headerText.sell");
 
   const actions = signingBoxVisible ? (
     <SigningBoxButton confirmations={confirmations} signatureState={signatureState} />
@@ -123,6 +116,7 @@ export const RampSummaryCard: FC = () => {
 
   return (
     <div className="flex grow-1 flex-col justify-center">
+      <MenuButtons />
       <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
       {content}
       <div className="my-4 mt-auto flex">{actions}</div>

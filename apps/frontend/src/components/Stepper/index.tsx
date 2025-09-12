@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface Step {
-  icon?: string;
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   title: string;
   status: "complete" | "active" | "incomplete";
 }
@@ -23,10 +23,9 @@ export const Stepper: React.FC<StepperProps> = ({ steps, onStepClick, className 
     <div className={`flex w-full items-center justify-between ${className}`}>
       {steps.map((step, index) => (
         <React.Fragment key={index}>
-          {/* Step Circle */}
           <div className="flex flex-col items-center">
             <button
-              className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out hover:scale-110 ${
                 step.status === "complete"
                   ? "bg-green-500 text-white"
                   : step.status === "active"
@@ -51,7 +50,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, onStepClick, className 
                   />
                 </svg>
               ) : (
-                <span>{step.icon ? <img alt={step.title} className="h-5 w-5" src={step.icon} /> : index + 1}</span>
+                <step.Icon className="h-5 w-5" />
               )}
             </button>
             {/* Step Title */}

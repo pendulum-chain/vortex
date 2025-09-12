@@ -1,25 +1,12 @@
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/react/20/solid";
 import { getAddressForFormat } from "@packages/shared";
-import { Wallet, WalletAccount } from "@talismn/connect-wallets";
+import { WalletAccount } from "@talismn/connect-wallets";
 import { useTranslation } from "react-i18next";
-import accountBalanceWalletIcon from "../../../../assets/account-balance-wallet.svg";
-import accountBalanceWalletIconPink from "../../../../assets/account-balance-wallet-pink.svg";
 import { useAssetHubNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
-import { trimAddress } from "../../../../helpers/addressFormatter";
 import { CopyablePublicKey } from "../../../PublicKey/CopyablePublicKey";
-
-interface WalletButtonProps {
-  address: string;
-}
-
-const WalletButton = ({ address }: WalletButtonProps) => (
-  <button className="btn-vortex-secondary btn group rounded-3xl" type="button">
-    <img alt="wallet account button" className="block group-hover:hidden" src={accountBalanceWalletIcon} />
-    <img alt="wallet account button hovered" className="hidden group-hover:block" src={accountBalanceWalletIconPink} />
-    <p className="hidden font-thin md:block ">{trimAddress(address)}</p>
-  </button>
-);
+import { WalletButtonVariant } from "../../ConnectWalletButton";
+import { BaseWalletButton } from "../../ConnectWalletButton/BaseWalletButton";
 
 interface WalletDropdownMenuProps {
   address: string;
@@ -33,7 +20,7 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
   const { t } = useTranslation();
 
   return (
-    <ul className="dropdown-content menu right-0 mt-2 min-w-[240px] rounded-2xl border border-base-300 bg-base-200 p-3 text-center shadow-lg">
+    <ul className="dropdown-content menu left-0 mt-2 min-w-[240px] rounded-2xl border border-base-300 bg-base-200 p-3 text-center shadow-lg">
       <li className="text-neutral-400 text-sm">{walletAccount?.name}</li>
       <li className="mt-2 text-neutral-500">
         <CopyablePublicKey inline={true} publicKey={address} variant="short" />
@@ -48,7 +35,7 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
   );
 };
 
-export const DisconnectModal = () => {
+export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { variant?: WalletButtonVariant }) => {
   const { walletAccount, removeWalletAccount } = usePolkadotWalletState();
   const { apiComponents } = useAssetHubNode();
   const { address } = walletAccount || {};
@@ -61,7 +48,7 @@ export const DisconnectModal = () => {
   return (
     <div className="dropdown dropdown-bottom" role="listbox">
       <label tabIndex={0}>
-        <WalletButton address={addressForNetwork} />
+        <BaseWalletButton address={addressForNetwork} variant={variant} />
       </label>
       <WalletDropdownMenu address={addressForNetwork} removeWalletAccount={removeWalletAccount} walletAccount={walletAccount} />
     </div>

@@ -26,6 +26,7 @@
         "city": "City",
         "companyName": "Company Name",
         "district": "District",
+        "email": "E-mail",
         "fullName": "Full Name",
         "number": "Number",
         "partnerCpf": "Partner CPF",
@@ -67,6 +68,10 @@
         "district": {
           "minLength": "District must be at least 3 characters",
           "required": "District is required"
+        },
+        "email": {
+          "format": "Invalid email format",
+          "required": "Email is required"
         },
         "fullName": {
           "format": "Name can only contain letters and spaces",
@@ -117,7 +122,8 @@
       "buttons": {
         "back": "Back",
         "compareFees": "Compare Fees",
-        "finish": "Finish"
+        "finish": "Finish",
+        "next": "Next"
       },
       "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
       "title": "Fast-Track Verification"
@@ -129,6 +135,10 @@
       "pixKey": "Pix key",
       "placeholder": "Enter your {{label}}",
       "walletAddress": "Wallet Address"
+    },
+    "detailsDescription": {
+      "connectWallet": "Connect your wallet to continue the process",
+      "signToConfirm": "Verify you are the owner of the wallet"
     },
     "dialogs": {
       "connectWallet": {
@@ -236,7 +246,12 @@
       "buy": "Buy",
       "sell": "Sell"
     },
-    "RampSummaryCard": {
+    "rating": {
+      "howWouldYouRateYourExperience": "How would you rate your experience?",
+      "thankYou": "Thank you!",
+      "title": "Your opinion matters!"
+    },
+    "SummaryPage": {
       "BRLOnrampDetails": {
         "copyCode": "or copy the PIX code below and paste it in your bank app",
         "pixCode": "Pix code",
@@ -269,13 +284,8 @@
       "processing": "Processing",
       "quote": "Quote",
       "quoteExpired": "Quote expired. Go back and try again.",
-      "signIn": "Sign in",
-      "tryAgain": "Try again"
-    },
-    "rating": {
-      "howWouldYouRateYourExperience": "How would you rate your experience?",
-      "thankYou": "Thank you!",
-      "title": "Your opinion matters!"
+      "tryAgain": "Try again",
+      "verifyWallet": "Verify Wallet"
     },
     "searchInput": {
       "placeholder": "Search"
@@ -288,7 +298,7 @@
       "yourConnectedWallet": "your connected wallet to proceed"
     },
     "stepper": {
-      "confirm": "confirm",
+      "confirm": "Confirm",
       "details": "Details",
       "verification": "Verification"
     },
@@ -356,6 +366,20 @@
     "useTokenAmountOut": {
       "default": "Something went wrong",
       "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later."
+    }
+  },
+  "menus": {
+    "history": {
+      "noHistory": "Your ramp history will appear here.",
+      "title": "History"
+    },
+    "settings": {
+      "item": {
+        "imprint": "Imprint",
+        "support": "Support",
+        "termsAndConditions": "Terms & Conditions"
+      },
+      "title": "Settings"
     }
   },
   "pages": {

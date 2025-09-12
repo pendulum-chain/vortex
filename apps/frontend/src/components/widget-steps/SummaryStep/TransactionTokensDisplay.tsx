@@ -14,14 +14,13 @@ import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNetwork } from "../../contexts/network";
-import { useAssetHubNode } from "../../contexts/polkadotNode";
-import { useRampActor } from "../../contexts/rampState";
-import { trimAddress } from "../../helpers/addressFormatter";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
-import { useVortexAccount } from "../../hooks/useVortexAccount";
-import { useRampSummaryActions } from "../../stores/rampSummary";
-import { RampExecutionInput } from "../../types/phases";
+import { useNetwork } from "../../../contexts/network";
+import { useAssetHubNode } from "../../../contexts/polkadotNode";
+import { useRampActor } from "../../../contexts/rampState";
+import { trimAddress } from "../../../helpers/addressFormatter";
+import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { RampExecutionInput } from "../../../types/phases";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
@@ -159,7 +158,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {targetTimestamp !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
-          {t("components.RampSummaryCard.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
+          {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>
       )}
     </div>

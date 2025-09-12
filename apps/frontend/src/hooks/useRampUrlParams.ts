@@ -182,6 +182,7 @@ export const useSetRampUrlParams = () => {
       hasInitialized.current = true;
       return;
     }
+
     // resetRampDirection();
     resetRampForm();
 

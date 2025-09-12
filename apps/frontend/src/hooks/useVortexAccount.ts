@@ -43,6 +43,10 @@ export const useVortexAccount = () => {
     }
   }, [evmAccountAddress, selectedNetwork, polkadotWalletAccount]);
 
+  const isConnected = useMemo(() => {
+    return !isDisconnected;
+  }, [isDisconnected]);
+
   const chainId = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
       return ASSETHUB_CHAIN_ID;
@@ -105,6 +109,7 @@ export const useVortexAccount = () => {
     chainId,
     evmAddress: evmAccountAddress,
     getMessageSignature,
+    isConnected,
     isDisconnected,
     substrateAddress: polkadotWalletAccount?.address,
     type

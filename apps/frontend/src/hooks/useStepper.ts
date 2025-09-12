@@ -1,9 +1,11 @@
+import {
+  CheckCircleIcon as ConfirmIcon,
+  DocumentTextIcon as DetailsIcon,
+  DocumentCheckIcon as VerificationIcon
+} from "@heroicons/react/24/outline";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import ConfirmIcon from "../assets/steps/confirm.png";
-import DetailsIcon from "../assets/steps/details.png";
-import VerificationIcon from "../assets/steps/verification.png";
 import { Step } from "../components/Stepper";
 import { useRampActor } from "../contexts/rampState";
 
@@ -11,38 +13,46 @@ export const useStepper = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { isKycActive, isKycComplete, isKycFailure, isRegisterOrUpdate, rampPaymentConfirmed, rampSummaryVisible } =
-    useSelector(rampActor, state => ({
-      isKycActive: state.matches("KYC"),
-      isKycComplete: state.matches("KycComplete"),
-      isKycFailure: state.matches("KycFailure"),
-      isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
-      rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-      rampSummaryVisible: state.matches("KycComplete")
-    }));
+  const {
+    isKycActive,
+    isKycComplete,
+    isKycFailure,
+    isRegisterOrUpdate,
+    rampPaymentConfirmed,
+    rampSummaryVisible,
+    rampFollowUp
+  } = useSelector(rampActor, state => ({
+    isKycActive: state.matches("KYC"),
+    isKycComplete: state.matches("KycComplete"),
+    isKycFailure: state.matches("KycFailure"),
+    isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
+    rampFollowUp: state.matches("RampFollowUp"),
+    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
+    rampSummaryVisible: state.matches("KycComplete")
+  }));
 
   const secondStepActive = isKycComplete || isKycActive || isKycFailure;
-  const secondStepComplete = isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
+  const secondStepComplete = rampFollowUp || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
-  const thirdStepComplete = rampPaymentConfirmed;
+  const thirdStepComplete = rampFollowUp || rampPaymentConfirmed;
 
   const steps = useMemo((): Step[] => {
     return [
       {
-        icon: DetailsIcon,
+        Icon: DetailsIcon,
         status: secondStepActive || secondStepComplete ? "complete" : "active",
-        title: t("stepper.details", "Details")
+        title: t("components.stepper.details", "Details")
       },
       {
-        icon: VerificationIcon,
+        Icon: VerificationIcon,
         status: secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
-        title: t("stepper.verification", "Verification")
+        title: t("components.stepper.verification", "Verification")
       },
       {
-        icon: ConfirmIcon,
+        Icon: ConfirmIcon,
         status: thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
-        title: t("stepper.confirm", "Confirm")
+        title: t("components.stepper.confirm", "Confirm")
       }
     ];
   }, [t, secondStepActive, secondStepComplete, thirdStepActive, thirdStepComplete]);

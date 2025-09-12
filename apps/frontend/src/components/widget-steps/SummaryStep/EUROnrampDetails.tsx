@@ -4,8 +4,8 @@ import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
-import { useRampActor } from "../../contexts/rampState";
-import { CopyButton } from "../CopyButton";
+import { useRampActor } from "../../../contexts/rampState";
+import { CopyButton } from "../../CopyButton";
 
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
@@ -28,20 +28,20 @@ export const EUROnrampDetails: FC = () => {
   return (
     <section>
       <hr className="my-5" />
-      <h1 className="text-center font-bold text-lg">{t("components.RampSummaryCard.EUROnrampDetails.title")}</h1>
+      <h1 className="text-center font-bold text-lg">{t("components.SummaryPage.EUROnrampDetails.title")}</h1>
       <div className="my-4 rounded-lg border-1 border-gray-300 p-3">
         <div className="flex items-center justify-between">
-          <span>{t("components.RampSummaryCard.EUROnrampDetails.amount")}</span>
+          <span>{t("components.SummaryPage.EUROnrampDetails.amount")}</span>
           <strong>{amount} EUR</strong>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span>{t("components.RampSummaryCard.EUROnrampDetails.iban")}</span>
+          <span>{t("components.SummaryPage.EUROnrampDetails.iban")}</span>
           <div className="flex items-center">
             <CopyButton text={iban} />
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span>{t("components.RampSummaryCard.EUROnrampDetails.bic")}</span>
+          <span>{t("components.SummaryPage.EUROnrampDetails.bic")}</span>
           <div className="flex items-center">
             <CopyButton text={bic} />
           </div>
@@ -62,8 +62,8 @@ export const EUROnrampDetails: FC = () => {
           </div>
         </div>
       )}
-      <p className="text-center">{t("components.RampSummaryCard.EUROnrampDetails.hint")}</p>
-      <p className="text-center">{t("components.RampSummaryCard.EUROnrampDetails.footer")}</p>
+      <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.hint")}</p>
+      <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.footer")}</p>
     </section>
   );
 };

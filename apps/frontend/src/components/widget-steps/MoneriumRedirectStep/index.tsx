@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
-import { cn } from "../../helpers/cn";
+import { useMoneriumKycActor, useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
 
-interface MoneriumRedirectComponentProps {
+interface MoneriumRedirectStepProps {
   className?: string;
 }
 
-export function MoneriumRedirectComponent({ className }: MoneriumRedirectComponentProps) {
+export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
   const { t } = useTranslation();
   const moneriumKycActor = useMoneriumKycActor();
   const rampActor = useRampActor();
@@ -25,11 +25,11 @@ export function MoneriumRedirectComponent({ className }: MoneriumRedirectCompone
 
   return (
     <div className="flex grow-1 flex-col justify-center">
-      <div className="flex-grow flex items-center justify-center text-center">
+      <div className="flex flex-grow items-center justify-center text-center">
         <p>{t("components.moneriumRedirect.description")}</p>
       </div>
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <button className={cn("btn-vortex-danger btn w-full rounded-xl", className)} onClick={onCancelClick}>
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        <button className={cn("btn-vortex-secondary btn w-full rounded-xl", className)} onClick={onCancelClick}>
           {t("components.moneriumRedirect.cancel")}
         </button>
         <button

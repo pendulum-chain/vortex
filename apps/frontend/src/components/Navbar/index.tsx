@@ -15,7 +15,7 @@ export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isWidgetMode = useWidgetMode();
 
-  const { handleLogoClick, handleAPIClick, handleWidgetClick, handleDocsClick } = useNavbarHandlers();
+  const { handleLogoClick, handleBookDemoClick, handleAPIClick, handleWidgetClick, handleDocsClick } = useNavbarHandlers();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -72,7 +72,9 @@ export const Navbar = () => {
 
               {/* Desktop Actions */}
               <div className="hidden items-center sm:flex">
-                <button className="btn btn-vortex-secondary rounded-3xl">{t("components.navbar.bookDemo")}</button>
+                <button className="btn btn-vortex-secondary rounded-3xl" onClick={handleBookDemoClick}>
+                  {t("components.navbar.bookDemo")}
+                </button>
               </div>
             </>
           )}
@@ -81,6 +83,7 @@ export const Navbar = () => {
 
       <MobileMenu
         isOpen={isMobileMenuOpen}
+        onBookDemoClick={handleBookDemoClick}
         onDocsClick={handleDocsClick}
         onMenuItemClick={closeMobileMenu}
         submenuItems={submenuItems}
