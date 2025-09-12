@@ -20,6 +20,7 @@ const MenuItem = ({ label, onClick, icon, disabled }: MenuItemProps) => {
       }`}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
+      type="button"
     >
       {icon && <span className={disabled ? "text-gray-300" : "text-gray-500"}>{icon}</span>}
       <span className="font-medium text-sm">{label}</span>

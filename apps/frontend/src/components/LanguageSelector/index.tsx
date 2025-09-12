@@ -23,6 +23,7 @@ const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: Languag
     )}
     disabled={disabled}
     onClick={onClick}
+    type="button"
     whileHover={{ scale: disabled ? 1 : 1.02 }}
     whileTap={{ scale: disabled ? 1 : 0.98 }}
   >
@@ -57,6 +58,7 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
         <button
           className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-base-200"
           onClick={() => onLanguageSelect(Language.English)}
+          type="button"
         >
           <img alt="English" className="h-5 w-5" src={usFlag} />
           <span>English</span>
@@ -64,6 +66,7 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
         <button
           className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-base-200"
           onClick={() => onLanguageSelect(Language.Portuguese_Brazil)}
+          type="button"
         >
           <img alt="Português" className="h-5 w-5" src={brazilFlag} />
           <span>Português</span>
