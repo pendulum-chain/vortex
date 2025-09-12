@@ -11,6 +11,7 @@ export function HistoryMenuButton() {
       <button
         className={`btn-vortex-accent cursor-pointer px-3.5 py-1.5 ${isActive ? "bg-vortex-accent-hover" : ""}`}
         onClick={actions.toggleHistory}
+        type="button"
       >
         <ClockIcon className="h-5 w-5" />
       </button>

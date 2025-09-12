@@ -12,6 +12,7 @@ export const SettingsButton = () => {
         aria-label={isOpen ? "Close menu" : "Open menu"}
         className={"btn-vortex-accent cursor-pointer rounded-full p-2 px-3.5 py-1.5"}
         onClick={toggleMenu}
+        type="button"
       >
         <Cog6ToothIcon className="h-5 w-5" />
       </button>
