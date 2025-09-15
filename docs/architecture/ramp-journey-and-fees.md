@@ -41,50 +41,69 @@ The ramp process is managed by a state machine, transitioning through various ph
 
 ### On-Ramp Journey: Monerium (EUR)
 
+This journey handles on-ramping from EUR using Monerium. It follows one of two main paths depending on the final destination of the assets (an EVM-compatible chain or AssetHub).
+
 *   **Starts After:** `initial`
 *   **Next Phase:** `moneriumOnrampMint`
 
-6.  **Phase: `moneriumOnrampMint` (`monerium-onramp-mint-handler.ts`):**
-    *   Mints Monerium EUR tokens.
-    *   Transitions to `fundEphemeral`.
-7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):**
-    *   Funds the ephemeral account with native tokens.
-    *   Transitions to `moneriumOnrampSelfTransfer`.
-8.  **Phase: `moneriumOnrampSelfTransfer` (`monerium-onramp-self-transfer-handler.ts`):**
-    *   Transfers the minted tokens to the ephemeral account.
-    *   Transitions to `squidRouterSwap`.
-9.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):**
-    *   Swaps the EUR tokens for the destination asset.
+6.  **Phase: `moneriumOnrampMint` (`monerium-onramp-mint-handler.ts`):** Mints Monerium EUR tokens and transitions to `fundEphemeral`.
+7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Funds the ephemeral account with native tokens (e.g., GLMR) and transitions to `moneriumOnrampSelfTransfer`.
+8.  **Phase: `moneriumOnrampSelfTransfer` (`monerium-onramp-self-transfer-handler.ts`):** Transfers the minted EUR tokens to the ephemeral account and transitions to `squidRouterSwap`.
+9.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):** Swaps the EUR tokens for the desired destination asset.
+    *   If the destination is **EVM**, the swap is performed directly for the final asset on the target EVM chain.
+    *   If the destination is **AssetHub**, the swap is performed for an intermediate asset on Moonbeam.
     *   Transitions to `squidRouterPay`.
-10. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):**
-    *   Pays the gas for the squidrouter transaction and wait for its completion.
-    *   Transitions to `moonbeamXcmToAssethub` if the destination is AssetHub, otherwise to `complete`.
-11. **Phase: `moonbeamXcmToAssethub` (`moonbeam-xcm-to-assethub-handler.ts`):**
-    *   Transfers the asset from Moonbeam to AssetHub.
-    *   Transitions to `complete`.
-12. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
+10. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas for the Squid Router transaction and waits for its completion.
+    *   If the destination is **EVM**, transitions to `complete`.
+    *   If the destination is **AssetHub**, transitions to `moonbeamToPendulum`.
+
+**AssetHub-Specific Sub-flow:**
+
+11. **Phase: `moonbeamToPendulum` (`moonbeam-to-pendulum-handler.ts`):** Transfers the intermediate asset from Moonbeam to Pendulum via XCM. Transitions to `distributeFees`.
+12. **Phase: `distributeFees` (New Handler):** Distributes Vortex, Network, and Partner fees. Transitions to `subsidizePreSwap`.
+13. **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):** Tops up the asset balance if needed before the next swap. Transitions to `nablaApprove`.
+14. **Phase: `nablaApprove` (`nabla-approve-handler.ts`):** Approves the Nabla swap and transitions to `nablaSwap`.
+15. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):** Swaps the intermediate asset for the final destination asset on Pendulum. Transitions to `subsidizePostSwap`.
+16. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):** Tops up the final asset balance if needed.
+    *   If the final asset is **USDC**, transitions to `pendulumToAssethub`.
+    *   If the final asset is **DOT** or **USDT**, transitions to `pendulumToHydration`.
+17. **Phase: `pendulumToAssethub` (`pendulum-to-assethub-handler.ts`):** Transfers USDC from Pendulum to AssetHub. Transitions to `complete`.
+18. **Phase: `pendulumToHydration` (`pendulum-to-hydration-handler.ts`):** Transfers the asset to Hydration for a final swap. Transitions to `hydrationSwap`.
+19. **Phase: `hydrationSwap` (`hydration-swap-handler.ts`):** Swaps the asset on Hydration (e.g., to DOT or USDT). Transitions to `hydrationToAssethub`.
+20. **Phase: `hydrationToAssethub` (`hydration-to-assethub-handler.ts`):** Transfers the final asset from Hydration to AssetHub. Transitions to `complete`.
+21. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 ### On-Ramp Journey: BRLA (BRL)
 
-*   **Starts After:** `initial`
-*   **Next Phase:** `brlaTransfer`
+This journey handles on-ramping from BRL using the BRLA token. It involves a series of swaps and transfers across Moonbeam, Pendulum, and potentially Hydration, depending on the final destination asset.
 
-6.  **Phase: `brlaTransfer` (`brla-transfer-handler.ts`):**
-    *   Transfers BRLA tokens.
-    *   Transitions to `fundEphemeral`.
-7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):**
-    *   Funds the ephemeral account with native tokens.
-    *   Transitions to `squidRouterSwap`.
-8.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):**
-    *   Swaps the BRLA tokens for the destination asset.
-    *   Transitions to `squidRouterPay`.
-9.  **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):**
-    *   Pays the gas for the squidrouter transaction and wait for its completion.
-    *   Transitions to `moonbeamXcmToAssethub` if the destination is AssetHub, otherwise to `complete`.
-10. **Phase: `moonbeamXcmToAssethub` (`moonbeam-xcm-to-assethub-handler.ts`):**
-    *   Transfers the asset from Moonbeam to AssetHub.
-    *   Transitions to `complete`.
-11. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
+*   **Starts After:** `initial`
+*   **Next Phase:** `brlaTeleport`
+
+6.  **Phase: `brlaTeleport` (`brla-teleport-handler.ts`):** Teleports BRLA tokens to Moonbeam and transitions to `moonbeamToPendulumXcm`.
+7.  **Phase: `moonbeamToPendulumXcm` (`moonbeam-to-pendulum-xcm-handler.ts`):** Transfers the BRLA tokens from Moonbeam to Pendulum via XCM. Transitions to `distributeFees`.
+8.  **Phase: `distributeFees` (New Handler):** Distributes Vortex, Network, and Partner fees. Transitions to `subsidizePreSwap`.
+9.  **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):** Tops up the asset balance if needed before the swap. Transitions to `nablaApprove`.
+10. **Phase: `nablaApprove` (`nabla-approve-handler.ts`):** Approves the Nabla swap and transitions to `nablaSwap`.
+11. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):** Swaps the BRLA tokens for an intermediate or final asset on Pendulum. Transitions to `subsidizePostSwap`.
+12. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):** Tops up the resulting asset balance if needed.
+    *   If the destination is **EVM**, transitions to `pendulumToMoonbeamXcm`.
+    *   If the destination is **AssetHub** and the output is **USDC**, transitions to `pendulumToAssethub`.
+    *   If the destination is **AssetHub** and the output is **DOT** or **USDT**, transitions to `pendulumToHydration`.
+
+**EVM-Specific Sub-flow:**
+
+13. **Phase: `pendulumToMoonbeamXcm` (`pendulum-to-moonbeam-xcm-handler.ts`):** Transfers the swapped asset from Pendulum back to Moonbeam. Transitions to `squidRouterSwap`.
+14. **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):** Performs a final swap on Moonbeam to get the target asset. Transitions to `squidRouterPay`.
+15. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas for the Squid Router transaction. Transitions to `complete`.
+
+**AssetHub-Specific Sub-flow:**
+
+13. **Phase: `pendulumToAssethub` (`pendulum-to-assethub-handler.ts`):** Transfers USDC from Pendulum to AssetHub. Transitions to `complete`.
+14. **Phase: `pendulumToHydration` (`pendulum-to-hydration-handler.ts`):** Transfers the asset to Hydration for a final swap. Transitions to `hydrationSwap`.
+15. **Phase: `hydrationSwap` (`hydration-swap-handler.ts`):** Swaps the asset on Hydration (e.g., to DOT or USDT). Transitions to `hydrationToAssethub`.
+16. **Phase: `hydrationToAssethub` (`hydration-to-assethub-handler.ts`):** Transfers the final asset from Hydration to AssetHub. Transitions to `complete`.
+17. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 ---
 
@@ -159,47 +178,82 @@ The ramp process is managed by a state machine, transitioning through various ph
 14. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 ### Complete Ramp Flow Diagram
-
 ```mermaid
 graph TD
-    subgraph On-Ramp
+    subgraph "On-Ramp"
         direction LR
         A[Start On-Ramp] --> B{Input Currency?};
-        B -->|BRL| C[brlaTransfer];
-        B -->|EUR| D[moneriumOnrampMint];
-        D --> E[moneriumOnrampSelfTransfer];
-        C --> F[fundEphemeral];
-        E --> F;
-        F --> G[squidRouterSwap];
-        G --> H[squidRouterPay];
-        H --> I{Destination?};
-        I -->|EVM| J[Complete];
-        I -->|AssetHub| K[moonbeamXcmToAssethub];
-        K --> J;
+
+        %% --- Reusable Subgraphs for Common Flows ---
+        subgraph AssetHub_Finalization [AssetHub Finalization]
+            direction LR
+            AHF_Start{Output Token?} -->|USDC| AHF_to_AH[pendulumToAssethub] --> Z[Complete];
+            AHF_Start -->|DOT/USDT| AHF_to_H[pendulumToHydration] --> AHF_H_Swap[hydrationSwap] --> AHF_H_to_AH[hydrationToAssethub] --> Z;
+        end
+
+        subgraph Pendulum_Swap [Pendulum Swap & Subsidize]
+            direction LR
+            PS_Start[distributeFees] --> PS_pre[subsidizePreSwap] --> PS_app[nablaApprove] --> PS_swap[nablaSwap] --> PS_post[subsidizePostSwap];
+        end
+
+        %% --- Main Entry Flows ---
+        B -->|EUR| Monerium_Flow;
+        B -->|BRL| BRLA_Flow;
+
+        subgraph Monerium_Flow [Monerium EUR Initial Steps]
+            direction LR
+            M_Start[moneriumOnrampMint] --> M_Fund[fundEphemeral] --> M_Transfer[moneriumOnrampSelfTransfer] --> M_Dest{Destination?};
+        end
+
+        subgraph BRLA_Flow [BRLA BRL Initial Steps]
+            direction LR
+            B_Start[brlaTeleport] --> B_to_P[moonbeamToPendulumXcm];
+        end
+
+        %% --- Monerium Flow Branches ---
+        M_Dest -->|EVM| M_EVM_Swap[squidRouterSwap to EVM] --> M_EVM_Pay[squidRouterPay] --> Z;
+        M_Dest -->|AssetHub| M_AH_Swap[squidRouterSwap to Moonbeam] --> M_AH_Pay[squidRouterPay] --> M_to_P[moonbeamToPendulum];
+
+        %% --- Connections to/from Common Pendulum Swap Flow ---
+        M_to_P --> PS_Start;
+        B_to_P --> PS_Start;
+        PS_post --> Post_Swap_Router{Source Flow?};
+
+        %% --- Diverging paths after Pendulum Swap ---
+        Post_Swap_Router -->|From Monerium| AHF_Start;
+        Post_Swap_Router -->|From BRLA| BRLA_Post_Swap_Dest{Destination?};
+
+        BRLA_Post_Swap_Dest -->|AssetHub| AHF_Start;
+        BRLA_Post_Swap_Dest -->|EVM| BRLA_EVM_Path;
+        
+        subgraph BRLA_EVM_Path [BRLA to EVM Post-Swap]
+            direction LR
+            B_to_M[pendulumToMoonbeamXcm] --> B_Swap[squidRouterSwap] --> B_Pay[squidRouterPay] --> Z;
+        end
     end
 
-    subgraph Off-Ramp
+    subgraph "Off-Ramp"
         direction LR
-        M[Start Off-Ramp] --> N{Input Asset Source?};
-        N -->|EVM| O[moonbeamToPendulum];
-        N -->|AssetHub| P[distributeFees_assetHub];
-        O --> Q[distributeFees_evm];
-        P --> R[subsidizePreSwap];
-        Q --> R;
-        R --> S[nablaApprove];
-        S --> T[nablaSwap];
-        T --> U[subsidizePostSwap];
-        U --> V{Output Fiat?};
-        V -->|BRL| W[pendulumToMoonbeam];
-        W --> X[brlaPayoutOnMoonbeam];
-        X --> Y[Complete];
-        V -->|EUR/ARS| Z[spacewalkRedeem];
-        Z --> AA[stellarPayment];
-        AA --> Y;
+        M_off[Start Off-Ramp] --> N_off{Input Asset Source?};
+        N_off -->|EVM| O_off[moonbeamToPendulum];
+        N_off -->|AssetHub| P_off[distributeFees_assetHub];
+        O_off --> Q_off[distributeFees_evm];
+        P_off --> R_off[subsidizePreSwap];
+        Q_off --> R_off;
+        R_off --> S_off[nablaApprove];
+        S_off --> T_off[nablaSwap];
+        T_off --> U_off[subsidizePostSwap];
+        U_off --> V_off{Output Fiat?};
+        V_off -->|BRL| W_off[pendulumToMoonbeam];
+        W_off --> X_off[brlaPayoutOnMoonbeam];
+        X_off --> Y_off[Complete];
+        V_off -->|EUR/ARS| Z_off[spacewalkRedeem];
+        Z_off --> AA_off[stellarPayment];
+        AA_off --> Y_off;
     end
 
     Start --> |On-Ramp| A;
-    Start --> |Off-Ramp| M;
+    Start --> |Off-Ramp| M_off;
 ```
 
 ## Amendments
