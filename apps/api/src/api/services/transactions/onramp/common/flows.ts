@@ -3,8 +3,6 @@ import {
   createPendulumToAssethubTransfer,
   createPendulumToMoonbeamTransfer,
   encodeSubmittableExtrinsic,
-  getNetworkId,
-  Networks,
   OnChainTokenDetails,
   PendulumTokenDetails,
   UnsignedTx
@@ -12,34 +10,7 @@ import {
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
-import { addFeeDistributionTransaction, createNablaSwapTransactions } from "./transactions";
-
-/**
- * Creates Pendulum cleanup transaction
- * @param params Transaction parameters
- * @returns Cleanup transaction template
- */
-async function createPendulumCleanupTx(params: {
-  inputTokenPendulumDetails: PendulumTokenDetails;
-  outputTokenPendulumDetails: PendulumTokenDetails;
-  account: AccountMeta;
-}): Promise<Omit<UnsignedTx, "nonce">> {
-  const { inputTokenPendulumDetails, outputTokenPendulumDetails, account } = params;
-
-  const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-    inputTokenPendulumDetails.currencyId,
-    outputTokenPendulumDetails.currencyId
-  );
-
-  return {
-    meta: {},
-    network: account.network,
-    phase: "pendulumCleanup",
-    signer: account.address,
-    txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)
-  };
-}
+import { addFeeDistributionTransaction, createNablaSwapTransactions, createPendulumCleanupTx } from "./transactions";
 
 export async function createAveniaToAssethubFlow(
   quote: QuoteTicketAttributes,
@@ -154,4 +125,44 @@ export async function createAveniaToEvmFlow(
   pendulumNonce++;
 
   return { nablaStateMeta, pendulumNonce };
+}
+
+export async function createMoneriumToAssethubFlow(
+  quote: QuoteTicketAttributes,
+  pendulumEphemeralEntry: AccountMeta,
+  outputTokenDetails: OnChainTokenDetails,
+  inputTokenPendulumDetails: PendulumTokenDetails,
+  outputTokenPendulumDetails: PendulumTokenDetails,
+  destinationAddress: string,
+  unsignedTxs: UnsignedTx[]
+) {
+  return createAveniaToAssethubFlow(
+    quote,
+    pendulumEphemeralEntry,
+    outputTokenDetails,
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
+    destinationAddress,
+    unsignedTxs
+  );
+}
+
+export async function createMoneriumToEvmFlow(
+  quote: QuoteTicketAttributes,
+  pendulumEphemeralEntry: AccountMeta,
+  moonbeamEphemeralAddress: string,
+  outputTokenDetails: OnChainTokenDetails,
+  inputTokenPendulumDetails: PendulumTokenDetails,
+  outputTokenPendulumDetails: PendulumTokenDetails,
+  unsignedTxs: UnsignedTx[]
+) {
+  return createAveniaToEvmFlow(
+    quote,
+    pendulumEphemeralEntry,
+    moonbeamEphemeralAddress,
+    outputTokenDetails,
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
+    unsignedTxs
+  );
 }

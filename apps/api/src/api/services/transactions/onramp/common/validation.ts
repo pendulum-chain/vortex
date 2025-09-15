@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -57,4 +58,53 @@ export function validateAveniaOnramp(
   }
 
   return { inputTokenDetails, moonbeamEphemeralEntry, outputTokenDetails, pendulumEphemeralEntry, toNetwork };
+}
+
+export function validateMoneriumOnramp(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[]
+): {
+  toNetwork: Networks;
+  outputTokenDetails: OnChainTokenDetails;
+  pendulumEphemeralEntry: AccountMeta;
+  moonbeamEphemeralEntry: AccountMeta;
+  polygonEphemeralEntry: AccountMeta;
+} {
+  const toNetwork = getNetworkFromDestination(quote.to);
+  if (!toNetwork) {
+    throw new Error(`Invalid network for destination ${quote.to}`);
+  }
+
+  if (quote.inputCurrency !== FiatToken.EURC) {
+    throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
+  }
+
+  if (!isOnChainToken(quote.outputCurrency)) {
+    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+  }
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+  if (!outputTokenDetails) {
+    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
+  }
+
+  if (!isOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
+
+  const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
+  if (!polygonEphemeralEntry) {
+    throw new Error("Polygon ephemeral not found");
+  }
+
+  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
+  if (!pendulumEphemeralEntry) {
+    throw new Error("Pendulum ephemeral not found");
+  }
+
+  const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
+  if (!moonbeamEphemeralEntry) {
+    throw new Error("Moonbeam ephemeral not found");
+  }
+
+  return { moonbeamEphemeralEntry, outputTokenDetails, pendulumEphemeralEntry, polygonEphemeralEntry, toNetwork };
 }

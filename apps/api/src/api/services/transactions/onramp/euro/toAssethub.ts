@@ -6,15 +6,10 @@ import {
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   EvmTransactionData,
-  FiatToken,
-  getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
   getPendulumDetails,
-  isAssetHubTokenDetails,
   isMoonbeamTokenDetails,
-  isOnChainToken,
-  isOnChainTokenDetails,
   Networks,
   UnsignedTx
 } from "@packages/shared";
@@ -23,9 +18,10 @@ import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
-import { createAveniaToAssethubFlow } from "../common/flows";
+import { createMoneriumToAssethubFlow } from "../common/flows";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
 import { createMoonbeamTransactions } from "../common/transactions";
+import { validateMoneriumOnramp } from "../common/validation";
 
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
@@ -45,44 +41,8 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    throw new Error(`Invalid network for destination ${quote.to}`);
-  }
-
-  if (quote.inputCurrency !== FiatToken.EURC) {
-    throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
-  }
-
-  if (!isOnChainToken(quote.outputCurrency)) {
-    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
-  }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-  if (!outputTokenDetails) {
-    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
-  }
-
-  if (!isOnChainTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
-  }
-  if (!isAssetHubTokenDetails(outputTokenDetails)) {
-    throw new Error(`Only AssetHub tokens are supported for this onramp, got ${quote.outputCurrency}`);
-  }
-
-  const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!polygonEphemeralEntry) {
-    throw new Error("Polygon ephemeral not found");
-  }
-
-  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
-  if (!pendulumEphemeralEntry) {
-    throw new Error("Pendulum ephemeral not found");
-  }
-
-  const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!moonbeamEphemeralEntry) {
-    throw new Error("Moonbeam ephemeral not found");
-  }
+  const { toNetwork, outputTokenDetails, pendulumEphemeralEntry, moonbeamEphemeralEntry, polygonEphemeralEntry } =
+    validateMoneriumOnramp(quote, signingAccounts);
 
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
   const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
@@ -197,7 +157,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     }
 
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { nablaStateMeta } = await createAveniaToAssethubFlow(
+      const { nablaStateMeta } = await createMoneriumToAssethubFlow(
         quote,
         pendulumEphemeralEntry,
         outputTokenDetails,

@@ -23,6 +23,7 @@ import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { priceFeedService } from "../../../priceFeed.service";
 import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
+import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -295,4 +296,30 @@ export async function addFeeDistributionTransaction(
   }
 
   return nextNonce;
+}
+
+/**
+ * Creates Pendulum cleanup transaction
+ * @param params Transaction parameters
+ * @returns Cleanup transaction template
+ */
+export async function createPendulumCleanupTx(params: {
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
+  account: AccountMeta;
+}): Promise<Omit<UnsignedTx, "nonce">> {
+  const { inputTokenPendulumDetails, outputTokenPendulumDetails, account } = params;
+
+  const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
+    inputTokenPendulumDetails.currencyId,
+    outputTokenPendulumDetails.currencyId
+  );
+
+  return {
+    meta: {},
+    network: account.network,
+    phase: "pendulumCleanup",
+    signer: account.address,
+    txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)
+  };
 }

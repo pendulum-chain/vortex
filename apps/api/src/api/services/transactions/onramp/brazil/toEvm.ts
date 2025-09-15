@@ -10,7 +10,7 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../../../models/quoteTicket.model";
+import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
@@ -18,14 +18,6 @@ import { createAveniaToEvmFlow } from "../common/flows";
 import { createMoonbeamTransactions } from "../common/transactions";
 import { validateAveniaOnramp } from "../common/validation";
 
-/**
- * Creates the Squidrouter transactions from axlUSDC on Moonbeam to the final destination EVM chain.
- *
- * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
 async function createSquidRouterTransactions(
   params: {
     destinationAddress: string;
@@ -92,15 +84,13 @@ export async function prepareAveniaToEvmOnrampTransactions(
     validateAveniaOnramp(quote, signingAccounts);
   const toNetworkId = getNetworkId(toNetwork);
 
-  const metadata = quote.metadata as QuoteTicketMetadata;
-
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
   const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, inputTokenDetails.decimals).toFixed(
     0,
     0
   );
 
-  const outputAmountBeforeFinalStepRaw = new Big(metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
+  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
   const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
     outputAmountBeforeFinalStepRaw,
     -outputTokenDetails.decimals
@@ -146,7 +136,7 @@ export async function prepareAveniaToEvmOnrampTransactions(
           account,
           destinationAddress,
           outputTokenDetails,
-          rawAmount: metadata.onrampOutputAmountMoonbeamRaw,
+          rawAmount: quote.metadata.onrampOutputAmountMoonbeamRaw,
           toNetwork
         },
         unsignedTxs,

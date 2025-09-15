@@ -39,18 +39,15 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
-  // Validate network and tokens
   const toNetwork = getNetworkFromDestination(quote.to);
   if (!toNetwork) {
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
 
-  // Validate input token. Only EURC is allowed for onramp, through Monerium.
   if (quote.inputCurrency !== FiatToken.EURC) {
     throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
 
-  // Validate output token
   if (!isOnChainToken(quote.outputCurrency)) {
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
   }
@@ -66,21 +63,17 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  // Find required ephemeral accounts
-  // We use Moonbeam as the generic EVM chain.
   const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
   if (!polygonEphemeralEntry) {
     throw new Error("Polygon ephemeral not found");
   }
 
-  // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
   const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
     0,
     0
   );
 
-  // Initialize state metadata
   stateMeta = {
     destinationAddress,
     inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
@@ -90,7 +83,6 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     walletAddress: destinationAddress
   };
 
-  // Create initial user transaction that approves minted funds to ephemeral.
   const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
 
   unsignedTxs.push({
@@ -105,10 +97,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    // Create transactions for ephemeral account where Monerium minting takes place
-    // FIXME replace with check for 'EVM' account
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      // Initialize nonce counter for Polygon transactions
       let polygonAccountNonce = 0;
 
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
@@ -132,8 +121,8 @@ export async function prepareMoneriumToEvmOnrampTransactions({
         fromNetwork: Networks.Polygon,
         inputTokenDetails: {
           erc20AddressSourceChain: ERC20_EURE_POLYGON
-        } as any, // Always EUR.e for Monerium onramp.
-        outputTokenDetails, // By design, EURC onramp starts from Polygon.
+        } as any,
+        outputTokenDetails,
         rawAmount: inputAmountPostAnchorFeeRaw,
         toNetwork
       });
