@@ -161,6 +161,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     const accountNetworkId = getNetworkId(account.network);
 
     // Create transactions for ephemeral account where Monerium minting takes place
+    // FIXME replace with check for 'EVM' account
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       // Initialize nonce counter for Polygon transactions
       let polygonAccountNonce = 0;

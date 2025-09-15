@@ -3,7 +3,6 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   ApiManager,
-  AXL_USDC_MOONBEAM_DETAILS,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
   createOnrampSquidrouterTransactions,
@@ -137,12 +136,11 @@ async function createMoonbeamTransactions(
     inputAmountPostAnchorFeeRaw: string;
     inputTokenDetails: MoonbeamTokenDetails;
     account: AccountMeta;
-    toNetworkId: number;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  const { pendulumEphemeralAddress, inputAmountPostAnchorFeeRaw, inputTokenDetails, account, toNetworkId } = params;
+  const { pendulumEphemeralAddress, inputAmountPostAnchorFeeRaw, inputTokenDetails, account } = params;
 
   // Create and add Moonbeam to Pendulum XCM transaction
   const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
@@ -166,11 +164,7 @@ async function createMoonbeamTransactions(
   const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
 
   // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
-  // TODO is the moonbeamCleanup nonce too high?
-  const moonbeamCleanupNonce =
-    toNetworkId === getNetworkId(Networks.AssetHub)
-      ? nextNonce // no nonce increase we skip squidrouter transactions
-      : nextNonce + 2; // +2 because we need to account for squidrouter approve and swap
+  const moonbeamCleanupNonce = nextNonce + 2; // +2 because we need to account for squidrouter approve and swap
 
   unsignedTxs.push({
     meta: {},
@@ -185,13 +179,7 @@ async function createMoonbeamTransactions(
 }
 
 /**
- * Creates Squidrouter transactions for onramps.
- * For Monerium:
- * * if the source and target are EVM chains, SquidRouter is used to swap directly between them.
- * * if the target is AssetHub, SquidRouter is used to swap to AXL USDC on Moonbeam, which are then forwarded to Pendulum.
- * For Avenia, the BRLA tokens are teleported to Moonbeam and then forwarded to Pendulum:
- * * If the target is AssetHub, the tokens are swapped on Pendulum and then forwarded to AssetHub. No SquidRouter transactions are needed.
- * * If the target is another EVM chain, the tokens are swapped on Pendulum to AXL USDC, sent to Moonbeam and swapped via SquidRouter to the target chain.
+ * Creates the Squidrouter transactions from axlUSDC on Moonbeam to the final destination EVM chain.
  *
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
@@ -210,43 +198,39 @@ async function createSquidRouterTransactions(
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  if (!isEvmTokenDetails(params.outputTokenDetails)) {
+  const { destinationAddress, outputTokenDetails, account, rawAmount, toNetwork } = params;
+
+  if (!isEvmTokenDetails(outputTokenDetails)) {
     throw new Error(
       `Output token must be an EVM token for onramp to any EVM chain, got ${params.outputTokenDetails.assetSymbol}`
     );
   }
 
-  const isToAssetHub = params.toNetwork === Networks.AssetHub;
-  // We need to send to the AXL USDC address to Moonbeam if the destination is AssetHub
-  const addressDestination = isToAssetHub ? params.moonbeamEphemeralAddress : params.destinationAddress;
-  const toNetwork = isToAssetHub ? Networks.Moonbeam : params.toNetwork;
-  const outputTokenDetails = isToAssetHub ? AXL_USDC_MOONBEAM_DETAILS : params.outputTokenDetails;
-
   const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-    addressDestination,
-    fromAddress: params.account.address,
+    destinationAddress,
+    fromAddress: account.address,
     moonbeamEphemeralStartingNonce: nextNonce,
     outputTokenDetails,
-    rawAmount: params.rawAmount,
+    rawAmount: rawAmount,
     toNetwork
   });
 
   unsignedTxs.push({
     meta: {},
-    network: params.account.network,
+    network: account.network,
     nonce: nextNonce,
     phase: "squidRouterApprove",
-    signer: params.account.address,
+    signer: account.address,
     txData: encodeEvmTransactionData(approveData) as EvmTransactionData
   });
   nextNonce++;
 
   unsignedTxs.push({
     meta: {},
-    network: params.account.network,
+    network: account.network,
     nonce: nextNonce,
     phase: "squidRouterSwap",
-    signer: params.account.address,
+    signer: account.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
   nextNonce++;
@@ -387,8 +371,6 @@ async function addFeeDistributionTransaction(
 /**
  * Creates Pendulum cleanup transaction
  * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Current Pendulum nonce
  * @returns Cleanup transaction template
  */
 async function createPendulumCleanupTx(params: {
@@ -477,7 +459,6 @@ export async function prepareAveniaToEvmOnrampTransactions(
   if (!toNetwork) {
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
-  const toNetworkId = getNetworkId(toNetwork);
 
   // Find required ephemeral accounts
   const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
@@ -559,8 +540,7 @@ export async function prepareAveniaToEvmOnrampTransactions(
           account,
           inputAmountPostAnchorFeeRaw,
           inputTokenDetails,
-          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-          toNetworkId
+          pendulumEphemeralAddress: pendulumEphemeralEntry.address
         },
         unsignedTxs,
         moonbeamNonce

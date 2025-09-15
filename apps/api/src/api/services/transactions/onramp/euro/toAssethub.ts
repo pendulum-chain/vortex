@@ -3,6 +3,7 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   ApiManager,
+  AXL_USDC_MOONBEAM_DETAILS,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
   createOnrampSquidrouterTransactionsToEvm,
@@ -14,10 +15,13 @@ import {
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   FiatToken,
+  getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
+  getPendulumDetails,
   isAssetHubTokenDetails,
+  isMoonbeamTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
   MoonbeamTokenDetails,
@@ -145,12 +149,11 @@ async function createMoonbeamTransactions(
     inputAmountPostAnchorFeeRaw: string;
     inputTokenDetails: MoonbeamTokenDetails;
     account: AccountMeta;
-    toNetworkId: number;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  const { pendulumEphemeralAddress, inputAmountPostAnchorFeeRaw, inputTokenDetails, account, toNetworkId } = params;
+  const { pendulumEphemeralAddress, inputAmountPostAnchorFeeRaw, inputTokenDetails, account } = params;
 
   // Create and add Moonbeam to Pendulum XCM transaction
   const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
@@ -174,11 +177,7 @@ async function createMoonbeamTransactions(
   const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
 
   // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
-  // TODO is the moonbeamCleanup nonce too high?
-  const moonbeamCleanupNonce =
-    toNetworkId === getNetworkId(Networks.AssetHub)
-      ? nextNonce // no nonce increase we skip squidrouter transactions
-      : nextNonce + 2; // +2 because we need to account for squidrouter approve and swap
+  const moonbeamCleanupNonce = nextNonce; // no nonce increase we skip squidrouter transactions
 
   unsignedTxs.push({
     meta: {},
@@ -325,8 +324,6 @@ async function addFeeDistributionTransaction(
 /**
  * Creates Pendulum cleanup transaction
  * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Current Pendulum nonce
  * @returns Cleanup transaction template
  */
 async function createPendulumCleanupTx(params: {
@@ -351,14 +348,67 @@ async function createPendulumCleanupTx(params: {
 }
 
 /**
- * Creates AssetHub destination transactions
+ * Creates the transaction from Pendulum to Assethub
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
  * @param pendulumCleanupTx Cleanup transaction template
  * @param nextNonce Next available nonce
  * @returns Updated nonce
  */
-async function createAssetHubDestinationTransactions(
+async function createPendulumToAssetHubTransactions(
+  params: {
+    destinationAddress: string;
+    outputTokenDetails: OnChainTokenDetails;
+    quote: QuoteTicketAttributes;
+    account: AccountMeta;
+  },
+  unsignedTxs: UnsignedTx[],
+  pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
+  nextNonce: number
+): Promise<number> {
+  const { destinationAddress, outputTokenDetails, quote, account } = params;
+
+  // Use the final output amount (net of all fees) for the final transfer
+  const finalOutputAmountRaw = multiplyByPowerOfTen(
+    new Big(quote.outputAmount),
+    outputTokenDetails.pendulumRepresentative.decimals
+  ).toFixed(0, 0);
+
+  const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
+    destinationAddress,
+    outputTokenDetails.pendulumRepresentative.currencyId,
+    finalOutputAmountRaw
+  );
+
+  unsignedTxs.push({
+    meta: {},
+    network: account.network,
+    nonce: nextNonce,
+    phase: "pendulumToAssethub",
+    signer: account.address,
+    txData: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction)
+  });
+  nextNonce++;
+
+  // Add cleanup transaction with the next nonce
+  unsignedTxs.push({
+    ...pendulumCleanupTx,
+    nonce: nextNonce
+  });
+  nextNonce++;
+
+  return nextNonce;
+}
+
+/**
+ * Creates the transaction from Pendulum to Hydration
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param pendulumCleanupTx Cleanup transaction template
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce
+ */
+async function createPendulumToHydrationTransactions(
   params: {
     destinationAddress: string;
     outputTokenDetails: OnChainTokenDetails;
@@ -478,6 +528,12 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
 
+  const inputTokenDetails = getAnyFiatTokenDetails(quote.inputCurrency);
+
+  if (!isMoonbeamTokenDetails(inputTokenDetails)) {
+    throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
+  }
+
   // Validate output token
   if (!isOnChainToken(quote.outputCurrency)) {
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
@@ -501,12 +557,21 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     throw new Error("Polygon ephemeral not found");
   }
 
+  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
+  if (!pendulumEphemeralEntry) {
+    throw new Error("Pendulum ephemeral not found");
+  }
+
   // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
   const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
     0,
     0
   );
+
+  // Get token details for Pendulum
+  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
+  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
   // Initialize state metadata
   stateMeta = {
@@ -559,8 +624,8 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
         fromNetwork: Networks.Polygon,
         inputTokenDetails: {
           erc20AddressSourceChain: ERC20_EURE_POLYGON
-        } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp.
-        outputTokenDetails, // By design, EURC onramp starts from Polygon.
+        } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp
+        outputTokenDetails: AXL_USDC_MOONBEAM_DETAILS, // Always axlUSDC for onramp to AssetHub
         rawAmount: inputAmountPostAnchorFeeRaw,
         toNetwork
       });
@@ -582,6 +647,87 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
         signer: account.address,
         txData: encodeEvmTransactionData(swapData) as EvmTransactionData
       });
+
+      // Initialize nonce counter for Moonbeam transactions
+      let moonbeamNonce = 0;
+
+      // Create Moonbeam to Pendulum XCM transaction
+      moonbeamNonce = await createMoonbeamTransactions(
+        {
+          account,
+          inputAmountPostAnchorFeeRaw,
+          inputTokenDetails,
+          pendulumEphemeralAddress: pendulumEphemeralEntry.address
+        },
+        unsignedTxs,
+        moonbeamNonce
+      );
+    } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+      // Initialize nonce counter for Pendulum transactions
+      let pendulumNonce = 0;
+
+      // Create Nabla swap transactions
+      const nablaResult = await createNablaSwapTransactions(
+        {
+          account,
+          inputAmountUnits: inputAmountPostAnchorFeeUnits,
+          inputTokenPendulumDetails,
+          outputTokenDetails,
+          outputTokenPendulumDetails,
+          quote
+        },
+        unsignedTxs,
+        pendulumNonce
+      );
+
+      // Update nonce and state metadata
+      pendulumNonce = nablaResult.nextNonce;
+      stateMeta = {
+        ...stateMeta,
+        ...nablaResult.stateMeta
+      };
+
+      // Add fee distribution transaction
+      pendulumNonce = await addFeeDistributionTransaction(quote, account, unsignedTxs, pendulumNonce);
+
+      // Create cleanup transaction template
+      const pendulumCleanupTx = await createPendulumCleanupTx({
+        account,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails
+      });
+
+      // Create Pendulum to AssetHub transactions if the destination asset is USDC
+      if (quote.outputCurrency === "USDC") {
+        await createPendulumToAssetHubTransactions(
+          {
+            account,
+            destinationAddress,
+            outputTokenDetails,
+            quote
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          pendulumNonce
+        );
+      } else {
+        let hydrationNonce = 0;
+        await createPendulumToHydrationTransactions(
+          {
+            account,
+            destinationAddress,
+            outputTokenDetails,
+            quote
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          hydrationNonce
+        );
+
+        // TODO create swap transaction
+
+        // TODO create Hydration to AssetHub transactions
+      }
     }
   }
 

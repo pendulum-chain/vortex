@@ -338,14 +338,14 @@ async function createPendulumCleanupTx(params: {
 }
 
 /**
- * Creates AssetHub destination transactions
+ * Creates the transaction from Pendulum to Hydration
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
  * @param pendulumCleanupTx Cleanup transaction template
  * @param nextNonce Next available nonce
  * @returns Updated nonce
  */
-async function createAssetHubDestinationTransactions(
+async function createPendulumToHydrationTransactions(
   params: {
     destinationAddress: string;
     outputTokenDetails: OnChainTokenDetails;
@@ -496,8 +496,6 @@ export async function prepareAveniaToAssethubOnrampTransactions(
         unsignedTxs,
         moonbeamNonce
       );
-
-      // TODO create Hydration transactions here
     }
     // Process Pendulum account
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
@@ -535,18 +533,37 @@ export async function prepareAveniaToAssethubOnrampTransactions(
         outputTokenPendulumDetails
       });
 
-      // Create AssetHub destination transactions
-      await createAssetHubDestinationTransactions(
-        {
-          account,
-          destinationAddress,
-          outputTokenDetails,
-          quote
-        },
-        unsignedTxs,
-        pendulumCleanupTx,
-        pendulumNonce
-      );
+      // Create Pendulum to AssetHub transactions if the destination asset is USDC
+      if (quote.outputCurrency === "USDC") {
+        await createPendulumToHydrationTransactions(
+          {
+            account,
+            destinationAddress,
+            outputTokenDetails,
+            quote
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          pendulumNonce
+        );
+      } else {
+        let hydrationNonce = 0;
+        await createPendulumToHydrationTransactions(
+          {
+            account,
+            destinationAddress,
+            outputTokenDetails,
+            quote
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          hydrationNonce
+        );
+
+        // TODO create swap transaction
+
+        // TODO create Hydration to AssetHub transactions
+      }
     }
   }
 
