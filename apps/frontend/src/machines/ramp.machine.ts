@@ -1,5 +1,5 @@
 import { QuoteResponse, RampDirection } from "@packages/shared";
-import { assign, emit, fromPromise, setup } from "xstate";
+import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
@@ -22,9 +22,11 @@ const initialRampContext: RampContext = {
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
+  partnerId: undefined,
   paymentData: undefined,
   quote: undefined,
   quoteId: undefined,
+  quoteLocked: undefined,
   rampDirection: undefined,
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
@@ -47,9 +49,12 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
+  | { type: "SET_PARTNER_ID"; partnerId?: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
-  | { type: "EXPIRE_QUOTE" };
+  | { type: "EXPIRE_QUOTE" }
+  | { type: "REFRESH_FAILED" };
 
 export const rampMachine = setup({
   actions: {
@@ -77,6 +82,41 @@ export const rampMachine = setup({
       return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
+    quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
+      const { quote, quoteLocked, partnerId } = input.context;
+      if (quoteLocked || !quote) {
+        return;
+      }
+
+      const timer = setInterval(async () => {
+        const now = Date.now();
+        const expires = new Date(quote.expiresAt).getTime();
+        const secondsLeft = Math.round((expires - now) / 1000);
+
+        console.log("Quote expires in", Math.round((expires - now) / 1000), "seconds");
+
+        if (secondsLeft < 580) {
+          try {
+            const newQuote = await QuoteService.createQuote(
+              quote.rampType,
+              quote.from,
+              quote.to,
+              quote.inputAmount,
+              quote.inputCurrency,
+              quote.outputCurrency,
+              partnerId
+            );
+
+            sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
+          } catch (error) {
+            console.error("Quote refresh failed:", error);
+            sendBack({ type: "REFRESH_FAILED" });
+          }
+        }
+      }, 10000);
+
+      return () => clearInterval(timer);
+    }),
     registerRamp: fromPromise(registerRampActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
@@ -154,7 +194,16 @@ export const rampMachine = setup({
     },
     Idle: {
       on: {
+        SET_PARTNER_ID: {
+          actions: assign({
+            partnerId: ({ event }) => event.partnerId
+          })
+        },
         SET_QUOTE: {
+          actions: assign({
+            quoteId: ({ event }) => event.quoteId,
+            quoteLocked: ({ event }) => event.lock
+          }),
           target: "LoadingQuote"
         }
       }
@@ -194,6 +243,10 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        src: "quoteRefresher"
+      },
       on: {
         // This is the main confirm button.
         CONFIRM: {
@@ -205,6 +258,20 @@ export const rampMachine = setup({
             rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
+        },
+        REFRESH_FAILED: {
+          target: "Idle"
+        },
+        UPDATE_QUOTE: {
+          actions: [
+            assign({
+              isQuoteExpired: false,
+              quote: ({ event }) => event.quote,
+              quoteId: ({ event }) => event.quote.id
+            })
+          ],
+          reenter: true,
+          target: "QuoteReady"
         }
       }
     },
@@ -279,7 +346,7 @@ export const rampMachine = setup({
     UpdateRamp: {
       invoke: {
         id: "signingActor",
-        input: ({ self, context }) => ({ context, parent: self }),
+        input: ({ self, context }) => ({ context, parent: self as any }),
         // If offramp, we continue to StartRamp. For onramps we wait for payment confirmation.
         onDone: [
           {

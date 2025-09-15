@@ -1,21 +1,19 @@
-import { useSelector } from "@xstate/react";
 import { Trans } from "react-i18next";
 import { QuoteBackground } from "../../components/QuoteBackground";
-import { useRampActor } from "../../contexts/rampState";
+import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
+import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { BaseLayout } from "../../layouts";
 import { Quote } from "../quote";
 import { Ramp } from "../ramp";
 import MainSections from "./MainSections";
 
 export const Main = () => {
-  const rampActor = useRampActor();
-  const { machineState } = useSelector(rampActor, state => ({
-    machineState: state.value
-  }));
+  const isWidgetMode = useWidgetMode();
+  useSetRampUrlParams();
 
   const main = (
     <main>
-      {machineState === "Idle" ? (
+      {!isWidgetMode ? (
         <>
           <QuoteBackground>
             <div className="flex grow-1 flex-col items-center justify-evenly md:flex-row">
