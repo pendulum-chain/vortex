@@ -128,6 +128,7 @@ export const rampMachine = setup({
             console.log("Clearing URL parameters");
             const cleanUrl = window.location.origin;
             window.history.replaceState({}, "", cleanUrl);
+            window.location.reload();
             resolve();
           }, 5);
         })

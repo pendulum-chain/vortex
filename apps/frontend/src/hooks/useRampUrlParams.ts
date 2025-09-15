@@ -153,7 +153,7 @@ export const useSetRampUrlParams = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
-    // effect to read params when NOT in /widget path
+    // effect to read params when at /widget path
     const isWidget = window.location.pathname.includes("/widget");
     if (!isWidget) return;
     if (hasInitialized.current) return;
