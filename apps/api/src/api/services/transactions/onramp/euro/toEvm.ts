@@ -18,11 +18,11 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
-import erc20ABI from "../../../contracts/ERC20";
-import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
-import { StateMetadata } from "../phases/meta-state-types";
-import { encodeEvmTransactionData } from "./index";
+import erc20ABI from "../../../../../contracts/ERC20";
+import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { StateMetadata } from "../../../phases/meta-state-types";
+import { encodeEvmTransactionData } from "../../index";
 
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
@@ -30,11 +30,63 @@ export interface MoneriumOnrampTransactionParams {
   destinationAddress: string;
 }
 
+async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [toAddress, amountRaw],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON,
+    value: "0"
+  };
+
+  return txData;
+}
+
+async function createOnrampEphemeralSelfTransfer(
+  amountRaw: string,
+  fromAddress: string,
+  toAddress: string
+): Promise<EvmTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [fromAddress, toAddress, amountRaw],
+    functionName: "transferFrom"
+  });
+
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON,
+    value: "0"
+  };
+
+  return txData;
+}
+
 /**
  * Main function to prepare all transactions for an on-ramp operation
  * Creates and signs all required transactions so they are ready to be submitted.
  */
-export async function prepareMoneriumEvmOnrampTransactions({
+export async function prepareMoneriumToEvmOnrampTransactions({
   quote,
   signingAccounts,
   destinationAddress
@@ -161,56 +213,4 @@ export async function prepareMoneriumEvmOnrampTransactions({
   }
 
   return { stateMeta, unsignedTxs };
-}
-
-async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
-  const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
-
-  const transferCallData = encodeFunctionData({
-    abi: erc20ABI,
-    args: [toAddress, amountRaw],
-    functionName: "approve"
-  });
-
-  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
-
-  const txData: EvmTransactionData = {
-    data: transferCallData as `0x${string}`,
-    gas: "100000",
-    maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
-    to: ERC20_EURE_POLYGON,
-    value: "0"
-  };
-
-  return txData;
-}
-
-async function createOnrampEphemeralSelfTransfer(
-  amountRaw: string,
-  fromAddress: string,
-  toAddress: string
-): Promise<EvmTransactionData> {
-  const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
-
-  const transferCallData = encodeFunctionData({
-    abi: erc20ABI,
-    args: [fromAddress, toAddress, amountRaw],
-    functionName: "transferFrom"
-  });
-
-  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
-
-  const txData: EvmTransactionData = {
-    data: transferCallData as `0x${string}`,
-    gas: "100000",
-    maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
-    to: ERC20_EURE_POLYGON,
-    value: "0"
-  };
-
-  return txData;
 }

@@ -39,9 +39,11 @@ import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
 import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumEvmOfframpTransactions";
-import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
-import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/brazil/toAssethub";
+import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/brazil/toEvm";
+import { prepareMoneriumToAssethubOnrampTransactions } from "../transactions/onramp/euro/toAssethub";
+import { prepareMoneriumToEvmOnrampTransactions } from "../transactions/onramp/euro/toEvm";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -113,7 +115,7 @@ export class RampService extends BaseRampService {
     return { stateMeta, unsignedTxs };
   }
 
-  private async prepareOnrampTransactionsMethod(
+  private async prepareAveniaOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
@@ -141,12 +143,20 @@ export class RampService extends BaseRampService {
       moonbeamEphemeralEntry.address
     );
 
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(
-      quote,
-      normalizedSigningAccounts,
-      additionalData.destinationAddress,
-      additionalData.taxId
-    );
+    const { unsignedTxs, stateMeta } =
+      quote.to === Networks.AssetHub
+        ? await prepareAveniaToAssethubOnrampTransactions(
+            quote,
+            normalizedSigningAccounts,
+            additionalData.destinationAddress,
+            additionalData.taxId
+          )
+        : await prepareAveniaToEvmOnrampTransactions(
+            quote,
+            normalizedSigningAccounts,
+            additionalData.destinationAddress,
+            additionalData.taxId
+          );
 
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
@@ -181,11 +191,18 @@ export class RampService extends BaseRampService {
         profileId: ibanData.profile
       });
 
-      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
-        destinationAddress: additionalData.destinationAddress,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      });
+      const { unsignedTxs, stateMeta } =
+        quote.to === Networks.AssetHub
+          ? await prepareMoneriumToAssethubOnrampTransactions({
+              destinationAddress: additionalData.destinationAddress,
+              quote,
+              signingAccounts: normalizedSigningAccounts
+            })
+          : await prepareMoneriumToEvmOnrampTransactions({
+              destinationAddress: additionalData.destinationAddress,
+              quote,
+              signingAccounts: normalizedSigningAccounts
+            });
 
       const ibanPaymentData = {
         bic: ibanData.bic,
@@ -258,7 +275,7 @@ export class RampService extends BaseRampService {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
       await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
-      return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+      return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
 

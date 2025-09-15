@@ -5,19 +5,19 @@ import {
   ApiManager,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
-  createOnrampSquidrouterTransactions,
+  createOnrampSquidrouterTransactionsToEvm,
   createPendulumToAssethubTransfer,
-  createPendulumToMoonbeamTransfer,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
+  EvmClientManager,
+  EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
-  getAnyFiatTokenDetails,
+  FiatToken,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
-  getPendulumDetails,
-  isEvmTokenDetails,
-  isFiatToken,
-  isMoonbeamTokenDetails,
+  isAssetHubTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
   MoonbeamTokenDetails,
@@ -29,15 +29,23 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import logger from "../../../config/logger";
-import Partner from "../../../models/partner.model";
-import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
-import { StateMetadata } from "../phases/meta-state-types";
-import { priceFeedService } from "../priceFeed.service";
-import { encodeEvmTransactionData } from "./index";
-import { prepareMoonbeamCleanupTransaction } from "./moonbeam/cleanup";
-import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
+import { encodeFunctionData } from "viem";
+import logger from "../../../../../config/logger";
+import erc20ABI from "../../../../../contracts/ERC20";
+import Partner from "../../../../../models/partner.model";
+import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../../../models/quoteTicket.model";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { StateMetadata } from "../../../phases/meta-state-types";
+import { priceFeedService } from "../../../priceFeed.service";
+import { encodeEvmTransactionData } from "../../index";
+import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
+import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
+
+export interface MoneriumOnrampTransactionParams {
+  quote: QuoteTicketAttributes;
+  signingAccounts: AccountMeta[];
+  destinationAddress: string;
+}
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -180,60 +188,6 @@ async function createMoonbeamTransactions(
     signer: account.address,
     txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction)
   });
-
-  return nextNonce;
-}
-
-/**
- * Creates Squidrouter transactions for non-AssetHub destinations
- * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-async function createSquidrouterTransactions(
-  params: {
-    outputTokenDetails: OnChainTokenDetails;
-    toNetwork: Networks;
-    rawAmount: string;
-    destinationAddress: string;
-    account: AccountMeta;
-    moonbeamEphemeralAddress?: string;
-  },
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  const { outputTokenDetails, toNetwork, rawAmount, moonbeamEphemeralAddress, destinationAddress, account } = params;
-
-  const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-    addressDestination: destinationAddress,
-    fromAddress: account.address,
-    moonbeamEphemeralAddress,
-    moonbeamEphemeralStartingNonce: nextNonce,
-    outputTokenDetails,
-    rawAmount,
-    toNetwork
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: account.network,
-    nonce: nextNonce,
-    phase: "squidRouterApprove",
-    signer: account.address,
-    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-  });
-  nextNonce++;
-
-  unsignedTxs.push({
-    meta: {},
-    network: account.network,
-    nonce: nextNonce,
-    phase: "squidRouterSwap",
-    signer: account.address,
-    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-  });
-  nextNonce++;
 
   return nextNonce;
 }
@@ -449,63 +403,67 @@ async function createAssetHubDestinationTransactions(
   return nextNonce;
 }
 
-/**
- * Creates EVM destination transactions
- * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param pendulumCleanupTx Cleanup transaction template
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-async function createEvmDestinationTransactions(
-  params: {
-    moonbeamEphemeralAddress: string;
-    outputTokenDetails: OnChainTokenDetails;
-    quote: QuoteTicketAttributes;
-    account: AccountMeta;
-  },
-  unsignedTxs: UnsignedTx[],
-  pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
-  nextNonce: number
-): Promise<number> {
-  const { moonbeamEphemeralAddress, outputTokenDetails, quote, account } = params;
+async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
-  const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
-    moonbeamEphemeralAddress,
-    quote.metadata.onrampOutputAmountMoonbeamRaw,
-    outputTokenDetails.pendulumRepresentative.currencyId
-  );
-
-  unsignedTxs.push({
-    meta: {},
-    network: account.network,
-    nonce: nextNonce,
-    phase: "pendulumToMoonbeam",
-    signer: account.address,
-    txData: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction)
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [toAddress, amountRaw],
+    functionName: "approve"
   });
-  nextNonce++;
 
-  // Add cleanup transaction with the next nonce
-  unsignedTxs.push({
-    ...pendulumCleanupTx,
-    nonce: nextNonce
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON,
+    value: "0"
+  };
+
+  return txData;
+}
+
+async function createOnrampEphemeralSelfTransfer(
+  amountRaw: string,
+  fromAddress: string,
+  toAddress: string
+): Promise<EvmTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [fromAddress, toAddress, amountRaw],
+    functionName: "transferFrom"
   });
-  nextNonce++;
 
-  return nextNonce;
+  const { maxFeePerGas } = await polygonClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: ERC20_EURE_POLYGON,
+    value: "0"
+  };
+
+  return txData;
 }
 
 /**
  * Main function to prepare all transactions for an on-ramp operation
  * Creates and signs all required transactions so they are ready to be submitted.
  */
-export async function prepareOnrampTransactions(
-  quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
-  destinationAddress: string,
-  taxId: string
-): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+export async function prepareMoneriumToAssethubOnrampTransactions({
+  quote,
+  signingAccounts,
+  destinationAddress
+}: MoneriumOnrampTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -514,27 +472,10 @@ export async function prepareOnrampTransactions(
   if (!toNetwork) {
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
-  const toNetworkId = getNetworkId(toNetwork);
 
-  // Find required ephemeral accounts
-  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
-  if (!pendulumEphemeralEntry) {
-    throw new Error("Pendulum ephemeral not found");
-  }
-
-  const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!moonbeamEphemeralEntry) {
-    throw new Error("Moonbeam ephemeral not found");
-  }
-
-  // Validate input token
-  if (!isFiatToken(quote.inputCurrency)) {
-    throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
-  }
-  const inputTokenDetails = getAnyFiatTokenDetails(quote.inputCurrency);
-
-  if (!isMoonbeamTokenDetails(inputTokenDetails)) {
-    throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
+  // Validate input token. Only EURC is allowed for onramp, through Monerium.
+  if (quote.inputCurrency !== FiatToken.EURC) {
+    throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
 
   // Validate output token
@@ -542,150 +483,105 @@ export async function prepareOnrampTransactions(
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
   }
   const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-
-  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  if (!outputTokenDetails) {
+    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
-  // Cast metadata to the correct type for better type safety
-  const metadata = quote.metadata as QuoteTicketMetadata;
+  if (!isOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
+  if (isAssetHubTokenDetails(outputTokenDetails)) {
+    throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
+  }
+
+  // Find required ephemeral accounts
+  // We use Moonbeam as the generic EVM chain.
+  const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
+  if (!polygonEphemeralEntry) {
+    throw new Error("Polygon ephemeral not found");
+  }
 
   // Calculate amounts
   const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, inputTokenDetails.decimals).toFixed(
+  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
     0,
     0
   );
 
-  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
-  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
-    outputAmountBeforeFinalStepRaw,
-    -outputTokenDetails.decimals
-  ).toFixed();
-
-  // Get token details for Pendulum
-  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
-  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
-
   // Initialize state metadata
   stateMeta = {
     destinationAddress,
+    inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
     inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
-    inputTokenPendulumDetails,
-    moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-    outputAmountBeforeFinalStep: {
-      raw: outputAmountBeforeFinalStepRaw,
-      units: outputAmountBeforeFinalStepUnits
-    },
-    outputTokenPendulumDetails,
     outputTokenType: quote.outputCurrency,
-    pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-    taxId
+    polygonEphemeralAddress: polygonEphemeralEntry.address,
+    walletAddress: destinationAddress
   };
+
+  // Create initial user transaction that approves minted funds to ephemeral.
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: 0,
+    phase: "moneriumOnrampSelfTransfer",
+    signer: destinationAddress,
+    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
+  });
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
+    // Create transactions for ephemeral account where Monerium minting takes place
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      // Initialize nonce counter for Moonbeam transactions
-      let moonbeamNonce = 0;
+      // Initialize nonce counter for Polygon transactions
+      let polygonAccountNonce = 0;
 
-      // Create Moonbeam to Pendulum XCM transaction
-      moonbeamNonce = await createMoonbeamTransactions(
-        {
-          account,
-          inputAmountPostAnchorFeeRaw,
-          inputTokenDetails,
-          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-          toNetworkId
-        },
-        unsignedTxs,
-        moonbeamNonce
+      const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
+        inputAmountPostAnchorFeeRaw,
+        destinationAddress,
+        polygonEphemeralEntry.address
       );
 
-      // Create Squidrouter transactions for non-AssetHub destinations
-      if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
-        await createSquidrouterTransactions(
-          {
-            account,
-            destinationAddress,
-            outputTokenDetails,
-            rawAmount: metadata.onrampOutputAmountMoonbeamRaw,
-            toNetwork
-          },
-          unsignedTxs,
-          moonbeamNonce
-        );
-      }
-    }
-    // Process Pendulum account
-    else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      // Initialize nonce counter for Pendulum transactions
-      let pendulumNonce = 0;
-
-      // Create Nabla swap transactions
-      const nablaResult = await createNablaSwapTransactions(
-        {
-          account,
-          inputAmountUnits: inputAmountPostAnchorFeeUnits,
-          inputTokenPendulumDetails,
-          outputTokenDetails,
-          outputTokenPendulumDetails,
-          quote
-        },
-        unsignedTxs,
-        pendulumNonce
-      );
-
-      // Update nonce and state metadata
-      pendulumNonce = nablaResult.nextNonce;
-      stateMeta = {
-        ...stateMeta,
-        ...nablaResult.stateMeta
-      };
-
-      // Add fee distribution transaction
-      pendulumNonce = await addFeeDistributionTransaction(quote, account, unsignedTxs, pendulumNonce);
-
-      // Create cleanup transaction template
-      const pendulumCleanupTx = await createPendulumCleanupTx({
-        account,
-        inputTokenPendulumDetails,
-        outputTokenPendulumDetails
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "moneriumOnrampSelfTransfer",
+        signer: account.address,
+        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
-      // Create destination-specific transactions
-      if (toNetworkId === getNetworkId(Networks.AssetHub)) {
-        // Create AssetHub destination transactions
-        await createAssetHubDestinationTransactions(
-          {
-            account,
-            destinationAddress,
-            outputTokenDetails,
-            quote
-          },
-          unsignedTxs,
-          pendulumCleanupTx,
-          pendulumNonce
-        );
-      } else {
-        // Create EVM destination transactions
-        if (!moonbeamEphemeralEntry) {
-          throw new Error("prepareOnrampTransactions: Moonbeam ephemeral not found");
-        }
+      const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
+        destinationAddress,
+        fromAddress: account.address,
+        fromNetwork: Networks.Polygon,
+        inputTokenDetails: {
+          erc20AddressSourceChain: ERC20_EURE_POLYGON
+        } as unknown as EvmTokenDetails, // Always EUR.e for Monerium onramp.
+        outputTokenDetails, // By design, EURC onramp starts from Polygon.
+        rawAmount: inputAmountPostAnchorFeeRaw,
+        toNetwork
+      });
 
-        await createEvmDestinationTransactions(
-          {
-            account,
-            moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-            outputTokenDetails,
-            quote
-          },
-          unsignedTxs,
-          pendulumCleanupTx,
-          pendulumNonce
-        );
-      }
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "squidRouterApprove",
+        signer: account.address,
+        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+      });
+
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "squidRouterSwap",
+        signer: account.address,
+        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+      });
     }
   }
 
