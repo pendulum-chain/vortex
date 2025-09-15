@@ -16,7 +16,6 @@ export interface OnrampSquidrouterParams {
   outputTokenDetails: EvmTokenDetails;
   toNetwork: Networks;
   addressDestination: string;
-  moonbeamEphemeralAddress: string;
   moonbeamEphemeralStartingNonce: number;
 }
 
@@ -55,15 +54,12 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
   const evmClientManager = EvmClientManager.getInstance();
   const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
-  const isToAssetHub = params.toNetwork === Networks.AssetHub;
-
   const routeParams = createOnrampRouteParams(
     params.fromAddress,
     params.rawAmount,
-    // If the destination is AssetHub, we need to override the token details to xcUSDC on Moonbeam
-    isToAssetHub ? AXL_USDC_MOONBEAM_DETAILS : params.outputTokenDetails,
-    isToAssetHub ? Networks.Moonbeam : params.toNetwork,
-    isToAssetHub ? params.moonbeamEphemeralAddress : params.addressDestination
+    params.outputTokenDetails,
+    params.toNetwork,
+    params.addressDestination
   );
 
   try {
