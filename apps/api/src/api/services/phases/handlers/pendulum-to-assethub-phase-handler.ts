@@ -5,7 +5,7 @@ import { StateMetadata } from "../meta-state-types";
 
 export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "pendulumToAssethub";
+    return "pendulumToAssethubXcm";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -20,7 +20,7 @@ export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const { txData: pendulumToAssethubTransaction } = this.getPresignedTransaction(state, "pendulumToAssethub");
+      const { txData: pendulumToAssethubTransaction } = this.getPresignedTransaction(state, "pendulumToAssethubXcm");
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToAssethubTransaction as string, pendulumNode.api);
       const { hash } = await submitXTokens(

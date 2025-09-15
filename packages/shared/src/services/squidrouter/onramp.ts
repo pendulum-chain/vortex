@@ -15,7 +15,7 @@ export interface OnrampSquidrouterParams {
   rawAmount: string;
   outputTokenDetails: EvmTokenDetails;
   toNetwork: Networks;
-  addressDestination: string;
+  destinationAddress: string;
   moonbeamEphemeralStartingNonce: number;
 }
 
@@ -59,7 +59,7 @@ export async function createOnrampSquidrouterTransactions(params: OnrampSquidrou
     params.rawAmount,
     params.outputTokenDetails,
     params.toNetwork,
-    params.addressDestination
+    params.destinationAddress
   );
 
   try {

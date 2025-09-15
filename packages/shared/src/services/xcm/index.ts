@@ -3,5 +3,6 @@ export * from "./dryRun";
 export * from "./moonbeamToAssethub";
 export * from "./moonbeamToPendulum";
 export * from "./pendulumToAssethub";
+export * from "./pendulumToHydration";
 export * from "./pendulumToMoonbeam";
 export * from "./send";

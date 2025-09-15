@@ -392,7 +392,7 @@
       "moneriumOnrampMint": "Aguardando pagamento",
       "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
-      "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
+      "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
       "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",

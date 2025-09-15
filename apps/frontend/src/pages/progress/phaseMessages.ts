@@ -64,7 +64,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
-    pendulumToAssethub: t("pages.progress.pendulumToAssethub", {
+    pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),
     pendulumToMoonbeam: t("pages.progress.pendulumToMoonbeam", {
