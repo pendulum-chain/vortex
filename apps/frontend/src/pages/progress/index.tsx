@@ -29,7 +29,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
   nablaSwap: 24,
-  pendulumToAssethub: 30,
+  pendulumToAssethubXcm: 30,
   pendulumToMoonbeam: 40,
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
