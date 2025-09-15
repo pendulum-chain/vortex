@@ -3,9 +3,10 @@ import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { createAveniaToAssethubFlow } from "../common/flows";
-import { createMoonbeamTransactions } from "../common/transactions";
 import { validateAveniaOnramp } from "../common/validation";
+import { createAssetHubFinalizationTransactions } from "../flows/finalization";
+import { createBRLAInitialTransactions } from "../flows/initial-steps";
+import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
 
 /**
  * Main function to prepare all transactions for an on-ramp operation
@@ -58,31 +59,37 @@ export async function prepareAveniaToAssethubOnrampTransactions(
     const accountNetworkId = getNetworkId(account.network);
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      let moonbeamNonce = 0;
-      moonbeamNonce = await createMoonbeamTransactions(
-        {
-          account,
-          inputAmountPostAnchorFeeRaw,
-          inputTokenDetails,
-          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-          toNetworkId
-        },
+      await createBRLAInitialTransactions(
         unsignedTxs,
-        moonbeamNonce
+        pendulumEphemeralEntry.address,
+        inputAmountPostAnchorFeeRaw,
+        inputTokenDetails,
+        moonbeamEphemeralEntry,
+        toNetworkId
       );
     }
 
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { nablaStateMeta } = await createAveniaToAssethubFlow(
+      const { nablaStateMeta, pendulumNonce } = await createPendulumSwapAndSubsidizeTransactions(
+        quote,
+        pendulumEphemeralEntry,
+        outputTokenDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+        unsignedTxs
+      );
+      stateMeta = { ...stateMeta, ...nablaStateMeta };
+
+      await createAssetHubFinalizationTransactions(
         quote,
         pendulumEphemeralEntry,
         outputTokenDetails,
         inputTokenPendulumDetails,
         outputTokenPendulumDetails,
         destinationAddress,
-        unsignedTxs
+        unsignedTxs,
+        pendulumNonce
       );
-      stateMeta = { ...stateMeta, ...nablaStateMeta };
     }
   }
 

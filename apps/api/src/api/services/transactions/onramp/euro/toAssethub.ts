@@ -1,15 +1,9 @@
 import {
   AccountMeta,
-  AXL_USDC_MOONBEAM_DETAILS,
-  createOnrampSquidrouterTransactionsToEvm,
-  ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
-  EvmTransactionData,
   getNetworkId,
-  getOnChainTokenDetails,
   getPendulumDetails,
-  isMoonbeamTokenDetails,
   Networks,
   UnsignedTx
 } from "@packages/shared";
@@ -17,11 +11,10 @@ import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { encodeEvmTransactionData } from "../../index";
-import { createMoneriumToAssethubFlow } from "../common/flows";
-import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
-import { createMoonbeamTransactions } from "../common/transactions";
 import { validateMoneriumOnramp } from "../common/validation";
+import { createAssetHubFinalizationTransactions } from "../flows/finalization";
+import { createMoneriumInitialTransactions } from "../flows/initial-steps";
+import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
 
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
@@ -75,98 +68,41 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     walletAddress: destinationAddress
   };
 
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Polygon,
-    nonce: 0,
-    phase: "moneriumOnrampSelfTransfer",
-    signer: destinationAddress,
-    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
-  });
-
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      let polygonAccountNonce = 0;
-
-      const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
-        inputAmountPostAnchorFeeRaw,
-        destinationAddress,
-        polygonEphemeralEntry.address
-      );
-
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "moneriumOnrampSelfTransfer",
-        signer: account.address,
-        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
-      });
-
-      const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
-        destinationAddress: moonbeamEphemeralEntry.address,
-        fromAddress: account.address,
-        fromNetwork: Networks.Polygon,
-        inputTokenDetails: {
-          erc20AddressSourceChain: ERC20_EURE_POLYGON
-        } as any,
-        outputTokenDetails: AXL_USDC_MOONBEAM_DETAILS,
-        rawAmount: inputAmountPostAnchorFeeRaw,
-        toNetwork: Networks.Moonbeam
-      });
-
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "squidRouterApprove",
-        signer: account.address,
-        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-      });
-
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "squidRouterSwap",
-        signer: account.address,
-        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-      });
-
-      const axlUsdcMoonbeamDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.USDC);
-      if (!axlUsdcMoonbeamDetails || !isMoonbeamTokenDetails(axlUsdcMoonbeamDetails)) {
-        throw new Error("Could not find Moonbeam details for axlUSDC");
-      }
-
-      let moonbeamNonce = 0;
-      moonbeamNonce = await createMoonbeamTransactions(
-        {
-          account,
-          inputAmountPostAnchorFeeRaw: quote.metadata.onrampOutputAmountMoonbeamRaw,
-          inputTokenDetails: axlUsdcMoonbeamDetails,
-          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-          toNetworkId: getNetworkId(toNetwork)
-        },
+      await createMoneriumInitialTransactions(
+        quote,
         unsignedTxs,
-        moonbeamNonce
+        destinationAddress,
+        moonbeamEphemeralEntry,
+        polygonEphemeralEntry,
+        inputAmountPostAnchorFeeRaw
       );
     }
 
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { nablaStateMeta } = await createMoneriumToAssethubFlow(
+      const { nablaStateMeta, pendulumNonce } = await createPendulumSwapAndSubsidizeTransactions(
+        quote,
+        pendulumEphemeralEntry,
+        outputTokenDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+        unsignedTxs
+      );
+      stateMeta = { ...stateMeta, ...nablaStateMeta };
+
+      await createAssetHubFinalizationTransactions(
         quote,
         pendulumEphemeralEntry,
         outputTokenDetails,
         inputTokenPendulumDetails,
         outputTokenPendulumDetails,
         destinationAddress,
-        unsignedTxs
+        unsignedTxs,
+        pendulumNonce
       );
-      stateMeta = { ...stateMeta, ...nablaStateMeta };
     }
   }
 

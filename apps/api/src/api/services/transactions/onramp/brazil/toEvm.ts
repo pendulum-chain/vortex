@@ -1,71 +1,12 @@
-import {
-  AccountMeta,
-  createOnrampSquidrouterTransactions,
-  EvmTransactionData,
-  getNetworkId,
-  getPendulumDetails,
-  isEvmTokenDetails,
-  Networks,
-  OnChainTokenDetails,
-  UnsignedTx
-} from "@packages/shared";
+import { AccountMeta, getNetworkId, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { encodeEvmTransactionData } from "../../index";
-import { createAveniaToEvmFlow } from "../common/flows";
-import { createMoonbeamTransactions } from "../common/transactions";
 import { validateAveniaOnramp } from "../common/validation";
-
-async function createSquidRouterTransactions(
-  params: {
-    destinationAddress: string;
-    account: AccountMeta;
-    rawAmount: string;
-    toNetwork: Networks;
-    outputTokenDetails: OnChainTokenDetails;
-  },
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  const { destinationAddress, account, rawAmount, toNetwork, outputTokenDetails } = params;
-
-  if (!isEvmTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
-  }
-
-  const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-    destinationAddress,
-    fromAddress: account.address,
-    moonbeamEphemeralStartingNonce: nextNonce,
-    outputTokenDetails,
-    rawAmount: rawAmount,
-    toNetwork
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: account.network,
-    nonce: nextNonce,
-    phase: "squidRouterApprove",
-    signer: account.address,
-    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-  });
-  nextNonce++;
-
-  unsignedTxs.push({
-    meta: {},
-    network: account.network,
-    nonce: nextNonce,
-    phase: "squidRouterSwap",
-    signer: account.address,
-    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-  });
-  nextNonce++;
-
-  return nextNonce;
-}
+import { createBRLAToEvmFinalizationTransactions } from "../flows/finalization";
+import { createBRLAInitialTransactions } from "../flows/initial-steps";
+import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
 
 /**
  * Main function to prepare all transactions for an on-ramp operation
@@ -114,47 +55,43 @@ export async function prepareAveniaToEvmOnrampTransactions(
     taxId
   };
 
+  let moonbeamNonce = 0;
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      let moonbeamNonce = 0;
-      moonbeamNonce = await createMoonbeamTransactions(
-        {
-          account,
-          inputAmountPostAnchorFeeRaw,
-          inputTokenDetails,
-          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-          toNetworkId
-        },
+      moonbeamNonce = await createBRLAInitialTransactions(
         unsignedTxs,
-        moonbeamNonce
-      );
-
-      moonbeamNonce = await createSquidRouterTransactions(
-        {
-          account,
-          destinationAddress,
-          outputTokenDetails,
-          rawAmount: quote.metadata.onrampOutputAmountMoonbeamRaw,
-          toNetwork
-        },
-        unsignedTxs,
-        moonbeamNonce
+        pendulumEphemeralEntry.address,
+        inputAmountPostAnchorFeeRaw,
+        inputTokenDetails,
+        moonbeamEphemeralEntry,
+        toNetworkId
       );
     }
 
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { nablaStateMeta } = await createAveniaToEvmFlow(
+      const { nablaStateMeta, pendulumNonce } = await createPendulumSwapAndSubsidizeTransactions(
         quote,
         pendulumEphemeralEntry,
-        moonbeamEphemeralEntry.address,
         outputTokenDetails,
         inputTokenPendulumDetails,
         outputTokenPendulumDetails,
         unsignedTxs
       );
       stateMeta = { ...stateMeta, ...nablaStateMeta };
+
+      await createBRLAToEvmFinalizationTransactions(
+        quote,
+        pendulumEphemeralEntry,
+        moonbeamEphemeralEntry,
+        outputTokenDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+        unsignedTxs,
+        pendulumNonce,
+        moonbeamNonce
+      );
     }
   }
 
