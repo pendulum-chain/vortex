@@ -153,6 +153,12 @@ export const useSetRampUrlParams = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
+    // effect to read params when NOT in /widget path
+    const isWidget = window.location.pathname.includes("/widget");
+    if (!isWidget) return;
+    if (hasInitialized.current) return;
+
+    // Modify the ramp state machine accordingly
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;
       if (quote?.id !== providedQuoteId) {
@@ -178,6 +184,39 @@ export const useSetRampUrlParams = () => {
       }
     }
 
+    if (partnerId) {
+      setPartnerIdFn(partnerId);
+    } else {
+      setPartnerIdFn(null);
+    }
+
+    // const params = new URLSearchParams(window.location.search);
+    // const persistState = params.get("code") !== null;
+
+    // if (persistState) {
+    //   hasInitialized.current = true;
+    //   return;
+    // }
+
+    onToggle(rampDirection);
+
+    if (fiat) {
+      handleFiatToken(fiat);
+    }
+
+    if (cryptoLocked) {
+      setOnChainToken(cryptoLocked);
+    }
+
+    if (inputAmount) {
+      setInputAmount(inputAmount);
+    }
+
+    hasInitialized.current = true;
+  }, []); // Empty dependency array means run once on mount
+
+  useEffect(() => {
+    // effect to read params when NOT in /widget path
     const isWidget = window.location.pathname.includes("/widget");
     if (isWidget) return;
 
@@ -214,5 +253,5 @@ export const useSetRampUrlParams = () => {
     }
 
     hasInitialized.current = true;
-  }, []); // Empty dependency array means run once on mount
+  }, []);
 };
