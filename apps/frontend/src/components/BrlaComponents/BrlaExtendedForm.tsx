@@ -1,120 +1,56 @@
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-
-import { useKYCProcess } from "../../hooks/brla/useBRLAKYCProcess";
+import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { isValidCnpj } from "../../hooks/ramp/schema";
-import { useRampKycLevel2Started } from "../../stores/rampStore";
-
+import { useQuote } from "../../stores/quote/useQuoteStore";
+import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
-import { useKYCFormLocalStorage } from "./KYCForm/useKYCFormLocalStorage";
 import { DocumentUpload } from "./KYCLevel2Form";
-import { useBrlaKycPixKeyLocalStorage } from "./useBrlaKycPixKeyLocalStorage";
-import { useBrlaKycTaxIdLocalStorage } from "./useBrlaKycTaxIdLocalStorage";
 import { VerificationStatus } from "./VerificationStatus";
 
 export const PIXKYCForm = () => {
-  const {
-    verificationStatus,
-    statusMessage,
-    failureMessage,
-    handleFormSubmit: handleKYCFormSubmit,
-    cpfApiError,
-    handleBackClick,
-    setIsSubmitted,
-    setCpf,
-    isSubmitted,
-    kycVerificationError,
-    proceedWithRamp,
-    resetToDefault
-  } = useKYCProcess();
+  const aveniaKycActor = useAveniaKycActor();
+  const aveniaState = useAveniaKycSelector();
+  const quote = useQuote();
 
-  const rampKycLevel2Started = useRampKycLevel2Started();
-  const { kycForm } = useKYCForm({ cpfApiError });
-  const { clearStorage } = useKYCFormLocalStorage(kycForm);
+  if (!aveniaKycActor) return null;
+  if (!aveniaState) return null;
 
+  const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
 
-  const { taxId, clearTaxId } = useBrlaKycTaxIdLocalStorage();
-  const { clearPixId } = useBrlaKycPixKeyLocalStorage();
-
-  const handleDocumentUploadSubmit = useCallback(() => {
-    if (!taxId) {
-      return;
-    }
-
-    setIsSubmitted(true);
-    setCpf(taxId);
-  }, [setIsSubmitted, setCpf, taxId]);
-
-  const handleRetryDocumentUpload = useCallback(() => {
-    setIsSubmitted(false);
-    resetToDefault();
-  }, [setIsSubmitted, resetToDefault]);
-
-  if (!taxId) {
+  if (!aveniaState.context.taxId) {
     return null;
   }
 
   const pixformFields: BrlaFieldProps[] = [
     {
-      id: ExtendedBrlaFieldOptions.TAX_ID,
-      index: 0,
-      label: t("components.brlaExtendedForm.form.taxId"),
-      required: true,
-      type: "text"
-    },
-    {
-      id: ExtendedBrlaFieldOptions.PIX_ID,
-      index: 1,
-      label: t("components.brlaExtendedForm.form.pixId"),
-      required: true,
-      type: "text"
-    },
-    {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
-      index: 1,
+      index: 0,
       label: t("components.brlaExtendedForm.form.fullName"),
       placeholder: t("components.brlaExtendedForm.form.fullName"),
       required: true,
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.PHONE,
+      id: ExtendedBrlaFieldOptions.EMAIL,
+      index: 1,
+      label: t("components.brlaExtendedForm.form.email"),
+      placeholder: t("components.brlaExtendedForm.form.email"),
+      required: true,
+      type: "email"
+    },
+    {
+      id: ExtendedBrlaFieldOptions.BIRTHDATE,
       index: 2,
-      label: t("components.brlaExtendedForm.form.phoneNumber"),
-      placeholder: t("components.brlaExtendedForm.form.phoneNumber"),
+      label: t("components.brlaExtendedForm.form.birthdate"),
       required: true,
-      type: "text"
-    },
-    {
-      id: ExtendedBrlaFieldOptions.CEP,
-      index: 3,
-      label: "CEP",
-      placeholder: "CEP",
-      required: true,
-      type: "text"
-    },
-    {
-      id: ExtendedBrlaFieldOptions.CITY,
-      index: 4,
-      label: t("components.brlaExtendedForm.form.city"),
-      placeholder: t("components.brlaExtendedForm.form.city"),
-      required: true,
-      type: "text"
-    },
-    {
-      id: ExtendedBrlaFieldOptions.STATE,
-      index: 5,
-      label: t("components.brlaExtendedForm.form.state"),
-      placeholder: t("components.brlaExtendedForm.form.state"),
-      required: true,
-      type: "text"
+      type: "date"
     },
     {
       id: ExtendedBrlaFieldOptions.STREET,
-      index: 6,
+      index: 3,
       label: t("components.brlaExtendedForm.form.street"),
       placeholder: t("components.brlaExtendedForm.form.street"),
       required: true,
@@ -122,30 +58,48 @@ export const PIXKYCForm = () => {
     },
     {
       id: ExtendedBrlaFieldOptions.NUMBER,
-      index: 7,
+      index: 4,
       label: t("components.brlaExtendedForm.form.number"),
       placeholder: t("components.brlaExtendedForm.form.number"),
       required: true,
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.DISTRICT,
-      index: 8,
-      label: t("components.brlaExtendedForm.form.district"),
-      placeholder: t("components.brlaExtendedForm.form.district"),
+      id: ExtendedBrlaFieldOptions.CITY,
+      index: 5,
+      label: t("components.brlaExtendedForm.form.city"),
+      placeholder: t("components.brlaExtendedForm.form.city"),
       required: true,
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.BIRTHDATE,
-      index: 9,
-      label: t("components.brlaExtendedForm.form.birthdate"),
+      id: ExtendedBrlaFieldOptions.STATE,
+      index: 6,
+      label: t("components.brlaExtendedForm.form.state"),
+      options: ["SP", "RJ"],
+      placeholder: t("components.brlaExtendedForm.form.state"),
       required: true,
-      type: "date"
+      type: "select"
+    },
+    {
+      id: ExtendedBrlaFieldOptions.CEP,
+      index: 7,
+      label: "CEP",
+      placeholder: "CEP",
+      required: true,
+      type: "text"
+    },
+    {
+      id: ExtendedBrlaFieldOptions.TAX_ID,
+      index: 8,
+      label: "CPF",
+      placeholder: "",
+      required: true,
+      type: "text"
     }
   ];
 
-  if (isValidCnpj(taxId)) {
+  if (isValidCnpj(aveniaState.context.taxId)) {
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.COMPANY_NAME,
       index: 10,
@@ -170,55 +124,26 @@ export const PIXKYCForm = () => {
     });
   }
 
-  if (isSubmitted) {
-    return (
-      <div className="relative">
-        <VerificationStatus
-          failureMessage={failureMessage}
-          isLevel2={rampKycLevel2Started}
-          kycVerificationError={kycVerificationError}
-          message={statusMessage}
-          onBack={handleBackClick}
-          onContinue={proceedWithRamp}
-          onRetry={handleRetryDocumentUpload}
-          status={verificationStatus}
-        />
-      </div>
-    );
-  }
-
-  if (rampKycLevel2Started) {
-    return (
-      <div className="relative">
-        <DocumentUpload
-          onBackClick={handleBackClick}
-          onSubmitHandler={() => {
-            handleDocumentUploadSubmit();
-            clearTaxId();
-            clearPixId();
-          }}
-          taxId={taxId}
-        />
-      </div>
-    );
+  let content;
+  if (
+    aveniaState.stateValue === "Verifying" ||
+    aveniaState.stateValue === "Submit" ||
+    aveniaState.stateValue === "Success" ||
+    aveniaState.stateValue === "Rejected" ||
+    aveniaState.stateValue === "Failure"
+  ) {
+    content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
+  } else if (aveniaState.stateValue === "DocumentUpload") {
+    content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
+  } else {
+    content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
   }
 
   return (
-    <div className="relative">
-      <KYCForm
-        fields={pixformFields}
-        form={kycForm}
-        onBackClick={() => {
-          handleBackClick();
-          clearTaxId();
-          clearPixId();
-          clearStorage();
-        }}
-        onSubmit={async formData => {
-          await handleKYCFormSubmit(formData);
-          clearStorage();
-        }}
-      />
-    </div>
+    <>
+      <div className="relative">{content}</div>
+      <DetailsStepQuoteSummary quote={quote} />
+    </>
   );
 };
+///

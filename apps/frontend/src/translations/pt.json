@@ -26,6 +26,7 @@
         "city": "Cidade",
         "companyName": "Nome da Empresa",
         "district": "Bairro",
+        "email": "E-mail",
         "fullName": "Nome Completo",
         "number": "Número",
         "partnerCpff": "CPF do Parceiro",
@@ -67,6 +68,10 @@
         "district": {
           "minLength": "Bairro deve ter pelo menos 3 caracteres",
           "required": "Bairro é obrigatório"
+        },
+        "email": {
+          "format": "Formato de e-mail inválido",
+          "required": "E-mail é obrigatório"
         },
         "fullName": {
           "format": "O nome só pode conter letras e espaços",
@@ -117,7 +122,8 @@
       "buttons": {
         "back": "Voltar",
         "compareFees": "Comparar Taxas",
-        "finish": "Finalizar"
+        "finish": "Finalizar",
+        "next": "Próximo"
       },
       "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
@@ -127,11 +133,17 @@
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
       "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
       "pixKey": "Chave Pix",
-      "placeholder": "Digite seu {{label}}"
+      "placeholder": "Digite seu {{label}}",
+      "walletAddress": "Endereço da Carteira"
+    },
+    "detailsDescription": {
+      "connectWallet": "Conecte sua carteira para continuar o processo",
+      "signToConfirm": "Verifique se você é o proprietário da carteira"
     },
     "dialogs": {
       "connectWallet": {
-        "connect": "Conectar"
+        "connect": "Conectar",
+        "wrongNetwork": "Rede errada"
       },
       "polkadotDisconnectWallet": {
         "disconnect": "Desconectar"
@@ -146,41 +158,9 @@
         "description": "Por favor, aprove {selectedWallet} e aprove a transação.",
         "title": "Conectando wallet"
       },
-      "RampSummaryDialog": {
-        "BRLOnrampDetails": {
-          "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "pixCode": "Código PIX",
-          "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
-          "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
-          "timerLabel": "Cotação expira em:",
-          "title": "Pagar com PIX"
-        },
-        "confirm": "Confirmar",
-        "continue": "Continuar",
-        "continueOnPartnersPage": "Continuar na página do Parceiro",
-        "continueWithPartner": "Continuar com Parceiro",
-        "destination": "Conta de destino",
-        "EUROnrampDetails": {
-          "amount": "Valor",
-          "bic": "BIC",
-          "footer": "Por favor, garanta que o valor seja exato.",
-          "iban": "IBAN",
-          "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
-        },
-        "headerText": {
-          "buy": "Resumo do pagamento",
-          "sell": "Resumo do pagamento"
-        },
-        "offrampFee": "Taxa total",
-        "onrampFee": "Taxa total",
-        "partner": "Parceiro",
-        "processing": "Processando",
-        "quote": "Cotação",
-        "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
-        "tryAgain": "Tentar novamente"
-      },
       "selectionModal": {
-        "searchPlaceholder": "Encontre por nome ou endereço",
+        "allNetworks": "Todas as Redes",
+        "searchPlaceholder": "Encontrar por nome ou endereço",
         "title": "Selecione um token"
       }
     },
@@ -245,15 +225,66 @@
       },
       "button": "Modo de Manutenção"
     },
+    "moneriumRedirect": {
+      "cancel": "Cancelar",
+      "description": "Você foi redirecionado para nosso parceiro...",
+      "goToPartner": "Ir para o parceiro"
+    },
     "navbar": {
+      "api": "API",
+      "bookDemo": "Agendar demo",
       "community": "Comunidade",
+      "docs": "Documentação",
       "howItWorks": "Como funciona",
-      "sellCrypto": "Vender Cripto"
+      "sellCrypto": "Vender Cripto",
+      "solutions": "Soluções",
+      "toggleMobileMenu": "Alternar menu móvel",
+      "vortexLogo": "Logo Vortex",
+      "widget": "Widget"
+    },
+    "quoteSubmitButton": {
+      "buy": "Comprar",
+      "sell": "Vender"
     },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
       "thankYou": "Obrigado!",
       "title": "Sua opinião é importante!"
+    },
+    "SummaryPage": {
+      "BRLOnrampDetails": {
+        "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
+        "pixCode": "Código PIX",
+        "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "timerLabel": "Cotação expira em:",
+        "title": "Pagar com PIX"
+      },
+      "confirm": "Confirmar",
+      "continue": "Continuar",
+      "continueOnPartnersPage": "Continuar na página do Parceiro",
+      "continueWithPartner": "Continuar com Parceiro",
+      "destination": "Conta de destino",
+      "EUROnrampDetails": {
+        "amount": "Valor",
+        "bic": "BIC",
+        "footer": "Por favor, garanta que o valor seja exato.",
+        "iban": "IBAN",
+        "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
+      },
+      "headerText": {
+        "buy": "Resumo do pagamento",
+        "sell": "Resumo do pagamento"
+      },
+      "next": "Próximo",
+      "offrampFee": "Taxa total",
+      "onrampFee": "Taxa total",
+      "partner": "Parceiro",
+      "processing": "Processando",
+      "quote": "Cotação",
+      "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
+      "tryAgain": "Tentar novamente",
+      "verifyWallet": "Verificar carteira"
     },
     "searchInput": {
       "placeholder": "Pesquisar"
@@ -264,6 +295,11 @@
       "signatures": "Assinaturas",
       "waitingForSignature": "Aguardando assinatura",
       "yourConnectedWallet": "sua carteira conectada para prosseguir"
+    },
+    "stepper": {
+      "confirm": "Confirmar",
+      "details": "Detalhes",
+      "verification": "Verificação"
     },
     "swap": {
       "buyButton": "Comprar",
@@ -331,6 +367,20 @@
       "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde."
     }
   },
+  "menus": {
+    "history": {
+      "noHistory": "Seu histórico de rampa aparecerá aqui.",
+      "title": "História"
+    },
+    "settings": {
+      "item": {
+        "imprint": "Imprimir",
+        "support": "Apoiar",
+        "termsAndConditions": "Termos e Condições"
+      },
+      "title": "Configurações"
+    }
+  },
   "pages": {
     "failure": {
       "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
@@ -348,6 +398,11 @@
       "resetAndRestart": "Iniciar Nova Transação",
       "tapToReset": "Clique aqui",
       "title": "Transação Interrompida"
+    },
+    "main": {
+      "hero": {
+        "title": "A <1>Menor Custo</1> Solução <br /> de Entrada e Saída Criptomoedas"
+      }
     },
     "progress": {
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
@@ -420,6 +475,14 @@
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
         "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+      }
+    },
+    "widget": {
+      "details": {
+        "buttons": {
+          "next": "Próximo"
+        },
+        "title": "Insira os detalhes"
       }
     }
   },

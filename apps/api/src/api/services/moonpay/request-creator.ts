@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { config } from "../../../config";
 
 const { priceProviders } = config;
@@ -39,7 +39,7 @@ function createSellQuoteRequest(
 ): { requestPath: string; params: URLSearchParams } {
   const requestPath = `/v3/currencies/${cryptoCurrencyCode}/sell_quote`;
 
-  const payoutMethod = fiatCurrencyCode.toLowerCase() === "eur" ? PAYMENT_METHODS.SEPA : PAYMENT_METHODS.CREDIT_CARD;
+  const payoutMethod = fiatCurrencyCode.toUpperCase() === FiatToken.EURC ? PAYMENT_METHODS.SEPA : PAYMENT_METHODS.CREDIT_CARD;
 
   return {
     params: new URLSearchParams({

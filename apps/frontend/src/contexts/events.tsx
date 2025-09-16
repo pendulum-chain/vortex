@@ -3,7 +3,7 @@ import { createContext, PropsWithChildren, useCallback, useContext, useEffect, u
 import { LocalStorageKeys } from "../hooks/useLocalStorage";
 import { useVortexAccount } from "../hooks/useVortexAccount";
 import { storageService } from "../services/storage/local";
-import { useInputAmount } from "../stores/ramp/useRampFormStore";
+import { useInputAmount } from "../stores/quote/useQuoteFormStore";
 import { RampState } from "../types/phases";
 import { useNetwork } from "./network";
 

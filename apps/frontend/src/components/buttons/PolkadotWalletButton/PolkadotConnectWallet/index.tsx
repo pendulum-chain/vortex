@@ -1,27 +1,36 @@
-import { PlayCircleIcon } from "@heroicons/react/20/solid";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { cn } from "../../../../helpers/cn";
 import { PolkadotWalletSelectorDialog } from "../../../PolkadotWalletSelectorDialog";
+import { WalletButtonVariant } from "../../ConnectWalletButton";
+import { BaseWalletButton } from "../../ConnectWalletButton/BaseWalletButton";
 
-export const PolkadotConnectWallet = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
+export const PolkadotConnectWallet = ({
+  customStyles,
+  hideIcon,
+  variant = WalletButtonVariant.Standard
+}: {
+  customStyles?: string;
+  hideIcon?: boolean;
+  variant?: WalletButtonVariant;
+}) => {
   const [showPolkadotDialog, setShowPolkadotDialog] = useState(false);
   const { t } = useTranslation();
 
   return (
     <>
-      <button
-        className={cn("btn group rounded-3xl", customStyles || "btn-vortex-secondary")}
+      <BaseWalletButton
+        customStyles={customStyles}
+        hideIcon={hideIcon}
         onClick={() => {
           setShowPolkadotDialog(true);
         }}
-        type="button"
+        showPlayIcon
+        variant={variant}
       >
         <p className="flex">
-          {t("components.dialogs.connectWallet.connect")} <span className="hidden lg:ml-1 lg:block">Wallet</span>
+          {t("components.dialogs.connectWallet.connect")} <span className="hidden sm:ml-1 sm:block">Wallet</span>
         </p>
-        {hideIcon ? <></> : <PlayCircleIcon className="w-5 group-hover:text-pink-600" />}
-      </button>
+      </BaseWalletButton>
       <PolkadotWalletSelectorDialog onClose={() => setShowPolkadotDialog(false)} visible={showPolkadotDialog} />
     </>
   );

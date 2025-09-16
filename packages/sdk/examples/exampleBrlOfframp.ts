@@ -63,7 +63,7 @@ async function runBrlOfframpExample() {
 
     const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, brlOfframpData);
 
-    console.log(`✅ BRL Offramp registered successfully:`);
+    console.log("✅ BRL Offramp registered successfully:");
     console.log(`   Ramp ID: ${rampProcess.id}`);
 
     // The unsignedTransactions object will always return the transactions the user must sign and broadcast, please check the docs for more information https://api-docs.vortexfinance.co/vortex-sdk-1289458m0.

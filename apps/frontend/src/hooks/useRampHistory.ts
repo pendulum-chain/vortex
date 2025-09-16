@@ -1,36 +1,48 @@
+import { GetRampHistoryTransaction } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Transaction } from "../components/RampHistory/types";
+import { useAccount } from "wagmi";
+
+import { Transaction, TransactionDestination, TransactionStatus } from "../components/menus/HistoryMenu/types";
+import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import { RampService } from "../services/api/ramp.service";
 
-export function useRampHistory(walletAddress: string | undefined) {
+function formatTransaction(tx: GetRampHistoryTransaction): Transaction {
+  return {
+    ...tx,
+    date: new Date(tx.date),
+    fromNetwork: tx.fromNetwork as TransactionDestination,
+    status: tx.status as TransactionStatus,
+    toNetwork: tx.toNetwork as TransactionDestination
+  };
+}
+
+export function useRampHistory(walletAddress?: string) {
+  const { address: evmAddress } = useAccount();
+  const { walletAccount: polkadotAccount } = usePolkadotWalletState();
+
+  const addresses = walletAddress ? [walletAddress] : ([evmAddress, polkadotAccount?.address].filter(Boolean) as string[]);
+
   return useQuery({
-    enabled: !!walletAddress,
+    enabled: addresses.length > 0,
     queryFn: async () => {
-      if (!walletAddress) {
-        return { transactions: [] };
+      const allTransactions: Transaction[] = [];
+
+      for (const address of addresses) {
+        try {
+          const response = await RampService.getRampHistory(address);
+          const transactions = response.transactions.map(formatTransaction);
+          allTransactions.push(...transactions);
+        } catch (error) {
+          console.warn(`Failed to fetch wallet history for ${address}:`, error);
+        }
       }
 
-      const response = await RampService.getRampHistory(walletAddress);
+      allTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-      const transactions: Transaction[] = response.transactions.map(
-        tx =>
-          ({
-            date: new Date(tx.date),
-            fromAmount: tx.fromAmount,
-            fromCurrency: tx.fromCurrency,
-            fromNetwork: tx.fromNetwork,
-            id: tx.id,
-            status: tx.status,
-            toAmount: tx.toAmount,
-            toCurrency: tx.toCurrency,
-            toNetwork: tx.toNetwork
-          }) as Transaction
-      );
-
-      return { transactions };
+      return { transactions: allTransactions };
     },
-    queryKey: ["rampHistory", walletAddress],
-    refetchOnWindowFocus: true, // 5 minutes
-    staleTime: 5 * 60 * 1000
+    queryKey: ["rampHistory", ...addresses],
+    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 }

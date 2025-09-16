@@ -1,13 +1,13 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { FiatToken, RampDirection } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
 import { Box } from "../../components/Box";
 import { EmailForm } from "../../components/EmailForm";
 import { Rating } from "../../components/Rating";
-import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useRampActor } from "../../contexts/rampState";
+import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
-import { useRampExecutionInput } from "../../stores/rampStore";
 
 const Checkmark = () => (
   <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-blue-700">
@@ -17,11 +17,15 @@ const Checkmark = () => (
 
 export const SuccessPage = () => {
   const { t } = useTranslation();
-  const { finishOfframping } = useRampSubmission();
-  const executionInput = useRampExecutionInput();
-  const { fiatToken } = useRampFormStore();
+  const rampActor = useRampActor();
+
+  const { fiatToken } = useQuoteFormStore();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
+
+  const { executionInput } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput
+  }));
 
   const transactionId = executionInput?.quote?.id;
 
@@ -33,6 +37,10 @@ export const SuccessPage = () => {
 
   const arrivalTextBuy = t("pages.success.arrivalText.buy");
   const arrivalTextSell = ARRIVAL_TEXT_BY_TOKEN[fiatToken] || t("pages.success.arrivalText.sell.default");
+
+  const finishOfframping = () => {
+    rampActor.send({ type: "FINISH_OFFRAMPING" });
+  };
 
   return (
     <main>

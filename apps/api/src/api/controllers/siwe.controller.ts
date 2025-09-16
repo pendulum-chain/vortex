@@ -8,7 +8,7 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
-import { createAndSendNonce, verifyAndStoreSiweMessage } from "../services/siwe.service";
+import { createAndSendNonce, validateSignatureAndGetMemo, verifyAndStoreSiweMessage } from "../services/siwe.service";
 
 export const sendSiweMessage = async (
   req: Request<unknown, unknown, CreateSiweRequest>,
@@ -66,5 +66,38 @@ export const validateSiweSignature = async (
 
     const message = error instanceof Error ? error.message : "Unknown error";
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Could not validate signature: ${message}` });
+  }
+};
+
+export const checkAuth = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const cookies = req.cookies;
+    let authToken;
+    let address;
+
+    for (const cookieName in cookies) {
+      if (cookieName.startsWith("authToken_")) {
+        authToken = cookies[cookieName];
+        address = cookieName.substring("authToken_".length);
+        break;
+      }
+    }
+
+    if (!authToken?.signature || !authToken?.nonce || !address) {
+      res.status(httpStatus.UNAUTHORIZED).json({ error: "Authentication token not found or invalid." });
+      return;
+    }
+
+    const memo = await validateSignatureAndGetMemo(authToken.nonce, authToken.signature);
+
+    if (memo) {
+      res.status(httpStatus.OK).send();
+    } else {
+      res.clearCookie(`authToken_${address}`);
+      res.status(httpStatus.UNAUTHORIZED).json({ error: "Invalid authentication token." });
+    }
+  } catch (error) {
+    console.error("Auth check error:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "An error occurred during authentication check." });
   }
 };

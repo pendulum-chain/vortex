@@ -1,19 +1,17 @@
+import { EvmToken, FiatToken, getNetworkId, Networks, RampDirection } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
-import { useNetwork } from "../../contexts/network";
+import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
   createPendulumEphemeral,
   createStellarEphemeral
 } from "../../services/transactions/ephemerals";
-import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
-import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
-import { useRampActions } from "../../stores/rampStore";
+import { useQuoteFormStore, useQuoteFormStoreActions } from "../../stores/quote/useQuoteFormStore";
+import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
-import { useRegisterRamp } from "../offramp/useRampService/useRegisterRamp";
-import { useStartRamp } from "../offramp/useRampService/useStartRamp";
-import { useVortexAccount } from "../useVortexAccount";
 
 interface SubmissionError extends Error {
   code?: string;
@@ -27,60 +25,79 @@ const createEphemerals = () => ({
 });
 
 export const useRampSubmission = () => {
+  const rampActor = useRampActor();
   const [executionPreparing, setExecutionPreparing] = useState(false);
-  const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
-  const { quote } = useQuoteStore();
-  const { address } = useVortexAccount();
-  const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
-  const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
-  const { registerRamp } = useRegisterRamp();
+
+  const { setTaxId, setPixId } = useQuoteFormStoreActions();
+
+  const { address, quote } = useSelector(rampActor, state => ({
+    address: state.context.address,
+    quote: state.context.quote
+  }));
+
+  const { inputAmount, fiatToken, onChainToken } = useQuoteFormStore();
+  const network = quote
+    ? ((Object.values(Networks).includes(quote.to as Networks) ? quote.to : quote.from) as Networks)
+    : Networks.Moonbeam;
+  const chainId = getNetworkId(network);
+
   const preRampCheck = usePreRampCheck();
-  useStartRamp(); // This will automatically start the ramp process when the conditions are met
+  const rampDirection = useRampDirectionStore(state => state.activeDirection);
 
   // @TODO: implement Error boundary
-  const validateSubmissionData = useCallback(() => {
-    if (!address) {
-      throw new Error("No wallet address found. Please connect your wallet.");
-    }
-    if (!quote) {
-      throw new Error("No quote available. Please try again.");
-    }
-    if (!inputAmount) {
-      throw new Error("No amount specified. Please enter an amount.");
-    }
-    if (fiatToken === "brl") {
-      if (!taxId) {
-        throw new Error("Tax ID is required for BRL transactions.");
+  const validateSubmissionData = useCallback(
+    (data: { taxId?: string }) => {
+      if (!address) {
+        throw new Error("No wallet address found. Please connect your wallet.");
       }
-    }
-  }, [address, quote, inputAmount, fiatToken, taxId]);
+      if (!quote) {
+        throw new Error("No quote available. Please try again.");
+      }
+      if (!inputAmount) {
+        throw new Error("No amount specified. Please enter an amount.");
+      }
+      if (fiatToken === FiatToken.BRL) {
+        if (!data.taxId) {
+          throw new Error("Tax ID is required for BRL transactions.");
+        }
+      }
+    },
+    [address, quote, inputAmount, fiatToken]
+  );
 
-  const prepareExecutionInput = useCallback(() => {
-    validateSubmissionData();
-    if (!quote) {
-      throw new Error("No quote available. Please try again.");
-    }
-    if (!address) {
-      throw new Error("No address found. Please connect your wallet.");
-    }
+  const prepareExecutionInput = useCallback(
+    (data: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+      validateSubmissionData(data);
+      if (!quote) {
+        throw new Error("No quote available. Please try again.");
+      }
 
-    const ephemerals = createEphemerals();
-    const executionInput: RampExecutionInput = {
-      ephemerals,
-      fiatToken,
-      network: selectedNetwork,
-      onChainToken,
-      pixId,
-      quote,
-      setInitializeFailed: message => {
-        console.error("Initialization failed:", message);
-      },
-      taxId,
-      userWalletAddress: address
-    };
-    return executionInput;
-  }, [validateSubmissionData, quote, onChainToken, fiatToken, address, selectedNetwork, taxId, pixId]);
+      // We prioritize the wallet address from the form field.
+      const userWalletAddress = rampDirection === RampDirection.BUY && data.walletAddress ? data.walletAddress : address;
+
+      if (!userWalletAddress) {
+        throw new Error("No address found. Please connect your wallet or provide a destination address.");
+      }
+
+      const ephemerals = createEphemerals();
+      const executionInput: RampExecutionInput = {
+        ephemerals,
+        fiatToken,
+        network,
+        onChainToken,
+        pixId: data.pixId,
+        quote,
+        setInitializeFailed: message => {
+          console.error("Initialization failed:", message);
+        },
+        taxId: data.taxId,
+        userWalletAddress
+      };
+      return executionInput;
+    },
+    [validateSubmissionData, quote, onChainToken, fiatToken, address, network, rampDirection]
+  );
 
   const handleSubmissionError = useCallback(
     (error: SubmissionError) => {
@@ -94,31 +111,48 @@ export const useRampSubmission = () => {
         to_amount: quote?.outputAmount || "0",
         to_asset: onChainToken
       });
-      setRampInitiating(false);
     },
-    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating]
+    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount]
   );
 
-  const onRampConfirm = useCallback(async () => {
-    if (executionPreparing) return;
-    setExecutionPreparing(true);
+  const onRampConfirm = useCallback(
+    async (data?: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+      if (executionPreparing) return;
+      setExecutionPreparing(true);
 
-    try {
-      const executionInput = prepareExecutionInput();
-      await preRampCheck(executionInput);
-      setRampExecutionInput(executionInput);
-      await registerRamp(executionInput);
-    } catch (error) {
-      handleSubmissionError(error as SubmissionError);
-    } finally {
-      setExecutionPreparing(false);
-    }
-  }, [executionPreparing, prepareExecutionInput, preRampCheck, setRampExecutionInput, registerRamp, handleSubmissionError]);
+      try {
+        if (!data) {
+          throw new Error("Invalid ramp data.");
+        }
+
+        const executionInput = prepareExecutionInput(data);
+
+        // This callback is generic and used for any ramp type.
+        // The submission logic must ensure these fields are set if BRL
+        if (executionInput.fiatToken === FiatToken.BRL) {
+          if (!data.taxId) {
+            throw new Error("TaxID, Address must be provided");
+          }
+          setTaxId(data.taxId);
+          setPixId(data.taxId);
+        }
+
+        await preRampCheck(executionInput);
+        if (chainId === undefined) {
+          throw new Error("ChainId must be defined at this stage");
+        }
+        console.log("DEBUG: Ramp Execution Input: ", { input: { chainId, executionInput, rampDirection } });
+        rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
+      } catch (error) {
+        handleSubmissionError(error as SubmissionError);
+      } finally {
+        setExecutionPreparing(false);
+      }
+    },
+    [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError, rampDirection, chainId, rampActor]
+  );
 
   return {
-    finishOfframping: () => {
-      resetRampState();
-    },
     isExecutionPreparing: executionPreparing,
     onRampConfirm,
     validateSubmissionData

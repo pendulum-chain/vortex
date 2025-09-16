@@ -1,3 +1,3 @@
-/api/production/*  https://api.vortexfinance.co/:splat  200
-/api/staging/*  https://api-staging.prd.vortexfinance.co/:splat  200
+/api/production/*  https://vortex-ocmj.onrender.com/:splat  200
+/api/staging/*  https://vortex-6gng.onrender.com/:splat 200
 /* /index.html 200

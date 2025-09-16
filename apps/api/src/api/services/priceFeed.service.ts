@@ -4,6 +4,7 @@ import {
   getPendulumDetails,
   getTokenOutAmount,
   isFiatToken,
+  normalizeTokenSymbol,
   PENDULUM_USDC_AXL,
   RampCurrency,
   UsdLikeEvmToken
@@ -338,8 +339,8 @@ export class PriceFeedService {
     toCurrency: RampCurrency,
     decimals = 6
   ): Promise<string> {
-    fromCurrency = fromCurrency.toLowerCase() as RampCurrency;
-    toCurrency = toCurrency.toLowerCase() as RampCurrency;
+    fromCurrency = fromCurrency.toUpperCase() as RampCurrency;
+    toCurrency = toCurrency.toUpperCase() as RampCurrency;
     try {
       // If currencies are the same, return the original amount
       if (fromCurrency === toCurrency) {
@@ -349,7 +350,7 @@ export class PriceFeedService {
 
       // Check if both currencies are USD-like stablecoins
       const isUsdLikeCurrency = (currency: RampCurrency): boolean =>
-        Object.values(UsdLikeEvmToken).includes(currency as unknown as UsdLikeEvmToken);
+        Object.values(UsdLikeEvmToken).includes(normalizeTokenSymbol(currency) as unknown as UsdLikeEvmToken);
 
       if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
         return this.convertUsdLikeToUsdLike(amount, fromCurrency, toCurrency);
@@ -374,6 +375,7 @@ export class PriceFeedService {
       // For other currency pairs, convert via USD as an intermediate step
       logger.debug(`Converting ${fromCurrency} to ${toCurrency} via USD as intermediate`);
       const amountInUSD = await this.convertCurrency(amount, fromCurrency, EvmToken.USDC);
+
       return this.convertCurrency(amountInUSD, EvmToken.USDC, toCurrency);
     } catch (error) {
       if (error instanceof Error) {

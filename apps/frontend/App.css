@@ -38,7 +38,7 @@ div[data-rk] {
   --color-neutral-content: #58667e;
   --color-base-100: #f5f9fa;
   --color-base-200: #fff;
-  --color-base-300: #f7f7f7;
+  --color-base-300: #e3e7eb;
   --color-base-content: #58667e;
 
   --radius-field: 9px;
@@ -230,6 +230,35 @@ div[data-rk] {
   @apply text-pink-600;
   @apply border;
   @apply border-pink-600;
+}
+
+.btn-vortex-danger {
+  @apply bg-red-600;
+  @apply text-white;
+  @apply rounded-xl;
+  @apply border;
+  @apply border-red-600;
+  @apply shadow-none;
+}
+
+.btn-vortex-danger:hover {
+  @apply bg-white;
+  @apply text-red-600;
+  @apply border-red-600;
+}
+
+.btn-vortex-danger:disabled {
+  @apply bg-red-600;
+  @apply text-white;
+  @apply border-red-600;
+  @apply opacity-40;
+}
+
+.btn-vortex-danger:active,
+.btn-vortex-danger:focus {
+  @apply bg-red-200;
+  @apply text-red-700;
+  @apply border-red-700;
 }
 
 .btn-vortex-primary {

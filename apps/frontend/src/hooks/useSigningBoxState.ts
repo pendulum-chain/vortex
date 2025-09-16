@@ -1,9 +1,10 @@
 import { isNetworkEVM } from "@packages/shared";
+import { useSelector } from "@xstate/react";
 import { useEffect, useState } from "react";
 import { useNetwork } from "../contexts/network";
-import { useRampExecutionInput, useRampSigningPhase, useSigningRejected } from "../stores/rampStore";
+import { useRampActor } from "../contexts/rampState";
 import { useSafeWalletSignatureStore } from "../stores/safeWalletSignaturesStore";
-import { RampExecutionInput, RampSigningPhase } from "../types/phases";
+import { RampSigningPhase } from "../types/phases";
 
 const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, number>> = {
   EVM: {
@@ -37,12 +38,14 @@ const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step i
 };
 
 export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => {
-  const step = useRampSigningPhase();
+  const rampActor = useRampActor();
+  const { step } = useSelector(rampActor, state => ({
+    step: state.context.rampSigningPhase
+  }));
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
   const { confirmations } = useSafeWalletSignatureStore();
-  const signingRejected = useSigningRejected();
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ current: 0, max: 0 });
@@ -51,7 +54,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
   const [shouldDisplay, setShouldDisplay] = useState(false);
 
   useEffect(() => {
-    if (!isValidStep(step, isEVM) || signingRejected) {
+    if (!isValidStep(step, isEVM)) {
       setIsVisible(false);
       return;
     }
@@ -73,7 +76,7 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
 
     setProgress(progressConfig[step]);
     setSignatureState(getSignatureDetails(step, isEVM));
-  }, [step, isEVM, progressConfig, shouldExit, signingRejected, autoHideDelay]);
+  }, [step, isEVM, progressConfig, shouldExit, autoHideDelay]);
 
   useEffect(() => {
     let timeoutId: number;

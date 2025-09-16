@@ -32,7 +32,7 @@ const validateSubsidyAmount = (amount: string, maxAmount: string) => {
 };
 
 const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMTokenConfig => {
-  const normalizedToken = token.toLowerCase() as keyof typeof TOKEN_CONFIG;
+  const normalizedToken = token.toUpperCase() as keyof typeof TOKEN_CONFIG;
   const config = TOKEN_CONFIG[normalizedToken];
 
   if (!config) {

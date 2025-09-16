@@ -13,18 +13,21 @@ import { EvmToken } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
 import { StellarTokenDetails } from "../types/stellar";
+import { normalizeTokenSymbol } from "./normalization";
 import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
 
 /**
  * Get token details for a specific network and token
  */
 export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
+  const normalizedOnChainToken = normalizeTokenSymbol(onChainToken);
+
   try {
     if (network === Networks.AssetHub) {
-      return assetHubTokenConfig[onChainToken as AssetHubToken];
+      return assetHubTokenConfig[normalizedOnChainToken as AssetHubToken];
     } else {
       if (isNetworkEVM(network)) {
-        return evmTokenConfig[network][onChainToken as EvmToken];
+        return evmTokenConfig[network][normalizedOnChainToken as EvmToken];
       } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {

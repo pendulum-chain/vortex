@@ -2,9 +2,10 @@ import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirecti
 import { useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
+import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
-import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
+import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
@@ -14,6 +15,7 @@ interface RampUrlParams {
   from?: string;
   fromAmount?: string;
   partnerId?: string;
+  providedQuoteId?: string;
   moneriumCode?: string;
 }
 
@@ -23,7 +25,7 @@ function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatT
   }
 
   const fiatTokenEntries = Object.entries(FiatToken);
-  const matchedFiatToken = fiatTokenEntries.find(([_, token]) => token.toLowerCase() === fiatToken);
+  const matchedFiatToken = fiatTokenEntries.find(([_, token]) => token.toUpperCase() === fiatToken);
 
   if (!matchedFiatToken) {
     return undefined;
@@ -48,7 +50,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
 
   if (isAssetHub) {
     const assetHubTokenEntries = Object.entries(AssetHubToken);
-    const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
+    const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
     if (!matchedToken) {
       return AssetHubToken.USDC;
@@ -58,7 +60,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     return tokenValue as unknown as OnChainToken;
   } else {
     const evmTokenEntries = Object.entries(EvmToken);
-    const matchedToken = evmTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
+    const matchedToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
     if (!matchedToken) {
       return EvmToken.USDC;
@@ -85,11 +87,12 @@ export const useRampUrlParams = (): RampUrlParams => {
   const urlParams = useMemo(() => {
     const rampParam = params.get("ramp")?.toLowerCase();
     const networkParam = params.get("network")?.toLowerCase();
-    const toTokenParam = params.get("to")?.toLowerCase();
-    const fromTokenParam = params.get("from")?.toLowerCase();
+    const toTokenParam = params.get("to")?.toUpperCase();
+    const fromTokenParam = params.get("from")?.toUpperCase();
     const inputAmountParam = params.get("fromAmount");
     const partnerIdParam = params.get("partnerId");
     const moneriumCode = params.get("code")?.toLowerCase();
+    const providedQuoteId = params.get("quoteId")?.toLowerCase();
 
     const ramp =
       rampParam === undefined
@@ -118,6 +121,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       moneriumCode,
       network: getNetworkFromParam(networkParam),
       partnerId: partnerIdParam || undefined,
+      providedQuoteId,
       ramp,
       to
     };
@@ -127,13 +131,15 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId, providedQuoteId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
-  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useRampFormStoreActions();
+  const rampActor = useRampActor();
+
+  const { setFiatToken, setOnChainToken, setInputAmount, reset: resetRampForm } = useQuoteFormStoreActions();
 
   const hasInitialized = useRef(false);
 
@@ -147,6 +153,17 @@ export const useSetRampUrlParams = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
+    if (providedQuoteId) {
+      const quote = rampActor.getSnapshot()?.context.quote;
+      if (quote?.id !== providedQuoteId) {
+        rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
+      }
+    }
+
+    // We only set the other params once, if not in widget mode.
+    const isWidget = window.location.pathname.includes("/widget");
+    if (providedQuoteId || isWidget) return;
+
     if (hasInitialized.current) return;
 
     if (partnerId) {
@@ -166,7 +183,7 @@ export const useSetRampUrlParams = () => {
       return;
     }
 
-    resetRampDirection();
+    // resetRampDirection();
     resetRampForm();
 
     onToggle(ramp);

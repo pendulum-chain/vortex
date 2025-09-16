@@ -1,25 +1,37 @@
+import { AveniaAccountType } from "../../../src/services/brla";
 import {
+  AccountLimitsResponse,
+  AveniaAccountInfoResponse,
+  AveniaQuoteResponse,
+  AveniaSubaccount,
   DepositLog,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
   FastQuoteResponse,
-  KycLevel2Payload,
-  KycLevel2Response,
+  GetKycAttemptResponse,
+  KycLevel1Payload,
+  KycLevel1Response,
   KycRetryPayload,
   OfframpPayload,
   OnChainOutPayload,
   OnchainLog,
+  PixInputTicketOutput,
+  PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketPayload,
   RegisterSubaccountPayload,
   SubaccountData,
   SwapLog,
-  SwapPayload,
-  UsedLimitData
+  SwapPayload
 } from "./types";
 import { Event } from "./webhooks";
 
 export enum Endpoint {
+  GetSubaccount = "/v2/account/sub-accounts",
   Subaccounts = "/subaccounts",
   PayOut = "/pay-out",
   BrCode = "/pay-in/br-code",
+  AccountLimits = "/v2/account/limits",
   UsedLimit = "/used-limit",
   WebhookEvents = "/webhooks/events",
   PixInfo = "/pay-out/pix-info",
@@ -30,10 +42,30 @@ export enum Endpoint {
   OnChainHistoryOut = "/on-chain/history/out",
   KycLevel2 = "/kyc/level2",
   KycRetry = "/kyc/retry",
-  OnChainOut = "/on-chain/transfer"
+  OnChainOut = "/on-chain/transfer",
+  KycLevel1 = "/v2/kyc/new-level-1/api",
+  FixedRateQuote = "/v2/account/quote/fixed-rate",
+  Tickets = "/v2/account/tickets",
+  AccountInfo = "/v2/account/account-info",
+  Documents = "/v2/documents",
+  GetKycAttempt = "/v2/kyc/attempts"
 }
 
 export interface EndpointMapping {
+  [Endpoint.GetSubaccount]: {
+    POST: {
+      body: { name: string; accountType: AveniaAccountType };
+      response: { id: string };
+    };
+    GET: {
+      body: undefined;
+      response: AveniaSubaccount;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
   [Endpoint.Subaccounts]: {
     POST: {
       body: RegisterSubaccountPayload;
@@ -62,14 +94,14 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.UsedLimit]: {
+  [Endpoint.AccountLimits]: {
     POST: {
       body: undefined;
       response: undefined;
     };
     GET: {
       body: undefined;
-      response: UsedLimitData;
+      response: AccountLimitsResponse;
     };
     PATCH: {
       body: undefined;
@@ -188,10 +220,10 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.KycLevel2]: {
+  [Endpoint.KycRetry]: {
     POST: {
-      body: KycLevel2Payload;
-      response: KycLevel2Response;
+      body: KycRetryPayload;
+      response: unknown; // Doesn't return anything. 201.
     };
     GET: {
       body: undefined;
@@ -202,10 +234,10 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.KycRetry]: {
+  [Endpoint.KycLevel1]: {
     POST: {
-      body: KycRetryPayload;
-      response: unknown; // Doesn't return anything. 201.
+      body: KycLevel1Payload;
+      response: KycLevel1Response;
     };
     GET: {
       body: undefined;
@@ -224,6 +256,76 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.FixedRateQuote]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaQuoteResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Tickets]: {
+    POST: {
+      body: PixInputTicketPayload | PixOutputTicketPayload;
+      response: PixInputTicketOutput | { id: string };
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.AccountInfo]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaAccountInfoResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Documents]: {
+    POST: {
+      body: DocumentUploadRequest;
+      response: DocumentUploadResponse;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.GetKycAttempt]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: GetKycAttemptResponse;
     };
     PATCH: {
       body: undefined;

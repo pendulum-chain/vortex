@@ -1,20 +1,17 @@
 import {
+  AveniaKYCDataUpload,
+  AveniaKYCDataUploadRequest,
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
-  BrlaKYCDataUploadFileFiles,
-  BrlaStartKYC2Response,
-  BrlaTriggerOfframpRequest,
-  BrlaTriggerOfframpResponse,
   BrlaValidatePixKeyResponse,
-  StartKYC2Request
+  RampDirection
 } from "@packages/shared";
 import { apiRequest } from "./api-client";
 
-export type KYCDataUploadFileFiles = BrlaKYCDataUploadFileFiles;
 /**
  * Service for interacting with BRLA API endpoints
  */
@@ -68,21 +65,13 @@ export class BrlaService {
   /**
    * Get the remaining limit for a user
    * @param taxId The user's tax ID
-   * @returns The remaining limit for onramp and offramp
+   * @param direction The ramp direction
+   * @returns The remaining limit
    */
-  static async getUserRemainingLimit(taxId: string): Promise<BrlaGetUserRemainingLimitResponse> {
+  static async getUserRemainingLimit(taxId: string, direction: RampDirection): Promise<BrlaGetUserRemainingLimitResponse> {
     return apiRequest<BrlaGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
-      params: { taxId }
+      params: { direction, taxId }
     });
-  }
-
-  /**
-   * Trigger an offramp operation
-   * @param request The offramp request
-   * @returns The offramp ID
-   */
-  static async triggerOfframp(request: BrlaTriggerOfframpRequest): Promise<BrlaTriggerOfframpResponse> {
-    return apiRequest<BrlaTriggerOfframpResponse>("post", `${this.BASE_PATH}/triggerOfframp`, request);
   }
 
   /**
@@ -94,12 +83,7 @@ export class BrlaService {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
-  /**
-   * Start KYC level 2 process
-   * @param request Tax id and document type that will be used.
-   * @returns The url's to upload the documents.
-   */
-  static async startKYC2(request: StartKYC2Request): Promise<BrlaStartKYC2Response> {
-    return apiRequest<BrlaStartKYC2Response>("post", `${this.BASE_PATH}/startKYC2`, request);
+  static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
+    return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
   }
 }

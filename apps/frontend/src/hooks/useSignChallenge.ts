@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { ActorRefFrom, SnapshotFrom } from "xstate";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
 import { storageKeys } from "../constants/localStorage";
 import { SignInMessage } from "../helpers/siweMessageFormatter";
-import { useRampActions } from "../stores/rampStore";
+import { stellarKycMachine } from "../machines/stellarKyc.machine";
 import { useVortexAccount } from "./useVortexAccount";
 
 export interface SiweSignatureData {
@@ -22,43 +23,53 @@ function createSiweMessage(address: string, nonce: string) {
   return siweMessage.toMessage();
 }
 
-export function useSiweSignature() {
+export function useSiweSignature(stellarKycActor: ActorRefFrom<typeof stellarKycMachine> | undefined) {
   const { address, getMessageSignature } = useVortexAccount();
-  const { setRampSigningPhase } = useRampActions();
-  // Used to wait for the modal interaction and/or return of the
-  // signing promise.
-  const [signPromise, setSignPromise] = useState<{
-    resolve: () => void;
-    reject: (reason: Error) => void;
-  } | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
 
   const storageKey = `${storageKeys.SIWE_SIGNATURE_KEY_PREFIX}${address}`;
 
-  const checkStoredSignature = useCallback((): SiweSignatureData | null => {
-    if (!address) return null;
+  const checkAuthStatus = useCallback(async () => {
+    if (!stellarKycActor) return;
+    if (!address) {
+      console.log("Address must be defined. This is a bug.");
+      stellarKycActor.send({ type: "AUTH_INVALID" });
+      return;
+    }
+
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) {
+      stellarKycActor.send({ type: "AUTH_INVALID" });
+      return;
+    }
+
+    const data: SiweSignatureData = JSON.parse(stored);
+    if (new Date(data.expirationDate) <= new Date()) {
+      localStorage.removeItem(storageKey);
+      stellarKycActor.send({ type: "AUTH_INVALID" });
+      return;
+    }
 
     try {
-      const stored = localStorage.getItem(storageKey);
-      if (!stored) return null;
+      const authCheckResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/check`, {
+        credentials: "include"
+      });
 
-      const data: SiweSignatureData = JSON.parse(stored);
-      return new Date(data.expirationDate) > new Date() ? data : null;
-    } catch {
-      localStorage.removeItem(storageKey);
-      return null;
+      if (authCheckResponse.ok) {
+        stellarKycActor.send({ type: "AUTH_VALID" });
+      } else {
+        localStorage.removeItem(storageKey);
+        stellarKycActor.send({ type: "AUTH_INVALID" });
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      stellarKycActor.send({ error: "Failed to check auth status.", type: "SIGNATURE_FAILURE" });
     }
-  }, [address, storageKey]);
+  }, [address, storageKey, stellarKycActor]);
 
-  const signMessage = useCallback((): Promise<void> | undefined => {
-    if (signPromise) return;
-    return new Promise((resolve, reject) => {
-      setSignPromise({ reject, resolve });
-      setRampSigningPhase?.("login");
-    });
-  }, [setRampSigningPhase, signPromise]);
-
-  const handleSign = useCallback(async () => {
-    if (!address || !signPromise) return;
+  const promptForSignature = useCallback(async () => {
+    if (!address || isSigning || !stellarKycActor) return;
+    setIsSigning(true);
 
     try {
       const messageResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
@@ -71,10 +82,8 @@ export function useSiweSignature() {
       if (!messageResponse.ok) throw new Error("Failed to create message");
       const { nonce } = await messageResponse.json();
 
-      // Message in both string and object form
       const siweMessage = createSiweMessage(address, nonce);
       const message = SignInMessage.fromMessage(siweMessage);
-
       const signature = await getMessageSignature(siweMessage);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
@@ -87,44 +96,37 @@ export function useSiweSignature() {
       if (!validationResponse.ok) throw new Error("Failed to validate signature");
 
       const signatureData: SiweSignatureData = {
-        expirationDate: message.expirationTime, // Field is validated in the message. Should not be null when submitting.
+        expirationDate: message.expirationTime!,
         signatureSet: true
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
-      signPromise.resolve();
-      setRampSigningPhase?.("finished");
+      stellarKycActor.send({ type: "SIGNATURE_SUCCESS" });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setRampSigningPhase?.(undefined);
-
-      // First case Assethub, second case EVM
-      if ((error as Error).message.includes("User rejected the request") || (error as Error).message.includes("Cancelled")) {
-        return signPromise.reject(new Error("Signing failed: User rejected sign request"));
+      if (errorMessage.includes("User rejected") || errorMessage.includes("Cancelled")) {
+        stellarKycActor.send({ error: "User rejected signing request.", type: "SIGNATURE_FAILURE" });
+      } else {
+        stellarKycActor.send({ error: "Failed to sign login challenge. " + errorMessage, type: "SIGNATURE_FAILURE" });
       }
-      return signPromise.reject(new Error("Signing failed: Failed to sign login challenge. " + errorMessage));
     } finally {
-      setSignPromise(null);
+      setIsSigning(false);
     }
-  }, [address, storageKey, signPromise, getMessageSignature, setRampSigningPhase]);
+  }, [address, isSigning, getMessageSignature, storageKey, stellarKycActor]);
 
   useEffect(() => {
-    if (signPromise) handleSign();
-  }, [signPromise, handleSign]);
+    if (!stellarKycActor) return;
+    // We react to the different state changes of the stellarKycActor.
+    stellarKycActor.on("CHECK_AUTH_STATUS", event => {
+      checkAuthStatus();
+    });
 
-  const checkAndWaitForSignature = useCallback(async (): Promise<void> => {
-    const stored = checkStoredSignature();
-    if (stored) return;
-    return signMessage();
-  }, [checkStoredSignature, signMessage]);
+    stellarKycActor.on("PROMPT_FOR_SIGNATURE", event => {
+      promptForSignature();
+    });
 
-  const forceRefreshAndWaitForSignature = useCallback(async (): Promise<void> => {
-    localStorage.removeItem(storageKey);
-    return signMessage();
-  }, [storageKey, signMessage]);
+    stellarKycActor.send({ type: "SIWE_READY" });
+  }, [stellarKycActor, checkAuthStatus, promptForSignature]);
 
-  return {
-    checkAndWaitForSignature,
-    forceRefreshAndWaitForSignature
-  };
+  return {};
 }

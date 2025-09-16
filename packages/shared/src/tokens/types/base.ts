@@ -8,13 +8,13 @@ export enum TokenType {
 }
 
 export enum FiatToken {
-  EURC = "eur",
-  ARS = "ars",
-  BRL = "brl"
+  EURC = "EUR",
+  ARS = "ARS",
+  BRL = "BRL"
 }
 
 export enum AssetHubToken {
-  USDC = "usdc"
+  USDC = "USDC"
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;
@@ -39,10 +39,12 @@ export interface FiatDetails {
 
 export interface BaseFiatTokenDetails {
   fiat: FiatDetails;
-  minWithdrawalAmountRaw: string;
-  maxWithdrawalAmountRaw: string;
-  offrampFeesBasisPoints: number;
-  offrampFeesFixedComponent?: number;
-  onrampFeesBasisPoints?: number;
-  onrampFeesFixedComponent?: number;
+  minSellAmountRaw: string;
+  maxSellAmountRaw: string;
+  minBuyAmountRaw: string;
+  maxBuyAmountRaw: string;
+  sellFeesBasisPoints: number;
+  sellFeesFixedComponent?: number;
+  buyFeesBasisPoints?: number;
+  buyFeesFixedComponent?: number;
 }
