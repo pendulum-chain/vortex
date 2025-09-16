@@ -14,7 +14,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.unitedbloc.com"
+    wsUrl: "wss://moonbeam.public.blastapi.io"
   }
 ];
 
@@ -37,10 +37,10 @@ export class NetworkManager {
       throw new Error("Pendulum and Moonbeam WebSocket URLs must be provided or configured.");
     }
 
-    const pendulumProvider = new WsProvider(pendulumWsUrl, autoReconnect ? 1000 : false);
+    const pendulumProvider = new WsProvider(pendulumWsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
     this.pendulumApi = await ApiPromise.create({ provider: pendulumProvider });
 
-    const moonbeamProvider = new WsProvider(moonbeamWsUrl, autoReconnect ? 1000 : false);
+    const moonbeamProvider = new WsProvider(moonbeamWsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
     this.moonbeamApi = await ApiPromise.create({ provider: moonbeamProvider });
 
     await Promise.all([this.pendulumApi.isReady, this.moonbeamApi.isReady]);

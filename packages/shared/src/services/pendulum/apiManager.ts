@@ -78,7 +78,9 @@ export class ApiManager {
 
   private async connectApi(networkName: SubstrateApiNetwork): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    const wsProvider = new WsProvider(network.wsUrl);
+
+    // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
+    const wsProvider = new WsProvider(network.wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
     const api = await ApiPromise.create({
       noInitWarn: true,
       provider: wsProvider
