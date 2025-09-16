@@ -4,7 +4,7 @@ import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../logger";
 
-export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam";
+export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam" | "hydration";
 
 export interface NetworkConfig {
   name: SubstrateApiNetwork;
@@ -17,12 +17,16 @@ const NETWORKS: NetworkConfig[] = [
     wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
   },
   {
-    name: "pendulum",
-    wsUrl: "wss://rpc-pendulum.prd.pendulumchain.tech"
+    name: "hydration",
+    wsUrl: "wss://rpc.hydradx.cloud"
   },
   {
     name: "moonbeam",
     wsUrl: "wss://moonbeam.unitedbloc.com"
+  },
+  {
+    name: "pendulum",
+    wsUrl: "wss://rpc-pendulum.prd.pendulumchain.tech"
   }
 ];
 
