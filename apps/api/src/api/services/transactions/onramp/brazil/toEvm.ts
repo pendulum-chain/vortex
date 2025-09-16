@@ -1,8 +1,8 @@
-import { AccountMeta, getNetworkId, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
+import { getNetworkId, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
 import Big from "big.js";
-import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { AveniaOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateAveniaOnramp } from "../common/validation";
 import { createBRLAToEvmFinalizationTransactions } from "../flows/finalization";
 import { createBRLAInitialTransactions } from "../flows/initial-steps";
@@ -12,12 +12,12 @@ import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
  * Main function to prepare all transactions for an on-ramp operation
  * Creates and signs all required transactions so they are ready to be submitted.
  */
-export async function prepareAveniaToEvmOnrampTransactions(
-  quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
-  destinationAddress: string,
-  taxId: string
-): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+export async function prepareAveniaToEvmOnrampTransactions({
+  quote,
+  signingAccounts,
+  destinationAddress,
+  taxId
+}: AveniaOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 

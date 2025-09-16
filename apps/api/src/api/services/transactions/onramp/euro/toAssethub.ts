@@ -1,5 +1,4 @@
 import {
-  AccountMeta,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   getNetworkId,
@@ -8,19 +7,13 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 import { createAssetHubFinalizationTransactions } from "../flows/finalization";
 import { createMoneriumInitialTransactions } from "../flows/initial-steps";
 import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
-
-export interface MoneriumOnrampTransactionParams {
-  quote: QuoteTicketAttributes;
-  signingAccounts: AccountMeta[];
-  destinationAddress: string;
-}
 
 /**
  * Main function to prepare all transactions for an on-ramp operation
@@ -30,7 +23,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   quote,
   signingAccounts,
   destinationAddress
-}: MoneriumOnrampTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+}: OnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 

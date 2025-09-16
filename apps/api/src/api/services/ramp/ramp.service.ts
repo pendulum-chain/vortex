@@ -42,6 +42,7 @@ import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumE
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/brazil/toAssethub";
 import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/brazil/toEvm";
+import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareMoneriumToAssethubOnrampTransactions } from "../transactions/onramp/euro/toAssethub";
 import { prepareMoneriumToEvmOnrampTransactions } from "../transactions/onramp/euro/toEvm";
 import { BaseRampService } from "./base.service";
@@ -143,20 +144,17 @@ export class RampService extends BaseRampService {
       moonbeamEphemeralEntry.address
     );
 
+    const params: AveniaOnrampTransactionParams = {
+      destinationAddress: additionalData.destinationAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      taxId: additionalData.taxId
+    };
+
     const { unsignedTxs, stateMeta } =
       quote.to === Networks.AssetHub
-        ? await prepareAveniaToAssethubOnrampTransactions(
-            quote,
-            normalizedSigningAccounts,
-            additionalData.destinationAddress,
-            additionalData.taxId
-          )
-        : await prepareAveniaToEvmOnrampTransactions(
-            quote,
-            normalizedSigningAccounts,
-            additionalData.destinationAddress,
-            additionalData.taxId
-          );
+        ? await prepareAveniaToAssethubOnrampTransactions(params)
+        : await prepareAveniaToEvmOnrampTransactions(params);
 
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
@@ -191,18 +189,16 @@ export class RampService extends BaseRampService {
         profileId: ibanData.profile
       });
 
+      const params: OnrampTransactionParams = {
+        destinationAddress: additionalData.destinationAddress,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      };
+
       const { unsignedTxs, stateMeta } =
         quote.to === Networks.AssetHub
-          ? await prepareMoneriumToAssethubOnrampTransactions({
-              destinationAddress: additionalData.destinationAddress,
-              quote,
-              signingAccounts: normalizedSigningAccounts
-            })
-          : await prepareMoneriumToEvmOnrampTransactions({
-              destinationAddress: additionalData.destinationAddress,
-              quote,
-              signingAccounts: normalizedSigningAccounts
-            });
+          ? await prepareMoneriumToAssethubOnrampTransactions(params)
+          : await prepareMoneriumToEvmOnrampTransactions(params);
 
       const ibanPaymentData = {
         bic: ibanData.bic,

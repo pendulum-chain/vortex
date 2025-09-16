@@ -15,7 +15,7 @@ import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { encodeEvmTransactionData } from "../../index";
-import { createPendulumCleanupTx } from "../common/transactions";
+import { addPendulumCleanupTx } from "../common/transactions";
 
 export async function createAssetHubFinalizationTransactions(
   quote: QuoteTicketAttributes,
@@ -27,7 +27,7 @@ export async function createAssetHubFinalizationTransactions(
   unsignedTxs: UnsignedTx[],
   pendulumNonce: number
 ) {
-  const pendulumCleanupTx = await createPendulumCleanupTx({
+  const pendulumCleanupTx = await addPendulumCleanupTx({
     account: pendulumEphemeralEntry,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails
@@ -93,7 +93,7 @@ export async function createBRLAToEvmFinalizationTransactions(
   pendulumNonce: number,
   moonbeamNonce: number
 ) {
-  const pendulumCleanupTx = await createPendulumCleanupTx({
+  const pendulumCleanupTx = await addPendulumCleanupTx({
     account: pendulumEphemeralEntry,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails

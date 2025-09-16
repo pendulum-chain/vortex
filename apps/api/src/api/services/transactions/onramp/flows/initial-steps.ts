@@ -13,7 +13,7 @@ import {
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
-import { createMoonbeamTransactions } from "../common/transactions";
+import { addMoonbeamTransactions } from "../common/transactions";
 
 export async function createMoneriumInitialTransactions(
   quote: QuoteTicketAttributes,
@@ -93,7 +93,7 @@ export async function createBRLAInitialTransactions(
   toNetworkId: number
 ) {
   let moonbeamNonce = 0;
-  moonbeamNonce = await createMoonbeamTransactions(
+  moonbeamNonce = await addMoonbeamTransactions(
     {
       account: moonbeamEphemeralEntry,
       inputAmountPostAnchorFeeRaw,

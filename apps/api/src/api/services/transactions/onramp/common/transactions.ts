@@ -111,13 +111,45 @@ export async function createFeeDistributionTransaction(quote: QuoteTicketAttribu
 }
 
 /**
+ * Adds fee distribution transaction if available
+ * @param quote Quote ticket
+ * @param account Account metadata
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce
+ */
+export async function addFeeDistributionTransaction(
+  quote: QuoteTicketAttributes,
+  account: AccountMeta,
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number
+): Promise<number> {
+  // Generate the fee distribution transaction
+  const feeDistributionTx = await createFeeDistributionTransaction(quote);
+
+  if (feeDistributionTx) {
+    unsignedTxs.push({
+      meta: {},
+      network: account.network,
+      nonce: nextNonce,
+      phase: "distributeFees",
+      signer: account.address,
+      txData: feeDistributionTx
+    });
+    nextNonce++;
+  }
+
+  return nextNonce;
+}
+
+/**
  * Creates Moonbeam to Pendulum XCM transactions
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
  * @param nextNonce Next available nonce
  * @returns Updated nonce
  */
-export async function createMoonbeamTransactions(
+export async function addMoonbeamTransactions(
   params: {
     pendulumEphemeralAddress: string;
     inputAmountPostAnchorFeeRaw: string;
@@ -177,7 +209,7 @@ export async function createMoonbeamTransactions(
  * @param nextNonce Next available nonce
  * @returns Updated nonce and state metadata
  */
-export async function createNablaSwapTransactions(
+export async function addNablaSwapTransactions(
   params: {
     quote: QuoteTicketAttributes;
     account: AccountMeta;
@@ -267,43 +299,11 @@ export async function createNablaSwapTransactions(
 }
 
 /**
- * Adds fee distribution transaction if available
- * @param quote Quote ticket
- * @param account Account metadata
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-export async function addFeeDistributionTransaction(
-  quote: QuoteTicketAttributes,
-  account: AccountMeta,
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  // Generate the fee distribution transaction
-  const feeDistributionTx = await createFeeDistributionTransaction(quote);
-
-  if (feeDistributionTx) {
-    unsignedTxs.push({
-      meta: {},
-      network: account.network,
-      nonce: nextNonce,
-      phase: "distributeFees",
-      signer: account.address,
-      txData: feeDistributionTx
-    });
-    nextNonce++;
-  }
-
-  return nextNonce;
-}
-
-/**
  * Creates Pendulum cleanup transaction
  * @param params Transaction parameters
  * @returns Cleanup transaction template
  */
-export async function createPendulumCleanupTx(params: {
+export async function addPendulumCleanupTx(params: {
   inputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenPendulumDetails: PendulumTokenDetails;
   account: AccountMeta;
