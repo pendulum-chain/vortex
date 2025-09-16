@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { isValidCnpj } from "../../hooks/ramp/schema";
+import { useQuote } from "../../stores/quote/useQuoteStore";
+import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
 import { DocumentUpload } from "./KYCLevel2Form";
@@ -10,6 +12,7 @@ import { VerificationStatus } from "./VerificationStatus";
 export const PIXKYCForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
+  const quote = useQuote();
 
   if (!aveniaKycActor) return null;
   if (!aveniaState) return null;
@@ -121,6 +124,7 @@ export const PIXKYCForm = () => {
     });
   }
 
+  let content;
   if (
     aveniaState.stateValue === "Verifying" ||
     aveniaState.stateValue === "Submit" ||
@@ -128,24 +132,18 @@ export const PIXKYCForm = () => {
     aveniaState.stateValue === "Rejected" ||
     aveniaState.stateValue === "Failure"
   ) {
-    return (
-      <div className="relative">
-        <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />
-      </div>
-    );
-  }
-
-  if (aveniaState.stateValue === "DocumentUpload") {
-    return (
-      <div className="relative">
-        <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />
-      </div>
-    );
+    content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
+  } else if (aveniaState.stateValue === "DocumentUpload") {
+    content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
+  } else {
+    content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
   }
 
   return (
-    <div className="relative">
-      <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />
-    </div>
+    <>
+      <div className="relative">{content}</div>
+      <DetailsStepQuoteSummary quote={quote} />
+    </>
   );
 };
+///

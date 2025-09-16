@@ -41,7 +41,7 @@ export const StepItem: React.FC<StepItemProps> = ({ step, index, isLast, onStepC
   return (
     <>
       <div className="flex flex-col items-center">
-        <StepCircle index={index} isClickable={clickable} onClick={handleClick} status={step.status} />
+        <StepCircle isClickable={clickable} onClick={handleClick} status={step.status} step={step} />
         <span className={titleStyles}>{step.title}</span>
       </div>
       {!isLast && nextStepStatus && <StepConnector currentStepStatus={step.status} nextStepStatus={nextStepStatus} />}

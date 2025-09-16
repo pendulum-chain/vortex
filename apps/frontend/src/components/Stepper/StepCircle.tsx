@@ -7,7 +7,7 @@ import { Step, StepCircleProps } from "./types";
  */
 export const getStepCircleStyles = (status: Step["status"], isClickable: boolean): string => {
   const baseStyles =
-    "flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out";
+    "flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out hover:scale-110";
 
   const statusStyles = {
     active: "bg-blue-500 text-white",
@@ -27,12 +27,12 @@ export const getStepCircleStyles = (status: Step["status"], isClickable: boolean
 /**
  * Step circle component that displays either a number or checkmark based on status
  */
-export const StepCircle: React.FC<StepCircleProps> = ({ status, index, isClickable, onClick }) => {
+export const StepCircle: React.FC<StepCircleProps> = ({ status, isClickable, onClick, step }) => {
   const circleStyles = getStepCircleStyles(status, isClickable);
 
   return (
     <button className={circleStyles} disabled={!isClickable} onClick={onClick} type="button">
-      {status === "complete" ? <CheckIcon /> : <span>{index + 1}</span>}
+      {status === "complete" ? <CheckIcon /> : <step.Icon className="h-5 w-5" />}
     </button>
   );
 };

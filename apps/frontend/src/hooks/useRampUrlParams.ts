@@ -153,6 +153,17 @@ export const useSetRampUrlParams = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
+    if (providedQuoteId) {
+      const quote = rampActor.getSnapshot()?.context.quote;
+      if (quote?.id !== providedQuoteId) {
+        rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
+      }
+    }
+
+    // We only set the other params once, if not in widget mode.
+    const isWidget = window.location.pathname.includes("/widget");
+    if (providedQuoteId || isWidget) return;
+
     if (hasInitialized.current) return;
 
     if (partnerId) {
@@ -171,9 +182,9 @@ export const useSetRampUrlParams = () => {
       hasInitialized.current = true;
       return;
     }
-    // TODO clarify: why do we want to reset this?
+
     // resetRampDirection();
-    // resetRampForm();
+    resetRampForm();
 
     onToggle(ramp);
 
@@ -195,13 +206,6 @@ export const useSetRampUrlParams = () => {
 
     if (fromAmount) {
       setInputAmount(fromAmount);
-    }
-
-    if (providedQuoteId) {
-      const quote = rampActor.getSnapshot()?.context.quote;
-      if (quote?.id !== providedQuoteId) {
-        rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
-      }
     }
 
     hasInitialized.current = true;

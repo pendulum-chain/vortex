@@ -67,8 +67,18 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
   }, []);
 
   useEffect(() => {
-    if (!nativeToken || !substrateAddress || !assetHubNode || selectedNetwork !== "assethub") {
+    if (!nativeToken || selectedNetwork !== Networks.AssetHub) {
       setNativeBalance(null);
+      return;
+    }
+
+    // If substrate wallet is not connected or node is not available,
+    // still show the token with zero balance
+    if (!substrateAddress || !assetHubNode) {
+      setNativeBalance({
+        ...nativeToken,
+        balance: "0.0000"
+      });
       return;
     }
 
@@ -167,7 +177,19 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
   useEffect(() => {
-    if (!substrateAddress || !assetHubNode) return;
+    // If there are no tokens to process, return early
+    if (tokens.length === 0) return;
+
+    // If substrate wallet is not connected or node is not available,
+    // still show the tokens with zero balances
+    if (!substrateAddress || !assetHubNode) {
+      const tokensWithZeroBalances = tokens.map(token => ({
+        ...token,
+        balance: "0.00"
+      }));
+      setBalances(tokensWithZeroBalances);
+      return;
+    }
 
     const getBalances = async () => {
       const { api } = assetHubNode;
@@ -212,8 +234,20 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
   const assetHubNativeBalance = useAssetHubNativeBalance();
 
   return useMemo(() => {
-    return [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(
-      Boolean
-    ) as OnChainTokenDetailsWithBalance[];
+    // Combine all token balances
+    const allTokens = [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(Boolean);
+
+    // Deduplicate tokens by network-symbol pair
+    const uniqueTokens = new Map();
+    allTokens.forEach(token => {
+      if (token) {
+        const key = `${token.network}-${token.assetSymbol}`;
+        if (!uniqueTokens.has(key)) {
+          uniqueTokens.set(key, token);
+        }
+      }
+    });
+
+    return Array.from(uniqueTokens.values()) as OnChainTokenDetailsWithBalance[];
   }, [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
 };

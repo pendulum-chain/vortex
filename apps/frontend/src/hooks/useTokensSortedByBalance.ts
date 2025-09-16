@@ -58,15 +58,36 @@ export const useTokensSortedByBalance = (
   const sortedTokensWithBalances = useOnchainTokenBalancesSorted(onChainTokenDetails);
 
   const sortedTokenDefinitions = useMemo(() => {
-    return sortedTokensWithBalances.map(details => ({
-      assetIcon: details.networkAssetIcon,
-      assetSymbol: details.assetSymbol,
-      details: details,
-      network: details.network,
-      networkDisplayName: getNetworkDisplayName(details.network),
-      type: details.assetSymbol as OnChainToken
-    }));
+    // Create a map to track tokens by network and symbol to avoid duplicates
+    const uniqueTokens = new Map();
+
+    sortedTokensWithBalances.forEach(details => {
+      const key = `${details.network}-${details.assetSymbol}`;
+      if (!uniqueTokens.has(key)) {
+        uniqueTokens.set(key, {
+          assetIcon: details.networkAssetIcon,
+          assetSymbol: details.assetSymbol,
+          details: details,
+          network: details.network,
+          networkDisplayName: getNetworkDisplayName(details.network),
+          type: details.assetSymbol as OnChainToken
+        });
+      }
+    });
+
+    return Array.from(uniqueTokens.values());
   }, [sortedTokensWithBalances]);
 
-  return sortedTokenDefinitions as ExtendedTokenDefinition[];
+  // Filter tokens based on the original token definitions to ensure network consistency
+  const filteredTokenDefinitions = useMemo(() => {
+    if (isExtendedTokenDefinitionArray(tokenDefinitions)) {
+      // Create a set of network-token pairs from the original definitions
+      const allowedPairs = new Set(tokenDefinitions.map(token => `${token.network}-${token.assetSymbol}`));
+
+      return sortedTokenDefinitions.filter(token => allowedPairs.has(`${token.network}-${token.assetSymbol}`));
+    }
+    return sortedTokenDefinitions;
+  }, [sortedTokenDefinitions, tokenDefinitions]);
+
+  return filteredTokenDefinitions as ExtendedTokenDefinition[];
 };

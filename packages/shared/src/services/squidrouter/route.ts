@@ -118,9 +118,9 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
     const route = result.data.route;
     if (route.estimate?.aggregateSlippage !== undefined) {
       const slippage = route.estimate.aggregateSlippage;
-      if (slippage > 1) {
+      if (slippage > 2.5) {
         logger.current.error(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
-        throw new Error(`Received route with high slippage: ${slippage}%. Please try again later.`);
+        throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
       }
     }
 

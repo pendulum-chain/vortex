@@ -126,10 +126,10 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            actions: [{ type: "showSigningRejectedErrorToast" }, { type: "resetRamp" }],
+            actions: [{ type: "showSigningRejectedErrorToast" }],
             guard: ({ event }: { event: any }) =>
               (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
-            target: "#ramp.KycFailure"
+            target: "#ramp.QuoteReady"
           },
           {
             actions: assign({
@@ -166,8 +166,8 @@ export const kycStateNode = {
           },
           {
             actions: [{ type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) => event.output?.error.includes("User rejected"),
-            target: "#ramp.KycFailure"
+            guard: ({ event }: { event: any }) => event.output?.error.includes("User rejected"), // TODO improve to error classes, as in moneriumKyc state machine.
+            target: "#ramp.QuoteReady"
           },
           {
             // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.

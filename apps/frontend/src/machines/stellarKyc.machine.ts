@@ -1,5 +1,6 @@
 import { FiatToken, isFiatTokenDetails, PaymentData } from "@packages/shared";
-import { assign, emit, setup } from "xstate";
+import { assign, emit, sendParent, setup } from "xstate";
+import { RampSigningPhase } from "../types/phases";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";
 import { startSep24Actor } from "./actors/stellar/startSep24.actor";
 import { StellarKycContext } from "./kyc.states";
@@ -28,7 +29,8 @@ export const stellarKycMachine = setup({
       | { type: "SIGNATURE_FAILURE"; error: string }
       | { type: "CHECK_AUTH_STATUS" }
       | { type: "PROMPT_FOR_SIGNATURE" }
-      | { type: "SIWE_READY" },
+      | { type: "SIWE_READY" }
+      | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined },
     input: {} as RampContext,
     output: {} as { error?: any; paymentData?: PaymentData }
   }
@@ -99,9 +101,20 @@ export const stellarKycMachine = setup({
           ]
         },
         RequestingSignature: {
-          entry: emit({ type: "PROMPT_FOR_SIGNATURE" }),
+          entry: [
+            emit({ type: "PROMPT_FOR_SIGNATURE" }),
+            sendParent(() => ({
+              phase: "login",
+              type: "SIGNING_UPDATE"
+            }))
+          ],
+          exit: sendParent({ phase: undefined, type: "SIGNING_UPDATE" }),
           on: {
             SIGNATURE_SUCCESS: {
+              actions: sendParent(() => ({
+                phase: "finished",
+                type: "SIGNING_UPDATE"
+              })),
               target: "#stellarKyc.StartSep24"
             }
           }

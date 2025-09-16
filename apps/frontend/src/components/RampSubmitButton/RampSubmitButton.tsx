@@ -11,7 +11,7 @@ import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
-import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
@@ -48,12 +48,12 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
-          text: t("components.RampSummaryCard.confirm")
+          text: t("components.SummaryPage.confirm")
         };
       } else {
         return {
           icon: null,
-          text: t("components.RampSummaryCard.signIn")
+          text: t("components.SummaryPage.verifyWallet")
         };
       }
     }
@@ -61,14 +61,14 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     if (isQuoteExpired) {
       return {
         icon: null,
-        text: t("components.RampSummaryCard.quoteExpired")
+        text: t("components.SummaryPage.quoteExpired")
       };
     }
 
     if (machineState === "KycComplete") {
       return {
         icon: null,
-        text: t("components.RampSummaryCard.confirm")
+        text: t("components.SummaryPage.confirm")
       };
     }
 
@@ -77,7 +77,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     // if (signingRejected) {
     //   return {
     //     icon: null,
-    //     text: t("components.RampSummaryCard.tryAgain")
+    //     text: t("components.SummaryPage.tryAgain")
     //   };
     // }
 
@@ -91,14 +91,14 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     if (isOfframp && isAnchorWithoutRedirect) {
       return {
         icon: null,
-        text: t("components.RampSummaryCard.confirm")
+        text: t("components.SummaryPage.confirm")
       };
     }
 
     if (isOfframp && rampState !== undefined) {
       return {
         icon: <Spinner />,
-        text: t("components.RampSummaryCard.processing")
+        text: t("components.SummaryPage.processing")
       };
     }
 
@@ -112,7 +112,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     if (isOnramp && !isDepositQrCodeReady) {
       return {
         icon: null,
-        text: t("components.RampSummaryCard.confirm")
+        text: t("components.SummaryPage.confirm")
       };
     }
 
@@ -120,12 +120,12 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       if (stellarData?.stateValue === "Sep24Second") {
         return {
           icon: <Spinner />,
-          text: t("components.RampSummaryCard.continueOnPartnersPage")
+          text: t("components.SummaryPage.continueOnPartnersPage")
         };
       } else {
         return {
           icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-          text: t("components.RampSummaryCard.continueWithPartner")
+          text: t("components.SummaryPage.continueWithPartner")
         };
       }
     }
@@ -151,6 +151,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
 
+  const moneriumKycActor = useMoneriumKycActor();
+
   const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
@@ -175,7 +177,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
       return false;
     }
 
-    if (machineState === "RegisterRamp") {
+    if (machineState === "RegisterRamp" || moneriumKycActor) {
       return true;
     }
 
@@ -205,7 +207,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     anchorUrl,
     fiatToken,
     stellarData,
-    machineState
+    machineState,
+    moneriumKycActor
   ]);
 
   const buttonContent = useButtonContent({

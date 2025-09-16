@@ -1,6 +1,7 @@
 export interface Step {
   title: string;
   status: "complete" | "active" | "incomplete";
+  Icon: React.ElementType;
 }
 
 export interface StepperProps {
@@ -19,7 +20,7 @@ export interface StepItemProps {
 
 export interface StepCircleProps {
   status: Step["status"];
-  index: number;
+  step: Step;
   isClickable: boolean;
   onClick: () => void;
 }

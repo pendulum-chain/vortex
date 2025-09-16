@@ -1,6 +1,7 @@
 import { siweMessage } from "@monerium/sdk";
 import CryptoJS from "crypto-js";
 import { polygon } from "viem/chains";
+import { MoneriumKycActorRef } from "../../machines/types";
 
 export enum MoneriumAuthErrorType {
   UserRejected = "USER_REJECTED",
@@ -20,27 +21,38 @@ const LINK_MESSAGE = "I hereby declare that I am the address owner.";
 
 export const initiateMoneriumAuth = async (
   address: string,
-  signMessage: (message: string) => Promise<string>
+  signMessage: (message: string) => Promise<string>,
+  parent: MoneriumKycActorRef
 ): Promise<{ authUrl: string; codeVerifier: string }> => {
   console.log("Initiating Monerium auth for address:", address);
   // Generate PKCE code verifier and challenge
   const codeVerifier = CryptoJS.lib.WordArray.random(64).toString();
   const codeChallenge = CryptoJS.enc.Base64url.stringify(CryptoJS.SHA256(codeVerifier));
 
-  const signature = await signMessage(LINK_MESSAGE);
+  try {
+    parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+    const signature = await signMessage(LINK_MESSAGE);
+    parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
 
-  const params = new URLSearchParams({
-    address: address,
-    chain: polygon.name.toString().toLowerCase(),
-    client_id: VORTEX_APP_CLIENT_ID,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    redirect_uri: window.location.origin,
-    signature
-  });
+    const params = new URLSearchParams({
+      address: address,
+      chain: polygon.name.toString().toLowerCase(),
+      client_id: VORTEX_APP_CLIENT_ID,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      redirect_uri: window.location.origin,
+      signature
+    });
 
-  const authUrl = `${MONERIUM_API_URL}/auth?${params.toString()}`;
-  return { authUrl, codeVerifier };
+    const authUrl = `${MONERIUM_API_URL}/auth?${params.toString()}`;
+    return { authUrl, codeVerifier };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("User rejected the request")) {
+      throw new MoneriumAuthError("User rejected the request.", MoneriumAuthErrorType.UserRejected);
+    }
+    console.log("Error during Monerium auth:", error);
+    throw error;
+  }
 };
 
 export const createMoneriumSiweMessage = (address: string) => {
@@ -60,7 +72,8 @@ export const createMoneriumSiweMessage = (address: string) => {
 
 export const handleMoneriumSiweAuth = async (
   address: string,
-  signMessage: (message: string) => Promise<string>
+  signMessage: (message: string) => Promise<string>,
+  parent: MoneriumKycActorRef
 ): Promise<{ authUrl: string; codeVerifier: string }> => {
   console.log("Handling Monerium SIWE auth for address:", address);
 
@@ -70,8 +83,9 @@ export const handleMoneriumSiweAuth = async (
   const message = createMoneriumSiweMessage(address);
 
   try {
+    parent.send({ phase: "login", type: "SIGNING_UPDATE" });
     const signature = await signMessage(message);
-
+    parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
     const params = new URLSearchParams({
       authentication_method: "siwe",
       client_id: VORTEX_APP_CLIENT_ID,
