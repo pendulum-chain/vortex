@@ -7,10 +7,12 @@ import initialPhaseHandler from "./handlers/initial-phase-handler";
 import moneriumOnrampMintPhaseHandler from "./handlers/monerium-onramp-mint-handler";
 import moneriumOnrampSelfTransferHandler from "./handlers/monerium-onramp-self-transfer-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
+import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
 import moonbeamXcmToAssethubHandler from "./handlers/moonbeam-xcm-to-assethub-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
 import nablaSwapHandler from "./handlers/nabla-swap-handler";
 import pendulumToAssethubPhaseHandler from "./handlers/pendulum-to-assethub-phase-handler";
+import pendulumToMoonbeamXcmHandler from "./handlers/pendulum-to-moonbeam-xcm-handler";
 import spacewalkRedeemHandler from "./handlers/spacewalk-redeem-handler";
 import squidRouterPayPhaseHandler from "./handlers/squid-router-pay-phase-handler";
 import squidRouterPhaseHandler from "./handlers/squid-router-phase-handler";
@@ -18,6 +20,7 @@ import stellarPaymentHandler from "./handlers/stellar-payment-handler";
 import subsidizePostSwapPhaseHandler from "./handlers/subsidize-post-swap-handler";
 import subsidizePreSwapPhaseHandler from "./handlers/subsidize-pre-swap-handler";
 import phaseRegistry from "./phase-registry";
+
 /**
  * Register all phase handlers
  */
@@ -43,6 +46,8 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(moneriumOnrampMintPhaseHandler);
   phaseRegistry.registerHandler(brlaTransferHandler);
   phaseRegistry.registerHandler(moonbeamXcmToAssethubHandler);
+  phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
+  phaseRegistry.registerHandler(pendulumToMoonbeamXcmHandler);
 
   logger.info("Phase handlers registered");
 }
