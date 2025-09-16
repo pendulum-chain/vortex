@@ -2,9 +2,9 @@ import { DestinationType, EvmAddress, Networks, RampDirection } from "../index";
 
 export type RampPhase =
   | "initial"
+  | "brlaTransfer"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
-  | "timedOut"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -15,8 +15,10 @@ export type RampPhase =
   | "moonbeamToPendulum"
   | "moonbeamToPendulumXcm"
   | "pendulumToMoonbeam"
+  | "pendulumToHydrationXcm"
   | "assethubToPendulum"
-  | "pendulumToAssethub"
+  | "pendulumToAssethubXcm"
+  | "moonbeamXcmToAssethub"
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"

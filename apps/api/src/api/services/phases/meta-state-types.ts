@@ -34,6 +34,8 @@ export interface StateMetadata {
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
+  moonbeamEphemeralAccount: { secret: string; address: string };
+  finalUserAddress: string;
   pendulumToAssethubXcmHash?: string;
   nabla: {
     approveExtrinsicOptions: ExtrinsicOptions;

@@ -45,7 +45,7 @@ export interface SquidRouterPayResponse {
   routeStatus: RouteStatus[];
 }
 // This function creates the parameters for the Squidrouter API to get a route for onramping.
-// This route will always be from Moonbeam to another EVM chain.
+// This route will always be from Polygon to another EVM chain.
 export function createOnrampRouteParams(
   fromAddress: string,
   amount: string,
@@ -53,7 +53,7 @@ export function createOnrampRouteParams(
   toNetwork: Networks,
   addressDestination: string
 ): RouteParams {
-  const fromChainId = getNetworkId(Networks.Moonbeam);
+  const fromChainId = getNetworkId(Networks.Polygon);
   const toChainId = getNetworkId(toNetwork);
 
   return {

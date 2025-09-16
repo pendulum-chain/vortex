@@ -1,0 +1,99 @@
+import { AccountMeta, getNetworkId, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
+import Big from "big.js";
+import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { StateMetadata } from "../../../phases/meta-state-types";
+import { validateAveniaOnramp } from "../common/validation";
+import { createBRLAToEvmFinalizationTransactions } from "../flows/finalization";
+import { createBRLAInitialTransactions } from "../flows/initial-steps";
+import { createPendulumSwapAndSubsidizeTransactions } from "../flows/pendulum";
+
+/**
+ * Main function to prepare all transactions for an on-ramp operation
+ * Creates and signs all required transactions so they are ready to be submitted.
+ */
+export async function prepareAveniaToEvmOnrampTransactions(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[],
+  destinationAddress: string,
+  taxId: string
+): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+  let stateMeta: Partial<StateMetadata> = {};
+  const unsignedTxs: UnsignedTx[] = [];
+
+  const { toNetwork, outputTokenDetails, pendulumEphemeralEntry, moonbeamEphemeralEntry, inputTokenDetails } =
+    validateAveniaOnramp(quote, signingAccounts);
+  const toNetworkId = getNetworkId(toNetwork);
+
+  const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
+  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, inputTokenDetails.decimals).toFixed(
+    0,
+    0
+  );
+
+  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
+  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
+    outputAmountBeforeFinalStepRaw,
+    -outputTokenDetails.decimals
+  ).toFixed();
+
+  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
+  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+
+  stateMeta = {
+    destinationAddress,
+    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
+    inputTokenPendulumDetails,
+    moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
+    outputAmountBeforeFinalStep: {
+      raw: outputAmountBeforeFinalStepRaw,
+      units: outputAmountBeforeFinalStepUnits
+    },
+    outputTokenPendulumDetails,
+    outputTokenType: quote.outputCurrency,
+    pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+    taxId
+  };
+
+  let moonbeamNonce = 0;
+  for (const account of signingAccounts) {
+    const accountNetworkId = getNetworkId(account.network);
+
+    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      moonbeamNonce = await createBRLAInitialTransactions(
+        unsignedTxs,
+        pendulumEphemeralEntry.address,
+        inputAmountPostAnchorFeeRaw,
+        inputTokenDetails,
+        moonbeamEphemeralEntry,
+        toNetworkId
+      );
+    }
+
+    if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+      const { nablaStateMeta, pendulumNonce } = await createPendulumSwapAndSubsidizeTransactions(
+        quote,
+        pendulumEphemeralEntry,
+        outputTokenDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+        unsignedTxs
+      );
+      stateMeta = { ...stateMeta, ...nablaStateMeta };
+
+      await createBRLAToEvmFinalizationTransactions(
+        quote,
+        pendulumEphemeralEntry,
+        moonbeamEphemeralEntry,
+        outputTokenDetails,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+        unsignedTxs,
+        pendulumNonce,
+        moonbeamNonce
+      );
+    }
+  }
+
+  return { stateMeta, unsignedTxs };
+}
