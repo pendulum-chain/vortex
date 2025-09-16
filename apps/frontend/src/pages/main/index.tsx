@@ -1,5 +1,4 @@
 import { Trans } from "react-i18next";
-import { QuoteBackground } from "../../components/QuoteBackground";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { BaseLayout } from "../../layouts";
@@ -15,7 +14,7 @@ export const Main = () => {
     <main>
       {!isWidgetMode ? (
         <>
-          <QuoteBackground>
+          <div className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] pb-4">
             <div className="flex grow-1 flex-col items-center justify-evenly md:flex-row">
               <div className="pt-8 text-center font-semibold text-2xl text-white md:pt-0 md:text-3xl lg:text-end lg:text-4xl">
                 <Trans
@@ -28,7 +27,7 @@ export const Main = () => {
               </div>
               <Quote />
             </div>
-          </QuoteBackground>
+          </div>
           <MainSections />
         </>
       ) : (
