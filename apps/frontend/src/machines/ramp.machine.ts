@@ -14,6 +14,8 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 580; // 2 minutes TODO change testing
+
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
@@ -89,14 +91,14 @@ export const rampMachine = setup({
         return;
       }
 
-      const timer = setInterval(async () => {
+      const refetchQuote = async () => {
         const now = Date.now();
         const expires = new Date(quote.expiresAt).getTime();
         const secondsLeft = Math.round((expires - now) / 1000);
 
         console.log("Quote expires in", Math.round((expires - now) / 1000), "seconds");
 
-        if (secondsLeft < 580) {
+        if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
           try {
             const newQuote = await QuoteService.createQuote(
               quote.rampType,
@@ -114,7 +116,12 @@ export const rampMachine = setup({
             sendBack({ type: "REFRESH_FAILED" });
           }
         }
-      }, 10000);
+      };
+
+      refetchQuote();
+      const timer = setInterval(async () => {
+        refetchQuote();
+      }, 5000);
 
       return () => clearInterval(timer);
     }),
@@ -220,6 +227,8 @@ export const rampMachine = setup({
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
         },
+        // TODO we need to define the action to take on quote refresh failure.
+        REFRESH_FAILED: {},
         UPDATE_QUOTE: {
           actions: [
             assign({
@@ -271,9 +280,6 @@ export const rampMachine = setup({
             rampDirection: ({ event }) => event.input.rampDirection
           }),
           target: "RampRequested"
-        },
-        REFRESH_FAILED: {
-          target: "Idle"
         }
       }
     },

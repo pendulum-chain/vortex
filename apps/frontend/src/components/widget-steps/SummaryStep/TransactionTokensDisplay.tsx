@@ -49,13 +49,15 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
-  const { isQuoteExpired, rampState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
+    quote: state.context.quote,
     rampState: state.context.rampState
   }));
 
   useEffect(() => {
     let targetTimestamp: number | null = null;
+    if (!quote) return; // Quote must exist
 
     if (isOnramp) {
       // Onramp: Use ramp creation time + expiry duration
@@ -65,7 +67,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       }
     } else {
       // Offramp: Use quote expiry time directly
-      const expiresAt = executionInput.quote.expiresAt;
+      const expiresAt = quote.expiresAt;
       targetTimestamp = new Date(expiresAt).getTime();
     }
 
@@ -94,7 +96,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, rampActor.send]);
+  }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, rampActor.send, quote]);
 
   const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
 
@@ -130,17 +132,21 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       : trimAddress(getAddressForFormat(address || "", apiComponents ? apiComponents.ss58Format : 42))
     : undefined;
 
+  if (!quote) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
-        amount={executionInput.quote.inputAmount}
+        amount={quote.inputAmount}
         iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIcon}
         symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
       />
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
-        amount={executionInput.quote.outputAmount}
+        amount={quote.outputAmount}
         iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
         iconSrc={toIcon}
         symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
@@ -148,8 +154,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <FeeDetails
         destinationAddress={destinationAddress}
         direction={rampDirection}
-        exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
-        feesCost={executionInput.quote.fee}
+        exchangeRate={Big(quote.outputAmount).div(quote.inputAmount).toFixed(4)}
+        feesCost={quote.fee}
         fromToken={fromToken}
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
