@@ -7,7 +7,7 @@ import { Step, StepItemProps } from "./types";
  * Determines the styling classes for a step title based on its status
  */
 export const getStepTitleStyles = (status: Step["status"]): string => {
-  const baseStyles = "mt-2 max-w-20 text-center text-xs";
+  const baseStyles = "mt-2 text-center text-xs leading-tight break-words";
 
   const statusStyles = {
     active: "font-medium text-blue-600",
@@ -40,7 +40,7 @@ export const StepItem: React.FC<StepItemProps> = ({ step, index, isLast, onStepC
 
   return (
     <>
-      <div className="flex flex-col items-center">
+      <div className="grid w-20 grid-cols-1 grid-rows-2 items-center justify-center">
         <StepCircle isClickable={clickable} onClick={handleClick} status={step.status} step={step} />
         <span className={titleStyles}>{step.title}</span>
       </div>

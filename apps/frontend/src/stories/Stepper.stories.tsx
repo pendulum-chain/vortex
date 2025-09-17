@@ -45,7 +45,7 @@ const generateSteps = (
   const shortTitles = ["Setup", "Details", "Review", "Payment", "Complete"];
   const longTitles_array = [
     "Initial Setup & Configuration",
-    "Personal Details & Information",
+    "Personal Details & Information & Personal Details & Information",
     "Review & Verification",
     "Payment & Processing",
     "Completion & Confirmation"

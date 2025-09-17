@@ -7,7 +7,7 @@ import { Step, StepCircleProps } from "./types";
  */
 export const getStepCircleStyles = (status: Step["status"], isClickable: boolean): string => {
   const baseStyles =
-    "flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out hover:scale-110";
+    "flex h-8 w-8 items-center mx-auto justify-center rounded-full font-medium text-sm transition-all duration-200 ease-in-out hover:scale-110";
 
   const statusStyles = {
     active: "bg-blue-500 text-white",
