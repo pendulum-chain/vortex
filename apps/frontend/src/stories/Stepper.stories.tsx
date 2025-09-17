@@ -1,3 +1,4 @@
+import { CheckCircleIcon, CogIcon, CreditCardIcon, DocumentIcon, EyeIcon, UserIcon } from "@heroicons/react/24/outline";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { Step, Stepper, StepperProps } from "../components/Stepper";
@@ -9,6 +10,30 @@ interface StoryArgs extends StepperProps {
   allIncomplete?: boolean;
   longTitles?: boolean;
 }
+
+const getIconForStep = (title: string, index: number) => {
+  const lowerTitle = title.toLowerCase();
+
+  if (lowerTitle.includes("setup") || lowerTitle.includes("configuration")) {
+    return CogIcon;
+  }
+  if (lowerTitle.includes("personal") || lowerTitle.includes("details") || lowerTitle.includes("info")) {
+    return UserIcon;
+  }
+  if (lowerTitle.includes("review") || lowerTitle.includes("verification")) {
+    return EyeIcon;
+  }
+  if (lowerTitle.includes("payment") || lowerTitle.includes("processing")) {
+    return CreditCardIcon;
+  }
+  if (lowerTitle.includes("complete") || lowerTitle.includes("confirmation")) {
+    return CheckCircleIcon;
+  }
+
+  // Default icons based on step position
+  const defaultIcons = [CogIcon, UserIcon, EyeIcon, CreditCardIcon, CheckCircleIcon];
+  return defaultIcons[index % defaultIcons.length] || DocumentIcon;
+};
 
 const generateSteps = (
   count: number,
@@ -45,9 +70,12 @@ const generateSteps = (
       }
     }
 
+    const title = titles[index] || `Step ${index + 1}`;
+
     return {
+      Icon: getIconForStep(title, index),
       status,
-      title: titles[index] || `Step ${index + 1}`
+      title
     };
   });
 };
@@ -76,10 +104,26 @@ const FormWizardDemo = () => {
   });
 
   const steps: Step[] = [
-    { status: currentStep > 0 ? "complete" : currentStep === 0 ? "active" : "incomplete", title: "Personal Info" },
-    { status: currentStep > 1 ? "complete" : currentStep === 1 ? "active" : "incomplete", title: "Address" },
-    { status: currentStep > 2 ? "complete" : currentStep === 2 ? "active" : "incomplete", title: "Payment" },
-    { status: currentStep > 3 ? "complete" : currentStep === 3 ? "active" : "incomplete", title: "Confirmation" }
+    {
+      Icon: UserIcon,
+      status: currentStep > 0 ? "complete" : currentStep === 0 ? "active" : "incomplete",
+      title: "Personal Info"
+    },
+    {
+      Icon: DocumentIcon,
+      status: currentStep > 1 ? "complete" : currentStep === 1 ? "active" : "incomplete",
+      title: "Address"
+    },
+    {
+      Icon: CreditCardIcon,
+      status: currentStep > 2 ? "complete" : currentStep === 2 ? "active" : "incomplete",
+      title: "Payment"
+    },
+    {
+      Icon: CheckCircleIcon,
+      status: currentStep > 3 ? "complete" : currentStep === 3 ? "active" : "incomplete",
+      title: "Confirmation"
+    }
   ];
 
   const handleNext = () => {
@@ -252,7 +296,7 @@ export const Default: Story = {
 
 export const SingleStep: Story = {
   args: {
-    steps: [{ status: "active", title: "Only Step" }]
+    steps: [{ Icon: DocumentIcon, status: "active", title: "Only Step" }]
   },
   render: StepperWrapper
 };
