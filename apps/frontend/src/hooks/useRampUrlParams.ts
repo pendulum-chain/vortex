@@ -123,7 +123,8 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked } = useRampUrlParams();
+  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked, walletLocked } =
+    useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const setPartnerIdFn = useSetPartnerId();
@@ -160,7 +161,7 @@ export const useSetRampUrlParams = () => {
       const quote = rampActor.getSnapshot()?.context.quote;
       if (quote?.id !== providedQuoteId) {
         rampActor.send({ partnerId, type: "SET_PARTNER_ID" });
-        rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
+        rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE", walletLocked });
       }
     } else {
       if (inputAmount && cryptoLocked && fiat && network && rampDirection) {
@@ -176,7 +177,7 @@ export const useSetRampUrlParams = () => {
             const newQuote = useQuoteStore.getState().quote;
             if (newQuote) {
               rampActor.send({ partnerId, type: "SET_PARTNER_ID" });
-              rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE" });
+              rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE", walletLocked });
             }
           })
           .catch(error => {

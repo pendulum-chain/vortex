@@ -28,6 +28,7 @@ export interface RampContext {
   rampSigningPhase: RampSigningPhase | undefined;
   rampState: RampState | undefined;
   substrateWalletAccount: WalletAccount | undefined;
+  walletLocked?: string;
 }
 
 export type RampMachineEvents =

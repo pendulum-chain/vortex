@@ -33,7 +33,8 @@ const initialRampContext: RampContext = {
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  substrateWalletAccount: undefined
+  substrateWalletAccount: undefined,
+  walletLocked: undefined
 };
 
 export type RampMachineEvents =
@@ -51,7 +52,7 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; walletLocked?: string }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_PARTNER_ID"; partnerId?: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
@@ -211,7 +212,8 @@ export const rampMachine = setup({
         SET_QUOTE: {
           actions: assign({
             quoteId: ({ event }) => event.quoteId,
-            quoteLocked: ({ event }) => event.lock
+            quoteLocked: ({ event }) => event.lock,
+            walletLocked: ({ event }) => event.walletLocked
           }),
           target: "LoadingQuote"
         }
