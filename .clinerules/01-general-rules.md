@@ -7,7 +7,7 @@
 
 ## Architecture Decision Records
 
-Create ADRs in /docs/adr for: 
+Create ADRs in /docs/adr for:  
 
 - Major dependency changes
 - Architectural pattern changes
