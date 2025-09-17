@@ -14,7 +14,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_SECONDS = 580; // 2 minutes TODO change testing
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 const initialRampContext: RampContext = {
   address: undefined,
