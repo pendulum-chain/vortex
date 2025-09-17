@@ -1,8 +1,29 @@
 import React from "react";
 import { StepCircle } from "./StepCircle";
 import { StepConnector } from "./StepConnector";
-import { getStepTitleStyles, isStepClickable } from "./StepItem";
-import { StepperProps } from "./types";
+import { Step, StepperProps } from "./types";
+
+/**
+ * Determines the styling classes for a step title based on its status
+ */
+export const getStepTitleStyles = (status: Step["status"]): string => {
+  const baseStyles = "mt-2 text-center text-xs leading-tight break-words";
+
+  const statusStyles = {
+    active: "font-medium text-blue-600",
+    complete: "font-medium text-green-600",
+    incomplete: "text-gray-500"
+  };
+
+  return `${baseStyles} ${statusStyles[status]}`;
+};
+
+/**
+ * Determines if a step should be clickable based on its status and whether click handler exists
+ */
+export const isStepClickable = (status: Step["status"], hasClickHandler: boolean): boolean => {
+  return hasClickHandler && status !== "incomplete";
+};
 
 export const Stepper: React.FC<StepperProps> = ({ steps, onStepClick, className = "" }) => (
   <div
