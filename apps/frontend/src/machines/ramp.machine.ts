@@ -84,6 +84,7 @@ export const rampMachine = setup({
     moneriumKyc: moneriumKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       const { quote, quoteLocked, partnerId } = input.context;
+      // Quote will exist at this stage, but to be type safe we check again.
       if (quoteLocked || !quote) {
         return;
       }
@@ -211,9 +212,24 @@ export const rampMachine = setup({
     },
     KYC: kycStateNode as any,
     KycComplete: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        src: "quoteRefresher"
+      },
       on: {
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
+        },
+        UPDATE_QUOTE: {
+          actions: [
+            assign({
+              isQuoteExpired: false,
+              quote: ({ event }) => event.quote,
+              quoteId: ({ event }) => event.quote.id
+            })
+          ],
+          reenter: true,
+          target: "KycComplete"
         }
       }
     },
@@ -244,10 +260,6 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
-      invoke: {
-        input: ({ context }) => ({ context }),
-        src: "quoteRefresher"
-      },
       on: {
         // This is the main confirm button.
         CONFIRM: {
@@ -262,17 +274,6 @@ export const rampMachine = setup({
         },
         REFRESH_FAILED: {
           target: "Idle"
-        },
-        UPDATE_QUOTE: {
-          actions: [
-            assign({
-              isQuoteExpired: false,
-              quote: ({ event }) => event.quote,
-              quoteId: ({ event }) => event.quote.id
-            })
-          ],
-          reenter: true,
-          target: "QuoteReady"
         }
       }
     },
