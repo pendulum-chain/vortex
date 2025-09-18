@@ -15,7 +15,7 @@ export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isWidgetMode = useWidgetMode();
 
-  const { handleLogoClick, handleAPIClick, handleWidgetClick, handleDocsClick } = useNavbarHandlers();
+  const { handleLogoClick, handleBookDemoClick, handleAPIClick, handleWidgetClick, handleDocsClick } = useNavbarHandlers();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -36,7 +36,7 @@ export const Navbar = () => {
     <>
       <motion.header
         animate={{ y: 0 }}
-        className="relative flex items-center justify-center bg-blue-950 px-4 py-4 md:px-10 md:py-5"
+        className="relative bg-blue-950 px-4 py-4 md:px-10 md:py-5"
         exit={{ y: -10 }}
         initial={{ y: 0 }}
         key="navbar-header"
@@ -45,7 +45,7 @@ export const Navbar = () => {
           ease: "easeInOut"
         }}
       >
-        <div className="flex w-full max-w-4xl grow-1 justify-between">
+        <div className="mx-6 flex items-center justify-between sm:container sm:mx-auto ">
           {isWidgetMode ? (
             <LogoButton onClick={handleLogoClick} />
           ) : (
@@ -72,7 +72,9 @@ export const Navbar = () => {
 
               {/* Desktop Actions */}
               <div className="hidden items-center sm:flex">
-                <button className="btn btn-vortex-secondary rounded-3xl">{t("components.navbar.bookDemo")}</button>
+                <button className="btn btn-vortex-secondary rounded-3xl" onClick={handleBookDemoClick}>
+                  {t("components.navbar.bookDemo")}
+                </button>
               </div>
             </>
           )}
@@ -81,6 +83,7 @@ export const Navbar = () => {
 
       <MobileMenu
         isOpen={isMobileMenuOpen}
+        onBookDemoClick={handleBookDemoClick}
         onDocsClick={handleDocsClick}
         onMenuItemClick={closeMobileMenu}
         submenuItems={submenuItems}

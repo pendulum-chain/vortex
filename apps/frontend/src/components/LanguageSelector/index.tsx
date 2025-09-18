@@ -18,11 +18,12 @@ interface LanguageButtonProps {
 const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: LanguageButtonProps) => (
   <motion.button
     className={cn(
-      "flex items-center gap-2 rounded-full bg-base-100 px-2 py-3 sm:px-4",
+      "flex cursor-pointer items-center gap-2 rounded-full bg-base-300 px-2 py-3 sm:px-4 ",
       disabled && "cursor-not-allowed opacity-50"
     )}
     disabled={disabled}
     onClick={onClick}
+    type="button"
     whileHover={{ scale: disabled ? 1 : 1.02 }}
     whileTap={{ scale: disabled ? 1 : 0.98 }}
   >
@@ -48,22 +49,24 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
     {isOpen && !disabled && (
       <motion.div
         animate={{ opacity: 1 }}
-        className="absolute z-50 mt-2 w-48 whitespace-nowrap rounded-box bg-base-100 p-2 shadow-lg"
+        className="absolute z-50 mt-2 w-48 whitespace-nowrap rounded-box bg-base-300 p-2 shadow-lg"
         exit={{ opacity: 0 }}
         initial={{ opacity: 0 }}
         layout
         transition={{ duration: 0.2 }}
       >
         <button
-          className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
+          className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-base-200"
           onClick={() => onLanguageSelect(Language.English)}
+          type="button"
         >
           <img alt="English" className="h-5 w-5" src={usFlag} />
           <span>English</span>
         </button>
         <button
-          className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
+          className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-base-200"
           onClick={() => onLanguageSelect(Language.Portuguese_Brazil)}
+          type="button"
         >
           <img alt="Português" className="h-5 w-5" src={brazilFlag} />
           <span>Português</span>

@@ -70,7 +70,7 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
               {t("components.brlaKYCForm.buttons.back")}
             </button>
             <button className="btn-vortex-primary btn flex-1" type="submit" {...buttonProps}>
-              {isMaintenanceDisabled ? buttonProps.title : t("components.brlaKYCForm.buttons.finish")}
+              {isMaintenanceDisabled ? buttonProps.title : t("components.brlaKYCForm.buttons.next")}
             </button>
           </div>
         </div>

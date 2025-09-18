@@ -87,6 +87,7 @@ export const moneriumKycMachine = setup({
   context: ({ input }) => ({ ...input }),
   id: "moneriumKyc",
   initial: "Started",
+  // We relay the SIGNING_UPDATE event to the parent (ramp machine). By convention, we subscribe to the main ramp state machine for UI signing updates.
   on: {
     SIGNING_UPDATE: {
       actions: [

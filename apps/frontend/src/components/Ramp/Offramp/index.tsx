@@ -9,6 +9,7 @@ import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -16,6 +17,7 @@ import { useValidateTerms } from "../../../stores/termsStore";
 import { useTokenSelectionActions } from "../../../stores/tokenSelectionStore";
 import { AssetNumericInput } from "../../AssetNumericInput";
 import { BenefitsList } from "../../BenefitsList";
+import { ConnectWalletButton, WalletButtonVariant } from "../../buttons/ConnectWalletButton";
 import { LabeledInput } from "../../LabeledInput";
 import { WalletConnectedSubmitButton } from "../../QuoteSubmitButtons";
 import { RampErrorMessage } from "../../RampErrorMessage";
@@ -27,6 +29,7 @@ export const Offramp = () => {
 
   const { setTrackPrice } = useFeeComparisonStore();
 
+  const { isDisconnected } = useVortexAccount();
   const { form } = useQuoteForm();
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
@@ -81,10 +84,13 @@ export const Offramp = () => {
           registerInput={form.register("inputAmount")}
           tokenSymbol={fromToken.assetSymbol}
         />
-        <UserBalance onClick={handleBalanceClick} token={fromToken} />
+        <div className="flex grow-1 flex-row justify-between">
+          {!isDisconnected && <ConnectWalletButton variant={WalletButtonVariant.Minimal} />}
+          <UserBalance onClick={handleBalanceClick} token={fromToken} />
+        </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick]
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected]
   );
 
   const ReceiveNumericInput = useMemo(

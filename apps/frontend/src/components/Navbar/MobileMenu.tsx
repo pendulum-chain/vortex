@@ -6,13 +6,14 @@ import { SubmenuItem } from "./types";
 interface MobileMenuProps {
   isOpen: boolean;
   submenuItems: SubmenuItem[];
+  onBookDemoClick: () => void;
   onDocsClick: () => void;
   onMenuItemClick: () => void;
 }
 
 const mobileMenuItemStyles = "block w-full text-left px-2 py-2 text-white text-xl hover:bg-blue-800 transition-colors";
 
-export const MobileMenu = ({ isOpen, submenuItems, onDocsClick, onMenuItemClick }: MobileMenuProps) => {
+export const MobileMenu = ({ isOpen, submenuItems, onBookDemoClick, onDocsClick, onMenuItemClick }: MobileMenuProps) => {
   const { t } = useTranslation();
 
   return (
@@ -94,7 +95,9 @@ export const MobileMenu = ({ isOpen, submenuItems, onDocsClick, onMenuItemClick 
                 ease: "easeOut"
               }}
             >
-              <button className="btn btn-vortex-secondary w-full rounded-3xl">{t("components.navbar.bookDemo")}</button>
+              <button className="btn btn-vortex-secondary w-full rounded-3xl" onClick={onBookDemoClick}>
+                {t("components.navbar.bookDemo")}
+              </button>
             </motion.div>
           </motion.div>
         </motion.div>

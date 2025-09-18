@@ -23,8 +23,16 @@ export const useNavbarHandlers = () => {
     window.open("https://pendulum.gitbook.io/vortex", "_blank");
   };
 
+  const handleBookDemoClick = () => {
+    window.open(
+      "https://docs.google.com/forms/d/e/1FAIpQLSc3TtNxDj_p4smgWVCU2mayXl-0T7LLAgCN6chOTKhCL15-5Q/viewform",
+      "_blank"
+    );
+  };
+
   return {
     handleAPIClick,
+    handleBookDemoClick,
     handleDocsClick,
     handleLogoClick,
     handleWidgetClick

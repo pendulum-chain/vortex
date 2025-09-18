@@ -26,6 +26,7 @@
         "city": "Cidade",
         "companyName": "Nome da Empresa",
         "district": "Bairro",
+        "email": "E-mail",
         "fullName": "Nome Completo",
         "number": "Número",
         "partnerCpff": "CPF do Parceiro",
@@ -67,6 +68,10 @@
         "district": {
           "minLength": "Bairro deve ter pelo menos 3 caracteres",
           "required": "Bairro é obrigatório"
+        },
+        "email": {
+          "format": "Formato de e-mail inválido",
+          "required": "E-mail é obrigatório"
         },
         "fullName": {
           "format": "O nome só pode conter letras e espaços",
@@ -117,7 +122,8 @@
       "buttons": {
         "back": "Voltar",
         "compareFees": "Comparar Taxas",
-        "finish": "Finalizar"
+        "finish": "Finalizar",
+        "next": "Próximo"
       },
       "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
@@ -129,6 +135,10 @@
       "pixKey": "Chave Pix",
       "placeholder": "Digite seu {{label}}",
       "walletAddress": "Endereço da Carteira"
+    },
+    "detailsDescription": {
+      "connectWallet": "Conecte sua carteira para continuar o processo",
+      "signToConfirm": "Verifique se você é o proprietário da carteira"
     },
     "dialogs": {
       "connectWallet": {
@@ -236,7 +246,12 @@
       "buy": "Comprar",
       "sell": "Vender"
     },
-    "RampSummaryCard": {
+    "rating": {
+      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
+      "thankYou": "Obrigado!",
+      "title": "Sua opinião é importante!"
+    },
+    "SummaryPage": {
       "BRLOnrampDetails": {
         "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
         "pixCode": "Código PIX",
@@ -261,18 +276,15 @@
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
       },
+      "next": "Próximo",
       "offrampFee": "Taxa total",
       "onrampFee": "Taxa total",
       "partner": "Parceiro",
       "processing": "Processando",
       "quote": "Cotação",
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
-      "tryAgain": "Tentar novamente"
-    },
-    "rating": {
-      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
-      "thankYou": "Obrigado!",
-      "title": "Sua opinião é importante!"
+      "tryAgain": "Tentar novamente",
+      "verifyWallet": "Verificar carteira"
     },
     "searchInput": {
       "placeholder": "Pesquisar"
@@ -331,6 +343,9 @@
       "link": "Termos e Condições",
       "text": "Eu li e aceito os"
     },
+    "transactionId": {
+      "label": "ID da Transação"
+    },
     "transactionStatusBanner": {
       "afterUrl": " para assistência. Estamos monitorando ativamente sua transação.",
       "beforeUrl": "Sua transação ainda está sendo processada, mas está demorando mais do que o esperado. Se não for concluída em 30 minutos, entre em contato com nossa ",
@@ -353,6 +368,20 @@
     "useTokenAmountOut": {
       "default": "Algo deu errado",
       "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde."
+    }
+  },
+  "menus": {
+    "history": {
+      "noHistory": "Seu histórico de rampa aparecerá aqui.",
+      "title": "História"
+    },
+    "settings": {
+      "item": {
+        "imprint": "Imprimir",
+        "support": "Apoiar",
+        "termsAndConditions": "Termos e Condições"
+      },
+      "title": "Configurações"
     }
   },
   "pages": {
@@ -449,6 +478,14 @@
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
         "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+      }
+    },
+    "widget": {
+      "details": {
+        "buttons": {
+          "next": "Próximo"
+        },
+        "title": "Insira os detalhes"
       }
     }
   },

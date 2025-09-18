@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { TransactionStatus } from "../RampHistory/types";
+import { TransactionStatus } from "../menus/HistoryMenu/types";
 
 export const StatusBadge: FC<{ status: TransactionStatus }> = ({ status }) => {
   const colors = {
