@@ -346,6 +346,9 @@
       "link": "Termos e Condições",
       "text": "Eu li e aceito os"
     },
+    "transactionId": {
+      "label": "ID da Transação"
+    },
     "transactionStatusBanner": {
       "afterUrl": " para assistência. Estamos monitorando ativamente sua transação.",
       "beforeUrl": "Sua transação ainda está sendo processada, mas está demorando mais do que o esperado. Se não for concluída em 30 minutos, entre em contato com nossa ",
