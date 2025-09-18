@@ -6,10 +6,11 @@ import { SigningState } from "./index";
 
 export interface DetailsStepActionsProps {
   signingState: SigningState;
+  requiresConnection: boolean;
   className?: string;
 }
 
-export const DetailsStepActions = ({ signingState, className }: DetailsStepActionsProps) => {
+export const DetailsStepActions = ({ signingState, className, requiresConnection }: DetailsStepActionsProps) => {
   const { shouldDisplay: signingBoxVisible, signatureState, confirmations } = signingState;
   const { isConnected } = useVortexAccount();
 
@@ -20,11 +21,12 @@ export const DetailsStepActions = ({ signingState, className }: DetailsStepActio
       </div>
     );
   }
+  const displayRampSubmitButton = requiresConnection ? isConnected : true;
 
   return (
     <div className={className}>
-      <ConnectWalletSection />
-      {isConnected && <RampSubmitButton className="mb-4" />}
+      {requiresConnection && <ConnectWalletSection />}
+      {displayRampSubmitButton && <RampSubmitButton className="mb-4" />}
     </div>
   );
 };

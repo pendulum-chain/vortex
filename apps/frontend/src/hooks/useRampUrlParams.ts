@@ -1,22 +1,26 @@
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
-import { useEffect, useMemo, useRef } from "react";
+import Big from "big.js";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { useSetPartnerId } from "../stores/partnerStore";
 import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
+import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
-  ramp: RampDirection;
+  rampDirection: RampDirection;
   network?: Networks;
-  to?: string;
-  from?: string;
-  fromAmount?: string;
+  inputAmount?: string;
   partnerId?: string;
   providedQuoteId?: string;
   moneriumCode?: string;
+  fiat?: FiatToken;
+  cryptoLocked?: OnChainToken;
+  payment?: string;
+  walletLocked?: string;
 }
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
@@ -33,10 +37,6 @@ function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatT
 
   const [_, tokenValue] = matchedFiatToken;
   const foundToken = tokenValue as FiatToken;
-
-  if (rampDirection === RampDirection.BUY && foundToken !== FiatToken.BRL) {
-    return FiatToken.BRL;
-  }
 
   return foundToken;
 }
@@ -82,60 +82,55 @@ function getNetworkFromParam(param?: string): Networks | undefined {
 export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
-  const rampDirection = useRampDirection();
+  const rampDirectionStore = useRampDirection();
 
   const urlParams = useMemo(() => {
-    const rampParam = params.get("ramp")?.toLowerCase();
+    const rampDirectionParam = params.get("rampType")?.toUpperCase();
     const networkParam = params.get("network")?.toLowerCase();
-    const toTokenParam = params.get("to")?.toUpperCase();
-    const fromTokenParam = params.get("from")?.toUpperCase();
-    const inputAmountParam = params.get("fromAmount");
+    const inputAmountParam = params.get("inputAmount");
     const partnerIdParam = params.get("partnerId");
     const moneriumCode = params.get("code")?.toLowerCase();
     const providedQuoteId = params.get("quoteId")?.toLowerCase();
+    const fiatParam = params.get("fiat")?.toUpperCase();
+    const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
+    const paymentParam = params.get("payment");
+    const walletLockedParam = params.get("walletLocked");
 
-    const ramp =
-      rampParam === undefined
-        ? rampDirection
-        : rampParam === RampDirection.SELL
-          ? RampDirection.SELL
-          : rampParam === RampDirection.BUY
-            ? RampDirection.BUY
-            : DEFAULT_RAMP_DIRECTION;
+    const rampDirection =
+      rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
+        ? (rampDirectionParam as RampDirection)
+        : rampDirectionStore || DEFAULT_RAMP_DIRECTION;
 
-    const from =
-      ramp === RampDirection.SELL
-        ? findOnChainToken(fromTokenParam, networkParam || selectedNetwork)
-        : findFiatToken(fromTokenParam, ramp);
-    const to =
-      ramp === RampDirection.SELL
-        ? findFiatToken(toTokenParam, ramp)
-        : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
-
-    const fromAmount =
-      ramp === RampDirection.SELL ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
+    const network = getNetworkFromParam(networkParam);
+    const fiat = findFiatToken(fiatParam, rampDirection);
+    const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork);
 
     return {
-      from,
-      fromAmount: inputAmountParam || fromAmount || undefined,
+      cryptoLocked,
+      fiat,
+      inputAmount: inputAmountParam || undefined,
       moneriumCode,
-      network: getNetworkFromParam(networkParam),
+      network,
       partnerId: partnerIdParam || undefined,
+      payment: paymentParam || undefined,
       providedQuoteId,
-      ramp,
-      to
+      rampDirection,
+      walletLocked: walletLockedParam || undefined
     };
-  }, [params, rampDirection, selectedNetwork]);
+  }, [params, rampDirectionStore, selectedNetwork]);
 
   return urlParams;
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount, partnerId, providedQuoteId } = useRampUrlParams();
+  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked, walletLocked } =
+    useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
-  const resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
+  const {
+    actions: { fetchQuote }
+  } = useQuoteStore();
 
   const rampActor = useRampActor();
 
@@ -143,26 +138,81 @@ export const useSetRampUrlParams = () => {
 
   const hasInitialized = useRef(false);
 
-  const handleFiatToken = (token: FiatToken) => {
-    if (isFiatTokenEnabled(token)) {
-      setFiatToken(token);
-    } else {
-      setFiatToken(getFirstEnabledFiatToken());
-    }
-  };
+  const handleFiatToken = useCallback(
+    (token: FiatToken) => {
+      if (isFiatTokenEnabled(token)) {
+        setFiatToken(token);
+      } else {
+        setFiatToken(getFirstEnabledFiatToken());
+      }
+    },
+    [setFiatToken]
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
+    // effect to read params when at /widget path
+    const isWidget = window.location.pathname.includes("/widget");
+    if (!isWidget) return;
+    if (hasInitialized.current) return;
+
+    // Modify the ramp state machine accordingly
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;
       if (quote?.id !== providedQuoteId) {
-        rampActor.send({ quoteId: providedQuoteId, type: "SET_QUOTE" });
+        rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+        rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
+      }
+    } else {
+      if (inputAmount && cryptoLocked && fiat && network && rampDirection) {
+        fetchQuote({
+          fiatToken: fiat,
+          inputAmount: new Big(inputAmount),
+          onChainToken: cryptoLocked,
+          partnerId,
+          rampType: rampDirection,
+          selectedNetwork: network
+        })
+          .then(() => {
+            const newQuote = useQuoteStore.getState().quote;
+            if (newQuote) {
+              rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+              rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE" });
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching quote from URL params:", error);
+          });
       }
     }
 
-    // We only set the other params once, if not in widget mode.
+    if (partnerId) {
+      setPartnerIdFn(partnerId);
+    } else {
+      setPartnerIdFn(null);
+    }
+
+    onToggle(rampDirection);
+
+    if (fiat) {
+      handleFiatToken(fiat);
+    }
+
+    if (cryptoLocked) {
+      setOnChainToken(cryptoLocked);
+    }
+
+    if (inputAmount) {
+      setInputAmount(inputAmount);
+    }
+
+    hasInitialized.current = true;
+  }, []); // Empty dependency array means run once on mount
+
+  useEffect(() => {
+    // effect to read params when NOT in /widget path
     const isWidget = window.location.pathname.includes("/widget");
-    if (providedQuoteId || isWidget) return;
+    if (isWidget) return;
 
     if (hasInitialized.current) return;
 
@@ -176,38 +226,26 @@ export const useSetRampUrlParams = () => {
     const persistState = params.get("code") !== null;
 
     if (persistState) {
-      // If the persist flag is set, the ramp direction is already persisted
-      // and will be automatically loaded from localStorage by the store.
-      // We skip the rest of the initialization logic to preserve all persisted state.
       hasInitialized.current = true;
       return;
     }
 
-    // resetRampDirection();
     resetRampForm();
 
-    onToggle(ramp);
+    onToggle(rampDirection);
 
-    if (to) {
-      if (ramp === RampDirection.SELL) {
-        handleFiatToken(to as FiatToken);
-      } else {
-        setOnChainToken(to as OnChainToken);
-      }
+    if (fiat) {
+      handleFiatToken(fiat);
     }
 
-    if (from) {
-      if (ramp === RampDirection.SELL) {
-        setOnChainToken(from as OnChainToken);
-      } else {
-        handleFiatToken(from as FiatToken);
-      }
+    if (cryptoLocked) {
+      setOnChainToken(cryptoLocked);
     }
 
-    if (fromAmount) {
-      setInputAmount(fromAmount);
+    if (inputAmount) {
+      setInputAmount(inputAmount);
     }
 
     hasInitialized.current = true;
-  }, []); // Empty dependency array means run once on mount
+  }, []);
 };

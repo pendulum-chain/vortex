@@ -1,5 +1,5 @@
 import { QuoteResponse, RampDirection } from "@packages/shared";
-import { assign, emit, fromPromise, setup } from "xstate";
+import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
@@ -14,6 +14,8 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
+
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
@@ -22,14 +24,47 @@ const initialRampContext: RampContext = {
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
+  partnerId: undefined,
   paymentData: undefined,
   quote: undefined,
   quoteId: undefined,
+  quoteLocked: undefined,
   rampDirection: undefined,
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
   rampState: undefined,
-  substrateWalletAccount: undefined
+  substrateWalletAccount: undefined,
+  walletLocked: undefined
+};
+
+const refetchQuote = async (
+  quote: QuoteResponse,
+  partnerId: string | undefined,
+  sendBack: (event: RampMachineEvents) => void
+) => {
+  const now = Date.now();
+  const expires = new Date(quote.expiresAt).getTime();
+  const secondsLeft = Math.round((expires - now) / 1000);
+
+  console.log("Quote expires in", Math.round((expires - now) / 1000), "seconds");
+
+  if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
+    try {
+      const newQuote = await QuoteService.createQuote(
+        quote.rampType,
+        quote.from,
+        quote.to,
+        quote.inputAmount,
+        quote.inputCurrency,
+        quote.outputCurrency,
+        partnerId
+      );
+      sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
+    } catch (error) {
+      console.error("Quote refresh failed:", error);
+      sendBack({ type: "REFRESH_FAILED" });
+    }
+  }
 };
 
 export type RampMachineEvents =
@@ -47,12 +82,23 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
+  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
-  | { type: "EXPIRE_QUOTE" };
+  | { type: "EXPIRE_QUOTE" }
+  | { type: "REFRESH_FAILED" };
 
 export const rampMachine = setup({
   actions: {
+    refreshQuoteActionWithDelay: async ({ context, self }) => {
+      const { quote, quoteLocked, partnerId } = context;
+      if (quoteLocked || !quote) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 30000));
+      await refetchQuote(quote, partnerId, event => self.send(event));
+    },
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
@@ -77,6 +123,20 @@ export const rampMachine = setup({
       return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
+    quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
+      const { quote, quoteLocked, partnerId } = input.context;
+      // Quote will exist at this stage, but to be type safe we check again.
+      if (quoteLocked || !quote) {
+        return;
+      }
+
+      const doRefetch = () => refetchQuote(quote, partnerId, sendBack);
+
+      doRefetch();
+      const timer = setInterval(doRefetch, 5000);
+
+      return () => clearInterval(timer);
+    }),
     registerRamp: fromPromise(registerRampActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
@@ -88,6 +148,7 @@ export const rampMachine = setup({
             console.log("Clearing URL parameters");
             const cleanUrl = window.location.origin;
             window.history.replaceState({}, "", cleanUrl);
+            window.location.reload();
             resolve();
           }, 5);
         })
@@ -155,15 +216,44 @@ export const rampMachine = setup({
     Idle: {
       on: {
         SET_QUOTE: {
+          actions: assign({
+            quoteId: ({ event }) => event.quoteId,
+            quoteLocked: ({ event }) => event.lock
+          }),
           target: "LoadingQuote"
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
         }
       }
     },
     KYC: kycStateNode as any,
     KycComplete: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        src: "quoteRefresher"
+      },
       on: {
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
+        },
+        // This will trigger a quoteRefresher after some seconds
+        REFRESH_FAILED: {
+          actions: [{ type: "refreshQuoteActionWithDelay" }]
+        },
+        UPDATE_QUOTE: {
+          actions: [
+            assign({
+              isQuoteExpired: false,
+              quote: ({ event }) => event.quote,
+              quoteId: ({ event }) => event.quote.id
+            })
+          ],
+          reenter: true,
+          target: "KycComplete"
         }
       }
     },
@@ -279,7 +369,7 @@ export const rampMachine = setup({
     UpdateRamp: {
       invoke: {
         id: "signingActor",
-        input: ({ self, context }) => ({ context, parent: self }),
+        input: ({ self, context }) => ({ context, parent: self as any }),
         // If offramp, we continue to StartRamp. For onramps we wait for payment confirmation.
         onDone: [
           {
