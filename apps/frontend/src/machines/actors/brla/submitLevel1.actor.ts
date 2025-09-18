@@ -10,7 +10,7 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     throw new Error("Invalid input state. This is a Bug.");
   }
 
-  let payload = {
+  const payload = {
     city: kycFormData.city,
     country: "BRA",
     countryOfTaxId: "BRA",
