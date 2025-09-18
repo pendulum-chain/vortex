@@ -1,9 +1,6 @@
 import React from "react";
 import { CheckIconProps } from "./types";
 
-/**
- * Reusable checkmark icon component for completed steps
- */
 export const CheckIcon: React.FC<CheckIconProps> = ({ className = "h-4 w-4" }) => {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
