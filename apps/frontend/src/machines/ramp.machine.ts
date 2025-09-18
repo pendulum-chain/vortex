@@ -37,6 +37,36 @@ const initialRampContext: RampContext = {
   walletLocked: undefined
 };
 
+const refetchQuote = async (
+  quote: QuoteResponse,
+  partnerId: string | undefined,
+  sendBack: (event: RampMachineEvents) => void
+) => {
+  const now = Date.now();
+  const expires = new Date(quote.expiresAt).getTime();
+  const secondsLeft = Math.round((expires - now) / 1000);
+
+  console.log("Quote expires in", Math.round((expires - now) / 1000), "seconds");
+
+  if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
+    try {
+      const newQuote = await QuoteService.createQuote(
+        quote.rampType,
+        quote.from,
+        quote.to,
+        quote.inputAmount,
+        quote.inputCurrency,
+        quote.outputCurrency,
+        partnerId
+      );
+      sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
+    } catch (error) {
+      console.error("Quote refresh failed:", error);
+      sendBack({ type: "REFRESH_FAILED" });
+    }
+  }
+};
+
 export type RampMachineEvents =
   | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "CANCEL_RAMP" }
@@ -61,6 +91,14 @@ export type RampMachineEvents =
 
 export const rampMachine = setup({
   actions: {
+    refreshQuoteActionWithDelay: async ({ context, self }) => {
+      const { quote, quoteLocked, partnerId } = context;
+      if (quoteLocked || !quote) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 30000));
+      await refetchQuote(quote, partnerId, event => self.send(event));
+    },
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
       address: context.address,
@@ -92,37 +130,10 @@ export const rampMachine = setup({
         return;
       }
 
-      const refetchQuote = async () => {
-        const now = Date.now();
-        const expires = new Date(quote.expiresAt).getTime();
-        const secondsLeft = Math.round((expires - now) / 1000);
+      const doRefetch = () => refetchQuote(quote, partnerId, sendBack);
 
-        console.log("Quote expires in", Math.round((expires - now) / 1000), "seconds");
-
-        if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
-          try {
-            const newQuote = await QuoteService.createQuote(
-              quote.rampType,
-              quote.from,
-              quote.to,
-              quote.inputAmount,
-              quote.inputCurrency,
-              quote.outputCurrency,
-              partnerId
-            );
-
-            sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
-          } catch (error) {
-            console.error("Quote refresh failed:", error);
-            sendBack({ type: "REFRESH_FAILED" });
-          }
-        }
-      };
-
-      refetchQuote();
-      const timer = setInterval(async () => {
-        refetchQuote();
-      }, 5000);
+      doRefetch();
+      const timer = setInterval(doRefetch, 5000);
 
       return () => clearInterval(timer);
     }),
@@ -229,8 +240,10 @@ export const rampMachine = setup({
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
         },
-        // TODO we need to define the action to take on quote refresh failure.
-        REFRESH_FAILED: {},
+        // This will trigger a quoteRefresher after some seconds
+        REFRESH_FAILED: {
+          actions: [{ type: "refreshQuoteActionWithDelay" }]
+        },
         UPDATE_QUOTE: {
           actions: [
             assign({
