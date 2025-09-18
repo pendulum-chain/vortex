@@ -247,7 +247,7 @@
       "sell": "Sell"
     },
     "RampSubmitButton": {
-      "connectProperWallet": "Please connect the proper wallet"
+      "connectProperWallet": "Please connect the designated wallet '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",

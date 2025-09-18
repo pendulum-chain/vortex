@@ -2,6 +2,7 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
+  getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   RampDirection,
@@ -12,6 +13,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
@@ -42,10 +44,10 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   );
 
   return useMemo(() => {
-    if (walletLocked && accountAddress !== walletLocked) {
+    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== walletLocked) {
       return {
         icon: null,
-        text: t("components.RampSubmitButton.connectProperWallet")
+        text: t("components.RampSubmitButton.connectProperWallet", { address: trimAddress(walletLocked) })
       };
     }
     const isOnramp = rampDirection === RampDirection.BUY;
@@ -190,7 +192,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
-    if (walletLocked && accountAddress !== walletLocked) {
+    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== walletLocked) {
       return true;
     }
     if (machineState === "QuoteReady" || machineState === "KycComplete") {
