@@ -47,7 +47,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== walletLocked) {
       return {
         icon: null,
-        text: t("components.RampSubmitButton.connectProperWallet", { address: trimAddress(walletLocked) })
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
       };
     }
     const isOnramp = rampDirection === RampDirection.BUY;

@@ -247,7 +247,7 @@
       "sell": "Vender"
     },
     "RampSubmitButton": {
-      "connectProperWallet": "Por favor, conecte a carteira designada '{{address}}'"
+      "connectDesignatedWallet": "Por favor, conecte a carteira designada '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
