@@ -35,3 +35,6 @@ apps/api/.env
 **/lastRampState.json
 **/lastRampStateOnramp.json
 
+
+*storybook.log
+storybook-static
