@@ -82,9 +82,9 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; walletLocked?: string }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_PARTNER_ID"; partnerId?: string }
+  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
   | { type: "REFRESH_FAILED" };
@@ -215,18 +215,18 @@ export const rampMachine = setup({
     },
     Idle: {
       on: {
-        SET_PARTNER_ID: {
-          actions: assign({
-            partnerId: ({ event }) => event.partnerId
-          })
-        },
         SET_QUOTE: {
           actions: assign({
             quoteId: ({ event }) => event.quoteId,
-            quoteLocked: ({ event }) => event.lock,
-            walletLocked: ({ event }) => event.walletLocked
+            quoteLocked: ({ event }) => event.lock
           }),
           target: "LoadingQuote"
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
         }
       }
     },

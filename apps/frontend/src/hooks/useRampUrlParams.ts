@@ -160,8 +160,8 @@ export const useSetRampUrlParams = () => {
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;
       if (quote?.id !== providedQuoteId) {
-        rampActor.send({ partnerId, type: "SET_PARTNER_ID" });
-        rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE", walletLocked });
+        rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+        rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
       }
     } else {
       if (inputAmount && cryptoLocked && fiat && network && rampDirection) {
@@ -176,8 +176,8 @@ export const useSetRampUrlParams = () => {
           .then(() => {
             const newQuote = useQuoteStore.getState().quote;
             if (newQuote) {
-              rampActor.send({ partnerId, type: "SET_PARTNER_ID" });
-              rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE", walletLocked });
+              rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+              rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE" });
             }
           })
           .catch(error => {
