@@ -26,6 +26,7 @@ export interface OnrampSquidrouterParamsToEvm {
   toNetwork: Networks;
   fromNetwork: Networks;
   destinationAddress: string;
+  squidRouterQuoteId?: string;
 }
 
 export interface OnrampTransactionData {
@@ -47,6 +48,7 @@ export interface OnrampTransactionData {
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   };
+  squidRouterQuoteId?: string;
 }
 
 export async function createOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<OnrampTransactionData> {

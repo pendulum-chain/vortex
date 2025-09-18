@@ -49,4 +49,5 @@ export interface StateMetadata {
   // Only used in onramp, offramp - monerium
   polygonEphemeralAddress: string;
   ibanPaymentData: IbanPaymentData;
+  squidRouterQuoteId: string;
 }
