@@ -70,7 +70,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
   // Check in the error message if it's a 400 error from the BRLA API
   if (error instanceof Error && error.message.includes("status '400'")) {
     // Split the error message to get the actual error message from the BRLA API
-    const splitError = error.message.split("Error: ");
+    const splitError = error.message.split("Error: ", 1);
     if (splitError.length > 1) {
       const errorMessageString = splitError[1];
       try {
@@ -367,16 +367,26 @@ export const getUploadUrls = async (
   res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { documentType, isDoubleSided } = req.body;
+    const { documentType } = req.body;
+
+    if (!documentType) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing documentType" });
+      return;
+    }
+
+    if (documentType !== AveniaDocumentType.ID && documentType !== AveniaDocumentType.DRIVERS_LICENSE) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid documentType" });
+      return;
+    }
 
     const brlaApiService = BrlaApiService.getInstance();
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, isDoubleSided ?? false);
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, false);
 
-    const idUrls = await brlaApiService.getDocumentUploadUrls(
-      AveniaDocumentType.ID, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
-      isDoubleSided ?? false
-    );
+    // assume RG is double sided, CNH is not.
+    const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
+
+    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided);
 
     res.status(httpStatus.OK).json({
       idUpload: {
@@ -401,8 +411,8 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    //await 30 seconds
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    //await 15 seconds
+    await new Promise(resolve => setTimeout(resolve, 15000));
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);

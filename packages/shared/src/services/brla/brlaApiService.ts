@@ -94,7 +94,6 @@ export class BrlaApiService {
     const signatureBytes = privateKey.sign(md);
 
     const signatureBase64 = forge.util.encode64(signatureBytes);
-
     const headers = {
       Accept: "application/json",
       "Content-Type": "application/json",
