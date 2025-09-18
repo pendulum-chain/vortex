@@ -1,8 +1,7 @@
-import { FiatToken, RampDirection } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useFiatToken } from "../../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
 
@@ -31,7 +30,7 @@ const ONRAMP_FIELDS = [
  * for processing PIX transfers to Brazilian bank accounts.
  */
 
-export const BrlaSwapFields: FC = () => {
+export const BrlaSwapFields: FC<{ isWalletAddressDisabled?: boolean }> = ({ isWalletAddressDisabled }) => {
   const { t } = useTranslation();
 
   const rampDirection = useRampDirection();
@@ -45,6 +44,7 @@ export const BrlaSwapFields: FC = () => {
         {FIELDS.map(field => (
           <BrlaField
             className="mt-2"
+            disabled={field.id === StandardBrlaFieldOptions.WALLET_ADDRESS && isWalletAddressDisabled}
             id={field.id}
             index={field.index}
             key={field.id}
