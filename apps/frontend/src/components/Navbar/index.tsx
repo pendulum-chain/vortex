@@ -45,7 +45,7 @@ export const Navbar = () => {
           ease: "easeInOut"
         }}
       >
-        <div className="mx-6 flex items-center justify-center sm:container sm:mx-auto ">
+        <div className="mx-6 flex items-center justify-between sm:container sm:mx-auto ">
           {isWidgetMode ? (
             <LogoButton onClick={handleLogoClick} />
           ) : (
