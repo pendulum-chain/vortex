@@ -128,7 +128,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
         txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
-      const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
+      const { approveData, swapData, squidRouterQuoteId } = await createOnrampSquidrouterTransactionsToEvm({
         destinationAddress,
         fromAddress: account.address,
         fromNetwork: Networks.Polygon,
@@ -157,6 +157,11 @@ export async function prepareMoneriumEvmOnrampTransactions({
         signer: account.address,
         txData: encodeEvmTransactionData(swapData) as EvmTransactionData
       });
+
+      stateMeta = {
+        ...stateMeta,
+        squidRouterQuoteId
+      };
     }
   }
 

@@ -201,14 +201,14 @@ async function createSquidrouterTransactions(
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number
-): Promise<number> {
+): Promise<{ nextNonce: number; squidRouterQuoteId?: string }> {
   const { outputTokenDetails, toNetwork, rawAmount, destinationAddress, account } = params;
 
   if (!isEvmTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
 
-  const { approveData, swapData } = await createOnrampSquidrouterTransactions({
+  const { approveData, swapData, squidRouterQuoteId } = await createOnrampSquidrouterTransactions({
     addressDestination: destinationAddress,
     fromAddress: account.address,
     moonbeamEphemeralStartingNonce: nextNonce,
@@ -237,7 +237,7 @@ async function createSquidrouterTransactions(
   });
   nextNonce++;
 
-  return nextNonce;
+  return { nextNonce, squidRouterQuoteId };
 }
 
 /**
@@ -607,7 +607,7 @@ export async function prepareOnrampTransactions(
 
       // Create Squidrouter transactions for non-AssetHub destinations
       if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
-        await createSquidrouterTransactions(
+        const squidrouterResult = await createSquidrouterTransactions(
           {
             account,
             destinationAddress,
@@ -618,6 +618,8 @@ export async function prepareOnrampTransactions(
           unsignedTxs,
           moonbeamNonce
         );
+        moonbeamNonce = squidrouterResult.nextNonce;
+        stateMeta.squidRouterQuoteId = squidrouterResult.squidRouterQuoteId;
       }
     }
     // Process Pendulum account
