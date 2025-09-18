@@ -64,6 +64,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   };
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
+  const canSkipConnection = quote?.from === "pix" && walletLockedFromState;
 
   const handleFormSubmit = (data: FormData) => {
     onRampConfirm(data);
@@ -78,7 +79,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
           isWalletAddressDisabled={!!walletLockedFromState}
           signingState={signingState}
         />
-        <DetailsStepActions signingState={signingState} />
+        <DetailsStepActions requiresConnection={!canSkipConnection} signingState={signingState} />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>

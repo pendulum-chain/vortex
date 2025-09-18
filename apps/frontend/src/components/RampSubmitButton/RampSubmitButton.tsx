@@ -31,12 +31,12 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const stellarData = useStellarKycSelector();
   const { address: accountAddress } = useVortexAccount();
 
-  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState, walletLocked } = useSelector(
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, walletLocked, quote } = useSelector(
     rampActor,
     state => ({
       isQuoteExpired: state.context.isQuoteExpired,
       machineState: state.value,
-      rampDirection: state.context.rampDirection,
+      quote: state.context.quote,
       rampPaymentConfirmed: state.context.rampPaymentConfirmed,
       rampState: state.context.rampState,
       walletLocked: state.context.walletLocked
@@ -50,8 +50,8 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
         text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
       };
     }
-    const isOnramp = rampDirection === RampDirection.BUY;
-    const isOfframp = rampDirection === RampDirection.SELL;
+    const isOnramp = quote?.rampType === RampDirection.BUY;
+    const isOfframp = quote?.rampType === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
@@ -59,10 +59,16 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
+      console.log("quote", quote, "isOnramp", isOnramp);
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
           text: t("components.SummaryPage.confirm")
+        };
+      } else if (isOnramp && quote?.inputCurrency === FiatToken.BRL) {
+        return {
+          icon: null,
+          text: t("components.SummaryPage.continue")
         };
       } else {
         return {
@@ -147,17 +153,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [
-    submitButtonDisabled,
-    isQuoteExpired,
-    rampDirection,
-    rampState,
-    machineState,
-    t,
-    toToken,
-    stellarData,
-    rampPaymentConfirmed
-  ]);
+  }, [submitButtonDisabled, isQuoteExpired, rampState, machineState, t, toToken, stellarData, rampPaymentConfirmed, quote]);
 };
 
 export const RampSubmitButton = ({ className }: { className?: string }) => {
@@ -168,23 +164,20 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
-  const { rampState, rampDirection, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(
-    rampActor,
-    state => ({
-      executionInput: state.context.executionInput,
-      isQuoteExpired: state.context.isQuoteExpired,
-      machineState: state.value,
-      rampDirection: state.context.rampDirection,
-      rampState: state.context.rampState,
-      walletLocked: state.context.walletLocked
-    })
-  );
+  const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
+    isQuoteExpired: state.context.isQuoteExpired,
+    machineState: state.value,
+    quote: state.context.quote,
+    rampState: state.context.rampState,
+    walletLocked: state.context.walletLocked
+  }));
 
   const stellarContext = stellarData?.context;
   const anchorUrl = stellarContext?.redirectUrl;
 
-  const isOfframp = rampDirection === RampDirection.SELL;
-  const isOnramp = rampDirection === RampDirection.BUY;
+  const isOnramp = quote?.rampType === RampDirection.BUY;
+  const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
