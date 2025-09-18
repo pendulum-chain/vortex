@@ -1,6 +1,6 @@
 import { assign, DoneActorEvent, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { KycStatus } from "../services/signingService";
+import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
 import { submitActor } from "./actors/brla/submitLevel1.actor";
 import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
@@ -102,13 +102,22 @@ export const aveniaKycMachine = setup({
         onDone: {
           target: "Verifying"
         },
-        onError: {
-          // Avenia-Migration: we must parse the error message, distinguish between Avenia rejections (invalid tax id for instance) or server/network issues.
-          actions: assign({
-            error: ({ event }) => (event.error as Error).message
-          }),
-          target: "Failure"
-        },
+        onError: [
+          {
+            actions: assign({
+              kycStatus: () => KycStatus.REJECTED,
+              rejectReason: ({ event }) => (event.error as Error).message
+            }),
+            guard: ({ event }) => event.error instanceof KycSubmissionRejectedError,
+            target: "Rejected"
+          },
+          {
+            actions: assign({
+              error: ({ event }) => (event.error as Error).message
+            }),
+            target: "Failure"
+          }
+        ],
         src: "submitActor"
       }
     },

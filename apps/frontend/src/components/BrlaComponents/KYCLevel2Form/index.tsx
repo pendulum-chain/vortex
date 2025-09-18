@@ -120,7 +120,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
         uploads.push(
           uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
-          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!)
+          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!) // TODO.. why not returning uploadURLBack?
         );
       } else {
         if (!selfie || !front) {

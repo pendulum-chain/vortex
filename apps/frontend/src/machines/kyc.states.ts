@@ -11,7 +11,7 @@ export interface AveniaKycContext extends RampContext {
   taxId: string;
   kycFormData?: KYCFormData;
   kycStatus?: KycStatus;
-  rejectReason?: KycFailureReason;
+  rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
   error?: string;
 }
