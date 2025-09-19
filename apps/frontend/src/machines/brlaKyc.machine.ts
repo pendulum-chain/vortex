@@ -55,10 +55,13 @@ export const aveniaKycMachine = setup({
     Failure: {
       on: {
         CANCEL_RETRY: {
+          actions: assign({
+            error: () => "User cancelled the operation"
+          }),
           target: "Finish"
         },
         RETRY: {
-          target: "..."
+          target: "FormFilling"
         }
       }
     }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
@@ -88,7 +91,7 @@ export const aveniaKycMachine = setup({
           target: "Finish"
         },
         RETRY: {
-          target: "..."
+          target: "FormFilling"
         }
       }
     },

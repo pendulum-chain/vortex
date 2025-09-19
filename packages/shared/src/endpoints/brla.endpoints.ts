@@ -22,6 +22,7 @@ export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
   identityStatus: AveniaIdentityStatus;
+  subAccountId: string;
 }
 
 // GET /brla/getRampStatus?taxId=:taxId

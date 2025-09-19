@@ -34,6 +34,8 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
       const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 
+      console.log("Remaining limit response from BRLA:", remainingLimitResponse);
+
       const amountNum = Number(
         rampDirection === RampDirection.SELL ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
       );
@@ -41,6 +43,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       if (amountNum > remainingLimitNum) {
         // Avenia-Migration: this must be changed. No more levels. TOAST?
+        // We don't know of a possibility to increase limits so far.
         throw new Error("Insufficient remaining limit for this transaction.");
       }
 

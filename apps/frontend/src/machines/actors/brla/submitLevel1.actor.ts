@@ -1,6 +1,7 @@
 import { AveniaAccountType } from "@packages/shared/src/services";
 import { fromPromise } from "xstate";
-import { createSubaccount, submitNewKyc } from "../../../services/signingService";
+import { BrlaService } from "../../../services/api";
+import { createSubaccount, KycSubmissionNetworkError, submitNewKyc } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
 
 export const submitActor = fromPromise(async ({ input }: { input: AveniaKycContext }): Promise<void> => {
@@ -25,11 +26,27 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     zipCode: kycFormData.cep
   };
 
-  const { subAccountId } = await createSubaccount({
-    accountType: AveniaAccountType.INDIVIDUAL,
-    name: kycFormData.fullName,
-    taxId
-  });
+  let subAccountId: string;
+
+  try {
+    const { subAccountId: existingSubAccountId } = await BrlaService.getUser(taxId);
+    subAccountId = existingSubAccountId;
+  } catch (error: unknown) {
+    const err = error as { response?: { status: number; statusText: string } };
+    if (err.response?.status === 404) {
+      console.log("Debug: creating new Avenia subaccount");
+      const { subAccountId: newSubAccountId } = await createSubaccount({
+        accountType: AveniaAccountType.INDIVIDUAL,
+        name: kycFormData.fullName,
+        taxId
+      });
+      subAccountId = newSubAccountId;
+    } else if (err.response && err.response.status >= 500) {
+      throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${err.response.statusText}`);
+    } else {
+      throw err;
+    }
+  }
 
   await submitNewKyc({ ...payload, subAccountId });
 });

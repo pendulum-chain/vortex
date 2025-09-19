@@ -129,15 +129,13 @@ export const getAveniaUser = async (
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
       return;
     }
-    if (accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
-      return;
-    }
 
+    const kycLevel = accountInfo.accountInfo.identityStatus === "CONFIRMED" ? 1 : 0;
     res.json({
       evmAddress: accountInfo.wallets.find(w => w.chain === "EVM")?.walletAddress ?? "",
       identityStatus: accountInfo.accountInfo.identityStatus,
-      kycLevel: 1
+      kycLevel,
+      subAccountId: taxIdRecord.subAccountId
     });
     return;
   } catch (error) {
@@ -179,15 +177,25 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
     const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    console.log("Limits data from BRLA:", limitsData);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
       return;
     }
+    console.log(limitsData.limitInfo.limits);
 
     const brlLimits = limitsData.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
 
     if (!brlLimits) {
+      // Our current assumption is that BRL limits won't exist for an account without a KYC.
+      // But to be safe, we check the status and return a proper status.
+      const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
+        res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
+        return;
+      }
+
       res.status(httpStatus.NOT_FOUND).json({ error: "BRL limits not found" });
       return;
     }

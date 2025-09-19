@@ -265,7 +265,7 @@ export const submitNewKyc = async (kycData: KycLevel1Payload): Promise<{ id: str
 
   if (response.status === 400) {
     const { details } = await response.json();
-    throw new KycSubmissionRejectedError(details.error || "Submission was rejected.");
+    throw new KycSubmissionRejectedError(details || "Submission was rejected.");
   }
 
   if (response.status >= 500) {

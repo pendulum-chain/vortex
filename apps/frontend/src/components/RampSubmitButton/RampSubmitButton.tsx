@@ -2,6 +2,7 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
+  getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   RampDirection,
@@ -12,8 +13,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
+import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
 import { Spinner } from "../Spinner";
 
@@ -26,18 +29,19 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
+  const { address: accountAddress } = useVortexAccount();
 
-  const { isQuoteExpired, rampState, rampPaymentConfirmed, rampDirection, machineState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
-    rampDirection: state.context.rampDirection,
+    quote: state.context.quote,
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampState: state.context.rampState
   }));
 
   return useMemo(() => {
-    const isOnramp = rampDirection === RampDirection.BUY;
-    const isOfframp = rampDirection === RampDirection.SELL;
+    const isOnramp = quote?.rampType === RampDirection.BUY;
+    const isOfframp = quote?.rampType === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
@@ -45,10 +49,16 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
+      console.log("quote", quote, "isOnramp", isOnramp);
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
           text: t("components.SummaryPage.confirm")
+        };
+      } else if (isOnramp && quote?.inputCurrency === FiatToken.BRL) {
+        return {
+          icon: null,
+          text: t("components.SummaryPage.continue")
         };
       } else {
         return {
@@ -133,17 +143,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [
-    submitButtonDisabled,
-    isQuoteExpired,
-    rampDirection,
-    rampState,
-    machineState,
-    t,
-    toToken,
-    stellarData,
-    rampPaymentConfirmed
-  ]);
+  }, [submitButtonDisabled, isQuoteExpired, rampState, machineState, t, toToken, stellarData, rampPaymentConfirmed, quote]);
 };
 
 export const RampSubmitButton = ({ className }: { className?: string }) => {
@@ -152,20 +152,21 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const stellarData = useStellarKycSelector();
 
   const moneriumKycActor = useMoneriumKycActor();
+  const { address: accountAddress } = useVortexAccount();
 
-  const { rampState, rampDirection, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
+  const { rampState, quote, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
-    rampDirection: state.context.rampDirection,
+    quote: state.context.quote,
     rampState: state.context.rampState
   }));
 
   const stellarContext = stellarData?.context;
   const anchorUrl = stellarContext?.redirectUrl;
 
-  const isOfframp = rampDirection === RampDirection.SELL;
-  const isOnramp = rampDirection === RampDirection.BUY;
+  const isOnramp = quote?.rampType === RampDirection.BUY;
+  const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
@@ -208,7 +209,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     fiatToken,
     stellarData,
     machineState,
-    moneriumKycActor
+    moneriumKycActor,
+    accountAddress
   ]);
 
   const buttonContent = useButtonContent({
