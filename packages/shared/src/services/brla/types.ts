@@ -552,3 +552,21 @@ export interface CreateAveniaSubaccountRequest {
   name: string;
   taxId: string;
 }
+
+export interface AveniaDocumentGetResponse {
+  documents: [
+    {
+      id: string;
+      documentType: string;
+      uploadURLFront: string;
+      uploadStatusFront: string;
+      uploadErrorFront: string;
+      uploadURLBack: string;
+      uploadStatusBack: string;
+      uploadErrorBack: string;
+      ready: true;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  ];
+}

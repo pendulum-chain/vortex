@@ -2,6 +2,7 @@ import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
+  AveniaDocumentGetResponse,
   AveniaQuoteResponse,
   AveniaSubaccount,
   DepositLog,
@@ -236,7 +237,7 @@ export interface EndpointMapping {
   };
   [Endpoint.KycLevel1]: {
     POST: {
-      body: KycLevel1Payload;
+      body: any;
       response: KycLevel1Response;
     };
     GET: {
@@ -311,7 +312,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: undefined;
+      response: AveniaDocumentGetResponse;
     };
     PATCH: {
       body: undefined;

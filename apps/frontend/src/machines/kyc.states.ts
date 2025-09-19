@@ -2,7 +2,7 @@ import { FiatToken, KycFailureReason, RampDirection } from "@packages/shared";
 import { assign, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
-import { UploadIds } from "./brlaKyc.machine";
+import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext } from "./types";
 
@@ -13,7 +13,7 @@ export interface AveniaKycContext extends RampContext {
   kycStatus?: KycStatus;
   rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
-  error?: string;
+  error?: AveniaKycMachineError;
 }
 
 export interface MoneriumKycContext extends RampContext {
@@ -77,9 +77,9 @@ export const kycStateNode = {
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) => event.output.error
+              initializeFailedMessage: ({ event }) => event.output.error.message
             }),
-            target: "#ramp.QuoteReady"
+            target: "#ramp.KycFailure"
           }
         ],
         onError: {

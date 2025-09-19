@@ -375,7 +375,7 @@ export const getUploadUrls = async (
   res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { documentType } = req.body;
+    const { documentType, taxId } = req.body;
 
     if (!documentType) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing documentType" });
@@ -387,14 +387,26 @@ export const getUploadUrls = async (
       return;
     }
 
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      // Invalid state. Cannot happen.
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, false);
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, false, taxIdRecord.subAccountId);
 
     // assume RG is double sided, CNH is not.
     const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
 
-    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided);
+    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided, taxIdRecord.subAccountId);
 
     res.status(httpStatus.OK).json({
       idUpload: {
@@ -419,8 +431,14 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    //await 15 seconds
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    //await 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    const subAccountId = req.body.subAccountId;
+
+    // DEBUG get documents
+    const docs = await brlaApiService.getUploadedDocuments(subAccountId);
+    console.log("DEBUG: fetched documents: ", docs);
+
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);

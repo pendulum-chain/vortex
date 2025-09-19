@@ -7,6 +7,19 @@ import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verify
 import { AveniaKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
+export enum AveniaKycMachineErrorType {
+  UserCancelled = "USER_CANCELLED",
+  UnknownError = "UNKNOWN_ERROR"
+}
+
+export class AveniaKycMachineError extends Error {
+  type: AveniaKycMachineErrorType;
+  constructor(message: string, type: AveniaKycMachineErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
+
 export type UploadIds = {
   uploadedSelfieId: string;
   uploadedDocumentId: string;
@@ -29,7 +42,7 @@ export const aveniaKycMachine = setup({
       | { type: "DOCUMENTS_BACK" }
       | { type: "CANCEL" },
     input: {} as RampContext,
-    output: {} as { error?: any }
+    output: {} as { error?: AveniaKycMachineError }
   }
 }).createMachine({
   context: ({ input }) => ({ ...input }) as AveniaKycContext,
@@ -56,7 +69,7 @@ export const aveniaKycMachine = setup({
       on: {
         CANCEL_RETRY: {
           actions: assign({
-            error: () => "User cancelled the operation"
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
           }),
           target: "Finish"
         },
@@ -72,7 +85,7 @@ export const aveniaKycMachine = setup({
       on: {
         CANCEL: {
           actions: assign({
-            error: ({ event }) => "User cancelled the operation"
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
           }),
           target: "Finish"
         },
@@ -88,6 +101,9 @@ export const aveniaKycMachine = setup({
     Rejected: {
       on: {
         CANCEL_RETRY: {
+          actions: assign({
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+          }),
           target: "Finish"
         },
         RETRY: {
@@ -116,7 +132,8 @@ export const aveniaKycMachine = setup({
           },
           {
             actions: assign({
-              error: ({ event }) => (event.error as Error).message
+              error: ({ event }) =>
+                new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
             }),
             target: "Failure"
           }
@@ -158,7 +175,8 @@ export const aveniaKycMachine = setup({
         ],
         onError: {
           actions: assign({
-            error: ({ event }) => (event.error as Error).message
+            error: ({ event }) =>
+              new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
           }),
           target: "Failure"
         },

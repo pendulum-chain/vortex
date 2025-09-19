@@ -117,6 +117,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
+        console.log(
+          " urls: ",
+          response.idUpload.uploadURLFront,
+          response.idUpload.uploadURLBack,
+          response.selfieUpload.uploadURLFront
+        );
+
         uploads.push(
           uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
@@ -128,6 +135,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
+        console.log(
+          " urls: ",
+          response.idUpload.uploadURLFront,
+          response.idUpload.uploadURLBack,
+          response.selfieUpload.uploadURLFront
+        );
+
         uploads.push(
           uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront)

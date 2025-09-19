@@ -103,6 +103,7 @@ export enum BrlaKYCDocType {
 export interface AveniaKYCDataUploadRequest {
   documentType: AveniaDocumentType;
   isDoubleSided?: boolean;
+  taxId: string;
 }
 
 export interface AveniaKYCDataUpload {

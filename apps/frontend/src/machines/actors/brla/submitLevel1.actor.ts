@@ -31,6 +31,7 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
   try {
     const { subAccountId: existingSubAccountId } = await BrlaService.getUser(taxId);
     subAccountId = existingSubAccountId;
+    console.log("Debug: found existing Avenia subaccount", subAccountId);
   } catch (error: unknown) {
     const err = error as { response?: { status: number; statusText: string } };
     if (err.response?.status === 404) {

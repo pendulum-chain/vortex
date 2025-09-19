@@ -31,7 +31,8 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     }
 
     try {
-      const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
+      const { evmAddress: brlaEvmAddress, subAccountId } = await BrlaService.getUser(taxId);
+      console.log("existing subaccunt: ", subAccountId);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 
       console.log("Remaining limit response from BRLA:", remainingLimitResponse);
