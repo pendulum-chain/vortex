@@ -1,15 +1,15 @@
-import Big from "big.js";
 import { EvmToken, FiatToken, RampDirection } from "@packages/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
+import { APIError } from "../../../../errors/api-error";
+import { PersistenceAdapter } from "../adapters/persistence-adapter";
 import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
 import { QuoteMapper } from "../mappers/quote-mapper";
-import { PersistenceAdapter } from "../adapters/persistence-adapter";
 import { QuoteContext, Stage, StageKey } from "../types";
-import { APIError } from "../../../../errors/api-error";
 import { validateAmountLimits } from "../validation-helpers";
 
 /**
- * FinalizeEngine (PR5)
+ * FinalizeEngine
  * - Scope: On-ramp to AssetHub path
  * - Computes final net output using ctx.preNabla (pre fees), ctx.nabla (gross), and ctx.fees (display+USD).
  * - Applies discount metadata to net amount for parity.
@@ -25,7 +25,7 @@ export class FinalizeEngine implements Stage {
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    // Only handle on-ramp to AssetHub in PR5
+    // Only handle on-ramp to AssetHub in
     if (!(ctx.isOnRamp && req.to === "assethub")) {
       ctx.addNote?.("FinalizeEngine: skipped (not on-ramp to AssetHub)");
       return;
@@ -46,9 +46,7 @@ export class FinalizeEngine implements Stage {
 
     // 2) Total fee in display fiat (vortex + anchor + partner) — network remains 0 here
     const display = ctx.fees.displayFiat!;
-    const totalFeeFiat = new Big(display.structure.vortex)
-      .plus(display.structure.anchor)
-      .plus(display.structure.partnerMarkup);
+    const totalFeeFiat = new Big(display.structure.vortex).plus(display.structure.anchor).plus(display.structure.partnerMarkup);
 
     // 3) Avoid double-deducting pre-Nabla: subtract preNabla amount from total fee after converting it into display fiat.
     const preNablaInDisplayFiat = await this.price.convertCurrency(
@@ -88,8 +86,8 @@ export class FinalizeEngine implements Stage {
       finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
 
       discountInfo = {
-        partnerId: ctx.discount.partnerId,
         discount: rate.toString(),
+        partnerId: ctx.discount.partnerId,
         subsidyAmountInOutputToken: discountSubsidyAmount.toFixed(6, 0)
       };
     }
@@ -97,12 +95,12 @@ export class FinalizeEngine implements Stage {
     // 6) Prepare persistence
     const feeToStore = display.structure; // already in target display fiat
     const usdFeeStructure = {
-      currency: EvmToken.USDC,
-      vortex: ctx.fees.usd!.vortex,
       anchor: ctx.fees.usd!.anchor,
-      partnerMarkup: ctx.fees.usd!.partnerMarkup,
+      currency: EvmToken.USDC,
       network: ctx.fees.usd!.network,
-      total: ctx.fees.usd!.total
+      partnerMarkup: ctx.fees.usd!.partnerMarkup,
+      total: ctx.fees.usd!.total,
+      vortex: ctx.fees.usd!.vortex
     };
 
     const inputAmountForNablaSwapDecimal =
@@ -114,28 +112,28 @@ export class FinalizeEngine implements Stage {
     const outputAmountStr = finalNetOutputAmount.toFixed(6, 0);
 
     const { id, expiresAt, record } = await this.persistence.createQuote({
-      request: {
-        rampType: req.rampType,
-        from: req.from,
-        to: req.to,
-        inputAmount: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
-        inputCurrency: req.inputCurrency,
-        outputCurrency: req.outputCurrency
-      },
+      discount: discountInfo,
       feeDisplay: feeToStore,
-      usdFeeStructure,
-      outputAmountDecimalString: outputAmountStr,
       inputAmountForNablaSwapDecimal,
       onrampOutputAmountMoonbeamRaw,
+      outputAmountDecimalString: outputAmountStr,
       partnerId: ctx.partner?.id || null,
-      discount: discountInfo
+      request: {
+        from: req.from,
+        inputAmount: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
+        inputCurrency: req.inputCurrency,
+        outputCurrency: req.outputCurrency,
+        rampType: req.rampType,
+        to: req.to
+      },
+      usdFeeStructure
     });
 
     // 7) Build response and set on context
     const response = this.mapper.buildResponse({
-      ticket: record,
       feeDisplay: feeToStore,
-      outputAmountDecimalString: outputAmountStr
+      outputAmountDecimalString: outputAmountStr,
+      ticket: record
     });
 
     ctx.builtResponse = response;

@@ -2,7 +2,7 @@ import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../types";
 
 /**
- * DiscountEngine (PR4/PR5)
+ * DiscountEngine
  * - Determines applicable discount rate for the partner (or default 'vortex' partner).
  * - Stores only metadata (rate, partnerId) on context. Subsidy math is applied by finalization/legacy.
  */

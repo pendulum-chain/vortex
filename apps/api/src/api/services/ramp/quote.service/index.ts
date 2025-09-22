@@ -1,21 +1,12 @@
 import {
   AssetHubToken,
-  AXL_USDC_MOONBEAM,
   CreateQuoteRequest,
-  createGenericRouteParams,
-  ERC20_EURE_POLYGON,
-  ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   FiatToken,
   getNetworkFromDestination,
-  getOnChainTokenDetails,
   getPendulumDetails,
-  getRoute,
-  isAssetHubTokenDetails,
-  isOnChainToken,
   Networks,
   OnChainToken,
-  parseContractBalanceResponse,
   QuoteError,
   QuoteFeeStructure,
   QuoteResponse,
@@ -34,6 +25,7 @@ import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
 import { createQuoteContext } from "./core/quote-context";
 import { buildEnginesRegistry, QuoteOrchestrator } from "./core/quote-orchestrator";
+import { BridgeEngine } from "./engines/bridge-engine";
 import { DiscountEngine } from "./engines/discount-engine";
 import { FeeEngine } from "./engines/fee-engine";
 import { FinalizeEngine } from "./engines/finalize-engine";
@@ -111,7 +103,6 @@ export class QuoteService extends BaseRampService {
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
-    // PR2/PR6: Delegate EUR on-ramp to EVM special-case only (exclude AssetHub which is handled by pipeline)
     if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && request.to !== "assethub") {
       const resolver = new RouteResolver();
       const engines = buildEnginesRegistry({
@@ -158,6 +149,29 @@ export class QuoteService extends BaseRampService {
         throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
       }
       return pipelineCtx.builtResponse;
+    }
+
+    // On-ramp to EVM (non-EUR): run pipeline stages (input planning, swap, fee, discount, bridge)
+    let evmPipelineCtx: ReturnType<typeof createQuoteContext> | undefined;
+    if (request.rampType === RampDirection.BUY && request.to !== "assethub" && request.inputCurrency !== FiatToken.EURC) {
+      const resolver = new RouteResolver();
+      const engines = buildEnginesRegistry({
+        [StageKey.InputPlanner]: new InputPlannerEngine(),
+        [StageKey.Swap]: new SwapEngine(),
+        [StageKey.Fee]: new FeeEngine(),
+        [StageKey.Discount]: new DiscountEngine(),
+        [StageKey.Bridge]: new BridgeEngine()
+      });
+      const orchestrator = new QuoteOrchestrator(engines);
+
+      evmPipelineCtx = createQuoteContext({
+        partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
+        request,
+        targetFeeFiatCurrency
+      });
+
+      const strategy = resolver.resolve(evmPipelineCtx);
+      await orchestrator.run(strategy, evmPipelineCtx);
     }
 
     // b. Calculate Pre-Nabla Deductible Fees
@@ -278,7 +292,18 @@ export class QuoteService extends BaseRampService {
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    if (request.rampType === RampDirection.BUY) {
+    // Prefer pipeline bridge results if available (on-ramp to EVM, non-EUR)
+    if (
+      request.rampType === RampDirection.BUY &&
+      request.to !== "assethub" &&
+      request.inputCurrency !== FiatToken.EURC &&
+      (evmPipelineCtx as any)?.bridge?.finalGrossOutputAmountDecimal &&
+      (evmPipelineCtx as any)?.bridge?.networkFeeUSD
+    ) {
+      squidRouterNetworkFeeUSD = (evmPipelineCtx as any).bridge.networkFeeUSD;
+      finalGrossOutputAmountDecimal = new Big((evmPipelineCtx as any).bridge.finalGrossOutputAmountDecimal);
+      outputAmountMoonbeamRaw = (evmPipelineCtx as any).bridge.outputAmountMoonbeamRaw;
+    } else if (request.rampType === RampDirection.BUY) {
       const toNetwork = getNetworkFromDestination(request.to);
       if (!toNetwork) {
         throw new APIError({
@@ -289,10 +314,10 @@ export class QuoteService extends BaseRampService {
 
       const bridgeRequestParams: EvmBridgeRequest = {
         fromNetwork: Networks.Polygon,
-        inputCurrency: request.inputCurrency,
+        inputCurrency: request.inputCurrency as OnChainToken,
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
-        outputCurrency: request.outputCurrency,
+        outputCurrency: request.outputCurrency as OnChainToken,
         rampType: request.rampType,
         toNetwork
       };
@@ -308,9 +333,13 @@ export class QuoteService extends BaseRampService {
       squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
       // Deduct all the fees that are distributed after the Nabla swap and before the EVM bridge
+      // Prefer pipeline-computed USD fee components when available
+      const dVortexFeeUsd = (evmPipelineCtx as any)?.fees?.usd?.vortex ?? vortexFeeUsd;
+      const dPartnerMarkupFeeUsd = (evmPipelineCtx as any)?.fees?.usd?.partnerMarkup ?? partnerMarkupFeeUsd;
+
       const outputAmountMoonbeamDecimal = new Big(nablaSwapResult.nablaOutputAmountDecimal)
-        .minus(vortexFeeUsd)
-        .minus(partnerMarkupFeeUsd)
+        .minus(dVortexFeeUsd)
+        .minus(dPartnerMarkupFeeUsd)
         .minus(squidRouterNetworkFeeUSD);
       // axlUSDC on Moonbeam is 6 decimals
       outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();

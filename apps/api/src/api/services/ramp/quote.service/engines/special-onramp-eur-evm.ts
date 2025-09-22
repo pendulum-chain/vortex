@@ -1,4 +1,3 @@
-// PR2: Special engine for Monerium EUR on-ramp to EVM (existing special-case path moved from index.ts)
 // Behavior parity: replicates current logic for EUR on-ramp to EVM via Squidrouter, zero fees in response.
 
 import {
@@ -20,10 +19,10 @@ import {
 import httpStatus from "http-status";
 import { v4 as uuidv4 } from "uuid";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../../models/quoteTicket.model";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { QuoteContext, Stage, StageKey } from "../types";
-import { trimTrailingZeros } from "../helpers";
 import { APIError } from "../../../../errors/api-error";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { trimTrailingZeros } from "../helpers";
+import { QuoteContext, Stage, StageKey } from "../types";
 
 export class SpecialOnrampEurEvmEngine implements Stage {
   readonly key = StageKey.SpecialOnrampEurEvm;

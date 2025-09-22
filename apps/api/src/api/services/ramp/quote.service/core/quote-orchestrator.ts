@@ -1,6 +1,5 @@
-// PR1 scaffolding: Quote Orchestrator
 // Coordinates execution of stages based on a resolved route strategy.
-// Not wired into index.ts yet — no behavior change in PR1.
+// Not wired into index.ts yet — no behavior change in .
 
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../types";
 
@@ -21,8 +20,7 @@ export class QuoteOrchestrator {
   }
 }
 
-// Simple helper to build a registry with required keys (stubs for PR1)
+// Simple helper to build a registry with required keys
 export function buildEnginesRegistry(partial: EnginesRegistry): EnginesRegistry {
-  // In PR1 we allow partial registry; missing stages will throw at runtime if executed.
   return partial;
 }

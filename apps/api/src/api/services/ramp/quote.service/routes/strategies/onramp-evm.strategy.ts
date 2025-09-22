@@ -1,16 +1,16 @@
 import { FiatToken } from "@packages/shared";
 import { IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
-// PR2: On-ramp to EVM strategy
-// For PR2 we only enable the special-case EUR on-ramp to EVM stage to preserve behavior.
+// On-ramp to EVM strategy
 export class OnRampEvmStrategy implements IRouteStrategy {
   readonly name = "OnRampEvm";
 
   getStages(ctx: QuoteContext): StageKey[] {
-    // Only handle the EUR special-case here in PR2. Other flows remain in index.ts.
+    // EUR special-case handled by dedicated engine
     if (ctx.request.inputCurrency === FiatToken.EURC) {
       return [StageKey.SpecialOnrampEurEvm];
     }
-    return [];
+    // Non-EUR on-ramp to EVM goes through the modular pipeline
+    return [StageKey.InputPlanner, StageKey.Swap, StageKey.Fee, StageKey.Discount, StageKey.Bridge];
   }
 }

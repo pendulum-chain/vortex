@@ -4,7 +4,7 @@ import { calculateFeeComponents } from "../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../types";
 
 /**
- * FeeEngine (PR4)
+ * FeeEngine
  * - Computes partner markup, vortex, and anchor fees using DB-driven logic (calculateFeeComponents).
  * - Normalizes to USD baseline and also provides display fiat (ctx.targetFeeFiatCurrency).
  * - Network fee remains 0 here; added later by bridge/network stages or legacy path.

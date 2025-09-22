@@ -1,4 +1,3 @@
-// PR1 scaffolding: Price Feed Adapter
 // Centralizes currency conversion and crypto price fetches.
 // In later PRs, this will add rounding/precision policies and retries.
 

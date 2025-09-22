@@ -1,4 +1,3 @@
-// PR3: Swap Engine (Stage)
 // Performs the Nabla swap on Pendulum using the inputAmountForSwap from InputPlannerEngine.
 // Parity: wraps existing calculateNablaSwapOutput logic and determines nablaOutputCurrency by direction/destination.
 
