@@ -1,7 +1,7 @@
 import {
   ApiManager,
-  createOfframpRouteParams,
-  createOnrampRouteParams,
+  createGenericRouteParams,
+  createRouteParamsWithMoonbeamPostHook,
   DestinationType,
   EvmTokenDetails,
   getNetworkFromDestination,
@@ -10,6 +10,7 @@ import {
   getRoute,
   getTokenOutAmount,
   isEvmTokenDetails,
+  Networks,
   OnChainToken,
   PendulumTokenDetails,
   parseContractBalanceResponse,
@@ -46,8 +47,10 @@ export interface NablaSwapResult {
 
 export interface EvmBridgeRequest {
   intermediateAmountRaw: string; // Raw output from Nabla swap (e.g. axlUSDC on Moonbeam)
-  finalOutputCurrency: OnChainToken; // Target token on final EVM chain
-  finalEvmDestination: DestinationType; // Target EVM chain
+  inputCurrency: OnChainToken;
+  outputCurrency: OnChainToken;
+  fromNetwork: Networks;
+  toNetwork: Networks;
   originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
   rampType: RampDirection; // Whether this is an onramp or offramp
 }
@@ -55,8 +58,10 @@ export interface EvmBridgeRequest {
 export interface EvmBridgeQuoteRequest {
   rampType: RampDirection; // Whether this is an onramp or offramp
   amountDecimal: string; // Raw amount
-  inputOrOutputCurrency: OnChainToken; // The currency being swapped (input for offramp, output for onramp)
-  sourceOrDestination: DestinationType; // The source or destination EVM chain based on rampType
+  inputCurrency: OnChainToken;
+  outputCurrency: OnChainToken;
+  fromNetwork: Networks;
+  toNetwork: Networks;
 }
 
 export interface EvmBridgeResult {
@@ -109,29 +114,37 @@ export function getTokenDetailsForEvmDestination(
 /**
  * Helper to prepare route parameters for Squidrouter
  */
-function prepareSquidrouterRouteParams(
-  rampType: RampDirection,
-  amountRaw: string,
-  tokenDetails: EvmTokenDetails,
-  sourceOrDestination: DestinationType
-): RouteParams {
+function prepareSquidrouterRouteParams(params: {
+  rampType: RampDirection;
+  amountRaw: string;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
+  fromNetwork: Networks;
+  toNetwork: Networks;
+}): RouteParams {
+  const { rampType, amountRaw, fromToken, toToken, fromNetwork, toNetwork } = params;
+
   const placeholderAddress = "0x30a300612ab372cc73e53ffe87fb73d62ed68da3";
   const placeholderHash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-  const network = getNetworkFromDestination(sourceOrDestination);
-  if (!network) {
-    throw new APIError({
-      message: "Invalid EVM destination network",
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  const routeParams =
-    rampType === RampDirection.BUY
-      ? createOnrampRouteParams(placeholderAddress, amountRaw, tokenDetails, network, placeholderAddress)
-      : createOfframpRouteParams(placeholderAddress, amountRaw, tokenDetails, network, placeholderAddress, placeholderHash);
-
-  return routeParams;
+  return rampType === RampDirection.BUY
+    ? createGenericRouteParams({
+        amount: amountRaw,
+        destinationAddress: placeholderAddress,
+        fromAddress: placeholderAddress,
+        fromNetwork,
+        fromToken,
+        toNetwork,
+        toToken
+      })
+    : createRouteParamsWithMoonbeamPostHook({
+        amount: amountRaw,
+        fromAddress: placeholderAddress,
+        fromNetwork,
+        fromToken,
+        receivingContractAddress: placeholderAddress,
+        squidRouterReceiverHash: placeholderHash
+      });
 }
 
 /**
@@ -232,9 +245,18 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 }
 
 function buildRouteRequest(request: EvmBridgeQuoteRequest) {
-  const token = getTokenDetailsForEvmDestination(request.inputOrOutputCurrency, request.sourceOrDestination);
-  const amountRaw = multiplyByPowerOfTen(request.amountDecimal, token.decimals).toFixed(0, 0);
-  return prepareSquidrouterRouteParams(request.rampType, amountRaw, token, request.sourceOrDestination);
+  const inputTokenDetails = getTokenDetailsForEvmDestination(request.inputCurrency, request.fromNetwork);
+  const outputTokenDetails = getTokenDetailsForEvmDestination(request.outputCurrency, request.toNetwork);
+  const amountRaw = multiplyByPowerOfTen(request.amountDecimal, inputTokenDetails.decimals).toFixed(0, 0);
+
+  return prepareSquidrouterRouteParams({
+    amountRaw,
+    fromNetwork: request.fromNetwork,
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    rampType: request.rampType,
+    toNetwork: request.toNetwork,
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  });
 }
 
 async function getSquidrouterRouteData(routeParams: RouteParams) {
@@ -264,14 +286,30 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
 export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest): Promise<EvmBridgeResult> {
-  const { intermediateAmountRaw, finalOutputCurrency, finalEvmDestination, originalInputAmountForRateCalc, rampType } = request;
+  const {
+    intermediateAmountRaw,
+    fromNetwork,
+    toNetwork,
+    inputCurrency,
+    outputCurrency,
+    originalInputAmountForRateCalc,
+    rampType
+  } = request;
 
   try {
     // Get token details for final output currency
-    const tokenDetails = getTokenDetailsForEvmDestination(finalOutputCurrency, finalEvmDestination);
+    const inputTokenDetails = getTokenDetailsForEvmDestination(inputCurrency, fromNetwork);
+    const outputTokenDetails = getTokenDetailsForEvmDestination(outputCurrency, toNetwork);
 
     // Prepare route parameters for Squidrouter
-    const routeParams = prepareSquidrouterRouteParams(rampType, intermediateAmountRaw, tokenDetails, finalEvmDestination);
+    const routeParams = prepareSquidrouterRouteParams({
+      amountRaw: intermediateAmountRaw,
+      fromNetwork,
+      fromToken: inputTokenDetails.erc20AddressSourceChain,
+      rampType,
+      toNetwork,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
 
     // Execute Squidrouter route and validate response
     const { networkFeeUSD, routeData } = await getSquidrouterRouteData(routeParams);
@@ -280,7 +318,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     // Parse final gross output amount
     const finalGrossOutputAmount = routeData.route.estimate.toAmount;
     const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
-      tokenDetails.decimals,
+      outputTokenDetails.decimals,
       BigInt(finalGrossOutputAmount)
     ).preciseBigDecimal;
 
@@ -288,7 +326,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     const finalEffectiveExchangeRate = calculateFinalExchangeRate(
       finalGrossOutputAmount,
       originalInputAmountForRateCalc,
-      tokenDetails
+      outputTokenDetails
     );
 
     return {

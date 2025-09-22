@@ -1,5 +1,5 @@
 import {
-  createOnrampSquidrouterTransactionsToEvm,
+  createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmTransactionData,
@@ -81,16 +81,13 @@ export async function prepareMoneriumToEvmOnrampTransactions({
         txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
-      const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
+      const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
         destinationAddress,
         fromAddress: account.address,
-        fromNetwork: Networks.Polygon,
-        inputTokenDetails: {
-          erc20AddressSourceChain: ERC20_EURE_POLYGON
-        } as any,
-        outputTokenDetails,
+        fromToken: ERC20_EURE_POLYGON,
         rawAmount: inputAmountPostAnchorFeeRaw,
-        toNetwork
+        toNetwork,
+        toToken: outputTokenDetails.erc20AddressSourceChain
       });
 
       unsignedTxs.push({
