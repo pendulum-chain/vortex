@@ -43,6 +43,8 @@ import { createQuoteContext } from "./core/quote-context";
 import { StageKey } from "./types";
 import { InputPlannerEngine } from "./engines/input-planner";
 import { SwapEngine } from "./engines/swap-engine";
+import { FeeEngine } from "./engines/fee-engine";
+import { DiscountEngine } from "./engines/discount-engine";
 
 /*
  * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
@@ -150,7 +152,9 @@ export class QuoteService extends BaseRampService {
       const resolver = new RouteResolver();
       const engines = buildEnginesRegistry({
         [StageKey.InputPlanner]: new InputPlannerEngine(),
-        [StageKey.Swap]: new SwapEngine()
+        [StageKey.Swap]: new SwapEngine(),
+        [StageKey.Fee]: new FeeEngine(),
+        [StageKey.Discount]: new DiscountEngine()
       });
       const orchestrator = new QuoteOrchestrator(engines);
 
@@ -356,47 +360,68 @@ export class QuoteService extends BaseRampService {
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
-    const {
-      vortexFee,
-      anchorFee,
-      partnerMarkupFee,
-      feeCurrency: calculatedFeeCurrency
-    } = await calculateFeeComponents({
-      from: request.from,
-      inputAmount: request.inputAmount,
-      inputCurrency: request.inputCurrency,
-      outputAmountOfframp,
-      outputCurrency: request.outputCurrency,
-      partnerName: partner?.id || undefined,
-      rampType: request.rampType,
-      to: request.to
-    });
-
-    // f. Aggregate and Finalize Fees
-    // Convert other fees to targetFeeFiatCurrency if needed
-    let vortexFeeFiat = vortexFee;
-    let anchorFeeFiat = anchorFee;
-    let partnerMarkupFeeFiat = partnerMarkupFee;
-
-    if (calculatedFeeCurrency !== targetFeeFiatCurrency) {
-      vortexFeeFiat = await priceFeedService.convertCurrency(vortexFee, calculatedFeeCurrency, targetFeeFiatCurrency);
-      anchorFeeFiat = await priceFeedService.convertCurrency(anchorFee, calculatedFeeCurrency, targetFeeFiatCurrency);
-      partnerMarkupFeeFiat = await priceFeedService.convertCurrency(
-        partnerMarkupFee,
-        calculatedFeeCurrency,
-        targetFeeFiatCurrency
-      );
-    }
+    // PR4: If FeeEngine already computed fees in ctx (via orchestrator for AssetHub on-ramp),
+    // use those values; otherwise fall back to legacy calculation path.
+    let vortexFeeFiat: string;
+    let anchorFeeFiat: string;
+    let partnerMarkupFeeFiat: string;
+    let calculatedFeeCurrency: RampCurrency;
 
     // USD Fee Structure for metadata
     const usdCurrency = EvmToken.USDC;
-    const vortexFeeUsd = await priceFeedService.convertCurrency(vortexFeeFiat, targetFeeFiatCurrency, usdCurrency);
-    const anchorFeeUsd = await priceFeedService.convertCurrency(anchorFeeFiat, targetFeeFiatCurrency, usdCurrency);
-    const partnerMarkupFeeUsd = await priceFeedService.convertCurrency(
-      partnerMarkupFeeFiat,
-      targetFeeFiatCurrency,
-      usdCurrency
-    );
+    let vortexFeeUsd: string;
+    let anchorFeeUsd: string;
+    let partnerMarkupFeeUsd: string;
+
+    if (pr3Ctx?.fees?.usd && pr3Ctx?.fees?.displayFiat?.structure) {
+      const feesCtx = pr3Ctx.fees;
+      vortexFeeFiat = feesCtx.displayFiat.structure.vortex;
+      anchorFeeFiat = feesCtx.displayFiat.structure.anchor;
+      partnerMarkupFeeFiat = feesCtx.displayFiat.structure.partnerMarkup;
+      calculatedFeeCurrency = feesCtx.displayFiat.currency;
+
+      vortexFeeUsd = feesCtx.usd.vortex;
+      anchorFeeUsd = feesCtx.usd.anchor;
+      partnerMarkupFeeUsd = feesCtx.usd.partnerMarkup;
+    } else {
+      const {
+        vortexFee,
+        anchorFee,
+        partnerMarkupFee,
+        feeCurrency: calcFeeCurrency
+      } = await calculateFeeComponents({
+        from: request.from,
+        inputAmount: request.inputAmount,
+        inputCurrency: request.inputCurrency,
+        outputAmountOfframp,
+        outputCurrency: request.outputCurrency,
+        partnerName: partner?.id || undefined,
+        rampType: request.rampType,
+        to: request.to
+      });
+
+      calculatedFeeCurrency = calcFeeCurrency;
+
+      // Convert other fees to targetFeeFiatCurrency if needed
+      let vf = vortexFee;
+      let af = anchorFee;
+      let pmf = partnerMarkupFee;
+
+      if (calculatedFeeCurrency !== targetFeeFiatCurrency) {
+        vf = await priceFeedService.convertCurrency(vortexFee, calculatedFeeCurrency, targetFeeFiatCurrency);
+        af = await priceFeedService.convertCurrency(anchorFee, calculatedFeeCurrency, targetFeeFiatCurrency);
+        pmf = await priceFeedService.convertCurrency(partnerMarkupFee, calculatedFeeCurrency, targetFeeFiatCurrency);
+      }
+
+      vortexFeeFiat = vf;
+      anchorFeeFiat = af;
+      partnerMarkupFeeFiat = pmf;
+
+      // Convert display fiat to USD for metadata
+      vortexFeeUsd = await priceFeedService.convertCurrency(vortexFeeFiat, targetFeeFiatCurrency, usdCurrency);
+      anchorFeeUsd = await priceFeedService.convertCurrency(anchorFeeFiat, targetFeeFiatCurrency, usdCurrency);
+      partnerMarkupFeeUsd = await priceFeedService.convertCurrency(partnerMarkupFeeFiat, targetFeeFiatCurrency, usdCurrency);
+    }
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
     let squidRouterNetworkFeeUSD = "0";
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
