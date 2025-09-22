@@ -1,6 +1,7 @@
 import { DestinationType, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { v4 as uuidv4 } from "uuid";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../../models/quoteTicket.model";
+import { QuoteContext } from "../types";
 
 export interface PersistQuoteParams {
   request: {
@@ -22,14 +23,25 @@ export interface PersistQuoteParams {
     discount?: string;
     subsidyAmountInOutputToken?: string;
   };
+  context: QuoteContext;
 }
 
 export class PersistenceAdapter {
   async createQuote(params: PersistQuoteParams): Promise<{ id: string; expiresAt: Date; record: QuoteTicket }> {
-    const { request, feeDisplay, usdFeeStructure, outputAmountDecimalString, inputAmountForNablaSwapDecimal, onrampOutputAmountMoonbeamRaw, partnerId, discount } =
-      params;
+    const {
+      context,
+      request,
+      feeDisplay,
+      usdFeeStructure,
+      outputAmountDecimalString,
+      inputAmountForNablaSwapDecimal,
+      onrampOutputAmountMoonbeamRaw,
+      partnerId,
+      discount
+    } = params;
 
     const metadata: QuoteTicketMetadata = {
+      context,
       inputAmountForNablaSwapDecimal,
       onrampOutputAmountMoonbeamRaw,
       usdFeeStructure
@@ -37,28 +49,28 @@ export class PersistenceAdapter {
 
     if (discount?.partnerId && discount?.discount && discount?.subsidyAmountInOutputToken) {
       metadata.subsidy = {
-        partnerId: discount.partnerId,
         discount: discount.discount,
+        partnerId: discount.partnerId,
         subsidyAmountInOutputToken: discount.subsidyAmountInOutputToken
       };
     }
 
     const record = await QuoteTicket.create({
-      id: uuidv4(),
-      rampType: request.rampType,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      fee: feeDisplay,
       from: request.from,
-      to: request.to,
+      id: uuidv4(),
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
+      metadata,
       outputAmount: outputAmountDecimalString,
       outputCurrency: request.outputCurrency,
-      fee: feeDisplay,
       partnerId,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      rampType: request.rampType,
       status: "pending",
-      metadata
+      to: request.to
     });
 
-    return { id: record.id, expiresAt: record.expiresAt, record };
+    return { expiresAt: record.expiresAt, id: record.id, record };
   }
 }

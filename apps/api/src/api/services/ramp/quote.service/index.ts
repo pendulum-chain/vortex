@@ -5,7 +5,7 @@ import Partner from "../../../../models/partner.model";
 import { APIError } from "../../../errors/api-error";
 import { BaseRampService } from "../base.service";
 import { createQuoteContext } from "./core/quote-context";
-import { buildEnginesRegistry, QuoteOrchestrator } from "./core/quote-orchestrator";
+import { buildDefaultEnginesRegistry, buildEnginesRegistry, QuoteOrchestrator } from "./core/quote-orchestrator";
 import { BridgeEngine } from "./engines/bridge-engine";
 import { DiscountEngine } from "./engines/discount-engine";
 import { FeeEngine } from "./engines/fee-engine";
@@ -19,10 +19,8 @@ import { StageKey } from "./types";
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
-    // a. Initial Setup
     validateChainSupport(request.rampType, request.from, request.to);
 
-    // Fetch partner details
     let partner = null;
     if (request.partnerId) {
       partner = await Partner.findOne({
@@ -46,6 +44,7 @@ export class QuoteService extends BaseRampService {
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
+    // Special case: EUR on-ramp to EVM (non-AssetHub)
     if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && request.to !== "assethub") {
       const resolver = new RouteResolver();
       const engines = buildEnginesRegistry({
@@ -67,93 +66,71 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    // On-ramp to AssetHub is fully handled by the pipeline (input planning, swap, fees, discount, finalize, persistence)
+    // On-ramp to AssetHub
     if (request.rampType === RampDirection.BUY && request.to === "assethub") {
       const resolver = new RouteResolver();
-      const engines = buildEnginesRegistry({
-        [StageKey.InputPlanner]: new InputPlannerEngine(),
-        [StageKey.Swap]: new SwapEngine(),
-        [StageKey.Fee]: new FeeEngine(),
-        [StageKey.Discount]: new DiscountEngine(),
-        [StageKey.Finalize]: new FinalizeEngine()
-      });
+      const engines = buildDefaultEnginesRegistry();
       const orchestrator = new QuoteOrchestrator(engines);
 
-      const pipelineCtx = createQuoteContext({
+      const ctx = createQuoteContext({
         partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
         request,
         targetFeeFiatCurrency
       });
 
-      const strategy = resolver.resolve(pipelineCtx);
-      await orchestrator.run(strategy, pipelineCtx);
+      const strategy = resolver.resolve(ctx);
+      await orchestrator.run(strategy, ctx);
 
-      if (!pipelineCtx.builtResponse) {
+      if (!ctx.builtResponse) {
         throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
       }
-      return pipelineCtx.builtResponse;
+      return ctx.builtResponse;
     }
 
-    // On-ramp to EVM (non-EUR): run pipeline stages (input planning, swap, fee, discount, bridge)
-    let evmPipelineCtx: ReturnType<typeof createQuoteContext> | undefined;
+    // On-ramp to EVM (non-EUR)
     if (request.rampType === RampDirection.BUY && request.to !== "assethub" && request.inputCurrency !== FiatToken.EURC) {
       const resolver = new RouteResolver();
-      const engines = buildEnginesRegistry({
-        [StageKey.InputPlanner]: new InputPlannerEngine(),
-        [StageKey.Swap]: new SwapEngine(),
-        [StageKey.Fee]: new FeeEngine(),
-        [StageKey.Discount]: new DiscountEngine(),
-        [StageKey.Bridge]: new BridgeEngine(),
-        [StageKey.Finalize]: new FinalizeEngine()
-      });
+      const engines = buildDefaultEnginesRegistry();
       const orchestrator = new QuoteOrchestrator(engines);
 
-      evmPipelineCtx = createQuoteContext({
+      const ctx = createQuoteContext({
         partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
         request,
         targetFeeFiatCurrency
       });
 
-      const strategy = resolver.resolve(evmPipelineCtx);
-      await orchestrator.run(strategy, evmPipelineCtx);
+      const strategy = resolver.resolve(ctx);
+      await orchestrator.run(strategy, ctx);
 
       // If FinalizeEngine built a response, return it now to avoid legacy duplication
-      if (evmPipelineCtx.builtResponse) {
-        return evmPipelineCtx.builtResponse;
+      if (ctx.builtResponse) {
+        return ctx.builtResponse;
       }
     }
 
-    // All BUY routes are now handled by the pipeline strategies above.
     // If we reach here with a BUY request, treat as failure to compute via pipeline.
     if (request.rampType === RampDirection.BUY) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    // SELL routes are now handled by the pipeline (InputPlanner -> Swap -> Fee -> Discount -> Finalize)
     if (request.rampType === RampDirection.SELL) {
       const resolver = new RouteResolver();
-      const engines = buildEnginesRegistry({
-        [StageKey.InputPlanner]: new InputPlannerEngine(),
-        [StageKey.Swap]: new SwapEngine(),
-        [StageKey.Fee]: new FeeEngine(),
-        [StageKey.Discount]: new DiscountEngine(),
-        [StageKey.Finalize]: new FinalizeEngine()
-      });
+      const engines = buildDefaultEnginesRegistry();
       const orchestrator = new QuoteOrchestrator(engines);
 
-      const sellCtx = createQuoteContext({
+      const ctx = createQuoteContext({
         partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
         request,
         targetFeeFiatCurrency
       });
 
-      const strategy = resolver.resolve(sellCtx);
-      await orchestrator.run(strategy, sellCtx);
+      const strategy = resolver.resolve(ctx);
+      await orchestrator.run(strategy, ctx);
 
-      if (!sellCtx.builtResponse) {
+      if (!ctx.builtResponse) {
         throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
       }
-      return sellCtx.builtResponse;
+      return ctx.builtResponse;
     }
 
     // Unreachable: all BUY and SELL routes are handled above via the pipeline strategies.

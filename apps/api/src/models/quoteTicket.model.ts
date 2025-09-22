@@ -1,5 +1,6 @@
 import { DestinationType, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
+import { QuoteContext } from "../api/services/ramp/quote.service/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
@@ -22,6 +23,7 @@ export interface QuoteTicketAttributes {
 }
 
 export interface QuoteTicketMetadata {
+  context: QuoteContext;
   // The input amount to be used for the nabla swap transaction.
   inputAmountForNablaSwapDecimal: string;
   onrampOutputAmountMoonbeamRaw: string;

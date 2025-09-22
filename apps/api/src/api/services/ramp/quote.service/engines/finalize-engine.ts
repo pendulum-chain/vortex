@@ -39,7 +39,7 @@ export class FinalizeEngine implements Stage {
     if (req.rampType === RampDirection.BUY) {
       // BUY: AssetHub uses Nabla output; EVM uses bridge final gross
       if (req.to === "assethub") {
-        finalGrossOutputAmountDecimal = new Big(ctx.nabla!.outputAmountDecimal);
+        finalGrossOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
       } else {
         if (!ctx.bridge?.finalGrossOutputAmountDecimal) {
           throw new APIError({ message: "FinalizeEngine requires bridge output", status: httpStatus.INTERNAL_SERVER_ERROR });
@@ -48,11 +48,11 @@ export class FinalizeEngine implements Stage {
       }
     } else {
       // SELL: gross is Nabla output (fiat-representative)
-      finalGrossOutputAmountDecimal = new Big(ctx.nabla!.outputAmountDecimal);
+      finalGrossOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
     }
 
     // 2) Fees in display fiat
-    const display = ctx.fees.displayFiat!;
+    const display = ctx.fees.displayFiat;
     const totalFeeFiat = new Big(display.structure.vortex)
       .plus(display.structure.anchor)
       .plus(display.structure.partnerMarkup)
@@ -60,9 +60,9 @@ export class FinalizeEngine implements Stage {
 
     // 3) Avoid double-deducting pre-Nabla: subtract preNabla (converted to display fiat) from total fee
     const preNablaInDisplayFiat = await this.price.convertCurrency(
-      ctx.preNabla.deductibleFeeAmount!.toString(),
-      ctx.preNabla.feeCurrency as any,
-      display.currency as any
+      ctx.preNabla.deductibleFeeAmount.toString(),
+      ctx.preNabla.feeCurrency,
+      display.currency
     );
     const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
 
@@ -72,8 +72,8 @@ export class FinalizeEngine implements Stage {
       if (req.to === "assethub") {
         const totalFeeInOutputCurrency = await this.price.convertCurrency(
           adjustedTotalFeeFiat.toString(),
-          display.currency as any,
-          req.outputCurrency as any
+          display.currency,
+          req.outputCurrency
         );
         finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
       } else {
@@ -84,8 +84,8 @@ export class FinalizeEngine implements Stage {
       // SELL: convert adjusted fee to output fiat (e.g., BRL/EURC/ARS) and subtract
       const totalFeeInOutputFiat = await this.price.convertCurrency(
         adjustedTotalFeeFiat.toString(),
-        display.currency as any,
-        req.outputCurrency as any
+        display.currency,
+        req.outputCurrency
       );
       finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
     }
@@ -123,23 +123,22 @@ export class FinalizeEngine implements Stage {
     // 7) Persistence structures
     const feeToStore = display.structure; // target display fiat
     const usdFeeStructure = {
-      anchor: ctx.fees.usd!.anchor,
+      anchor: ctx.fees.usd.anchor,
       currency: EvmToken.USDC,
-      network: ctx.fees.usd!.network,
-      partnerMarkup: ctx.fees.usd!.partnerMarkup,
-      total: ctx.fees.usd!.total,
-      vortex: ctx.fees.usd!.vortex
+      network: ctx.fees.usd.network,
+      partnerMarkup: ctx.fees.usd.partnerMarkup,
+      total: ctx.fees.usd.total,
+      vortex: ctx.fees.usd.vortex
     };
 
-    const inputAmountForNablaSwapDecimal =
-      ctx.preNabla.inputAmountForSwap?.toString() ??
-      (typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount));
+    const inputAmountForNablaSwapDecimal = ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount;
 
     const onrampOutputAmountMoonbeamRaw = ctx.bridge?.outputAmountMoonbeamRaw ?? "0";
     const outputAmountStr =
       req.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
     const { record } = await this.persistence.createQuote({
+      context: ctx,
       discount: discountInfo,
       feeDisplay: feeToStore,
       inputAmountForNablaSwapDecimal,
@@ -148,7 +147,7 @@ export class FinalizeEngine implements Stage {
       partnerId: ctx.partner?.id || null,
       request: {
         from: req.from,
-        inputAmount: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
+        inputAmount: req.inputAmount,
         inputCurrency: req.inputCurrency,
         outputCurrency: req.outputCurrency,
         rampType: req.rampType,

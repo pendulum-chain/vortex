@@ -46,7 +46,7 @@ export class SwapEngine implements Stage {
       toPolkadotDestination: req.to
     });
 
-    // SELL path: enforce max output fiat limit using Nabla output (parity with legacy)
+    // SELL path: enforce max output fiat limit using Nabla output
     if (req.rampType === RampDirection.SELL) {
       validateAmountLimits(result.nablaOutputAmountDecimal, req.outputCurrency as FiatToken, "max", req.rampType);
     }

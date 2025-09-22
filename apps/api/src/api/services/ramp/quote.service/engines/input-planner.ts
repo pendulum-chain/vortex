@@ -59,7 +59,7 @@ export class InputPlannerEngine implements Stage {
 
     if (req.rampType === RampDirection.SELL && req.from !== Networks.AssetHub) {
       const bridgeQuote = await getEvmBridgeQuote({
-        amountDecimal: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
+        amountDecimal: req.inputAmount,
         fromNetwork: req.from as Networks,
         inputCurrency: req.inputCurrency as OnChainToken,
         outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
