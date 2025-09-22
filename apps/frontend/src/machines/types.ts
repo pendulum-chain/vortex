@@ -2,6 +2,7 @@ import { PaymentData, QuoteResponse, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
+import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
@@ -33,8 +34,9 @@ export type RampMachineEvents =
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
+  | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
-  | { type: "SubmitLevel1"; formData: any } // KYCFormData
+  | { type: "SubmitLevel1"; formData: KYCFormData }
   | { type: "SummaryConfirm" }
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
@@ -47,7 +49,7 @@ export type RampMachineEvents =
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" };
 
-export type RampMachineActor = ActorRef<any, RampMachineEvents>;
+export type RampMachineActor = ActorRef<unknown, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
 
 export type StellarKycActorRef = ActorRefFrom<typeof stellarKycMachine>;
