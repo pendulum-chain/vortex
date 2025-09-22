@@ -1,5 +1,4 @@
 import {
-  AssetHubToken,
   CreateQuoteRequest,
   EvmToken,
   FiatToken,
@@ -32,7 +31,7 @@ import { FinalizeEngine } from "./engines/finalize-engine";
 import { InputPlannerEngine } from "./engines/input-planner";
 import { SpecialOnrampEurEvmEngine } from "./engines/special-onramp-eur-evm";
 import { SwapEngine } from "./engines/swap-engine";
-import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, EvmBridgeRequest, getEvmBridgeQuote } from "./gross-output";
+import { calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 import { RouteResolver } from "./routes/route-resolver";
@@ -180,6 +179,39 @@ export class QuoteService extends BaseRampService {
       }
     }
 
+    // All BUY routes are now handled by the pipeline strategies above.
+    // If we reach here with a BUY request, treat as failure to compute via pipeline.
+    if (request.rampType === RampDirection.BUY) {
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
+
+    // SELL routes are now handled by the pipeline (InputPlanner -> Swap -> Fee -> Discount -> Finalize)
+    if (request.rampType === RampDirection.SELL) {
+      const resolver = new RouteResolver();
+      const engines = buildEnginesRegistry({
+        [StageKey.InputPlanner]: new InputPlannerEngine(),
+        [StageKey.Swap]: new SwapEngine(),
+        [StageKey.Fee]: new FeeEngine(),
+        [StageKey.Discount]: new DiscountEngine(),
+        [StageKey.Finalize]: new FinalizeEngine()
+      });
+      const orchestrator = new QuoteOrchestrator(engines);
+
+      const sellCtx = createQuoteContext({
+        partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
+        request,
+        targetFeeFiatCurrency
+      });
+
+      const strategy = resolver.resolve(sellCtx);
+      await orchestrator.run(strategy, sellCtx);
+
+      if (!sellCtx.builtResponse) {
+        throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+      }
+      return sellCtx.builtResponse;
+    }
+
     // b. Calculate Pre-Nabla Deductible Fees
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
       request.inputAmount,
@@ -203,30 +235,19 @@ export class QuoteService extends BaseRampService {
     }
 
     // d. Perform Nabla Swap
-    // Determine nablaOutputCurrency based on ramp type and destination
+    // Since BUY routes are handled by the pipeline above, this legacy path only handles SELL
     let nablaOutputCurrency: RampCurrency;
-
-    if (request.rampType === RampDirection.BUY) {
-      // On-Ramp: intermediate currency on Pendulum/Moonbeam
-      if (request.to === "assethub") {
-        nablaOutputCurrency = AssetHubToken.USDC; // Only USDC is supported on the Nabla DEX on Pendulum
-      } else {
-        nablaOutputCurrency = EvmToken.USDC; // Use USDC as intermediate for EVM destinations
-      }
+    if (request.to === "pix") {
+      nablaOutputCurrency = FiatToken.BRL;
+    } else if (request.to === "sepa") {
+      nablaOutputCurrency = FiatToken.EURC;
+    } else if (request.to === "cbu") {
+      nablaOutputCurrency = FiatToken.ARS;
     } else {
-      // Off-Ramp: fiat-representative token on Pendulum
-      if (request.to === "pix") {
-        nablaOutputCurrency = FiatToken.BRL;
-      } else if (request.to === "sepa") {
-        nablaOutputCurrency = FiatToken.EURC;
-      } else if (request.to === "cbu") {
-        nablaOutputCurrency = FiatToken.ARS;
-      } else {
-        throw new APIError({
-          message: `Unsupported off-ramp destination: ${request.to}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      throw new APIError({
+        message: `Unsupported off-ramp destination: ${request.to}`,
+        status: httpStatus.BAD_REQUEST
+      });
     }
 
     const nablaSwapResult = await calculateNablaSwapOutput({
@@ -238,16 +259,13 @@ export class QuoteService extends BaseRampService {
       toPolkadotDestination: request.to
     });
 
-    if (request.rampType === RampDirection.SELL) {
-      validateAmountLimits(
-        nablaSwapResult.nablaOutputAmountDecimal,
-        request.outputCurrency as FiatToken,
-        "max",
-        request.rampType
-      );
-    } else {
-      validateAmountLimits(request.inputAmount, request.inputCurrency as FiatToken, "max", request.rampType);
-    }
+    // Legacy path is SELL only
+    validateAmountLimits(
+      nablaSwapResult.nablaOutputAmountDecimal,
+      request.outputCurrency as FiatToken,
+      "max",
+      request.rampType
+    );
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
@@ -293,70 +311,10 @@ export class QuoteService extends BaseRampService {
       targetFeeFiatCurrency,
       usdCurrency
     );
-    // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
-    let squidRouterNetworkFeeUSD = "0";
-    let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
-    let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
-
-    // Prefer pipeline bridge results if available (on-ramp to EVM, non-EUR)
-    if (
-      request.rampType === RampDirection.BUY &&
-      request.to !== "assethub" &&
-      request.inputCurrency !== FiatToken.EURC &&
-      (evmPipelineCtx as any)?.bridge?.finalGrossOutputAmountDecimal &&
-      (evmPipelineCtx as any)?.bridge?.networkFeeUSD
-    ) {
-      squidRouterNetworkFeeUSD = (evmPipelineCtx as any).bridge.networkFeeUSD;
-      finalGrossOutputAmountDecimal = new Big((evmPipelineCtx as any).bridge.finalGrossOutputAmountDecimal);
-      outputAmountMoonbeamRaw = (evmPipelineCtx as any).bridge.outputAmountMoonbeamRaw;
-    } else if (request.rampType === RampDirection.BUY) {
-      const toNetwork = getNetworkFromDestination(request.to);
-      if (!toNetwork) {
-        throw new APIError({
-          message: `Invalid network for destination: ${request.to} `,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      const bridgeRequestParams: EvmBridgeRequest = {
-        fromNetwork: Networks.Polygon,
-        inputCurrency: request.inputCurrency as OnChainToken,
-        intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
-        outputCurrency: request.outputCurrency as OnChainToken,
-        rampType: request.rampType,
-        toNetwork
-      };
-
-      if (request.to === "assethub") {
-        // Only the EURe -> axlUSDC swap on Moonbeam is relevant here.
-        bridgeRequestParams.toNetwork = Networks.Moonbeam;
-        bridgeRequestParams.outputCurrency = EvmToken.AXLUSDC;
-      }
-
-      // Do a first call to get a rough estimate of network fees
-      const preliminaryResult = await calculateEvmBridgeAndNetworkFee(bridgeRequestParams);
-      squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
-
-      // Deduct all the fees that are distributed after the Nabla swap and before the EVM bridge
-      // Prefer pipeline-computed USD fee components when available
-      const dVortexFeeUsd = (evmPipelineCtx as any)?.fees?.usd?.vortex ?? vortexFeeUsd;
-      const dPartnerMarkupFeeUsd = (evmPipelineCtx as any)?.fees?.usd?.partnerMarkup ?? partnerMarkupFeeUsd;
-
-      const outputAmountMoonbeamDecimal = new Big(nablaSwapResult.nablaOutputAmountDecimal)
-        .minus(dVortexFeeUsd)
-        .minus(dPartnerMarkupFeeUsd)
-        .minus(squidRouterNetworkFeeUSD);
-      // axlUSDC on Moonbeam is 6 decimals
-      outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
-
-      bridgeRequestParams.intermediateAmountRaw = outputAmountMoonbeamRaw;
-
-      // Do a second call with all fees deducted to get the final gross output amount
-      const evmBridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequestParams);
-
-      finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
-    }
+    // g. Network fees (SELL legacy path does not include Squidrouter fees; set to zero)
+    const squidRouterNetworkFeeUSD = "0";
+    const finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
+    const outputAmountMoonbeamRaw = undefined;
 
     const squidRouterNetworkFeeFiat = await priceFeedService.convertCurrency(
       squidRouterNetworkFeeUSD,
@@ -377,37 +335,14 @@ export class QuoteService extends BaseRampService {
     const totalNetworkFeeUsd = squidRouterNetworkFeeUSD;
     const totalFeeUsd = new Big(totalNetworkFeeUsd).plus(vortexFeeUsd).plus(anchorFeeUsd).plus(partnerMarkupFeeUsd).toFixed(6);
 
-    // h. Calculate Final Net Output Amount
+    // h. Calculate Final Net Output Amount (SELL)
     let finalNetOutputAmount: Big;
-
-    if (request.rampType === RampDirection.BUY) {
-      if (request.to === "assethub") {
-        // Convert totalFeeFiat to output currency
-        const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
-          // We already deducted pre-Nabla fees in the earlier calculations, so we add them back here so we don't double-deduct
-          new Big(totalFeeFiat)
-            .minus(preNablaDeductibleFeeAmount)
-            .toString(),
-          targetFeeFiatCurrency,
-          request.outputCurrency
-        );
-        finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
-      } else {
-        // For on-ramp to EVM, we already deduced the final output amount in the EVM bridge calculation
-        finalNetOutputAmount = finalGrossOutputAmountDecimal;
-      }
-    } else {
-      // For off-ramp, convert totalFeeFiat to the fiat-representative currency amount
-      const totalFeeInOutputFiat = await priceFeedService.convertCurrency(
-        // We already deducted pre-Nabla fees in the earlier calculations, so we add them back here so we don't double-deduct
-        new Big(totalFeeFiat)
-          .minus(preNablaDeductibleFeeAmount)
-          .toString(),
-        targetFeeFiatCurrency,
-        request.outputCurrency
-      );
-      finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
-    }
+    const totalFeeInOutputFiat = await priceFeedService.convertCurrency(
+      new Big(totalFeeFiat).minus(preNablaDeductibleFeeAmount).toString(),
+      targetFeeFiatCurrency,
+      request.outputCurrency
+    );
+    finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
 
     // Validate final output amount
     if (finalNetOutputAmount.lte(0)) {
@@ -437,8 +372,8 @@ export class QuoteService extends BaseRampService {
           }
         });
 
-    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    let onrampOutputAmountMoonbeamRaw = request.rampType === RampDirection.BUY ? outputAmountMoonbeamRaw : undefined;
+    // On-ramp Moonbeam raw output is not used for SELL legacy path; persist as "0" to satisfy metadata typing
+    const onrampOutputAmountMoonbeamRaw = "0";
 
     if (discountSubsidyPartner && discountSubsidyPartner.discount > 0) {
       // Calculate discount subsidy as percentage of finalNetOutputAmount. `discount` is a decimal (e.g., 0.05 for 5%)
@@ -447,11 +382,7 @@ export class QuoteService extends BaseRampService {
       // Add discount subsidy to finalNetOutputAmount (relevant for the subsidy of off-ramps)
       finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
 
-      // Add subsidy to the output amount on Moonbeam (relevant for the subsidy of on-ramps)
-      if (request.rampType === RampDirection.BUY) {
-        const subsidyAmountRaw = multiplyByPowerOfTen(discountSubsidyAmount, 6).toString(); // axlUSDC on Moonbeam is 6 decimals
-        onrampOutputAmountMoonbeamRaw = new Big(onrampOutputAmountMoonbeamRaw || "0").plus(subsidyAmountRaw).toFixed(0);
-      }
+      // No on-ramp Moonbeam subsidy path in SELL legacy calculation
 
       discountSubsidyInfo = {
         discount: discountSubsidyPartner.discount.toString(),
@@ -460,8 +391,7 @@ export class QuoteService extends BaseRampService {
       };
     }
 
-    const finalNetOutputAmountStr =
-      request.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
+    const finalNetOutputAmountStr = finalNetOutputAmount.toFixed(2, 0);
 
     // i. Store and Return Quote
     const feeToStore: QuoteFeeStructure = {

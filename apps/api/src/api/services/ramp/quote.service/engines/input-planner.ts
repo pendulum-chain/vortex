@@ -1,14 +1,22 @@
 /**
  * Input Planner Engine (Stage)
- * Computes pre-Nabla deductible fees and inputAmountForSwap for BUY flows (on-ramp).
+ * Computes pre-Nabla deductible fees and inputAmountForSwap for both BUY (on-ramp) and SELL (off-ramp).
  * Uses DB-backed logic from quote-fees.ts and price conversions from priceFeedService.
  */
 
-import { getNetworkFromDestination, getPendulumDetails } from "@packages/shared";
+import {
+  EvmToken,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
+import { getEvmBridgeQuote } from "../gross-output";
 import { calculatePreNablaDeductibleFees } from "../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../types";
 
@@ -44,8 +52,24 @@ export class InputPlannerEngine implements Stage {
       representativeCurrency
     );
 
-    // 3) Compute inputAmountForSwap (BUY-focused path)
-    const inputAmountForSwap = new Big(req.inputAmount).minus(preNablaFeeInRepInput);
+    // 3) Compute inputAmountForSwap
+    // - BUY and SELL from AssetHub: deduct fees from input amount directly
+    // - SELL from non-AssetHub: adjust input based on Squidrouter bridge quote to Moonbeam axlUSDC before deducting
+    let inputAmountForSwap: Big;
+
+    if (req.rampType === RampDirection.SELL && req.from !== Networks.AssetHub) {
+      const bridgeQuote = await getEvmBridgeQuote({
+        amountDecimal: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
+        fromNetwork: req.from as Networks,
+        inputCurrency: req.inputCurrency as OnChainToken,
+        outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
+        rampType: req.rampType,
+        toNetwork: Networks.Moonbeam
+      });
+      inputAmountForSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaFeeInRepInput);
+    } else {
+      inputAmountForSwap = new Big(req.inputAmount).minus(preNablaFeeInRepInput);
+    }
 
     if (inputAmountForSwap.lte(0)) {
       throw new APIError({

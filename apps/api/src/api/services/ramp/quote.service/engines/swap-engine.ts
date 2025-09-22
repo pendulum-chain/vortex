@@ -4,6 +4,7 @@
 import { AssetHubToken, EvmToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
 import { calculateNablaSwapOutput } from "../gross-output";
 import { QuoteContext, Stage, StageKey } from "../types";
+import { validateAmountLimits } from "../validation-helpers";
 
 export class SwapEngine implements Stage {
   readonly key = StageKey.Swap;
@@ -44,6 +45,11 @@ export class SwapEngine implements Stage {
       rampType: req.rampType,
       toPolkadotDestination: req.to
     });
+
+    // SELL path: enforce max output fiat limit using Nabla output (parity with legacy)
+    if (req.rampType === RampDirection.SELL) {
+      validateAmountLimits(result.nablaOutputAmountDecimal, req.outputCurrency as FiatToken, "max", req.rampType);
+    }
 
     ctx.nabla = {
       effectiveExchangeRate: result.effectiveExchangeRate,
