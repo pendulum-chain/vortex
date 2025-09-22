@@ -2,6 +2,7 @@ import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
+import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
@@ -42,6 +43,8 @@ const WidgetContent = () => {
     return false;
   });
 
+  const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
+
   if (isMoneriumRedirect) {
     return <MoneriumRedirectStep />;
   }
@@ -52,6 +55,10 @@ const WidgetContent = () => {
 
   if (aveniaKycActor) {
     return <PIXKYCForm />;
+  }
+
+  if (isInitialQuoteFailed) {
+    return <InitialQuoteFailedStep />;
   }
 
   return <DetailsStep />;

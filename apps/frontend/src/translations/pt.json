@@ -217,6 +217,11 @@
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
       "poweredBy": "Desenvolvido por"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "Os parâmetros passados são inválidos. Você será redirecionado em breve.",
+      "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
+      "tryAgain": "Tente novamente"
+    },
     "maintenance": {
       "banner": {
         "ends": "Término previsto",

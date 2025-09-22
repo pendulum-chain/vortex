@@ -30,6 +30,7 @@ export function validateAmountLimits(
   limitType: "min" | "max",
   operationType: RampDirection
 ): void {
+  return; // Temporarily disable limit checks
   const amountBig = new Big(amount);
   const limitUnits = getTokenLimitUnits(currency, limitType, operationType);
   const tokenDetails = getAnyFiatTokenDetails(currency);

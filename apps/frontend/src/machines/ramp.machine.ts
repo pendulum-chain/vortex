@@ -12,13 +12,14 @@ import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
+import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState } from "./types";
 
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
+  callbackUrl: undefined,
   chainId: undefined,
   executionInput: undefined,
   getMessageSignature: undefined,
@@ -69,7 +70,6 @@ const refetchQuote = async (
 
 export type RampMachineEvents =
   | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
-  | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
@@ -79,12 +79,14 @@ export type RampMachineEvents =
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP" }
+  | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string }
+  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
+  | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
   | { type: "REFRESH_FAILED" };
@@ -107,7 +109,20 @@ export const rampMachine = setup({
     setFailedMessage: assign({
       initializeFailedMessage: () => "Ramp failed, please retry"
     }),
-    showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" })
+    showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
+    urlCleanerWithCallbackAction: ({ context }) => {
+      const { callbackUrl } = context;
+      if (callbackUrl) {
+        console.log("Redirecting to callback url...");
+        window.location.href = callbackUrl;
+      } else {
+        // As a fallback, we just clean the URL like in urlCleaner
+        console.log("No callback URL provided, cleaning URL parameters instead.");
+        const cleanUrl = window.location.origin;
+        window.history.replaceState({}, "", cleanUrl);
+        window.location.reload();
+      }
+    }
   },
   actors: {
     aveniaKyc: aveniaKycMachine,
@@ -166,9 +181,6 @@ export const rampMachine = setup({
   id: "ramp",
   initial: "Idle",
   on: {
-    CANCEL_RAMP: {
-      target: ".Resetting"
-    },
     EXPIRE_QUOTE: {
       actions: assign({
         isQuoteExpired: true
@@ -176,6 +188,9 @@ export const rampMachine = setup({
     },
     RESET_RAMP: {
       target: ".Resetting"
+    },
+    RESET_RAMP_CALLBACK: {
+      actions: [{ type: "resetRamp" }, { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }]
     },
     SET_ADDRESS: {
       actions: assign({
@@ -215,6 +230,9 @@ export const rampMachine = setup({
     },
     Idle: {
       on: {
+        INITIAL_QUOTE_FETCH_FAILED: {
+          target: "InitialFetchFailed"
+        },
         SET_QUOTE: {
           actions: assign({
             quoteId: ({ event }) => event.quoteId,
@@ -224,12 +242,14 @@ export const rampMachine = setup({
         },
         SET_QUOTE_PARAMS: {
           actions: assign({
+            callbackUrl: ({ event }) => event.callbackUrl,
             partnerId: ({ event }) => event.partnerId,
             walletLocked: ({ event }) => event.walletLocked
           })
         }
       }
     },
+    InitialFetchFailed: {},
     KYC: kycStateNode as any,
     KycComplete: {
       invoke: {

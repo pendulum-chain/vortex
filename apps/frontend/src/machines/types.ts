@@ -29,11 +29,11 @@ export interface RampContext {
   rampState: RampState | undefined;
   substrateWalletAccount: WalletAccount | undefined;
   walletLocked?: string;
+  callbackUrl?: string;
 }
 
 export type RampMachineEvents =
   | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
-  | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }

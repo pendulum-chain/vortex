@@ -1,10 +1,20 @@
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
+import {
+  AssetHubToken,
+  DestinationType,
+  EvmToken,
+  FiatToken,
+  Networks,
+  OnChainToken,
+  QuoteResponse,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
+import { QuoteService } from "../services/api";
 import { useSetPartnerId } from "../stores/partnerStore";
 import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
@@ -21,6 +31,7 @@ interface RampUrlParams {
   cryptoLocked?: OnChainToken;
   payment?: string;
   walletLocked?: string;
+  callbackUrl?: string;
 }
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
@@ -79,6 +90,61 @@ function getNetworkFromParam(param?: string): Networks | undefined {
   return undefined;
 }
 
+const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
+  const destinationMap: Record<FiatToken, DestinationType> = {
+    ARS: "cbu",
+    BRL: "pix",
+    EUR: "sepa"
+  };
+
+  return destinationMap[fiatToken] || "sepa";
+};
+
+interface QuoteParams {
+  inputAmount?: Big;
+  onChainToken: OnChainToken;
+  fiatToken: FiatToken;
+  selectedNetwork: DestinationType;
+  rampType: RampDirection;
+  partnerId?: string;
+}
+
+interface QuotePayload {
+  rampType: RampDirection;
+  fromDestination: DestinationType;
+  toDestination: DestinationType;
+  inputAmount: string;
+  inputCurrency: OnChainToken | FiatToken;
+  outputCurrency: OnChainToken | FiatToken;
+}
+
+const createQuotePayload = (params: QuoteParams): QuotePayload => {
+  const { inputAmount, onChainToken, fiatToken, selectedNetwork, rampType } = params;
+  const fiatDestination = mapFiatToDestination(fiatToken);
+  const inputAmountStr = inputAmount?.toString() || "0";
+
+  const payloadMap: Record<RampDirection, QuotePayload> = {
+    [RampDirection.SELL]: {
+      fromDestination: selectedNetwork,
+      inputAmount: inputAmountStr,
+      inputCurrency: onChainToken,
+      outputCurrency: fiatToken,
+      rampType: RampDirection.SELL,
+      toDestination: fiatDestination
+    },
+    [RampDirection.BUY]: {
+      fromDestination: fiatDestination,
+      inputAmount: inputAmountStr,
+      inputCurrency: fiatToken,
+      outputCurrency: onChainToken,
+      rampType: RampDirection.BUY,
+      toDestination: selectedNetwork
+    }
+  };
+
+  return payloadMap[rampType];
+};
+
 export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
@@ -95,6 +161,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
     const paymentParam = params.get("payment");
     const walletLockedParam = params.get("walletLocked");
+    const callbackUrlParam = params.get("callbackUrl");
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -106,6 +173,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork);
 
     return {
+      callbackUrl: callbackUrlParam || undefined,
       cryptoLocked,
       fiat,
       inputAmount: inputAmountParam || undefined,
@@ -123,13 +191,13 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked, walletLocked } =
+  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked, walletLocked, callbackUrl } =
     useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const setPartnerIdFn = useSetPartnerId();
   const {
-    actions: { fetchQuote }
+    actions: { forceSetQuote }
   } = useQuoteStore();
 
   const rampActor = useRampActor();
@@ -160,28 +228,42 @@ export const useSetRampUrlParams = () => {
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;
       if (quote?.id !== providedQuoteId) {
-        rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+        rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
         rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
       }
     } else {
+      // We set these parameters even if the quote fetch fails. Useful for error handling.
+      rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+
       if (inputAmount && cryptoLocked && fiat && network && rampDirection) {
-        fetchQuote({
+        const quoteParams = {
           fiatToken: fiat,
           inputAmount: new Big(inputAmount),
           onChainToken: cryptoLocked,
           partnerId,
           rampType: rampDirection,
           selectedNetwork: network
-        })
-          .then(() => {
-            const newQuote = useQuoteStore.getState().quote;
+        };
+        const quotePayload = createQuotePayload(quoteParams);
+
+        QuoteService.createQuote(
+          quotePayload.rampType,
+          quotePayload.fromDestination,
+          quotePayload.toDestination,
+          quotePayload.inputAmount,
+          quotePayload.inputCurrency,
+          quotePayload.outputCurrency,
+          partnerId
+        )
+          .then((newQuote: QuoteResponse) => {
             if (newQuote) {
-              rampActor.send({ partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+              forceSetQuote(newQuote);
               rampActor.send({ lock: false, quoteId: newQuote.id, type: "SET_QUOTE" });
             }
           })
-          .catch(error => {
-            console.error("Error fetching quote from URL params:", error);
+          .catch((error: Error) => {
+            console.error("Error fetching quote with provided parameters:", error);
+            rampActor.send({ type: "INITIAL_QUOTE_FETCH_FAILED" });
           });
       }
     }

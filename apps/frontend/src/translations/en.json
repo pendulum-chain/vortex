@@ -217,6 +217,11 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "The passed parameters are invalid. You will be redirected shortly.",
+      "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
+      "tryAgain": "Try Again"
+    },
     "maintenance": {
       "banner": {
         "ends": "Expected end",
