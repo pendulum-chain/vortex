@@ -3,10 +3,13 @@
  */
 
 import { Networks } from "../../helpers";
-import { AXL_USDC_MOONBEAM, PENDULUM_BRLA_MOONBEAM, PENDULUM_USDC_AXL } from "../constants/pendulum";
+import { PENDULUM_BRLA_MOONBEAM, PENDULUM_USDC_AXL } from "../pendulum/config";
 import { FiatToken, TokenType } from "../types/base";
 import { EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
+
+export const AXL_USDC_MOONBEAM = "0xca01a1d0993565291051daff390892518acfad3a";
+export const MOONBEAM_XCM_FEE_GLMR = "50000000000000000";
 
 export const AXL_USDC_MOONBEAM_DETAILS: EvmTokenDetails = {
   assetSymbol: "axlUSDC",
