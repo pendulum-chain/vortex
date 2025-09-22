@@ -618,7 +618,6 @@ export async function prepareOnrampTransactions(
           unsignedTxs,
           moonbeamNonce
         );
-        moonbeamNonce = squidrouterResult.nextNonce;
         stateMeta.squidRouterQuoteId = squidrouterResult.squidRouterQuoteId;
       }
     }

@@ -26,7 +26,6 @@ export interface OnrampSquidrouterParamsToEvm {
   toNetwork: Networks;
   fromNetwork: Networks;
   destinationAddress: string;
-  squidRouterQuoteId?: string;
 }
 
 export interface OnrampTransactionData {
