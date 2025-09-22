@@ -44,33 +44,6 @@ export interface SquidRouterPayResponse {
   isGMPTransaction: boolean;
   routeStatus: RouteStatus[];
 }
-// This function creates the parameters for the Squidrouter API to get a route for onramping.
-// This route will always be from Polygon to another EVM chain.
-export function createOnrampRouteParams(
-  fromAddress: string,
-  amount: string,
-  outputTokenDetails: EvmTokenDetails,
-  toNetwork: Networks,
-  addressDestination: string
-): RouteParams {
-  const fromChainId = getNetworkId(Networks.Polygon);
-  const toChainId = getNetworkId(toNetwork);
-
-  return {
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress,
-    fromAmount: amount,
-    fromChain: fromChainId.toString(),
-    fromToken: AXL_USDC_MOONBEAM,
-    slippageConfig: {
-      autoMode: 1
-    },
-    toAddress: addressDestination,
-    toChain: toChainId.toString(),
-    toToken: outputTokenDetails.erc20AddressSourceChain
-  };
-}
 
 export interface SquidrouterRoute {
   estimate: {
@@ -173,14 +146,16 @@ export async function getStatus(
 
 // This function creates the parameters for the Squidrouter API to get a route for offramping.
 // This route will always be from another EVM chain to Moonbeam.
-export function createOfframpRouteParams(
-  fromAddress: string,
-  amount: string,
-  inputTokenDetails: EvmTokenDetails,
-  fromNetwork: Networks,
-  receivingContractAddress: string,
-  squidRouterReceiverHash: string
-): RouteParams {
+export function createRouteParamsWithMoonbeamPostHook(params: {
+  fromAddress: string;
+  amount: string;
+  fromToken: `0x${string}`;
+  fromNetwork: Networks;
+  receivingContractAddress: string;
+  squidRouterReceiverHash: string;
+}): RouteParams {
+  const { fromAddress, amount, fromToken, fromNetwork, receivingContractAddress, squidRouterReceiverHash } = params;
+
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(Networks.Moonbeam);
 
@@ -202,7 +177,7 @@ export function createOfframpRouteParams(
     fromAddress,
     fromAmount: amount,
     fromChain: fromChainId.toString(),
-    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromToken,
     postHook: {
       calls: [
         // approval call.
@@ -250,15 +225,17 @@ export function createOfframpRouteParams(
   };
 }
 
-export function createGenericRouteParams(
-  fromAddress: string,
-  amount: string,
-  inputTokenDetails: EvmTokenDetails,
-  outputTokenDetails: EvmTokenDetails,
-  fromNetwork: Networks,
-  toNetwork: Networks,
-  destinationAddress: string
-): RouteParams {
+export function createGenericRouteParams(params: {
+  fromAddress: string;
+  amount: string;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
+  fromNetwork: Networks;
+  toNetwork: Networks;
+  destinationAddress: string;
+}): RouteParams {
+  const { fromAddress, amount, fromToken, toToken, fromNetwork, toNetwork, destinationAddress } = params;
+
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(toNetwork);
 
@@ -268,13 +245,13 @@ export function createGenericRouteParams(
     fromAddress,
     fromAmount: amount,
     fromChain: fromChainId.toString(),
-    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromToken,
     slippageConfig: {
       autoMode: 1
     },
     toAddress: destinationAddress,
     toChain: toChainId.toString(),
-    toToken: outputTokenDetails.erc20AddressSourceChain
+    toToken
   };
 }
 
