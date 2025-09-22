@@ -98,11 +98,19 @@ export const useVortexAccount = () => {
         type: "SET_ADDRESS"
       });
     }
+
+    if (rampActor && !isNetworkEVM(selectedNetwork) && polkadotWalletAccount) {
+      rampActor.send({
+        type: "SET_SUBSTRATE_WALLET_ACCOUNT",
+        walletAccount: polkadotWalletAccount
+      });
+    }
+
     rampActor?.send({
       getMessageSignature,
       type: "SET_GET_MESSAGE_SIGNATURE"
     });
-  }, [address, rampActor, getMessageSignature]);
+  }, [address, rampActor, getMessageSignature, polkadotWalletAccount, selectedNetwork]);
 
   return {
     address, // currently selected address
