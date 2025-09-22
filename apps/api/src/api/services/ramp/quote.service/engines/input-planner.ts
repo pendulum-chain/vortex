@@ -1,13 +1,15 @@
-// PR3: Input Planner Engine (Stage)
-// Computes pre-Nabla deductible fees and inputAmountForSwap for BUY flows (on-ramp).
-// Parity: uses existing DB-backed logic from quote-fees.ts and price conversions from priceFeedService.
+/**
+ * Input Planner Engine (Stage)
+ * Computes pre-Nabla deductible fees and inputAmountForSwap for BUY flows (on-ramp).
+ * Uses DB-backed logic from quote-fees.ts and price conversions from priceFeedService.
+ */
 
-import Big from "big.js";
 import { getNetworkFromDestination, getPendulumDetails } from "@packages/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
-import { calculatePreNablaDeductibleFees } from "../quote-fees";
-import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
 import { APIError } from "../../../../errors/api-error";
+import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
+import { calculatePreNablaDeductibleFees } from "../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../types";
 
 export class InputPlannerEngine implements Stage {
@@ -42,7 +44,7 @@ export class InputPlannerEngine implements Stage {
       representativeCurrency
     );
 
-    // 3) Compute inputAmountForSwap (BUY-focused path for PR3)
+    // 3) Compute inputAmountForSwap (BUY-focused path)
     const inputAmountForSwap = new Big(req.inputAmount).minus(preNablaFeeInRepInput);
 
     if (inputAmountForSwap.lte(0)) {
@@ -56,8 +58,8 @@ export class InputPlannerEngine implements Stage {
     ctx.preNabla = {
       deductibleFeeAmount: new Big(preNablaDeductibleFeeAmount),
       feeCurrency,
-      representativeInputCurrency: representativeCurrency,
-      inputAmountForSwap
+      inputAmountForSwap,
+      representativeInputCurrency: representativeCurrency
     };
 
     ctx.addNote?.(

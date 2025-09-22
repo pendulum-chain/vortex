@@ -1,7 +1,9 @@
-// PR1 scaffolding: QuoteContext implementation and factory
-// No behavior change; this is not yet wired into index.ts.
+/**
+ * QuoteContext implementation and factory.
+ * Holds request-scoped data that flows through the quote pipeline.
+ */
 
-import { CreateQuoteRequest, DestinationType, RampCurrency, RampDirection, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, DestinationType, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { QuoteContext as IQuoteContext } from "../types";
 
@@ -31,7 +33,7 @@ export class QuoteContext implements IQuoteContext {
 
   persistence: IQuoteContext["persistence"] | undefined;
 
-  // PR2: allow engines to attach a ready QuoteResponse
+  // Engines may attach a ready QuoteResponse (e.g., special-case path or finalize stage)
   builtResponse?: QuoteResponse;
 
   notes: string[] | undefined;

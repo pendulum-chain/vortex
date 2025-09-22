@@ -1,8 +1,8 @@
 import {
   AssetHubToken,
   AXL_USDC_MOONBEAM,
-  createGenericRouteParams,
   CreateQuoteRequest,
+  createGenericRouteParams,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
@@ -32,35 +32,31 @@ import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
+import { createQuoteContext } from "./core/quote-context";
+import { buildEnginesRegistry, QuoteOrchestrator } from "./core/quote-orchestrator";
+import { DiscountEngine } from "./engines/discount-engine";
+import { FeeEngine } from "./engines/fee-engine";
+import { FinalizeEngine } from "./engines/finalize-engine";
+import { InputPlannerEngine } from "./engines/input-planner";
+import { SpecialOnrampEurEvmEngine } from "./engines/special-onramp-eur-evm";
+import { SwapEngine } from "./engines/swap-engine";
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, EvmBridgeRequest, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
-import { validateAmountLimits } from "./validation-helpers";
-import { QuoteOrchestrator, buildEnginesRegistry } from "./core/quote-orchestrator";
 import { RouteResolver } from "./routes/route-resolver";
-import { SpecialOnrampEurEvmEngine } from "./engines/special-onramp-eur-evm";
-import { createQuoteContext } from "./core/quote-context";
 import { StageKey } from "./types";
-import { InputPlannerEngine } from "./engines/input-planner";
-import { SwapEngine } from "./engines/swap-engine";
-import { FeeEngine } from "./engines/fee-engine";
-import { DiscountEngine } from "./engines/discount-engine";
-import { FinalizeEngine } from "./engines/finalize-engine";
+import { validateAmountLimits } from "./validation-helpers";
 
 /*
  * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
- * @param request - The quote request details.
- * @param preNablaDeductibleFeeAmount - The total pre-Nabla deductible fee amount in feeCurrency.
- * @param feeCurrency - The currency in which the pre-Nabla deductible fee amount is denoted.
+ * Converts pre-Nabla fees into the representative input currency on Pendulum before deduction.
+ * For non-AssetHub off-ramps, adjusts the input by the Squidrouter bridge quote.
  */
 async function calculateInputAmountForNablaSwap(
   request: CreateQuoteRequest,
   preNablaDeductibleFeeAmount: Big.BigSource,
   feeCurrency: RampCurrency
 ) {
-  // Convert the preNablaDeductibleFeeAmount from feeCurrency to the respective input currency used for the nabla swap
-  // Since some assets are not directly supported by Nabla, we need to convert the fee to the representative currency
-  // For example, the representative for ETH on Pendulum is axlUSDC.
   const network = getNetworkFromDestination(request.from);
   const representativeCurrency = getPendulumDetails(request.inputCurrency, network).currency;
   const preNablaDeductibleFeeInInputRepresentativeCurrency = await priceFeedService.convertCurrency(
@@ -69,31 +65,21 @@ async function calculateInputAmountForNablaSwap(
     representativeCurrency
   );
 
-  // For off-ramps using squidrouter (non-Assethub), we need to adjust the input amount based on the bridge rate.
-  // For Assethub offramps and all onramps, we can directly deduct the fees from the input amount.
+  // For off-ramps using Squidrouter (non-AssetHub), adjust the input amount based on bridge rate.
   if (request.rampType === RampDirection.SELL && request.from !== "assethub") {
-    // Check squidrouter rate and adjust the input amount accordingly
     const bridgeQuote = await getEvmBridgeQuote({
       amountDecimal: request.inputAmount,
+      fromNetwork: request.from as Networks,
       inputCurrency: request.inputCurrency as OnChainToken,
-      outputCurrency: AXL_USDC_MOONBEAM,
+      outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
       rampType: request.rampType,
-      fromNetwork: request.from,
       toNetwork: Networks.Moonbeam
     });
     return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
-  } else if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && request.to === "assethub") {
-    // For Monerium onramps to Assethub, we need to convert EURC to axlUSDC on Moonbeam first
-    const bridgeQuote = await getEvmBridgeQuote({
-      amountDecimal: request.inputAmount,
-      inputOrOutputCurrency: request.inputCurrency as OnChainToken,
-      rampType: request.rampType,
-      sourceOrDestination: request.to
-    });
-    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
-  } else {
-    return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   }
+
+  // For AssetHub off-ramps and all on-ramps, directly deduct pre-Nabla fees
+  return new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
 }
 
 export class QuoteService extends BaseRampService {
@@ -125,8 +111,8 @@ export class QuoteService extends BaseRampService {
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
-    // PR2: Delegate EUR on-ramp to EVM special-case to the orchestrator for behavior parity
-    if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC) {
+    // PR2/PR6: Delegate EUR on-ramp to EVM special-case only (exclude AssetHub which is handled by pipeline)
+    if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && request.to !== "assethub") {
       const resolver = new RouteResolver();
       const engines = buildEnginesRegistry({
         [StageKey.SpecialOnrampEurEvm]: new SpecialOnrampEurEvmEngine()
@@ -134,9 +120,9 @@ export class QuoteService extends BaseRampService {
       const orchestrator = new QuoteOrchestrator(engines);
 
       const ctx = createQuoteContext({
+        partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
         request,
-        targetFeeFiatCurrency,
-        partner: partner ? { id: partner.id, discount: partner.discount, name: partner.name } : { id: null }
+        targetFeeFiatCurrency
       });
 
       const strategy = resolver.resolve(ctx);
@@ -147,8 +133,7 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    // PR3: For on-ramp to AssetHub, compute pre-Nabla input and Nabla swap via engines (no behavior change overall)
-    let pr3Ctx: ReturnType<typeof createQuoteContext> | undefined;
+    // On-ramp to AssetHub is fully handled by the pipeline (input planning, swap, fees, discount, finalize, persistence)
     if (request.rampType === RampDirection.BUY && request.to === "assethub") {
       const resolver = new RouteResolver();
       const engines = buildEnginesRegistry({
@@ -160,45 +145,34 @@ export class QuoteService extends BaseRampService {
       });
       const orchestrator = new QuoteOrchestrator(engines);
 
-      pr3Ctx = createQuoteContext({
+      const pipelineCtx = createQuoteContext({
+        partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
         request,
-        targetFeeFiatCurrency,
-        partner: partner ? { id: partner.id, discount: partner.discount, name: partner.name } : { id: null }
+        targetFeeFiatCurrency
       });
 
-      const strategy = resolver.resolve(pr3Ctx);
-      await orchestrator.run(strategy, pr3Ctx);
+      const strategy = resolver.resolve(pipelineCtx);
+      await orchestrator.run(strategy, pipelineCtx);
 
-      // If FinalizeEngine built a response (PR5), return it now to avoid legacy duplication
-      if (pr3Ctx.builtResponse) {
-        return pr3Ctx.builtResponse;
+      if (!pipelineCtx.builtResponse) {
+        throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
       }
+      return pipelineCtx.builtResponse;
     }
 
-    // b. Calculate Pre-Nabla Deductible Fees (use PR3 engine output if available)
-    let preNablaDeductibleFeeAmount: Big;
-    let feeCurrency: RampCurrency;
-    if (pr3Ctx?.preNabla?.deductibleFeeAmount && pr3Ctx.preNabla.feeCurrency) {
-      preNablaDeductibleFeeAmount = pr3Ctx.preNabla.deductibleFeeAmount;
-      feeCurrency = pr3Ctx.preNabla.feeCurrency;
-    } else {
-      const result = await calculatePreNablaDeductibleFees(
-        request.inputAmount,
-        request.inputCurrency,
-        request.outputCurrency,
-        request.rampType,
-        request.from,
-        request.to,
-        partner?.id || undefined
-      );
-      preNablaDeductibleFeeAmount = result.preNablaDeductibleFeeAmount;
-      feeCurrency = result.feeCurrency;
-    }
+    // b. Calculate Pre-Nabla Deductible Fees
+    const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
+      request.inputAmount,
+      request.inputCurrency,
+      request.outputCurrency,
+      request.rampType,
+      request.from,
+      request.to,
+      partner?.id || undefined
+    );
 
-    // c. Calculate inputAmountForNablaSwap (use PR3 engine output if available)
-    const inputAmountForNablaSwap =
-      pr3Ctx?.preNabla?.inputAmountForSwap ??
-      (await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency));
+    // c. Calculate inputAmountForNablaSwap
+    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency);
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -235,123 +209,14 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC) {
-      const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(request.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
-      const fromToken = ERC20_EURE_POLYGON;
-      const fromNetwork = Networks.Polygon; // Always Polygon for EUR onramp
-      const toNetwork = getNetworkFromDestination(request.to);
-
-      // validate networks, tokens.
-      if (!toNetwork) {
-        throw new APIError({
-          message: `Invalid network for destination: ${request.to} `,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      if (!isOnChainToken(request.outputCurrency)) {
-        throw new APIError({
-          message: `Output currency cannot be fiat token ${request.outputCurrency} for EUR onramp.`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      const outputTokenDetails = getOnChainTokenDetails(toNetwork, request.outputCurrency);
-      if (!outputTokenDetails) {
-        throw new APIError({
-          message: `Output token details not found for ${request.outputCurrency} on network ${toNetwork}`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      if (isAssetHubTokenDetails(outputTokenDetails)) {
-        throw new APIError({
-          message: `AssetHub token ${request.outputCurrency} is not supported for onramp.`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      const routeParams = createGenericRouteParams({
-        fromAddress: "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // Placeholder address
-        amount: inputAmountPostAnchorFeeRaw,
-        fromToken,
-        toToken: outputTokenDetails.erc20AddressSourceChain,
-        fromNetwork,
-        toNetwork,
-        destinationAddress: "0x30a300612ab372cc73e53ffe87fb73d62ed68da3" // Also placeholder address
-      });
-
-      const routeResult = await getRoute(routeParams);
-      const { route } = routeResult.data;
-      const finalGrossOutputAmount = route.estimate.toAmount;
-      const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
-        outputTokenDetails.decimals,
-        BigInt(finalGrossOutputAmount)
-      ).preciseBigDecimal;
-
-      const feeToStore: QuoteFeeStructure = {
-        anchor: "0",
-        currency: targetFeeFiatCurrency,
-        network: "0",
-        partnerMarkup: "0",
-        total: "0",
-        vortex: "0"
-      };
-
-      const quote = await QuoteTicket.create({
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        fee: feeToStore,
-        from: request.from,
-        id: uuidv4(),
-        inputAmount: request.inputAmount,
-        inputCurrency: request.inputCurrency,
-        metadata: {} as QuoteTicketMetadata,
-        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
-        outputCurrency: request.outputCurrency,
-        partnerId: partner?.id || null,
-        rampType: request.rampType,
-        status: "pending",
-        to: request.to
-      });
-
-      const responseFeeStructure: QuoteFeeStructure = {
-        anchor: "0",
-        currency: targetFeeFiatCurrency,
-        network: "0",
-        partnerMarkup: "0",
-        total: "0",
-        vortex: "0"
-      };
-
-      return {
-        expiresAt: quote.expiresAt,
-        fee: responseFeeStructure,
-        from: quote.from,
-        id: quote.id,
-        inputAmount: trimTrailingZeros(quote.inputAmount),
-        inputCurrency: quote.inputCurrency,
-        outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
-        outputCurrency: quote.outputCurrency,
-        rampType: quote.rampType,
-        to: quote.to
-      };
-    }
-
-    const nablaSwapResult =
-      pr3Ctx?.nabla?.outputAmountDecimal && pr3Ctx?.nabla?.outputAmountRaw
-        ? {
-            effectiveExchangeRate: pr3Ctx.nabla.effectiveExchangeRate,
-            nablaOutputAmountDecimal: pr3Ctx.nabla.outputAmountDecimal,
-            nablaOutputAmountRaw: pr3Ctx.nabla.outputAmountRaw
-          }
-        : await calculateNablaSwapOutput({
-            fromPolkadotDestination: request.from,
-            inputAmountForSwap: (inputAmountForNablaSwap as Big).toString(),
-            inputCurrency: request.inputCurrency,
-            nablaOutputCurrency,
-            rampType: request.rampType,
-            toPolkadotDestination: request.to
-          });
+    const nablaSwapResult = await calculateNablaSwapOutput({
+      fromPolkadotDestination: request.from,
+      inputAmountForSwap: (inputAmountForNablaSwap as Big).toString(),
+      inputCurrency: request.inputCurrency,
+      nablaOutputCurrency,
+      rampType: request.rampType,
+      toPolkadotDestination: request.to
+    });
 
     if (request.rampType === RampDirection.SELL) {
       validateAmountLimits(
@@ -367,68 +232,47 @@ export class QuoteService extends BaseRampService {
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
 
-    // PR4: If FeeEngine already computed fees in ctx (via orchestrator for AssetHub on-ramp),
-    // use those values; otherwise fall back to legacy calculation path.
-    let vortexFeeFiat: string;
-    let anchorFeeFiat: string;
-    let partnerMarkupFeeFiat: string;
-    let calculatedFeeCurrency: RampCurrency;
+    // e. Calculate Full Fee Breakdown
+    const {
+      vortexFee,
+      anchorFee,
+      partnerMarkupFee,
+      feeCurrency: calculatedFeeCurrency
+    } = await calculateFeeComponents({
+      from: request.from,
+      inputAmount: request.inputAmount,
+      inputCurrency: request.inputCurrency,
+      outputAmountOfframp,
+      outputCurrency: request.outputCurrency,
+      partnerName: partner?.id || undefined,
+      rampType: request.rampType,
+      to: request.to
+    });
+
+    // Convert to display fiat if needed
+    let vortexFeeFiat = vortexFee;
+    let anchorFeeFiat = anchorFee;
+    let partnerMarkupFeeFiat = partnerMarkupFee;
+
+    if (calculatedFeeCurrency !== targetFeeFiatCurrency) {
+      vortexFeeFiat = await priceFeedService.convertCurrency(vortexFee, calculatedFeeCurrency, targetFeeFiatCurrency);
+      anchorFeeFiat = await priceFeedService.convertCurrency(anchorFee, calculatedFeeCurrency, targetFeeFiatCurrency);
+      partnerMarkupFeeFiat = await priceFeedService.convertCurrency(
+        partnerMarkupFee,
+        calculatedFeeCurrency,
+        targetFeeFiatCurrency
+      );
+    }
 
     // USD Fee Structure for metadata
     const usdCurrency = EvmToken.USDC;
-    let vortexFeeUsd: string;
-    let anchorFeeUsd: string;
-    let partnerMarkupFeeUsd: string;
-
-    if (pr3Ctx?.fees?.usd && pr3Ctx?.fees?.displayFiat?.structure) {
-      const feesCtx = pr3Ctx.fees;
-      vortexFeeFiat = feesCtx.displayFiat.structure.vortex;
-      anchorFeeFiat = feesCtx.displayFiat.structure.anchor;
-      partnerMarkupFeeFiat = feesCtx.displayFiat.structure.partnerMarkup;
-      calculatedFeeCurrency = feesCtx.displayFiat.currency;
-
-      vortexFeeUsd = feesCtx.usd.vortex;
-      anchorFeeUsd = feesCtx.usd.anchor;
-      partnerMarkupFeeUsd = feesCtx.usd.partnerMarkup;
-    } else {
-      const {
-        vortexFee,
-        anchorFee,
-        partnerMarkupFee,
-        feeCurrency: calcFeeCurrency
-      } = await calculateFeeComponents({
-        from: request.from,
-        inputAmount: request.inputAmount,
-        inputCurrency: request.inputCurrency,
-        outputAmountOfframp,
-        outputCurrency: request.outputCurrency,
-        partnerName: partner?.id || undefined,
-        rampType: request.rampType,
-        to: request.to
-      });
-
-      calculatedFeeCurrency = calcFeeCurrency;
-
-      // Convert other fees to targetFeeFiatCurrency if needed
-      let vf = vortexFee;
-      let af = anchorFee;
-      let pmf = partnerMarkupFee;
-
-      if (calculatedFeeCurrency !== targetFeeFiatCurrency) {
-        vf = await priceFeedService.convertCurrency(vortexFee, calculatedFeeCurrency, targetFeeFiatCurrency);
-        af = await priceFeedService.convertCurrency(anchorFee, calculatedFeeCurrency, targetFeeFiatCurrency);
-        pmf = await priceFeedService.convertCurrency(partnerMarkupFee, calculatedFeeCurrency, targetFeeFiatCurrency);
-      }
-
-      vortexFeeFiat = vf;
-      anchorFeeFiat = af;
-      partnerMarkupFeeFiat = pmf;
-
-      // Convert display fiat to USD for metadata
-      vortexFeeUsd = await priceFeedService.convertCurrency(vortexFeeFiat, targetFeeFiatCurrency, usdCurrency);
-      anchorFeeUsd = await priceFeedService.convertCurrency(anchorFeeFiat, targetFeeFiatCurrency, usdCurrency);
-      partnerMarkupFeeUsd = await priceFeedService.convertCurrency(partnerMarkupFeeFiat, targetFeeFiatCurrency, usdCurrency);
-    }
+    const vortexFeeUsd = await priceFeedService.convertCurrency(vortexFeeFiat, targetFeeFiatCurrency, usdCurrency);
+    const anchorFeeUsd = await priceFeedService.convertCurrency(anchorFeeFiat, targetFeeFiatCurrency, usdCurrency);
+    const partnerMarkupFeeUsd = await priceFeedService.convertCurrency(
+      partnerMarkupFeeFiat,
+      targetFeeFiatCurrency,
+      usdCurrency
+    );
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
     let squidRouterNetworkFeeUSD = "0";
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
@@ -445,12 +289,12 @@ export class QuoteService extends BaseRampService {
 
       const bridgeRequestParams: EvmBridgeRequest = {
         fromNetwork: Networks.Polygon,
-        toNetwork,
         inputCurrency: request.inputCurrency,
-        outputCurrency: request.outputCurrency,
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
-        rampType: request.rampType
+        outputCurrency: request.outputCurrency,
+        rampType: request.rampType,
+        toNetwork
       };
 
       if (request.to === "assethub") {

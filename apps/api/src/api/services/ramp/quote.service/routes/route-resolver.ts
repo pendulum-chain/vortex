@@ -1,6 +1,6 @@
-// PR1 scaffolding: RouteResolver and basic strategies wiring
-// Not yet used by index.ts. No behavior change.
-
+/**
+ * RouteResolver selects a route strategy based on direction and destination.
+ */
 import { DestinationType, Networks, RampDirection } from "@packages/shared";
 import type { QuoteContext } from "../types";
 import { IRouteStrategy, RouteProfile } from "../types";
@@ -25,7 +25,7 @@ export class RouteResolver {
 
     // Off-ramp
     if (!OFFRAMP_DESTS.has(ctx.to)) {
-      // Fallback: default to SEPA strategy to avoid crashes during PR1 scaffolding
+      // Fallback: default to SEPA strategy
       return new OffRampSepaStrategy();
     }
 

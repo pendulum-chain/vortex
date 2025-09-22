@@ -1,6 +1,5 @@
-// PR1 scaffolding for Strategy + Pipeline architecture
-// This file defines shared types and contracts used by the new quote pipeline.
-// No behavior change in PR1.
+// Strategy + Pipeline architecture
+// Shared types and contracts used by the quote pipeline.
 
 import {
   CreateQuoteRequest,
@@ -22,7 +21,7 @@ export enum StageKey {
   Discount = "Discount",
   Finalize = "Finalize",
   Persist = "Persist",
-  // PR2: special-case engine for Monerium EUR on-ramp to EVM
+  // Special-case engine for Monerium EUR on-ramp to EVM
   SpecialOnrampEurEvm = "SpecialOnrampEurEvm"
 }
 
@@ -135,7 +134,7 @@ export interface QuoteContext {
   get direction(): RampDirection;
   addNote?(note: string): void;
 
-  // PR2: allow engines to supply a ready response (used by special-case engine)
+  // Allow engines to supply a ready response (used by special-case engine and finalize stage)
   builtResponse?: QuoteResponse;
 }
 
