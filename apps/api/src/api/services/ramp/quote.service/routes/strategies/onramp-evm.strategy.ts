@@ -1,14 +1,16 @@
-// PR1 scaffolding: On-ramp to EVM strategy
-// Returns an empty stage list for PR1 (no runtime behavior change).
-// Later PRs will return the ordered pipeline: Validate -> InputPlanner -> Swap -> Bridge -> Fee -> Discount -> Finalize -> Persist
-
+import { FiatToken } from "@packages/shared";
 import { IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
+// PR2: On-ramp to EVM strategy
+// For PR2 we only enable the special-case EUR on-ramp to EVM stage to preserve behavior.
 export class OnRampEvmStrategy implements IRouteStrategy {
   readonly name = "OnRampEvm";
 
-  getStages(_ctx: QuoteContext): StageKey[] {
-    // PR1: no-op to avoid behavior changes. Will be populated in PR2+.
+  getStages(ctx: QuoteContext): StageKey[] {
+    // Only handle the EUR special-case here in PR2. Other flows remain in index.ts.
+    if (ctx.request.inputCurrency === FiatToken.EURC) {
+      return [StageKey.SpecialOnrampEurEvm];
+    }
     return [];
   }
 }

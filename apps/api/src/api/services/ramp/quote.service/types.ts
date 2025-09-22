@@ -21,7 +21,9 @@ export enum StageKey {
   Fee = "Fee",
   Discount = "Discount",
   Finalize = "Finalize",
-  Persist = "Persist"
+  Persist = "Persist",
+  // PR2: special-case engine for Monerium EUR on-ramp to EVM
+  SpecialOnrampEurEvm = "SpecialOnrampEurEvm"
 }
 
 // Minimal stage contract
@@ -132,6 +134,9 @@ export interface QuoteContext {
   get to(): DestinationType;
   get direction(): RampDirection;
   addNote?(note: string): void;
+
+  // PR2: allow engines to supply a ready response (used by special-case engine)
+  builtResponse?: QuoteResponse;
 }
 
 // Mapper output type

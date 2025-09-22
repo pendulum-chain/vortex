@@ -36,6 +36,11 @@ import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, EvmBridgeReq
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 import { validateAmountLimits } from "./validation-helpers";
+import { QuoteOrchestrator, buildEnginesRegistry } from "./core/quote-orchestrator";
+import { RouteResolver } from "./routes/route-resolver";
+import { SpecialOnrampEurEvmEngine } from "./engines/special-onramp-eur-evm";
+import { createQuoteContext } from "./core/quote-context";
+import { StageKey } from "./types";
 
 /*
  * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
@@ -114,6 +119,28 @@ export class QuoteService extends BaseRampService {
 
     // Determine the target fiat currency for fees
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+
+    // PR2: Delegate EUR on-ramp to EVM special-case to the orchestrator for behavior parity
+    if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC) {
+      const resolver = new RouteResolver();
+      const engines = buildEnginesRegistry({
+        [StageKey.SpecialOnrampEurEvm]: new SpecialOnrampEurEvmEngine()
+      });
+      const orchestrator = new QuoteOrchestrator(engines);
+
+      const ctx = createQuoteContext({
+        request,
+        targetFeeFiatCurrency,
+        partner: partner ? { id: partner.id, discount: partner.discount, name: partner.name } : { id: null }
+      });
+
+      const strategy = resolver.resolve(ctx);
+      await orchestrator.run(strategy, ctx);
+
+      if (ctx.builtResponse) {
+        return ctx.builtResponse;
+      }
+    }
 
     // b. Calculate Pre-Nabla Deductible Fees
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(

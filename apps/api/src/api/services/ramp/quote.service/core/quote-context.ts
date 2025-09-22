@@ -1,7 +1,7 @@
 // PR1 scaffolding: QuoteContext implementation and factory
 // No behavior change; this is not yet wired into index.ts.
 
-import { CreateQuoteRequest, DestinationType, RampCurrency, RampDirection } from "@packages/shared";
+import { CreateQuoteRequest, DestinationType, RampCurrency, RampDirection, QuoteResponse } from "@packages/shared";
 import Big from "big.js";
 import { QuoteContext as IQuoteContext } from "../types";
 
@@ -30,6 +30,9 @@ export class QuoteContext implements IQuoteContext {
   discount: IQuoteContext["discount"] | undefined;
 
   persistence: IQuoteContext["persistence"] | undefined;
+
+  // PR2: allow engines to attach a ready QuoteResponse
+  builtResponse?: QuoteResponse;
 
   notes: string[] | undefined;
 
