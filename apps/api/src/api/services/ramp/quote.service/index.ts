@@ -160,7 +160,8 @@ export class QuoteService extends BaseRampService {
         [StageKey.Swap]: new SwapEngine(),
         [StageKey.Fee]: new FeeEngine(),
         [StageKey.Discount]: new DiscountEngine(),
-        [StageKey.Bridge]: new BridgeEngine()
+        [StageKey.Bridge]: new BridgeEngine(),
+        [StageKey.Finalize]: new FinalizeEngine()
       });
       const orchestrator = new QuoteOrchestrator(engines);
 
@@ -172,6 +173,11 @@ export class QuoteService extends BaseRampService {
 
       const strategy = resolver.resolve(evmPipelineCtx);
       await orchestrator.run(strategy, evmPipelineCtx);
+
+      // If FinalizeEngine built a response, return it now to avoid legacy duplication
+      if (evmPipelineCtx.builtResponse) {
+        return evmPipelineCtx.builtResponse;
+      }
     }
 
     // b. Calculate Pre-Nabla Deductible Fees

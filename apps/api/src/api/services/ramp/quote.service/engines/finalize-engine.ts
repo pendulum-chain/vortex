@@ -10,8 +10,8 @@ import { validateAmountLimits } from "../validation-helpers";
 
 /**
  * FinalizeEngine
- * - Scope: On-ramp to AssetHub path
- * - Computes final net output using ctx.preNabla (pre fees), ctx.nabla (gross), and ctx.fees (display+USD).
+ * - Scope: On-ramp to AssetHub and on-ramp to EVM (non-EUR).
+ * - Computes final net output using ctx.preNabla (pre fees), ctx.nabla/ctx.bridge (gross), and ctx.fees (display+USD).
  * - Applies discount metadata to net amount for parity.
  * - Validates limits, persists a QuoteTicket, and builds a QuoteResponse on ctx.builtResponse.
  */
@@ -25,9 +25,9 @@ export class FinalizeEngine implements Stage {
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    // Only handle on-ramp to AssetHub in
-    if (!(ctx.isOnRamp && req.to === "assethub")) {
-      ctx.addNote?.("FinalizeEngine: skipped (not on-ramp to AssetHub)");
+    // Only handle on-ramp flows (sell/offramp handled elsewhere)
+    if (!ctx.isOnRamp) {
+      ctx.addNote?.("FinalizeEngine: skipped (not on-ramp)");
       return;
     }
 
@@ -41,14 +41,27 @@ export class FinalizeEngine implements Stage {
       throw new APIError({ message: "FinalizeEngine requires pre-Nabla fee data", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    // 1) Final gross (in output currency units on AssetHub)
-    const finalGrossOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
+    // 1) Final gross output:
+    // - AssetHub: use Nabla output
+    // - EVM (non-AssetHub): use bridge final gross output
+    let finalGrossOutputAmountDecimal: Big;
+    if (req.to === "assethub") {
+      finalGrossOutputAmountDecimal = new Big(ctx.nabla!.outputAmountDecimal);
+    } else {
+      if (!ctx.bridge?.finalGrossOutputAmountDecimal) {
+        throw new APIError({ message: "FinalizeEngine requires bridge output", status: httpStatus.INTERNAL_SERVER_ERROR });
+      }
+      finalGrossOutputAmountDecimal = new Big(ctx.bridge.finalGrossOutputAmountDecimal);
+    }
 
-    // 2) Total fee in display fiat (vortex + anchor + partner) — network remains 0 here
+    // 2) Total fee in display fiat (vortex + anchor + partner [+ network if present])
     const display = ctx.fees.displayFiat!;
-    const totalFeeFiat = new Big(display.structure.vortex).plus(display.structure.anchor).plus(display.structure.partnerMarkup);
+    const totalFeeFiat = new Big(display.structure.vortex)
+      .plus(display.structure.anchor)
+      .plus(display.structure.partnerMarkup)
+      .plus(display.structure.network || "0");
 
-    // 3) Avoid double-deducting pre-Nabla: subtract preNabla amount from total fee after converting it into display fiat.
+    // 3) Avoid double-deducting pre-Nabla: subtract preNabla (converted to display fiat) from total fee.
     const preNablaInDisplayFiat = await this.price.convertCurrency(
       ctx.preNabla.deductibleFeeAmount!.toString(),
       ctx.preNabla.feeCurrency as any,
@@ -56,13 +69,19 @@ export class FinalizeEngine implements Stage {
     );
     const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
 
-    // Convert adjusted total fees to output currency and subtract from gross.
-    const totalFeeInOutputCurrency = await this.price.convertCurrency(
-      adjustedTotalFeeFiat.toString(),
-      display.currency as any,
-      req.outputCurrency as any
-    );
-    let finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
+    // Convert adjusted total fees to output currency and subtract from gross for AssetHub.
+    // For EVM on-ramp, fees already deducted prior to bridge; net equals gross.
+    let finalNetOutputAmount: Big;
+    if (req.to === "assethub") {
+      const totalFeeInOutputCurrency = await this.price.convertCurrency(
+        adjustedTotalFeeFiat.toString(),
+        display.currency as any,
+        req.outputCurrency as any
+      );
+      finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
+    } else {
+      finalNetOutputAmount = finalGrossOutputAmountDecimal;
+    }
 
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
@@ -107,8 +126,8 @@ export class FinalizeEngine implements Stage {
       ctx.preNabla.inputAmountForSwap?.toString() ??
       (typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount));
 
-    // AssetHub on-ramp: no Moonbeam leg
-    const onrampOutputAmountMoonbeamRaw = "0";
+    // EVM on-ramp may have a Moonbeam leg present on context
+    const onrampOutputAmountMoonbeamRaw = ctx.bridge?.outputAmountMoonbeamRaw ?? "0";
     const outputAmountStr = finalNetOutputAmount.toFixed(6, 0);
 
     const { id, expiresAt, record } = await this.persistence.createQuote({
@@ -137,6 +156,6 @@ export class FinalizeEngine implements Stage {
     });
 
     ctx.builtResponse = response;
-    ctx.addNote?.("FinalizeEngine: persisted quote and built response (AssetHub on-ramp)");
+    ctx.addNote?.("FinalizeEngine: persisted quote and built response");
   }
 }
