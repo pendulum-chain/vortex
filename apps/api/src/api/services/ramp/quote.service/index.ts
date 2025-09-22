@@ -1,10 +1,11 @@
 import {
-  CreateQuoteRequest,
+  AssetHubToken,
+  AXL_USDC_MOONBEAM,
   createGenericRouteParams,
+  CreateQuoteRequest,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
-  EvmTokenDetails,
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -31,7 +32,7 @@ import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
-import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from "./gross-output";
+import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, EvmBridgeRequest, getEvmBridgeQuote } from "./gross-output";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 import { validateAmountLimits } from "./validation-helpers";
@@ -64,9 +65,20 @@ async function calculateInputAmountForNablaSwap(
     // Check squidrouter rate and adjust the input amount accordingly
     const bridgeQuote = await getEvmBridgeQuote({
       amountDecimal: request.inputAmount,
+      inputCurrency: request.inputCurrency as OnChainToken,
+      outputCurrency: AXL_USDC_MOONBEAM,
+      rampType: request.rampType,
+      fromNetwork: request.from,
+      toNetwork: Networks.Moonbeam
+    });
+    return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
+  } else if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && request.to === "assethub") {
+    // For Monerium onramps to Assethub, we need to convert EURC to axlUSDC on Moonbeam first
+    const bridgeQuote = await getEvmBridgeQuote({
+      amountDecimal: request.inputAmount,
       inputOrOutputCurrency: request.inputCurrency as OnChainToken,
       rampType: request.rampType,
-      sourceOrDestination: request.from
+      sourceOrDestination: request.to
     });
     return new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeInInputRepresentativeCurrency);
   } else {
@@ -132,7 +144,7 @@ export class QuoteService extends BaseRampService {
     if (request.rampType === RampDirection.BUY) {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
       if (request.to === "assethub") {
-        nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
+        nablaOutputCurrency = AssetHubToken.USDC; // Only USDC is supported on the Nabla DEX on Pendulum
       } else {
         nablaOutputCurrency = EvmToken.USDC; // Use USDC as intermediate for EVM destinations
       }
@@ -154,7 +166,7 @@ export class QuoteService extends BaseRampService {
 
     if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC) {
       const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(request.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
-      const inputTokenDetails = { erc20AddressSourceChain: ERC20_EURE_POLYGON } as unknown as EvmTokenDetails;
+      const fromToken = ERC20_EURE_POLYGON;
       const fromNetwork = Networks.Polygon; // Always Polygon for EUR onramp
       const toNetwork = getNetworkFromDestination(request.to);
 
@@ -188,15 +200,15 @@ export class QuoteService extends BaseRampService {
         });
       }
 
-      const routeParams = createGenericRouteParams(
-        "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // Placeholder address
-        inputAmountPostAnchorFeeRaw,
-        inputTokenDetails,
-        outputTokenDetails,
+      const routeParams = createGenericRouteParams({
+        fromAddress: "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // Placeholder address
+        amount: inputAmountPostAnchorFeeRaw,
+        fromToken,
+        toToken: outputTokenDetails.erc20AddressSourceChain,
         fromNetwork,
         toNetwork,
-        "0x30a300612ab372cc73e53ffe87fb73d62ed68da3" // Also placeholder address
-      );
+        destinationAddress: "0x30a300612ab372cc73e53ffe87fb73d62ed68da3" // Also placeholder address
+      });
 
       const routeResult = await getRoute(routeParams);
       const { route } = routeResult.data;
@@ -323,15 +335,33 @@ export class QuoteService extends BaseRampService {
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    if (request.rampType === RampDirection.BUY && request.to !== "assethub") {
-      // Do a first call to get a rough estimate of network fees
-      const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
-        finalEvmDestination: request.to,
-        finalOutputCurrency: request.outputCurrency as OnChainToken,
+    if (request.rampType === RampDirection.BUY) {
+      const toNetwork = getNetworkFromDestination(request.to);
+      if (!toNetwork) {
+        throw new APIError({
+          message: `Invalid network for destination: ${request.to} `,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const bridgeRequestParams: EvmBridgeRequest = {
+        fromNetwork: Networks.Polygon,
+        toNetwork,
+        inputCurrency: request.inputCurrency,
+        outputCurrency: request.outputCurrency,
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
         rampType: request.rampType
-      });
+      };
+
+      if (request.to === "assethub") {
+        // Only the EURe -> axlUSDC swap on Moonbeam is relevant here.
+        bridgeRequestParams.toNetwork = Networks.Moonbeam;
+        bridgeRequestParams.outputCurrency = EvmToken.AXLUSDC;
+      }
+
+      // Do a first call to get a rough estimate of network fees
+      const preliminaryResult = await calculateEvmBridgeAndNetworkFee(bridgeRequestParams);
       squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
       // Deduct all the fees that are distributed after the Nabla swap and before the EVM bridge
@@ -342,14 +372,10 @@ export class QuoteService extends BaseRampService {
       // axlUSDC on Moonbeam is 6 decimals
       outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
 
+      bridgeRequestParams.intermediateAmountRaw = outputAmountMoonbeamRaw;
+
       // Do a second call with all fees deducted to get the final gross output amount
-      const evmBridgeResult = await calculateEvmBridgeAndNetworkFee({
-        finalEvmDestination: request.to,
-        finalOutputCurrency: request.outputCurrency as OnChainToken,
-        intermediateAmountRaw: outputAmountMoonbeamRaw,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
-        rampType: request.rampType
-      });
+      const evmBridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequestParams);
 
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
     }
