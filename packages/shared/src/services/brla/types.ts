@@ -505,7 +505,8 @@ export enum AveniaDocumentType {
   ID = "ID",
   DRIVERS_LICENSE = "DRIVERS-LICENSE",
   PASSPORT = "PASSPORT",
-  SELFIE = "SELFIE"
+  SELFIE = "SELFIE",
+  SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS"
 }
 
 export interface DocumentUploadRequest {
@@ -517,6 +518,7 @@ export interface DocumentUploadResponse {
   id: string;
   uploadURLFront: string;
   uploadURLBack?: string;
+  livenessUrl?: string;
 }
 
 export enum KycAttemptStatus {

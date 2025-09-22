@@ -107,7 +107,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     setLoading(true);
     try {
       const response = await BrlaService.getUploadUrls({
-        documentType: docType
+        documentType: docType,
+        taxId
       });
 
       const uploads: Promise<void>[] = [];
