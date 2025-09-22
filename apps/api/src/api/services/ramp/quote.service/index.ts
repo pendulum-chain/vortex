@@ -45,6 +45,7 @@ import { InputPlannerEngine } from "./engines/input-planner";
 import { SwapEngine } from "./engines/swap-engine";
 import { FeeEngine } from "./engines/fee-engine";
 import { DiscountEngine } from "./engines/discount-engine";
+import { FinalizeEngine } from "./engines/finalize-engine";
 
 /*
  * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
@@ -154,7 +155,8 @@ export class QuoteService extends BaseRampService {
         [StageKey.InputPlanner]: new InputPlannerEngine(),
         [StageKey.Swap]: new SwapEngine(),
         [StageKey.Fee]: new FeeEngine(),
-        [StageKey.Discount]: new DiscountEngine()
+        [StageKey.Discount]: new DiscountEngine(),
+        [StageKey.Finalize]: new FinalizeEngine()
       });
       const orchestrator = new QuoteOrchestrator(engines);
 
@@ -166,6 +168,11 @@ export class QuoteService extends BaseRampService {
 
       const strategy = resolver.resolve(pr3Ctx);
       await orchestrator.run(strategy, pr3Ctx);
+
+      // If FinalizeEngine built a response (PR5), return it now to avoid legacy duplication
+      if (pr3Ctx.builtResponse) {
+        return pr3Ctx.builtResponse;
+      }
     }
 
     // b. Calculate Pre-Nabla Deductible Fees (use PR3 engine output if available)

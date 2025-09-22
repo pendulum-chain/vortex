@@ -1,15 +1,48 @@
-// PR1 scaffolding: Discount Engine (Stage)
-// Purpose later: compute partner discount subsidy and adjust net outputs accordingly.
-// Current: no-op to avoid behavior changes.
-
+import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../types";
 
+/**
+ * DiscountEngine (PR4/PR5)
+ * - Determines applicable discount rate for the partner (or default 'vortex' partner).
+ * - Stores only metadata (rate, partnerId) on context. Subsidy math is applied by finalization/legacy.
+ */
 export class DiscountEngine implements Stage {
   readonly key = StageKey.Discount;
 
   async execute(ctx: QuoteContext): Promise<void> {
-    // PR1: no-op; trace note only.
-    ctx.addNote?.("DiscountEngine: skipped (PR1 scaffold)");
-    return;
+    const req = ctx.request;
+
+    // Prefer partner from ctx if active; otherwise fallback to 'vortex' for given ramp type.
+    let discountPartner = ctx.partner?.id
+      ? await Partner.findOne({
+          where: {
+            id: ctx.partner.id,
+            isActive: true,
+            rampType: req.rampType
+          }
+        })
+      : null;
+
+    if (!discountPartner) {
+      discountPartner = await Partner.findOne({
+        where: {
+          isActive: true,
+          name: "vortex",
+          rampType: req.rampType
+        }
+      });
+    }
+
+    const rate = discountPartner?.discount ?? 0;
+
+    ctx.discount = {
+      applied: rate > 0,
+      partnerId: discountPartner?.id,
+      rate: rate.toString()
+    };
+
+    ctx.addNote?.(
+      `DiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
+    );
   }
 }
