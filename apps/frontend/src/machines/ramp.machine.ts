@@ -135,6 +135,11 @@ export const rampMachine = setup({
         initializeFailedMessage: ({ event }) => event.message
       })
     },
+    SET_SUBSTRATE_WALLET_ACCOUNT: {
+      actions: assign({
+        substrateWalletAccount: ({ event }) => event.walletAccount
+      })
+    },
     SIGNING_UPDATE: {
       actions: [assign({ rampSigningPhase: ({ event }) => event.phase })]
     }
