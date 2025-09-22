@@ -41,6 +41,8 @@ import { RouteResolver } from "./routes/route-resolver";
 import { SpecialOnrampEurEvmEngine } from "./engines/special-onramp-eur-evm";
 import { createQuoteContext } from "./core/quote-context";
 import { StageKey } from "./types";
+import { InputPlannerEngine } from "./engines/input-planner";
+import { SwapEngine } from "./engines/swap-engine";
 
 /*
  * Calculate the input amount to be used for the Nabla swap after deducting pre-Nabla fees.
@@ -142,19 +144,50 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    // b. Calculate Pre-Nabla Deductible Fees
-    const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
-      request.inputAmount,
-      request.inputCurrency,
-      request.outputCurrency,
-      request.rampType,
-      request.from,
-      request.to,
-      partner?.id || undefined
-    );
+    // PR3: For on-ramp to AssetHub, compute pre-Nabla input and Nabla swap via engines (no behavior change overall)
+    let pr3Ctx: ReturnType<typeof createQuoteContext> | undefined;
+    if (request.rampType === RampDirection.BUY && request.to === "assethub") {
+      const resolver = new RouteResolver();
+      const engines = buildEnginesRegistry({
+        [StageKey.InputPlanner]: new InputPlannerEngine(),
+        [StageKey.Swap]: new SwapEngine()
+      });
+      const orchestrator = new QuoteOrchestrator(engines);
 
-    // c. Calculate inputAmountForNablaSwap
-    const inputAmountForNablaSwap = await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency);
+      pr3Ctx = createQuoteContext({
+        request,
+        targetFeeFiatCurrency,
+        partner: partner ? { id: partner.id, discount: partner.discount, name: partner.name } : { id: null }
+      });
+
+      const strategy = resolver.resolve(pr3Ctx);
+      await orchestrator.run(strategy, pr3Ctx);
+    }
+
+    // b. Calculate Pre-Nabla Deductible Fees (use PR3 engine output if available)
+    let preNablaDeductibleFeeAmount: Big;
+    let feeCurrency: RampCurrency;
+    if (pr3Ctx?.preNabla?.deductibleFeeAmount && pr3Ctx.preNabla.feeCurrency) {
+      preNablaDeductibleFeeAmount = pr3Ctx.preNabla.deductibleFeeAmount;
+      feeCurrency = pr3Ctx.preNabla.feeCurrency;
+    } else {
+      const result = await calculatePreNablaDeductibleFees(
+        request.inputAmount,
+        request.inputCurrency,
+        request.outputCurrency,
+        request.rampType,
+        request.from,
+        request.to,
+        partner?.id || undefined
+      );
+      preNablaDeductibleFeeAmount = result.preNablaDeductibleFeeAmount;
+      feeCurrency = result.feeCurrency;
+    }
+
+    // c. Calculate inputAmountForNablaSwap (use PR3 engine output if available)
+    const inputAmountForNablaSwap =
+      pr3Ctx?.preNabla?.inputAmountForSwap ??
+      (await calculateInputAmountForNablaSwap(request, preNablaDeductibleFeeAmount, feeCurrency));
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -293,14 +326,21 @@ export class QuoteService extends BaseRampService {
       };
     }
 
-    const nablaSwapResult = await calculateNablaSwapOutput({
-      fromPolkadotDestination: request.from,
-      inputAmountForSwap: inputAmountForNablaSwap.toString(),
-      inputCurrency: request.inputCurrency,
-      nablaOutputCurrency,
-      rampType: request.rampType,
-      toPolkadotDestination: request.to
-    });
+    const nablaSwapResult =
+      pr3Ctx?.nabla?.outputAmountDecimal && pr3Ctx?.nabla?.outputAmountRaw
+        ? {
+            effectiveExchangeRate: pr3Ctx.nabla.effectiveExchangeRate,
+            nablaOutputAmountDecimal: pr3Ctx.nabla.outputAmountDecimal,
+            nablaOutputAmountRaw: pr3Ctx.nabla.outputAmountRaw
+          }
+        : await calculateNablaSwapOutput({
+            fromPolkadotDestination: request.from,
+            inputAmountForSwap: (inputAmountForNablaSwap as Big).toString(),
+            inputCurrency: request.inputCurrency,
+            nablaOutputCurrency,
+            rampType: request.rampType,
+            toPolkadotDestination: request.to
+          });
 
     if (request.rampType === RampDirection.SELL) {
       validateAmountLimits(
