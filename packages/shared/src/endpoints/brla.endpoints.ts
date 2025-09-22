@@ -110,6 +110,8 @@ export interface AveniaKYCDataUpload {
   selfieUpload: {
     id: string;
     uploadURLFront: string;
+    livenessUrl?: string;
+    validateLivenessToken?: string;
   };
   idUpload: {
     id: string;

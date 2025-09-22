@@ -519,6 +519,7 @@ export interface DocumentUploadResponse {
   uploadURLFront: string;
   uploadURLBack?: string;
   livenessUrl?: string;
+  validateLivenessToken?: string;
 }
 
 export enum KycAttemptStatus {

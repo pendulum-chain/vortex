@@ -1,13 +1,17 @@
-import { AveniaAccountType } from "@packages/shared/src/services";
 import { fromPromise } from "xstate";
-import { BrlaService } from "../../../services/api";
-import { createSubaccount, KycSubmissionNetworkError, submitNewKyc } from "../../../services/signingService";
+import { submitNewKyc } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
 
 export const submitActor = fromPromise(async ({ input }: { input: AveniaKycContext }): Promise<void> => {
-  const { taxId, kycFormData, documentUploadIds } = input;
+  const { taxId, kycFormData, documentUploadIds, subAccountId } = input;
 
-  if (!documentUploadIds || !documentUploadIds.uploadedSelfieId || !documentUploadIds.uploadedDocumentId || !kycFormData) {
+  if (
+    !documentUploadIds ||
+    !documentUploadIds.uploadedSelfieId ||
+    !documentUploadIds.uploadedDocumentId ||
+    !kycFormData ||
+    !subAccountId
+  ) {
     throw new Error("Invalid input state. This is a Bug.");
   }
 
@@ -25,29 +29,6 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     uploadedSelfieId: documentUploadIds.uploadedSelfieId,
     zipCode: kycFormData.cep
   };
-
-  let subAccountId: string;
-
-  try {
-    const { subAccountId: existingSubAccountId } = await BrlaService.getUser(taxId);
-    subAccountId = existingSubAccountId;
-    console.log("Debug: found existing Avenia subaccount", subAccountId);
-  } catch (error: unknown) {
-    const err = error as { response?: { status: number; statusText: string } };
-    if (err.response?.status === 404) {
-      console.log("Debug: creating new Avenia subaccount");
-      const { subAccountId: newSubAccountId } = await createSubaccount({
-        accountType: AveniaAccountType.INDIVIDUAL,
-        name: kycFormData.fullName,
-        taxId
-      });
-      subAccountId = newSubAccountId;
-    } else if (err.response && err.response.status >= 500) {
-      throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${err.response.statusText}`);
-    } else {
-      throw err;
-    }
-  }
 
   await submitNewKyc({ ...payload, subAccountId });
 });

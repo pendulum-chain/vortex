@@ -394,14 +394,18 @@ export const getUploadUrls = async (
 
     const taxIdRecord = await TaxId.findByPk(taxId);
     if (!taxIdRecord) {
-      // Invalid state. Cannot happen.
+      // Invalid state. Cannot happen since we create the subaccount first for every tax.
       res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, false, taxIdRecord.subAccountId);
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
+      AveniaDocumentType.SELFIE_FROM_LIVENESS,
+      false,
+      taxIdRecord.subAccountId
+    );
 
     // assume RG is double sided, CNH is not.
     const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
@@ -416,7 +420,9 @@ export const getUploadUrls = async (
       },
       selfieUpload: {
         id: selfieUrl.id,
-        uploadURLFront: selfieUrl.uploadURLFront
+        livenessUrl: selfieUrl.livenessUrl,
+        uploadURLFront: selfieUrl.uploadURLFront,
+        validateLivenessToken: selfieUrl.validateLivenessToken
       }
     });
   } catch (error) {

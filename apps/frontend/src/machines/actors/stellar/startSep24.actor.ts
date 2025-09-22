@@ -40,7 +40,6 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
       const fetchAndUpdateSep24Url = async () => {
         const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, executionInput.fiatToken);
         const url = new URL(firstSep24Response.url);
-        // TODO debug log. Remove.
         console.log("SEP-24 URL:", url.toString());
         url.searchParams.append("callback", "postMessage");
         sendBack({

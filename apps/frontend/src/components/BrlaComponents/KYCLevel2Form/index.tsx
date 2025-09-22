@@ -126,7 +126,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
         );
 
         uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
           uploadFileAsBuffer(back, response.idUpload.uploadURLBack!) // TODO.. why not returning uploadURLBack?
         );
@@ -142,16 +141,15 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           response.idUpload.uploadURLBack,
           response.selfieUpload.uploadURLFront
         );
-
-        uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
-          uploadFileAsBuffer(front, response.idUpload.uploadURLFront)
-        );
+        // TODO how do we stop the flow until avenia liveness is done?
+        uploads.push(uploadFileAsBuffer(front, response.idUpload.uploadURLFront));
+        throw new Error("Liveness check not implemented yet");
       }
 
       await Promise.all(uploads);
       aveniaKycActor.send({
         documentsId: {
+          livenessUrl: response.selfieUpload.livenessUrl!,
           uploadedDocumentId: response.idUpload.id,
           uploadedSelfieId: response.selfieUpload.id
         },

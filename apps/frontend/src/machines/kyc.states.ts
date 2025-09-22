@@ -9,6 +9,7 @@ import { RampContext } from "./types";
 // Extended context types for child KYC machines
 export interface AveniaKycContext extends RampContext {
   taxId: string;
+  subAccountId?: string;
   kycFormData?: KYCFormData;
   kycStatus?: KycStatus;
   rejectReason?: KycFailureReason | string;

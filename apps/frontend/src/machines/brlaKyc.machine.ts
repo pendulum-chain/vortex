@@ -1,6 +1,7 @@
 import { assign, DoneActorEvent, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
+import { createSubaccountActor } from "./actors/brla/createSubaccount.actor";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
 import { submitActor } from "./actors/brla/submitLevel1.actor";
 import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
@@ -23,10 +24,12 @@ export class AveniaKycMachineError extends Error {
 export type UploadIds = {
   uploadedSelfieId: string;
   uploadedDocumentId: string;
+  livenessUrl: string;
 };
 
 export const aveniaKycMachine = setup({
   actors: {
+    createSubaccountActor,
     decideInitialStateActor,
     submitActor,
     verifyStatusActor
@@ -35,6 +38,7 @@ export const aveniaKycMachine = setup({
     context: {} as AveniaKycContext,
     events: {} as
       | { type: "FORM_SUBMIT"; formData: KYCFormData }
+      | { type: "LIVENESS_DONE" }
       | { type: "DOCUMENTS_SUBMIT"; documentsId: UploadIds }
       | { type: "CLOSE_SUCCESS_MODAL" }
       | { type: "CANCEL_RETRY" }
@@ -61,7 +65,7 @@ export const aveniaKycMachine = setup({
           actions: assign({
             documentUploadIds: ({ event }) => event.documentsId
           }),
-          target: "Submit"
+          target: "LivenessCheck"
         }
       }
     },
@@ -77,7 +81,7 @@ export const aveniaKycMachine = setup({
           target: "FormFilling"
         }
       }
-    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
+    },
     Finish: {
       type: "final"
     },
@@ -94,10 +98,17 @@ export const aveniaKycMachine = setup({
           actions: assign({
             kycFormData: ({ event }) => event.formData
           }),
-          target: "DocumentUpload"
+          target: "SubaccountSetup"
         }
       }
     },
+    LivenessCheck: {
+      on: {
+        LIVENESS_DONE: {
+          target: "Submit"
+        }
+      }
+    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Rejected: {
       on: {
         CANCEL_RETRY: {
@@ -109,6 +120,27 @@ export const aveniaKycMachine = setup({
         RETRY: {
           target: "FormFilling"
         }
+      }
+    },
+    SubaccountSetup: {
+      invoke: {
+        input: ({ context }: { context: AveniaKycContext }) => context,
+        onDone: {
+          actions: assign({
+            subAccountId: ({ event }) => event.output.subAccountId
+          }),
+          target: "DocumentUpload"
+        },
+        onError: [
+          {
+            actions: assign({
+              error: ({ event }) =>
+                new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
+            }),
+            target: "Failure"
+          }
+        ],
+        src: "createSubaccountActor"
       }
     },
     Submit: {

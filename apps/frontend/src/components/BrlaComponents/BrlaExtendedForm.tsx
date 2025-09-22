@@ -7,6 +7,7 @@ import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStep
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
 import { DocumentUpload } from "./KYCLevel2Form";
+import { LivenessComponent } from "./LivenessComponent";
 import { VerificationStatus } from "./VerificationStatus";
 
 export const PIXKYCForm = () => {
@@ -135,6 +136,8 @@ export const PIXKYCForm = () => {
     content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else if (aveniaState.stateValue === "DocumentUpload") {
     content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
+  } else if (aveniaState.stateValue === "LivenessCheck") {
+    content = <LivenessComponent aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else {
     content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
   }
