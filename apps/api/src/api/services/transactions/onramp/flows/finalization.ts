@@ -1,6 +1,7 @@
 import {
   AccountMeta,
-  createOnrampSquidrouterTransactions,
+  AXL_USDC_MOONBEAM_DETAILS,
+  createOnrampSquidrouterTransactionsFromMoonbeamToEvm,
   createPendulumToAssethubTransfer,
   createPendulumToHydrationTransfer,
   createPendulumToMoonbeamTransfer,
@@ -82,6 +83,7 @@ export async function createAssetHubFinalizationTransactions(
   return pendulumNonce;
 }
 
+/// Creates the transactions transferring axlUSDC from Pendulum to Moonbeam, then swapping it to the desired EVM token via Squidrouter.
 export async function createBRLAToEvmFinalizationTransactions(
   quote: QuoteTicketAttributes,
   pendulumEphemeralEntry: AccountMeta,
@@ -99,9 +101,13 @@ export async function createBRLAToEvmFinalizationTransactions(
     outputTokenPendulumDetails
   });
 
+  if (!quote.metadata.bridge?.outputAmountMoonbeamRaw) {
+    throw new Error("Missing bridge output amount for Moonbeam");
+  }
+
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     moonbeamEphemeralEntry.address,
-    quote.metadata.onrampOutputAmountMoonbeamRaw,
+    quote.metadata.bridge.outputAmountMoonbeamRaw,
     outputTokenDetails.pendulumRepresentative.currencyId
   );
 
@@ -125,13 +131,14 @@ export async function createBRLAToEvmFinalizationTransactions(
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
 
-  const { approveData, swapData } = await createOnrampSquidrouterTransactions({
+  const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromMoonbeamToEvm({
     destinationAddress: quote.to,
     fromAddress: moonbeamEphemeralEntry.address,
+    fromToken: AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain,
     moonbeamEphemeralStartingNonce: moonbeamNonce,
-    outputTokenDetails,
-    rawAmount: quote.metadata.onrampOutputAmountMoonbeamRaw,
-    toNetwork: outputTokenDetails.network
+    rawAmount: quote.metadata.bridge.outputAmountMoonbeamRaw,
+    toNetwork: outputTokenDetails.network,
+    toToken: outputTokenDetails.erc20AddressSourceChain
   });
 
   unsignedTxs.push({

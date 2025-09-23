@@ -1,11 +1,9 @@
 import {
   AccountMeta,
-  AXL_USDC_MOONBEAM_DETAILS,
-  createOnrampSquidrouterTransactionsToEvm,
+  AXL_USDC_MOONBEAM,
+  createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
   EvmTransactionData,
-  getOnChainTokenDetails,
-  isMoonbeamTokenDetails,
   MoonbeamTokenDetails,
   Networks,
   UnsignedTx
@@ -51,16 +49,13 @@ export async function createMoneriumInitialTransactions(
     txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
   });
 
-  const { approveData, swapData } = await createOnrampSquidrouterTransactionsToEvm({
+  const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
     destinationAddress: moonbeamEphemeralEntry.address,
     fromAddress: polygonEphemeralEntry.address,
-    fromNetwork: Networks.Polygon,
-    inputTokenDetails: {
-      erc20AddressSourceChain: ERC20_EURE_POLYGON
-    } as any,
-    outputTokenDetails: AXL_USDC_MOONBEAM_DETAILS,
+    fromToken: ERC20_EURE_POLYGON,
     rawAmount: inputAmountPostAnchorFeeRaw,
-    toNetwork: Networks.Moonbeam
+    toNetwork: Networks.Moonbeam,
+    toToken: AXL_USDC_MOONBEAM
   });
 
   unsignedTxs.push({

@@ -6,10 +6,9 @@ dotenv.config({
 });
 
 import { ApiManager, EventPoller, EvmClientManager } from "@packages/shared";
-import { testDatabaseConnection } from "./config/database";
+import { config, testDatabaseConnection } from "./config";
 import app from "./config/express";
 import logger from "./config/logger";
-import { config } from "./config/vars";
 import {
   CLIENT_DOMAIN_SECRET,
   DEFAULT_POLLING_INTERVAL,

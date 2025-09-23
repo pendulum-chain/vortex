@@ -7,7 +7,7 @@ import { Networks } from "../../helpers";
 import { BaseTokenDetails, TokenType } from "./base";
 
 export enum EvmToken {
-  AXLUSDC = "axlUSDC",
+  AXLUSDC = "AXLUSDC",
   USDC = "USDC",
   USDT = "USDT",
   USDCE = "USDC.E",
