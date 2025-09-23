@@ -12,6 +12,8 @@ import {
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusRequest,
   BrlaGetRampStatusResponse,
+  BrlaGetSelfieLivenessUrlRequest,
+  BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitRequest,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserRequest,
@@ -357,6 +359,44 @@ export const validatePixKey = async (
     res.status(httpStatus.OK).json({ valid: true });
   } catch (error) {
     handleApiError(error, res, "validatePixKey");
+  }
+};
+
+export const getSelfieLivenessUrl = async (
+  req: Request<unknown, unknown, unknown, BrlaGetSelfieLivenessUrlRequest>,
+  res: Response<BrlaGetSelfieLivenessUrlResponse | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { taxId } = req.query;
+
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
+      AveniaDocumentType.SELFIE_FROM_LIVENESS,
+      false,
+      taxIdRecord.subAccountId
+    );
+
+    res.status(httpStatus.OK).json({
+      id: selfieUrl.id,
+      livenessUrl: selfieUrl.livenessUrl ?? "",
+      uploadURLFront: selfieUrl.uploadURLFront,
+      validateLivenessToken: selfieUrl.validateLivenessToken ?? ""
+    });
+  } catch (error) {
+    console.log(error);
+    handleApiError(error, res, "getSelfieLivenessUrl");
   }
 };
 

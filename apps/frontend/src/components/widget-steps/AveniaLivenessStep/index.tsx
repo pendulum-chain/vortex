@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "motion/react";
-import React from "react";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useRef } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import livenessCheck from "../../../assets/liveness-check.svg";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 
@@ -13,6 +13,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
   const { t } = useTranslation();
   const { livenessUrl } = aveniaState.context.documentUploadIds || {};
   const { livenessCheckOpened } = aveniaState.context;
+  const refreshClicked = useRef(false);
 
   const handleOpenLivenessUrl = () => {
     if (livenessUrl) {
@@ -21,8 +22,20 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
     }
   };
 
+  useEffect(() => {
+    if (livenessUrl && refreshClicked.current) {
+      window.open(livenessUrl, "_blank");
+      refreshClicked.current = false;
+    }
+  }, [livenessUrl, refreshClicked.current]);
+
   const handleLivenessDone = () => {
     aveniaKycActor.send({ type: "LIVENESS_DONE" });
+  };
+
+  const handleRefreshUrl = () => {
+    refreshClicked.current = true;
+    aveniaKycActor.send({ type: "REFRESH_LIVENESS_URL" });
   };
 
   return (
@@ -60,15 +73,29 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
 
       <div className="mt-auto flex w-full gap-x-4 pt-4">
         {livenessCheckOpened ? (
-          <motion.button
-            animate={{ opacity: 1, y: 0 }}
-            className="btn-vortex-primary btn flex-1 px-8"
-            initial={{ opacity: 0, y: 20 }}
-            onClick={handleLivenessDone}
-            transition={{ delay: 0.6, duration: 0.3 }}
-          >
-            {t("components.aveniaLiveness.livenessDone")}
-          </motion.button>
+          <div className="justify-center">
+            <motion.button
+              animate={{ opacity: 1, y: 0 }}
+              className="btn-vortex-primary btn flex-1 px-8"
+              initial={{ opacity: 0, y: 20 }}
+              onClick={handleLivenessDone}
+              transition={{ delay: 0.6, duration: 0.3 }}
+            >
+              {t("components.aveniaLiveness.livenessDone")}
+            </motion.button>
+
+            <div className="text-center text-sm ">
+              <p>
+                <Trans i18nKey="components.brlaLiveness.troubleText">
+                  Having trouble?{" "}
+                  <button className="text-vortex-primary underline" onClick={handleRefreshUrl}>
+                    Click here
+                  </button>{" "}
+                  to try again in a new session.
+                </Trans>
+              </p>
+            </div>
+          </div>
         ) : (
           <motion.button
             animate={{ opacity: 1, y: 0 }}

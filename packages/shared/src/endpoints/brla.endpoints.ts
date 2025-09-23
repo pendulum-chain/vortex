@@ -40,12 +40,23 @@ export interface BrlaGetKycStatusRequest {
   taxId: string;
 }
 
+export interface BrlaGetSelfieLivenessUrlRequest {
+  taxId: string;
+}
+
 export interface BrlaGetKycStatusResponse {
-  type: string;
-  status: KycAttemptStatus;
+  type: "KYC";
   level: string;
+  status: KycAttemptStatus;
   result: KycAttemptResult;
   failureReason?: KycFailureReason;
+}
+
+export interface BrlaGetSelfieLivenessUrlResponse {
+  id: string;
+  livenessUrl: string;
+  uploadURLFront: string;
+  validateLivenessToken: string;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey

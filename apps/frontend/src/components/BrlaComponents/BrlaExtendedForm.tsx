@@ -124,8 +124,6 @@ export const PIXKYCForm = () => {
     });
   }
 
-  return <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
-
   let content;
   if (
     aveniaState.stateValue === "Verifying" ||
@@ -137,7 +135,7 @@ export const PIXKYCForm = () => {
     content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else if (aveniaState.stateValue === "DocumentUpload") {
     content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
-  } else if (aveniaState.stateValue === "LivenessCheck") {
+  } else if (aveniaState.stateValue === "LivenessCheck" || aveniaState.stateValue === "RefreshingLivenessUrl") {
     content = <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else {
     content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;

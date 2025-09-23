@@ -1,5 +1,6 @@
-import { assign, DoneActorEvent, setup } from "xstate";
+import { assign, DoneActorEvent, fromPromise, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
+import { BrlaService } from "../services/api";
 import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
 import { createSubaccountActor } from "./actors/brla/createSubaccount.actor";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
@@ -31,6 +32,15 @@ export const aveniaKycMachine = setup({
   actors: {
     createSubaccountActor,
     decideInitialStateActor,
+    refreshLivenessUrlActor: fromPromise(
+      async ({ input }: { input: { taxId?: string } }): Promise<{ livenessUrl: string; uploadedSelfieId: string }> => {
+        if (!input.taxId) {
+          throw new Error("taxId is required to refresh liveness URL");
+        }
+        const getLivenessResponse = await BrlaService.getSelfieLivenessUrl(input.taxId);
+        return { livenessUrl: getLivenessResponse.livenessUrl, uploadedSelfieId: getLivenessResponse.id };
+      }
+    ),
     submitActor,
     verifyStatusActor
   },
@@ -45,6 +55,7 @@ export const aveniaKycMachine = setup({
       | { type: "RETRY" }
       | { type: "DOCUMENTS_BACK" }
       | { type: "LIVENESS_OPENED" }
+      | { type: "REFRESH_LIVENESS_URL" }
       | { type: "CANCEL" },
     input: {} as RampContext,
     output: {} as { error?: AveniaKycMachineError }
@@ -113,9 +124,34 @@ export const aveniaKycMachine = setup({
           actions: assign({
             livenessCheckOpened: () => true
           })
+        },
+        REFRESH_LIVENESS_URL: {
+          target: "RefreshingLivenessUrl"
         }
       }
-    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
+    },
+    RefreshingLivenessUrl: {
+      invoke: {
+        input: ({ context }) => ({ taxId: context.kycFormData?.taxId }),
+        onDone: {
+          actions: assign({
+            documentUploadIds: ({ context, event }) => {
+              return {
+                ...(context.documentUploadIds as UploadIds),
+                livenessUrl: event.output.livenessUrl,
+                uploadedSelfieId: event.output.uploadedSelfieId
+              };
+            }
+          }),
+          target: "LivenessCheck"
+        },
+        onError: {
+          target: "LivenessCheck"
+        },
+        src: "refreshLivenessUrlActor"
+      }
+    },
+    // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Rejected: {
       on: {
         CANCEL_RETRY: {
