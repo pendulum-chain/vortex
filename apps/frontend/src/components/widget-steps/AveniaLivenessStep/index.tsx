@@ -1,6 +1,6 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "motion/react";
-import React, { useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import livenessCheck from "../../../assets/liveness-check.svg";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
@@ -12,20 +12,18 @@ interface AveniaLivenessStepProps {
 export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaState, aveniaKycActor }) => {
   const { t } = useTranslation();
   const { livenessUrl } = aveniaState.context.documentUploadIds || {};
+  const { livenessCheckOpened } = aveniaState.context;
 
   const handleOpenLivenessUrl = () => {
     if (livenessUrl) {
       window.open(livenessUrl, "_blank");
-      setIsLivenessOpen(true);
+      aveniaKycActor.send({ type: "LIVENESS_OPENED" });
     }
   };
 
   const handleLivenessDone = () => {
     aveniaKycActor.send({ type: "LIVENESS_DONE" });
-    setIsLivenessOpen(false);
   };
-
-  const [isLivenessOpen, setIsLivenessOpen] = useState(false);
 
   return (
     <motion.div
@@ -61,7 +59,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
       <img alt="Liveness Check" className="mx-auto mb-8 w-1/2 " src={livenessCheck} />
 
       <div className="mt-auto flex w-full gap-x-4 pt-4">
-        {isLivenessOpen ? (
+        {livenessCheckOpened ? (
           <motion.button
             animate={{ opacity: 1, y: 0 }}
             className="btn-vortex-primary btn flex-1 px-8"
