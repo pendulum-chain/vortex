@@ -1,10 +1,10 @@
-import { EvmToken, FiatToken, RampDirection } from "@packages/shared";
+import { EvmToken, FiatToken, QuoteResponse, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
-import { PersistenceAdapter } from "../adapters/persistence-adapter";
 import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
-import { QuoteMapper } from "../mappers/quote-mapper";
+import { trimTrailingZeros } from "../helpers";
 import { QuoteContext, Stage, StageKey } from "../types";
 import { validateAmountLimits } from "../validation-helpers";
 
@@ -13,13 +13,13 @@ import { validateAmountLimits } from "../validation-helpers";
  * - Scope: BUY (on-ramp) to AssetHub/EVM and SELL (off-ramp) to PIX/SEPA/CBU.
  * - Computes final net output using ctx.preNabla, ctx.nabla/ctx.bridge (gross), and ctx.fees (display+USD).
  * - Applies discount metadata, validates, persists a QuoteTicket, and builds a QuoteResponse on ctx.builtResponse.
+ * - Persists a JSON-serializable snapshot of QuoteContext inside QuoteTicket.metadata.context
+ *   plus legacy metadata fields used by transaction flows for backward compatibility.
  */
 export class FinalizeEngine implements Stage {
   readonly key = StageKey.Finalize;
 
   private price = new PriceFeedAdapter();
-  private mapper = new QuoteMapper();
-  private persistence = new PersistenceAdapter();
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -52,17 +52,18 @@ export class FinalizeEngine implements Stage {
     }
 
     // 2) Fees in display fiat
-    const display = ctx.fees.displayFiat;
-    const totalFeeFiat = new Big(display.structure.vortex)
-      .plus(display.structure.anchor)
-      .plus(display.structure.partnerMarkup)
-      .plus(display.structure.network || "0");
+    const display = ctx.fees.displayFiat!;
+    const feeStruct = display.structure;
+    const totalFeeFiat = new Big(feeStruct.vortex)
+      .plus(feeStruct.anchor)
+      .plus(feeStruct.partnerMarkup)
+      .plus(feeStruct.network || "0");
 
     // 3) Avoid double-deducting pre-Nabla: subtract preNabla (converted to display fiat) from total fee
     const preNablaInDisplayFiat = await this.price.convertCurrency(
-      ctx.preNabla.deductibleFeeAmount.toString(),
-      ctx.preNabla.feeCurrency,
-      display.currency
+      ctx.preNabla.deductibleFeeAmount!.toString(),
+      ctx.preNabla.feeCurrency as any,
+      display.currency as any
     );
     const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
 
@@ -120,31 +121,47 @@ export class FinalizeEngine implements Stage {
       };
     }
 
-    // 7) Persistence structures
-    const feeToStore = display.structure; // target display fiat
-    const usdFeeStructure = {
-      anchor: ctx.fees.usd.anchor,
-      currency: EvmToken.USDC,
-      network: ctx.fees.usd.network,
-      partnerMarkup: ctx.fees.usd.partnerMarkup,
-      total: ctx.fees.usd.total,
-      vortex: ctx.fees.usd.vortex
-    };
-
+    // 7) Persist QuoteTicket with full context snapshot (JSON-serializable) and legacy fields for compatibility
     const inputAmountForNablaSwapDecimal = ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount;
 
     const onrampOutputAmountMoonbeamRaw = ctx.bridge?.outputAmountMoonbeamRaw ?? "0";
     const outputAmountStr =
       req.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
-    const { record } = await this.persistence.createQuote({
-      context: ctx,
-      discount: discountInfo,
-      feeDisplay: feeToStore,
-      inputAmountForNablaSwapDecimal,
-      onrampOutputAmountMoonbeamRaw,
-      outputAmountDecimalString: outputAmountStr,
-      partnerId: ctx.partner?.id || null,
+    const snapshot = {
+      bridge: ctx.bridge
+        ? {
+            finalEffectiveExchangeRate: ctx.bridge.finalEffectiveExchangeRate,
+            finalGrossOutputAmountDecimal: ctx.bridge.finalGrossOutputAmountDecimal?.toString(),
+            networkFeeUSD: ctx.bridge.networkFeeUSD,
+            outputAmountMoonbeamRaw: ctx.bridge.outputAmountMoonbeamRaw
+          }
+        : undefined,
+      discount: ctx.discount,
+      fees: ctx.fees
+        ? {
+            displayFiat: ctx.fees.displayFiat,
+            usd: ctx.fees.usd
+          }
+        : undefined,
+      nabla: ctx.nabla
+        ? {
+            effectiveExchangeRate: ctx.nabla.effectiveExchangeRate,
+            outputAmountDecimal: ctx.nabla.outputAmountDecimal?.toString(),
+            outputAmountRaw: ctx.nabla.outputAmountRaw,
+            outputCurrency: ctx.nabla.outputCurrency
+          }
+        : undefined,
+      notes: ctx.notes,
+      partner: ctx.partner
+        ? { discount: ctx.partner.discount ?? undefined, id: ctx.partner.id, name: ctx.partner.name ?? undefined }
+        : null,
+      preNabla: {
+        deductibleFeeAmount: ctx.preNabla.deductibleFeeAmount?.toString(),
+        feeCurrency: ctx.preNabla.feeCurrency,
+        inputAmountForSwap: ctx.preNabla.inputAmountForSwap?.toString(),
+        representativeInputCurrency: ctx.preNabla.representativeInputCurrency
+      },
       request: {
         from: req.from,
         inputAmount: req.inputAmount,
@@ -153,15 +170,65 @@ export class FinalizeEngine implements Stage {
         rampType: req.rampType,
         to: req.to
       },
-      usdFeeStructure
+      targetFeeFiatCurrency: ctx.targetFeeFiatCurrency
+    };
+
+    const offrampAmountBeforeAnchorFees =
+      req.rampType === RampDirection.SELL ? new Big(outputAmountStr).plus(feeStruct.anchor).toFixed() : undefined;
+
+    // Build USD fee structure in QuoteFeeStructure shape (with currency)
+    const usdFeeStructure = {
+      anchor: ctx.fees.usd!.anchor,
+      currency: EvmToken.USDC,
+      network: ctx.fees.usd!.network,
+      partnerMarkup: ctx.fees.usd!.partnerMarkup,
+      total: ctx.fees.usd!.total,
+      vortex: ctx.fees.usd!.vortex
+    };
+
+    const record = await QuoteTicket.create({
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      fee: feeStruct,
+      from: req.from,
+      inputAmount: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
+      inputCurrency: req.inputCurrency,
+      metadata: {
+        context: snapshot,
+        inputAmountForNablaSwapDecimal,
+        onrampOutputAmountMoonbeamRaw,
+        usdFeeStructure,
+        ...(offrampAmountBeforeAnchorFees ? { offrampAmountBeforeAnchorFees } : {}),
+        ...(discountInfo
+          ? {
+              subsidy: {
+                discount: discountInfo.discount!,
+                partnerId: discountInfo.partnerId!,
+                subsidyAmountInOutputToken: discountInfo.subsidyAmountInOutputToken!
+              }
+            }
+          : {})
+      } as any,
+      outputAmount: outputAmountStr,
+      outputCurrency: req.outputCurrency,
+      partnerId: ctx.partner?.id || null,
+      rampType: req.rampType,
+      status: "pending",
+      to: req.to
     });
 
-    // 8) Build response
-    const response = this.mapper.buildResponse({
-      feeDisplay: feeToStore,
-      outputAmountDecimalString: outputAmountStr,
-      ticket: record
-    });
+    // 8) Build response inline (no QuoteMapper)
+    const response: QuoteResponse = {
+      expiresAt: record.expiresAt,
+      fee: feeStruct,
+      from: record.from,
+      id: record.id,
+      inputAmount: trimTrailingZeros(record.inputAmount),
+      inputCurrency: record.inputCurrency,
+      outputAmount: trimTrailingZeros(outputAmountStr),
+      outputCurrency: record.outputCurrency,
+      rampType: record.rampType,
+      to: record.to
+    };
 
     ctx.builtResponse = response;
     ctx.addNote?.("FinalizeEngine: persisted quote and built response");
