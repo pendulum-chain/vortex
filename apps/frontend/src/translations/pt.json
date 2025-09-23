@@ -11,6 +11,31 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "aveniaKYC": {
+      "buttons": {
+        "back": "Voltar",
+        "compareFees": "Comparar Taxas",
+        "finish": "Finalizar",
+        "next": "Próximo"
+      },
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
+      "title": "Verificação Rápida"
+    },
+    "aveniaLiveness": {
+      "cameraWarning": "Você precisará permitir acesso à câmera na página do parceiro",
+      "description": "Complete a verificação facial com nosso parceiro seguro",
+      "livenessDone": "Verificação Concluída",
+      "openLivenessCheck": "Iniciar Verificação",
+      "title": "Verificação Facial"
+    },
+    "aveniaSwapField": {
+      "cpfOrCnpj": "CPF o CNPJ",
+      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "pixKey": "Chave Pix",
+      "placeholder": "Digite seu {{label}}",
+      "walletAddress": "Endereço da Carteira"
+    },
     "benefitsList": {
       "noHiddenFees": "Sem taxas ocultas",
       "takes5Minutes": "Leva <1>5 minutos</1>"
@@ -117,29 +142,6 @@
         "rejected": "Verificação KYC rejeitada",
         "success": "Verificação bem-sucedida"
       }
-    },
-    "brlaKYCForm": {
-      "buttons": {
-        "back": "Voltar",
-        "compareFees": "Comparar Taxas",
-        "finish": "Finalizar",
-        "next": "Próximo"
-      },
-      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
-      "title": "Verificação Rápida"
-    },
-    "brlaLiveness": {
-      "description": "por favor, continue com a verificação de vivacidade para completar o processo kyc",
-      "livenessDone": "Verificação de vivacidade concluída",
-      "openLivenessCheck": "Abrir verificação de vivacidade"
-    },
-    "brlaSwapField": {
-      "cpfOrCnpj": "CPF o CNPJ",
-      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
-      "pixKey": "Chave Pix",
-      "placeholder": "Digite seu {{label}}",
-      "walletAddress": "Endereço da Carteira"
     },
     "detailsDescription": {
       "connectWallet": "Conecte sua carteira para continuar o processo",
