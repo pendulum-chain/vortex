@@ -4,7 +4,6 @@
  */
 
 import { CreateQuoteRequest, DestinationType, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
-import Big from "big.js";
 import { QuoteContext as IQuoteContext } from "../types";
 
 export class QuoteContext implements IQuoteContext {
@@ -29,9 +28,7 @@ export class QuoteContext implements IQuoteContext {
 
   amounts: IQuoteContext["amounts"] | undefined;
 
-  discount: IQuoteContext["discount"] | undefined;
-
-  persistence: IQuoteContext["persistence"] | undefined;
+  subsidy: IQuoteContext["subsidy"] | undefined;
 
   // Engines may attach a ready QuoteResponse (e.g., special-case path or finalize stage)
   builtResponse?: QuoteResponse;

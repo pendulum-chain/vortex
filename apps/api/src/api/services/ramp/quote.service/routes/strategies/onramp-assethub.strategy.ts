@@ -8,6 +8,12 @@ export class OnRampAssethubStrategy implements IRouteStrategy {
   readonly name = "OnRampAssetHub";
 
   getStages(_ctx: QuoteContext): StageKey[] {
-    return [StageKey.InputPlanner, StageKey.Swap, StageKey.Fee, StageKey.Discount, StageKey.Finalize];
+    return [
+      StageKey.OnRampInputPlanner,
+      StageKey.OnRampSwap,
+      StageKey.OnRampFee,
+      StageKey.OnRampDiscount,
+      StageKey.OnRampFinalize
+    ];
   }
 }

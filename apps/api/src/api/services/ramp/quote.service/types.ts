@@ -23,13 +23,17 @@ export enum RouteProfile {
 // Stage identifiers in the pipeline
 export enum StageKey {
   ValidateChainSupport = "ValidateChainSupport",
-  InputPlanner = "InputPlanner",
-  Swap = "Swap",
-  Bridge = "Bridge",
-  Fee = "Fee",
-  Discount = "Discount",
-  Finalize = "Finalize",
-  Persist = "Persist",
+  OnRampInputPlanner = "OnRampInputPlanner",
+  OffRampInputPlanner = "OffRampInputPlanner",
+  OnRampSwap = "OnRampSwap",
+  OffRampSwap = "OffRampSwap",
+  OnRampBridge = "OnRampBridge",
+  OnRampFee = "OnRampFee",
+  OffRampFee = "OffRampFee",
+  OnRampDiscount = "OnRampDiscount",
+  OffRampDiscount = "OffRampDiscount",
+  OnRampFinalize = "OnRampFinalize",
+  OffRampFinalize = "OffRampFinalize",
   // Special-case engine for Monerium EUR on-ramp to EVM
   SpecialOnrampEurEvm = "SpecialOnrampEurEvm"
 }
@@ -115,12 +119,11 @@ export interface QuoteContext {
     finalNetOutput?: Big; // after fees and discount
   };
 
-  // Discount application
   discount?: {
     applied: boolean;
+    rate: string;
     partnerId?: string;
-    rate?: string; // decimal string
-    subsidyAmountInOutputToken?: string; // formatted string
+    subsidyAmountInOutputToken?: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
@@ -139,7 +142,5 @@ export interface QuoteContext {
 }
 
 export interface QuoteTicketMetadata extends Omit<QuoteContext, "now" | "addNote" | "builtResponse"> {
-  // Legacy metadata fields for backward compatibility
-  onrampOutputAmountMoonbeamRaw: string;
   offrampAmountBeforeAnchorFees?: string;
 }

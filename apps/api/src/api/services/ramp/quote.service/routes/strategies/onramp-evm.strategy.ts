@@ -11,6 +11,13 @@ export class OnRampEvmStrategy implements IRouteStrategy {
       return [StageKey.SpecialOnrampEurEvm];
     }
     // Non-EUR on-ramp to EVM goes through the modular pipeline
-    return [StageKey.InputPlanner, StageKey.Swap, StageKey.Fee, StageKey.Discount, StageKey.Bridge, StageKey.Finalize];
+    return [
+      StageKey.OnRampInputPlanner,
+      StageKey.OnRampSwap,
+      StageKey.OnRampFee,
+      StageKey.OnRampDiscount,
+      StageKey.OnRampBridge,
+      StageKey.OnRampFinalize
+    ];
   }
 }

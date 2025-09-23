@@ -8,6 +8,12 @@ export class OffRampPixStrategy implements IRouteStrategy {
   readonly name = "OffRampPix";
 
   getStages(_ctx: QuoteContext): StageKey[] {
-    return [StageKey.InputPlanner, StageKey.Swap, StageKey.Fee, StageKey.Discount, StageKey.Finalize];
+    return [
+      StageKey.OffRampInputPlanner,
+      StageKey.OffRampSwap,
+      StageKey.OffRampFee,
+      StageKey.OffRampDiscount,
+      StageKey.OffRampFinalize
+    ];
   }
 }

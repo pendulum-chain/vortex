@@ -1,18 +1,18 @@
-import Partner from "../../../../../models/partner.model";
-import { QuoteContext, Stage, StageKey } from "../types";
+import { RampDirection } from "@packages/shared";
+import Partner from "../../../../../../models/partner.model";
+import { QuoteContext, Stage, StageKey } from "../../types";
 
-/**
- * DiscountEngine
- * - Determines applicable discount rate for the partner (or default 'vortex' partner).
- * - Stores only metadata (rate, partnerId) on context. Subsidy math is applied by finalization/legacy.
- */
-export class DiscountEngine implements Stage {
-  readonly key = StageKey.Discount;
+export class OffRampDiscountEngine implements Stage {
+  readonly key = StageKey.OffRampDiscount;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    // Prefer partner from ctx if active; otherwise fallback to 'vortex' for given ramp type.
+    if (req.rampType !== RampDirection.SELL) {
+      ctx.addNote?.("OffRampDiscountEngine: skipped for on-ramp request");
+      return;
+    }
+
     let discountPartner = ctx.partner?.id
       ? await Partner.findOne({
           where: {
@@ -42,7 +42,7 @@ export class DiscountEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `DiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
+      `OffRampDiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
     );
   }
 }
