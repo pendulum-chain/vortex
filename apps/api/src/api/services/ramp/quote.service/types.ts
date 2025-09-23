@@ -11,6 +11,15 @@ import {
 } from "@packages/shared";
 import { Big } from "big.js";
 
+// Route profiles (optional tagging)
+export enum RouteProfile {
+  OnRampEvm = "OnRampEvm",
+  OnRampAssetHub = "OnRampAssetHub",
+  OffRampPix = "OffRampPix",
+  OffRampSepa = "OffRampSepa",
+  OffRampCbu = "OffRampCbu"
+}
+
 // Stage identifiers in the pipeline
 export enum StageKey {
   ValidateChainSupport = "ValidateChainSupport",
@@ -97,10 +106,7 @@ export interface QuoteContext {
       network: string; // squidrouter only for now
       total: string;
     };
-    displayFiat?: {
-      currency: RampCurrency;
-      structure: QuoteFeeStructure;
-    };
+    displayFiat?: QuoteFeeStructure;
   };
 
   // Final amounts
@@ -115,12 +121,6 @@ export interface QuoteContext {
     partnerId?: string;
     rate?: string; // decimal string
     subsidyAmountInOutputToken?: string; // formatted string
-  };
-
-  // Persistence artifacts
-  persistence?: {
-    quoteId?: string;
-    expiresAt?: Date;
   };
 
   // Accumulated logs/notes for debugging (optional)
@@ -138,16 +138,8 @@ export interface QuoteContext {
   builtResponse?: QuoteResponse;
 }
 
-// Mapper output type
-export type QuoteBuildResult = {
-  response: QuoteResponse;
-};
-
-// Route profiles (optional tagging)
-export enum RouteProfile {
-  OnRampEvm = "OnRampEvm",
-  OnRampAssetHub = "OnRampAssetHub",
-  OffRampPix = "OffRampPix",
-  OffRampSepa = "OffRampSepa",
-  OffRampCbu = "OffRampCbu"
+export interface QuoteTicketMetadata extends Omit<QuoteContext, "now" | "addNote" | "builtResponse"> {
+  // Legacy metadata fields for backward compatibility
+  onrampOutputAmountMoonbeamRaw: string;
+  offrampAmountBeforeAnchorFees?: string;
 }

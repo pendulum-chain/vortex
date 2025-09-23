@@ -26,7 +26,7 @@ export class BridgeEngine implements Stage {
     if (!ctx.nabla?.outputAmountDecimal || !ctx.nabla?.outputAmountRaw) {
       throw new Error("BridgeEngine requires Nabla output in context");
     }
-    if (!ctx.fees?.usd || !ctx.fees?.displayFiat?.structure) {
+    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
       throw new Error("BridgeEngine requires fees (usd + displayFiat) in context");
     }
 
@@ -38,11 +38,10 @@ export class BridgeEngine implements Stage {
     // Build initial bridge request: start with raw output from Nabla
     const bridgeRequest: EvmBridgeRequest = {
       fromNetwork: Networks.Polygon,
-      // Legacy API accepts OnChainToken but upstream typing includes fiat in some branches; cast to any to preserve behavior during migration
-      inputCurrency: req.inputCurrency as any,
+      inputCurrency: req.inputCurrency,
       intermediateAmountRaw: ctx.nabla.outputAmountRaw,
       originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
-      outputCurrency: req.outputCurrency as any,
+      outputCurrency: req.outputCurrency,
       rampType: req.rampType,
       toNetwork
     };
@@ -82,7 +81,7 @@ export class BridgeEngine implements Stage {
     const networkFeeDisplay = await priceFeedService.convertCurrency(squidRouterNetworkFeeUSD, EvmToken.USDC, displayCurrency);
 
     // Update USD totals
-    const usd = ctx.fees.usd!;
+    const usd = ctx.fees.usd;
     const usdTotal = new Big(usd.total).plus(squidRouterNetworkFeeUSD).toFixed(6);
     ctx.fees.usd = {
       ...usd,
@@ -91,20 +90,17 @@ export class BridgeEngine implements Stage {
     };
 
     // Update display fiat totals
-    const display = ctx.fees.displayFiat!;
-    const newDisplayTotal = new Big(display.structure.vortex)
-      .plus(display.structure.anchor)
-      .plus(display.structure.partnerMarkup)
+    const display = ctx.fees.displayFiat;
+    const newDisplayTotal = new Big(display.vortex)
+      .plus(display.anchor)
+      .plus(display.partnerMarkup)
       .plus(networkFeeDisplay)
       .toFixed(2);
 
     ctx.fees.displayFiat = {
-      currency: display.currency,
-      structure: {
-        ...display.structure,
-        network: networkFeeDisplay,
-        total: newDisplayTotal
-      }
+      ...display,
+      network: networkFeeDisplay,
+      total: newDisplayTotal
     };
 
     ctx.addNote?.(

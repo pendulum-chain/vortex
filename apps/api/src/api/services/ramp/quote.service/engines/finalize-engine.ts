@@ -1,11 +1,11 @@
-import { EvmToken, FiatToken, QuoteResponse, RampDirection } from "@packages/shared";
+import { EvmToken, FiatToken, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
 import { PriceFeedAdapter } from "../adapters/price-feed-adapter";
 import { trimTrailingZeros } from "../helpers";
-import { QuoteContext, Stage, StageKey } from "../types";
+import { QuoteContext, QuoteTicketMetadata, Stage, StageKey } from "../types";
 import { validateAmountLimits } from "../validation-helpers";
 
 /**
@@ -13,7 +13,7 @@ import { validateAmountLimits } from "../validation-helpers";
  * - Scope: BUY (on-ramp) to AssetHub/EVM and SELL (off-ramp) to PIX/SEPA/CBU.
  * - Computes final net output using ctx.preNabla, ctx.nabla/ctx.bridge (gross), and ctx.fees (display+USD).
  * - Applies discount metadata, validates, persists a QuoteTicket, and builds a QuoteResponse on ctx.builtResponse.
- * - Persists a JSON-serializable snapshot of QuoteContext inside QuoteTicket.metadata.context
+ * - Persists a JSON-serializable snapshot of QuoteContext inside QuoteTicket.metadata
  *   plus legacy metadata fields used by transaction flows for backward compatibility.
  */
 export class FinalizeEngine implements Stage {
@@ -62,8 +62,8 @@ export class FinalizeEngine implements Stage {
     // 3) Avoid double-deducting pre-Nabla: subtract preNabla (converted to display fiat) from total fee
     const preNablaInDisplayFiat = await this.price.convertCurrency(
       ctx.preNabla.deductibleFeeAmount!.toString(),
-      ctx.preNabla.feeCurrency as any,
-      display.currency as any
+      ctx.preNabla.feeCurrency as RampCurrency,
+      display.currency as RampCurrency
     );
     const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
 
@@ -121,41 +121,39 @@ export class FinalizeEngine implements Stage {
       };
     }
 
-    // 7) Persist QuoteTicket with full context snapshot (JSON-serializable) and legacy fields for compatibility
-    const inputAmountForNablaSwapDecimal = ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount;
-
-    const onrampOutputAmountMoonbeamRaw = ctx.bridge?.outputAmountMoonbeamRaw ?? "0";
+    // 7) Persist QuoteTicket with full context snapshot
     const outputAmountStr =
       req.rampType === RampDirection.BUY ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
-    const snapshot = {
+    const offrampAmountBeforeAnchorFees =
+      req.rampType === RampDirection.SELL ? new Big(outputAmountStr).plus(feeStruct.anchor).toFixed() : undefined;
+
+    const usdFeeStructure = {
+      ...ctx.fees.usd!,
+      currency: EvmToken.USDC
+    };
+
+    const metadata: QuoteTicketMetadata = {
       bridge: ctx.bridge
         ? {
-            finalEffectiveExchangeRate: ctx.bridge.finalEffectiveExchangeRate,
-            finalGrossOutputAmountDecimal: ctx.bridge.finalGrossOutputAmountDecimal?.toString(),
-            networkFeeUSD: ctx.bridge.networkFeeUSD,
-            outputAmountMoonbeamRaw: ctx.bridge.outputAmountMoonbeamRaw
+            ...ctx.bridge,
+            finalGrossOutputAmountDecimal: ctx.bridge.finalGrossOutputAmountDecimal?.toString()
           }
         : undefined,
       discount: ctx.discount,
-      fees: ctx.fees
-        ? {
-            displayFiat: ctx.fees.displayFiat,
-            usd: ctx.fees.usd
-          }
-        : undefined,
+      fees: ctx.fees,
+      // Legacy fields for backward compatibility
+      inputAmountForNablaSwapDecimal: ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount,
       nabla: ctx.nabla
         ? {
-            effectiveExchangeRate: ctx.nabla.effectiveExchangeRate,
-            outputAmountDecimal: ctx.nabla.outputAmountDecimal?.toString(),
-            outputAmountRaw: ctx.nabla.outputAmountRaw,
-            outputCurrency: ctx.nabla.outputCurrency
+            ...ctx.nabla,
+            outputAmountDecimal: ctx.nabla.outputAmountDecimal?.toString()
           }
         : undefined,
       notes: ctx.notes,
-      partner: ctx.partner
-        ? { discount: ctx.partner.discount ?? undefined, id: ctx.partner.id, name: ctx.partner.name ?? undefined }
-        : null,
+      offrampAmountBeforeAnchorFees,
+      onrampOutputAmountMoonbeamRaw: ctx.bridge?.outputAmountMoonbeamRaw ?? "0",
+      partner: ctx.partner,
       preNabla: {
         deductibleFeeAmount: ctx.preNabla.deductibleFeeAmount?.toString(),
         feeCurrency: ctx.preNabla.feeCurrency,
@@ -170,20 +168,15 @@ export class FinalizeEngine implements Stage {
         rampType: req.rampType,
         to: req.to
       },
-      targetFeeFiatCurrency: ctx.targetFeeFiatCurrency
-    };
-
-    const offrampAmountBeforeAnchorFees =
-      req.rampType === RampDirection.SELL ? new Big(outputAmountStr).plus(feeStruct.anchor).toFixed() : undefined;
-
-    // Build USD fee structure in QuoteFeeStructure shape (with currency)
-    const usdFeeStructure = {
-      anchor: ctx.fees.usd!.anchor,
-      currency: EvmToken.USDC,
-      network: ctx.fees.usd!.network,
-      partnerMarkup: ctx.fees.usd!.partnerMarkup,
-      total: ctx.fees.usd!.total,
-      vortex: ctx.fees.usd!.vortex
+      targetFeeFiatCurrency: ctx.targetFeeFiatCurrency,
+      usdFeeStructure,
+      ...(discountInfo && {
+        subsidy: {
+          discount: discountInfo.discount!,
+          partnerId: discountInfo.partnerId!,
+          subsidyAmountInOutputToken: discountInfo.subsidyAmountInOutputToken!
+        }
+      })
     };
 
     const record = await QuoteTicket.create({
@@ -192,22 +185,7 @@ export class FinalizeEngine implements Stage {
       from: req.from,
       inputAmount: typeof req.inputAmount === "string" ? req.inputAmount : String(req.inputAmount),
       inputCurrency: req.inputCurrency,
-      metadata: {
-        context: snapshot,
-        inputAmountForNablaSwapDecimal,
-        onrampOutputAmountMoonbeamRaw,
-        usdFeeStructure,
-        ...(offrampAmountBeforeAnchorFees ? { offrampAmountBeforeAnchorFees } : {}),
-        ...(discountInfo
-          ? {
-              subsidy: {
-                discount: discountInfo.discount!,
-                partnerId: discountInfo.partnerId!,
-                subsidyAmountInOutputToken: discountInfo.subsidyAmountInOutputToken!
-              }
-            }
-          : {})
-      } as any,
+      metadata,
       outputAmount: outputAmountStr,
       outputCurrency: req.outputCurrency,
       partnerId: ctx.partner?.id || null,
