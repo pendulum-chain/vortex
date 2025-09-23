@@ -143,7 +143,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
         );
         // TODO how do we stop the flow until avenia liveness is done?
         uploads.push(uploadFileAsBuffer(front, response.idUpload.uploadURLFront));
-        throw new Error("Liveness check not implemented yet");
       }
 
       await Promise.all(uploads);

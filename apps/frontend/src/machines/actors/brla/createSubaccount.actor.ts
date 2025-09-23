@@ -9,32 +9,25 @@ export const createSubaccountActor = fromPromise(
     const { taxId, kycFormData } = input;
 
     let subAccountId: string;
-
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
 
     try {
-      const { subAccountId: existingSubAccountId } = await BrlaService.getUser(taxId);
-      subAccountId = existingSubAccountId;
+      ({ subAccountId } = await BrlaService.getUser(taxId));
+      return { subAccountId };
     } catch (error: unknown) {
-      const err = error as { response?: { status: number; statusText: string } };
-      if (err.response?.status === 404) {
-        console.log("Debug: creating new Avenia subaccount");
+      console.log("Debug: failed to fetch existing Avenia subaccount", error);
+      const err = error as string;
+      console.log("type fo err", typeof String(err));
 
-        const { subAccountId: newSubAccountId } = await createSubaccount({
-          accountType: AveniaAccountType.INDIVIDUAL,
-          name: kycFormData.fullName,
-          taxId
-        });
-        subAccountId = newSubAccountId;
-      } else if (err.response && err.response.status >= 500) {
-        throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${err.response.statusText}`);
-      } else {
-        throw err;
-      }
+      ({ subAccountId } = await createSubaccount({
+        accountType: AveniaAccountType.INDIVIDUAL,
+        name: kycFormData.fullName,
+        taxId
+      }));
+
+      return { subAccountId };
     }
-
-    return { subAccountId };
   }
 );

@@ -128,6 +128,11 @@
       "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
     },
+    "brlaLiveness": {
+      "description": "por favor, continue com a verificação de vivacidade para completar o processo kyc",
+      "livenessDone": "Verificação de vivacidade concluída",
+      "openLivenessCheck": "Abrir verificação de vivacidade"
+    },
     "brlaSwapField": {
       "cpfOrCnpj": "CPF o CNPJ",
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",

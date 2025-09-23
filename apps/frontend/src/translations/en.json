@@ -128,6 +128,11 @@
       "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
       "title": "Fast-Track Verification"
     },
+    "brlaLiveness": {
+      "description": "please contine to with the liveness check to complete the kyc process",
+      "livenessDone": "Liveness Done",
+      "openLivenessCheck": "Open Liveness Check"
+    },
     "brlaSwapField": {
       "cpfOrCnpj": "CPF or CNPJ",
       "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
