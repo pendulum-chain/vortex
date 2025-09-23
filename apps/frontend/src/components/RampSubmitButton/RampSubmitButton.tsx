@@ -2,7 +2,6 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
-  getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   RampDirection,
@@ -13,7 +12,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
-import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
@@ -29,7 +27,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
-  const { address: accountAddress } = useVortexAccount();
 
   const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
