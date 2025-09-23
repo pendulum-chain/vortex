@@ -28,11 +28,19 @@ export function PublicKey({ publicKey, variant = "full", style, className }: Pub
     userSelect: "text",
     WebkitUserSelect: "text",
     whiteSpace: variant !== "full" ? "pre" : undefined,
+    ...(variant === "full" && {
+      maxWidth: "100%",
+      overflowWrap: "break-word",
+      wordBreak: "break-all"
+    }),
     ...style
   };
 
+  const baseClassName = variant === "full" ? "max-w-full break-all" : "";
+  const combinedClassName = className ? `${baseClassName} ${className}` : baseClassName;
+
   return (
-    <span className={className} style={spanStyle}>
+    <span className={combinedClassName} style={spanStyle}>
       {variant === "full"
         ? publicKey
         : publicKey.substring(0, digits.leading) + "…" + publicKey.substring(publicKey.length - digits.trailing)}
