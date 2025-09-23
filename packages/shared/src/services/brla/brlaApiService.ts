@@ -308,7 +308,8 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.KycLevel1, "POST", query, cleanedPayload);
   }
 
-  public async getKycAttempt(attemptId: string): Promise<GetKycAttemptResponse> {
-    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", undefined, undefined, attemptId);
+  public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
   }
 }

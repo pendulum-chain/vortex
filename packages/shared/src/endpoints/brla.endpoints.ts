@@ -10,7 +10,8 @@ export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
   BIRTHDATE = "birthdate",
-  UNKNOWN = "unknown"
+  UNKNOWN = "unknown",
+  TAX_ID = "tax_id"
 }
 
 // GET /brla/getUser?taxId=:taxId

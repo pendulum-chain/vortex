@@ -27,7 +27,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
       window.open(livenessUrl, "_blank");
       refreshClicked.current = false;
     }
-  }, [livenessUrl, refreshClicked.current]);
+  }, [livenessUrl]);
 
   const handleLivenessDone = () => {
     aveniaKycActor.send({ type: "LIVENESS_DONE" });

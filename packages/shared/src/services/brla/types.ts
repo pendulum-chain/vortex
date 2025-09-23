@@ -547,7 +547,7 @@ export interface KycAttempt {
 }
 
 export interface GetKycAttemptResponse {
-  attempt: KycAttempt;
+  attempts: KycAttempt[];
 }
 
 export interface CreateAveniaSubaccountRequest {

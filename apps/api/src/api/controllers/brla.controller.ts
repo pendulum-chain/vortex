@@ -47,6 +47,8 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
       return KycFailureReason.NAME;
     case "birthdate does not match":
       return KycFailureReason.BIRTHDATE;
+    case "tax id does not exist":
+      return KycFailureReason.TAX_ID;
     default:
       return KycFailureReason.UNKNOWN; // default
   }
@@ -300,8 +302,8 @@ export const fetchSubaccountKycStatus = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const kycAttemptStatus = await brlaApiService.getKycAttempt(taxIdRecord.subAccountId);
-
+    const kycAttemptStatuses = await brlaApiService.getKycAttempts(taxIdRecord.subAccountId);
+    const kycAttemptStatus = kycAttemptStatuses.attempts[0]; // Get the latest attempt
     if (!kycAttemptStatus) {
       const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
@@ -318,10 +320,10 @@ export const fetchSubaccountKycStatus = async (
     }
 
     res.status(httpStatus.OK).json({
-      failureReason: mapKycFailureReason(kycAttemptStatus.attempt.resultMessage),
-      level: kycAttemptStatus.attempt.levelName,
-      result: kycAttemptStatus.attempt.result,
-      status: kycAttemptStatus.attempt.status,
+      failureReason: mapKycFailureReason(kycAttemptStatus.resultMessage),
+      level: kycAttemptStatus.levelName,
+      result: kycAttemptStatus.result,
+      status: kycAttemptStatus.status,
       type: "KYC"
     });
   } catch (error) {
