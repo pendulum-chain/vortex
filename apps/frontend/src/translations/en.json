@@ -355,6 +355,9 @@
       "link": "Terms and Conditions",
       "text": "I have read and accept the"
     },
+    "transactionId": {
+      "label": "Transaction ID"
+    },
     "transactionStatusBanner": {
       "afterUrl": " for assistance. We're actively monitoring your transaction.",
       "beforeUrl": "Your transaction is still processing but taking longer than expected. If not completed within 30 minutes, please contact our ",

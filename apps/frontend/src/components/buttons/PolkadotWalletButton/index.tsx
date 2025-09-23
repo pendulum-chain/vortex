@@ -15,7 +15,7 @@ export function PolkadotWalletButton({
   const { walletAccount } = usePolkadotWalletState();
 
   return walletAccount ? (
-    <DisconnectModal variant={variant} />
+    <DisconnectModal customStyles={customStyles} variant={variant} />
   ) : (
     <PolkadotConnectWallet customStyles={customStyles} hideIcon={hideIcon} variant={variant} />
   );

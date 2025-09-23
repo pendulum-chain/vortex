@@ -1,4 +1,5 @@
-import { QuoteResponse, RampDirection } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
+import { WalletAccount } from "@talismn/connect-wallets";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -37,6 +38,7 @@ export type RampMachineEvents =
   | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
+  | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
@@ -133,6 +135,11 @@ export const rampMachine = setup({
     SET_INITIALIZE_FAILED_MESSAGE: {
       actions: assign({
         initializeFailedMessage: ({ event }) => event.message
+      })
+    },
+    SET_SUBSTRATE_WALLET_ACCOUNT: {
+      actions: assign({
+        substrateWalletAccount: ({ event }) => event.walletAccount
       })
     },
     SIGNING_UPDATE: {
