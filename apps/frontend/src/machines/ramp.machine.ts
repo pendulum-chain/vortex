@@ -91,7 +91,7 @@ export const rampMachine = setup({
             const cleanUrl = window.location.origin;
             window.history.replaceState({}, "", cleanUrl);
             resolve();
-          }, 5);
+          }, 1);
         })
     ),
     validateKyc: fromPromise(validateKycActor)

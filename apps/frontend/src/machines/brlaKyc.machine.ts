@@ -1,20 +1,46 @@
-import { assign, DoneActorEvent, setup } from "xstate";
+import { assign, DoneActorEvent, fromPromise, setup } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { KycStatus } from "../services/signingService";
+import { BrlaService } from "../services/api";
+import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
+import { createSubaccountActor } from "./actors/brla/createSubaccount.actor";
 import { decideInitialStateActor } from "./actors/brla/decideInitialState.actor";
 import { submitActor } from "./actors/brla/submitLevel1.actor";
 import { VerifyStatusActorOutput, verifyStatusActor } from "./actors/brla/verifyLevel1Status.actor";
 import { AveniaKycContext } from "./kyc.states";
 import { RampContext } from "./types";
 
+export enum AveniaKycMachineErrorType {
+  UserCancelled = "USER_CANCELLED",
+  UnknownError = "UNKNOWN_ERROR"
+}
+
+export class AveniaKycMachineError extends Error {
+  type: AveniaKycMachineErrorType;
+  constructor(message: string, type: AveniaKycMachineErrorType) {
+    super(message);
+    this.type = type;
+  }
+}
+
 export type UploadIds = {
   uploadedSelfieId: string;
   uploadedDocumentId: string;
+  livenessUrl: string;
 };
 
 export const aveniaKycMachine = setup({
   actors: {
+    createSubaccountActor,
     decideInitialStateActor,
+    refreshLivenessUrlActor: fromPromise(
+      async ({ input }: { input: { taxId?: string } }): Promise<{ livenessUrl: string; uploadedSelfieId: string }> => {
+        if (!input.taxId) {
+          throw new Error("taxId is required to refresh liveness URL");
+        }
+        const getLivenessResponse = await BrlaService.getSelfieLivenessUrl(input.taxId);
+        return { livenessUrl: getLivenessResponse.livenessUrl, uploadedSelfieId: getLivenessResponse.id };
+      }
+    ),
     submitActor,
     verifyStatusActor
   },
@@ -22,14 +48,17 @@ export const aveniaKycMachine = setup({
     context: {} as AveniaKycContext,
     events: {} as
       | { type: "FORM_SUBMIT"; formData: KYCFormData }
+      | { type: "LIVENESS_DONE" }
       | { type: "DOCUMENTS_SUBMIT"; documentsId: UploadIds }
       | { type: "CLOSE_SUCCESS_MODAL" }
       | { type: "CANCEL_RETRY" }
       | { type: "RETRY" }
       | { type: "DOCUMENTS_BACK" }
+      | { type: "LIVENESS_OPENED" }
+      | { type: "REFRESH_LIVENESS_URL" }
       | { type: "CANCEL" },
     input: {} as RampContext,
-    output: {} as { error?: any }
+    output: {} as { error?: AveniaKycMachineError }
   }
 }).createMachine({
   context: ({ input }) => ({ ...input }) as AveniaKycContext,
@@ -48,20 +77,23 @@ export const aveniaKycMachine = setup({
           actions: assign({
             documentUploadIds: ({ event }) => event.documentsId
           }),
-          target: "Submit"
+          target: "LivenessCheck"
         }
       }
     },
     Failure: {
       on: {
         CANCEL_RETRY: {
+          actions: assign({
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+          }),
           target: "Finish"
         },
         RETRY: {
-          target: "..."
+          target: "FormFilling"
         }
       }
-    }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
+    },
     Finish: {
       type: "final"
     },
@@ -69,7 +101,7 @@ export const aveniaKycMachine = setup({
       on: {
         CANCEL: {
           actions: assign({
-            error: ({ event }) => "User cancelled the operation"
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
           }),
           target: "Finish"
         },
@@ -78,18 +110,80 @@ export const aveniaKycMachine = setup({
           actions: assign({
             kycFormData: ({ event }) => event.formData
           }),
-          target: "DocumentUpload"
+          target: "SubaccountSetup"
         }
       }
     },
+    LivenessCheck: {
+      on: {
+        LIVENESS_DONE: {
+          guard: ({ context }) => context.livenessCheckOpened === true,
+          target: "Submit"
+        },
+        LIVENESS_OPENED: {
+          actions: assign({
+            livenessCheckOpened: () => true
+          })
+        },
+        REFRESH_LIVENESS_URL: {
+          target: "RefreshingLivenessUrl"
+        }
+      }
+    },
+    RefreshingLivenessUrl: {
+      invoke: {
+        input: ({ context }) => ({ taxId: context.kycFormData?.taxId }),
+        onDone: {
+          actions: assign({
+            documentUploadIds: ({ context, event }) => {
+              return {
+                ...(context.documentUploadIds as UploadIds),
+                livenessUrl: event.output.livenessUrl,
+                uploadedSelfieId: event.output.uploadedSelfieId
+              };
+            }
+          }),
+          target: "LivenessCheck"
+        },
+        onError: {
+          target: "LivenessCheck"
+        },
+        src: "refreshLivenessUrlActor"
+      }
+    },
+    // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.
     Rejected: {
       on: {
         CANCEL_RETRY: {
+          actions: assign({
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+          }),
           target: "Finish"
         },
         RETRY: {
-          target: "..."
+          target: "FormFilling"
         }
+      }
+    },
+    SubaccountSetup: {
+      invoke: {
+        input: ({ context }: { context: AveniaKycContext }) => context,
+        onDone: {
+          actions: assign({
+            subAccountId: ({ event }) => event.output.subAccountId
+          }),
+          target: "DocumentUpload"
+        },
+        onError: [
+          {
+            actions: assign({
+              error: ({ event }) =>
+                new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
+            }),
+            target: "Failure"
+          }
+        ],
+        src: "createSubaccountActor"
       }
     },
     Submit: {
@@ -102,13 +196,23 @@ export const aveniaKycMachine = setup({
         onDone: {
           target: "Verifying"
         },
-        onError: {
-          // Avenia-Migration: we must parse the error message, distinguish between Avenia rejections (invalid tax id for instance) or server/network issues.
-          actions: assign({
-            error: ({ event }) => (event.error as Error).message
-          }),
-          target: "Failure"
-        },
+        onError: [
+          {
+            actions: assign({
+              kycStatus: () => KycStatus.REJECTED,
+              rejectReason: ({ event }) => (event.error as Error).message
+            }),
+            guard: ({ event }) => event.error instanceof KycSubmissionRejectedError,
+            target: "Rejected"
+          },
+          {
+            actions: assign({
+              error: ({ event }) =>
+                new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
+            }),
+            target: "Failure"
+          }
+        ],
         src: "submitActor"
       }
     },
@@ -146,7 +250,8 @@ export const aveniaKycMachine = setup({
         ],
         onError: {
           actions: assign({
-            error: ({ event }) => (event.error as Error).message
+            error: ({ event }) =>
+              new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
           }),
           target: "Failure"
         },

@@ -15,6 +15,7 @@ import {
   AccountLimitsResponse,
   AveniaAccountInfoResponse,
   AveniaAccountType,
+  AveniaDocumentGetResponse,
   AveniaDocumentType,
   AveniaQuoteResponse,
   AveniaSubaccount,
@@ -94,7 +95,6 @@ export class BrlaApiService {
     const signatureBytes = privateKey.sign(md);
 
     const signatureBase64 = forge.util.encode64(signatureBytes);
-
     const headers = {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -230,13 +230,20 @@ export class BrlaApiService {
 
   public async getDocumentUploadUrls(
     documentType: AveniaDocumentType,
-    isDoubleSided: boolean
+    isDoubleSided: boolean,
+    subAccountId: string
   ): Promise<DocumentUploadResponse> {
     const payload: DocumentUploadRequest = {
       documentType,
       isDoubleSided
     };
-    return await this.sendRequest(Endpoint.Documents, "POST", undefined, payload);
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+  }
+
+  public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
@@ -296,10 +303,13 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
+    // remove subAccountId from payload as it's already in query
+    const cleanedPayload = { ...payload, subAccountId: undefined };
+    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, cleanedPayload);
   }
 
-  public async getKycAttempt(attemptId: string): Promise<GetKycAttemptResponse> {
-    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", undefined, undefined, attemptId);
+  public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
   }
 }

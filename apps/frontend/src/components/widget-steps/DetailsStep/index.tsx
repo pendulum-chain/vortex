@@ -1,4 +1,3 @@
-import { QuoteResponse } from "@packages/shared";
 import { FormProvider } from "react-hook-form";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";

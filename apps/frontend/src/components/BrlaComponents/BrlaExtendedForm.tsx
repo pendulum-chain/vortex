@@ -3,6 +3,7 @@ import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampStat
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { isValidCnpj } from "../../hooks/ramp/schema";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
 import { KYCForm } from "./KYCForm";
@@ -14,12 +15,11 @@ export const PIXKYCForm = () => {
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  if (!aveniaKycActor) return null;
-  if (!aveniaState) return null;
-
   const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
 
+  if (!aveniaState) return null;
+  if (!aveniaKycActor) return null;
   if (!aveniaState.context.taxId) {
     return null;
   }
@@ -135,6 +135,8 @@ export const PIXKYCForm = () => {
     content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else if (aveniaState.stateValue === "DocumentUpload") {
     content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
+  } else if (aveniaState.stateValue === "LivenessCheck" || aveniaState.stateValue === "RefreshingLivenessUrl") {
+    content = <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else {
     content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
   }

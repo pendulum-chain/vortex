@@ -505,7 +505,8 @@ export enum AveniaDocumentType {
   ID = "ID",
   DRIVERS_LICENSE = "DRIVERS-LICENSE",
   PASSPORT = "PASSPORT",
-  SELFIE = "SELFIE"
+  SELFIE = "SELFIE",
+  SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS"
 }
 
 export interface DocumentUploadRequest {
@@ -517,6 +518,8 @@ export interface DocumentUploadResponse {
   id: string;
   uploadURLFront: string;
   uploadURLBack?: string;
+  livenessUrl?: string;
+  validateLivenessToken?: string;
 }
 
 export enum KycAttemptStatus {
@@ -544,11 +547,29 @@ export interface KycAttempt {
 }
 
 export interface GetKycAttemptResponse {
-  attempt: KycAttempt;
+  attempts: KycAttempt[];
 }
 
 export interface CreateAveniaSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
+}
+
+export interface AveniaDocumentGetResponse {
+  documents: [
+    {
+      id: string;
+      documentType: string;
+      uploadURLFront: string;
+      uploadStatusFront: string;
+      uploadErrorFront: string;
+      uploadURLBack: string;
+      uploadStatusBack: string;
+      uploadErrorBack: string;
+      ready: true;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  ];
 }
