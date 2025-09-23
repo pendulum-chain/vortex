@@ -129,7 +129,7 @@
       "title": "Fast-Track Verification"
     },
     "brlaLiveness": {
-      "description": "please contine to with the liveness check to complete the kyc process",
+      "description": "Please contine to with the liveness check to complete the kyc process",
       "livenessDone": "Liveness Done",
       "openLivenessCheck": "Open Liveness Check"
     },

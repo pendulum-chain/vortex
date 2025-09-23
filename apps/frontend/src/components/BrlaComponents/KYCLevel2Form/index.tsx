@@ -91,13 +91,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     validateAndSetFile(file, setter, validSetter);
   };
 
-  const isSubmitDisabled =
-    loading || !selfieValid || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
+  const isSubmitDisabled = loading || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError("");
     if (
-      !selfieValid ||
       (docType === AveniaDocumentType.ID && (!frontValid || !backValid)) ||
       (docType === AveniaDocumentType.DRIVERS_LICENSE && !frontValid)
     ) {
@@ -113,7 +111,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
 
       const uploads: Promise<void>[] = [];
       if (docType === AveniaDocumentType.ID) {
-        if (!selfie || !front || !back) {
+        if (!front || !back) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
@@ -130,7 +128,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           uploadFileAsBuffer(back, response.idUpload.uploadURLBack!) // TODO.. why not returning uploadURLBack?
         );
       } else {
-        if (!selfie || !front) {
+        if (!front) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
@@ -188,12 +186,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
 
       <div className="grid grid-cols-1 gap-4">
-        {renderField(
-          t("components.documentUpload.fields.uploadSelfie"),
-          e => handleFileChange(e, setSelfie, setSelfieValid),
-          selfieValid,
-          CameraIcon
-        )}
         {docType === AveniaDocumentType.ID && (
           <>
             {renderField(

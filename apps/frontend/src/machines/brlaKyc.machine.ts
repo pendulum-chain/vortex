@@ -44,6 +44,7 @@ export const aveniaKycMachine = setup({
       | { type: "CANCEL_RETRY" }
       | { type: "RETRY" }
       | { type: "DOCUMENTS_BACK" }
+      | { type: "LIVENESS_OPENED" }
       | { type: "CANCEL" },
     input: {} as RampContext,
     output: {} as { error?: AveniaKycMachineError }
@@ -105,7 +106,13 @@ export const aveniaKycMachine = setup({
     LivenessCheck: {
       on: {
         LIVENESS_DONE: {
+          guard: ({ context }) => context.livenessCheckOpened === true,
           target: "Submit"
+        },
+        LIVENESS_OPENED: {
+          actions: assign({
+            livenessCheckOpened: () => true
+          })
         }
       }
     }, // Avenia-Migration: need to define exactly what happens UX wise. Retry? Get a new quote?.

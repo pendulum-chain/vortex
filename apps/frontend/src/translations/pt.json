@@ -129,7 +129,7 @@
       "title": "Verificação Rápida"
     },
     "brlaLiveness": {
-      "description": "por favor, continue com a verificação de vivacidade para completar o processo kyc",
+      "description": "Por favor, continue com a verificação de vivacidade para completar o processo kyc",
       "livenessDone": "Verificação de vivacidade concluída",
       "openLivenessCheck": "Abrir verificação de vivacidade"
     },
