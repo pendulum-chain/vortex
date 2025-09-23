@@ -11,12 +11,25 @@
       },
       "title": "Special offer until 27 May"
     },
+    "aveniaKYC": {
+      "buttons": {
+        "back": "Back",
+        "compareFees": "Compare Fees",
+        "finish": "Finish",
+        "next": "Next"
+      },
+      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
+      "title": "Fast-Track Verification"
+    },
     "aveniaLiveness": {
       "cameraWarning": "You'll need to allow camera access on the partner's page",
       "description": "Complete liveness check with our secure partner",
       "livenessDone": "Verification Complete",
       "openLivenessCheck": "Start Verification",
-      "title": "Liveness Check"
+      "title": "Liveness Check",
+      "troubleTextButton": "Click here",
+      "troubleTextPart1": "Having trouble? ",
+      "troubleTextPart2": " to try again in a new session."
     },
     "aveniaSwapField": {
       "cpfOrCnpj": "CPF or CNPJ",
@@ -114,6 +127,7 @@
           "tooOld": "Invalid company start date"
         },
         "state": {
+          "maxLength": "Use the 2-letter state code",
           "minLength": "State must be at least 2 characters",
           "required": "State is required"
         },

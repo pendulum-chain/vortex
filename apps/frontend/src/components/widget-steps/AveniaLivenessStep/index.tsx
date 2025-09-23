@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "motion/react";
 import React, { useEffect, useRef } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import livenessCheck from "../../../assets/liveness-check.svg";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 
@@ -73,26 +73,25 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
 
       <div className="mt-auto flex w-full gap-x-4 pt-4">
         {livenessCheckOpened ? (
-          <div className="justify-center">
+          <div className="flex w-full flex-col items-center gap-y-4">
             <motion.button
               animate={{ opacity: 1, y: 0 }}
-              className="btn-vortex-primary btn flex-1 px-8"
+              className="btn-vortex-primary btn w-full px-8"
               initial={{ opacity: 0, y: 20 }}
               onClick={handleLivenessDone}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
               {t("components.aveniaLiveness.livenessDone")}
             </motion.button>
-
-            <div className="text-center text-sm ">
+            <div className="text-center text-sm">
               <p>
-                <Trans i18nKey="components.brlaLiveness.troubleText">
-                  Having trouble?{" "}
+                <>
+                  {t("components.aveniaLiveness.troubleTextPart1")}
                   <button className="text-vortex-primary underline" onClick={handleRefreshUrl}>
-                    Click here
-                  </button>{" "}
-                  to try again in a new session.
-                </Trans>
+                    {t("components.aveniaLiveness.troubleTextButton")}
+                  </button>
+                  {t("components.aveniaLiveness.troubleTextPart2")}
+                </>
               </p>
             </div>
           </div>
