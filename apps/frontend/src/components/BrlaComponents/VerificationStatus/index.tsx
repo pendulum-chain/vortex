@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ActorRefFrom } from "xstate";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
@@ -56,7 +55,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
             initial={{ opacity: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            {aveniaState.context.error}
+            {aveniaState.context.error?.message}
           </motion.p>
 
           {aveniaState.context.kycStatus === KycStatus.REJECTED && aveniaState.context.rejectReason && (
