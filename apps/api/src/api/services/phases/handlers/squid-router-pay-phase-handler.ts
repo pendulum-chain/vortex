@@ -284,7 +284,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error("SquidRouterPayPhaseHandler: Invalid from or to network for Squidrouter status check");
       }
 
-      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId);
+      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
       return squidrouterStatus;
     } catch (error) {
       logger.error(`SquidRouterPayPhaseHandler: Error fetching Squidrouter status for swap hash ${swapHash}:`, error);

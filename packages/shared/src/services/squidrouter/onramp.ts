@@ -47,6 +47,7 @@ export interface OnrampTransactionData {
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   };
+  squidRouterQuoteId?: string;
 }
 
 export async function createOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<OnrampTransactionData> {
