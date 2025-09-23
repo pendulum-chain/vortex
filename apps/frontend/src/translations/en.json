@@ -11,6 +11,21 @@
       },
       "title": "Special offer until 27 May"
     },
+    "aveniaLiveness": {
+      "cameraWarning": "You'll need to allow camera access on the partner's page",
+      "description": "Complete liveness check with our secure partner",
+      "livenessDone": "Verification Complete",
+      "openLivenessCheck": "Start Verification",
+      "title": "Liveness Check"
+    },
+    "aveniaSwapField": {
+      "cpfOrCnpj": "CPF or CNPJ",
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "pixKey": "Pix key",
+      "placeholder": "Enter your {{label}}",
+      "walletAddress": "Wallet Address"
+    },
     "benefitsList": {
       "noHiddenFees": "No hidden fees",
       "takes5Minutes": "Takes <1>5 minutes</1>"
@@ -117,29 +132,6 @@
         "rejected": "KYC verification rejected",
         "success": "Verification successful"
       }
-    },
-    "brlaKYCForm": {
-      "buttons": {
-        "back": "Back",
-        "compareFees": "Compare Fees",
-        "finish": "Finish",
-        "next": "Next"
-      },
-      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
-      "title": "Fast-Track Verification"
-    },
-    "brlaLiveness": {
-      "description": "please contine to with the liveness check to complete the kyc process",
-      "livenessDone": "Liveness Done",
-      "openLivenessCheck": "Open Liveness Check"
-    },
-    "brlaSwapField": {
-      "cpfOrCnpj": "CPF or CNPJ",
-      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
-      "pixKey": "Pix key",
-      "placeholder": "Enter your {{label}}",
-      "walletAddress": "Wallet Address"
     },
     "detailsDescription": {
       "connectWallet": "Connect your wallet to continue the process",
