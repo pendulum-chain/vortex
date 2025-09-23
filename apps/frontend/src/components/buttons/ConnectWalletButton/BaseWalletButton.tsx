@@ -23,7 +23,9 @@ export const BaseWalletButton = ({
   address,
   hideIcon = false
 }: BaseWalletButtonProps) => {
+  console.log("DEBUG: customStyles", customStyles);
   const buttonStyles = getWalletButtonStyles(variant, customStyles);
+  console.log("DEBUG: buttonStyles", buttonStyles);
   const iconStyles = getIconStyles(variant);
   const textStyles = getTextStyles(variant);
 
