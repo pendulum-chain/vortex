@@ -1,6 +1,6 @@
 import { DestinationType, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
-import { QuoteTicketMetadata } from "../api/services/ramp/quote.service/types";
+import { QuoteTicketMetadata } from "../api/services/ramp/quote.service/core/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model

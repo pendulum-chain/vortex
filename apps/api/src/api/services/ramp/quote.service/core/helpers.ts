@@ -1,6 +1,6 @@
 import { DestinationType, Networks, RampCurrency, RampDirection } from "@packages/shared";
 import httpStatus from "http-status";
-import { APIError } from "../../../errors/api-error";
+import { APIError } from "../../../../errors/api-error";
 
 /**
  * Supported chains configuration for ramp operations

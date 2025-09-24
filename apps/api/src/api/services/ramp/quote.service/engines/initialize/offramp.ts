@@ -10,9 +10,9 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../../errors/api-error";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { getEvmBridgeQuote } from "../../gross-output";
-import { calculatePreNablaDeductibleFees } from "../../quote-fees";
-import { QuoteContext, Stage, StageKey } from "../../types";
+import { getEvmBridgeQuote } from "../../core/gross-output";
+import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampInitializeEngine implements Stage {
   readonly key = StageKey.OffRampInitialize;

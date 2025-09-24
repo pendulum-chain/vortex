@@ -25,10 +25,10 @@ import {
 import { ApiPromise } from "@polkadot/api";
 import { Big } from "big.js";
 import httpStatus from "http-status";
-import logger from "../../../../config/logger";
-import { APIError } from "../../../errors/api-error";
-import { multiplyByPowerOfTen } from "../../pendulum/helpers";
-import { priceFeedService } from "../../priceFeed.service";
+import logger from "../../../../../config/logger";
+import { APIError } from "../../../../errors/api-error";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { priceFeedService } from "../../../priceFeed.service";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;

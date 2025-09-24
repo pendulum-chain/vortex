@@ -4,9 +4,9 @@ import httpStatus from "http-status";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../../errors/api-error";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { trimTrailingZeros } from "../../helpers";
-import { QuoteContext, Stage, StageKey } from "../../types";
-import { validateAmountLimits } from "../../validation-helpers";
+import { trimTrailingZeros } from "../../core/helpers";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { validateAmountLimits } from "../../core/validation-helpers";
 
 export class OffRampFinalizeEngine implements Stage {
   readonly key = StageKey.OffRampFinalize;

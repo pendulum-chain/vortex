@@ -4,7 +4,7 @@
  */
 
 import { CreateQuoteRequest, DestinationType, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
-import { QuoteContext as IQuoteContext } from "../types";
+import { QuoteContext as IQuoteContext } from "./types";
 
 export class QuoteContext implements IQuoteContext {
   readonly request: CreateQuoteRequest;

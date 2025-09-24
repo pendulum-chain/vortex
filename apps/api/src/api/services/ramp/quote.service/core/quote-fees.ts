@@ -1,11 +1,11 @@
 import { DestinationType, QuoteError, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import logger from "../../../../config/logger";
-import Anchor from "../../../../models/anchor.model";
-import Partner from "../../../../models/partner.model";
-import { APIError } from "../../../errors/api-error";
-import { priceFeedService } from "../../priceFeed.service";
+import logger from "../../../../../config/logger";
+import Anchor from "../../../../../models/anchor.model";
+import Partner from "../../../../../models/partner.model";
+import { APIError } from "../../../../errors/api-error";
+import { priceFeedService } from "../../../priceFeed.service";
 import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 
 export interface CalculateFeeComponentsRequest {

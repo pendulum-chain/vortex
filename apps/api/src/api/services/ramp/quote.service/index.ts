@@ -4,9 +4,9 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import { APIError } from "../../../errors/api-error";
 import { BaseRampService } from "../base.service";
+import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./core/helpers";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
-import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
 import { RouteResolver } from "./routes/route-resolver";
 
 export class QuoteService extends BaseRampService {

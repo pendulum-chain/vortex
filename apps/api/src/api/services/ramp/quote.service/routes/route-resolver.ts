@@ -2,8 +2,8 @@
  * RouteResolver selects a route strategy based on direction and destination.
  */
 import { DestinationType, Networks, RampDirection } from "@packages/shared";
-import type { QuoteContext } from "../types";
-import { IRouteStrategy, RouteProfile } from "../types";
+import type { QuoteContext } from "../core/types";
+import { IRouteStrategy, RouteProfile } from "../core/types";
 import { OffRampCbuStrategy } from "./strategies/offramp-cbu.strategy";
 import { OffRampPixStrategy } from "./strategies/offramp-pix.strategy";
 import { OffRampSepaStrategy } from "./strategies/offramp-sepa.strategy";

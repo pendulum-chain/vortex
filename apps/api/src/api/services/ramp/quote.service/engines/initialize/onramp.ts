@@ -3,8 +3,8 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../../errors/api-error";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { calculatePreNablaDeductibleFees } from "../../quote-fees";
-import { QuoteContext, Stage, StageKey } from "../../types";
+import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampInitializeEngine implements Stage {
   readonly key = StageKey.OnRampInitialize;

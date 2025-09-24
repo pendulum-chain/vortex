@@ -1,6 +1,6 @@
 import { AssetHubToken, EvmToken, RampCurrency, RampDirection } from "@packages/shared";
-import { calculateNablaSwapOutput } from "../../gross-output";
-import { QuoteContext, Stage, StageKey } from "../../types";
+import { calculateNablaSwapOutput } from "../../core/gross-output";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSwapEngine implements Stage {
   readonly key = StageKey.OnRampSwap;

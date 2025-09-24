@@ -1,6 +1,6 @@
 import { RampDirection } from "@packages/shared";
 import Partner from "../../../../../../models/partner.model";
-import { QuoteContext, Stage, StageKey } from "../../types";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampDiscountEngine implements Stage {
   readonly key = StageKey.OffRampDiscount;

@@ -9,8 +9,8 @@ import {
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../../pendulum/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../gross-output";
-import { QuoteContext, Stage, StageKey } from "../../types";
+import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../core/gross-output";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
   readonly key = StageKey.OnRampSquidRouter;
