@@ -5,10 +5,6 @@ import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
 import webhookService from "../services/webhook/webhook.service";
 
-/**
- * Register a new webhook
- * @public
- */
 export const registerWebhook = async (
   req: Request<unknown, unknown, RegisterWebhookRequest>,
   res: Response<RegisterWebhookResponse>,
@@ -17,7 +13,6 @@ export const registerWebhook = async (
   try {
     const { url, transactionId, sessionId, events } = req.body;
 
-    // Validate required fields
     if (!url) {
       throw new APIError({
         message: "URL is required",
@@ -25,7 +20,6 @@ export const registerWebhook = async (
       });
     }
 
-    // Validate URL format
     try {
       const urlObj = new URL(url);
       if (urlObj.protocol !== "https:") {
@@ -41,7 +35,6 @@ export const registerWebhook = async (
       });
     }
 
-    // Validate that at least one subscription target is provided
     if (!transactionId && !sessionId) {
       throw new APIError({
         message: "Either transactionId or sessionId must be provided",
@@ -49,7 +42,6 @@ export const registerWebhook = async (
       });
     }
 
-    // Register webhook
     const webhook = await webhookService.registerWebhook({
       events,
       sessionId,
@@ -64,10 +56,6 @@ export const registerWebhook = async (
   }
 };
 
-/**
- * Delete a webhook
- * @public
- */
 export const deleteWebhook = async (
   req: Request<DeleteWebhookRequest>,
   res: Response<DeleteWebhookResponse>,
