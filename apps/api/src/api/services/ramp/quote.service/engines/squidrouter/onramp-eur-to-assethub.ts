@@ -1,41 +1,48 @@
-import { EvmToken, evmTokenConfig, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
+import {
+  AXL_USDC_MOONBEAM,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
+  EvmToken,
+  Networks,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../../pendulum/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../gross-output";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OnRampSquidRouterToEvmEngine implements Stage {
+export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
   readonly key = StageKey.OnRampSquidRouter;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    if (req.rampType !== RampDirection.BUY || req.to === "assethub") {
-      ctx.addNote?.("OnRampBridgeEngine: skipped");
+    if (req.rampType !== RampDirection.BUY || req.to !== "assethub") {
+      ctx.addNote?.("OnRampSquidRouterToAssetHubEngine: skipped");
       return;
     }
 
-    if (!ctx.nabla?.outputAmountDecimal || !ctx.nabla?.outputAmountRaw) {
-      throw new Error("OnRampBridgeEngine requires Nabla output in context");
-    }
-    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
-      throw new Error("OnRampBridgeEngine requires fees (usd + displayFiat) in context");
+    if (!ctx.preNabla.inputAmountForSwap) {
+      throw new Error("OnRampSquidRouterToAssetHubEngine requires preNabla.inputAmountForSwap");
     }
 
-    const toNetwork = getNetworkFromDestination(req.to);
-    if (!toNetwork) {
-      throw new Error(`OnRampBridgeEngine: invalid network for destination: ${req.to}`);
+    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
+      throw new Error("OnRampSquidRouterToAssetHubEngine requires fees (usd + displayFiat) in context");
     }
+
+    // The amount available for the squidrouter transfer from Polygon to Moonbeam
+    const bridgeAmount = ctx.preNabla.inputAmountForSwap.toFixed(2, 0);
+    const bridgeAmountRaw = multiplyByPowerOfTen(bridgeAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
 
     const bridgeRequest: EvmBridgeRequest = {
-      fromNetwork: Networks.Moonbeam,
-      inputCurrency: EvmToken.AXLUSDC,
-      intermediateAmountRaw: ctx.nabla.outputAmountRaw,
-      originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
-      outputCurrency: req.outputCurrency as OnChainToken,
+      fromNetwork: Networks.Polygon,
+      fromToken: ERC20_EURE_POLYGON,
+      intermediateAmountRaw: bridgeAmountRaw,
+      originalInputAmountForRateCalc: bridgeAmountRaw,
       rampType: req.rampType,
-      toNetwork
+      toNetwork: Networks.Moonbeam,
+      toToken: AXL_USDC_MOONBEAM
     };
 
     const preliminary = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
@@ -43,12 +50,12 @@ export class OnRampSquidRouterToEvmEngine implements Stage {
 
     const vortexFeeUsd = new Big(ctx.fees.usd.vortex);
     const partnerMarkupFeeUsd = new Big(ctx.fees.usd.partnerMarkup);
-    const outputAmountMoonbeamDecimal = new Big(ctx.nabla.outputAmountDecimal)
+    const outputAmountMoonbeamDecimal = new Big(bridgeAmount)
       .minus(vortexFeeUsd)
       .minus(partnerMarkupFeeUsd)
       .minus(squidRouterNetworkFeeUSD);
 
-    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
+    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, ERC20_EURE_POLYGON_DECIMALS).toString();
 
     bridgeRequest.intermediateAmountRaw = outputAmountMoonbeamRaw;
     const final = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
@@ -83,7 +90,7 @@ export class OnRampSquidRouterToEvmEngine implements Stage {
     ctx.fees.displayFiat.total = newDisplayTotal;
 
     ctx.addNote?.(
-      `OnRampBridgeEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${finalGrossOutputAmountDecimal.toString()}`
+      `OnRampSquidRouterToAssetHubEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${finalGrossOutputAmountDecimal.toString()}`
     );
   }
 }

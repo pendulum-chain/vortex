@@ -1,11 +1,19 @@
-import { EvmToken, evmTokenConfig, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
+import {
+  AXL_USDC_MOONBEAM,
+  EvmToken,
+  evmTokenConfig,
+  getNetworkFromDestination,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../../pendulum/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../gross-output";
+import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../gross-output";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OnRampSquidRouterToAssetHubEngine implements Stage {
+export class OnRampSquidRouterBrlToEvmEngine implements Stage {
   readonly key = StageKey.OnRampSquidRouter;
 
   async execute(ctx: QuoteContext): Promise<void> {
@@ -28,14 +36,16 @@ export class OnRampSquidRouterToAssetHubEngine implements Stage {
       throw new Error(`OnRampBridgeEngine: invalid network for destination: ${req.to}`);
     }
 
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
+
     const bridgeRequest: EvmBridgeRequest = {
       fromNetwork: Networks.Moonbeam,
-      inputCurrency: EvmToken.AXLUSDC,
+      fromToken: AXL_USDC_MOONBEAM,
       intermediateAmountRaw: ctx.nabla.outputAmountRaw,
       originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
-      outputCurrency: req.outputCurrency as OnChainToken,
       rampType: req.rampType,
-      toNetwork
+      toNetwork,
+      toToken
     };
 
     const preliminary = await calculateEvmBridgeAndNetworkFee(bridgeRequest);

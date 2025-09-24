@@ -1,10 +1,11 @@
 import { FiatToken } from "@packages/shared";
+import { OnRampDiscountEngine } from "../../engines/discount/onramp";
 import { OnRampFeeEngine } from "../../engines/fee/onramp";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampInitializeEngine } from "../../engines/initialize/onramp";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
 import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
-import { OnRampSquidRouterToEvmEngine } from "../../engines/squidrouter/onramp-to-evm";
+import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-brl-to-evm";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
 export class OnRampEvmStrategy implements IRouteStrategy {
@@ -31,8 +32,8 @@ export class OnRampEvmStrategy implements IRouteStrategy {
       [StageKey.OnRampInitialize]: new OnRampInitializeEngine(),
       [StageKey.OnRampSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampFee]: new OnRampFeeEngine(),
-      [StageKey.OnRampDiscount]: new OnRampFeeEngine(),
-      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterToEvmEngine(),
+      [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
+      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterBrlToEvmEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine(),
 
       [StageKey.SpecialOnrampEurEvm]: new SpecialOnrampEurEvmEngine()
