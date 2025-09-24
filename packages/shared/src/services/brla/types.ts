@@ -337,6 +337,7 @@ export enum BlockchainSendMethod {
 export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
+  subAccountId: string;
 }
 
 // /account/tickets endpoint related types

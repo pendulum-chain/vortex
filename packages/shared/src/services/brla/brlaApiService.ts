@@ -275,7 +275,8 @@ export class BrlaApiService {
       outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
       outputCurrency: BrlaCurrency.BRL,
       outputPaymentMethod: AveniaPaymentMethod.PIX,
-      outputThirdParty: String(quoteParams.outputThirdParty)
+      outputThirdParty: String(quoteParams.outputThirdParty),
+      subAccountId: quoteParams.subAccountId
     }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }

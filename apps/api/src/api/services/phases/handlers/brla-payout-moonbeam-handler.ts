@@ -87,7 +87,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       const amountForQuote = amount.round(2, 0); // Round down to 2 decimal places
       const payOutQuote = await brlaApiService.createPayOutQuote({
         outputAmount: amountForQuote.toString(),
-        outputThirdParty: false
+        outputThirdParty: false,
+        subAccountId: taxIdRecord.subAccountId
       });
 
       logger.debug("Debug: payOutQuote", payOutQuote);
