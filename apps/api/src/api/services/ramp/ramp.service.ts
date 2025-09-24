@@ -42,6 +42,7 @@ import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumE
 import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -345,6 +346,12 @@ export class RampService extends BaseRampService {
         unsignedTxs: rampState.unsignedTxs,
         updatedAt: rampState.updatedAt.toISOString()
       };
+
+      webhookDeliveryService
+        .triggerTransactionCreated(rampState.id, (additionalData?.sessionId as string) || null, quote.rampType)
+        .catch(error => {
+          logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
+        });
 
       return response;
     });
@@ -717,6 +724,25 @@ export class RampService extends BaseRampService {
         message: "BRL Ramp disabled",
         status: httpStatus.BAD_REQUEST
       });
+    }
+  }
+
+  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const oldPhase = rampState.currentPhase;
+
+    await super.logPhaseTransition(id, newPhase, metadata);
+
+    if (oldPhase !== newPhase) {
+      webhookDeliveryService
+        .triggerStatusChange(id, rampState.state.sessionId || null, newPhase, rampState.type)
+        .catch(error => {
+          logger.error(`Error triggering STATUS_CHANGE webhook for ${id}:`, error);
+        });
     }
   }
 }
