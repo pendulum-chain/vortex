@@ -12,6 +12,8 @@ import {
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusRequest,
   BrlaGetRampStatusResponse,
+  BrlaGetSelfieLivenessUrlRequest,
+  BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitRequest,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserRequest,
@@ -45,6 +47,8 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
       return KycFailureReason.NAME;
     case "birthdate does not match":
       return KycFailureReason.BIRTHDATE;
+    case "tax id does not exist":
+      return KycFailureReason.TAX_ID;
     default:
       return KycFailureReason.UNKNOWN; // default
   }
@@ -70,7 +74,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
   // Check in the error message if it's a 400 error from the BRLA API
   if (error instanceof Error && error.message.includes("status '400'")) {
     // Split the error message to get the actual error message from the BRLA API
-    const splitError = error.message.split("Error: ");
+    const splitError = error.message.split("Error: ", 1);
     if (splitError.length > 1) {
       const errorMessageString = splitError[1];
       try {
@@ -129,15 +133,13 @@ export const getAveniaUser = async (
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
       return;
     }
-    if (accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
-      return;
-    }
 
+    const kycLevel = accountInfo.accountInfo.identityStatus === "CONFIRMED" ? 1 : 0;
     res.json({
       evmAddress: accountInfo.wallets.find(w => w.chain === "EVM")?.walletAddress ?? "",
       identityStatus: accountInfo.accountInfo.identityStatus,
-      kycLevel: 1
+      kycLevel,
+      subAccountId: taxIdRecord.subAccountId
     });
     return;
   } catch (error) {
@@ -179,15 +181,25 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
     const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    console.log("Limits data from BRLA:", limitsData);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
       return;
     }
+    console.log(limitsData.limitInfo.limits);
 
     const brlLimits = limitsData.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
 
     if (!brlLimits) {
+      // Our current assumption is that BRL limits won't exist for an account without a KYC.
+      // But to be safe, we check the status and return a proper status.
+      const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
+        res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
+        return;
+      }
+
       res.status(httpStatus.NOT_FOUND).json({ error: "BRL limits not found" });
       return;
     }
@@ -290,8 +302,8 @@ export const fetchSubaccountKycStatus = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const kycAttemptStatus = await brlaApiService.getKycAttempt(taxIdRecord.subAccountId);
-
+    const kycAttemptStatuses = await brlaApiService.getKycAttempts(taxIdRecord.subAccountId);
+    const kycAttemptStatus = kycAttemptStatuses.attempts[0]; // Get the latest attempt
     if (!kycAttemptStatus) {
       const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
@@ -308,10 +320,10 @@ export const fetchSubaccountKycStatus = async (
     }
 
     res.status(httpStatus.OK).json({
-      failureReason: mapKycFailureReason(kycAttemptStatus.attempt.resultMessage),
-      level: kycAttemptStatus.attempt.levelName,
-      result: kycAttemptStatus.attempt.result,
-      status: kycAttemptStatus.attempt.status,
+      failureReason: mapKycFailureReason(kycAttemptStatus.resultMessage),
+      level: kycAttemptStatus.levelName,
+      result: kycAttemptStatus.result,
+      status: kycAttemptStatus.status,
       type: "KYC"
     });
   } catch (error) {
@@ -352,6 +364,44 @@ export const validatePixKey = async (
   }
 };
 
+export const getSelfieLivenessUrl = async (
+  req: Request<unknown, unknown, unknown, BrlaGetSelfieLivenessUrlRequest>,
+  res: Response<BrlaGetSelfieLivenessUrlResponse | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { taxId } = req.query;
+
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
+      AveniaDocumentType.SELFIE_FROM_LIVENESS,
+      false,
+      taxIdRecord.subAccountId
+    );
+
+    res.status(httpStatus.OK).json({
+      id: selfieUrl.id,
+      livenessUrl: selfieUrl.livenessUrl ?? "",
+      uploadURLFront: selfieUrl.uploadURLFront,
+      validateLivenessToken: selfieUrl.validateLivenessToken ?? ""
+    });
+  } catch (error) {
+    console.log(error);
+    handleApiError(error, res, "getSelfieLivenessUrl");
+  }
+};
+
 /**
  * Gets the upload URLs for KYC documents
  *
@@ -367,16 +417,42 @@ export const getUploadUrls = async (
   res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { documentType, isDoubleSided } = req.body;
+    const { documentType, taxId } = req.body;
+
+    if (!documentType) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing documentType" });
+      return;
+    }
+
+    if (documentType !== AveniaDocumentType.ID && documentType !== AveniaDocumentType.DRIVERS_LICENSE) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid documentType" });
+      return;
+    }
+
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      // Invalid state. Cannot happen since we create the subaccount first for every tax.
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
+      return;
+    }
 
     const brlaApiService = BrlaApiService.getInstance();
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE, isDoubleSided ?? false);
-
-    const idUrls = await brlaApiService.getDocumentUploadUrls(
-      AveniaDocumentType.ID, // AVENIA-MIGRATION: must verify which doc type is double sided, and maps to RG, CNH
-      isDoubleSided ?? false
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
+      AveniaDocumentType.SELFIE_FROM_LIVENESS,
+      false,
+      taxIdRecord.subAccountId
     );
+
+    // assume RG is double sided, CNH is not.
+    const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
+
+    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided, taxIdRecord.subAccountId);
 
     res.status(httpStatus.OK).json({
       idUpload: {
@@ -386,7 +462,9 @@ export const getUploadUrls = async (
       },
       selfieUpload: {
         id: selfieUrl.id,
-        uploadURLFront: selfieUrl.uploadURLFront
+        livenessUrl: selfieUrl.livenessUrl,
+        uploadURLFront: selfieUrl.uploadURLFront,
+        validateLivenessToken: selfieUrl.validateLivenessToken
       }
     });
   } catch (error) {
@@ -401,8 +479,14 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    //await 30 seconds
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    //await 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    const subAccountId = req.body.subAccountId;
+
+    // DEBUG get documents
+    const docs = await brlaApiService.getUploadedDocuments(subAccountId);
+    console.log("DEBUG: fetched documents: ", docs);
+
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);

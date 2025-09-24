@@ -44,8 +44,7 @@ async function pollTransactionStatus(id: string, sessionParams: IAnchorSessionPa
 }
 
 export async function sep24Second(sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams): Promise<SepResult> {
-  if (true) {
-    //TODO testing sleep 10 secs
+  if (config.test.mockSep24) {
     await new Promise(resolve => setTimeout(resolve, 10000));
     return {
       amount: sessionParams.offrampAmount,

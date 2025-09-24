@@ -5,6 +5,7 @@ import {
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusResponse,
+  BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
@@ -83,7 +84,23 @@ export class BrlaService {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
+  /**
+   * Get urls to upload KYC documents for a new subaccount
+   * @param request The subaccount creation request
+   * @returns The upload URLs and their corresponding IDs
+   */
   static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
     return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
+  }
+
+  /**
+   * Get a new liveness URL for selfie verification. Used for refreshing a stale one.
+   * @param request The subaccount creation request
+   * @returns The upload URLs and their corresponding IDs
+   */
+  static async getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse> {
+    return apiRequest<BrlaGetSelfieLivenessUrlResponse>("get", `${this.BASE_PATH}/getSelfieLivenessUrl`, undefined, {
+      params: { taxId }
+    });
   }
 }

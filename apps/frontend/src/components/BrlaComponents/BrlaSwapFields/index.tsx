@@ -33,6 +33,8 @@ const ONRAMP_FIELDS = [
 export const BrlaSwapFields: FC<{ isWalletAddressDisabled?: boolean }> = ({ isWalletAddressDisabled }) => {
   const { t } = useTranslation();
 
+  console.log("BrlaSwapFields");
+
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
 
@@ -48,19 +50,19 @@ export const BrlaSwapFields: FC<{ isWalletAddressDisabled?: boolean }> = ({ isWa
             id={field.id}
             index={field.index}
             key={field.id}
-            label={t(`components.brlaSwapField.${field.label}`)}
-            placeholder={t("components.brlaSwapField.placeholder", {
-              label: t(`components.brlaSwapField.${field.label}`)
+            label={t(`components.aveniaSwapField.${field.label}`)}
+            placeholder={t("components.aveniaSwapField.placeholder", {
+              label: t(`components.aveniaSwapField.${field.label}`)
             })}
           />
         ))}
         <div className="mt-2">
           {isOnramp ? (
-            <Trans i18nKey="components.brlaSwapField.disclaimerOnramp">
+            <Trans i18nKey="components.aveniaSwapField.disclaimerOnramp">
               CPF must belong to <b>you</b>.
             </Trans>
           ) : (
-            <Trans i18nKey="components.brlaSwapField.disclaimerOfframp">
+            <Trans i18nKey="components.aveniaSwapField.disclaimerOfframp">
               CPF and Pix key need to belong to the <b>same person</b>.
             </Trans>
           )}

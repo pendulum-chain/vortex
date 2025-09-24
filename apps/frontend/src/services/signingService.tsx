@@ -197,6 +197,34 @@ export const fetchKycStatus = async (taxId: string) => {
   return eventStatus;
 };
 
+export class SubaccountCreationRejectedError extends Error {
+  constructor(public reason: string) {
+    super(reason);
+    this.name = "SubaccountCreationRejectedError";
+  }
+}
+
+export class SubaccountCreationNetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SubaccountCreationNetworkError";
+  }
+}
+
+export class KycSubmissionRejectedError extends Error {
+  constructor(public reason: string) {
+    super(reason);
+    this.name = "KycSubmissionRejectedError";
+  }
+}
+
+export class KycSubmissionNetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "KycSubmissionNetworkError";
+  }
+}
+
 export const createSubaccount = async ({
   name,
   accountType,
@@ -211,11 +239,17 @@ export const createSubaccount = async ({
 
   if (accountCreationResponse.status === 400) {
     const { details } = await accountCreationResponse.json();
-    throw new Error("Failed to create user. Reason: " + details.error);
+    throw new SubaccountCreationRejectedError(details.error || "Sub-account creation was rejected.");
+  }
+
+  if (accountCreationResponse.status >= 500) {
+    throw new SubaccountCreationNetworkError(
+      `Failed to create sub-account due to a server error: ${accountCreationResponse.statusText}`
+    );
   }
 
   if (accountCreationResponse.status !== 200) {
-    throw new Error(`Failed to fetch KYC status from server: ${accountCreationResponse.statusText}`);
+    throw new SubaccountCreationNetworkError(`Failed to create sub-account: ${accountCreationResponse.statusText}`);
   }
 
   return await accountCreationResponse.json();
@@ -231,11 +265,15 @@ export const submitNewKyc = async (kycData: KycLevel1Payload): Promise<{ id: str
 
   if (response.status === 400) {
     const { details } = await response.json();
-    throw new Error("Failed to submit KYC. Reason: " + details.error);
+    throw new KycSubmissionRejectedError(details || "Submission was rejected.");
+  }
+
+  if (response.status >= 500) {
+    throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${response.statusText}`);
   }
 
   if (response.status !== 200) {
-    throw new Error(`Failed to submit KYC: ${response.statusText}`);
+    throw new KycSubmissionNetworkError(`Failed to submit KYC: ${response.statusText}`);
   }
 
   return await response.json();

@@ -142,13 +142,14 @@ async function createEvmSourceTransactions(
 ): Promise<Partial<StateMetadata>> {
   const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, inputTokenDetails } = params;
 
-  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } = await createOfframpSquidrouterTransactions({
-    fromAddress: userAddress,
-    fromNetwork,
-    inputTokenDetails,
-    pendulumAddressDestination: pendulumEphemeralAddress,
-    rawAmount: inputAmountRaw
-  });
+  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } =
+    await createOfframpSquidrouterTransactions({
+      fromAddress: userAddress,
+      fromNetwork,
+      inputTokenDetails,
+      pendulumAddressDestination: pendulumEphemeralAddress,
+      rawAmount: inputAmountRaw
+    });
 
   unsignedTxs.push({
     meta: {},
@@ -169,6 +170,7 @@ async function createEvmSourceTransactions(
   });
 
   return {
+    squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId
   };

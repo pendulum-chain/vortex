@@ -31,10 +31,10 @@ const WidgetContent = () => {
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
 
-  const { rampSummaryVisible } = useSelector(rampActor, state => ({
-    rampSummaryVisible:
-      state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
-  }));
+  const rampState = useSelector(rampActor, state => state.value);
+
+  const rampSummaryVisible =
+    rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
 
   const isMoneriumRedirect = useSelector(moneriumKycActor, state => {
     if (state) {

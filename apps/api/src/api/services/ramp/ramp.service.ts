@@ -243,7 +243,6 @@ export class RampService extends BaseRampService {
   }> {
     if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
-        await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -257,7 +256,6 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
-      await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -695,7 +693,7 @@ export class RampService extends BaseRampService {
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
-
+    console.log("DEBUG: created avenia quote: ", aveniaQuote);
     const aveniaTicket = await brlaApiService.createPixInputTicket({
       quoteToken: aveniaQuote.quoteToken,
       ticketBlockchainOutput: {
@@ -706,18 +704,8 @@ export class RampService extends BaseRampService {
         additionalData: generateReferenceLabel(quote)
       }
     });
-
+    console.log("DEBUG: created avenia ticket: ", aveniaTicket);
     return { aveniaTicketId: aveniaTicket.ticket.id, brCode: aveniaTicket.brlPixInputInfo.brCode };
-  }
-
-  public async validateBrlaWhitelistedAccount(taxId: string | undefined): Promise<void> {
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
-      throw new APIError({
-        message: "BRL Ramp disabled",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
   }
 }
 

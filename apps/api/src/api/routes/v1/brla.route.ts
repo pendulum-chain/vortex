@@ -12,6 +12,8 @@ router.route("/getRampStatus").get(brlaController.getRampStatus);
 
 router.route("/getKycStatus").get(brlaController.fetchSubaccountKycStatus);
 
+router.route("/getSelfieLivenessUrl").get(brlaController.getSelfieLivenessUrl);
+
 router.route("/validatePixKey").get(brlaController.validatePixKey);
 
 router.route("/createSubaccount").post(validateSubaccountCreation, brlaController.createSubaccount);
