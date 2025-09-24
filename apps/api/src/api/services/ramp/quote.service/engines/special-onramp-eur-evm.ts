@@ -126,7 +126,7 @@ export class SpecialOnrampEurEvmEngine implements Stage {
       vortex: "0"
     };
 
-    const response: QuoteResponse = {
+    ctx.builtResponse = {
       expiresAt: quote.expiresAt,
       fee: responseFeeStructure,
       from: quote.from,
@@ -138,9 +138,6 @@ export class SpecialOnrampEurEvmEngine implements Stage {
       rampType: quote.rampType,
       to: quote.to
     };
-
-    // Provide response through context and short-circuit further stages.
-    ctx.builtResponse = response;
-    ctx.addNote?.("SpecialOnrampEurEvmEngine: built response via Squidrouter (parity)");
+    ctx.addNote?.("SpecialOnrampEurEvmEngine: persisted quote and built response");
   }
 }

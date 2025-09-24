@@ -35,7 +35,7 @@ export class OnRampDiscountEngine implements Stage {
 
     const rate = discountPartner?.discount ?? 0;
 
-    ctx.discount = {
+    ctx.subsidy = {
       applied: rate > 0,
       partnerId: discountPartner?.id,
       rate: rate.toString()

@@ -53,6 +53,9 @@ export type EnginesRegistry = {
 export interface IRouteStrategy {
   // Ordered stages to execute for this route
   getStages(ctx: QuoteContext): StageKey[];
+
+  getEngines(ctx: QuoteContext): EnginesRegistry;
+
   // Optional: human-friendly name for logging
   readonly name: string;
 }
@@ -119,7 +122,7 @@ export interface QuoteContext {
     finalNetOutput?: Big; // after fees and discount
   };
 
-  discount?: {
+  subsidy?: {
     applied: boolean;
     rate: string;
     partnerId?: string;

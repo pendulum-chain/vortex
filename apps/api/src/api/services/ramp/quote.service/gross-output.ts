@@ -296,6 +296,8 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     rampType
   } = request;
 
+  console.log("Calculating EVM bridge and network fee with request:", request);
+
   try {
     // Get token details for final output currency
     const inputTokenDetails = getTokenDetailsForEvmDestination(inputCurrency, fromNetwork);

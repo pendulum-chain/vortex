@@ -3,7 +3,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../../errors/api-error";
-import { PriceFeedAdapter } from "../../adapters/price-feed-adapter";
+import { priceFeedService } from "../../../../priceFeed.service";
 import { trimTrailingZeros } from "../../helpers";
 import { QuoteContext, Stage, StageKey } from "../../types";
 import { validateAmountLimits } from "../../validation-helpers";
@@ -11,7 +11,7 @@ import { validateAmountLimits } from "../../validation-helpers";
 export class OnRampFinalizeEngine implements Stage {
   readonly key = StageKey.OnRampFinalize;
 
-  private price = new PriceFeedAdapter();
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -80,12 +80,12 @@ export class OnRampFinalizeEngine implements Stage {
 
     let discountSubsidyAmount = new Big(0);
 
-    if (ctx.discount?.applied && ctx.discount.rate) {
-      const rate = new Big(ctx.discount.rate);
+    if (ctx.subsidy?.applied && ctx.subsidy.rate) {
+      const rate = new Big(ctx.subsidy.rate);
       discountSubsidyAmount = finalNetOutputAmount.mul(rate);
       finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
 
-      ctx.discount.subsidyAmountInOutputToken = discountSubsidyAmount.toFixed(6, 0);
+      ctx.subsidy.subsidyAmountInOutputToken = discountSubsidyAmount.toFixed(6, 0);
     }
 
     const outputAmountStr = finalNetOutputAmount.toFixed(6, 0);

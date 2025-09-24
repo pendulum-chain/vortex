@@ -2,14 +2,14 @@ import { getNetworkFromDestination, getPendulumDetails, RampDirection } from "@p
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../../errors/api-error";
-import { PriceFeedAdapter } from "../../adapters/price-feed-adapter";
+import { priceFeedService } from "../../../../priceFeed.service";
 import { calculatePreNablaDeductibleFees } from "../../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
 export class OnRampInputPlannerEngine implements Stage {
   readonly key = StageKey.OnRampInputPlanner;
 
-  private price = new PriceFeedAdapter();
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -29,12 +29,7 @@ export class OnRampInputPlannerEngine implements Stage {
       ctx.partner?.id || undefined
     );
 
-    const fromNetwork = getNetworkFromDestination(req.from);
-    if (!fromNetwork) {
-      throw new APIError({ message: `Invalid source network: ${req.from}`, status: httpStatus.BAD_REQUEST });
-    }
-
-    const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
+    const representativeCurrency = getPendulumDetails(req.inputCurrency, undefined).currency;
     const preNablaFeeInRepInput = await this.price.convertCurrency(
       preNablaDeductibleFeeAmount.toString(),
       feeCurrency,

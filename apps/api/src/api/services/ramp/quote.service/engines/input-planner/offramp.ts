@@ -9,7 +9,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../../errors/api-error";
-import { PriceFeedAdapter } from "../../adapters/price-feed-adapter";
+import { priceFeedService } from "../../../../priceFeed.service";
 import { getEvmBridgeQuote } from "../../gross-output";
 import { calculatePreNablaDeductibleFees } from "../../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../types";
@@ -17,7 +17,7 @@ import { QuoteContext, Stage, StageKey } from "../../types";
 export class OffRampInputPlannerEngine implements Stage {
   readonly key = StageKey.OffRampInputPlanner;
 
-  private price = new PriceFeedAdapter();
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

@@ -1,11 +1,11 @@
 import { EvmToken, RampDirection } from "@packages/shared";
-import { PriceFeedAdapter } from "../../adapters/price-feed-adapter";
+import { priceFeedService } from "../../../../priceFeed.service";
 import { calculateFeeComponents } from "../../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
 export class OnRampFeeEngine implements Stage {
   readonly key = StageKey.OnRampFee;
-  private price = new PriceFeedAdapter();
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

@@ -1,11 +1,11 @@
-import { EvmToken, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
+import { EvmToken, evmTokenConfig, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../../pendulum/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../gross-output";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OnRampBridgeEngine implements Stage {
+export class OnRampBridgeToAssetHubEngine implements Stage {
   readonly key = StageKey.OnRampBridge;
 
   async execute(ctx: QuoteContext): Promise<void> {
@@ -29,8 +29,8 @@ export class OnRampBridgeEngine implements Stage {
     }
 
     const bridgeRequest: EvmBridgeRequest = {
-      fromNetwork: Networks.Polygon,
-      inputCurrency: req.inputCurrency as OnChainToken,
+      fromNetwork: Networks.Moonbeam,
+      inputCurrency: EvmToken.AXLUSDC,
       intermediateAmountRaw: ctx.nabla.outputAmountRaw,
       originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
       outputCurrency: req.outputCurrency as OnChainToken,

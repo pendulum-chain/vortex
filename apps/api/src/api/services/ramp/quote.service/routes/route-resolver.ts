@@ -15,7 +15,6 @@ const OFFRAMP_DESTS = new Set<DestinationType>(["pix", "sepa", "cbu"]);
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
     if (ctx.direction === RampDirection.BUY) {
-      // On-ramp
       if (ctx.to === Networks.AssetHub) {
         return new OnRampAssethubStrategy();
       }
@@ -23,7 +22,6 @@ export class RouteResolver {
       return new OnRampEvmStrategy();
     }
 
-    // Off-ramp
     if (!OFFRAMP_DESTS.has(ctx.to)) {
       // Fallback: default to SEPA strategy
       return new OffRampSepaStrategy();

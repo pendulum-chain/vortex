@@ -1,7 +1,12 @@
 import { FiatToken } from "@packages/shared";
-import { IRouteStrategy, QuoteContext, StageKey } from "../../types";
+import { OnRampBridgeToEvmEngine } from "../../engines/bridge/onramp-to-evm";
+import { OnRampFeeEngine } from "../../engines/fee/onramp";
+import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
+import { OnRampInputPlannerEngine } from "../../engines/input-planner/onramp";
+import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
+import { OnRampSwapEngine } from "../../engines/swap/onramp";
+import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
-// On-ramp to EVM strategy
 export class OnRampEvmStrategy implements IRouteStrategy {
   readonly name = "OnRampEvm";
 
@@ -19,5 +24,18 @@ export class OnRampEvmStrategy implements IRouteStrategy {
       StageKey.OnRampBridge,
       StageKey.OnRampFinalize
     ];
+  }
+
+  getEngines(_ctx: QuoteContext): EnginesRegistry {
+    return {
+      [StageKey.OnRampInputPlanner]: new OnRampInputPlannerEngine(),
+      [StageKey.OnRampSwap]: new OnRampSwapEngine(),
+      [StageKey.OnRampFee]: new OnRampFeeEngine(),
+      [StageKey.OnRampDiscount]: new OnRampFeeEngine(),
+      [StageKey.OnRampBridge]: new OnRampBridgeToEvmEngine(),
+      [StageKey.OnRampFinalize]: new OnRampFinalizeEngine(),
+
+      [StageKey.SpecialOnrampEurEvm]: new SpecialOnrampEurEvmEngine()
+    };
   }
 }

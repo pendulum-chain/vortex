@@ -3,7 +3,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../../errors/api-error";
-import { PriceFeedAdapter } from "../../adapters/price-feed-adapter";
+import { priceFeedService } from "../../../../priceFeed.service";
 import { trimTrailingZeros } from "../../helpers";
 import { QuoteContext, Stage, StageKey } from "../../types";
 import { validateAmountLimits } from "../../validation-helpers";
@@ -11,7 +11,7 @@ import { validateAmountLimits } from "../../validation-helpers";
 export class OffRampFinalizeEngine implements Stage {
   readonly key = StageKey.OffRampFinalize;
 
-  private price = new PriceFeedAdapter();
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
