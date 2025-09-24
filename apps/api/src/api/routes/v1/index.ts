@@ -18,6 +18,7 @@ import siweRoutes from "./siwe.route";
 import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
 import subsidizeRoutes from "./subsidize.route";
+import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
   stellar: unknown;
@@ -128,6 +129,12 @@ router.use("/maintenance", maintenanceRoutes);
  * GET v1/monerium
  */
 router.use("/monerium", moneriumRoutes);
+
+/**
+ * POST v1/webhooks
+ * DELETE v1/webhooks
+ */
+router.use("/webhooks", webhookRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
