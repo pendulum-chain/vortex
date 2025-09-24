@@ -1,8 +1,8 @@
 import { OffRampDiscountEngine } from "../../engines/discount/offramp";
 import { OffRampFeeEngine } from "../../engines/fee/offramp";
 import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
-import { OffRampInputPlannerEngine } from "../../engines/input-planner/offramp";
-import { OffRampSwapEngine } from "../../engines/swap/offramp";
+import { OffRampInitializeEngine } from "../../engines/initialize/offramp";
+import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
 export class OffRampCbuStrategy implements IRouteStrategy {
@@ -10,7 +10,7 @@ export class OffRampCbuStrategy implements IRouteStrategy {
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [
-      StageKey.OffRampInputPlanner,
+      StageKey.OffRampInitialize,
       StageKey.OffRampSwap,
       StageKey.OffRampFee,
       StageKey.OffRampDiscount,
@@ -20,7 +20,7 @@ export class OffRampCbuStrategy implements IRouteStrategy {
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OffRampInputPlanner]: new OffRampInputPlannerEngine(),
+      [StageKey.OffRampInitialize]: new OffRampInitializeEngine(),
       [StageKey.OffRampSwap]: new OffRampSwapEngine(),
       [StageKey.OffRampFee]: new OffRampFeeEngine(),
       [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),

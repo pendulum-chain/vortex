@@ -1,10 +1,10 @@
 import { FiatToken } from "@packages/shared";
-import { OnRampBridgeToEvmEngine } from "../../engines/bridge/onramp-to-evm";
 import { OnRampFeeEngine } from "../../engines/fee/onramp";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
-import { OnRampInputPlannerEngine } from "../../engines/input-planner/onramp";
+import { OnRampInitializeEngine } from "../../engines/initialize/onramp";
+import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
 import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
-import { OnRampSwapEngine } from "../../engines/swap/onramp";
+import { OnRampSquidRouterToEvmEngine } from "../../engines/squidrouter/onramp-to-evm";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
 export class OnRampEvmStrategy implements IRouteStrategy {
@@ -17,22 +17,22 @@ export class OnRampEvmStrategy implements IRouteStrategy {
     }
     // Non-EUR on-ramp to EVM goes through the modular pipeline
     return [
-      StageKey.OnRampInputPlanner,
+      StageKey.OnRampInitialize,
       StageKey.OnRampSwap,
       StageKey.OnRampFee,
       StageKey.OnRampDiscount,
-      StageKey.OnRampBridge,
+      StageKey.OnRampSquidRouter,
       StageKey.OnRampFinalize
     ];
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInputPlanner]: new OnRampInputPlannerEngine(),
+      [StageKey.OnRampInitialize]: new OnRampInitializeEngine(),
       [StageKey.OnRampSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampFee]: new OnRampFeeEngine(),
       [StageKey.OnRampDiscount]: new OnRampFeeEngine(),
-      [StageKey.OnRampBridge]: new OnRampBridgeToEvmEngine(),
+      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterToEvmEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine(),
 
       [StageKey.SpecialOnrampEurEvm]: new SpecialOnrampEurEvmEngine()

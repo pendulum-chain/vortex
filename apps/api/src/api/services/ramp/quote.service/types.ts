@@ -23,11 +23,11 @@ export enum RouteProfile {
 // Stage identifiers in the pipeline
 export enum StageKey {
   ValidateChainSupport = "ValidateChainSupport",
-  OnRampInputPlanner = "OnRampInputPlanner",
-  OffRampInputPlanner = "OffRampInputPlanner",
+  OnRampInitialize = "OnRampInitialize",
+  OffRampInitialize = "OffRampInitialize",
   OnRampSwap = "OnRampSwap",
   OffRampSwap = "OffRampSwap",
-  OnRampBridge = "OnRampBridge",
+  OnRampSquidRouter = "OnRampSquidRouter",
   OnRampFee = "OnRampFee",
   OffRampFee = "OffRampFee",
   OnRampDiscount = "OnRampDiscount",

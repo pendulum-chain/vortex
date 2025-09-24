@@ -1,8 +1,8 @@
-import { OnRampBridgeToAssetHubEngine } from "../../engines/bridge/onramp-to-assethub";
 import { OnRampFeeEngine } from "../../engines/fee/onramp";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
-import { OnRampInputPlannerEngine } from "../../engines/input-planner/onramp";
-import { OnRampSwapEngine } from "../../engines/swap/onramp";
+import { OnRampInitializeEngine } from "../../engines/initialize/onramp";
+import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
+import { OnRampSquidRouterToAssetHubEngine } from "../../engines/squidrouter/onramp-to-assethub";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../types";
 
 export class OnRampAssethubStrategy implements IRouteStrategy {
@@ -10,22 +10,22 @@ export class OnRampAssethubStrategy implements IRouteStrategy {
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [
-      StageKey.OnRampInputPlanner,
+      StageKey.OnRampInitialize,
       StageKey.OnRampSwap,
       StageKey.OnRampFee,
       StageKey.OnRampDiscount,
-      StageKey.OnRampBridge,
+      StageKey.OnRampSquidRouter,
       StageKey.OnRampFinalize
     ];
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInputPlanner]: new OnRampInputPlannerEngine(),
+      [StageKey.OnRampInitialize]: new OnRampInitializeEngine(),
       [StageKey.OnRampSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampFee]: new OnRampFeeEngine(),
       [StageKey.OnRampDiscount]: new OnRampFeeEngine(),
-      [StageKey.OnRampBridge]: new OnRampBridgeToAssetHubEngine(),
+      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterToAssetHubEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine()
     };
   }

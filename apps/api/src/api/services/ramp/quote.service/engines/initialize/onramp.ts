@@ -6,8 +6,8 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { calculatePreNablaDeductibleFees } from "../../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OnRampInputPlannerEngine implements Stage {
-  readonly key = StageKey.OnRampInputPlanner;
+export class OnRampInitializeEngine implements Stage {
+  readonly key = StageKey.OnRampInitialize;
 
   private price = priceFeedService;
 

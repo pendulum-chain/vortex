@@ -5,8 +5,8 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../gross-output";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OnRampBridgeToAssetHubEngine implements Stage {
-  readonly key = StageKey.OnRampBridge;
+export class OnRampSquidRouterToEvmEngine implements Stage {
+  readonly key = StageKey.OnRampSquidRouter;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

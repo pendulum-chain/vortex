@@ -14,8 +14,8 @@ import { getEvmBridgeQuote } from "../../gross-output";
 import { calculatePreNablaDeductibleFees } from "../../quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../types";
 
-export class OffRampInputPlannerEngine implements Stage {
-  readonly key = StageKey.OffRampInputPlanner;
+export class OffRampInitializeEngine implements Stage {
+  readonly key = StageKey.OffRampInitialize;
 
   private price = priceFeedService;
 
