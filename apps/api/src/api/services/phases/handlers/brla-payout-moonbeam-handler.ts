@@ -1,7 +1,6 @@
 import {
   BlockchainSendMethod,
   BrlaApiService,
-  BrlaPaymentMethod,
   checkEvmBalancePeriodically,
   getAnyFiatTokenDetailsMoonbeam,
   isFiatTokenEnum,
@@ -12,6 +11,7 @@ import {
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import TaxId from "../../../../models/taxId.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -40,6 +40,11 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       !moonbeamEphemeralAddress
     ) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
+    }
+
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
+      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: SubaccountId must exist at this stage. This is a bug.");
     }
 
     if (!isFiatTokenEnum(outputTokenType)) {
@@ -96,7 +101,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         }
       };
 
-      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams);
+      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
       // Avenia migration: implement a wait and check after the request, or ticket follow-up.
 
       return this.transitionToNextPhase(state, "complete");

@@ -1,8 +1,8 @@
 import {
   AccountMeta,
+  AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  BrlaPaymentMethod,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -686,26 +686,30 @@ export class RampService extends BaseRampService {
     const aveniaQuote = await brlaApiService.createPayInQuote({
       inputAmount: String(amount),
       inputCurrency: BrlaCurrency.BRL,
-      inputPaymentMethod: BrlaPaymentMethod.PIX,
+      inputPaymentMethod: AveniaPaymentMethod.PIX,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
     console.log("DEBUG: created avenia quote: ", aveniaQuote);
-    const aveniaTicket = await brlaApiService.createPixInputTicket({
-      quoteToken: aveniaQuote.quoteToken,
-      ticketBlockchainOutput: {
-        walletAddress: moonbeamEphemeralAddress,
-        walletChain: "Moonbeam"
+    const aveniaTicket = await brlaApiService.createPixInputTicket(
+      {
+        quoteToken: aveniaQuote.quoteToken,
+        ticketBlockchainOutput: {
+          walletAddress: moonbeamEphemeralAddress,
+          walletChain: AveniaPaymentMethod.MOONBEAM
+        },
+        ticketBrlPixInput: {
+          additionalData: generateReferenceLabel(quote)
+        }
       },
-      ticketBrlPixInput: {
-        additionalData: generateReferenceLabel(quote)
-      }
-    });
+      taxIdRecord.subAccountId
+    );
+
     console.log("DEBUG: created avenia ticket: ", aveniaTicket);
-    return { aveniaTicketId: aveniaTicket.ticket.id, brCode: aveniaTicket.brlPixInputInfo.brCode };
+    return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
   }
 }
 

@@ -306,7 +306,7 @@ export enum BrlaCurrency {
   USDM = "USDM"
 }
 
-export enum BrlaPaymentMethod {
+export enum AveniaPaymentMethod {
   PIX = "PIX",
   INTERNAL = "INTERNAL",
   BASE = "BASE",
@@ -320,10 +320,10 @@ export enum BrlaPaymentMethod {
 
 export interface PayInQuoteParams {
   inputCurrency: BrlaCurrency;
-  inputPaymentMethod: BrlaPaymentMethod;
+  inputPaymentMethod: AveniaPaymentMethod;
   inputAmount: string;
   outputCurrency: BrlaCurrency;
-  outputPaymentMethod: BrlaPaymentMethod;
+  outputPaymentMethod: AveniaPaymentMethod;
   inputThirdParty: boolean;
   outputThirdParty: boolean;
   subAccountId: string;
@@ -367,22 +367,9 @@ export interface PixInputTicketPayload {
 }
 
 export interface PixInputTicketOutput {
-  ticket: BaseTicket;
-  brlPixInputInfo: {
-    id: string;
-    ticketId: string;
-    referenceLabel: string;
-    additionalData: string;
-    brCode: string;
-  };
-  blockchainReceiverInfo: {
-    id: string;
-    ticketId: string;
-    walletAddress: string;
-    walletChain: string;
-    walletMemo: string;
-    txHash: string;
-  };
+  id: string;
+  brCode: string;
+  expiration: Date;
 }
 
 // TODO verify ticket endpoint outputs for this modality

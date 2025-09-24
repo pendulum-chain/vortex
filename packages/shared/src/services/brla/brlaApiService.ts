@@ -17,11 +17,11 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentType,
+  AveniaPaymentMethod,
   AveniaQuoteResponse,
   AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
-  BrlaPaymentMethod,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
@@ -269,29 +269,34 @@ export class BrlaApiService {
     const query = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
-      inputPaymentMethod: BrlaPaymentMethod.INTERNAL, // Subtract from user's account
+      inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
       inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
       outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
       outputCurrency: BrlaCurrency.BRL,
-      outputPaymentMethod: BrlaPaymentMethod.PIX,
+      outputPaymentMethod: AveniaPaymentMethod.PIX,
       outputThirdParty: String(quoteParams.outputThirdParty)
     }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
-  public async createPixInputTicket(payload: PixInputTicketPayload): Promise<PixInputTicketOutput> {
-    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
-    if ("brlPixInputInfo" in response) {
+  public async createPixInputTicket(payload: PixInputTicketPayload, subAccountId: string): Promise<PixInputTicketOutput> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
+    console.log("createPixInputTicket response", response);
+
+    if ("brCode" in response) {
       return response;
     }
     // To satisfy TypeScript
-    throw new Error("Invalid response from BRLA API for createPixInputTicket");
+    throw new Error("Invalid response from Avenia API for createPixInputTicket");
   }
 
-  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<{ id: string }> {
-    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+  public async createPixOutputTicket(payload: PixOutputTicketPayload, subAccountId: string): Promise<{ id: string }> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
+    // TODO not sure what the return object is, we need to check if our current assumption is correct
     if ("brlPixInputInfo" in response) {
-      throw new Error("Invalid response from BRLA API for createPixOutputTicket");
+      throw new Error("Invalid response from Avenia API for createPixOutputTicket");
     }
     return response;
   }
