@@ -560,3 +560,12 @@ export interface AveniaDocumentGetResponse {
     }
   ];
 }
+
+export interface AveniaAccountBalanceResponse {
+  balances: {
+    BRLA: number;
+    USDC: number;
+    USDM: number;
+    USDT: number;
+  };
+}

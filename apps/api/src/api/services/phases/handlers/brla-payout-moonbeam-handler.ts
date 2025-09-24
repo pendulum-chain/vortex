@@ -21,24 +21,10 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const {
-      taxId,
-      pixDestination,
-      outputAmountBeforeFinalStep,
-      brlaEvmAddress,
-      outputTokenType,
-      receiverTaxId,
-      moonbeamEphemeralAddress
-    } = state.state as StateMetadata;
+    const { taxId, pixDestination, outputAmountBeforeFinalStep, outputTokenType, receiverTaxId, moonbeamEphemeralAddress } =
+      state.state as StateMetadata;
 
-    if (
-      !taxId ||
-      !pixDestination ||
-      !outputAmountBeforeFinalStep ||
-      !brlaEvmAddress ||
-      !outputTokenType ||
-      !moonbeamEphemeralAddress
-    ) {
+    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType || !moonbeamEphemeralAddress) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -51,46 +37,60 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Invalid token type.");
     }
 
-    const tokenDetails = getAnyFiatTokenDetailsMoonbeam(outputTokenType);
+    const brlaApiService = BrlaApiService.getInstance();
 
-    const pollingTimeMs = 1000;
-    const maxWaitingTimeMs = 5 * 60 * 1000; // 5 minutes
+    const pollForSufficientBalance = async () => {
+      const pollInterval = 5000; // 5 seconds
+      const timeout = 5 * 60 * 1000; // 5 minutes
+      const startTime = Date.now();
+      let lastError: any;
 
-    try {
-      await checkEvmBalancePeriodically(
-        tokenDetails.polygonErc20Address,
-        brlaEvmAddress,
-        outputAmountBeforeFinalStep.raw,
-        pollingTimeMs,
-        maxWaitingTimeMs,
-        Networks.Polygon
-      );
-    } catch (balanceCheckError) {
-      if (balanceCheckError instanceof Error) {
-        if (balanceCheckError.message === "Balance did not meet the limit within the specified time") {
-          throw new Error(`BrlaPayoutOnMoonbeamPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
-        } else {
-          logger.error("Error checking Polygon balance:", balanceCheckError);
-          throw new Error("Error checking Polygon balance");
+      while (Date.now() - startTime < timeout) {
+        try {
+          const balanceResponse = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
+          if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
+            if (new Big(balanceResponse.balances.BRLA).gte(outputAmountBeforeFinalStep.units)) {
+              logger.info(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
+              return balanceResponse;
+            }
+            logger.info(
+              `Insufficient BRLA balance. Needed units: ${
+                outputAmountBeforeFinalStep.units
+              }, have (in units): ${new Big(balanceResponse.balances.BRLA).toString()}. Retrying in 5s...`
+            );
+          }
+        } catch (error) {
+          lastError = error;
+          logger.warn(`Polling for balance failed with error. Retrying...`, lastError);
         }
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
-    }
+      if (lastError) {
+        logger.error("BrlaPayoutOnMoonbeamPhaseHandler: Polling for balance failed: ", lastError);
+        throw lastError;
+      }
+      throw new Error(
+        `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${outputAmountBeforeFinalStep.units} units.`
+      );
+    };
+
+    await pollForSufficientBalance();
 
     try {
-      const amount = new Big(outputAmountBeforeFinalStep.units).mul(100); // BRLA understands raw amount with 2 decimal places.
-
-      const brlaApiService = BrlaApiService.getInstance();
-      const subaccount = await brlaApiService.subaccountInfo(taxId);
-
+      const amount = new Big(outputAmountBeforeFinalStep.units); // TODOBefore Avenia, this has to be multiplied by 100. Still relevant?
+      const subaccount = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!subaccount) {
-        throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount not found.");
+        throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount must exist.");
       }
       const subaccountEvmAddress = subaccount.wallets.filter(wallet => wallet.chain === "EVM")[0];
+
+      const amountForQuote = amount.round(2, 0); // Round down to 2 decimal places
       const payOutQuote = await brlaApiService.createPayOutQuote({
-        outputAmount: amount.toString(),
+        outputAmount: amountForQuote.toString(),
         outputThirdParty: false
       });
 
+      logger.debug("Debug: payOutQuote", payOutQuote);
       const payOutTicketParams: PixOutputTicketPayload = {
         quoteToken: payOutQuote.quoteToken,
         ticketBlockchainInput: {
@@ -102,6 +102,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       };
 
       const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
+      logger.debug("Debug: payOutTicketId", payOutTicketId);
+
       // Avenia migration: implement a wait and check after the request, or ticket follow-up.
 
       return this.transitionToNextPhase(state, "complete");

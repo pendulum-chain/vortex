@@ -13,6 +13,7 @@ import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
+  AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
@@ -316,5 +317,10 @@ export class BrlaApiService {
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
+  }
+
+  public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Balances, "GET", query);
   }
 }

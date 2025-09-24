@@ -1,6 +1,7 @@
 import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
+  AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaDocumentGetResponse,
   AveniaQuoteResponse,
@@ -49,7 +50,8 @@ export enum Endpoint {
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info",
   Documents = "/v2/documents",
-  GetKycAttempt = "/v2/kyc/attempts"
+  GetKycAttempt = "/v2/kyc/attempts",
+  Balances = "/v2/account/balances"
 }
 
 export interface EndpointMapping {
@@ -327,6 +329,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: GetKycAttemptResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Balances]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaAccountBalanceResponse;
     };
     PATCH: {
       body: undefined;
