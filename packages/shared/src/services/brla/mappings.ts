@@ -38,7 +38,7 @@ export enum Endpoint {
   AccountLimits = "/v2/account/limits",
   UsedLimit = "/used-limit",
   WebhookEvents = "/webhooks/events",
-  PixInfo = "/pay-out/pix-info",
+  PixInfo = "v2/account/bank-accounts/brl/pix-info",
   PixHistory = "/pay-in/pix/history",
   SwapHistory = "/swap/history",
   FastQuote = "/fast-quote",
