@@ -22,11 +22,11 @@ export enum RouteProfile {
 
 // Stage identifiers in the pipeline
 export enum StageKey {
-  ValidateChainSupport = "ValidateChainSupport",
   OnRampInitialize = "OnRampInitialize",
   OffRampInitialize = "OffRampInitialize",
   OnRampSwap = "OnRampSwap",
   OffRampSwap = "OffRampSwap",
+  OnRampHydration = "OnRampHydration",
   OnRampSquidRouter = "OnRampSquidRouter",
   OnRampFee = "OnRampFee",
   OffRampFee = "OffRampFee",
@@ -127,6 +127,13 @@ export interface QuoteContext {
     rate: string;
     partnerId?: string;
     subsidyAmountInOutputToken?: string;
+  };
+
+  hydration?: {
+    amountInRaw: string;
+    amountOutRaw: string;
+    assetIn: string;
+    assetOut: string;
   };
 
   // Accumulated logs/notes for debugging (optional)

@@ -12,6 +12,7 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
     assetSymbol: "USDC",
     decimals: 6,
     foreignAssetId: 1337,
+    hydrationId: "22",
     isNative: false,
     network: Networks.AssetHub,
     networkAssetIcon: "assethubUSDC",
@@ -22,6 +23,7 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
     assetSymbol: "USDT",
     decimals: 6,
     foreignAssetId: 1984,
+    hydrationId: "10",
     isNative: false,
     network: Networks.AssetHub,
     networkAssetIcon: "assethubUSDT",
@@ -31,6 +33,7 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
   [AssetHubToken.DOT]: {
     assetSymbol: "DOT",
     decimals: 10,
+    hydrationId: "5",
     isNative: true,
     network: Networks.AssetHub,
     networkAssetIcon: "assethubDOT",

@@ -1,5 +1,4 @@
-import { EvmClient, PoolService, Trade, TradeRouter } from "@galacticcouncil/sdk";
-import { TradeTxBuilder } from "@galacticcouncil/sdk/build/types/tx/TradeTxBuilder";
+import { EvmClient, PoolService, Trade, TradeRouter, TxBuilderFactory } from "@galacticcouncil/sdk";
 import { ApiManager } from "@packages/shared";
 
 export async function getBestSellPriceFor(assetIn: string, assetOut: string, amountIn: string) {
@@ -9,16 +8,10 @@ export async function getBestSellPriceFor(assetIn: string, assetOut: string, amo
 
   const poolService = new PoolService(api, evmClient);
   const tradeRouter = new TradeRouter(poolService);
-
-  // Get trade routes
-  const routes = await tradeRouter.getRoutes(assetIn, assetOut);
-
-  console.log("Available trade routes:", routes);
+  await poolService.syncRegistry();
 
   // Calculate spot price
-  const bestSellTrade = await tradeRouter.getBestSell(assetIn, assetOut, amountIn);
-
-  return bestSellTrade;
+  return await tradeRouter.getBestSell(assetIn, assetOut, amountIn);
 }
 
 export async function createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.5) {
@@ -26,8 +19,7 @@ export async function createTransactionForTrade(trade: Trade, beneficiaryAddress
   const { api } = await apiManager.getApi("hydration");
   const evmClient = new EvmClient(api);
 
-  const txBuilder = new TradeTxBuilder(api, evmClient);
-  txBuilder.setTrade(trade);
+  const txBuilder = new TxBuilderFactory(api, evmClient).trade(trade);
   txBuilder.withBeneficiary(beneficiaryAddress);
   txBuilder.withSlippage(slippage);
 

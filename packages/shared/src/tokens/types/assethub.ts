@@ -12,6 +12,7 @@ export interface AssetHubTokenDetails extends BaseTokenDetails {
   networkAssetIcon: string;
   network: Networks;
   foreignAssetId?: number;
+  hydrationId: string;
   isNative: boolean;
   pendulumRepresentative: PendulumTokenDetails;
 }

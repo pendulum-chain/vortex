@@ -290,8 +290,6 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
   const { intermediateAmountRaw, fromNetwork, toNetwork, fromToken, toToken, originalInputAmountForRateCalc, rampType } =
     request;
 
-  console.log("Calculating EVM bridge and network fee with request:", request);
-
   try {
     // Prepare route parameters for Squidrouter
     const routeParams = prepareSquidrouterRouteParams({

@@ -1,6 +1,7 @@
 {
   "author": "Pendulum Chain",
   "dependencies": {
+    "@galacticcouncil/api-augment": "^0.8.1",
     "@galacticcouncil/sdk": "^9.16.0",
     "@packages/shared": "workspace:*",
     "@pendulum-chain/api-solang": "catalog:",
