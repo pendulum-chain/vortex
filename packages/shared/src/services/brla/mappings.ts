@@ -4,6 +4,7 @@ import {
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaDocumentGetResponse,
+  AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   DepositLog,
@@ -20,6 +21,7 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketOutput,
   PixOutputTicketPayload,
   RegisterSubaccountPayload,
   SubaccountData,
@@ -282,11 +284,11 @@ export interface EndpointMapping {
   [Endpoint.Tickets]: {
     POST: {
       body: PixInputTicketPayload | PixOutputTicketPayload;
-      response: PixInputTicketOutput | { id: string };
+      response: PixInputTicketOutput | PixOutputTicketOutput;
     };
     GET: {
       body: undefined;
-      response: undefined;
+      response: { ticket: AveniaPayoutTicket };
     };
     PATCH: {
       body: undefined;

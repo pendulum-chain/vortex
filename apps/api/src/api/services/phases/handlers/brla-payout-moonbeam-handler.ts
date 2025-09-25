@@ -1,7 +1,9 @@
 import {
+  AveniaTicketStatus,
   BlockchainSendMethod,
   BrlaApiService,
   checkEvmBalancePeriodically,
+  FiatToken,
   getAnyFiatTokenDetailsMoonbeam,
   isFiatTokenEnum,
   Networks,
@@ -12,8 +14,26 @@ import Big from "big.js";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import TaxId from "../../../../models/taxId.model";
+import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+
+export enum CheckTicketStatusErrorType {
+  TicketFailed,
+  TimeoutWithError,
+  Timeout
+}
+
+export class CheckTicketStatusError extends Error {
+  public type: CheckTicketStatusErrorType;
+  public lastError?: string;
+
+  constructor(type: CheckTicketStatusErrorType, lastError?: string) {
+    super();
+    this.type = type;
+    this.lastError = lastError;
+  }
+}
 
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -21,10 +41,17 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, pixDestination, outputAmountBeforeFinalStep, outputTokenType, receiverTaxId, moonbeamEphemeralAddress } =
-      state.state as StateMetadata;
+    const {
+      taxId,
+      pixDestination,
+      outputAmountBeforeFinalStep,
+      outputTokenType,
+      receiverTaxId,
+      moonbeamEphemeralAddress,
+      payOutTicketId
+    } = state.state as StateMetadata;
 
-    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType || !moonbeamEphemeralAddress) {
+    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -38,6 +65,30 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     }
 
     const brlaApiService = BrlaApiService.getInstance();
+
+    // We need to check for existing ticket, recovery scenario
+    if (payOutTicketId) {
+      try {
+        await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+        return this.transitionToNextPhase(state, "complete");
+      } catch (error) {
+        if (error instanceof CheckTicketStatusError) {
+          switch (error.type) {
+            case CheckTicketStatusErrorType.TicketFailed:
+              throw this.createUnrecoverableError(`BrlaPayoutOnMoonbeamPhaseHandler: Ticket failed: ${error.message}`);
+            case CheckTicketStatusErrorType.Timeout:
+              logger.error(
+                "BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ",
+                error.lastError
+              );
+              throw this.createRecoverableError(error.message);
+            case CheckTicketStatusErrorType.TimeoutWithError:
+              throw this.createUnrecoverableError(error.message);
+          }
+        }
+        throw error;
+      }
+    }
 
     const pollForSufficientBalance = async () => {
       const pollInterval = 5000; // 5 seconds
@@ -77,7 +128,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     await pollForSufficientBalance();
 
     try {
-      const amount = new Big(outputAmountBeforeFinalStep.units); // TODOBefore Avenia, this has to be multiplied by 100. Still relevant?
+      const amount = new Big(outputAmountBeforeFinalStep.units);
       const subaccount = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!subaccount) {
         throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount must exist.");
@@ -104,14 +155,81 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
 
       const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
       logger.debug("Debug: payOutTicketId", payOutTicketId);
+      // Update the state with the transaction hashes
+      await state.update({
+        state: {
+          ...state.state,
+          payOutTicketId
+        }
+      });
 
       // Avenia migration: implement a wait and check after the request, or ticket follow-up.
-
-      return this.transitionToNextPhase(state, "complete");
+      try {
+        await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+        return this.transitionToNextPhase(state, "complete");
+      } catch (error) {
+        if (error instanceof CheckTicketStatusError) {
+          switch (error.type) {
+            case CheckTicketStatusErrorType.TicketFailed:
+              throw this.createUnrecoverableError(`BrlaPayoutOnMoonbeamPhaseHandler: Ticket failed: ${error.message}`);
+            case CheckTicketStatusErrorType.Timeout:
+              logger.error(
+                "BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ",
+                error.lastError
+              );
+              throw this.createRecoverableError(error.message);
+            case CheckTicketStatusErrorType.TimeoutWithError:
+              throw this.createUnrecoverableError(error.message);
+          }
+        }
+        throw error;
+      }
     } catch (e) {
       console.error("Error in brlaPayoutOnMoonbeam", e);
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
     }
+  }
+
+  protected async checkTicketStatus({
+    ticketId,
+    subAccountId
+  }: {
+    ticketId: string;
+    subAccountId: string;
+  }): Promise<AveniaTicketStatus> {
+    const brlaApiService = BrlaApiService.getInstance();
+    const pollInterval = 5000; // 5 seconds
+    const timeout = 5 * 60 * 1000; // 5 minutes
+    const startTime = Date.now();
+    let lastError: any;
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const ticket = await brlaApiService.getAveniaPayoutTicket(ticketId, subAccountId);
+        if (ticket && ticket.status) {
+          logger.info("Debug: fetched ticket", ticket);
+          if (ticket.status === AveniaTicketStatus.PAID) {
+            return AveniaTicketStatus.PAID;
+          }
+          if (ticket.status === AveniaTicketStatus.FAILED) {
+            throw new CheckTicketStatusError(CheckTicketStatusErrorType.TicketFailed);
+          }
+        }
+      } catch (error) {
+        if (error instanceof CheckTicketStatusError && error.type === CheckTicketStatusErrorType.TicketFailed) {
+          throw error;
+        }
+        lastError = error;
+        logger.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    if (lastError) {
+      throw new CheckTicketStatusError(CheckTicketStatusErrorType.TimeoutWithError, lastError);
+    }
+
+    throw new CheckTicketStatusError(CheckTicketStatusErrorType.Timeout);
   }
 }
 

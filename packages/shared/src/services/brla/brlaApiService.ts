@@ -19,6 +19,7 @@ import {
   AveniaDocumentGetResponse,
   AveniaDocumentType,
   AveniaPaymentMethod,
+  AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   BlockchainSendMethod,
@@ -323,5 +324,11 @@ export class BrlaApiService {
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return await this.sendRequest(Endpoint.Balances, "GET", query);
+  }
+
+  public async getAveniaPayoutTicket(ticketId: string, subAccountId: string): Promise<AveniaPayoutTicket> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const { ticket } = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
+    return ticket;
   }
 }

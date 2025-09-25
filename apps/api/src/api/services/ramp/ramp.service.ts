@@ -605,45 +605,68 @@ export class RampService extends BaseRampService {
     pixKey: string,
     receiverTaxId: string,
     amount: string
-  ): Promise<SubaccountData> {
+  ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
 
-    if (!subaccount) {
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
       throw new APIError({
-        message: "Subaccount not found.",
+        message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
+      });
+    }
+    const subAccountData = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    if (!subaccountLimits) {
+      throw new APIError({
+        message: "Failed to fetch subaccount limits",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
     // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
-    try {
-      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
+    // try {
+    //   //const pixKeyData = await brlaApiService.validatePixKey(pixKey);
 
-      //validate the recipient's taxId with partial information
-      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
-        throw new APIError({
-          message: "Invalid pixKey or receiverTaxId.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    } catch (_error) {
+    //   //validate the recipient's taxId with partial information
+    //   if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+    //     throw new APIError({
+    //       message: "Invalid pixKey or receiverTaxId.",
+    //       status: httpStatus.BAD_REQUEST
+    //     });
+    //   }
+    // } catch (_error) {
+    //   throw new APIError({
+    //     message: "Invalid pixKey or receiverTaxId.",
+    //     status: httpStatus.BAD_REQUEST
+    //   });
+    // }
+
+    const brlLimits = subaccountLimits.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
+    if (!brlLimits) {
       throw new APIError({
-        message: "Invalid pixKey or receiverTaxId.",
-        status: httpStatus.BAD_REQUEST
+        message: "BRL limits not found.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
-    const limitBurn = subaccount.kyc.limits.limitBurn;
-
-    if (Number(amount) > limitBurn) {
+    if (Number(amount) > Number(brlLimits.maxFiatOut)) {
       throw new APIError({
         message: "Amount exceeds limit.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    return subaccount;
+    const evmAddress = subAccountData?.wallets.find(w => w.chain === "EVM")?.walletAddress;
+
+    if (!evmAddress) {
+      throw new APIError({
+        message: "EVM wallet not found in subaccount.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    return { brCode: subAccountData.brCode, wallets: { evm: evmAddress } };
   }
 
   /**

@@ -340,15 +340,22 @@ export interface PayOutQuoteParams {
   subAccountId: string;
 }
 
+export enum AveniaTicketStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  FAILED = "FAILED"
+}
+
 // /account/tickets endpoint related types
 export interface BaseTicket {
   id: string;
-  status: string;
+  status: AveniaTicketStatus;
+  userId: string;
   reason: string;
   failureReason: string;
-  createdAt: string;
-  updatedAt: string;
-  expiresAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+  expiresAt: Date;
   quote: {
     id: string;
     ticketId: string;
@@ -373,6 +380,10 @@ export interface PixInputTicketOutput {
   expiration: Date;
 }
 
+export interface PixOutputTicketOutput {
+  id: string;
+}
+
 // TODO verify ticket endpoint outputs for this modality
 export interface PixOutputTicketPayload {
   quoteToken: string;
@@ -391,8 +402,7 @@ export interface PixOutputTicketPayload {
   };
 }
 
-export interface PixOutputTicketOutput {
-  ticket: BaseTicket;
+export interface AveniaPayoutTicket extends BaseTicket {
   brazilianFiatReceiverInfo: {
     id: string;
     ticketId: string;
@@ -423,6 +433,7 @@ export interface PixOutputTicketOutput {
     personalSignature: string;
     personalSignatureDeadline: number;
   };
+  RefundableParameter: string;
 }
 
 // Limit types
