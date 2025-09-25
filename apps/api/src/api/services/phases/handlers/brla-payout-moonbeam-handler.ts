@@ -48,10 +48,11 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       outputTokenType,
       receiverTaxId,
       moonbeamEphemeralAddress,
-      payOutTicketId
+      payOutTicketId,
+      outputAmount
     } = state.state as StateMetadata;
 
-    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType) {
+    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType || !outputAmount) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -128,7 +129,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     await pollForSufficientBalance();
 
     try {
-      const amount = new Big(outputAmountBeforeFinalStep.units);
+      const amount = new Big(outputAmount);
       const subaccount = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!subaccount) {
         throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount must exist.");
