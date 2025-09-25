@@ -7,13 +7,14 @@ import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
 import { AveniaField, AveniaFieldProps, ExtendedAveniaFieldOptions } from "../AveniaField";
 
-interface KYCFormProps {
+interface AveniaVerificationFormProps {
   fields: AveniaFieldProps[];
   form: UseFormReturn<KYCFormData>;
   aveniaKycActor: AveniaKycActorRef;
+  isCompany?: boolean;
 }
 
-export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
+export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany = false }: AveniaVerificationFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
@@ -27,7 +28,9 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
         onSubmit={handleSubmit(() => aveniaKycActor.send({ formData: form.getValues(), type: "FORM_SUBMIT" }))}
         transition={{ duration: 0.3 }}
       >
-        <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("components.aveniaKYC.title")}</h1>
+        <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">
+          {isCompany ? t("components.aveniaKYB.title") : t("components.aveniaKYC.title")}
+        </h1>
         <div className="grid grid-cols-2 gap-4">
           {fields.map(field => (
             <AveniaField
@@ -46,20 +49,22 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
             />
           ))}
         </div>
-        <div className="mt-4 text-center text-primary-500">
-          <Trans
-            components={{
-              a: <a className="underline" href="https://www.brla.digital" rel="noreferrer" target="_blank" />
-            }}
-            i18nKey="components.aveniaKYC.description"
-          >
-            Complete these quick identity checks (typically 90 seconds). Data is processed securely by{" "}
-            <a className="underline" href="https://www.brla.digital" rel="noreferrer" target="_blank">
-              BRLA
-            </a>{" "}
-            using bank-grade encryption for transaction security.
-          </Trans>
-        </div>
+        {!isCompany && (
+          <div className="mt-4 text-center text-primary-500">
+            <Trans
+              components={{
+                a: <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank" />
+              }}
+              i18nKey={"components.aveniaKYC.description"}
+            >
+              Complete these quick identity checks (typically 90 seconds). Data is processed securely by{" "}
+              <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                Avenia
+              </a>{" "}
+              using bank-grade encryption for transaction security.
+            </Trans>
+          </div>
+        )}
         <div className="mt-8 mb-8 grid gap-3">
           <div className="flex gap-3">
             <button
@@ -67,10 +72,14 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
               onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
               type="button"
             >
-              {t("components.aveniaKYC.buttons.back")}
+              {isCompany ? t("components.aveniaKYB.buttons.back") : t("components.aveniaKYC.buttons.back")}
             </button>
             <button className="btn-vortex-primary btn flex-1" type="submit" {...buttonProps}>
-              {isMaintenanceDisabled ? buttonProps.title : t("components.aveniaKYC.buttons.next")}
+              {isMaintenanceDisabled
+                ? buttonProps.title
+                : isCompany
+                  ? t("components.aveniaKYB.buttons.next")
+                  : t("components.aveniaKYC.buttons.next")}
             </button>
           </div>
         </div>

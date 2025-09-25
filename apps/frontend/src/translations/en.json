@@ -11,15 +11,21 @@
       },
       "title": "Special offer until 27 May"
     },
+    "aveniaKYB": {
+      "buttons": {
+        "back": "Back",
+        "next": "Next"
+      },
+      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
+      "title": "KYB Verification"
+    },
     "aveniaKYC": {
       "buttons": {
         "back": "Back",
-        "compareFees": "Compare Fees",
         "finish": "Finish",
         "next": "Next"
       },
-      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
-      "title": "Fast-Track Verification"
+      "title": "KYC Verification"
     },
     "aveniaLiveness": {
       "cameraWarning": "You'll need to allow camera access on the partner's page",

@@ -6,11 +6,11 @@ import { useQuote } from "../../stores/quote/useQuoteStore";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
-import { KYCForm } from "./KYCForm";
+import { AveniaVerificationForm } from "./AveniaVerificationForm";
 import { DocumentUpload } from "./KYCLevel2Form";
 import { VerificationStatus } from "./VerificationStatus";
 
-export const PIXKYCForm = () => {
+export const AveniaKYCForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
@@ -138,7 +138,9 @@ export const PIXKYCForm = () => {
   } else if (aveniaState.stateValue === "LivenessCheck" || aveniaState.stateValue === "RefreshingLivenessUrl") {
     content = <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else {
-    content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
+    content = (
+      <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} isCompany={false} />
+    );
   }
 
   return (

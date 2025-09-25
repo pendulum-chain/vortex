@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
-import { ExtendedAveniaFieldOptions } from "../../../components/BrlaComponents/AveniaField";
+import { ExtendedAveniaFieldOptions } from "../../../components/Avenia/AveniaField";
 import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 

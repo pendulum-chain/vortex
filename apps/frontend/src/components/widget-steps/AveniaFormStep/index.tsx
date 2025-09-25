@@ -1,5 +1,5 @@
 import { cn } from "../../../helpers/cn";
-import { AveniaKycEligibilityFields } from "../../BrlaComponents/AveniaKycEligibilityFields";
+import { AveniaKycEligibilityFields } from "../../Avenia/AveniaKycEligibilityFields";
 
 export interface BrazilDetailsFormProps {
   className?: string;
