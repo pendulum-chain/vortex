@@ -9,25 +9,23 @@ export type RampFormValues = {
   walletAddress?: string;
 };
 
-const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
-const cnpjRegex = /^(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})$/;
+export const CPF_REGEX = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
+export const CNPJ_REGEX = /^(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})$/;
+export const PHONE_REGEX = /^\+[1-9][0-9]\d{1,14}$/;
+export const EMAIL_REGEX =
+  /^(([^<>()[\]\\.,;:\s@"]+(.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+export const RANDOM_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 export function isValidCnpj(cnpj: string): boolean {
-  return cnpjRegex.test(cnpj);
+  return CNPJ_REGEX.test(cnpj);
 }
 
 export function isValidCpf(cpf: string): boolean {
-  return cpfRegex.test(cpf);
+  return CPF_REGEX.test(cpf);
 }
 
 // Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
-const pixKeyRegex = [
-  cpfRegex,
-  cnpjRegex,
-  /^\+[1-9][0-9]\d{1,14}$/, // Phone
-  /^(([^<>()[\]\\.,;:\s@"]+(.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, // Email
-  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ // Random
-];
+const pixKeyRegex = [CPF_REGEX, CNPJ_REGEX, PHONE_REGEX, EMAIL_REGEX, RANDOM_REGEX];
 
 export const createRampFormSchema = (t: (key: string) => string, rampDirection: RampDirection) => {
   return Yup.object<RampFormValues>().shape({

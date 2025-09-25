@@ -5,10 +5,10 @@ import { Trans, useTranslation } from "react-i18next";
 import { KYCFormData } from "../../../hooks/brla/useKYCForm";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
-import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from "../BrlaField";
+import { AveniaField, AveniaFieldProps, ExtendedAveniaFieldOptions } from "../AveniaField";
 
 interface KYCFormProps {
-  fields: BrlaFieldProps[];
+  fields: AveniaFieldProps[];
   form: UseFormReturn<KYCFormData>;
   aveniaKycActor: AveniaKycActorRef;
 }
@@ -30,14 +30,14 @@ export const KYCForm = ({ form, fields, aveniaKycActor }: KYCFormProps) => {
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">{t("components.aveniaKYC.title")}</h1>
         <div className="grid grid-cols-2 gap-4">
           {fields.map(field => (
-            <BrlaField
+            <AveniaField
               className={
                 [
-                  ExtendedBrlaFieldOptions.PIX_ID,
-                  ExtendedBrlaFieldOptions.TAX_ID,
-                  ExtendedBrlaFieldOptions.FULL_NAME,
-                  ExtendedBrlaFieldOptions.COMPANY_NAME
-                ].includes(field.id as ExtendedBrlaFieldOptions)
+                  ExtendedAveniaFieldOptions.PIX_ID,
+                  ExtendedAveniaFieldOptions.TAX_ID,
+                  ExtendedAveniaFieldOptions.FULL_NAME,
+                  ExtendedAveniaFieldOptions.COMPANY_NAME
+                ].includes(field.id as ExtendedAveniaFieldOptions)
                   ? "col-span-2"
                   : ""
               }

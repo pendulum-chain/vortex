@@ -1,11 +1,9 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
-import { ExtendedBrlaFieldOptions } from "../../../components/BrlaComponents/BrlaField";
-import { useRampActor } from "../../../contexts/rampState";
+import { ExtendedAveniaFieldOptions } from "../../../components/BrlaComponents/AveniaField";
 import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { isValidCnpj, isValidCpf } from "../../ramp/schema";
 
@@ -20,7 +18,7 @@ const getEnumInitialValues = (enumType: Record<string, string>): Record<string, 
 const createKycFormSchema = (t: (key: string) => string) =>
   yup
     .object({
-      [ExtendedBrlaFieldOptions.TAX_ID]: yup
+      [ExtendedAveniaFieldOptions.TAX_ID]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.taxId.required"))
         .test("is-valid-tax-id", t("components.brlaExtendedForm.validation.taxId.format"), value => {
@@ -29,37 +27,37 @@ const createKycFormSchema = (t: (key: string) => string) =>
           }
           return isValidCpf(value) || isValidCnpj(value);
         }),
-      [ExtendedBrlaFieldOptions.PIX_ID]: yup.string().required(t("components.brlaExtendedForm.validation.pixId.required")),
+      [ExtendedAveniaFieldOptions.PIX_ID]: yup.string().required(t("components.brlaExtendedForm.validation.pixId.required")),
 
-      [ExtendedBrlaFieldOptions.FULL_NAME]: yup
+      [ExtendedAveniaFieldOptions.FULL_NAME]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.fullName.required"))
         .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
         .matches(/^[a-zA-Z\s]*$/, t("components.brlaExtendedForm.validation.fullName.format")),
 
-      [ExtendedBrlaFieldOptions.CEP]: yup
+      [ExtendedAveniaFieldOptions.CEP]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.cep.required"))
         .min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
 
-      [ExtendedBrlaFieldOptions.CITY]: yup
+      [ExtendedAveniaFieldOptions.CITY]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.city.required"))
         .min(5, t("components.brlaExtendedForm.validation.city.minLength")),
 
-      [ExtendedBrlaFieldOptions.STATE]: yup
+      [ExtendedAveniaFieldOptions.STATE]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.state.required"))
         .max(2, t("components.brlaExtendedForm.validation.state.maxLength")),
 
-      [ExtendedBrlaFieldOptions.STREET]: yup
+      [ExtendedAveniaFieldOptions.STREET]: yup
         .string()
         .required(t("components.brlaExtendedForm.validation.street.required"))
         .min(5, t("components.brlaExtendedForm.validation.street.minLength")),
 
-      [ExtendedBrlaFieldOptions.NUMBER]: yup.string().required(t("components.brlaExtendedForm.validation.number.required")),
+      [ExtendedAveniaFieldOptions.NUMBER]: yup.string().required(t("components.brlaExtendedForm.validation.number.required")),
 
-      [ExtendedBrlaFieldOptions.BIRTHDATE]: yup
+      [ExtendedAveniaFieldOptions.BIRTHDATE]: yup
         .date()
         .transform((value, originalValue) => {
           return originalValue === "" ? undefined : value;
@@ -68,11 +66,11 @@ const createKycFormSchema = (t: (key: string) => string) =>
         .max(new Date(), t("components.brlaExtendedForm.validation.birthdate.future"))
         .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.birthdate.tooOld")),
 
-      [ExtendedBrlaFieldOptions.COMPANY_NAME]: yup
+      [ExtendedAveniaFieldOptions.COMPANY_NAME]: yup
         .string()
         .min(3, t("components.brlaExtendedForm.validation.companyName.minLength")),
 
-      [ExtendedBrlaFieldOptions.START_DATE]: yup
+      [ExtendedAveniaFieldOptions.START_DATE]: yup
         .date()
         .transform((value, originalValue) => {
           return originalValue === "" ? undefined : value;
@@ -80,10 +78,10 @@ const createKycFormSchema = (t: (key: string) => string) =>
         .max(new Date(), t("components.brlaExtendedForm.validation.startDate.future"))
         .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.startDate.tooOld")),
 
-      [ExtendedBrlaFieldOptions.PARTNER_CPF]: yup
+      [ExtendedAveniaFieldOptions.PARTNER_CPF]: yup
         .string()
         .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format")),
-      [ExtendedBrlaFieldOptions.EMAIL]: yup
+      [ExtendedAveniaFieldOptions.EMAIL]: yup
         .string()
         .email(t("components.brlaExtendedForm.validation.email.format"))
         .required(t("components.brlaExtendedForm.validation.email.required"))
@@ -96,48 +94,45 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const taxIdFromStore = useTaxId();
   const pixIdFromStore = usePixId();
-  const rampActor = useRampActor();
-  const { executionInput } = useSelector(rampActor, state => ({
-    executionInput: state.context.executionInput
-  }));
+
   const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
   const kycFormSchema = createKycFormSchema(t);
 
   const kycForm = useForm<KYCFormData>({
     defaultValues: {
-      ...getEnumInitialValues(ExtendedBrlaFieldOptions),
-      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || "",
-      [ExtendedBrlaFieldOptions.PIX_ID]: pixIdFromStore || ""
+      ...getEnumInitialValues(ExtendedAveniaFieldOptions),
+      [ExtendedAveniaFieldOptions.TAX_ID]: taxIdFromStore || "",
+      [ExtendedAveniaFieldOptions.PIX_ID]: pixIdFromStore || ""
     },
     mode: "onBlur",
     resolver: yupResolver(kycFormSchema)
   });
 
-  const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
-  const watchedPixId = kycForm.watch(ExtendedBrlaFieldOptions.PIX_ID);
+  const watchedCpf = kycForm.watch(ExtendedAveniaFieldOptions.TAX_ID);
+  const watchedPixId = kycForm.watch(ExtendedAveniaFieldOptions.PIX_ID);
 
   useEffect(() => {
     if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
       setTaxId(watchedCpf);
     }
-  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, rampActor]);
+  }, [watchedCpf, taxIdFromStore, setTaxId]);
 
   useEffect(() => {
     if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
       setPixId(watchedPixId);
     }
-  }, [watchedPixId, pixIdFromStore, setPixId, executionInput, rampActor]);
+  }, [watchedPixId, pixIdFromStore, setPixId]);
 
   useEffect(() => {
     if (cpfApiError) {
-      kycForm.setError(ExtendedBrlaFieldOptions.TAX_ID, {
+      kycForm.setError(ExtendedAveniaFieldOptions.TAX_ID, {
         message: t("components.brlaExtendedForm.kycFailureReasons.invalidTaxId"),
         type: "invalidTaxId"
       });
     } else {
-      if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === "invalidTaxId") {
-        kycForm.clearErrors(ExtendedBrlaFieldOptions.TAX_ID);
+      if (kycForm.formState.errors[ExtendedAveniaFieldOptions.TAX_ID]?.type === "invalidTaxId") {
+        kycForm.clearErrors(ExtendedAveniaFieldOptions.TAX_ID);
       }
     }
   }, [t, cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
