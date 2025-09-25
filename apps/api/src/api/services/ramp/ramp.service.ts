@@ -650,7 +650,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    if (Number(amount) > Number(brlLimits.maxFiatOut)) {
+    if (Number(amount) > Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut)) {
       throw new APIError({
         message: "Amount exceeds limit.",
         status: httpStatus.BAD_REQUEST
@@ -697,9 +697,9 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-    const { maxFiatIn } = brlaLimits[0] || {};
+    const { maxFiatIn, usedLimit } = brlaLimits[0] || {};
 
-    if (Number(amount) > Number(maxFiatIn)) {
+    if (Number(amount) > Number(maxFiatIn) - Number(usedLimit.usedFiatIn)) {
       throw new APIError({
         message: "Amount exceeds KYC limits.",
         status: httpStatus.BAD_REQUEST
