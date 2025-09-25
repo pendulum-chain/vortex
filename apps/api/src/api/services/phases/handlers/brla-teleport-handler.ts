@@ -19,15 +19,17 @@ import { StateMetadata } from "../meta-state-types";
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+// Phase description: wait for the tokens to arrive at the Moonbeam ephemeral address.
+// If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
 export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "brlaTeleport";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
+    const { moonbeamEphemeralAddress, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
 
-    if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
+    if (!moonbeamEphemeralAddress || !inputAmountBeforeSwapRaw) {
       throw new Error("BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
