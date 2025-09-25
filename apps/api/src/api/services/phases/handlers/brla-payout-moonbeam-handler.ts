@@ -18,23 +18,6 @@ import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
-export enum CheckTicketStatusErrorType {
-  TicketFailed,
-  TimeoutWithError,
-  Timeout
-}
-
-export class CheckTicketStatusError extends Error {
-  public type: CheckTicketStatusErrorType;
-  public lastError?: string;
-
-  constructor(type: CheckTicketStatusErrorType, lastError?: string) {
-    super();
-    this.type = type;
-    this.lastError = lastError;
-  }
-}
-
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "brlaPayoutOnMoonbeam";
@@ -69,26 +52,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
 
     // We need to check for existing ticket, recovery scenario
     if (payOutTicketId) {
-      try {
-        await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
-        return this.transitionToNextPhase(state, "complete");
-      } catch (error) {
-        if (error instanceof CheckTicketStatusError) {
-          switch (error.type) {
-            case CheckTicketStatusErrorType.TicketFailed:
-              throw this.createUnrecoverableError(`BrlaPayoutOnMoonbeamPhaseHandler: Ticket failed: ${error.message}`);
-            case CheckTicketStatusErrorType.Timeout:
-              logger.error(
-                "BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ",
-                error.lastError
-              );
-              throw this.createRecoverableError(error.message);
-            case CheckTicketStatusErrorType.TimeoutWithError:
-              throw this.createUnrecoverableError(error.message);
-          }
-        }
-        throw error;
-      }
+      await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      return this.transitionToNextPhase(state, "complete");
     }
 
     const pollForSufficientBalance = async () => {
@@ -165,29 +130,11 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       });
 
       // Avenia migration: implement a wait and check after the request, or ticket follow-up.
-      try {
-        await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
-        return this.transitionToNextPhase(state, "complete");
-      } catch (error) {
-        if (error instanceof CheckTicketStatusError) {
-          switch (error.type) {
-            case CheckTicketStatusErrorType.TicketFailed:
-              throw this.createUnrecoverableError(`BrlaPayoutOnMoonbeamPhaseHandler: Ticket failed: ${error.message}`);
-            case CheckTicketStatusErrorType.Timeout:
-              logger.error(
-                "BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ",
-                error.lastError
-              );
-              throw this.createRecoverableError(error.message);
-            case CheckTicketStatusErrorType.TimeoutWithError:
-              throw this.createUnrecoverableError(error.message);
-          }
-        }
-        throw error;
-      }
+      await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      return this.transitionToNextPhase(state, "complete");
     } catch (e) {
       console.error("Error in brlaPayoutOnMoonbeam", e);
-      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
+      throw this.createUnrecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
     }
   }
 
@@ -213,11 +160,11 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
             return AveniaTicketStatus.PAID;
           }
           if (ticket.status === AveniaTicketStatus.FAILED) {
-            throw new CheckTicketStatusError(CheckTicketStatusErrorType.TicketFailed);
+            throw this.createUnrecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Ticket status is FAILED");
           }
         }
       } catch (error) {
-        if (error instanceof CheckTicketStatusError && error.type === CheckTicketStatusErrorType.TicketFailed) {
+        if (error instanceof PhaseError) {
           throw error;
         }
         lastError = error;
@@ -227,10 +174,13 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     }
 
     if (lastError) {
-      throw new CheckTicketStatusError(CheckTicketStatusErrorType.TimeoutWithError, lastError);
+      logger.error("BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ", lastError);
+      throw this.createUnrecoverableError(
+        `BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ${lastError.message}`
+      );
     }
 
-    throw new CheckTicketStatusError(CheckTicketStatusErrorType.Timeout);
+    throw this.createRecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out.");
   }
 }
 
