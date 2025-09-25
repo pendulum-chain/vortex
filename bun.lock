@@ -17,6 +17,7 @@
       "name": "vortex-backend",
       "version": "1.0.0",
       "dependencies": {
+        "@galacticcouncil/api-augment": "^0.8.1",
         "@galacticcouncil/sdk": "^9.16.0",
         "@packages/shared": "workspace:*",
         "@pendulum-chain/api-solang": "catalog:",
@@ -673,6 +674,8 @@
     "@fastify/busboy": ["@fastify/busboy@3.1.1", "", {}, "sha512-5DGmA8FTdB2XbDeEwc/5ZXBl6UbBAyBOOLlPuBnZ/N1SwdH9Ii+cOX3tBROlDgcTXxjOYnLMVoKk9+FXAw0CJw=="],
 
     "@fontsource/roboto": ["@fontsource/roboto@5.2.6", "", {}, "sha512-hzarG7yAhMoP418smNgfY4fO7UmuUEm5JUtbxCoCcFHT0hOJB+d/qAEyoNjz7YkPU5OjM2LM8rJnW8hfm0JLaA=="],
+
+    "@galacticcouncil/api-augment": ["@galacticcouncil/api-augment@0.8.1", "", {}, "sha512-Wb2Fify+4MJKpCbIBTCNZkMV0zULjn79WIuRvk3u1Nybu2DHAP/6t+Gi6Q9cd9KfjYoBNLwghArlnFytk1mtkQ=="],
 
     "@galacticcouncil/math-hsm": ["@galacticcouncil/math-hsm@1.1.0", "", {}, "sha512-S6dGohpr+TejaFc4+heMQbp/r7PWUJLDotocCVC5XIJLfMwfwQgqifU9rg5rzwdrhWNUaqLX02D2ya6ouJt/Eg=="],
 
