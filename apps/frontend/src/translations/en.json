@@ -13,15 +13,24 @@
     },
     "aveniaKYB": {
       "buttons": {
-        "back": "Back",
+        "cancel": "Cancel",
+        "done": "Done",
         "next": "Next"
       },
-      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
-      "title": "KYB Verification"
+      "companyData": "Company Information",
+      "description": "Complete these quick business verification steps. Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
+      "instructions": "Please complete both forms below to verify your business. You will need to provide company documents and information about the authorized representative.",
+      "representativeData": "Authorized Representative Information",
+      "title": "Business Verification",
+      "verification": {
+        "pending": "Verifying your data, it can take up to 2 days..."
+      },
+      "verifyCompany": "Verify Company",
+      "verifyCompanyRepresentative": "Verify Company Representative"
     },
     "aveniaKYC": {
       "buttons": {
-        "back": "Back",
+        "done": "Done",
         "finish": "Finish",
         "next": "Next"
       },
