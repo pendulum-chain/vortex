@@ -181,7 +181,6 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
     const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
-    console.log("Limits data from BRLA:", limitsData);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });

@@ -625,22 +625,21 @@ export class RampService extends BaseRampService {
     }
 
     // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
-    // try {
-    //   //const pixKeyData = await brlaApiService.validatePixKey(pixKey);
-
-    //   //validate the recipient's taxId with partial information
-    //   if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
-    //     throw new APIError({
-    //       message: "Invalid pixKey or receiverTaxId.",
-    //       status: httpStatus.BAD_REQUEST
-    //     });
-    //   }
-    // } catch (_error) {
-    //   throw new APIError({
-    //     message: "Invalid pixKey or receiverTaxId.",
-    //     status: httpStatus.BAD_REQUEST
-    //   });
-    // }
+    try {
+      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
+      //validate the recipient's taxId with partial information
+      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+        throw new APIError({
+          message: "Invalid pixKey or receiverTaxId.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    } catch (_error) {
+      throw new APIError({
+        message: "Invalid pixKey or receiverTaxId.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const brlLimits = subaccountLimits.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
     if (!brlLimits) {
