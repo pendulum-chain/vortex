@@ -44,7 +44,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   );
 
   return useMemo(() => {
-    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== walletLocked) {
+    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)) {
       return {
         icon: null,
         text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
