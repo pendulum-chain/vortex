@@ -1,7 +1,7 @@
 import { AveniaAccountType, BrlaGetKycStatusResponse, KycAttemptStatus } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { isValidCnpj } from "../../../hooks/ramp/schema";
-import { BrlaService } from "../../../services/api";
+import { BrlaService, KybLevel1Response } from "../../../services/api";
 import { createSubaccount, fetchKycStatus } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
 
@@ -10,11 +10,22 @@ export const createSubaccountActor = fromPromise(
     input
   }: {
     input: AveniaKycContext;
-  }): Promise<{ subAccountId: string; maybeKycAttemptStatus?: BrlaGetKycStatusResponse }> => {
+  }): Promise<{
+    subAccountId: string;
+    maybeKycAttemptStatus?: BrlaGetKycStatusResponse;
+    isCompany: boolean;
+    kybUrls?: KybLevel1Response;
+  }> => {
     const { taxId, kycFormData } = input;
+
+    // Determine if this is a company (CNPJ) or individual (CPF)
+    const isCompany = isValidCnpj(taxId);
+    console.log("createSubaccountActor: isCompany (CNPJ)", isCompany);
 
     let subAccountId: string;
     let maybeKycAttemptStatus: BrlaGetKycStatusResponse | undefined;
+    let kybUrls: KybLevel1Response | undefined;
+
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
@@ -29,30 +40,54 @@ export const createSubaccountActor = fromPromise(
         // It's fine if this fails, we just won't have the status.
       }
 
+      if (isCompany) {
+        console.log("Debug: This is a company account. Initiating KYB Level 1...");
+        try {
+          kybUrls = await BrlaService.initiateKybLevel1(subAccountId);
+        } catch (e) {
+          console.log("Debug: failed to initiate KYB Level 1", e);
+        }
+      } else {
+        console.log("Debug: This is an individual account. Skipping KYB Level 1.");
+      }
+
       if (
         maybeKycAttemptStatus?.status === KycAttemptStatus.PENDING ||
         maybeKycAttemptStatus?.status === KycAttemptStatus.PROCESSING
       ) {
-        return { maybeKycAttemptStatus, subAccountId };
+        return { isCompany, kybUrls, maybeKycAttemptStatus, subAccountId };
       }
 
-      return { subAccountId };
+      return { isCompany, kybUrls, subAccountId };
     } catch (error: unknown) {
       console.log("Debug: failed to fetch existing Avenia subaccount", error);
+      const nameToUse = isCompany && kycFormData.companyName ? kycFormData.companyName : kycFormData.fullName;
 
-      if (isValidCnpj(taxId) && !kycFormData.companyName) {
-        throw new Error("createSubaccountActor: Invalid input state. This is a Bug.");
+      if (!nameToUse) {
+        throw new Error("createSubaccountActor: Missing name for subaccount creation");
       }
 
-      const newSubaccountName = isValidCnpj(taxId) ? kycFormData.companyName! : kycFormData.fullName;
+      const accountType = isCompany ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL;
 
       ({ subAccountId } = await createSubaccount({
-        accountType: AveniaAccountType.INDIVIDUAL,
-        name: newSubaccountName,
+        accountType,
+        name: nameToUse,
         taxId
       }));
 
-      return { subAccountId };
+      if (isCompany) {
+        console.log("Debug: This is a company account (CNPJ). Initiating KYB Level 1 for new account...");
+        try {
+          kybUrls = await BrlaService.initiateKybLevel1(subAccountId);
+          console.log("Debug: KYB Level 1 initiated successfully for new account:", kybUrls);
+        } catch (e) {
+          console.log("Debug: failed to initiate KYB Level 1 for new account", e);
+        }
+      } else {
+        console.log("Debug: This is an individual account (CPF). Skipping KYB Level 1.");
+      }
+
+      return { isCompany, kybUrls, subAccountId };
     }
   }
 );
