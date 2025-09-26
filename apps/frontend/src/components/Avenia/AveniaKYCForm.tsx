@@ -1,7 +1,7 @@
+import { isValidCnpj } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { isValidCnpj } from "../../hooks/ramp/schema";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";

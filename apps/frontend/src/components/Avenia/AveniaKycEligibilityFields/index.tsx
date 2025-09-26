@@ -1,8 +1,7 @@
-import { RampDirection } from "@packages/shared";
+import { CNPJ_REGEX, CPF_REGEX, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { CNPJ_REGEX, CPF_REGEX, isValidCnpj, isValidCpf } from "../../../hooks/ramp/schema";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { AveniaField, AveniaFieldValidationPattern, StandardAveniaFieldOptions } from "../AveniaField";
 
