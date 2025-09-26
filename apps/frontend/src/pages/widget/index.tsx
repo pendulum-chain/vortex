@@ -1,3 +1,4 @@
+import { isValidCnpj } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
@@ -8,7 +9,6 @@ import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedi
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
-import { isValidCnpj } from "../../hooks/ramp/schema";
 
 export interface WidgetProps {
   className?: string;

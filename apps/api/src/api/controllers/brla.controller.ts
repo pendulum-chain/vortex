@@ -1,6 +1,5 @@
 import {
   AveniaDocumentType,
-  AveniaIdentityStatus,
   AveniaKYCDataUpload,
   AveniaKYCDataUploadRequest,
   BrlaApiService,
@@ -20,6 +19,8 @@ import {
   BrlaGetUserResponse,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
+  KybAttemptStatusResponse,
+  KybLevel1Response,
   Kyc2FailureReason,
   KycAttemptResult,
   KycAttemptStatus,
@@ -28,17 +29,13 @@ import {
   KycLevel1Response,
   RampDirection
 } from "@packages/shared";
-import { AveniaAccountType } from "@packages/shared/src/services";
+import { AveniaAccountType, isValidCnpj } from "@packages/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { eventPoller } from "../..";
 import TaxId from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
-// map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
-const lastInteractionMap = new Map<string, number>();
-
-// Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefined): KycFailureReason {
   switch (webhookReason) {
     case "face match failure":
@@ -50,30 +47,14 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
     case "tax id does not exist":
       return KycFailureReason.TAX_ID;
     default:
-      return KycFailureReason.UNKNOWN; // default
+      return KycFailureReason.UNKNOWN;
   }
 }
 
-// BRLA API requires the date in the format YYYY-MMM-DD
-function convertDateToBRLAFormat(dateNumber: number | undefined): string {
-  if (!dateNumber) {
-    return "";
-  }
-  const date = new Date(dateNumber);
-  const year = date.getFullYear(); // YYYY
-  const month = date.toLocaleString("en-us", { month: "short" }); // MMM
-  const day = String(date.getDate()).padStart(2, "0"); // DD with leading zero
-
-  return `${year}-${month}-${day}`;
-}
-
-// Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   console.error(`Error while performing ${apiMethod}: `, error);
 
-  // Check in the error message if it's a 400 error from the BRLA API
   if (error instanceof Error && error.message.includes("status '400'")) {
-    // Split the error message to get the actual error message from the BRLA API
     const splitError = error.message.split("Error: ", 1);
     if (splitError.length > 1) {
       const errorMessageString = splitError[1];
@@ -81,7 +62,6 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
         const details = JSON.parse(errorMessageString);
         res.status(httpStatus.BAD_REQUEST).json({ details, error: "Invalid request" });
       } catch {
-        // The error was not encoded as JSON
         res.status(httpStatus.BAD_REQUEST).json({ details: errorMessageString, error: "Invalid request" });
       }
     } else {
@@ -181,13 +161,11 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
     const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
-    console.log("Limits data from BRLA:", limitsData);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
       return;
     }
-    console.log(limitsData.limitInfo.limits);
 
     const brlLimits = limitsData.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
 
@@ -266,19 +244,25 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse>
 ): Promise<void> => {
   try {
-    const { accountType, name, taxId } = req.body;
+    const { name, taxId, accountType: requestAccountType } = req.body;
+
+    const isCnpj = isValidCnpj(taxId);
+
+    // Use the accountType from the request if provided, otherwise determine from taxId
+    const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
     const brlaApiService = BrlaApiService.getInstance();
-    const { id } = await brlaApiService.createAveniaSubaccount(AveniaAccountType.INDIVIDUAL, name); // So far, we only know this type.
+    const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
 
     await TaxId.create({
-      accountType: AveniaAccountType.INDIVIDUAL,
+      accountType,
       subAccountId: id,
       taxId: taxId
     });
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
+    console.error("Error creating subaccount:", error);
     handleApiError(error, res, "createSubaccount");
   }
 };
@@ -397,7 +381,7 @@ export const getSelfieLivenessUrl = async (
       validateLivenessToken: selfieUrl.validateLivenessToken ?? ""
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     handleApiError(error, res, "getSelfieLivenessUrl");
   }
 };
@@ -468,7 +452,7 @@ export const getUploadUrls = async (
       }
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     handleApiError(error, res, "getUploadUrls");
   }
 };
@@ -479,18 +463,84 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    //await 5 seconds
     await new Promise(resolve => setTimeout(resolve, 5000));
     const subAccountId = req.body.subAccountId;
-
-    // DEBUG get documents
-    const docs = await brlaApiService.getUploadedDocuments(subAccountId);
-    console.log("DEBUG: fetched documents: ", docs);
-
+    await brlaApiService.getUploadedDocuments(subAccountId);
     const response = await brlaApiService.submitKycLevel1(req.body);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {
     handleApiError(error, res, "newKyc");
+  }
+};
+
+/**
+ * Initiates KYB Level 1 verification process using the Web SDK
+ *
+ * @returns Returns 200 with URLs for the KYB verification process
+ *
+ * @throws 400 - If subAccountId is missing
+ * @throws 500 - For any server-side errors during processing
+ */
+export const initiateKybLevel1 = async (
+  req: Request<unknown, unknown, unknown, { subAccountId?: string }>,
+  res: Response<KybLevel1Response | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { subAccountId } = req.query;
+
+    if (!subAccountId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing subAccountId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    if (taxIdRecord.accountType !== AveniaAccountType.COMPANY) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: "KYB Level 1 is only available for COMPANY accounts. This account is registered as " + taxIdRecord.accountType
+      });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const response = await brlaApiService.initiateKybLevel1(subAccountId);
+
+    res.status(httpStatus.OK).json(response);
+  } catch (error) {
+    handleApiError(error, res, "initiateKybLevel1");
+  }
+};
+
+/**
+ * Gets the status of a KYB attempt
+ *
+ * @returns Returns 200 with the KYB attempt status
+ *
+ * @throws 400 - If attemptId is missing
+ * @throws 500 - For any server-side errors during processing
+ */
+export const getKybAttemptStatus = async (
+  req: Request<unknown, unknown, unknown, { attemptId: string }>,
+  res: Response<KybAttemptStatusResponse | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { attemptId } = req.query;
+
+    if (!attemptId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing attemptId" });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const response = await brlaApiService.getKybAttemptStatus(attemptId);
+
+    res.status(httpStatus.OK).json(response);
+  } catch (error) {
+    handleApiError(error, res, "getKybAttemptStatus");
   }
 };

@@ -1,6 +1,5 @@
-import { AveniaAccountType, BrlaGetKycStatusResponse, KycAttemptStatus } from "@packages/shared";
+import { AveniaAccountType, BrlaGetKycStatusResponse, isValidCnpj, KycAttemptStatus } from "@packages/shared";
 import { fromPromise } from "xstate";
-import { isValidCnpj } from "../../../hooks/ramp/schema";
 import { BrlaService, KybLevel1Response } from "../../../services/api";
 import { createSubaccount, fetchKycStatus } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
