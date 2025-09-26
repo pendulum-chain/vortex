@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@paraspell/sdk-pjs": "^11.8.5",
     "@pendulum-chain/types": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/types": "catalog:",

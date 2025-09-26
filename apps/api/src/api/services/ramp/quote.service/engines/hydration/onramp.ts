@@ -1,4 +1,4 @@
-import { AssetHubToken, assetHubTokenConfig, RampDirection } from "@packages/shared";
+import { AssetHubToken, assetHubTokenConfig, createHydrationToAssethubTransfer, RampDirection } from "@packages/shared";
 import { getBestSellPriceFor } from "../../../../hydration/swap";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -29,11 +29,15 @@ export class OnRampHydrationEngine implements Stage {
 
     const amountOut = trade.amountOut.toString();
 
+    const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
+    const { fees } = await createHydrationToAssethubTransfer(dummyDestination, amountOut, assetOut);
+
     ctx.hydration = {
       amountInRaw: trade.amountIn.toString(),
-      amountOutRaw: trade.amountOut.toString(),
+      amountOutRaw: amountOut,
       assetIn: assetIn,
-      assetOut: assetOut
+      assetOut: assetOut,
+      xcmFees: fees
     };
 
     ctx.addNote?.(

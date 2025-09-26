@@ -1,4 +1,5 @@
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { Extrinsic } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { ApiManager, SubstrateApiNetwork } from "../pendulum/apiManager";
 
@@ -10,11 +11,7 @@ import { ApiManager, SubstrateApiNetwork } from "../pendulum/apiManager";
  * @param accountId The account ID to use as the origin for the dry-run.
  * @returns The result of the dry-run call.
  */
-export async function dryRunExtrinsic(
-  extrinsic: SubmittableExtrinsic<"promise", ISubmittableResult>,
-  network: SubstrateApiNetwork,
-  accountId: string
-) {
+export async function dryRunExtrinsic(extrinsic: Extrinsic, network: SubstrateApiNetwork, accountId: string) {
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi(network);
 
@@ -25,8 +22,14 @@ export async function dryRunExtrinsic(
   // This is required because the dryRunCall expects the extrinsic without the length prefix.
   const extrinsicHexWithoutLength = "0x" + extrinsic.toHex().slice(8);
 
+  console.log("Extrinsic Hex Without Length:", extrinsicHexWithoutLength);
+  console.log("Extrinsic hex:", extrinsic.toHex());
+
   // The dryRunApi is a runtime call, so we use api.call.
-  const dryRunResult = await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength, resultXcmVersions);
+  const dryRunResult =
+    network === "moonbeam"
+      ? await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength, resultXcmVersions)
+      : await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength);
 
   return dryRunResult;
 }

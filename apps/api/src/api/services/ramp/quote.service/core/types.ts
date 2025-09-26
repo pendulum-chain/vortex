@@ -7,7 +7,8 @@ import {
   QuoteFeeStructure,
   QuoteResponse,
   RampCurrency,
-  RampDirection
+  RampDirection,
+  XcmFees
 } from "@packages/shared";
 import { Big } from "big.js";
 
@@ -134,6 +135,7 @@ export interface QuoteContext {
     amountOutRaw: string;
     assetIn: string;
     assetOut: string;
+    xcmFees: XcmFees;
   };
 
   // Accumulated logs/notes for debugging (optional)
