@@ -306,7 +306,7 @@ export enum BrlaCurrency {
   USDM = "USDM"
 }
 
-export enum BrlaPaymentMethod {
+export enum AveniaPaymentMethod {
   PIX = "PIX",
   INTERNAL = "INTERNAL",
   BASE = "BASE",
@@ -320,10 +320,10 @@ export enum BrlaPaymentMethod {
 
 export interface PayInQuoteParams {
   inputCurrency: BrlaCurrency;
-  inputPaymentMethod: BrlaPaymentMethod;
+  inputPaymentMethod: AveniaPaymentMethod;
   inputAmount: string;
   outputCurrency: BrlaCurrency;
-  outputPaymentMethod: BrlaPaymentMethod;
+  outputPaymentMethod: AveniaPaymentMethod;
   inputThirdParty: boolean;
   outputThirdParty: boolean;
   subAccountId: string;
@@ -337,17 +337,25 @@ export enum BlockchainSendMethod {
 export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
+  subAccountId: string;
+}
+
+export enum AveniaTicketStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  FAILED = "FAILED"
 }
 
 // /account/tickets endpoint related types
 export interface BaseTicket {
   id: string;
-  status: string;
+  status: AveniaTicketStatus;
+  userId: string;
   reason: string;
   failureReason: string;
-  createdAt: string;
-  updatedAt: string;
-  expiresAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+  expiresAt: Date;
   quote: {
     id: string;
     ticketId: string;
@@ -367,22 +375,13 @@ export interface PixInputTicketPayload {
 }
 
 export interface PixInputTicketOutput {
-  ticket: BaseTicket;
-  brlPixInputInfo: {
-    id: string;
-    ticketId: string;
-    referenceLabel: string;
-    additionalData: string;
-    brCode: string;
-  };
-  blockchainReceiverInfo: {
-    id: string;
-    ticketId: string;
-    walletAddress: string;
-    walletChain: string;
-    walletMemo: string;
-    txHash: string;
-  };
+  id: string;
+  brCode: string;
+  expiration: Date;
+}
+
+export interface PixOutputTicketOutput {
+  id: string;
 }
 
 // TODO verify ticket endpoint outputs for this modality
@@ -403,8 +402,7 @@ export interface PixOutputTicketPayload {
   };
 }
 
-export interface PixOutputTicketOutput {
-  ticket: BaseTicket;
+export interface AveniaPayoutTicket extends BaseTicket {
   brazilianFiatReceiverInfo: {
     id: string;
     ticketId: string;
@@ -435,6 +433,7 @@ export interface PixOutputTicketOutput {
     personalSignature: string;
     personalSignatureDeadline: number;
   };
+  RefundableParameter: string;
 }
 
 // Limit types
@@ -572,4 +571,13 @@ export interface AveniaDocumentGetResponse {
       updatedAt: Date;
     }
   ];
+}
+
+export interface AveniaAccountBalanceResponse {
+  balances: {
+    BRLA: number;
+    USDC: number;
+    USDM: number;
+    USDT: number;
+  };
 }
