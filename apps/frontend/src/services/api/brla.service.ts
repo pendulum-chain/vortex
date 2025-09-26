@@ -14,6 +14,15 @@ import {
 import { apiRequest } from "./api-client";
 
 /**
+ * Response type for KYB Level 1 initiation
+ */
+export interface KybLevel1Response {
+  attemptId: string;
+  authorizedRepresentativeUrl: string;
+  basicCompanyDataUrl: string;
+}
+
+/**
  * Service for interacting with BRLA API endpoints
  */
 export class BrlaService {
@@ -101,6 +110,18 @@ export class BrlaService {
   static async getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse> {
     return apiRequest<BrlaGetSelfieLivenessUrlResponse>("get", `${this.BASE_PATH}/getSelfieLivenessUrl`, undefined, {
       params: { taxId }
+    });
+  }
+
+  /**
+   * Initiate KYB Level 1 verification process
+   * @param subAccountId The subaccount ID (optional)
+   * @returns URLs for the KYB verification process
+   */
+  static async initiateKybLevel1(subAccountId?: string): Promise<KybLevel1Response> {
+    console.log("Initiating KYB Level 1 for subAccountId:", subAccountId);
+    return apiRequest<KybLevel1Response>("post", `${this.BASE_PATH}/kyb/new-level-1/web-sdk`, undefined, {
+      params: subAccountId ? { subAccountId } : undefined
     });
   }
 }
