@@ -172,7 +172,7 @@ export const aveniaKycMachine = setup({
           actions: assign({
             subAccountId: ({ event }) => event.output.subAccountId
           }),
-          target: "DocumentUpload"
+          target: "...."
         },
         onError: [
           {

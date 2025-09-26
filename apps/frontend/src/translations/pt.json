@@ -18,7 +18,7 @@
         "finish": "Finalizar",
         "next": "Próximo"
       },
-      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
     },
     "aveniaLiveness": {
