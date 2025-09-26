@@ -12,6 +12,9 @@
       "title": "Special offer until 27 May"
     },
     "aveniaKYB": {
+      "aveniaKYBVerifyCompanyRepresentative": {
+        "instructions": "Now please verify the authorized representative information. This person must be legally authorized to represent your company."
+      },
       "buttons": {
         "cancel": "Cancel",
         "done": "Done",
@@ -19,11 +22,13 @@
       },
       "companyData": "Company Information",
       "description": "Complete these quick business verification steps. Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
-      "instructions": "Please complete both forms below to verify your business. You will need to provide company documents and information about the authorized representative.",
+      "instructions": "Please click the button below to verify your company information. You'll need to provide your company registration details and documents.",
       "representativeData": "Authorized Representative Information",
       "title": "Business Verification",
       "verification": {
-        "pending": "Verifying your data, it can take up to 2 days..."
+        "approved": "Your business verification has been approved!",
+        "pending": "Verifying your data, it can take up to 2 days...",
+        "rejected": "Your business verification was rejected. Please try again."
       },
       "verifyCompany": "Verify Company",
       "verifyCompanyRepresentative": "Verify Company Representative"
