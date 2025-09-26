@@ -185,7 +185,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
-    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== walletLocked) {
+    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)) {
       return true;
     }
     if (machineState === "QuoteReady" || machineState === "KycComplete") {
