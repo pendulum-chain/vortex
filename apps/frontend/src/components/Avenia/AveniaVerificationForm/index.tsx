@@ -19,13 +19,18 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
+  const onSubmit = () => {
+    const formData = form.getValues();
+    aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
+  };
+
   return (
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
         className="mt-8 mb-4 min-h-[480px] w-full"
         initial={{ opacity: 0, scale: 0.9 }}
-        onSubmit={handleSubmit(() => aveniaKycActor.send({ formData: form.getValues(), type: "FORM_SUBMIT" }))}
+        onSubmit={handleSubmit(onSubmit)}
         transition={{ duration: 0.3 }}
       >
         <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">
@@ -74,7 +79,17 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             >
               {isCompany ? t("components.aveniaKYB.buttons.back") : t("components.aveniaKYC.buttons.back")}
             </button>
-            <button className="btn-vortex-primary btn flex-1" type="submit" {...buttonProps}>
+            <button
+              className="btn-vortex-primary btn flex-1"
+              onClick={() => {
+                console.log("Submit button clicked");
+                const formData = form.getValues();
+                console.log("Form data:", formData);
+                aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
+              }}
+              type="button"
+              {...buttonProps}
+            >
               {isMaintenanceDisabled
                 ? buttonProps.title
                 : isCompany
