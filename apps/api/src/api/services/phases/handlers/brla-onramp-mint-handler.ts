@@ -3,7 +3,6 @@ import {
   BalanceCheckErrorType,
   checkEvmBalancePeriodically,
   FiatToken,
-  generateReferenceLabel,
   getAnyFiatTokenDetailsMoonbeam,
   Networks,
   RampPhase
@@ -21,16 +20,16 @@ const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // Phase description: wait for the tokens to arrive at the Moonbeam ephemeral address.
 // If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
-export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
+export class BrlaOnrampMintHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "brlaTeleport";
+    return "brlaOnrampMint";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
     const { moonbeamEphemeralAddress, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
 
     if (!moonbeamEphemeralAddress || !inputAmountBeforeSwapRaw) {
-      throw new Error("BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.");
+      throw new Error("BrlaOnrampMintHandler: State metadata corrupted. This is a bug.");
     }
 
     try {
@@ -55,7 +54,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       }
 
       throw isCheckTimeout
-        ? this.createRecoverableError(`BrlaTeleportPhaseHandler: phase timeout reached with error: ${error}`)
+        ? this.createRecoverableError(`BrlaOnrampMintHandler: phase timeout reached with error: ${error}`)
         : new Error(`Error checking Moonbeam balance: ${error}`);
     }
 
@@ -65,7 +64,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   protected isPaymentTimeoutReached(state: RampState): boolean {
     const thisPhaseEntry = state.phaseHistory.find(phaseHistoryEntry => phaseHistoryEntry.phase === this.getPhaseName());
     if (!thisPhaseEntry) {
-      throw new Error("BrlaTeleportPhaseHandler: Phase not found in history. State corrupted.");
+      throw new Error("BrlaOnrampMintHandler: Phase not found in history. State corrupted.");
     }
 
     const initialTimestamp = new Date(thisPhaseEntry.timestamp);
@@ -76,4 +75,4 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   }
 }
 
-export default new BrlaTeleportPhaseHandler();
+export default new BrlaOnrampMintHandler();

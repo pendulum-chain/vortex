@@ -52,7 +52,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
 
     // We need to check for existing ticket, recovery scenario
     if (payOutTicketId) {
-      await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     }
 
@@ -129,8 +129,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         }
       });
 
-      // Avenia migration: implement a wait and check after the request, or ticket follow-up.
-      await this.checkTicketStatus({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
       console.error("Error in brlaPayoutOnMoonbeam", e);
@@ -138,7 +137,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  protected async checkTicketStatus({
+  protected async checkTicketStatusPaid({
     ticketId,
     subAccountId
   }: {
