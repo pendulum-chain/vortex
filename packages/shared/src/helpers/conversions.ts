@@ -31,6 +31,7 @@ export function getAddressForFormat(address: string, ss58Format: number | string
     const encodedAddress = keyring.encodeAddress(address, ss58Format);
     return encodedAddress;
   } catch (error) {
+    // Assumed to be EVM address.
     logger.current.error(`Error encoding address ${address}: ${error}`);
     return address;
   }

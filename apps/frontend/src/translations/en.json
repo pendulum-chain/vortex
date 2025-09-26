@@ -228,6 +228,11 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "The passed parameters are invalid. You will be redirected shortly.",
+      "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
+      "tryAgain": "Try Again"
+    },
     "maintenance": {
       "banner": {
         "ends": "Expected end",
@@ -256,6 +261,9 @@
     "quoteSubmitButton": {
       "buy": "Buy",
       "sell": "Sell"
+    },
+    "RampSubmitButton": {
+      "connectDesignatedWallet": "Please connect the designated wallet '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",

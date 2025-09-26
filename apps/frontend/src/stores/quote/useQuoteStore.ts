@@ -25,6 +25,7 @@ interface QuotePayload {
 interface QuoteActions {
   actions: {
     fetchQuote: (params: QuoteParams) => Promise<void>;
+    forceSetQuote: (quote: QuoteResponse) => void;
     reset: () => void;
   };
 }
@@ -176,6 +177,14 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
               quote: undefined
             });
           }
+        },
+        forceSetQuote: (quote: QuoteResponse) => {
+          set({
+            exchangeRate: 0,
+            loading: false,
+            outputAmount: undefined,
+            quote
+          });
         },
         reset: () => {
           set({

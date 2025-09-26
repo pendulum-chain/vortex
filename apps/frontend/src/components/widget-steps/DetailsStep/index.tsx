@@ -1,4 +1,7 @@
+import { useSelector } from "@xstate/react";
+import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
+import { useRampActor } from "../../../contexts/rampState";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
@@ -30,16 +33,26 @@ export interface FormData {
 export const DetailsStep = ({ className }: DetailsStepProps) => {
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
+  const rampActor = useRampActor();
+  const { walletLockedFromState } = useSelector(rampActor, state => ({
+    walletLockedFromState: state.context.walletLocked
+  }));
+
   const { address } = useVortexAccount();
   const taxId = useTaxId();
   const pixId = usePixId();
   const quote = useQuote();
 
+  const walletForm = walletLockedFromState || address || undefined;
   const { form } = useRampForm({
     pixId,
     taxId,
-    walletAddress: address
+    walletAddress: walletForm
   });
+
+  useEffect(() => {
+    form.setValue("walletAddress", walletForm);
+  }, [walletForm, form]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -51,6 +64,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   };
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
+  const canSkipConnection = quote?.from === "pix" && walletLockedFromState;
 
   const handleFormSubmit = (data: FormData) => {
     onRampConfirm(data);
@@ -60,8 +74,12 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     <FormProvider {...form}>
       <form className={`flex grow flex-col ${className || ""}`} onSubmit={form.handleSubmit(handleFormSubmit)}>
         <DetailsStepHeader />
-        <DetailsStepForm isBrazilLanding={isBrazilLanding} signingState={signingState} />
-        <DetailsStepActions signingState={signingState} />
+        <DetailsStepForm
+          isBrazilLanding={isBrazilLanding}
+          isWalletAddressDisabled={!!walletLockedFromState}
+          signingState={signingState}
+        />
+        <DetailsStepActions requiresConnection={!canSkipConnection} signingState={signingState} />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>

@@ -34,13 +34,15 @@ export const initiateMoneriumAuth = async (
     const signature = await signMessage(LINK_MESSAGE);
     parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
 
+    const redirectUri = window.location.origin + "/widget";
+
     const params = new URLSearchParams({
       address: address,
       chain: polygon.name.toString().toLowerCase(),
       client_id: VORTEX_APP_CLIENT_ID,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
       signature
     });
 
@@ -56,7 +58,7 @@ export const initiateMoneriumAuth = async (
 };
 
 export const createMoneriumSiweMessage = (address: string) => {
-  const currentUrl = window.location.origin;
+  const redirectUri = window.location.origin + "/widget";
   const domain = window.location.hostname;
 
   return siweMessage({
@@ -65,7 +67,7 @@ export const createMoneriumSiweMessage = (address: string) => {
     chainId: 137,
     domain: domain,
     privacyPolicyUrl: "https://example.com/privacy-policy",
-    redirectUri: currentUrl,
+    redirectUri,
     termsOfServiceUrl: "https://example.com/terms-of-service"
   });
 };
@@ -79,6 +81,7 @@ export const handleMoneriumSiweAuth = async (
 
   const codeVerifier = CryptoJS.lib.WordArray.random(64).toString();
   const codeChallenge = CryptoJS.enc.Base64url.stringify(CryptoJS.SHA256(codeVerifier));
+  const redirectUri = window.location.origin + "/widget";
 
   const message = createMoneriumSiweMessage(address);
 
@@ -92,7 +95,7 @@ export const handleMoneriumSiweAuth = async (
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
       message: message,
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
       signature: signature
     });
 
@@ -110,13 +113,14 @@ export const handleMoneriumSiweAuth = async (
 
 export const exchangeMoneriumCode = async (code: string, codeVerifier: string): Promise<{ authToken: string }> => {
   console.log("Exchanging Monerium code:", code, "with verifier:", codeVerifier);
+  const redirectUri = window.location.origin + "/widget";
   const response = await fetch("https://api.monerium.app/auth/token", {
     body: new URLSearchParams({
       client_id: VORTEX_APP_CLIENT_ID,
       code,
       code_verifier: codeVerifier,
       grant_type: "authorization_code",
-      redirect_uri: window.location.origin // We MUST use the same redirect URI as in the initial request
+      redirect_uri: redirectUri // We MUST use the same redirect URI as in the initial request
     }),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"

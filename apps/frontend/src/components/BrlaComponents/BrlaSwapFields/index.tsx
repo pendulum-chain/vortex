@@ -30,7 +30,7 @@ const ONRAMP_FIELDS = [
  * for processing PIX transfers to Brazilian bank accounts.
  */
 
-export const BrlaSwapFields: FC = () => {
+export const BrlaSwapFields: FC<{ isWalletAddressDisabled?: boolean }> = ({ isWalletAddressDisabled }) => {
   const { t } = useTranslation();
 
   console.log("BrlaSwapFields");
@@ -46,6 +46,7 @@ export const BrlaSwapFields: FC = () => {
         {FIELDS.map(field => (
           <BrlaField
             className="mt-2"
+            disabled={field.id === StandardBrlaFieldOptions.WALLET_ADDRESS && isWalletAddressDisabled}
             id={field.id}
             index={field.index}
             key={field.id}
