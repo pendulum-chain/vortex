@@ -43,6 +43,8 @@ export class QuoteService extends BaseRampService {
     const strategy = resolver.resolve(ctx);
     await orchestrator.run(strategy, ctx);
 
+    console.log("Quote context", ctx);
+
     if (ctx.builtResponse) {
       return ctx.builtResponse;
     }

@@ -4,6 +4,7 @@
     "@galacticcouncil/api-augment": "^0.8.1",
     "@galacticcouncil/sdk": "^9.16.0",
     "@packages/shared": "workspace:*",
+    "@paraspell/sdk-pjs": "^11.8.4",
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "catalog:",
