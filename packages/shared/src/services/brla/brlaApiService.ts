@@ -1,14 +1,5 @@
-import { createPrivateKey, sign } from "crypto";
 import * as forge from "node-forge";
-import {
-  BRLA_API_KEY,
-  BRLA_BASE_URL,
-  BRLA_PRIVATE_KEY,
-  CreateAveniaSubaccountRequest,
-  DocumentUploadRequest,
-  DocumentUploadResponse,
-  SwapLog
-} from "../..";
+import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse, SwapLog } from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
@@ -26,11 +17,11 @@ import {
   FastQuoteQueryParams,
   FastQuoteResponse,
   GetKycAttemptResponse,
+  KybAttemptStatusResponse,
+  KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
-  KycLevel2Response,
   KycRetryPayload,
-  OfframpPayload,
   OnchainLog,
   OnrampPayload,
   PayInQuoteParams,
@@ -38,7 +29,6 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
-  PixOutputTicketOutput,
   PixOutputTicketPayload,
   RegisterSubaccountPayload,
   SwapPayload
@@ -311,5 +301,25 @@ export class BrlaApiService {
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
+  }
+
+  /**
+   * Initiates KYB Level 1 verification process using the Web SDK
+   * @param subAccountId The subaccount ID
+   * @returns URLs for the KYB verification process
+   */
+  public async initiateKybLevel1(subAccountId: string): Promise<KybLevel1Response> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, undefined);
+  }
+
+  /**
+   * Gets the status of a KYB attempt
+   * @param attemptId The KYB attempt ID
+   * @returns The KYB attempt status
+   */
+  public async getKybAttemptStatus(attemptId: string): Promise<KybAttemptStatusResponse> {
+    const url = Endpoint.GetKybAttempt.replace("{attemptId}", attemptId);
+    return await this.sendRequest(url as Endpoint, "GET", undefined, undefined);
   }
 }
