@@ -1,5 +1,6 @@
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
+import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
@@ -55,6 +56,11 @@ const WidgetContent = () => {
 
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
+
+    if (isCnpj && aveniaState?.context.kybUrls) {
+      return <AveniaKYBFlow />;
+    }
+
     return isCnpj ? <AveniaKYBForm /> : <AveniaKYCForm />;
   }
 
