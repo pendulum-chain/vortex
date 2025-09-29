@@ -9,8 +9,6 @@ import {
   BrlaErrorResponse,
   BrlaGetKycStatusRequest,
   BrlaGetKycStatusResponse,
-  BrlaGetRampStatusRequest,
-  BrlaGetRampStatusResponse,
   BrlaGetSelfieLivenessUrlRequest,
   BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitRequest,
@@ -39,14 +37,17 @@ const lastInteractionMap = new Map<string, number>();
 
 // Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
-  switch (webhookReason) {
-    case "face match failure":
+  if (!webhookReason) {
+    return KycFailureReason.UNKNOWN;
+  }
+  switch (true) {
+    case webhookReason.includes("face match failure"):
       return KycFailureReason.FACE;
-    case "name does not match":
+    case webhookReason.includes("name does not match"):
       return KycFailureReason.NAME;
-    case "birthdate does not match":
+    case webhookReason.includes("birthdate does not match"):
       return KycFailureReason.BIRTHDATE;
-    case "tax id does not exist":
+    case webhookReason.includes("tax id does not exist"):
       return KycFailureReason.TAX_ID;
     default:
       return KycFailureReason.UNKNOWN;
