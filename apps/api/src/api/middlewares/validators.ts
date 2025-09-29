@@ -14,11 +14,9 @@ import {
 } from "@packages/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
-import { ParsedQs } from "qs";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
-import { EvmAddress } from "../services/brla/brlaTeleportService";
 
 interface CreationBody {
   accountId: string;
@@ -61,12 +59,6 @@ interface SiweValidateBody {
   nonce: string;
   signature: string;
   siweMessage: string;
-}
-
-export interface PayInCodeQuery extends ParsedQs {
-  taxId: string;
-  amount: string;
-  receiverAddress: EvmAddress;
 }
 
 export const validateCreationInput: RequestHandler = (req, res, next) => {

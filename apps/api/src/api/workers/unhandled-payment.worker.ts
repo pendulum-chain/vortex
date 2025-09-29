@@ -1,4 +1,4 @@
-import { BrlaApiService, DepositLog, generateReferenceLabel, isValidReferenceLabel } from "@packages/shared";
+import { BrlaApiService, generateReferenceLabel, isValidReferenceLabel } from "@packages/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
@@ -115,24 +115,6 @@ class UnhandledPaymentWorker {
       logger.error("Error fetching failed states:", error);
       return [];
     }
-  }
-
-  private findFirstDuplicateReferenceInfo(payments: DepositLog[]): { label: string; ids: string[] } | undefined {
-    const referenceDetails = new Map<string, string[]>();
-    for (const payment of payments) {
-      if (!payment.referenceLabel || !payment.id) {
-        continue;
-      }
-
-      const existingIds = referenceDetails.get(payment.referenceLabel);
-      if (existingIds) {
-        existingIds.push(payment.id);
-        return { ids: existingIds, label: payment.referenceLabel };
-      } else {
-        referenceDetails.set(payment.referenceLabel, [payment.id]);
-      }
-    }
-    return undefined;
   }
 
   private hasRecentAlert(subaccountId: string): boolean {

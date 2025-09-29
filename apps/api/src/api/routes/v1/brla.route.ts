@@ -8,8 +8,6 @@ router.route("/getUser").get(brlaController.getAveniaUser);
 
 router.route("/getUserRemainingLimit").get(brlaController.getAveniaUserRemainingLimit);
 
-router.route("/getRampStatus").get(brlaController.getRampStatus);
-
 router.route("/getKycStatus").get(brlaController.fetchSubaccountKycStatus);
 
 router.route("/getSelfieLivenessUrl").get(brlaController.getSelfieLivenessUrl);

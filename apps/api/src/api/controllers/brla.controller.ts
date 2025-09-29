@@ -31,7 +31,6 @@ import {
 import { AveniaAccountType, isValidCnpj } from "@packages/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { eventPoller } from "../..";
 import TaxId from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
@@ -197,49 +196,6 @@ export const getAveniaUserRemainingLimit = async (
     return;
   } catch (error) {
     handleApiError(error, res, "getAveniaUserRemainingLimit");
-  }
-};
-
-export const getRampStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaGetRampStatusRequest>,
-  res: Response<BrlaGetRampStatusResponse | BrlaErrorResponse>
-): Promise<void> => {
-  try {
-    const { taxId } = req.query;
-
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
-      return;
-    }
-
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
-
-    const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId);
-
-    if (!lastEventCached) {
-      res.status(httpStatus.NOT_FOUND).json({ error: `No status events found for ${taxId}` });
-      return;
-    }
-
-    if (
-      lastEventCached.subscription !== "MONEY-TRANSFER" &&
-      lastEventCached.subscription !== "BURN" &&
-      lastEventCached.subscription !== "BALANCE-UPDATE"
-    ) {
-      res.status(httpStatus.NOT_FOUND).json({ error: `No offramp status event found for ${taxId}` });
-      return;
-    }
-
-    res.status(httpStatus.OK).json({
-      status: lastEventCached.data.status,
-      type: lastEventCached.subscription
-    });
-  } catch (error) {
-    handleApiError(error, res, "getRampStatus");
   }
 };
 
