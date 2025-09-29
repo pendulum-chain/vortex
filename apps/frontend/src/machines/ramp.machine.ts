@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { assign, emit, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
@@ -91,7 +91,7 @@ export const rampMachine = setup({
             const cleanUrl = window.location.origin;
             window.history.replaceState({}, "", cleanUrl);
             resolve();
-          }, 5);
+          }, 1);
         })
     ),
     validateKyc: fromPromise(validateKycActor)
@@ -230,12 +230,19 @@ export const rampMachine = setup({
     RampRequested: {
       invoke: {
         input: ({ context }) => context,
-        onDone: {
-          guard: ({ event }: any) => event.output.kycNeeded,
-          // The guard checks validateKyc output
-          // do nothing otherwise, as we wait for modal confirmation.
-          target: "KYC"
-        },
+        onDone: [
+          {
+            guard: ({ event }: any) => event.output.kycNeeded,
+            // The guard checks validateKyc output
+            // do nothing otherwise, as we wait for modal confirmation.
+            target: "KYC"
+          },
+          {
+            // If Avenia (BRL) flow and user is valid, we can simply go to the summary card.
+            guard: ({ context, event }) => !event.output.kycNeeded && context.executionInput?.fiatToken === FiatToken.BRL,
+            target: "RegisterRamp"
+          }
+        ],
         onError: "Idle",
         src: "validateKyc"
       },

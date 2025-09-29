@@ -2,18 +2,29 @@ import { FiatToken, KycFailureReason, RampDirection } from "@packages/shared";
 import { assign, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
-import { UploadIds } from "./brlaKyc.machine";
+import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext } from "./types";
 
 // Extended context types for child KYC machines
 export interface AveniaKycContext extends RampContext {
   taxId: string;
+  subAccountId?: string;
   kycFormData?: KYCFormData;
+  livenessCheckOpened?: boolean;
   kycStatus?: KycStatus;
-  rejectReason?: KycFailureReason;
+  rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
-  error?: string;
+  error?: AveniaKycMachineError;
+  isCompany?: boolean; // Flag to identify if the user is a business (CNPJ) or individual (CPF)
+  kybAttemptId?: string;
+  kybUrls?: {
+    authorizedRepresentativeUrl: string;
+    basicCompanyDataUrl: string;
+  };
+  kybStep?: "company" | "representative" | "verification";
+  companyVerificationStarted?: boolean;
+  representativeVerificationStarted?: boolean;
 }
 
 export interface MoneriumKycContext extends RampContext {
@@ -77,9 +88,9 @@ export const kycStateNode = {
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) => event.output.error
+              initializeFailedMessage: ({ event }) => event.output.error.message
             }),
-            target: "#ramp.QuoteReady"
+            target: "#ramp.KycFailure"
           }
         ],
         onError: {

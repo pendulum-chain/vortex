@@ -12,6 +12,8 @@ router.route("/getRampStatus").get(brlaController.getRampStatus);
 
 router.route("/getKycStatus").get(brlaController.fetchSubaccountKycStatus);
 
+router.route("/getSelfieLivenessUrl").get(brlaController.getSelfieLivenessUrl);
+
 router.route("/validatePixKey").get(brlaController.validatePixKey);
 
 router.route("/createSubaccount").post(validateSubaccountCreation, brlaController.createSubaccount);
@@ -19,5 +21,9 @@ router.route("/createSubaccount").post(validateSubaccountCreation, brlaControlle
 router.route("/getUploadUrls").post(validateStartKyc2, brlaController.getUploadUrls);
 
 router.route("/newKyc").post(brlaController.newKyc);
+
+router.route("/kyb/new-level-1/web-sdk").post(brlaController.initiateKybLevel1);
+
+router.route("/kyb/attempt-status").get(brlaController.getKybAttemptStatus);
 
 export default router;

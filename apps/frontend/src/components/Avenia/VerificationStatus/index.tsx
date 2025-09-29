@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ActorRefFrom } from "xstate";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
@@ -56,7 +55,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
             initial={{ opacity: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            {aveniaState.context.error}
+            {aveniaState.context.error?.message}
           </motion.p>
 
           {aveniaState.context.kycStatus === KycStatus.REJECTED && aveniaState.context.rejectReason && (
@@ -83,15 +82,26 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
           )}
 
           {aveniaState.context.kycStatus === KycStatus.REJECTED && (
-            <motion.button
-              animate={{ opacity: 1, y: 0 }}
-              className="btn-vortex-primary btn mt-6 px-8"
-              initial={{ opacity: 0, y: 20 }}
-              onClick={() => aveniaKycActor.send({ type: "RETRY" })}
-              transition={{ delay: 0.6, duration: 0.3 }}
-            >
-              {t("components.brlaExtendedForm.buttons.tryAgain")}
-            </motion.button>
+            <div className="mt-6 flex w-full gap-x-4">
+              <motion.button
+                animate={{ opacity: 1, y: 0 }}
+                className="btn flex-1 bg-pink-500 px-8 text-white hover:bg-pink-600"
+                initial={{ opacity: 0, y: 20 }}
+                onClick={() => aveniaKycActor.send({ type: "CANCEL_RETRY" })}
+                transition={{ delay: 0.6, duration: 0.3 }}
+              >
+                {t("components.brlaExtendedForm.buttons.back")}
+              </motion.button>
+              <motion.button
+                animate={{ opacity: 1, y: 0 }}
+                className="btn-vortex-primary btn flex-1 px-8"
+                initial={{ opacity: 0, y: 20 }}
+                onClick={() => aveniaKycActor.send({ type: "RETRY" })}
+                transition={{ delay: 0.6, duration: 0.3 }}
+              >
+                {t("components.brlaExtendedForm.buttons.tryAgain")}
+              </motion.button>
+            </div>
           )}
         </>
       )}

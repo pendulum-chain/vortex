@@ -1,32 +1,32 @@
+import { isValidCnpj } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { isValidCnpj } from "../../hooks/ramp/schema";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
-import { BrlaFieldProps, ExtendedBrlaFieldOptions } from "./BrlaField";
-import { KYCForm } from "./KYCForm";
+import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
+import { AveniaVerificationForm } from "./AveniaVerificationForm";
 import { DocumentUpload } from "./KYCLevel2Form";
 import { VerificationStatus } from "./VerificationStatus";
 
-export const PIXKYCForm = () => {
+export const AveniaKYCForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  if (!aveniaKycActor) return null;
-  if (!aveniaState) return null;
-
   const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
 
+  if (!aveniaState) return null;
+  if (!aveniaKycActor) return null;
   if (!aveniaState.context.taxId) {
     return null;
   }
 
-  const pixformFields: BrlaFieldProps[] = [
+  const pixformFields: AveniaFieldProps[] = [
     {
-      id: ExtendedBrlaFieldOptions.FULL_NAME,
+      id: ExtendedAveniaFieldOptions.FULL_NAME,
       index: 0,
       label: t("components.brlaExtendedForm.form.fullName"),
       placeholder: t("components.brlaExtendedForm.form.fullName"),
@@ -34,7 +34,7 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.EMAIL,
+      id: ExtendedAveniaFieldOptions.EMAIL,
       index: 1,
       label: t("components.brlaExtendedForm.form.email"),
       placeholder: t("components.brlaExtendedForm.form.email"),
@@ -42,14 +42,14 @@ export const PIXKYCForm = () => {
       type: "email"
     },
     {
-      id: ExtendedBrlaFieldOptions.BIRTHDATE,
+      id: ExtendedAveniaFieldOptions.BIRTHDATE,
       index: 2,
       label: t("components.brlaExtendedForm.form.birthdate"),
       required: true,
       type: "date"
     },
     {
-      id: ExtendedBrlaFieldOptions.STREET,
+      id: ExtendedAveniaFieldOptions.STREET,
       index: 3,
       label: t("components.brlaExtendedForm.form.street"),
       placeholder: t("components.brlaExtendedForm.form.street"),
@@ -57,7 +57,7 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.NUMBER,
+      id: ExtendedAveniaFieldOptions.NUMBER,
       index: 4,
       label: t("components.brlaExtendedForm.form.number"),
       placeholder: t("components.brlaExtendedForm.form.number"),
@@ -65,7 +65,7 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.CITY,
+      id: ExtendedAveniaFieldOptions.CITY,
       index: 5,
       label: t("components.brlaExtendedForm.form.city"),
       placeholder: t("components.brlaExtendedForm.form.city"),
@@ -73,7 +73,7 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.STATE,
+      id: ExtendedAveniaFieldOptions.STATE,
       index: 6,
       label: t("components.brlaExtendedForm.form.state"),
       options: ["SP", "RJ"],
@@ -82,7 +82,7 @@ export const PIXKYCForm = () => {
       type: "select"
     },
     {
-      id: ExtendedBrlaFieldOptions.CEP,
+      id: ExtendedAveniaFieldOptions.CEP,
       index: 7,
       label: "CEP",
       placeholder: "CEP",
@@ -90,7 +90,7 @@ export const PIXKYCForm = () => {
       type: "text"
     },
     {
-      id: ExtendedBrlaFieldOptions.TAX_ID,
+      id: ExtendedAveniaFieldOptions.TAX_ID,
       index: 8,
       label: "CPF",
       placeholder: "",
@@ -101,7 +101,7 @@ export const PIXKYCForm = () => {
 
   if (isValidCnpj(aveniaState.context.taxId)) {
     pixformFields.push({
-      id: ExtendedBrlaFieldOptions.COMPANY_NAME,
+      id: ExtendedAveniaFieldOptions.COMPANY_NAME,
       index: 10,
       label: t("components.brlaExtendedForm.form.companyName"),
       placeholder: t("components.brlaExtendedForm.form.companyName"),
@@ -109,14 +109,14 @@ export const PIXKYCForm = () => {
       type: "text"
     });
     pixformFields.push({
-      id: ExtendedBrlaFieldOptions.START_DATE,
+      id: ExtendedAveniaFieldOptions.START_DATE,
       index: 11,
       label: t("components.brlaExtendedForm.form.startDate"),
       required: true,
       type: "date"
     });
     pixformFields.push({
-      id: ExtendedBrlaFieldOptions.PARTNER_CPF,
+      id: ExtendedAveniaFieldOptions.PARTNER_CPF,
       index: 12,
       label: t("components.brlaExtendedForm.form.partnerCpf"),
       required: true,
@@ -135,8 +135,12 @@ export const PIXKYCForm = () => {
     content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else if (aveniaState.stateValue === "DocumentUpload") {
     content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
+  } else if (aveniaState.stateValue === "LivenessCheck" || aveniaState.stateValue === "RefreshingLivenessUrl") {
+    content = <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
   } else {
-    content = <KYCForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} />;
+    content = (
+      <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} isCompany={false} />
+    );
   }
 
   return (

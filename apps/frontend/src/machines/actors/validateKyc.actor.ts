@@ -1,5 +1,5 @@
-import { BrlaErrorResponse, FiatToken, RampDirection } from "@packages/shared";
-import { isValidCnpj, isValidCpf } from "../../hooks/ramp/schema";
+import { BrlaErrorResponse, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
+
 import { BrlaService } from "../../services/api";
 import { RampContext } from "../types";
 
@@ -31,8 +31,11 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     }
 
     try {
-      const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
+      const { evmAddress: brlaEvmAddress, subAccountId } = await BrlaService.getUser(taxId);
+      console.log("existing subaccunt: ", subAccountId);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
+
+      console.log("Remaining limit response from BRLA:", remainingLimitResponse);
 
       const amountNum = Number(
         rampDirection === RampDirection.SELL ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
@@ -41,6 +44,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       if (amountNum > remainingLimitNum) {
         // Avenia-Migration: this must be changed. No more levels. TOAST?
+        // We don't know of a possibility to increase limits so far.
         throw new Error("Insufficient remaining limit for this transaction.");
       }
 

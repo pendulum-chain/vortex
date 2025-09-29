@@ -1,35 +1,29 @@
-import { createPrivateKey, sign } from "crypto";
 import * as forge from "node-forge";
-import {
-  BRLA_API_KEY,
-  BRLA_BASE_URL,
-  BRLA_PRIVATE_KEY,
-  CreateAveniaSubaccountRequest,
-  DocumentUploadRequest,
-  DocumentUploadResponse,
-  SwapLog
-} from "../..";
+import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse, SwapLog } from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
+  AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaAccountType,
+  AveniaDocumentGetResponse,
   AveniaDocumentType,
+  AveniaPaymentMethod,
+  AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
-  BrlaPaymentMethod,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
   GetKycAttemptResponse,
+  KybAttemptStatusResponse,
+  KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
-  KycLevel2Response,
   KycRetryPayload,
-  OfframpPayload,
   OnchainLog,
   OnrampPayload,
   PayInQuoteParams,
@@ -37,7 +31,6 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
-  PixOutputTicketOutput,
   PixOutputTicketPayload,
   RegisterSubaccountPayload,
   SwapPayload
@@ -94,7 +87,6 @@ export class BrlaApiService {
     const signatureBytes = privateKey.sign(md);
 
     const signatureBase64 = forge.util.encode64(signatureBytes);
-
     const headers = {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -191,9 +183,8 @@ export class BrlaApiService {
   }
 
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
-    // const query = `pixKey=${encodeURIComponent(pixKey)}`;
-    return { bankName: "", name: "", taxId: pixKey };
-    // return await this.sendRequest(Endpoint.PixInfo, 'GET', query);
+    const query = `pixKey=${pixKey}&decodePixKey=true`;
+    return await this.sendRequest(Endpoint.PixInfo, "GET", query);
   }
 
   public async getPayInHistory(userId: string): Promise<DepositLog[]> {
@@ -230,13 +221,20 @@ export class BrlaApiService {
 
   public async getDocumentUploadUrls(
     documentType: AveniaDocumentType,
-    isDoubleSided: boolean
+    isDoubleSided: boolean,
+    subAccountId: string
   ): Promise<DocumentUploadResponse> {
     const payload: DocumentUploadRequest = {
       documentType,
       isDoubleSided
     };
-    return await this.sendRequest(Endpoint.Documents, "POST", undefined, payload);
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+  }
+
+  public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
   }
 
   public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
@@ -262,29 +260,35 @@ export class BrlaApiService {
     const query = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
-      inputPaymentMethod: BrlaPaymentMethod.INTERNAL, // Subtract from user's account
+      inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
       inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
       outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
       outputCurrency: BrlaCurrency.BRL,
-      outputPaymentMethod: BrlaPaymentMethod.PIX,
-      outputThirdParty: String(quoteParams.outputThirdParty)
+      outputPaymentMethod: AveniaPaymentMethod.PIX,
+      outputThirdParty: String(quoteParams.outputThirdParty),
+      subAccountId: quoteParams.subAccountId
     }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
-  public async createPixInputTicket(payload: PixInputTicketPayload): Promise<PixInputTicketOutput> {
-    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
-    if ("brlPixInputInfo" in response) {
+  public async createPixInputTicket(payload: PixInputTicketPayload, subAccountId: string): Promise<PixInputTicketOutput> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
+    console.log("createPixInputTicket response", response);
+
+    if ("brCode" in response) {
       return response;
     }
     // To satisfy TypeScript
-    throw new Error("Invalid response from BRLA API for createPixInputTicket");
+    throw new Error("Invalid response from Avenia API for createPixInputTicket");
   }
 
-  public async createPixOutputTicket(payload: PixOutputTicketPayload): Promise<{ id: string }> {
-    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+  public async createPixOutputTicket(payload: PixOutputTicketPayload, subAccountId: string): Promise<{ id: string }> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
+    // TODO not sure what the return object is, we need to check if our current assumption is correct
     if ("brlPixInputInfo" in response) {
-      throw new Error("Invalid response from BRLA API for createPixOutputTicket");
+      throw new Error("Invalid response from Avenia API for createPixOutputTicket");
     }
     return response;
   }
@@ -299,7 +303,38 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
   }
 
-  public async getKycAttempt(attemptId: string): Promise<GetKycAttemptResponse> {
-    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", undefined, undefined, attemptId);
+  public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
+  }
+
+  /**
+   * Initiates KYB Level 1 verification process using the Web SDK
+   * @param subAccountId The subaccount ID
+   * @returns URLs for the KYB verification process
+   */
+  public async initiateKybLevel1(subAccountId: string): Promise<KybLevel1Response> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, undefined);
+  }
+
+  /**
+   * Gets the status of a KYB attempt
+   * @param attemptId The KYB attempt ID
+   * @returns The KYB attempt status
+   */
+  public async getKybAttemptStatus(attemptId: string): Promise<KybAttemptStatusResponse> {
+    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
+  }
+
+  public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Balances, "GET", query);
+  }
+
+  public async getAveniaPayoutTicket(ticketId: string, subAccountId: string): Promise<AveniaPayoutTicket> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const { ticket } = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
+    return ticket;
   }
 }

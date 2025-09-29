@@ -1,10 +1,13 @@
+import { isValidCnpj } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
-import { PIXKYCForm } from "../../components/BrlaComponents/BrlaExtendedForm";
+import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
+import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
+import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
-import { useAveniaKycActor, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
+import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 
 export interface WidgetProps {
@@ -29,6 +32,7 @@ const WidgetContent = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
+  const aveniaState = useAveniaKycSelector();
 
   const rampState = useSelector(rampActor, state => state.value);
 
@@ -51,7 +55,13 @@ const WidgetContent = () => {
   }
 
   if (aveniaKycActor) {
-    return <PIXKYCForm />;
+    const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
+
+    if (isCnpj && aveniaState?.context.kybUrls) {
+      return <AveniaKYBFlow />;
+    }
+
+    return isCnpj ? <AveniaKYBForm /> : <AveniaKYCForm />;
   }
 
   return <DetailsStep />;

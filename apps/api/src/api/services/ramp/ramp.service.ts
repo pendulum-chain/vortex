@@ -1,8 +1,8 @@
 import {
   AccountMeta,
+  AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  BrlaPaymentMethod,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -243,7 +243,6 @@ export class RampService extends BaseRampService {
   }> {
     if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
-        await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
         // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
         // otherwise, it is automatically assumed to be a Monerium offramp.
@@ -257,7 +256,6 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
-      await this.validateBrlaWhitelistedAccount(additionalData?.taxId);
       return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
@@ -607,21 +605,28 @@ export class RampService extends BaseRampService {
     pixKey: string,
     receiverTaxId: string,
     amount: string
-  ): Promise<SubaccountData> {
+  ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = (await brlaApiService.getSubaccount(taxId)) as any; // TODO remove after Avenia v2 migrations.
 
-    if (!subaccount) {
+    const taxIdRecord = await TaxId.findByPk(taxId);
+    if (!taxIdRecord) {
       throw new APIError({
-        message: "Subaccount not found.",
+        message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
+      });
+    }
+    const subAccountData = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    if (!subaccountLimits) {
+      throw new APIError({
+        message: "Failed to fetch subaccount limits",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
     // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
     try {
       const pixKeyData = await brlaApiService.validatePixKey(pixKey);
-
       //validate the recipient's taxId with partial information
       if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
         throw new APIError({
@@ -636,16 +641,31 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const limitBurn = subaccount.kyc.limits.limitBurn;
+    const brlLimits = subaccountLimits.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
+    if (!brlLimits) {
+      throw new APIError({
+        message: "BRL limits not found.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
 
-    if (Number(amount) > limitBurn) {
+    if (Number(amount) > Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut)) {
       throw new APIError({
         message: "Amount exceeds limit.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    return subaccount;
+    const evmAddress = subAccountData?.wallets.find(w => w.chain === "EVM")?.walletAddress;
+
+    if (!evmAddress) {
+      throw new APIError({
+        message: "EVM wallet not found in subaccount.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    return { brCode: subAccountData.brCode, wallets: { evm: evmAddress } };
   }
 
   /**
@@ -676,9 +696,9 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-    const { maxFiatIn } = brlaLimits[0] || {};
+    const { maxFiatIn, usedLimit } = brlaLimits[0] || {};
 
-    if (Number(amount) > Number(maxFiatIn)) {
+    if (Number(amount) > Number(maxFiatIn) - Number(usedLimit.usedFiatIn)) {
       throw new APIError({
         message: "Amount exceeds KYC limits.",
         status: httpStatus.BAD_REQUEST
@@ -688,36 +708,30 @@ export class RampService extends BaseRampService {
     const aveniaQuote = await brlaApiService.createPayInQuote({
       inputAmount: String(amount),
       inputCurrency: BrlaCurrency.BRL,
-      inputPaymentMethod: BrlaPaymentMethod.PIX,
+      inputPaymentMethod: AveniaPaymentMethod.PIX,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: BrlaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
-
-    const aveniaTicket = await brlaApiService.createPixInputTicket({
-      quoteToken: aveniaQuote.quoteToken,
-      ticketBlockchainOutput: {
-        walletAddress: moonbeamEphemeralAddress,
-        walletChain: "Moonbeam"
+    console.log("DEBUG: created avenia quote: ", aveniaQuote);
+    const aveniaTicket = await brlaApiService.createPixInputTicket(
+      {
+        quoteToken: aveniaQuote.quoteToken,
+        ticketBlockchainOutput: {
+          walletAddress: moonbeamEphemeralAddress,
+          walletChain: AveniaPaymentMethod.MOONBEAM
+        },
+        ticketBrlPixInput: {
+          additionalData: generateReferenceLabel(quote)
+        }
       },
-      ticketBrlPixInput: {
-        additionalData: generateReferenceLabel(quote)
-      }
-    });
+      taxIdRecord.subAccountId
+    );
 
-    return { aveniaTicketId: aveniaTicket.ticket.id, brCode: aveniaTicket.brlPixInputInfo.brCode };
-  }
-
-  public async validateBrlaWhitelistedAccount(taxId: string | undefined): Promise<void> {
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
-      throw new APIError({
-        message: "BRL Ramp disabled",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    console.log("DEBUG: created avenia ticket: ", aveniaTicket);
+    return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
   }
 }
 

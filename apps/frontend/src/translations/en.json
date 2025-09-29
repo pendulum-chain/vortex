@@ -11,6 +11,56 @@
       },
       "title": "Special offer until 27 May"
     },
+    "aveniaKYB": {
+      "aveniaKYBVerifyCompanyRepresentative": {
+        "instructions": "Now please verify the authorized representative information. This person must be legally authorized to represent your company."
+      },
+      "buttons": {
+        "back": "Back",
+        "cancel": "Cancel",
+        "done": "Done",
+        "next": "Next"
+      },
+      "companyData": "Company Information",
+      "description": "Complete these quick business verification steps. Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
+      "instructions": "Please click the button below to verify your company information. You'll need to provide your company registration details and documents.",
+      "representativeData": "Authorized Representative Information",
+      "title": "Business Verification",
+      "verification": {
+        "approved": "Your business verification has been approved!",
+        "pending": "Verification in progress. This process can take up to 2 days.",
+        "rejected": "Your business verification was rejected. Please try again."
+      },
+      "verifyCompany": "Verify Company",
+      "verifyCompanyRepresentative": "Verify Company Representative"
+    },
+    "aveniaKYC": {
+      "buttons": {
+        "back": "Back",
+        "done": "Done",
+        "finish": "Finish",
+        "next": "Next"
+      },
+      "title": "KYC Verification"
+    },
+    "aveniaLiveness": {
+      "cameraWarning": "You'll need to allow camera access on the partner's page",
+      "description": "Complete liveness check with our secure partner",
+      "livenessDone": "Verification Complete",
+      "openLivenessCheck": "Start Verification",
+      "title": "Liveness Check",
+      "troubleTextButton": "Click here",
+      "troubleTextPart1": "Having trouble? ",
+      "troubleTextPart2": " to try again in a new session."
+    },
+    "aveniaSwapField": {
+      "cpfOrCnpj": "CPF or CNPJ",
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "pixKey": "Pix key",
+      "placeholder": "Enter your {{label}}",
+      "walletAddress": "Wallet Address"
+    },
     "benefitsList": {
       "noHiddenFees": "No hidden fees",
       "takes5Minutes": "Takes <1>5 minutes</1>"
@@ -99,6 +149,7 @@
           "tooOld": "Invalid company start date"
         },
         "state": {
+          "maxLength": "Use the 2-letter state code",
           "minLength": "State must be at least 2 characters",
           "required": "State is required"
         },
@@ -117,24 +168,6 @@
         "rejected": "KYC verification rejected",
         "success": "Verification successful"
       }
-    },
-    "brlaKYCForm": {
-      "buttons": {
-        "back": "Back",
-        "compareFees": "Compare Fees",
-        "finish": "Finish",
-        "next": "Next"
-      },
-      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
-      "title": "Fast-Track Verification"
-    },
-    "brlaSwapField": {
-      "cpfOrCnpj": "CPF or CNPJ",
-      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
-      "pixKey": "Pix key",
-      "placeholder": "Enter your {{label}}",
-      "walletAddress": "Wallet Address"
     },
     "detailsDescription": {
       "connectWallet": "Connect your wallet to continue the process",
@@ -216,6 +249,9 @@
     "footer": {
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
+    },
+    "kycLevel2Toggle": {
+      "temporarilyDisabled": "Temporarily disabled"
     },
     "maintenance": {
       "banner": {
@@ -411,7 +447,7 @@
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
-      "brlaTeleport": "Your payment is being processed. This can take up to 5 minutes.",
+      "brlaOnrampMint": "Your payment is being processed. This can take up to 5 minutes.",
       "closeProgressScreenText": "💡 You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
       "createStellarAccount": "Creating Stellar account",
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
