@@ -293,9 +293,7 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    // remove subAccountId from payload as it's already in query
-    const cleanedPayload = { ...payload, subAccountId: undefined };
-    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, cleanedPayload);
+    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
   }
 
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
@@ -319,7 +317,6 @@ export class BrlaApiService {
    * @returns The KYB attempt status
    */
   public async getKybAttemptStatus(attemptId: string): Promise<KybAttemptStatusResponse> {
-    const url = Endpoint.GetKybAttempt.replace("{attemptId}", attemptId);
-    return await this.sendRequest(url as Endpoint, "GET", undefined, undefined);
+    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
   }
 }
