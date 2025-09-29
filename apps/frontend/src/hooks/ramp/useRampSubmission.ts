@@ -149,7 +149,17 @@ export const useRampSubmission = () => {
         setExecutionPreparing(false);
       }
     },
-    [executionPreparing, prepareExecutionInput, preRampCheck, handleSubmissionError, rampDirection, chainId, rampActor]
+    [
+      executionPreparing,
+      prepareExecutionInput,
+      preRampCheck,
+      handleSubmissionError,
+      rampDirection,
+      chainId,
+      rampActor,
+      setPixId,
+      setTaxId
+    ]
   );
 
   return {

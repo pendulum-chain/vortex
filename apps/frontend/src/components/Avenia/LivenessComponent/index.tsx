@@ -18,7 +18,7 @@ export const LivenessComponent: React.FC<AveniaLivenessProps> = ({ aveniaState, 
       window.open(livenessUrl, "_blank");
       refreshClicked.current = false; // Reset the flag
     }
-  }, [livenessUrl, refreshClicked.current]);
+  }, [livenessUrl]);
 
   const handleOpenLivenessUrl = () => {
     if (livenessUrl) {
