@@ -23,74 +23,82 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
       return;
     }
 
-    if (!ctx.preNabla.inputAmountForSwap) {
-      throw new Error("OnRampSquidRouterToAssetHubEngine requires preNabla.inputAmountForSwap");
+    if (!ctx.preNabla?.deductibleFeeAmount) {
+      throw new Error("OnRampSquidRouterToAssetHubEngine requires pre-Nabla deductible fee in context");
     }
 
-    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
-      throw new Error("OnRampSquidRouterToAssetHubEngine requires fees (usd + displayFiat) in context");
+    if (!ctx.fees?.displayFiat || !ctx.fees?.usd) {
+      throw new Error("OnRampSquidRouterToAssetHubEngine requires fees in context");
     }
 
     // The amount available for the squidrouter transfer from Polygon to Moonbeam
-    const bridgeAmount = ctx.preNabla.inputAmountForSwap.toFixed(2, 0);
+    const bridgeAmount = ctx.request.inputAmount;
     const bridgeAmountRaw = multiplyByPowerOfTen(bridgeAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0, 0);
 
+    const fromToken = ERC20_EURE_POLYGON;
+    const fromNetwork = Networks.Polygon;
+    const toToken = AXL_USDC_MOONBEAM;
+    const toNetwork = Networks.Moonbeam;
+
     const bridgeRequest: EvmBridgeRequest = {
-      fromNetwork: Networks.Polygon,
-      fromToken: ERC20_EURE_POLYGON,
-      intermediateAmountRaw: bridgeAmountRaw,
+      amountRaw: bridgeAmountRaw,
+      fromNetwork,
+      fromToken,
       originalInputAmountForRateCalc: bridgeAmountRaw,
       rampType: req.rampType,
-      toNetwork: Networks.Moonbeam,
-      toToken: AXL_USDC_MOONBEAM
+      toNetwork,
+      toToken
     };
 
-    const preliminary = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const squidRouterNetworkFeeUSD = preliminary.networkFeeUSD;
+    const bridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
+    const squidRouterNetworkFeeUSD = bridgeResult.networkFeeUSD;
 
-    const vortexFeeUsd = new Big(ctx.fees.usd.vortex);
-    const partnerMarkupFeeUsd = new Big(ctx.fees.usd.partnerMarkup);
-    const outputAmountMoonbeamDecimal = new Big(bridgeAmount)
-      .minus(vortexFeeUsd)
-      .minus(partnerMarkupFeeUsd)
-      .minus(squidRouterNetworkFeeUSD);
-
-    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, ERC20_EURE_POLYGON_DECIMALS).toString();
-
-    bridgeRequest.intermediateAmountRaw = outputAmountMoonbeamRaw;
-    const final = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const finalGrossOutputAmountDecimal = new Big(final.finalGrossOutputAmountDecimal);
+    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(bridgeAmount, ERC20_EURE_POLYGON_DECIMALS).toString();
 
     ctx.bridge = {
-      finalEffectiveExchangeRate: final.finalEffectiveExchangeRate,
-      finalGrossOutputAmountDecimal,
+      effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
+      fromNetwork,
+      fromToken,
+      inputAmountDecimal: new Big(bridgeAmount),
+      inputAmountRaw: bridgeAmountRaw,
       networkFeeUSD: squidRouterNetworkFeeUSD,
-      outputAmountMoonbeamRaw
+      outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
+      outputAmountRaw: outputAmountMoonbeamRaw,
+      toNetwork,
+      toToken
     };
 
     const displayCurrency = ctx.targetFeeFiatCurrency;
     const networkFeeDisplay = await priceFeedService.convertCurrency(squidRouterNetworkFeeUSD, EvmToken.USDC, displayCurrency);
 
-    const usd = ctx.fees.usd;
-    const usdTotal = new Big(usd.total).plus(squidRouterNetworkFeeUSD).toFixed(6);
-    ctx.fees.usd = {
-      ...usd,
-      network: squidRouterNetworkFeeUSD,
-      total: usdTotal
+    // Adjust the total fees to include the squidrouter network fee
+    const totalDisplayFiat = new Big(ctx.fees.displayFiat.total).plus(networkFeeDisplay).toFixed(6);
+    const totalUsd = new Big(ctx.fees.usd.total).plus(squidRouterNetworkFeeUSD).toFixed(6);
+
+    ctx.fees = {
+      displayFiat: {
+        ...ctx.fees.displayFiat,
+        network: networkFeeDisplay,
+        total: totalDisplayFiat
+      },
+      usd: {
+        ...ctx.fees.usd,
+        network: squidRouterNetworkFeeUSD,
+        total: totalUsd
+      }
     };
 
-    const display = ctx.fees.displayFiat;
-    const newDisplayTotal = new Big(display.vortex)
-      .plus(display.anchor)
-      .plus(display.partnerMarkup)
-      .plus(networkFeeDisplay)
-      .toFixed(2);
-
-    ctx.fees.displayFiat.network = networkFeeDisplay;
-    ctx.fees.displayFiat.total = newDisplayTotal;
+    // Set the preNabla input to the output amount of the bridge minus all preNabla fees
+    // For this flow, the Nabla input currency is a USD stablecoin so we don't need to convert prices
+    // biome-ignore lint/style/noNonNullAssertion: Justification: We check ctx.fees.usd above
+    const usdFees = ctx.fees.usd!;
+    ctx.preNabla.inputAmountForSwap = ctx.bridge.outputAmountDecimal
+      .minus(usdFees.vortex)
+      .minus(usdFees.partnerMarkup)
+      .minus(usdFees.network);
 
     ctx.addNote?.(
-      `OnRampSquidRouterToAssetHubEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${finalGrossOutputAmountDecimal.toString()}`
+      `OnRampSquidRouterToAssetHubEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${bridgeResult.finalGrossOutputAmountDecimal.toString()}, inputForNablaSwap=${ctx.preNabla.inputAmountForSwap.toString()}`
     );
   }
 }

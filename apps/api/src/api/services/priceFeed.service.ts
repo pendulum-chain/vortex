@@ -257,6 +257,7 @@ export class PriceFeedService {
       DOT: "polkadot",
       ETH: "ethereum",
       GLMR: "moonbeam",
+      HDX: "hydradx",
       MATIC: "matic-network"
     };
 

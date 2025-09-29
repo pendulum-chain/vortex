@@ -1,3 +1,4 @@
+import { multiplyByPowerOfTen } from "@packages/shared";
 import { Builder } from "@paraspell/sdk-pjs";
 import { Extrinsic } from "@polkadot/types/interfaces";
 import { XcmFees } from "./types";
@@ -15,13 +16,23 @@ export async function createHydrationToAssethubTransfer(
   const info = await transaction.senderAddress("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY").getXcmFeeEstimate();
   console.log("info :", info);
 
+  const destinationAmountRaw = info.destination.fee.toString();
+  // The destination fee is always in AssetHub DOT which has 10 decimals
+  const destinationAmountDecimals = multiplyByPowerOfTen(destinationAmountRaw, -10).toString();
+
+  const originAmountRaw = info.origin.fee.toString();
+  // The origin fee is always in HDX which has 12 decimals
+  const originAmountDecimals = multiplyByPowerOfTen(originAmountRaw, -12).toString();
+
   const fees = {
     destination: {
-      amountRaw: info.destination.fee.toString(),
+      amount: destinationAmountDecimals,
+      amountRaw: destinationAmountRaw,
       currency: info.destination.currency
     },
     origin: {
-      amountRaw: info.origin.fee.toString(),
+      amount: originAmountDecimals,
+      amountRaw: originAmountRaw,
       currency: info.origin.currency
     }
   };

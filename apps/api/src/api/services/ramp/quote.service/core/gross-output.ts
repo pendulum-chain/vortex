@@ -46,7 +46,7 @@ export interface NablaSwapResult {
 }
 
 export interface EvmBridgeRequest {
-  intermediateAmountRaw: string; // Raw output from Nabla swap (e.g. axlUSDC on Moonbeam)
+  amountRaw: string; // Raw amount to bridge/swap via Squidrouter
   fromToken: `0x${string}`; // EVM token address on source chain
   toToken: `0x${string}`; // EVM token address on destination chain
   fromNetwork: Networks;
@@ -287,13 +287,12 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
 export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest): Promise<EvmBridgeResult> {
-  const { intermediateAmountRaw, fromNetwork, toNetwork, fromToken, toToken, originalInputAmountForRateCalc, rampType } =
-    request;
+  const { amountRaw, fromNetwork, toNetwork, fromToken, toToken, originalInputAmountForRateCalc, rampType } = request;
 
   try {
     // Prepare route parameters for Squidrouter
     const routeParams = prepareSquidrouterRouteParams({
-      amountRaw: intermediateAmountRaw,
+      amountRaw: amountRaw,
       fromNetwork,
       fromToken,
       rampType,

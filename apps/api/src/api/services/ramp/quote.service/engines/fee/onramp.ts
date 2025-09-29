@@ -15,13 +15,10 @@ export class OnRampFeeEngine implements Stage {
       return;
     }
 
-    const outputAmountOfframp = ctx.nabla?.outputAmountDecimal?.toString() ?? "0";
-
     const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
       from: req.from,
       inputAmount: req.inputAmount,
       inputCurrency: req.inputCurrency,
-      outputAmountOfframp,
       outputCurrency: req.outputCurrency,
       partnerName: ctx.partner?.id || undefined,
       rampType: req.rampType,

@@ -1,4 +1,4 @@
-import { FiatToken, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -34,42 +34,49 @@ export class OnRampFinalizeEngine implements Stage {
       });
     }
 
-    let finalGrossOutputAmountDecimal: Big;
+    console.log("In finalize engine", ctx);
+
+    let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
-      finalGrossOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
+      if (req.outputCurrency === AssetHubToken.USDC) {
+        finalOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
+      } else {
+        if (!ctx.hydration) {
+          throw new APIError({
+            message: "OnRampFinalizeEngine requires hydration output for AssetHub non-USDC",
+            status: httpStatus.INTERNAL_SERVER_ERROR
+          });
+        }
+        // Calculate gross output after subtracting XCM fees
+        const originFeeInTargetCurrency = await this.price.convertCurrency(
+          ctx.hydration.xcmFees.origin.amount,
+          ctx.hydration.xcmFees.origin.currency as RampCurrency,
+          req.outputCurrency
+        );
+        const destinationFeeInTargetCurrency = await this.price.convertCurrency(
+          ctx.hydration.xcmFees.destination.amount,
+          ctx.hydration.xcmFees.destination.currency as RampCurrency,
+          req.outputCurrency
+        );
+        console.log("After price conversion in finalize", { destinationFeeInTargetCurrency, originFeeInTargetCurrency });
+        finalOutputAmountDecimal = new Big(ctx.hydration.amountOut)
+          .minus(originFeeInTargetCurrency)
+          .minus(destinationFeeInTargetCurrency);
+
+        console.log("Final output amount decimal", finalOutputAmountDecimal.toString());
+      }
     } else {
-      if (!ctx.bridge?.finalGrossOutputAmountDecimal) {
+      // EVM on-ramp with squidrouter as last step
+      if (!ctx.bridge?.outputAmountDecimal) {
         throw new APIError({
           message: "OnRampFinalizeEngine requires bridge output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
-      finalGrossOutputAmountDecimal = new Big(ctx.bridge.finalGrossOutputAmountDecimal);
+      finalOutputAmountDecimal = new Big(ctx.bridge.outputAmountDecimal);
     }
 
-    const display = ctx.fees.displayFiat;
-    const totalFeeFiat = new Big(display.total);
-
-    const preNablaInDisplayFiat = await this.price.convertCurrency(
-      ctx.preNabla.deductibleFeeAmount.toString(),
-      ctx.preNabla.feeCurrency as RampCurrency,
-      display.currency as RampCurrency
-    );
-    const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
-
-    let finalNetOutputAmount: Big;
-    if (req.to === "assethub") {
-      const totalFeeInOutputCurrency = await this.price.convertCurrency(
-        adjustedTotalFeeFiat.toString(),
-        display.currency,
-        req.outputCurrency
-      );
-      finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
-    } else {
-      finalNetOutputAmount = finalGrossOutputAmountDecimal;
-    }
-
-    if (finalNetOutputAmount.lte(0)) {
+    if (finalOutputAmountDecimal.lte(0)) {
       throw new APIError({
         message: "Input amount too low to cover calculated fees",
         status: httpStatus.BAD_REQUEST
@@ -82,13 +89,13 @@ export class OnRampFinalizeEngine implements Stage {
 
     if (ctx.subsidy?.applied && ctx.subsidy.rate) {
       const rate = new Big(ctx.subsidy.rate);
-      discountSubsidyAmount = finalNetOutputAmount.mul(rate);
-      finalNetOutputAmount = finalNetOutputAmount.plus(discountSubsidyAmount);
+      discountSubsidyAmount = finalOutputAmountDecimal.mul(rate);
+      finalOutputAmountDecimal = finalOutputAmountDecimal.plus(discountSubsidyAmount);
 
       ctx.subsidy.subsidyAmountInOutputToken = discountSubsidyAmount.toFixed(6, 0);
     }
 
-    const outputAmountStr = finalNetOutputAmount.toFixed(6, 0);
+    const outputAmountStr = finalOutputAmountDecimal.toFixed(6, 0);
 
     const record = await QuoteTicket.create({
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -117,6 +124,7 @@ export class OnRampFinalizeEngine implements Stage {
       rampType: record.rampType,
       to: record.to
     };
+
     ctx.addNote?.("OnRampFinalizeEngine: persisted quote and built response");
   }
 }

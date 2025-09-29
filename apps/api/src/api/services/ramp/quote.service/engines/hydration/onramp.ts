@@ -1,4 +1,10 @@
-import { AssetHubToken, assetHubTokenConfig, createHydrationToAssethubTransfer, RampDirection } from "@packages/shared";
+import {
+  AssetHubToken,
+  assetHubTokenConfig,
+  createHydrationToAssethubTransfer,
+  multiplyByPowerOfTen,
+  RampDirection
+} from "@packages/shared";
 import { getBestSellPriceFor } from "../../../../hydration/swap";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -27,14 +33,19 @@ export class OnRampHydrationEngine implements Stage {
 
     const trade = await getBestSellPriceFor(assetIn, assetOut, amountIn);
 
-    const amountOut = trade.amountOut.toString();
+    const amountInRaw = trade.amountIn.toString();
+    const amountOutRaw = trade.amountOut.toString();
+    const assetOutDecimals = trade.swaps[trade.swaps.length - 1].assetOutDecimals;
+    const amountOut = multiplyByPowerOfTen(amountOutRaw, -assetOutDecimals).toFixed(assetOutDecimals);
 
     const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
-    const { fees } = await createHydrationToAssethubTransfer(dummyDestination, amountOut, assetOut);
+    const { fees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
 
     ctx.hydration = {
-      amountInRaw: trade.amountIn.toString(),
-      amountOutRaw: amountOut,
+      amountIn,
+      amountInRaw,
+      amountOut,
+      amountOutRaw,
       assetIn: assetIn,
       assetOut: assetOut,
       xcmFees: fees

@@ -39,9 +39,9 @@ export class OnRampSquidRouterBrlToEvmEngine implements Stage {
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
     const bridgeRequest: EvmBridgeRequest = {
+      amountRaw: ctx.nabla.outputAmountRaw,
       fromNetwork: Networks.Moonbeam,
       fromToken: AXL_USDC_MOONBEAM,
-      intermediateAmountRaw: ctx.nabla.outputAmountRaw,
       originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
       rampType: req.rampType,
       toNetwork,
@@ -60,15 +60,15 @@ export class OnRampSquidRouterBrlToEvmEngine implements Stage {
 
     const outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
 
-    bridgeRequest.intermediateAmountRaw = outputAmountMoonbeamRaw;
+    bridgeRequest.amountRaw = outputAmountMoonbeamRaw;
     const final = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
     const finalGrossOutputAmountDecimal = new Big(final.finalGrossOutputAmountDecimal);
 
+    // TODO adjust these parameters
     ctx.bridge = {
-      finalEffectiveExchangeRate: final.finalEffectiveExchangeRate,
-      finalGrossOutputAmountDecimal,
+      effectiveExchangeRate: final.finalEffectiveExchangeRate,
       networkFeeUSD: squidRouterNetworkFeeUSD,
-      outputAmountMoonbeamRaw
+      outputAmountDecimal: finalGrossOutputAmountDecimal
     };
 
     const displayCurrency = ctx.targetFeeFiatCurrency;

@@ -96,12 +96,16 @@ export interface QuoteContext {
   };
 
   bridge?: {
-    // Squidrouter network fee
-    networkFeeUSD?: string;
-    finalGrossOutputAmountDecimal?: Big;
-    finalEffectiveExchangeRate?: string;
-    // On-ramp moonbeam raw amount for potential discount subsidy adjustment
-    outputAmountMoonbeamRaw?: string;
+    effectiveExchangeRate?: string;
+    fromNetwork: string;
+    fromToken: `0x${string}`;
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    toNetwork: string;
+    toToken: `0x${string}`;
+    networkFeeUSD: string;
   };
 
   // Fees in baseline and display currency
@@ -132,7 +136,9 @@ export interface QuoteContext {
 
   hydration?: {
     amountInRaw: string;
+    amountIn: string;
     amountOutRaw: string;
+    amountOut: string;
     assetIn: string;
     assetOut: string;
     xcmFees: XcmFees;

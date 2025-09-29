@@ -13,6 +13,10 @@ export class OnRampSwapEngine implements Stage {
       return;
     }
 
+    if (!ctx.preNabla?.inputAmountForSwap) {
+      throw new Error("OnRampSwapEngine requires pre-Nabla input amount for swap in context");
+    }
+
     let nablaOutputCurrency: RampCurrency;
     if (req.to === "assethub") {
       nablaOutputCurrency = AssetHubToken.USDC;
@@ -20,7 +24,7 @@ export class OnRampSwapEngine implements Stage {
       nablaOutputCurrency = EvmToken.USDC;
     }
 
-    const inputAmountForSwap = ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount;
+    const inputAmountForSwap = ctx.preNabla.inputAmountForSwap?.toString();
 
     const result = await calculateNablaSwapOutput({
       fromPolkadotDestination: req.from,
