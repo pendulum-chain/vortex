@@ -228,6 +228,9 @@
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
       "poweredBy": "Desenvolvido por"
     },
+    "kycLevel2Toggle": {
+      "temporarilyDisabled": "Temporariamente desativado"
+    },
     "maintenance": {
       "banner": {
         "ends": "Término previsto",
