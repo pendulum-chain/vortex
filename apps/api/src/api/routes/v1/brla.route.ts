@@ -22,4 +22,8 @@ router.route("/getUploadUrls").post(validateStartKyc2, brlaController.getUploadU
 
 router.route("/newKyc").post(brlaController.newKyc);
 
+router.route("/kyb/new-level-1/web-sdk").post(brlaController.initiateKybLevel1);
+
+router.route("/kyb/attempt-status").get(brlaController.getKybAttemptStatus);
+
 export default router;

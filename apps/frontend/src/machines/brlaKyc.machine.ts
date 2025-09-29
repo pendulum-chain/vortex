@@ -56,7 +56,13 @@ export const aveniaKycMachine = setup({
       | { type: "DOCUMENTS_BACK" }
       | { type: "LIVENESS_OPENED" }
       | { type: "REFRESH_LIVENESS_URL" }
-      | { type: "CANCEL" },
+      | { type: "CANCEL" }
+      | { type: "KYB_COMPLETE" }
+      | { type: "KYB_COMPANY_DONE" }
+      | { type: "KYB_REPRESENTATIVE_DONE" }
+      | { type: "KYB_COMPANY_BACK" }
+      | { type: "COMPANY_VERIFICATION_STARTED" }
+      | { type: "REPRESENTATIVE_VERIFICATION_STARTED" },
     input: {} as RampContext,
     output: {} as { error?: AveniaKycMachineError }
   }
@@ -105,12 +111,100 @@ export const aveniaKycMachine = setup({
           }),
           target: "Finish"
         },
-        // Waits for user's submission of Level 1 KYC form.
         FORM_SUBMIT: {
           actions: assign({
-            kycFormData: ({ event }) => event.formData
+            kycFormData: ({ event }) => {
+              console.log("kycFormData", event.formData);
+              return event.formData;
+            }
           }),
           target: "SubaccountSetup"
+        }
+      }
+    },
+
+    KYBFlow: {
+      initial: "CompanyVerification",
+      on: {
+        CANCEL: {
+          actions: assign({
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+          }),
+          target: "Finish"
+        },
+        FORM_SUBMIT: {
+          actions: assign({
+            kycFormData: ({ event, context }) => {
+              console.log("kycFormData", event.formData);
+              return {
+                ...context.kycFormData,
+                ...event.formData
+              };
+            }
+          }),
+          target: "KYBVerification"
+        }
+      },
+      states: {
+        CompanyVerification: {
+          entry: assign({
+            kybStep: () => "company"
+          }),
+          on: {
+            COMPANY_VERIFICATION_STARTED: {
+              actions: assign({
+                companyVerificationStarted: () => true
+              })
+            },
+            KYB_COMPANY_DONE: {
+              target: "RepresentativeVerification"
+            }
+          }
+        },
+        RepresentativeVerification: {
+          entry: assign({
+            kybStep: () => "representative"
+          }),
+          on: {
+            KYB_COMPANY_BACK: {
+              target: "CompanyVerification"
+            },
+            KYB_REPRESENTATIVE_DONE: {
+              target: "StatusVerification"
+            },
+            REPRESENTATIVE_VERIFICATION_STARTED: {
+              actions: assign({
+                representativeVerificationStarted: () => true
+              })
+            }
+          }
+        },
+        StatusVerification: {
+          entry: assign({
+            kybStep: () => "verification",
+            kycStatus: () => KycStatus.PENDING
+          }),
+          on: {
+            KYB_COMPLETE: {
+              target: "#brlaKyc.Success"
+            }
+          }
+        }
+      }
+    },
+    KYBVerification: {
+      always: {
+        target: "KYBFlow"
+      },
+      entry: assign({
+        kycStatus: () => KycStatus.PENDING
+      }),
+      on: {
+        CANCEL: {
+          actions: assign({
+            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+          }),
+          target: "Finish"
         }
       }
     },
@@ -168,12 +262,43 @@ export const aveniaKycMachine = setup({
     SubaccountSetup: {
       invoke: {
         input: ({ context }: { context: AveniaKycContext }) => context,
-        onDone: {
-          actions: assign({
-            subAccountId: ({ event }) => event.output.subAccountId
-          }),
-          target: "DocumentUpload"
-        },
+        onDone: [
+          {
+            actions: assign({
+              isCompany: ({ event }) => event.output.isCompany,
+              kybAttemptId: ({ event }) => event.output.kybUrls?.attemptId,
+              kybUrls: ({ event }) => {
+                if (!event.output.kybUrls) return undefined;
+                return {
+                  authorizedRepresentativeUrl: event.output.kybUrls.authorizedRepresentativeUrl,
+                  basicCompanyDataUrl: event.output.kybUrls.basicCompanyDataUrl
+                };
+              },
+              subAccountId: ({ event }) => event.output.subAccountId
+            }),
+            // If it's a company (CNPJ) and KYB URLs are available, store them and go to KYB flow
+            guard: ({ event }) => event.output.isCompany && !!event.output.kybUrls,
+            target: "KYBFlow"
+          },
+          {
+            actions: assign({
+              isCompany: ({ event }) => event.output.isCompany,
+              kycStatus: () => KycStatus.PENDING,
+              subAccountId: ({ event }) => event.output.subAccountId
+            }),
+            // If KYC is in process, store the status and go to Verifying state
+            guard: ({ event }) => !!event.output.maybeKycAttemptStatus,
+            target: "Verifying"
+          },
+          {
+            // Default case - continue with normal flow
+            actions: assign({
+              isCompany: ({ event }) => event.output.isCompany,
+              subAccountId: ({ event }) => event.output.subAccountId
+            }),
+            target: "DocumentUpload"
+          }
+        ],
         onError: [
           {
             actions: assign({

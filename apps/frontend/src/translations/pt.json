@@ -11,6 +11,29 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "aveniaKYB": {
+      "aveniaKYBVerifyCompanyRepresentative": {
+        "instructions": "Agora, verifique as informações do representante autorizado. Esta pessoa deve estar legalmente autorizada a representar sua empresa."
+      },
+      "buttons": {
+        "back": "Voltar",
+        "cancel": "Cancelar",
+        "done": "Concluído",
+        "next": "Próximo"
+      },
+      "companyData": "Informações da Empresa",
+      "description": "Conclua estas etapas rápidas de verificação de negócios. Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
+      "instructions": "Por favor, clique no botão abaixo para verificar as informações da sua empresa. Você precisará fornecer os detalhes e documentos de registro da sua empresa.",
+      "representativeData": "Informações do Representante Autorizado",
+      "title": "Verificação de Negócios",
+      "verification": {
+        "approved": "A verificação da sua empresa foi aprovada!",
+        "pending": "Verificação em andamento. Este processo pode levar até 2 dias.",
+        "rejected": "A verificação da sua empresa foi rejeitada. Por favor, tente novamente."
+      },
+      "verifyCompany": "Verificar Empresa",
+      "verifyCompanyRepresentative": "Verificar Representante da Empresa"
+    },
     "aveniaKYC": {
       "buttons": {
         "back": "Voltar",
@@ -18,7 +41,7 @@
         "finish": "Finalizar",
         "next": "Próximo"
       },
-      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
       "title": "Verificação Rápida"
     },
     "aveniaLiveness": {

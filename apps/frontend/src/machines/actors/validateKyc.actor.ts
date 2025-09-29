@@ -1,5 +1,5 @@
-import { BrlaErrorResponse, FiatToken, RampDirection } from "@packages/shared";
-import { isValidCnpj, isValidCpf } from "../../hooks/ramp/schema";
+import { BrlaErrorResponse, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
+
 import { BrlaService } from "../../services/api";
 import { RampContext } from "../types";
 

@@ -12,6 +12,8 @@ import {
   DocumentUploadResponse,
   FastQuoteResponse,
   GetKycAttemptResponse,
+  KybAttemptStatusResponse,
+  KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
   KycRetryPayload,
@@ -48,11 +50,13 @@ export enum Endpoint {
   KycRetry = "/kyc/retry",
   OnChainOut = "/on-chain/transfer",
   KycLevel1 = "/v2/kyc/new-level-1/api",
+  KybLevel1WebSdk = "/v2/kyc/new-level-1/web-sdk",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info",
   Documents = "/v2/documents",
   GetKycAttempt = "/v2/kyc/attempts",
+  GetKybAttempt = "/v2/kyc/attempts/{attemptId}",
   Balances = "/v2/account/balances"
 }
 
@@ -241,7 +245,7 @@ export interface EndpointMapping {
   };
   [Endpoint.KycLevel1]: {
     POST: {
-      body: any;
+      body: KycLevel1Payload;
       response: KycLevel1Response;
     };
     GET: {
@@ -331,6 +335,34 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: GetKycAttemptResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.KybLevel1WebSdk]: {
+    POST: {
+      body: undefined;
+      response: KybLevel1Response;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.GetKybAttempt]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: KybAttemptStatusResponse;
     };
     PATCH: {
       body: undefined;

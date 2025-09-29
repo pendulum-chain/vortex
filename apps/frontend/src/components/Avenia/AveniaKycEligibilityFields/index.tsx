@@ -1,9 +1,9 @@
-import { RampDirection } from "@packages/shared";
+import { CNPJ_REGEX, CPF_REGEX, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
+import { AveniaField, AveniaFieldValidationPattern, StandardAveniaFieldOptions } from "../AveniaField";
 
 const containerAnimation: MotionProps = {
   animate: { height: "auto", opacity: 1 },
@@ -13,28 +13,37 @@ const containerAnimation: MotionProps = {
 };
 
 const OFFRAMP_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
-  { id: StandardBrlaFieldOptions.PIX_ID, index: 1, label: "pixKey" }
+  { id: StandardAveniaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
+  { id: StandardAveniaFieldOptions.PIX_ID, index: 1, label: "pixKey" }
 ];
 
 const ONRAMP_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
-  { id: StandardBrlaFieldOptions.WALLET_ADDRESS, index: 1, label: "walletAddress" }
+  { id: StandardAveniaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
+  { id: StandardAveniaFieldOptions.WALLET_ADDRESS, index: 1, label: "walletAddress" }
 ];
 
+const StandardBrlaFieldOptionsValidationPatterns: Partial<Record<StandardAveniaFieldOptions, AveniaFieldValidationPattern>> = {
+  [StandardAveniaFieldOptions.TAX_ID]: {
+    message: "components.swap.validation.taxId.format",
+    validate: (value: string) => isValidCpf(value) || isValidCnpj(value) || "components.swap.validation.taxId.format",
+    value: new RegExp(`${CPF_REGEX.source}|${CNPJ_REGEX.source}`)
+  }
+};
+
+function getValidationPattern(fieldId: StandardAveniaFieldOptions) {
+  return StandardBrlaFieldOptionsValidationPatterns[fieldId] || undefined;
+}
+
 /**
- * BrlaSwapFields component
+ * AveniaKycEligibilityFields
  *
  * Renders PIX payment details form fields when Brazilian Real (BRL) is selected
  * as the destination currency in the Swap form. Collects necessary information
  * for processing PIX transfers to Brazilian bank accounts.
  */
 
-export const BrlaSwapFields: FC = () => {
+export const AveniaKycEligibilityFields: FC = () => {
   const { t } = useTranslation();
-
-  console.log("BrlaSwapFields");
-
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
 
@@ -44,7 +53,7 @@ export const BrlaSwapFields: FC = () => {
     <AnimatePresence>
       <motion.div {...containerAnimation}>
         {FIELDS.map(field => (
-          <BrlaField
+          <AveniaField
             className="mt-2"
             id={field.id}
             index={field.index}
@@ -53,6 +62,7 @@ export const BrlaSwapFields: FC = () => {
             placeholder={t("components.aveniaSwapField.placeholder", {
               label: t(`components.aveniaSwapField.${field.label}`)
             })}
+            validationPattern={getValidationPattern(field.id)}
           />
         ))}
         <div className="mt-2">
