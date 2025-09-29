@@ -171,7 +171,7 @@ export const getAveniaUserRemainingLimit = async (
 
     if (!brlLimits) {
       // Our current assumption is that BRL limits won't exist for an account without a KYC.
-      // But to be safe, we check the status and return a proper status.
+      // But to be safe, we check the status and return a proper error.
       const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
         res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });

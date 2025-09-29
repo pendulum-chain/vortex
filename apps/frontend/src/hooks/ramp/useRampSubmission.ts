@@ -124,7 +124,7 @@ export const useRampSubmission = () => {
         if (!data) {
           throw new Error("Invalid ramp data.");
         }
-
+        console.log("DEBUG: Ramp Submission Data: ", data);
         const executionInput = prepareExecutionInput(data);
 
         // This callback is generic and used for any ramp type.

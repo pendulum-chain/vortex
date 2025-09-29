@@ -1,8 +1,10 @@
 import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
+  AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaDocumentGetResponse,
+  AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   DepositLog,
@@ -21,6 +23,7 @@ import {
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
+  PixOutputTicketOutput,
   PixOutputTicketPayload,
   RegisterSubaccountPayload,
   SubaccountData,
@@ -37,7 +40,7 @@ export enum Endpoint {
   AccountLimits = "/v2/account/limits",
   UsedLimit = "/used-limit",
   WebhookEvents = "/webhooks/events",
-  PixInfo = "/pay-out/pix-info",
+  PixInfo = "/v2/account/bank-accounts/brl/pix-info",
   PixHistory = "/pay-in/pix/history",
   SwapHistory = "/swap/history",
   FastQuote = "/fast-quote",
@@ -53,7 +56,8 @@ export enum Endpoint {
   AccountInfo = "/v2/account/account-info",
   Documents = "/v2/documents",
   GetKycAttempt = "/v2/kyc/attempts",
-  GetKybAttempt = "/v2/kyc/attempts/{attemptId}"
+  GetKybAttempt = "/v2/kyc/attempts/{attemptId}",
+  Balances = "/v2/account/balances"
 }
 
 export interface EndpointMapping {
@@ -284,11 +288,11 @@ export interface EndpointMapping {
   [Endpoint.Tickets]: {
     POST: {
       body: PixInputTicketPayload | PixOutputTicketPayload;
-      response: PixInputTicketOutput | { id: string };
+      response: PixInputTicketOutput | PixOutputTicketOutput;
     };
     GET: {
       body: undefined;
-      response: undefined;
+      response: { ticket: AveniaPayoutTicket };
     };
     PATCH: {
       body: undefined;
@@ -359,6 +363,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: KybAttemptStatusResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Balances]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaAccountBalanceResponse;
     };
     PATCH: {
       body: undefined;
