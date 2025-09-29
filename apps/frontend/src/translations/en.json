@@ -27,7 +27,7 @@
       "title": "Business Verification",
       "verification": {
         "approved": "Your business verification has been approved!",
-        "pending": "Verifying your data, it can take up to 2 days...",
+        "pending": "Verification in progress. This process can take up to 2 days.",
         "rejected": "Your business verification was rejected. Please try again."
       },
       "verifyCompany": "Verify Company",
