@@ -88,7 +88,7 @@ export const AveniaKYBVerificationStatus: React.FC = () => {
                   onClick={() => aveniaKycActor.send({ type: "CANCEL_RETRY" })}
                   transition={{ delay: 0.6, duration: 0.3 }}
                 >
-                  {t("components.aveniaKYB.buttons.back")}
+                  {t("components.aveniaKYB.buttons.cancel")}
                 </motion.button>
                 <motion.button
                   animate={{ opacity: 1, y: 0 }}

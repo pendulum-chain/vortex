@@ -77,7 +77,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
               onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
               type="button"
             >
-              {isCompany ? t("components.aveniaKYB.buttons.back") : t("components.aveniaKYC.buttons.back")}
+              {isCompany ? t("components.aveniaKYB.buttons.cancel") : t("components.aveniaKYC.buttons.back")}
             </button>
             <button className="btn-vortex-primary btn flex-1" {...buttonProps} type="submit">
               {isMaintenanceDisabled
