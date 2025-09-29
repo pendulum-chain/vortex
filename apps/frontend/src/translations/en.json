@@ -250,6 +250,9 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
     },
+    "kycLevel2Toggle": {
+      "temporarilyDisabled": "Temporarily disabled"
+    },
     "maintenance": {
       "banner": {
         "ends": "Expected end",
