@@ -1,5 +1,12 @@
 import * as forge from "node-forge";
-import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse, SwapLog } from "../..";
+import {
+  BRLA_API_KEY,
+  BRLA_BASE_URL,
+  BRLA_PRIVATE_KEY,
+  CreateAveniaSubaccountRequest,
+  DocumentUploadRequest,
+  DocumentUploadResponse
+} from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
@@ -12,30 +19,20 @@ import {
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
-  AveniaSubaccount,
   BlockchainSendMethod,
   BrlaCurrency,
-  DepositLog,
-  FastQuoteQueryParams,
-  FastQuoteResponse,
   GetKycAttemptResponse,
   KybAttemptStatusResponse,
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
-  KycRetryPayload,
-  OnchainLog,
-  OnrampPayload,
   PayInQuoteParams,
   PayOutQuoteParams,
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
-  PixOutputTicketPayload,
-  RegisterSubaccountPayload,
-  SwapPayload
+  PixOutputTicketPayload
 } from "./types";
-import { Event } from "./webhooks";
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
@@ -123,35 +120,9 @@ export class BrlaApiService {
     }
   }
 
-  public async transferBrlaToDestination(
-    destination: string,
-    amount: Big,
-    chain: "Polygon" // For now, we only need to care about Polygon
-  ) {
-    const amountInCents = amount.mul(100).toFixed(0, 0); // Convert to cents as BRLA API expects amounts in cents
-    const payload = {
-      chain,
-      exactOutput: true,
-      inputCoin: "BRLA",
-      outputCoin: "BRLA",
-      to: destination,
-      value: Number(amountInCents) // Assuming BRLA is the input and output coin for this transfer
-    };
-
-    return await this.sendRequest(Endpoint.OnChainOut, "POST", undefined, payload);
-  }
-
-  public async getSubaccount(subaccountId: string): Promise<AveniaSubaccount> {
-    return await this.sendRequest(Endpoint.GetSubaccount, "GET", undefined, undefined, subaccountId);
-  }
-
   public async getSubaccountUsedLimit(subaccountId: string): Promise<AccountLimitsResponse | undefined> {
     const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.AccountLimits, "GET", query);
-  }
-
-  public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
-    return await this.sendRequest(Endpoint.Subaccounts, "POST", undefined, registerSubaccountPayload);
   }
 
   public async createAveniaSubaccount(accountType: AveniaAccountType, name: string): Promise<{ id: string }> {
@@ -162,61 +133,9 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.GetSubaccount, "POST", undefined, payload);
   }
 
-  public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
-    let query = `subaccountId=${encodeURIComponent(userId)}`;
-    if (subscription) {
-      query += `&subscription=${encodeURIComponent(subscription)}`;
-    }
-    const response = await this.sendRequest(Endpoint.WebhookEvents, "GET", query);
-    return response.events;
-  }
-
-  public async acknowledgeEvents(ids: string[]): Promise<void> {
-    return await this.sendRequest(Endpoint.WebhookEvents, "PATCH", undefined, { ids });
-  }
-
-  public async generateBrCode(onrampPayload: OnrampPayload): Promise<{ brCode: string }> {
-    const query = `subaccountId=${encodeURIComponent(onrampPayload.subaccountId)}&amount=${
-      onrampPayload.amount
-    }&referenceLabel=${onrampPayload.referenceLabel}`;
-    return await this.sendRequest(Endpoint.BrCode, "GET", query);
-  }
-
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
     const query = `pixKey=${pixKey}&decodePixKey=true`;
     return await this.sendRequest(Endpoint.PixInfo, "GET", query);
-  }
-
-  public async getPayInHistory(userId: string): Promise<DepositLog[]> {
-    const query = `subaccountId=${encodeURIComponent(userId)}`;
-    return (await this.sendRequest(Endpoint.PixHistory, "GET", query)).depositsLogs;
-  }
-
-  public async getSwapHistory(userId: string | undefined): Promise<SwapLog[]> {
-    const query = userId ? `subaccountId=${encodeURIComponent(userId)}` : undefined;
-    return (await this.sendRequest(Endpoint.SwapHistory, "GET", query)).swapLogs;
-  }
-
-  public async createFastQuote(fastQuoteParams: FastQuoteQueryParams): Promise<FastQuoteResponse> {
-    const query = [
-      fastQuoteParams.subaccountId ? `subaccountId=${encodeURIComponent(fastQuoteParams.subaccountId)}` : undefined,
-      `operation=${fastQuoteParams.operation}`,
-      `amount=${fastQuoteParams.amount.toString()}`,
-      `inputCoin=${fastQuoteParams.inputCoin}`,
-      `outputCoin=${fastQuoteParams.outputCoin}`,
-      `chain=${fastQuoteParams.chain}`,
-      `fixOutput=${fastQuoteParams.fixOutput.toString()}`
-    ].join("&");
-    return await this.sendRequest(Endpoint.FastQuote, "GET", query);
-  }
-
-  public async swapRequest(swapPayload: SwapPayload): Promise<{ id: string }> {
-    return await this.sendRequest(Endpoint.Swap, "POST", undefined, swapPayload);
-  }
-
-  public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
-    const query = `subAccountId=${encodeURIComponent(userId)}`;
-    return (await this.sendRequest(Endpoint.OnChainHistoryOut, "GET", query)).onchainLogs;
   }
 
   public async getDocumentUploadUrls(
@@ -235,11 +154,6 @@ export class BrlaApiService {
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
-  }
-
-  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
-    const query = `subAccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(Endpoint.KycRetry, "POST", query, retryKycPayload);
   }
 
   public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {

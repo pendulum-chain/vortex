@@ -21,7 +21,6 @@ import {
   BrlaValidatePixKeyResponse,
   KybAttemptStatusResponse,
   KybLevel1Response,
-  Kyc2FailureReason,
   KycAttemptResult,
   KycAttemptStatus,
   KycFailureReason,
@@ -36,7 +35,11 @@ import { eventPoller } from "../..";
 import TaxId from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
-function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefined): KycFailureReason {
+// map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
+const lastInteractionMap = new Map<string, number>();
+
+// Maps webhook failure reasons to standardized enum values
+function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
   switch (webhookReason) {
     case "face match failure":
       return KycFailureReason.FACE;
@@ -51,6 +54,7 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
   }
 }
 
+// Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   console.error(`Error while performing ${apiMethod}: `, error);
 
@@ -171,7 +175,7 @@ export const getAveniaUserRemainingLimit = async (
 
     if (!brlLimits) {
       // Our current assumption is that BRL limits won't exist for an account without a KYC.
-      // But to be safe, we check the status and return a proper error.
+      // But to be safe, we check the status and return a proper status.
       const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
         res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });

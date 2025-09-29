@@ -7,7 +7,6 @@ import {
   isValidPriceProvider,
   PriceProvider,
   RampDirection,
-  RegisterSubaccountPayload,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
@@ -367,28 +366,7 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 };
 
 export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
-    req.body as RegisterSubaccountPayload;
-
-  // if (!phone) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
-  //   return;
-  // }
-
-  // if (!address) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
-  //   return;
-  // }
-
-  // if (!fullName) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
-  //   return;
-  // }
-
-  // if (!birthdate) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
-  //   return;
-  // }
+  //TODO implement once all Avenia's account type are known
 
   next();
 };
