@@ -9,7 +9,6 @@ const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = "2.5"; // Amount to send to the
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = "0.1"; // Amount to send to the new pendulum ephemeral account created
 const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = "1"; // Amount to send to the new moonbeam ephemeral account created
 const POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS = "0.15"; // Amount to send to the new polygon ephemeral account created
-const BRLA_BASE_URL = "https://api.sandbox.avenia.io:10952";
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = "50000000000000000";
 const ASSETHUB_XCM_FEE_USDC_UNITS = 0.013124;
@@ -42,8 +41,6 @@ const { FUNDING_SECRET } = process.env;
 const { MOONBEAM_EXECUTOR_PRIVATE_KEY } = process.env;
 const SEP10_MASTER_SECRET = FUNDING_SECRET;
 const { CLIENT_DOMAIN_SECRET } = process.env;
-const { BRLA_LOGIN_PASSWORD } = process.env;
-const { BRLA_LOGIN_USERNAME } = process.env;
 const MOONBEAM_FUNDING_PRIVATE_KEY = MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
 const { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } = process.env;
@@ -75,9 +72,6 @@ export {
   SEP10_MASTER_SECRET,
   CLIENT_DOMAIN_SECRET,
   DEFAULT_LOGIN_EXPIRATION_TIME_HOURS,
-  BRLA_BASE_URL,
-  BRLA_LOGIN_PASSWORD,
-  BRLA_LOGIN_USERNAME,
   WEBHOOKS_CACHE_URL,
   DEFAULT_POLLING_INTERVAL,
   STELLAR_BASE_FEE

@@ -4,6 +4,7 @@ import { WalletAccount } from "@talismn/connect-wallets";
 import { useTranslation } from "react-i18next";
 import { useAssetHubNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";
+import { cn } from "../../../../helpers/cn";
 import { CopyablePublicKey } from "../../../PublicKey/CopyablePublicKey";
 import { WalletButtonVariant } from "../../ConnectWalletButton";
 import { BaseWalletButton } from "../../ConnectWalletButton/BaseWalletButton";
@@ -35,7 +36,13 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
   );
 };
 
-export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { variant?: WalletButtonVariant }) => {
+export const DisconnectModal = ({
+  variant = WalletButtonVariant.Standard,
+  customStyles
+}: {
+  variant?: WalletButtonVariant;
+  customStyles?: string;
+}) => {
   const { walletAccount, removeWalletAccount } = usePolkadotWalletState();
   const { apiComponents } = useAssetHubNode();
   const { address } = walletAccount || {};
@@ -46,10 +53,8 @@ export const DisconnectModal = ({ variant = WalletButtonVariant.Standard }: { va
   const addressForNetwork = getAddressForFormat(address, ss58Format);
 
   return (
-    <div className="dropdown dropdown-bottom" role="listbox">
-      <label tabIndex={0}>
-        <BaseWalletButton address={addressForNetwork} variant={variant} />
-      </label>
+    <div className={cn("dropdown dropdown-bottom", customStyles)} role="listbox">
+      <BaseWalletButton address={addressForNetwork} customStyles={customStyles} variant={variant} />
       <WalletDropdownMenu address={addressForNetwork} removeWalletAccount={removeWalletAccount} walletAccount={walletAccount} />
     </div>
   );

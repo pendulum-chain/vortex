@@ -49,7 +49,7 @@ export type RampMachineEvents =
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" };
 
-export type RampMachineActor = ActorRef<unknown, RampMachineEvents>;
+export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
 
 export type StellarKycActorRef = ActorRefFrom<typeof stellarKycMachine>;

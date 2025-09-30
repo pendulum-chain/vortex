@@ -38,7 +38,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
-  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.ID);
+  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -91,13 +91,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     validateAndSetFile(file, setter, validSetter);
   };
 
-  const isSubmitDisabled =
-    loading || !selfieValid || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
+  const isSubmitDisabled = loading || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError("");
     if (
-      !selfieValid ||
       (docType === AveniaDocumentType.ID && (!frontValid || !backValid)) ||
       (docType === AveniaDocumentType.DRIVERS_LICENSE && !frontValid)
     ) {
@@ -107,36 +105,48 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     setLoading(true);
     try {
       const response = await BrlaService.getUploadUrls({
-        documentType: docType
+        documentType: docType,
+        taxId
       });
 
       const uploads: Promise<void>[] = [];
       if (docType === AveniaDocumentType.ID) {
-        if (!selfie || !front || !back) {
+        if (!front || !back) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
+        console.log(
+          " urls: ",
+          response.idUpload.uploadURLFront,
+          response.idUpload.uploadURLBack,
+          response.selfieUpload.uploadURLFront
+        );
+
         uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
-          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!)
+          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!) // TODO.. why not returning uploadURLBack?
         );
       } else {
-        if (!selfie || !front) {
+        if (!front) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
-        uploads.push(
-          uploadFileAsBuffer(selfie, response.selfieUpload.uploadURLFront),
-          uploadFileAsBuffer(front, response.idUpload.uploadURLFront)
+        console.log(
+          " urls: ",
+          response.idUpload.uploadURLFront,
+          response.idUpload.uploadURLBack,
+          response.selfieUpload.uploadURLFront
         );
+        // TODO how do we stop the flow until avenia liveness is done?
+        uploads.push(uploadFileAsBuffer(front, response.idUpload.uploadURLFront));
       }
 
       await Promise.all(uploads);
       aveniaKycActor.send({
         documentsId: {
+          livenessUrl: response.selfieUpload.livenessUrl!,
           uploadedDocumentId: response.idUpload.id,
           uploadedSelfieId: response.selfieUpload.id
         },
@@ -176,12 +186,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
 
       <div className="grid grid-cols-1 gap-4">
-        {renderField(
-          t("components.documentUpload.fields.uploadSelfie"),
-          e => handleFileChange(e, setSelfie, setSelfieValid),
-          selfieValid,
-          CameraIcon
-        )}
         {docType === AveniaDocumentType.ID && (
           <>
             {renderField(

@@ -46,9 +46,11 @@ export interface StateMetadata {
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
   depositQrCode: string | undefined;
+  payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
   polygonEphemeralAddress: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;
+  squidRouterQuoteId: string;
 }

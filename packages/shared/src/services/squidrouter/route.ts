@@ -73,6 +73,7 @@ export function createOnrampRouteParams(
 }
 
 export interface SquidrouterRoute {
+  quoteId: string;
   estimate: {
     toToken: { decimals: number };
     aggregateSlippage: number;
@@ -140,7 +141,8 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 export async function getStatus(
   transactionId: string | undefined,
   fromChainId?: string,
-  toChainId?: string
+  toChainId?: string,
+  quoteId?: string
 ): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
@@ -157,6 +159,7 @@ export async function getStatus(
       },
       params: {
         fromChainId,
+        quoteId,
         toChainId,
         transactionId
       }
@@ -320,7 +323,7 @@ export async function createTransactionDataFromRoute({
   publicClient: PublicClient;
   swapValue?: string;
   nonce?: number;
-}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData }> {
+}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData; squidRouterQuoteId?: string }> {
   const { transactionRequest } = route;
 
   const approveTransactionData = encodeFunctionData({
@@ -359,6 +362,7 @@ export async function createTransactionDataFromRoute({
 
   return {
     approveData,
+    squidRouterQuoteId: route.quoteId,
     swapData
   };
 }

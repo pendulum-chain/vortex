@@ -50,6 +50,7 @@ TaxId.init(
       type: DataTypes.STRING
     },
     taxId: {
+      field: "tax_id",
       primaryKey: true,
       type: DataTypes.STRING
     },
