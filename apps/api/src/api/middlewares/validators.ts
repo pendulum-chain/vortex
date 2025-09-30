@@ -1,6 +1,9 @@
 import {
+  AveniaAccountType,
   AveniaKYCDataUploadRequest,
+  CreateAveniaSubaccountRequest,
   Currency,
+  isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
@@ -358,7 +361,14 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 };
 
 export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  //TODO implement once all Avenia's account type are known
+  const { accountType } = req.body as CreateAveniaSubaccountRequest;
+
+  if (!accountType || !isValidAveniaAccountType(accountType)) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `Invalid accountType.`
+    });
+    return;
+  }
 
   next();
 };

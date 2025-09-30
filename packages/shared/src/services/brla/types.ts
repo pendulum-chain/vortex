@@ -5,6 +5,10 @@ export enum AveniaAccountType {
   COMPANY = "COMPANY"
 }
 
+export function isValidAveniaAccountType(value: string): value is AveniaAccountType {
+  return Object.values(AveniaAccountType).includes(value as AveniaAccountType);
+}
+
 export interface AveniaSubaccountAccountInfo {
   id: string;
   countrySubdivisionTaxResidence: string;
