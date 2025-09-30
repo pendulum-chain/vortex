@@ -48,7 +48,7 @@ Webhook.init(
     events: {
       allowNull: false,
       defaultValue: ["TRANSACTION_CREATED", "STATUS_CHANGE"],
-      type: DataTypes.ARRAY(DataTypes.ENUM("TRANSACTION_CREATED", "STATUS_CHANGE")),
+      type: DataTypes.ARRAY(DataTypes.STRING),
       validate: {
         isValidEventArray(value: WebhookEventType[]) {
           if (!Array.isArray(value) || value.length === 0) {
