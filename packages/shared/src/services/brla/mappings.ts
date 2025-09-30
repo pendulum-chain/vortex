@@ -4,6 +4,7 @@ import {
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaDocumentGetResponse,
+  AveniaPayinTicket,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
@@ -114,7 +115,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: { ticket: AveniaPayoutTicket };
+      response: { ticket: AveniaPayoutTicket | AveniaPayinTicket } | { tickets: AveniaPayoutTicket[] | AveniaPayinTicket[] };
     };
     PATCH: {
       body: undefined;

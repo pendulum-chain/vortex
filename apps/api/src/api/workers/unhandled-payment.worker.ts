@@ -1,11 +1,12 @@
-import { BrlaApiService, generateReferenceLabel, isValidReferenceLabel } from "@packages/shared";
+import { BrlaApiService, generateReferenceLabel } from "@packages/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import RampState from "../../models/rampState.model";
+import TaxId from "../../models/taxId.model";
 import { SlackNotifier } from "../services/slack.service";
 
-const DEFAULT_CRON_TIME = "*/15 * * * *";
+const DEFAULT_CRON_TIME = "*/1 * * * *";
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -128,7 +129,69 @@ class UnhandledPaymentWorker {
   }
 
   private async processStatesForUnhandledPayments(states: RampState[]): Promise<void> {
-    // TODO re-implement after Avenia migration.
+    if (states.length === 0) {
+      return;
+    }
+
+    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps)
+    const statesByTaxId: Record<string, RampState[]> = states.reduce(
+      (acc, state) => {
+        const { taxId, aveniaTicketId, unhandledPaymentAlertSent } = state.state;
+        // Only process states that have both a taxId and a ticketId, and have not already been alerted.
+        if (taxId && aveniaTicketId && !unhandledPaymentAlertSent) {
+          if (!acc[taxId]) {
+            acc[taxId] = [];
+          }
+          acc[taxId].push(state);
+        }
+        return acc;
+      },
+      {} as Record<string, RampState[]>
+    );
+
+    for (const taxId in statesByTaxId) {
+      try {
+        const taxIdRecord = await TaxId.findOne({ where: { taxId } });
+        if (!taxIdRecord) {
+          logger.warn(`No TaxId record found for taxId: ${taxId}. Skipping states.`);
+          statesByTaxId[taxId].forEach(state => this.processedStateIds.add(state.id));
+          continue;
+        }
+
+        const { subAccountId } = taxIdRecord;
+        const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
+        const aveniaTicketId = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
+        console.log("aveniaTicketId", aveniaTicketId);
+
+        for (const state of statesByTaxId[taxId]) {
+          const ticketIdFromState = state.state.aveniaTicketId;
+
+          if (!ticketIdFromState) {
+            //  should not be hit due to the filter in the reducer.
+            logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing a aveniaTicketId. Skipping.`);
+            this.processedStateIds.add(state.id);
+            continue;
+          }
+
+          if (aveniaTicketId.has(ticketIdFromState)) {
+            // Unhandled payment. A paid ticket found for an initial (stale) state or failed state.
+            if (!this.hasRecentAlert(subAccountId)) {
+              const referenceLabel = generateReferenceLabel({ id: ticketIdFromState });
+              const alertMessage = `Unhandled payment detected for stateId: ${state.id}, ticketId: ${ticketIdFromState}. Please investigate. Ref: ${referenceLabel}`;
+              this.alertsThisCycle.push(alertMessage);
+              this.alertedSubaccounts.set(subAccountId, Date.now());
+            }
+            await this.updateAlertedState(state);
+          } else {
+            this.processedStateIds.add(state.id);
+          }
+        }
+      } catch (error) {
+        logger.error(`Error processing states for taxId ${taxId}:`, error);
+      }
+    }
+
+    await this.notifySlack();
   }
 
   private async updateAlertedState(state: RampState): Promise<void> {
@@ -153,7 +216,8 @@ class UnhandledPaymentWorker {
     const alertText = this.alertsThisCycle.join("\n");
     try {
       logger.info(`Attempting to send ${this.alertsThisCycle.length} alert(s) to Slack.`);
-      await this.slackNotifier.sendMessage({ text: alertText });
+      //await this.slackNotifier.sendMessage({ text: alertText });
+      console.log(alertText);
       logger.info("Slack notification sent successfully.");
       this.alertsThisCycle = [];
     } catch (error) {

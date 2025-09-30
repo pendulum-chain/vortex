@@ -180,6 +180,36 @@ export interface AveniaPayoutTicket extends BaseTicket {
   RefundableParameter: string;
 }
 
+export interface AveniaPayinTicket extends BaseTicket {
+  brazilianFiatSenderInfo: {
+    id: string;
+    ticketId: string;
+    name: string;
+    taxId: string;
+    bankCode: string;
+    branchCode: string;
+    accountNumber: string;
+    accountType: string;
+    endToEndId: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+  brlPixInputInfo: {
+    id: string;
+    ticketId: string;
+    referenceLabel: string;
+    additionalData: string;
+    brCode: string;
+  };
+  RefundableParameter: string;
+}
+
 // Limit types
 export interface UsedLimitDetails {
   year: number;

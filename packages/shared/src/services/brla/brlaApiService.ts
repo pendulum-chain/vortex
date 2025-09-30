@@ -16,6 +16,7 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentType,
+  AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
@@ -248,7 +249,21 @@ export class BrlaApiService {
 
   public async getAveniaPayoutTicket(ticketId: string, subAccountId: string): Promise<AveniaPayoutTicket> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    const { ticket } = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
-    return ticket;
+    const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
+
+    if ("ticket" in aveniaTicketsQueryResponse && "brlPixOutputInfo" in aveniaTicketsQueryResponse.ticket) {
+      return aveniaTicketsQueryResponse.ticket;
+    }
+    throw new Error("Invalid response from Avenia API for getAveniaPayoutTicket");
+  }
+
+  public async getAveniaPayinTickets(subAccountId: string): Promise<AveniaPayinTicket[]> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined);
+
+    if ("tickets" in aveniaTicketsQueryResponse) {
+      return aveniaTicketsQueryResponse.tickets.filter((ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket);
+    }
+    throw new Error("Invalid response from Avenia API for getAveniaPayinTickets");
   }
 }
