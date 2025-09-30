@@ -15,6 +15,49 @@ export class WebhookService {
     try {
       const { url, transactionId, sessionId, events } = request;
 
+      // Validate URL format
+      if (!url) {
+        throw new APIError({
+          message: "URL is required",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      if (!url.startsWith("https://")) {
+        throw new APIError({
+          message: "Webhook URL must use HTTPS",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      // Validate events if provided
+      if (events) {
+        const validEventTypes: WebhookEventType[] = ["TRANSACTION_CREATED", "STATUS_CHANGE"];
+        const invalidEvents = events.filter(event => !validEventTypes.includes(event));
+
+        if (invalidEvents.length > 0) {
+          throw new APIError({
+            message: `Invalid event type(s): ${invalidEvents.join(", ")}. The allowed event types are ${validEventTypes.join(", ")}`,
+            status: httpStatus.BAD_REQUEST
+          });
+        }
+
+        if (events.length === 0) {
+          throw new APIError({
+            message: "At least one event type must be specified",
+            status: httpStatus.BAD_REQUEST
+          });
+        }
+      }
+
+      // Validate that at least one of transactionId or sessionId is provided
+      if (!transactionId && !sessionId) {
+        throw new APIError({
+          message: "Either transactionId or sessionId must be provided",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Generate a secure secret for HMAC signing
       const secret = this.generateWebhookSecret();
 
@@ -31,7 +74,6 @@ export class WebhookService {
 
       logger.info(`Webhook registered: ${webhook.id} for URL: ${url}`);
 
-      // Return response (excluding secret for security)
       return {
         createdAt: webhook.createdAt.toISOString(),
         events: webhook.events,
@@ -41,8 +83,14 @@ export class WebhookService {
         transactionId: webhook.transactionId,
         url: webhook.url
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error registering webhook:", error);
+
+      if (error instanceof APIError) {
+        throw error;
+      }
+
+      // Generic error fallback
       throw new APIError({
         message: "Failed to register webhook",
         status: httpStatus.INTERNAL_SERVER_ERROR
