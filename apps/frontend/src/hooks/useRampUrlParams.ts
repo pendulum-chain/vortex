@@ -134,7 +134,7 @@ export const useSetRampUrlParams = () => {
   const { ramp, to, from, fromAmount, partnerId, providedQuoteId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
-  const resetRampDirection = useRampDirectionReset();
+  const _resetRampDirection = useRampDirectionReset();
   const setPartnerIdFn = useSetPartnerId();
 
   const rampActor = useRampActor();

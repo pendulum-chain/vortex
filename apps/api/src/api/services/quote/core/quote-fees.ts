@@ -10,7 +10,7 @@ import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 
 export interface CalculateFeeComponentsRequest {
   inputAmount: string;
-  outputAmountOfframp: string; // This is only needed for offramp quotes
+  outputAmountOfframp?: string; // This is only needed for offramp quotes
   rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
@@ -209,7 +209,7 @@ async function calculateAnchorFee(
   from: DestinationType,
   to: DestinationType,
   inputAmount: string,
-  outputAmount: string
+  outputAmount?: string
 ): Promise<Big> {
   // Determine anchor identifier based on ramp type and destination
   let anchorIdentifier = "default";
@@ -242,6 +242,9 @@ async function calculateAnchorFee(
       if (feeConfig.valueType === "relative") {
         // Calculate relative fee based on the input or output amount
         const amount = rampType === RampDirection.BUY ? inputAmount : outputAmount;
+        if (!amount) {
+          throw new Error("Output amount is required for relative anchor fee calculation on off-ramp.");
+        }
         const relativeFee = new Big(amount).mul(feeConfig.value);
         return total.plus(relativeFee);
       }

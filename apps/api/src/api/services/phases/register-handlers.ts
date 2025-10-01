@@ -10,8 +10,8 @@ import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-hand
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
 import nablaSwapHandler from "./handlers/nabla-swap-handler";
-import pendulumToMoonbeamXCMPhaseHandler from "./handlers/pendulum-moonbeam-phase-handler";
 import pendulumToAssethubPhaseHandler from "./handlers/pendulum-to-assethub-phase-handler";
+import pendulumToMoonbeamXcmHandler from "./handlers/pendulum-to-moonbeam-xcm-handler";
 import spacewalkRedeemHandler from "./handlers/spacewalk-redeem-handler";
 import squidRouterPayPhaseHandler from "./handlers/squid-router-pay-phase-handler";
 import squidRouterPhaseHandler from "./handlers/squid-router-phase-handler";
@@ -19,6 +19,7 @@ import stellarPaymentHandler from "./handlers/stellar-payment-handler";
 import subsidizePostSwapPhaseHandler from "./handlers/subsidize-post-swap-handler";
 import subsidizePreSwapPhaseHandler from "./handlers/subsidize-pre-swap-handler";
 import phaseRegistry from "./phase-registry";
+
 /**
  * Register all phase handlers
  */
@@ -28,7 +29,6 @@ export function registerPhaseHandlers(): void {
   // Register handlers
   phaseRegistry.registerHandler(initialPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPhaseHandler);
-  phaseRegistry.registerHandler(pendulumToMoonbeamXCMPhaseHandler);
   phaseRegistry.registerHandler(nablaApproveHandler);
   phaseRegistry.registerHandler(nablaSwapHandler);
   phaseRegistry.registerHandler(stellarPaymentHandler);
@@ -37,7 +37,6 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
   phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
-  phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(brlaOnrampMintHandler);
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
@@ -45,6 +44,8 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(distributeFeesHandler);
   phaseRegistry.registerHandler(moneriumOnrampSelfTransferHandler);
   phaseRegistry.registerHandler(moneriumOnrampMintPhaseHandler);
+  phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
+  phaseRegistry.registerHandler(pendulumToMoonbeamXcmHandler);
 
   logger.info("Phase handlers registered");
 }

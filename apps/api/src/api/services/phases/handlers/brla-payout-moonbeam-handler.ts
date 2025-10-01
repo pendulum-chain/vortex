@@ -78,7 +78,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
           }
         } catch (error) {
           lastError = error;
-          logger.warn(`Polling for balance failed with error. Retrying...`, lastError);
+          logger.warn("Polling for balance failed with error. Retrying...", lastError);
         }
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }

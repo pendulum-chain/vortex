@@ -254,8 +254,10 @@ export class PriceFeedService {
     const tokenIdMap: Record<string, string> = {
       AVAX: "avalanche-2",
       BNB: "binancecoin",
+      DOT: "polkadot",
       ETH: "ethereum",
       GLMR: "moonbeam",
+      HDX: "hydradx",
       MATIC: "matic-network"
     };
 

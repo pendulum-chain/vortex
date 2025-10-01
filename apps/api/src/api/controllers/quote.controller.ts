@@ -5,7 +5,7 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { ASSETHUB_XCM_FEE_USDC_UNITS } from "../../constants/constants";
 import { APIError } from "../errors/api-error";
-import quoteService from "../services/ramp/quote.service";
+import quoteService from "../services/quote";
 
 /**
  * Create a new quote

@@ -147,13 +147,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState): RampPhase {
-    // brla onramp case
-    if (isOnramp(state) && state.state.inputCurrency === FiatToken.BRL) {
-      return "moonbeamToPendulumXcm";
-    }
-    // monerium onramp case
-    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC) {
-      return "moneriumOnrampSelfTransfer";
+    if (isOnramp(state)) {
+      return "squidRouterSwap";
     }
 
     // off ramp cases

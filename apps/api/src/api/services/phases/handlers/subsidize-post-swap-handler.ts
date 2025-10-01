@@ -65,7 +65,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     // onramp cases
     if (state.type === RampDirection.BUY) {
       if (state.to === "assethub") {
-        return "pendulumToAssethub";
+        return "pendulumToAssethubXcm";
       }
       return "pendulumToMoonbeam";
     }

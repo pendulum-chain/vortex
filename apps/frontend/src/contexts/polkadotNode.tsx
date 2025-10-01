@@ -35,7 +35,8 @@ const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
 });
 
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
-  const provider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
+  // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
+  const provider = new WsProvider(socketUrl, autoReconnect ? 2_500 : undefined, {}, 60_000, 102400, 10 * 60_000);
   const api = await ApiPromise.create({ provider });
 
   await api.isReady;
