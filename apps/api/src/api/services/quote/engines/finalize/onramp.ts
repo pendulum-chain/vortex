@@ -1,9 +1,9 @@
 import { AssetHubToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import QuoteTicket from "../../../../../../models/quoteTicket.model";
-import { APIError } from "../../../../../errors/api-error";
-import { priceFeedService } from "../../../../priceFeed.service";
+import QuoteTicket from "../../../../../models/quoteTicket.model";
+import { APIError } from "../../../../errors/api-error";
+import { priceFeedService } from "../../../priceFeed.service";
 import { trimTrailingZeros } from "../../core/helpers";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";

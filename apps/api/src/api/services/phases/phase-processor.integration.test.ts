@@ -24,7 +24,7 @@ import {Keypair} from "stellar-sdk";
 import QuoteTicket, {QuoteTicketAttributes, QuoteTicketCreationAttributes} from "../../../models/quoteTicket.model";
 import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
 import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
-import {QuoteService} from "../ramp/quote.service";
+import {QuoteService} from "../quote";
 import {RampService} from "../ramp/ramp.service";
 import registerPhaseHandlers from "./register-handlers";
 

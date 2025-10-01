@@ -1,5 +1,5 @@
 import { EvmToken, RampDirection } from "@packages/shared";
-import { priceFeedService } from "../../../../priceFeed.service";
+import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 

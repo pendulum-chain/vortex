@@ -8,8 +8,8 @@ import {
   RampDirection
 } from "@packages/shared";
 import Big from "big.js";
-import { multiplyByPowerOfTen } from "../../../../pendulum/helpers";
-import { priceFeedService } from "../../../../priceFeed.service";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { priceFeedService } from "../../../priceFeed.service";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/gross-output";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 

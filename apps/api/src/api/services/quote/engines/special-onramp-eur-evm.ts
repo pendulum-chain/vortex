@@ -18,9 +18,9 @@ import {
 } from "@packages/shared";
 import httpStatus from "http-status";
 import { v4 as uuidv4 } from "uuid";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import { APIError } from "../../../../errors/api-error";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import QuoteTicket from "../../../../models/quoteTicket.model";
+import { APIError } from "../../../errors/api-error";
+import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { trimTrailingZeros } from "../core/helpers";
 import { QuoteContext, QuoteTicketMetadata, Stage, StageKey } from "../core/types";
 

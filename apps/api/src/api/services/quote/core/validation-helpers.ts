@@ -1,8 +1,8 @@
 import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { APIError } from "../../../../errors/api-error";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { APIError } from "../../../errors/api-error";
+import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 /**
  * Get token limit units for a given fiat token, limit type, and operation type

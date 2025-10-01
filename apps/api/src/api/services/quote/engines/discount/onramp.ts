@@ -1,15 +1,15 @@
 import { RampDirection } from "@packages/shared";
-import Partner from "../../../../../../models/partner.model";
+import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OffRampDiscountEngine implements Stage {
-  readonly key = StageKey.OffRampDiscount;
+export class OnRampDiscountEngine implements Stage {
+  readonly key = StageKey.OnRampDiscount;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampDiscountEngine: skipped for on-ramp request");
+    if (req.rampType !== RampDirection.BUY) {
+      ctx.addNote?.("OnRampDiscountEngine: skipped for off-ramp request");
       return;
     }
 
@@ -42,7 +42,7 @@ export class OffRampDiscountEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OffRampDiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
+      `OnRampDiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
     );
   }
 }

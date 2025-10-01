@@ -5,7 +5,7 @@ import {
   multiplyByPowerOfTen,
   RampDirection
 } from "@packages/shared";
-import { getBestSellPriceFor } from "../../../../hydration/swap";
+import { getBestSellPriceFor } from "../../../hydration/swap";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampHydrationEngine implements Stage {

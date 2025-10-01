@@ -1,9 +1,9 @@
 import { CreateQuoteRequest, QuoteError, QuoteFeeStructure, QuoteResponse } from "@packages/shared";
 import httpStatus from "http-status";
-import logger from "../../../../config/logger";
-import Partner from "../../../../models/partner.model";
-import { APIError } from "../../../errors/api-error";
-import { BaseRampService } from "../base.service";
+import logger from "../../../config/logger";
+import Partner from "../../../models/partner.model";
+import { APIError } from "../../errors/api-error";
+import { BaseRampService } from "../ramp/base.service";
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./core/helpers";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
