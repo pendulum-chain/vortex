@@ -14,3 +14,14 @@ export function generateReferenceLabel(quote: Quote): string {
   }
   return quote.id.slice(0, 8);
 }
+
+export const CPF_REGEX = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
+export const CNPJ_REGEX = /^(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})$/;
+
+export function isValidCnpj(cnpj: string): boolean {
+  return CNPJ_REGEX.test(cnpj);
+}
+
+export function isValidCpf(cpf: string): boolean {
+  return CPF_REGEX.test(cpf);
+}

@@ -12,7 +12,8 @@ export interface SubaccountData {
 export type AveniaIdentityStatus = "NOT-IDENTIFIED" | "CONFIRMED";
 
 export enum AveniaAccountType {
-  INDIVIDUAL = "INDIVIDUAL"
+  INDIVIDUAL = "INDIVIDUAL",
+  COMPANY = "COMPANY"
 }
 
 export interface AveniaSubaccountAccountInfo {
@@ -498,6 +499,26 @@ export interface KycLevel1Payload {
 
 export interface KycLevel1Response {
   id: string;
+}
+
+export interface KybLevel1Response {
+  attemptId: string;
+  authorizedRepresentativeUrl: string;
+  basicCompanyDataUrl: string;
+}
+
+export interface KybAttemptStatusResponse {
+  attempt: {
+    id: string;
+    levelName: string;
+    submissionData: Record<string, unknown>;
+    status: KycAttemptStatus;
+    result: KycAttemptResult;
+    resultMessage: string;
+    retryable: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export enum AveniaDocumentType {

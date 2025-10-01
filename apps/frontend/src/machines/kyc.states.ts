@@ -16,6 +16,15 @@ export interface AveniaKycContext extends RampContext {
   rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
   error?: AveniaKycMachineError;
+  isCompany?: boolean; // Flag to identify if the user is a business (CNPJ) or individual (CPF)
+  kybAttemptId?: string;
+  kybUrls?: {
+    authorizedRepresentativeUrl: string;
+    basicCompanyDataUrl: string;
+  };
+  kybStep?: "company" | "representative" | "verification";
+  companyVerificationStarted?: boolean;
+  representativeVerificationStarted?: boolean;
 }
 
 export interface MoneriumKycContext extends RampContext {

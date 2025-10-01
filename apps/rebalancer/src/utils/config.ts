@@ -8,16 +8,11 @@ export function getConfig() {
   if (!process.env.MOONBEAM_ACCOUNT_SECRET) throw new Error("Missing MOONBEAM_ACCOUNT_SECRET environment variable");
   if (!process.env.POLYGON_ACCOUNT_SECRET) throw new Error("Missing POLYGON_ACCOUNT_SECRET environment variable");
 
-  if (!process.env.BRLA_LOGIN_USERNAME) throw new Error("Missing BRLA_LOGIN_USERNAME environment variable");
-  if (!process.env.BRLA_LOGIN_PASSWORD) throw new Error("Missing BRLA_LOGIN_PASSWORD environment variable");
-
   return {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
     brlaBaseUrl: process.env.BRLA_BASE_URL || "https://api.avenia.io:8443",
 
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0x50E9c023314019f63d2001F2edA92acF1d8ABe2a",
-    brlaLoginPassword: process.env.BRLA_LOGIN_PASSWORD,
-    brlaLoginUsername: process.env.BRLA_LOGIN_USERNAME,
 
     moonbeamAccountSecret: process.env.MOONBEAM_ACCOUNT_SECRET,
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,

@@ -5,13 +5,13 @@ import { useFormContext, useFormState } from "react-hook-form";
 import { cn } from "../../../helpers/cn";
 import { Field, FieldProps } from "../../Field";
 
-export enum StandardBrlaFieldOptions {
+export enum StandardAveniaFieldOptions {
   TAX_ID = "taxId",
   PIX_ID = "pixId",
   WALLET_ADDRESS = "walletAddress"
 }
 
-export enum ExtendedBrlaFieldOptions {
+export enum ExtendedAveniaFieldOptions {
   PHONE = "phone",
   ADDRESS = "address",
   TAX_ID = "taxId",
@@ -31,21 +31,24 @@ export enum ExtendedBrlaFieldOptions {
   PARTNER_CPF = "partnerCpf"
 }
 
-export type BrlaFieldOptions = StandardBrlaFieldOptions | ExtendedBrlaFieldOptions;
+export type AveniaFieldOptions = StandardAveniaFieldOptions | ExtendedAveniaFieldOptions;
 
-export interface BrlaFieldProps extends FieldProps {
-  id: BrlaFieldOptions;
+export type AveniaFieldValidationPattern = {
+  message: string;
+  validate: (value: string) => boolean | string;
+  value: RegExp;
+};
+
+export interface AveniaFieldProps extends FieldProps {
+  id: AveniaFieldOptions;
   label: string;
   index: number;
   placeholder?: string;
-  validationPattern?: {
-    value: RegExp;
-    message: string;
-  };
+  validationPattern?: AveniaFieldValidationPattern;
   options?: string[];
 }
 
-export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {
+export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {
   // It required to be inside a FormProvider (react-hook-form)
   const { register } = useFormContext();
   const { errors } = useFormState();
@@ -71,7 +74,16 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
       <Field
         className={cn("w-full p-2", errors[id] && "border border-red-500")}
         id={id}
-        register={register(id, { pattern: validationPattern, required: true })}
+        register={register(id, {
+          pattern: validationPattern
+            ? {
+                message: validationPattern.message,
+                value: validationPattern.value
+              }
+            : undefined,
+          required: true,
+          validate: validationPattern?.validate
+        })}
         {...rest}
       />
       {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}

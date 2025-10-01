@@ -1,5 +1,5 @@
 import { cn } from "../../../helpers/cn";
-import { BrlaSwapFields } from "../../BrlaComponents/BrlaSwapFields";
+import { AveniaKycEligibilityFields } from "../../Avenia/AveniaKycEligibilityFields";
 
 export interface BrazilDetailsFormProps {
   className?: string;
@@ -8,6 +8,6 @@ export interface BrazilDetailsFormProps {
 
 export const AveniaFormStep = ({ className, isWalletAddressDisabled }: BrazilDetailsFormProps) => (
   <div className={cn("mx-auto flex h-full w-full flex-col justify-center", className)}>
-    <BrlaSwapFields isWalletAddressDisabled={isWalletAddressDisabled} />
+    <AveniaKycEligibilityFields isWalletAddressDisabled={isWalletAddressDisabled} />
   </div>
 );
