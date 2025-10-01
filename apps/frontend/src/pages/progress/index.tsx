@@ -436,7 +436,7 @@ export const ProgressPage = () => {
     fetchRampState();
     const intervalId = setInterval(fetchRampState, 5000);
     intervalRef.current = intervalId;
-  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType]);
+  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType, rampActor.send]);
 
   return (
     <main>

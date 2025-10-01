@@ -103,12 +103,10 @@ export async function prepareMoneriumEvmOfframpTransactions({
     destinationAddress: moneriumEvmAddress,
     fromAddress: userAddress,
     fromNetwork, // By design, EUR.e offramp starts from Polygon.
-    inputTokenDetails, // Always EUR.e for Monerium offramp.
-    outputTokenDetails: {
-      erc20AddressSourceChain: ERC20_EURE_POLYGON
-    } as unknown as EvmTokenDetails,
-    rawAmount: inputAmountRaw,
-    toNetwork: Networks.Polygon
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    rawAmount: inputAmountRaw, // By design, EURe is the only supported offramp currency.
+    toNetwork: Networks.Polygon,
+    toToken: ERC20_EURE_POLYGON
   });
 
   unsignedTxs.push({

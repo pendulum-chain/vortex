@@ -65,7 +65,7 @@ const PersistenceEffect = () => {
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-  }, [rampState, moneriumState, stellarState, aveniaState]);
+  }, [rampActor.getPersistedSnapshot]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();

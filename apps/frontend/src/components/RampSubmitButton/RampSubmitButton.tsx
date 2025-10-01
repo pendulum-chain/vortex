@@ -206,8 +206,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     fiatToken,
     stellarData,
     machineState,
-    moneriumKycActor,
-    accountAddress
+    moneriumKycActor
   ]);
 
   const buttonContent = useButtonContent({

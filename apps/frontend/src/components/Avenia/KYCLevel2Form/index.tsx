@@ -18,7 +18,7 @@ interface DocumentUploadProps {
 
 async function uploadFileAsBuffer(file: File, url: string) {
   const arrayBuffer = await file.arrayBuffer();
-  const uint8 = new Uint8Array(arrayBuffer);
+  const _uint8 = new Uint8Array(arrayBuffer);
 
   const res = await fetch(url, {
     body: arrayBuffer,
@@ -39,11 +39,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
   const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
-  const [selfie, setSelfie] = useState<File | null>(null);
+  const [_selfie, _setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
 
-  const [selfieValid, setSelfieValid] = useState(false);
+  const [_selfieValid, _setSelfieValid] = useState(false);
   const [frontValid, setFrontValid] = useState(false);
   const [backValid, setBackValid] = useState(false);
 
@@ -176,7 +176,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4  px-4 pt-6 pb-8  md:mx-auto"
+      className="mx-4 mt-8 mb-4 px-4 pt-6 pb-8 md:mx-auto"
       initial={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
     >

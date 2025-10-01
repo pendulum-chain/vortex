@@ -28,7 +28,7 @@ export class NetworkManager {
   }
 
   private async initializeApis(): Promise<void> {
-    const autoReconnect = this.config.autoReconnect ?? true;
+    const _autoReconnect = this.config.autoReconnect ?? true;
 
     const pendulumWsUrl = this.config.pendulumWsUrl || DEFAULT_NETWORKS.find(n => n.name === Networks.Pendulum)?.wsUrl;
     const moonbeamWsUrl = this.config.moonbeamWsUrl || DEFAULT_NETWORKS.find(n => n.name === Networks.Moonbeam)?.wsUrl;
