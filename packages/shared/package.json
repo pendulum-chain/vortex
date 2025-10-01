@@ -8,10 +8,8 @@
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
     "@types/node-forge": "^1.3.14",
-    "big.js": "catalog:",
     "node-forge": "^1.3.1",
-    "stellar-sdk": "catalog:",
-    "viem": "catalog:"
+    "stellar-sdk": "catalog:"
   },
   "devDependencies": {
     "@types/big.js": "catalog:",

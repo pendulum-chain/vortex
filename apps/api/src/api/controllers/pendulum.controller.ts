@@ -7,7 +7,6 @@ import {
   TOKEN_CONFIG,
   XCMTokenConfig
 } from "@packages/shared";
-import { AccountInfo } from "@polkadot/types/interfaces";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
@@ -60,7 +59,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   const networkName = "pendulum";
   const apiData = await apiManager.getApi(networkName);
   const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
-  const { data: balance } = (await apiData.api.query.system.account(fundingAccountKeypair.address)) as AccountInfo;
+  const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
   let isTokensSufficient = true;
   // TODO we may want to add a cached response to this function. No need to check on every requests.

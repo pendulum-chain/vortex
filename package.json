@@ -22,12 +22,13 @@
     "@types/big.js": "^6.0.2",
     "@types/bun": "latest",
     "@types/node": "^22.7.5",
+    "@wagmi/core": "^2.21.2",
     "big.js": "^7.0.1",
     "prettier": "^2.8.4",
     "stellar-sdk": "^13.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.2",
-    "viem": "^2.34.0"
+    "viem": "^2.37.9"
   },
   "dependencies": {
     "big.js": "^6.2.1",
@@ -63,7 +64,9 @@
     "@polkadot/types-create": "^16.4.6",
     "@polkadot/types-known": "^16.4.6",
     "@polkadot/util": "^13.5.6",
-    "@polkadot/util-crypto": "^13.5.6"
+    "@polkadot/util-crypto": "^13.5.6",
+    "viem": "^2.37.9",
+    "wagmi": "^2.17.5"
   },
   "packageManager": "bun@1.2.19",
   "private": true,
