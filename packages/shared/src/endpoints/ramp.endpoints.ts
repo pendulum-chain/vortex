@@ -2,7 +2,6 @@ import { DestinationType, EvmAddress, Networks, RampDirection } from "../index";
 
 export type RampPhase =
   | "initial"
-  | "brlaTransfer"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
   | "stellarCreateAccount"
@@ -12,13 +11,14 @@ export type RampPhase =
   | "fundEphemeral"
   | "nablaApprove"
   | "nablaSwap"
+  | "hydrationSwap"
+  | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
   | "moonbeamToPendulumXcm"
   | "pendulumToMoonbeam"
   | "pendulumToHydrationXcm"
   | "assethubToPendulum"
   | "pendulumToAssethubXcm"
-  | "moonbeamXcmToAssethub"
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"

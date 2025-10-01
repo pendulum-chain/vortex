@@ -15,7 +15,7 @@ export async function dryRunExtrinsic(extrinsic: Extrinsic, network: SubstrateAp
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi(network);
 
-  const origin = { system: { Signed: accountId } };
+  const origin = { System: { Signed: accountId } };
   const resultXcmVersions = 4;
 
   // Remove the first 6 characters after the "0x" prefix which represent the length of the extrinsic.

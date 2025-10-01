@@ -57,6 +57,13 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     distributeFees: getSwappingMessage(),
     failed: "",
     fundEphemeral: t("pages.progress.fundEphemeral"),
+    hydrationSwap: t("pages.progress.hydrationSwap", {
+      inputAssetSymbol: "USDC",
+      outputAssetSymbol: outputAssetSymbol
+    }),
+    hydrationToAssethubXcm: t("pages.progress.hydrationToAssethubXcm", {
+      outputAssetSymbol
+    }),
     initial: t("pages.progress.initial"),
     moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
     moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
@@ -65,6 +72,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
+      assetSymbol: outputAssetSymbol
+    }),
+    pendulumToHydrationXcm: t("pages.progress.pendulumToHydrationXcm", {
       assetSymbol: outputAssetSymbol
     }),
     pendulumToMoonbeam: t("pages.progress.pendulumToMoonbeam", {

@@ -18,7 +18,7 @@ import {
 import Big from "big.js";
 import logger from "../../../../../config/logger";
 import Partner from "../../../../../models/partner.model";
-import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../../../models/quoteTicket.model";
+import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { priceFeedService } from "../../../priceFeed.service";

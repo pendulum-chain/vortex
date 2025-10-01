@@ -146,6 +146,7 @@ async function createEvmSourceTransactions(
     await createOfframpSquidrouterTransactions({
       fromAddress: userAddress,
       fromNetwork,
+      fromToken: inputTokenDetails.erc20AddressSourceChain,
       inputTokenDetails,
       pendulumAddressDestination: pendulumEphemeralAddress,
       rawAmount: inputAmountRaw

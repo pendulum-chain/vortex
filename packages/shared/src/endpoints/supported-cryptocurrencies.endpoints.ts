@@ -10,7 +10,7 @@ export interface SupportedEVMCryptocurrencyDetails extends SupportedCryptocurren
 }
 
 export interface SupportedAssetHubCryptocurrencyDetails extends SupportedCryptocurrencyDetailsBase {
-  assetForeignAssetId: number;
+  assetForeignAssetId?: number;
 }
 
 export interface SupportedCryptocurrencyDetailsBase {
