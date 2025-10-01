@@ -25,7 +25,7 @@ import {
 export enum Endpoint {
   GetSubaccount = "/v2/account/sub-accounts",
   AccountLimits = "/v2/account/limits",
-  PixInfo = "v2/account/bank-accounts/brl/pix-info",
+  PixInfo = "/v2/account/bank-accounts/brl/pix-info",
   KycLevel1 = "/v2/kyc/new-level-1/api",
   KybLevel1WebSdk = "/v2/kyc/new-level-1/web-sdk",
   FixedRateQuote = "/v2/account/quote/fixed-rate",

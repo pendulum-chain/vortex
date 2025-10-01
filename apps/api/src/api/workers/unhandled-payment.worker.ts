@@ -6,7 +6,7 @@ import RampState from "../../models/rampState.model";
 import TaxId from "../../models/taxId.model";
 import { SlackNotifier } from "../services/slack.service";
 
-const DEFAULT_CRON_TIME = "*/1 * * * *";
+const DEFAULT_CRON_TIME = "*/15 * * * *";
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -134,10 +134,10 @@ class UnhandledPaymentWorker {
     }
 
     // Group states by taxId, filtering for states that have a ticket ID (only pix onramps)
+    // Also filter out states that have already been alerted for unhandled payments.
     const statesByTaxId: Record<string, RampState[]> = states.reduce(
       (acc, state) => {
         const { taxId, aveniaTicketId, unhandledPaymentAlertSent } = state.state;
-        // Only process states that have both a taxId and a ticketId, and have not already been alerted.
         if (taxId && aveniaTicketId && !unhandledPaymentAlertSent) {
           if (!acc[taxId]) {
             acc[taxId] = [];
@@ -160,8 +160,7 @@ class UnhandledPaymentWorker {
 
         const { subAccountId } = taxIdRecord;
         const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
-        const aveniaTicketId = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
-        console.log("aveniaTicketId", aveniaTicketId);
+        const aveniaTicketSet = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
 
         for (const state of statesByTaxId[taxId]) {
           const ticketIdFromState = state.state.aveniaTicketId;
@@ -173,7 +172,7 @@ class UnhandledPaymentWorker {
             continue;
           }
 
-          if (aveniaTicketId.has(ticketIdFromState)) {
+          if (aveniaTicketSet.has(ticketIdFromState)) {
             // Unhandled payment. A paid ticket found for an initial (stale) state or failed state.
             if (!this.hasRecentAlert(subAccountId)) {
               const referenceLabel = generateReferenceLabel({ id: ticketIdFromState });
@@ -216,8 +215,7 @@ class UnhandledPaymentWorker {
     const alertText = this.alertsThisCycle.join("\n");
     try {
       logger.info(`Attempting to send ${this.alertsThisCycle.length} alert(s) to Slack.`);
-      //await this.slackNotifier.sendMessage({ text: alertText });
-      console.log(alertText);
+      await this.slackNotifier.sendMessage({ text: alertText });
       logger.info("Slack notification sent successfully.");
       this.alertsThisCycle = [];
     } catch (error) {
