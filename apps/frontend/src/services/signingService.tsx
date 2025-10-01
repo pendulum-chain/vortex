@@ -169,22 +169,6 @@ export const fetchSep10Signatures = async ({
   return { clientPublic, clientSignature, masterClientPublic, masterClientSignature };
 };
 
-export const fetchOfframpStatus = async (taxId: string) => {
-  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getRampStatus?taxId=${taxId}`);
-
-  if (statusResponse.status !== 200) {
-    if (statusResponse.status === 404) {
-      throw new Error("Offramp not found");
-    } else {
-      throw new Error(`Failed to fetch offramp status from server: ${statusResponse.statusText}`);
-    }
-  }
-
-  const eventStatus: BrlaOfframpStatus = await statusResponse.json();
-  console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
-  return eventStatus;
-};
-
 export const fetchKycStatus = async (taxId: string) => {
   const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}`);
 

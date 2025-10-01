@@ -25,6 +25,7 @@ export interface StateMetadata {
   };
   executeSpacewalkNonce: number;
   // Only used in onramp - brla
+  aveniaTicketId: string;
   inputAmountUnits: string;
   inputAmountBeforeSwapUnits: string;
   taxId: string;

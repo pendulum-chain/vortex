@@ -1,8 +1,9 @@
-import { BrlaApiService, DepositLog, generateReferenceLabel, isValidReferenceLabel } from "@packages/shared";
+import { BrlaApiService, generateReferenceLabel } from "@packages/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import RampState from "../../models/rampState.model";
+import TaxId from "../../models/taxId.model";
 import { SlackNotifier } from "../services/slack.service";
 
 const DEFAULT_CRON_TIME = "*/15 * * * *";
@@ -117,24 +118,6 @@ class UnhandledPaymentWorker {
     }
   }
 
-  private findFirstDuplicateReferenceInfo(payments: DepositLog[]): { label: string; ids: string[] } | undefined {
-    const referenceDetails = new Map<string, string[]>();
-    for (const payment of payments) {
-      if (!payment.referenceLabel || !payment.id) {
-        continue;
-      }
-
-      const existingIds = referenceDetails.get(payment.referenceLabel);
-      if (existingIds) {
-        existingIds.push(payment.id);
-        return { ids: existingIds, label: payment.referenceLabel };
-      } else {
-        referenceDetails.set(payment.referenceLabel, [payment.id]);
-      }
-    }
-    return undefined;
-  }
-
   private hasRecentAlert(subaccountId: string): boolean {
     const lastAlertTime = this.alertedSubaccounts.get(subaccountId);
     if (!lastAlertTime) {
@@ -146,7 +129,68 @@ class UnhandledPaymentWorker {
   }
 
   private async processStatesForUnhandledPayments(states: RampState[]): Promise<void> {
-    // TODO re-implement after Avenia migration.
+    if (states.length === 0) {
+      return;
+    }
+
+    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps)
+    // Also filter out states that have already been alerted for unhandled payments.
+    const statesByTaxId: Record<string, RampState[]> = states.reduce(
+      (acc, state) => {
+        const { taxId, aveniaTicketId, unhandledPaymentAlertSent } = state.state;
+        if (taxId && aveniaTicketId && !unhandledPaymentAlertSent) {
+          if (!acc[taxId]) {
+            acc[taxId] = [];
+          }
+          acc[taxId].push(state);
+        }
+        return acc;
+      },
+      {} as Record<string, RampState[]>
+    );
+
+    for (const taxId in statesByTaxId) {
+      try {
+        const taxIdRecord = await TaxId.findOne({ where: { taxId } });
+        if (!taxIdRecord) {
+          logger.warn(`No TaxId record found for taxId: ${taxId}. Skipping states.`);
+          statesByTaxId[taxId].forEach(state => this.processedStateIds.add(state.id));
+          continue;
+        }
+
+        const { subAccountId } = taxIdRecord;
+        const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
+        const aveniaTicketSet = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
+
+        for (const state of statesByTaxId[taxId]) {
+          const ticketIdFromState = state.state.aveniaTicketId;
+
+          if (!ticketIdFromState) {
+            //  should not be hit due to the filter in the reducer.
+            logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing a aveniaTicketId. Skipping.`);
+            this.processedStateIds.add(state.id);
+            continue;
+          }
+
+          if (aveniaTicketSet.has(ticketIdFromState)) {
+            // Unhandled payment. A paid ticket found for an initial (stale) state or failed state.
+            if (!this.hasRecentAlert(subAccountId)) {
+              const referenceLabel = generateReferenceLabel({ id: ticketIdFromState });
+              const alertMessage = `Unhandled payment detected for stateId: ${state.id}, ticketId: ${ticketIdFromState}. Please investigate. Ref: ${referenceLabel}`;
+              this.alertsThisCycle.push(alertMessage);
+              this.alertedSubaccounts.set(subAccountId, Date.now());
+            }
+            await this.updateAlertedState(state);
+          } else {
+            this.processedStateIds.add(state.id);
+          }
+        }
+      } catch (error) {
+        logger.error(`Error processing states for taxId ${taxId}:`, error);
+      }
+    }
+
+    await this.notifySlack();
   }
 
   private async updateAlertedState(state: RampState): Promise<void> {

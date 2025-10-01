@@ -9,8 +9,6 @@ import {
   BrlaErrorResponse,
   BrlaGetKycStatusRequest,
   BrlaGetKycStatusResponse,
-  BrlaGetRampStatusRequest,
-  BrlaGetRampStatusResponse,
   BrlaGetSelfieLivenessUrlRequest,
   BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitRequest,
@@ -21,7 +19,6 @@ import {
   BrlaValidatePixKeyResponse,
   KybAttemptStatusResponse,
   KybLevel1Response,
-  Kyc2FailureReason,
   KycAttemptResult,
   KycAttemptStatus,
   KycFailureReason,
@@ -32,25 +29,32 @@ import {
 import { AveniaAccountType, isValidCnpj } from "@packages/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { eventPoller } from "../..";
 import TaxId from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
-function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefined): KycFailureReason {
-  switch (webhookReason) {
-    case "face match failure":
+// map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
+const lastInteractionMap = new Map<string, number>();
+
+// Maps webhook failure reasons to standardized enum values
+function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
+  if (!webhookReason) {
+    return KycFailureReason.UNKNOWN;
+  }
+  switch (true) {
+    case webhookReason.includes("face match failure"):
       return KycFailureReason.FACE;
-    case "name does not match":
+    case webhookReason.includes("name does not match"):
       return KycFailureReason.NAME;
-    case "birthdate does not match":
+    case webhookReason.includes("birthdate does not match"):
       return KycFailureReason.BIRTHDATE;
-    case "tax id does not exist":
+    case webhookReason.includes("tax id does not exist"):
       return KycFailureReason.TAX_ID;
     default:
       return KycFailureReason.UNKNOWN;
   }
 }
 
+// Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   console.error(`Error while performing ${apiMethod}: `, error);
 
@@ -171,7 +175,7 @@ export const getAveniaUserRemainingLimit = async (
 
     if (!brlLimits) {
       // Our current assumption is that BRL limits won't exist for an account without a KYC.
-      // But to be safe, we check the status and return a proper error.
+      // But to be safe, we check the status and return a proper status.
       const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
         res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
@@ -193,49 +197,6 @@ export const getAveniaUserRemainingLimit = async (
     return;
   } catch (error) {
     handleApiError(error, res, "getAveniaUserRemainingLimit");
-  }
-};
-
-export const getRampStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaGetRampStatusRequest>,
-  res: Response<BrlaGetRampStatusResponse | BrlaErrorResponse>
-): Promise<void> => {
-  try {
-    const { taxId } = req.query;
-
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
-      return;
-    }
-
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
-
-    const lastEventCached = await eventPoller.getLatestEventForUser(taxIdRecord.subAccountId);
-
-    if (!lastEventCached) {
-      res.status(httpStatus.NOT_FOUND).json({ error: `No status events found for ${taxId}` });
-      return;
-    }
-
-    if (
-      lastEventCached.subscription !== "MONEY-TRANSFER" &&
-      lastEventCached.subscription !== "BURN" &&
-      lastEventCached.subscription !== "BALANCE-UPDATE"
-    ) {
-      res.status(httpStatus.NOT_FOUND).json({ error: `No offramp status event found for ${taxId}` });
-      return;
-    }
-
-    res.status(httpStatus.OK).json({
-      status: lastEventCached.data.status,
-      type: lastEventCached.subscription
-    });
-  } catch (error) {
-    handleApiError(error, res, "getRampStatus");
   }
 };
 

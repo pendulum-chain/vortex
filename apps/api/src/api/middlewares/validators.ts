@@ -1,13 +1,15 @@
 import {
+  AveniaAccountType,
   AveniaKYCDataUploadRequest,
+  CreateAveniaSubaccountRequest,
   Currency,
+  isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
   PriceProvider,
   RampDirection,
-  RegisterSubaccountPayload,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
@@ -15,11 +17,9 @@ import {
 } from "@packages/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
-import { ParsedQs } from "qs";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
-import { EvmAddress } from "../services/brla/brlaTeleportService";
 
 interface CreationBody {
   accountId: string;
@@ -62,12 +62,6 @@ interface SiweValidateBody {
   nonce: string;
   signature: string;
   siweMessage: string;
-}
-
-export interface PayInCodeQuery extends ParsedQs {
-  taxId: string;
-  amount: string;
-  receiverAddress: EvmAddress;
 }
 
 export const validateCreationInput: RequestHandler = (req, res, next) => {
@@ -367,28 +361,14 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 };
 
 export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
-    req.body as RegisterSubaccountPayload;
+  const { accountType } = req.body as CreateAveniaSubaccountRequest;
 
-  // if (!phone) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
-  //   return;
-  // }
-
-  // if (!address) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
-  //   return;
-  // }
-
-  // if (!fullName) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
-  //   return;
-  // }
-
-  // if (!birthdate) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
-  //   return;
-  // }
+  if (!accountType || !isValidAveniaAccountType(accountType)) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `Invalid accountType.`
+    });
+    return;
+  }
 
   next();
 };
