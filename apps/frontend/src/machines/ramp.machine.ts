@@ -15,7 +15,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 300; // 5 minutes
 
 const initialRampContext: RampContext = {
   address: undefined,
@@ -23,6 +23,7 @@ const initialRampContext: RampContext = {
   callbackUrl: undefined,
   chainId: undefined,
   executionInput: undefined,
+  externalSessionId: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
@@ -88,6 +89,7 @@ export type RampMachineEvents =
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
+  | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
@@ -102,6 +104,9 @@ export const rampMachine = setup({
       }
       await new Promise(resolve => setTimeout(resolve, 30000));
       await refetchQuote(quote, partnerId, event => self.send(event));
+    },
+    reloadKeepingParams: () => {
+      window.location.reload();
     },
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
@@ -199,6 +204,32 @@ export const rampMachine = setup({
         address: ({ event }) => event.address
       })
     },
+    SET_EXTERNAL_ID: [
+      {
+        actions: [
+          assign({
+            externalSessionId: ({ event }) => event.externalSessionId
+          })
+        ],
+        // Assumed to be a new session, so we reset everything and reload the page.
+        // This will reload the new parameters and fetch a new quote.
+        guard: ({ context, event }) =>
+          event.externalSessionId !== undefined &&
+          context.externalSessionId !== undefined &&
+          event.externalSessionId !== context.externalSessionId,
+        target: ".Idle"
+      },
+      {
+        actions: [
+          assign({
+            externalSessionId: ({ event }) => event.externalSessionId
+          })
+        ],
+        // If a sessionId is passed yet none is set in the context, we assume it's a new session and reload.
+        guard: ({ context, event }) => event.externalSessionId !== undefined && context.externalSessionId === undefined,
+        target: ".Idle"
+      }
+    ],
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
         getMessageSignature: ({

@@ -16,9 +16,9 @@ import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { QuoteService } from "../services/api";
 import { useSetPartnerId } from "../stores/partnerStore";
-import { defaultFiatTokenAmounts, useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
+import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
-import { useRampDirection, useRampDirectionReset, useRampDirectionToggle } from "../stores/rampDirectionStore";
+import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
   rampDirection: RampDirection;
@@ -32,6 +32,7 @@ interface RampUrlParams {
   payment?: string;
   walletLocked?: string;
   callbackUrl?: string;
+  externalSessionId?: string;
 }
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
@@ -162,6 +163,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const paymentParam = params.get("payment");
     const walletLockedParam = params.get("walletLocked");
     const callbackUrlParam = params.get("callbackUrl");
+    const externalSessionIdParam = params.get("externalSessionId");
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -175,6 +177,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     return {
       callbackUrl: callbackUrlParam || undefined,
       cryptoLocked,
+      externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
       moneriumCode,
@@ -191,8 +194,18 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { rampDirection, inputAmount, partnerId, providedQuoteId, network, fiat, cryptoLocked, walletLocked, callbackUrl } =
-    useRampUrlParams();
+  const {
+    rampDirection,
+    inputAmount,
+    partnerId,
+    providedQuoteId,
+    network,
+    fiat,
+    cryptoLocked,
+    walletLocked,
+    callbackUrl,
+    externalSessionId
+  } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
   const setPartnerIdFn = useSetPartnerId();
@@ -224,6 +237,9 @@ export const useSetRampUrlParams = () => {
     if (!isWidget) return;
     if (hasInitialized.current) return;
 
+    if (externalSessionId) {
+      rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+    }
     // Modify the ramp state machine accordingly
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;

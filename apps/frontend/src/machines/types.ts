@@ -31,6 +31,7 @@ export interface RampContext {
   substrateWalletAccount: WalletAccount | undefined;
   walletLocked?: string;
   callbackUrl?: string;
+  externalSessionId?: string;
 }
 
 export type RampMachineEvents =
