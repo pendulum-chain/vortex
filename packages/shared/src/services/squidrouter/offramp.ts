@@ -37,11 +37,13 @@ export interface OfframpTransactionData {
   squidRouterReceiverId: string;
   squidRouterReceiverHash: string;
   route: SquidrouterRoute;
+  squidRouterQuoteId?: string;
 }
 
 export interface OfframpTransactionDataToEvm {
   approveData: EvmTransactionData;
   swapData: EvmTransactionData;
+  squidRouterQuoteId?: string;
 }
 
 export async function createOfframpSquidrouterTransactions(params: OfframpSquidrouterParams): Promise<OfframpTransactionData> {
@@ -70,7 +72,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
   const routeResult = await getRoute(routeParams);
   const { route } = routeResult.data;
 
-  const { approveData, swapData } = await createTransactionDataFromRoute({
+  const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
     inputTokenErc20Address: params.fromToken,
     publicClient: moonbeamClient,
     rawAmount: params.rawAmount,
@@ -80,6 +82,7 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
   return {
     approveData,
     route,
+    squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId,
     swapData

@@ -51,8 +51,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
     }),
+    brlaOnrampMint: t("pages.progress.brlaOnrampMint"),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
-    brlaTeleport: t("pages.progress.brlaTeleport"),
     complete: "",
     distributeFees: getSwappingMessage(),
     failed: "",

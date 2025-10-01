@@ -1,6 +1,6 @@
 import logger from "../../../config/logger";
+import brlaOnrampMintHandler from "./handlers/brla-onramp-mint-handler";
 import brlaPayoutMoonbeamHandler from "./handlers/brla-payout-moonbeam-handler";
-import brlaTransferHandler from "./handlers/brla-transfer-handler";
 import distributeFeesHandler from "./handlers/distribute-fees-handler";
 import fundEphemeralHandler from "./handlers/fund-ephemeral-handler";
 import initialPhaseHandler from "./handlers/initial-phase-handler";
@@ -39,12 +39,12 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
   phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
+  phaseRegistry.registerHandler(brlaOnrampMintHandler);
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPayPhaseHandler);
   phaseRegistry.registerHandler(distributeFeesHandler);
   phaseRegistry.registerHandler(moneriumOnrampSelfTransferHandler);
   phaseRegistry.registerHandler(moneriumOnrampMintPhaseHandler);
-  phaseRegistry.registerHandler(brlaTransferHandler);
   phaseRegistry.registerHandler(moonbeamXcmToAssethubHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
   phaseRegistry.registerHandler(pendulumToMoonbeamXcmHandler);

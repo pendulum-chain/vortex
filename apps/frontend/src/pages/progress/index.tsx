@@ -16,8 +16,8 @@ import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
   assethubToPendulum: 24,
+  brlaOnrampMint: 5 * 60,
   brlaPayoutOnMoonbeam: 30,
-  brlaTeleport: 5 * 60,
   complete: 0,
   distributeFees: 24,
   failed: 0,
@@ -90,7 +90,7 @@ export const PHASE_FLOWS = {
 
   onramp_brl: [
     "initial",
-    "brlaTeleport",
+    "brlaOnrampMint",
     "fundEphemeral",
     "moonbeamToPendulumXcm",
     "subsidizePreSwap",
@@ -125,7 +125,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
 
   if (type === RampDirection.BUY) {
     if (
-      currentPhase === "brlaTeleport" ||
+      currentPhase === "brlaOnrampMint" ||
       rampState.quote?.outputCurrency === FiatToken.BRL ||
       rampState.quote?.inputCurrency === FiatToken.BRL
     ) {

@@ -26,7 +26,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
-const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "800000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
+const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
@@ -288,7 +288,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error("SquidRouterPayPhaseHandler: Invalid from or to network for Squidrouter status check");
       }
 
-      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId);
+      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
       return squidrouterStatus;
     } catch (error) {
       logger.error(`SquidRouterPayPhaseHandler: Error fetching Squidrouter status for swap hash ${swapHash}:`, error);

@@ -5,12 +5,22 @@ import {
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
   BrlaGetRampStatusResponse,
+  BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
   RampDirection
 } from "@packages/shared";
 import { apiRequest } from "./api-client";
+
+/**
+ * Response type for KYB Level 1 initiation
+ */
+export interface KybLevel1Response {
+  attemptId: string;
+  authorizedRepresentativeUrl: string;
+  basicCompanyDataUrl: string;
+}
 
 /**
  * Service for interacting with BRLA API endpoints
@@ -83,7 +93,35 @@ export class BrlaService {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
   }
 
+  /**
+   * Get urls to upload KYC documents for a new subaccount
+   * @param request The subaccount creation request
+   * @returns The upload URLs and their corresponding IDs
+   */
   static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
     return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
+  }
+
+  /**
+   * Get a new liveness URL for selfie verification. Used for refreshing a stale one.
+   * @param request The subaccount creation request
+   * @returns The upload URLs and their corresponding IDs
+   */
+  static async getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse> {
+    return apiRequest<BrlaGetSelfieLivenessUrlResponse>("get", `${this.BASE_PATH}/getSelfieLivenessUrl`, undefined, {
+      params: { taxId }
+    });
+  }
+
+  /**
+   * Initiate KYB Level 1 verification process
+   * @param subAccountId The subaccount ID (optional)
+   * @returns URLs for the KYB verification process
+   */
+  static async initiateKybLevel1(subAccountId?: string): Promise<KybLevel1Response> {
+    console.log("Initiating KYB Level 1 for subAccountId:", subAccountId);
+    return apiRequest<KybLevel1Response>("post", `${this.BASE_PATH}/kyb/new-level-1/web-sdk`, undefined, {
+      params: subAccountId ? { subAccountId } : undefined
+    });
   }
 }

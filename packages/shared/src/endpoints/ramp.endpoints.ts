@@ -24,7 +24,7 @@ export type RampPhase =
   | "subsidizePreSwap"
   | "subsidizePostSwap"
   | "distributeFees"
-  | "brlaTeleport"
+  | "brlaOnrampMint"
   | "brlaPayoutOnMoonbeam"
   | "failed"
   | "timedOut"

@@ -10,7 +10,8 @@ export enum KycFailureReason {
   FACE = "face",
   NAME = "name",
   BIRTHDATE = "birthdate",
-  UNKNOWN = "unknown"
+  UNKNOWN = "unknown",
+  TAX_ID = "tax_id"
 }
 
 // GET /brla/getUser?taxId=:taxId
@@ -22,6 +23,7 @@ export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
   identityStatus: AveniaIdentityStatus;
+  subAccountId: string;
 }
 
 // GET /brla/getRampStatus?taxId=:taxId
@@ -39,12 +41,23 @@ export interface BrlaGetKycStatusRequest {
   taxId: string;
 }
 
+export interface BrlaGetSelfieLivenessUrlRequest {
+  taxId: string;
+}
+
 export interface BrlaGetKycStatusResponse {
-  type: string;
-  status: KycAttemptStatus;
+  type: "KYC";
   level: string;
+  status: KycAttemptStatus;
   result: KycAttemptResult;
   failureReason?: KycFailureReason;
+}
+
+export interface BrlaGetSelfieLivenessUrlResponse {
+  id: string;
+  livenessUrl: string;
+  uploadURLFront: string;
+  validateLivenessToken: string;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey
@@ -102,12 +115,15 @@ export enum BrlaKYCDocType {
 export interface AveniaKYCDataUploadRequest {
   documentType: AveniaDocumentType;
   isDoubleSided?: boolean;
+  taxId: string;
 }
 
 export interface AveniaKYCDataUpload {
   selfieUpload: {
     id: string;
     uploadURLFront: string;
+    livenessUrl?: string;
+    validateLivenessToken?: string;
   };
   idUpload: {
     id: string;

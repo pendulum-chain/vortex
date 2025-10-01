@@ -11,6 +11,57 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "aveniaKYB": {
+      "aveniaKYBVerifyCompanyRepresentative": {
+        "instructions": "Agora, verifique as informações do representante autorizado. Esta pessoa deve estar legalmente autorizada a representar sua empresa."
+      },
+      "buttons": {
+        "back": "Voltar",
+        "cancel": "Cancelar",
+        "done": "Concluído",
+        "next": "Próximo"
+      },
+      "companyData": "Informações da Empresa",
+      "description": "Conclua estas etapas rápidas de verificação de negócios. Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
+      "instructions": "Por favor, clique no botão abaixo para verificar as informações da sua empresa. Você precisará fornecer os detalhes e documentos de registro da sua empresa.",
+      "representativeData": "Informações do Representante Autorizado",
+      "title": "Verificação de Negócios",
+      "verification": {
+        "approved": "A verificação da sua empresa foi aprovada!",
+        "pending": "Verificação em andamento. Este processo pode levar até 2 dias.",
+        "rejected": "A verificação da sua empresa foi rejeitada. Por favor, tente novamente."
+      },
+      "verifyCompany": "Verificar Empresa",
+      "verifyCompanyRepresentative": "Verificar Representante da Empresa"
+    },
+    "aveniaKYC": {
+      "buttons": {
+        "back": "Voltar",
+        "compareFees": "Comparar Taxas",
+        "finish": "Finalizar",
+        "next": "Próximo"
+      },
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
+      "title": "Verificação Rápida"
+    },
+    "aveniaLiveness": {
+      "cameraWarning": "Você precisará permitir acesso à câmera na página do parceiro",
+      "description": "Complete a verificação facial com nosso parceiro seguro",
+      "livenessDone": "Verificação Concluída",
+      "openLivenessCheck": "Iniciar Verificação",
+      "title": "Verificação Facial",
+      "troubleTextButton": "Clique aqui",
+      "troubleTextPart1": "Está com problemas? ",
+      "troubleTextPart2": " para tentar novamente em uma nova sessão."
+    },
+    "aveniaSwapField": {
+      "cpfOrCnpj": "CPF o CNPJ",
+      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "pixKey": "Chave Pix",
+      "placeholder": "Digite seu {{label}}",
+      "walletAddress": "Endereço da Carteira"
+    },
     "benefitsList": {
       "noHiddenFees": "Sem taxas ocultas",
       "takes5Minutes": "Leva <1>5 minutos</1>"
@@ -99,6 +150,7 @@
           "tooOld": "Data de início inválida"
         },
         "state": {
+          "maxLength": "Use o código de estado de 2 letras",
           "minLength": "Estado deve ter pelo menos 3 caracteres",
           "required": "Estado é obrigatório"
         },
@@ -117,24 +169,6 @@
         "rejected": "Verificação KYC rejeitada",
         "success": "Verificação bem-sucedida"
       }
-    },
-    "brlaKYCForm": {
-      "buttons": {
-        "back": "Voltar",
-        "compareFees": "Comparar Taxas",
-        "finish": "Finalizar",
-        "next": "Próximo"
-      },
-      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
-      "title": "Verificação Rápida"
-    },
-    "brlaSwapField": {
-      "cpfOrCnpj": "CPF o CNPJ",
-      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
-      "pixKey": "Chave Pix",
-      "placeholder": "Digite seu {{label}}",
-      "walletAddress": "Endereço da Carteira"
     },
     "detailsDescription": {
       "connectWallet": "Conecte sua carteira para continuar o processo",
@@ -216,6 +250,9 @@
     "footer": {
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
       "poweredBy": "Desenvolvido por"
+    },
+    "kycLevel2Toggle": {
+      "temporarilyDisabled": "Temporariamente desativado"
     },
     "maintenance": {
       "banner": {
@@ -410,7 +447,7 @@
     "progress": {
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
-      "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
+      "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
       "closeProgressScreenText": "💡 Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
       "createStellarAccount": "Criando conta Stellar",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",

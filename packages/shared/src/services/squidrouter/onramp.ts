@@ -48,6 +48,7 @@ export interface OnrampTransactionData {
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   };
+  squidRouterQuoteId?: string;
 }
 
 export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
