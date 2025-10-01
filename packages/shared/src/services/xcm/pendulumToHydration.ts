@@ -3,6 +3,7 @@ import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
+import "@pendulum-chain/types"; // Import to augment the api types
 
 export async function createPendulumToHydrationTransfer(
   destinationAddress: string,

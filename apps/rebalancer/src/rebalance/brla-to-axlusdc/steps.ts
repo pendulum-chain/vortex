@@ -164,7 +164,7 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
   const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
-  const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXL_USDC) as EvmTokenDetails;
+  const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXLUSDC) as EvmTokenDetails;
 
   const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
     fromAddress: polygonWalletClient.account.address,

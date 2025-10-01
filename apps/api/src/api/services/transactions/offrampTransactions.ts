@@ -33,13 +33,14 @@ import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
-import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
+import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
 import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
 import { prepareSpacewalkRedeemTransaction } from "./spacewalk/redeem";
 import { buildPaymentAndMergeTx } from "./stellar/offrampTransaction";
+import "@pendulum-chain/types"; // Import to augment the api types
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase

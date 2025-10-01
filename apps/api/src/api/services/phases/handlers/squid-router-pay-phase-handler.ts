@@ -78,7 +78,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       await this.checkStatus(state, bridgeCallHash);
 
       if (state.to === Networks.AssetHub) {
-        return this.transitionToNextPhase(state, "moonbeamXcmToAssethub");
+        return this.transitionToNextPhase(state, "moonbeamToPendulumXcm");
       } else {
         return this.transitionToNextPhase(state, "complete");
       }

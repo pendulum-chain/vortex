@@ -20,6 +20,7 @@ import {
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from "../services/pendulum/helpers";
 import { fundEphemeralAccount, getFundingData } from "../services/pendulum/pendulum.service";
 import { SlackNotifier } from "../services/slack.service";
+import "@pendulum-chain/types"; // Import to augment the api types
 
 // DEPRECATED
 export const fundEphemeralAccountController = async (
