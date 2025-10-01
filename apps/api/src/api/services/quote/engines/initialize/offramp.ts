@@ -10,8 +10,8 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
-import { getEvmBridgeQuote } from "../../core/gross-output";
 import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
+import { getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampInitializeEngine implements Stage {

@@ -10,7 +10,7 @@ import {
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { priceFeedService } from "../../../priceFeed.service";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/gross-output";
+import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSquidRouterBrlToEvmEngine implements Stage {

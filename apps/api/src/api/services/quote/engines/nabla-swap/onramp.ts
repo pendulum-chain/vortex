@@ -1,5 +1,5 @@
 import { AssetHubToken, EvmToken, RampCurrency, RampDirection } from "@packages/shared";
-import { calculateNablaSwapOutput } from "../../core/gross-output";
+import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSwapEngine implements Stage {
