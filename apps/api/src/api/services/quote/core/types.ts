@@ -68,6 +68,13 @@ export interface XcmMeta {
   xcmFees: XcmFees;
 }
 
+// Partner info shared type
+export interface PartnerInfo {
+  id: string | null;
+  discount?: number; // decimal, e.g., 0.05 => 5%
+  name?: string | null;
+}
+
 // Strategy for a specific route/path
 export interface IRouteStrategy {
   // Ordered stages to execute for this route
@@ -87,11 +94,7 @@ export interface QuoteContext {
   readonly now: Date;
 
   // Partner info (if any)
-  partner: {
-    id: string | null;
-    discount?: number; // decimal, e.g., 0.05 => 5%
-    name?: string | null;
-  } | null;
+  partner: PartnerInfo | null;
 
   // The fiat currency used for displaying fee breakdown (per helpers.getTargetFiatCurrency)
   targetFeeFiatCurrency: RampCurrency;

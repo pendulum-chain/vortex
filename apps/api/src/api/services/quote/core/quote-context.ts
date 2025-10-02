@@ -1,83 +1,55 @@
 /**
- * QuoteContext implementation and factory.
+ * QuoteContext factory.
  * Holds request-scoped data that flows through the quote pipeline.
+ *
+ * This replaces the class implementation with a single factory that returns
+ * an object literal which satisfies the QuoteContext interface, removing
+ * duplication between class fields and interface.
  */
 
-import { CreateQuoteRequest, DestinationType, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
-import { QuoteContext as IQuoteContext } from "./types";
+import { CreateQuoteRequest, RampCurrency, RampDirection } from "@packages/shared";
+import type { QuoteContext as IQuoteContext, PartnerInfo } from "./types";
 
-export class QuoteContext implements IQuoteContext {
-  readonly request: CreateQuoteRequest;
-  readonly now: Date;
-
-  partner: {
-    id: string | null;
-    discount?: number | undefined;
-    name?: string | null | undefined;
-  } | null;
-
-  targetFeeFiatCurrency: RampCurrency;
-
-  preNabla: IQuoteContext["preNabla"] = {};
-
-  bridge: IQuoteContext["moonbeamToEvm"] | undefined;
-
-  fees: IQuoteContext["fees"] | undefined;
-
-  amounts: IQuoteContext["amounts"] | undefined;
-
-  subsidy: IQuoteContext["subsidy"] | undefined;
-
-  // Engines may attach a ready QuoteResponse (e.g., special-case path or finalize stage)
-  builtResponse?: QuoteResponse;
-
-  notes: string[] | undefined;
-
-  constructor(params: {
-    request: CreateQuoteRequest;
-    targetFeeFiatCurrency: RampCurrency;
-    partner: { id: string | null; discount?: number; name?: string | null } | null;
-    now?: Date;
-  }) {
-    this.request = params.request;
-    this.targetFeeFiatCurrency = params.targetFeeFiatCurrency;
-    this.partner = params.partner;
-    this.now = params.now ?? new Date();
-  }
-
-  get isOnRamp(): boolean {
-    return this.request.rampType === RampDirection.BUY;
-  }
-
-  get isOffRamp(): boolean {
-    return this.request.rampType === RampDirection.SELL;
-  }
-
-  get from(): DestinationType {
-    return this.request.from;
-  }
-
-  get to(): DestinationType {
-    return this.request.to;
-  }
-
-  get direction(): RampDirection {
-    return this.request.rampType;
-  }
-
-  // Helper to append debug notes during pipeline execution
-  addNote(note: string) {
-    if (!this.notes) this.notes = [];
-    this.notes.push(note);
-  }
-}
-
-// Factory for ease of construction (keeps future invariants in one place)
 export function createQuoteContext(args: {
   request: CreateQuoteRequest;
   targetFeeFiatCurrency: RampCurrency;
-  partner: { id: string | null; discount?: number; name?: string | null } | null;
+  partner: PartnerInfo | null;
   now?: Date;
-}): QuoteContext {
-  return new QuoteContext(args);
+}): IQuoteContext {
+  let notes: string[] | undefined;
+
+  const ctx = {
+    // Helper to append debug notes during pipeline execution
+    addNote(this: IQuoteContext, note: string) {
+      if (!notes) notes = [];
+      notes.push(note);
+      this.notes = notes;
+    },
+    get direction() {
+      return this.request.rampType;
+    },
+    get from() {
+      return this.request.from;
+    },
+    get isOffRamp() {
+      return this.request.rampType === RampDirection.SELL;
+    },
+
+    // Helper accessors
+    get isOnRamp() {
+      return this.request.rampType === RampDirection.BUY;
+    },
+    now: args.now ?? new Date(),
+    partner: args.partner,
+
+    // Provide a default object to keep stage logic simple; optional by interface.
+    preNabla: {},
+    request: args.request,
+    targetFeeFiatCurrency: args.targetFeeFiatCurrency,
+    get to() {
+      return this.request.to;
+    }
+  } satisfies IQuoteContext;
+
+  return ctx;
 }
