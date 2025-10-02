@@ -4,7 +4,7 @@ import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
 import quoteService from "../services/ramp/quote.service";
 
-const BASE_WIDGET_URL = process.env.RAMP_WIDGET_URL || "https://app.vortexfinance.co/widget";
+const BASE_WIDGET_URL = process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget";
 
 function buildLockedUrl(body: GetWidgetUrlLocked): string {
   const params = new URLSearchParams({
