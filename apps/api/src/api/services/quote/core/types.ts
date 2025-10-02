@@ -146,13 +146,17 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
-  moonbeamToEvm?: BridgeMeta;
+  assethubToPendulumXcm?: XcmMeta;
 
   evmToMoonbeam?: BridgeMeta;
 
-  moonbeamToPendulumXcm?: XcmMeta;
-
   hydrationToAssethubXcm?: XcmMeta;
+
+  moonbeamToEvm?: BridgeMeta;
+
+  evmToPendulum?: BridgeMeta;
+
+  moonbeamToPendulumXcm?: XcmMeta;
 
   pendulumToHydrationXcm?: XcmMeta;
 

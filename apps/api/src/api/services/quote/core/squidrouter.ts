@@ -184,10 +184,14 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
   const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route);
 
   return {
+    fromToken: routeParams.fromToken,
+    inputAmountRaw: routeParams.fromAmount,
     networkFeeUSD,
     outputAmountDecimal,
+    outputAmountRaw,
     outputTokenDecimals,
-    routeData
+    routeData,
+    toToken: routeParams.toToken
   };
 }
 

@@ -11,7 +11,7 @@ import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
-import { getEvmBridgeQuote } from "../../core/squidrouter";
+import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampInitializeEngine implements Stage {
@@ -43,34 +43,6 @@ export class OffRampInitializeEngine implements Stage {
     }
 
     const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
-    const preNablaFeeInRepInput = await this.price.convertCurrency(
-      preNablaDeductibleFeeAmount.toString(),
-      feeCurrency,
-      representativeCurrency
-    );
-
-    let inputAmountForSwap: Big;
-
-    if (req.from !== Networks.AssetHub) {
-      const bridgeQuote = await getEvmBridgeQuote({
-        amountDecimal: req.inputAmount,
-        fromNetwork: req.from as Networks,
-        inputCurrency: req.inputCurrency as OnChainToken,
-        outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
-        rampType: req.rampType,
-        toNetwork: Networks.Moonbeam
-      });
-      inputAmountForSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaFeeInRepInput);
-    } else {
-      inputAmountForSwap = new Big(req.inputAmount).minus(preNablaFeeInRepInput);
-    }
-
-    if (inputAmountForSwap.lte(0)) {
-      throw new APIError({
-        message: "Input amount too low after deducting pre-Nabla fees",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
 
     ctx.preNabla = {
       deductibleFeeAmount: new Big(preNablaDeductibleFeeAmount),
@@ -78,9 +50,38 @@ export class OffRampInitializeEngine implements Stage {
       representativeInputCurrency: representativeCurrency
     };
 
-    ctx.nablaSwap = {
-      inputAmountForSwap
-    };
+    if (req.from !== Networks.AssetHub) {
+      const quoteRequest: EvmBridgeQuoteRequest = {
+        amountDecimal: req.inputAmount,
+        fromNetwork: req.from as Networks,
+        inputCurrency: req.inputCurrency as OnChainToken,
+        outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
+        rampType: req.rampType,
+        toNetwork: Networks.Moonbeam
+      };
+      const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
+
+      ctx.evmToPendulum = {
+        ...quoteRequest,
+        fromToken: bridgeQuote.fromToken,
+        inputAmountDecimal: Big(quoteRequest.amountDecimal),
+        inputAmountRaw: bridgeQuote.inputAmountRaw,
+        networkFeeUSD: bridgeQuote.networkFeeUSD,
+        outputAmountDecimal: bridgeQuote.outputAmountDecimal,
+        outputAmountRaw: bridgeQuote.outputAmountRaw,
+        toToken: bridgeQuote.toToken
+      };
+    } else {
+      ctx.assethubToPendulumXcm = {
+        fromToken: "",
+        inputAmountDecimal: undefined,
+        inputAmountRaw: "",
+        outputAmountDecimal: undefined,
+        outputAmountRaw: "",
+        toToken: "",
+        xcmFees: undefined
+      };
+    }
 
     ctx.addNote?.(
       `OffRampInputPlannerEngine: fee=${preNablaDeductibleFeeAmount.toString()} ${feeCurrency}, rep=${representativeCurrency}, inputForSwap=${inputAmountForSwap.toString()}`
