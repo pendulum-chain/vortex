@@ -15,7 +15,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_SECONDS = 300; // 5 minutes
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 const initialRampContext: RampContext = {
   address: undefined,
@@ -27,6 +27,7 @@ const initialRampContext: RampContext = {
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
   isQuoteExpired: false,
+  isSep24Redo: false,
   partnerId: undefined,
   paymentData: undefined,
   quote: undefined,
@@ -48,7 +49,7 @@ const refetchQuote = async (
   const now = Date.now();
   const expires = new Date(quote.expiresAt).getTime();
   const secondsLeft = Math.round((expires - now) / 1000);
-
+  console.log(`Quote expires in ${secondsLeft} seconds`);
   if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
     try {
       const newQuote = await QuoteService.createQuote(
@@ -297,17 +298,29 @@ export const rampMachine = setup({
         REFRESH_FAILED: {
           actions: [{ type: "refreshQuoteActionWithDelay" }]
         },
-        UPDATE_QUOTE: {
-          actions: [
-            assign({
-              isQuoteExpired: false,
+        UPDATE_QUOTE: [
+          {
+            actions: assign({
+              isSep24Redo: () => true,
               quote: ({ event }) => event.quote,
               quoteId: ({ event }) => event.quote.id
-            })
-          ],
-          reenter: true,
-          target: "KycComplete"
-        }
+            }),
+            guard: ({ context, event }) =>
+              context.paymentData !== undefined && event.quote.outputAmount !== context.quote?.outputAmount,
+            target: "QuoteReady"
+          },
+          {
+            actions: [
+              assign({
+                isQuoteExpired: false,
+                quote: ({ event }) => event.quote,
+                quoteId: ({ event }) => event.quote.id
+              })
+            ],
+            reenter: true,
+            target: "KycComplete"
+          }
+        ]
       }
     },
     KycFailure: {

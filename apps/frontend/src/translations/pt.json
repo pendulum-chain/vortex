@@ -530,6 +530,7 @@
         "buttons": {
           "next": "Próximo"
         },
+        "quoteChangedWarning": "Sua cotação foi alterada. Por favor, confirme o novo valor de saída antes de continuar.",
         "title": "Insira os detalhes"
       }
     }

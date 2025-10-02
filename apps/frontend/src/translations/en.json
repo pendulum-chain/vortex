@@ -530,6 +530,7 @@
         "buttons": {
           "next": "Next"
         },
+        "quoteChangedWarning": "Your quote has changed. Please confirm the new output amount before proceeding.",
         "title": "Enter Details"
       }
     }

@@ -32,6 +32,7 @@ export interface RampContext {
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
+  isSep24Redo?: boolean;
 }
 
 export type RampMachineEvents =
