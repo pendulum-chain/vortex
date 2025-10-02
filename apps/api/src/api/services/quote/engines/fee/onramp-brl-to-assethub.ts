@@ -19,7 +19,7 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampFeeEngine: skipped for off-ramp request");
+      ctx.addNote?.("OnRampFeeAveniaToAssethubEngine: skipped for off-ramp request");
       return;
     }
 
@@ -35,7 +35,7 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
 
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
-      throw new Error(`OnRampBridgeEngine: invalid network for destination: ${req.to}`);
+      throw new Error(`OnRampFeeAveniaToAssethubEngine: invalid network for destination: ${req.to}`);
     }
 
     const usdCurrency = EvmToken.USDC;
@@ -83,7 +83,7 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const usd = ctx.fees.usd!;
     ctx.addNote?.(
-      `OnRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
+      `OnRampFeeAveniaToAssethubEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
     );
   }
 }

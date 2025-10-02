@@ -6,6 +6,7 @@ import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
 import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
+import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
 import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
 import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-moonbeam-to-evm";
 
@@ -23,6 +24,7 @@ export class OnrampToEvmStrategy implements IRouteStrategy {
       StageKey.OnRampFee,
       StageKey.OnRampNablaSwap,
       StageKey.OnRampDiscount,
+      StageKey.OnRampPendulumTransfer,
       StageKey.OnRampSquidRouter,
       StageKey.OnRampFinalize
     ];
@@ -31,12 +33,14 @@ export class OnrampToEvmStrategy implements IRouteStrategy {
   getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
       [StageKey.OnRampInitialize]:
+        // FIXME, this doesn't make sense while the 'SpecialOnrampEurEvm' engine exists
         ctx.request.inputCurrency === FiatToken.EURC
           ? new OnRampInitializeMoneriumEngine()
           : new OnRampInitializeAveniaEngine(),
       [StageKey.OnRampFee]: new OnRampAveniaToEvmFeeEngine(),
       [StageKey.OnRampNablaSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
+      [StageKey.OnRampPendulumTransfer]: new OnRampPendulumTransferEngine(),
       [StageKey.OnRampSquidRouter]: new OnRampSquidRouterBrlToEvmEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine(),
 

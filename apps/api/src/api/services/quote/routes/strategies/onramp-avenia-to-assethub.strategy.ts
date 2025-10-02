@@ -12,7 +12,7 @@ import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
 import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
 export class OnrampAveniaToAssethubStrategy implements IRouteStrategy {
-  readonly name = "OnRampAssetHub";
+  readonly name = "OnRampAveniaToAssetHub";
 
   getStages(ctx: QuoteContext): StageKey[] {
     if (ctx.request.outputCurrency === "USDC") {

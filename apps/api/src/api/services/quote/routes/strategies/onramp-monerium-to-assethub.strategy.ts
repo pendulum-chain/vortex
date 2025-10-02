@@ -9,12 +9,13 @@ import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
 import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
 export class OnrampMoneriumToAssethubStrategy implements IRouteStrategy {
-  readonly name = "OnRampAssetHub";
+  readonly name = "OnRampMoneriumToAssetHub";
 
   getStages(ctx: QuoteContext): StageKey[] {
     if (ctx.request.outputCurrency === "USDC") {
       return [
         StageKey.OnRampInitialize,
+        StageKey.OnRampSquidRouter,
         StageKey.OnRampFee,
         StageKey.OnRampNablaSwap,
         StageKey.OnRampDiscount,
@@ -35,7 +36,7 @@ export class OnrampMoneriumToAssethubStrategy implements IRouteStrategy {
     }
   }
 
-  getEngines(ctx: QuoteContext): EnginesRegistry {
+  getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
       [StageKey.OnRampInitialize]: new OnRampInitializeMoneriumEngine(),
       [StageKey.OnRampSquidRouter]: new OnRampSquidRouterEurToAssetHubEngine(),

@@ -16,7 +16,7 @@ export class OnRampMoneriumToAssethubFeeEngine implements Stage {
     }
 
     if (!ctx.evmToMoonbeam) {
-      throw new Error("OnRampFeeEngine: evmToMoonbeam quote data is required");
+      throw new Error("OnRampMoneriumToAssethubFeeEngine: evmToMoonbeam quote data is required");
     }
 
     const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
@@ -74,7 +74,7 @@ export class OnRampMoneriumToAssethubFeeEngine implements Stage {
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const usd = ctx.fees.usd!;
     ctx.addNote?.(
-      `OnRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
+      `OnRampMoneriumToAssethubFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
     );
   }
 }

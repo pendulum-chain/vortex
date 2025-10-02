@@ -46,6 +46,7 @@ export interface EvmBridgeResult {
   finalGrossOutputAmountDecimal: Big; // Final amount after Squidrouter
   networkFeeUSD: string; // Squidrouter specific fee
   finalEffectiveExchangeRate?: string;
+  outputTokenDecimals: number;
 }
 
 /**
@@ -228,7 +229,8 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     return {
       finalEffectiveExchangeRate,
       finalGrossOutputAmountDecimal,
-      networkFeeUSD
+      networkFeeUSD,
+      outputTokenDecimals
     };
   } catch (error) {
     logger.error(`Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`);

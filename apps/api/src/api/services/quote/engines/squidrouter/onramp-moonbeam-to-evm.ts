@@ -1,15 +1,6 @@
-import {
-  AXL_USDC_MOONBEAM,
-  EvmToken,
-  evmTokenConfig,
-  getNetworkFromDestination,
-  Networks,
-  OnChainToken,
-  RampDirection
-} from "@packages/shared";
+import { AXL_USDC_MOONBEAM, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { priceFeedService } from "../../../priceFeed.service";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -20,80 +11,47 @@ export class OnRampSquidRouterBrlToEvmEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY || req.to === "assethub") {
-      ctx.addNote?.("OnRampBridgeEngine: skipped");
+      ctx.addNote?.("OnRampSquidRouterBrlToEvmEngine: skipped");
       return;
     }
 
-    if (!ctx.nablaSwap?.outputAmountDecimal || !ctx.nablaSwap?.outputAmountRaw) {
-      throw new Error("OnRampBridgeEngine requires Nabla output in context");
-    }
-    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
-      throw new Error("OnRampBridgeEngine requires fees (usd + displayFiat) in context");
+    if (!ctx.pendulumToMoonbeamXcm) {
+      throw new Error("OnRampSquidRouterBrlToEvmEngine requires Nabla output in context");
     }
 
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
-      throw new Error(`OnRampBridgeEngine: invalid network for destination: ${req.to}`);
+      throw new Error(`OnRampSquidRouterBrlToEvmEngine: invalid network for destination: ${req.to}`);
     }
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
     const bridgeRequest: EvmBridgeRequest = {
-      amountRaw: ctx.nablaSwap.outputAmountRaw,
+      amountRaw: ctx.pendulumToMoonbeamXcm.outputAmountRaw,
       fromNetwork: Networks.Moonbeam,
       fromToken: AXL_USDC_MOONBEAM,
-      originalInputAmountForRateCalc: ctx.preNabla?.inputAmountForSwap?.toString() ?? String(req.inputAmount),
+      originalInputAmountForRateCalc: ctx.pendulumToMoonbeamXcm.outputAmountRaw,
       rampType: req.rampType,
       toNetwork,
       toToken
     };
 
-    const preliminary = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const squidRouterNetworkFeeUSD = preliminary.networkFeeUSD;
+    const bridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
+    const outputAmountDecimal = new Big(bridgeResult.finalGrossOutputAmountDecimal);
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, bridgeResult.outputTokenDecimals).toString();
 
-    const vortexFeeUsd = new Big(ctx.fees.usd.vortex);
-    const partnerMarkupFeeUsd = new Big(ctx.fees.usd.partnerMarkup);
-    const outputAmountMoonbeamDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
-      .minus(vortexFeeUsd)
-      .minus(partnerMarkupFeeUsd)
-      .minus(squidRouterNetworkFeeUSD);
-
-    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
-
-    bridgeRequest.amountRaw = outputAmountMoonbeamRaw;
-    const final = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const finalGrossOutputAmountDecimal = new Big(final.finalGrossOutputAmountDecimal);
-
-    // TODO adjust these parameters
     ctx.moonbeamToEvm = {
-      effectiveExchangeRate: final.finalEffectiveExchangeRate,
-      networkFeeUSD: squidRouterNetworkFeeUSD,
-      outputAmountDecimal: finalGrossOutputAmountDecimal
+      effectiveExchangeRate: "",
+      inputAmountDecimal: ctx.pendulumToMoonbeamXcm.outputAmountDecimal,
+      inputAmountRaw: ctx.pendulumToMoonbeamXcm.outputAmountRaw,
+      networkFeeUSD: bridgeResult.networkFeeUSD,
+      outputAmountDecimal,
+      outputAmountRaw,
+      ...bridgeRequest
     };
-
-    const displayCurrency = ctx.targetFeeFiatCurrency;
-    const networkFeeDisplay = await priceFeedService.convertCurrency(squidRouterNetworkFeeUSD, EvmToken.USDC, displayCurrency);
-
-    const usd = ctx.fees.usd;
-    const usdTotal = new Big(usd.total).plus(squidRouterNetworkFeeUSD).toFixed(6);
-    ctx.fees.usd = {
-      ...usd,
-      network: squidRouterNetworkFeeUSD,
-      total: usdTotal
-    };
-
-    const display = ctx.fees.displayFiat;
-    const newDisplayTotal = new Big(display.vortex)
-      .plus(display.anchor)
-      .plus(display.partnerMarkup)
-      .plus(networkFeeDisplay)
-      .toFixed(2);
-
-    ctx.fees.displayFiat.network = networkFeeDisplay;
-    ctx.fees.displayFiat.total = newDisplayTotal;
 
     ctx.addNote?.(
-      `OnRampBridgeEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${finalGrossOutputAmountDecimal.toString()}`
+      `OnRampSquidRouterBrlToEvmEngine: output=${ctx.moonbeamToEvm.outputAmountDecimal.toFixed()} ${req.outputCurrency} on ${toNetwork}`
     );
   }
 }
