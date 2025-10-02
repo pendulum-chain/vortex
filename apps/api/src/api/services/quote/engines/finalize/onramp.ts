@@ -11,8 +11,6 @@ import { validateAmountLimits } from "../../core/validation-helpers";
 export class OnRampFinalizeEngine implements Stage {
   readonly key = StageKey.OnRampFinalize;
 
-  private price = priceFeedService;
-
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
@@ -21,17 +19,11 @@ export class OnRampFinalizeEngine implements Stage {
       return;
     }
 
+    if (!ctx.fees?.displayFiat) {
+      throw new APIError({ message: "OnRampFinalizeEngine requires displayFiat", status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
     if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new APIError({ message: "OnRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-    if (!ctx.fees?.displayFiat?.total || !ctx.fees?.usd) {
-      throw new APIError({ message: "OnRampFinalizeEngine requires computed fees", status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-    if (!ctx.preNabla?.deductibleFeeAmount || !ctx.preNabla?.feeCurrency) {
-      throw new APIError({
-        message: "OnRampFinalizeEngine requires pre-Nabla fee data",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
     }
 
     console.log("In finalize engine", ctx);
@@ -39,31 +31,21 @@ export class OnRampFinalizeEngine implements Stage {
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
       if (req.outputCurrency === AssetHubToken.USDC) {
-        finalOutputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal);
-      } else {
-        if (!ctx.hydrationSwap) {
+        if (!ctx.pendulumToAssethubXcm?.outputAmountDecimal) {
           throw new APIError({
-            message: "OnRampFinalizeEngine requires hydration output for AssetHub non-USDC",
+            message: "OnRampFinalizeEngine requires pendulumToAssethubXcm output for AssetHub non-USDC",
             status: httpStatus.INTERNAL_SERVER_ERROR
           });
         }
-        // Calculate gross output after subtracting XCM fees
-        const originFeeInTargetCurrency = await this.price.convertCurrency(
-          ctx.hydrationSwap.xcmFees.origin.amount,
-          ctx.hydrationSwap.xcmFees.origin.currency as RampCurrency,
-          req.outputCurrency
-        );
-        const destinationFeeInTargetCurrency = await this.price.convertCurrency(
-          ctx.hydrationSwap.xcmFees.destination.amount,
-          ctx.hydrationSwap.xcmFees.destination.currency as RampCurrency,
-          req.outputCurrency
-        );
-        console.log("After price conversion in finalize", { destinationFeeInTargetCurrency, originFeeInTargetCurrency });
-        finalOutputAmountDecimal = new Big(ctx.hydrationSwap.amountOut)
-          .minus(originFeeInTargetCurrency)
-          .minus(destinationFeeInTargetCurrency);
-
-        console.log("Final output amount decimal", finalOutputAmountDecimal.toString());
+        finalOutputAmountDecimal = new Big(ctx.pendulumToAssethubXcm?.outputAmountDecimal);
+      } else {
+        if (!ctx.hydrationToAssethubXcm?.outputAmountDecimal) {
+          throw new APIError({
+            message: "OnRampFinalizeEngine requires hydrationToAssethubXcm output for AssetHub non-USDC",
+            status: httpStatus.INTERNAL_SERVER_ERROR
+          });
+        }
+        finalOutputAmountDecimal = ctx.hydrationToAssethubXcm.outputAmountDecimal;
       }
     } else {
       // EVM on-ramp with squidrouter as last step

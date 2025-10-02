@@ -1,13 +1,14 @@
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OnRampDiscountEngine } from "../../engines/discount/onramp";
-import { OnRampFeeEngine } from "../../engines/fee/onramp";
+import { OnRampMoneriumToAssethubFeeEngine } from "../../engines/fee/onramp-monerium-to-assethub";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampHydrationEngine } from "../../engines/hydration/onramp";
-import { OnRampInitializeEngine } from "../../engines/initialize/onramp";
+import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
-import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-eur-to-assethub";
+import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
+import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
-export class OnRampAssethubStrategy implements IRouteStrategy {
+export class OnrampMoneriumToAssethubStrategy implements IRouteStrategy {
   readonly name = "OnRampAssetHub";
 
   getStages(ctx: QuoteContext): StageKey[] {
@@ -15,31 +16,33 @@ export class OnRampAssethubStrategy implements IRouteStrategy {
       return [
         StageKey.OnRampInitialize,
         StageKey.OnRampFee,
-        StageKey.OnRampSquidRouter,
-        StageKey.OnRampSwap,
+        StageKey.OnRampNablaSwap,
         StageKey.OnRampDiscount,
+        StageKey.OnRampPendulumTransfer,
         StageKey.OnRampFinalize
       ];
     } else {
       return [
         StageKey.OnRampInitialize,
-        StageKey.OnRampFee,
         StageKey.OnRampSquidRouter,
-        StageKey.OnRampSwap,
+        StageKey.OnRampFee,
+        StageKey.OnRampNablaSwap,
         StageKey.OnRampDiscount,
+        StageKey.OnRampPendulumTransfer,
         StageKey.OnRampHydration, // Add Hydration stage for non-USDC output
         StageKey.OnRampFinalize
       ];
     }
   }
 
-  getEngines(_ctx: QuoteContext): EnginesRegistry {
+  getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInitialize]: new OnRampInitializeEngine(),
-      [StageKey.OnRampFee]: new OnRampFeeEngine(),
+      [StageKey.OnRampInitialize]: new OnRampInitializeMoneriumEngine(),
       [StageKey.OnRampSquidRouter]: new OnRampSquidRouterEurToAssetHubEngine(),
-      [StageKey.OnRampSwap]: new OnRampSwapEngine(),
+      [StageKey.OnRampFee]: new OnRampMoneriumToAssethubFeeEngine(),
+      [StageKey.OnRampNablaSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
+      [StageKey.OnRampPendulumTransfer]: new OnRampPendulumTransferEngine(),
       [StageKey.OnRampHydration]: new OnRampHydrationEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine()
     };

@@ -1,14 +1,15 @@
 import { FiatToken } from "@packages/shared";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OnRampDiscountEngine } from "../../engines/discount/onramp";
-import { OnRampFeeEngine } from "../../engines/fee/onramp";
+import { OnRampAveniaToEvmFeeEngine } from "../../engines/fee/onramp-brl-to-evm";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
-import { OnRampInitializeEngine } from "../../engines/initialize/onramp";
+import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
+import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
 import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
-import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-brl-to-evm";
+import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-moonbeam-to-evm";
 
-export class OnRampEvmStrategy implements IRouteStrategy {
+export class OnrampToEvmStrategy implements IRouteStrategy {
   readonly name = "OnRampEvm";
 
   getStages(ctx: QuoteContext): StageKey[] {
@@ -19,19 +20,22 @@ export class OnRampEvmStrategy implements IRouteStrategy {
     // Non-EUR on-ramp to EVM goes through the modular pipeline
     return [
       StageKey.OnRampInitialize,
-      StageKey.OnRampSwap,
       StageKey.OnRampFee,
+      StageKey.OnRampNablaSwap,
       StageKey.OnRampDiscount,
       StageKey.OnRampSquidRouter,
       StageKey.OnRampFinalize
     ];
   }
 
-  getEngines(_ctx: QuoteContext): EnginesRegistry {
+  getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInitialize]: new OnRampInitializeEngine(),
-      [StageKey.OnRampSwap]: new OnRampSwapEngine(),
-      [StageKey.OnRampFee]: new OnRampFeeEngine(),
+      [StageKey.OnRampInitialize]:
+        ctx.request.inputCurrency === FiatToken.EURC
+          ? new OnRampInitializeMoneriumEngine()
+          : new OnRampInitializeAveniaEngine(),
+      [StageKey.OnRampFee]: new OnRampAveniaToEvmFeeEngine(),
+      [StageKey.OnRampNablaSwap]: new OnRampSwapEngine(),
       [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
       [StageKey.OnRampSquidRouter]: new OnRampSquidRouterBrlToEvmEngine(),
       [StageKey.OnRampFinalize]: new OnRampFinalizeEngine(),

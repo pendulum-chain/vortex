@@ -14,6 +14,7 @@ export class QuoteOrchestrator {
         throw new Error(`Engine for stage '${stageKey}' not registered in registry (strategy='${strategy.name}')`);
       }
       ctx.addNote?.(`Executing stage: ${stageKey}`);
+      console.log("Current context", ctx);
       await engine.execute(ctx);
     }
 

@@ -17,16 +17,16 @@ export enum RouteProfile {
   OnRampEvm = "OnRampEvm",
   OnRampAssetHub = "OnRampAssetHub",
   OffRampPix = "OffRampPix",
-  OffRampSepa = "OffRampSepa",
-  OffRampCbu = "OffRampCbu"
+  OffRampStellar = "OffRampStellar"
 }
 
 // Stage identifiers in the pipeline
 export enum StageKey {
   OnRampInitialize = "OnRampInitialize",
   OffRampInitialize = "OffRampInitialize",
-  OnRampSwap = "OnRampSwap",
+  OnRampNablaSwap = "OnRampNablaSwap",
   OffRampSwap = "OffRampSwap",
+  OnRampPendulumTransfer = "OnRampPendulumTransfer",
   OnRampHydration = "OnRampHydration",
   OnRampSquidRouter = "OnRampSquidRouter",
   OnRampFee = "OnRampFee",
@@ -64,7 +64,12 @@ export interface BridgeMeta {
 }
 
 export interface XcmMeta {
-  fromNetwork: string;
+  fromToken: string;
+  toToken: string;
+  inputAmountDecimal: Big;
+  inputAmountRaw: string;
+  outputAmountDecimal: Big;
+  outputAmountRaw: string;
   xcmFees: XcmFees;
 }
 
@@ -108,13 +113,14 @@ export interface QuoteContext {
   };
 
   nablaSwap?: {
-    inputAmountForSwap: Big;
-
-    inputCurrency?: RampCurrency;
-    outputAmountRaw?: string; // raw from Nabla result
-    outputAmountDecimal?: Big;
+    inputAmountForSwap: string;
+    inputCurrency: RampCurrency;
+    inputDecimals: number;
+    outputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputDecimals: number;
     effectiveExchangeRate?: string;
-    outputCurrency?: RampCurrency;
+    outputCurrency: RampCurrency;
   };
 
   hydrationSwap?: {
@@ -124,6 +130,20 @@ export interface QuoteContext {
     amountOut: string;
     assetIn: string;
     assetOut: string;
+  };
+
+  moneriumMint?: {
+    amountIn: Big;
+    amountOut: Big;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
+  aveniaMint?: {
+    amountIn: Big;
+    amountOut: Big;
+    fee: Big;
+    currency: RampCurrency;
   };
 
   moonbeamToEvm?: BridgeMeta;

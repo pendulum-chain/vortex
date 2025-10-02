@@ -1,15 +1,4 @@
-import {
-  ApiManager,
-  DestinationType,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  getTokenOutAmount,
-  PendulumTokenDetails,
-  QuoteError,
-  RampCurrency,
-  RampDirection,
-  TokenOutData
-} from "@packages/shared";
+import { ApiManager, getTokenOutAmount, PendulumTokenDetails, QuoteError, RampDirection, TokenOutData } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { Big } from "big.js";
 import httpStatus from "http-status";
@@ -18,11 +7,9 @@ import { APIError } from "../../../errors/api-error";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
-  inputCurrency: RampCurrency;
-  nablaOutputCurrency: RampCurrency;
   rampType: RampDirection;
-  fromPolkadotDestination: DestinationType;
-  toPolkadotDestination: DestinationType;
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
 }
 
 export interface NablaSwapResult {
@@ -51,8 +38,7 @@ async function getNablaSwapOutAmount(
  * Performs the initial Nabla swap on Pendulum
  */
 export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promise<NablaSwapResult> {
-  const { inputAmountForSwap, inputCurrency, nablaOutputCurrency, rampType, fromPolkadotDestination, toPolkadotDestination } =
-    request;
+  const { inputAmountForSwap, inputTokenPendulumDetails, outputTokenPendulumDetails } = request;
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
@@ -65,17 +51,6 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
     // Get API manager and Pendulum API
     const apiManager = ApiManager.getInstance();
     const pendulumApi = await apiManager.getApi("pendulum");
-
-    // Get token details for Pendulum
-    const inputTokenPendulumDetails =
-      rampType === RampDirection.BUY
-        ? getPendulumDetails(inputCurrency)
-        : getPendulumDetails(inputCurrency, getNetworkFromDestination(fromPolkadotDestination));
-
-    const outputTokenPendulumDetails =
-      rampType === RampDirection.BUY
-        ? getPendulumDetails(nablaOutputCurrency, getNetworkFromDestination(toPolkadotDestination))
-        : getPendulumDetails(nablaOutputCurrency);
 
     if (!inputTokenPendulumDetails || !outputTokenPendulumDetails) {
       throw new APIError({

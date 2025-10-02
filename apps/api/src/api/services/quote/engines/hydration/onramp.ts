@@ -3,13 +3,19 @@ import {
   assetHubTokenConfig,
   createHydrationToAssethubTransfer,
   multiplyByPowerOfTen,
-  RampDirection
+  RampCurrency,
+  RampDirection,
+  XcmFees
 } from "@packages/shared";
-import { getBestSellPriceFor } from "../../../hydration/swap";
+import Big from "big.js";
+import HydrationRouter from "../../../hydration/swap";
+import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampHydrationEngine implements Stage {
   readonly key = StageKey.OnRampHydration;
+
+  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -31,7 +37,7 @@ export class OnRampHydrationEngine implements Stage {
     const assetOut = outputTokenDetails.hydrationId;
     const amountIn = ctx.nablaSwap.outputAmountDecimal.toFixed(inputTokenDetails.decimals);
 
-    const trade = await getBestSellPriceFor(assetIn, assetOut, amountIn);
+    const trade = await HydrationRouter.getBestSellPriceFor(assetIn, assetOut, amountIn);
 
     const amountInRaw = trade.amountIn.toString();
     const amountOutRaw = trade.amountOut.toString();
@@ -39,7 +45,7 @@ export class OnRampHydrationEngine implements Stage {
     const amountOut = multiplyByPowerOfTen(amountOutRaw, -assetOutDecimals).toFixed(assetOutDecimals);
 
     const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
-    const { fees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
+    const { fees: xcmFees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
 
     ctx.hydrationSwap = {
       amountIn,
@@ -47,8 +53,38 @@ export class OnRampHydrationEngine implements Stage {
       amountOut,
       amountOutRaw,
       assetIn: assetIn,
-      assetOut: assetOut,
-      xcmFees: fees
+      assetOut: assetOut
+    };
+
+    // Calculations for XCM transfer
+    const xcmInputAmountDecimal = Big(amountOut);
+    const xcmInputAmountRaw = Big(amountOutRaw);
+
+    // Calculate gross output after subtracting XCM fees
+    const originFeeInTargetCurrency = await this.price.convertCurrency(
+      xcmFees.origin.amount,
+      xcmFees.origin.currency as RampCurrency,
+      req.outputCurrency
+    );
+    const destinationFeeInTargetCurrency = await this.price.convertCurrency(
+      xcmFees.destination.amount,
+      xcmFees.destination.currency as RampCurrency,
+      req.outputCurrency
+    );
+
+    const outputAmountDecimal = new Big(ctx.hydrationSwap.amountOut)
+      .minus(originFeeInTargetCurrency)
+      .minus(destinationFeeInTargetCurrency);
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toString();
+
+    ctx.hydrationToAssethubXcm = {
+      fromToken: outputTokenDetails.assetSymbol,
+      inputAmountDecimal: xcmInputAmountDecimal,
+      inputAmountRaw: xcmInputAmountRaw.toString(),
+      outputAmountDecimal,
+      outputAmountRaw,
+      toToken: outputTokenDetails.assetSymbol,
+      xcmFees
     };
 
     ctx.addNote?.(

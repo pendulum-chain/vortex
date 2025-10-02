@@ -23,12 +23,8 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
       return;
     }
 
-    if (!ctx.preNabla?.deductibleFeeAmount) {
-      throw new Error("OnRampSquidRouterToAssetHubEngine requires pre-Nabla deductible fee in context");
-    }
-
-    if (!ctx.fees?.displayFiat || !ctx.fees?.usd) {
-      throw new Error("OnRampSquidRouterToAssetHubEngine requires fees in context");
+    if (!ctx.moneriumMint?.amountOut) {
+      throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
 
     // The amount available for the squidrouter transfer from Polygon to Moonbeam
@@ -55,7 +51,7 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
 
     const outputAmountMoonbeamRaw = multiplyByPowerOfTen(bridgeAmount, ERC20_EURE_POLYGON_DECIMALS).toString();
 
-    ctx.moonbeamToEvm = {
+    ctx.evmToMoonbeam = {
       effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
       fromNetwork,
       fromToken,
@@ -68,37 +64,8 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
       toToken
     };
 
-    const displayCurrency = ctx.targetFeeFiatCurrency;
-    const networkFeeDisplay = await priceFeedService.convertCurrency(squidRouterNetworkFeeUSD, EvmToken.USDC, displayCurrency);
-
-    // Adjust the total fees to include the squidrouter network fee
-    const totalDisplayFiat = new Big(ctx.fees.displayFiat.total).plus(networkFeeDisplay).toFixed(6);
-    const totalUsd = new Big(ctx.fees.usd.total).plus(squidRouterNetworkFeeUSD).toFixed(6);
-
-    ctx.fees = {
-      displayFiat: {
-        ...ctx.fees.displayFiat,
-        network: networkFeeDisplay,
-        total: totalDisplayFiat
-      },
-      usd: {
-        ...ctx.fees.usd,
-        network: squidRouterNetworkFeeUSD,
-        total: totalUsd
-      }
-    };
-
-    // Set the preNabla input to the output amount of the bridge minus all preNabla fees
-    // For this flow, the Nabla input currency is a USD stablecoin so we don't need to convert prices
-    // biome-ignore lint/style/noNonNullAssertion: Justification: We check ctx.fees.usd above
-    const usdFees = ctx.fees.usd!;
-    ctx.preNabla.inputAmountForSwap = ctx.moonbeamToEvm.outputAmountDecimal
-      .minus(usdFees.vortex)
-      .minus(usdFees.partnerMarkup)
-      .minus(usdFees.network);
-
     ctx.addNote?.(
-      `OnRampSquidRouterToAssetHubEngine: networkFeeUSD=${squidRouterNetworkFeeUSD}, finalGross=${bridgeResult.finalGrossOutputAmountDecimal.toString()}, inputForNablaSwap=${ctx.preNabla.inputAmountForSwap.toString()}`
+      `OnRampSquidRouterEurToAssetHubEngine: output=${bridgeResult.finalGrossOutputAmountDecimal.toString()} ${String(toToken)}, raw=${outputAmountMoonbeamRaw}`
     );
   }
 }

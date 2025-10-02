@@ -5,8 +5,8 @@ import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampInitializeEngine } from "../../engines/initialize/offramp";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
 
-export class OffRampSepaStrategy implements IRouteStrategy {
-  readonly name = "OffRampSepa";
+export class OfframpToStellarStrategy implements IRouteStrategy {
+  readonly name = "OffRampStellar";
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [

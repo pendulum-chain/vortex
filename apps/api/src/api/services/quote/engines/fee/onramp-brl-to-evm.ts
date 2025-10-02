@@ -1,9 +1,17 @@
-import { EvmToken, RampDirection } from "@packages/shared";
+import {
+  AXL_USDC_MOONBEAM,
+  EvmToken,
+  getNetworkFromDestination,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
+import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OnRampFeeEngine implements Stage {
+export class OnRampAveniaToEvmFeeEngine implements Stage {
   readonly key = StageKey.OnRampFee;
   private price = priceFeedService;
 
@@ -25,36 +33,62 @@ export class OnRampFeeEngine implements Stage {
       to: req.to
     });
 
+    const toNetwork = getNetworkFromDestination(req.to);
+    if (!toNetwork) {
+      throw new Error(`OnRampBridgeEngine: invalid network for destination: ${req.to}`);
+    }
+
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
+
+    // We estimate the network fee early here to be able to transfer it on Pendulum
+    const bridgeResult = await calculateEvmBridgeAndNetworkFee({
+      amountRaw: req.inputAmount, // Just use the input amount as we only estimate here
+      fromNetwork: Networks.Moonbeam,
+      fromToken: AXL_USDC_MOONBEAM,
+      originalInputAmountForRateCalc: req.inputAmount,
+      rampType: req.rampType,
+      toNetwork,
+      toToken
+    });
+
     const usdCurrency = EvmToken.USDC;
     const vortexFeeUsd = await this.price.convertCurrency(vortexFee, feeCurrency, usdCurrency);
     const anchorFeeUsd = await this.price.convertCurrency(anchorFee, feeCurrency, usdCurrency);
     const partnerMarkupFeeUsd = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, usdCurrency);
+    const networkFeeUsd = bridgeResult.networkFeeUSD;
 
     const displayCurrency = ctx.targetFeeFiatCurrency;
     let vortexFeeDisplay = vortexFee;
     let anchorFeeDisplay = anchorFee;
     let partnerMarkupFeeDisplay = partnerMarkupFee;
+    let networkFeeDisplay = networkFeeUsd;
 
     if (feeCurrency !== displayCurrency) {
       vortexFeeDisplay = await this.price.convertCurrency(vortexFee, feeCurrency, displayCurrency);
       anchorFeeDisplay = await this.price.convertCurrency(anchorFee, feeCurrency, displayCurrency);
       partnerMarkupFeeDisplay = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency);
+      networkFeeDisplay = await this.price.convertCurrency(networkFeeUsd, usdCurrency, displayCurrency);
     }
 
     ctx.fees = {
       displayFiat: {
         anchor: anchorFeeDisplay,
         currency: displayCurrency,
-        network: "0",
+        network: networkFeeDisplay,
         partnerMarkup: partnerMarkupFeeDisplay,
-        total: (Number(vortexFeeDisplay) + Number(anchorFeeDisplay) + Number(partnerMarkupFeeDisplay)).toFixed(2),
+        total: (
+          Number(vortexFeeDisplay) +
+          Number(anchorFeeDisplay) +
+          Number(partnerMarkupFeeDisplay) +
+          Number(networkFeeDisplay)
+        ).toFixed(2),
         vortex: vortexFeeDisplay
       },
       usd: {
         anchor: anchorFeeUsd,
-        network: "0",
+        network: networkFeeUsd,
         partnerMarkup: partnerMarkupFeeUsd,
-        total: (Number(vortexFeeUsd) + Number(anchorFeeUsd) + Number(partnerMarkupFeeUsd)).toFixed(6),
+        total: (Number(vortexFeeUsd) + Number(anchorFeeUsd) + Number(partnerMarkupFeeUsd) + Number(networkFeeUsd)).toFixed(6),
         vortex: vortexFeeUsd
       }
     };
@@ -62,7 +96,7 @@ export class OnRampFeeEngine implements Stage {
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const usd = ctx.fees.usd!;
     ctx.addNote?.(
-      `OnRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}] display=${displayCurrency}`
+      `OnRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
     );
   }
 }

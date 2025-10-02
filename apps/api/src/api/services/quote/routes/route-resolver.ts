@@ -1,41 +1,36 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { DestinationType, Networks, RampDirection } from "@packages/shared";
+import { Networks, RampDirection } from "@packages/shared";
 import type { QuoteContext } from "../core/types";
-import { IRouteStrategy, RouteProfile } from "../core/types";
-import { OffRampCbuStrategy } from "./strategies/offramp-cbu.strategy";
-import { OffRampPixStrategy } from "./strategies/offramp-pix.strategy";
-import { OffRampSepaStrategy } from "./strategies/offramp-sepa.strategy";
-import { OnRampAssethubStrategy } from "./strategies/onramp-assethub.strategy";
-import { OnRampEvmStrategy } from "./strategies/onramp-evm.strategy";
-
-const OFFRAMP_DESTS = new Set<DestinationType>(["pix", "sepa", "cbu"]);
+import { IRouteStrategy } from "../core/types";
+import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
+import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
+import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
+import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
+import { OnrampToEvmStrategy } from "./strategies/onramp-to-evm.strategy";
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
     if (ctx.direction === RampDirection.BUY) {
       if (ctx.to === Networks.AssetHub) {
-        return new OnRampAssethubStrategy();
+        if (ctx.from === "pix") {
+          return new OnrampAveniaToAssethubStrategy();
+        } else {
+          return new OnrampMoneriumToAssethubStrategy();
+        }
       }
       // Any non-AssetHub chain treated as EVM (Polygon/Ethereum/Base/etc.)
-      return new OnRampEvmStrategy();
-    }
-
-    if (!OFFRAMP_DESTS.has(ctx.to)) {
-      // Fallback: default to SEPA strategy
-      return new OffRampSepaStrategy();
+      return new OnrampToEvmStrategy();
     }
 
     switch (ctx.to) {
       case "pix":
-        return new OffRampPixStrategy();
+        return new OfframpToPixStrategy();
       case "sepa":
-        return new OffRampSepaStrategy();
       case "cbu":
-        return new OffRampCbuStrategy();
       default:
-        return new OffRampSepaStrategy();
+        return new OfframpToStellarStrategy();
     }
   }
 }

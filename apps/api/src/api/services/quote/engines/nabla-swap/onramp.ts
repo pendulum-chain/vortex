@@ -1,9 +1,17 @@
-import { AssetHubToken, EvmToken, RampCurrency, RampDirection } from "@packages/shared";
+import {
+  AssetHubToken,
+  EvmToken,
+  FiatToken,
+  getPendulumDetails,
+  Networks,
+  PENDULUM_USDC_AXL,
+  RampDirection
+} from "@packages/shared";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSwapEngine implements Stage {
-  readonly key = StageKey.OnRampSwap;
+  readonly key = StageKey.OnRampNablaSwap;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -13,39 +21,51 @@ export class OnRampSwapEngine implements Stage {
       return;
     }
 
-    if (!ctx.preNabla?.inputAmountForSwap) {
-      throw new Error("OnRampSwapEngine requires pre-Nabla input amount for swap in context");
+    if (!ctx.fees?.usd) {
+      throw new Error("OnRampSwapEngine requires usd fees to be calculated first");
     }
 
-    let nablaOutputCurrency: RampCurrency;
-    if (req.to === "assethub") {
-      nablaOutputCurrency = AssetHubToken.USDC;
+    let amountReceivedOnPendulum: Big;
+    if (ctx.evmToMoonbeam) {
+      // Amount received on Pendulum via Squidrouter postcall hook
+      amountReceivedOnPendulum = ctx.evmToMoonbeam.outputAmountDecimal;
+    } else if (ctx.moonbeamToPendulumXcm) {
+      amountReceivedOnPendulum = ctx.moonbeamToPendulumXcm.outputAmountDecimal;
     } else {
-      nablaOutputCurrency = EvmToken.USDC;
+      throw new Error("OnRampSwapEngine: Missing evmToMoonbeam or moonbeamToPendulumXcm quote data from previous stage");
     }
 
-    const inputAmountForSwap = ctx.preNabla.inputAmountForSwap?.toString();
+    // All fees can be considered pre-swap fees on the on-ramp side
+    // Also, the input currency for the swap here is always USDC
+    const preSwapFees = ctx.fees.usd.total;
+
+    const inputAmountForSwap = amountReceivedOnPendulum.minus(preSwapFees).toString();
+
+    // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
+    const inputTokenPendulumDetails = req.from === "pix" ? getPendulumDetails(FiatToken.BRL) : PENDULUM_USDC_AXL;
+    const outputTokenPendulumDetails =
+      req.to === "assethub" ? getPendulumDetails(AssetHubToken.USDC, Networks.AssetHub) : PENDULUM_USDC_AXL;
 
     const result = await calculateNablaSwapOutput({
-      fromPolkadotDestination: req.from,
       inputAmountForSwap,
-      inputCurrency: req.inputCurrency,
-      nablaOutputCurrency,
-      rampType: req.rampType,
-      toPolkadotDestination: req.to
+      inputTokenPendulumDetails,
+      outputTokenPendulumDetails,
+      rampType: req.rampType
     });
 
     ctx.nablaSwap = {
       effectiveExchangeRate: result.effectiveExchangeRate,
+      inputAmountForSwap,
+      inputCurrency: inputTokenPendulumDetails.currency,
+      inputDecimals: result.inputTokenPendulumDetails.decimals,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
-      outputCurrency: nablaOutputCurrency
+      outputCurrency: outputTokenPendulumDetails.currency,
+      outputDecimals: result.outputTokenPendulumDetails.decimals
     };
 
     ctx.addNote?.(
-      `OnRampSwapEngine: output=${result.nablaOutputAmountDecimal.toString()} ${String(
-        nablaOutputCurrency
-      )}, raw=${result.nablaOutputAmountRaw}`
+      `OnRampSwapEngine: Nabla swap from ${inputTokenPendulumDetails.currency} to ${outputTokenPendulumDetails.currency}, input amount ${inputAmountForSwap}, output amount ${result.nablaOutputAmountDecimal.toFixed()}`
     );
   }
 }
