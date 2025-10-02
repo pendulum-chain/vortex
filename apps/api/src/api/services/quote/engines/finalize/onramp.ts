@@ -21,7 +21,7 @@ export class OnRampFinalizeEngine implements Stage {
       return;
     }
 
-    if (!ctx.nabla?.outputAmountDecimal) {
+    if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new APIError({ message: "OnRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
     if (!ctx.fees?.displayFiat?.total || !ctx.fees?.usd) {
@@ -39,9 +39,9 @@ export class OnRampFinalizeEngine implements Stage {
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
       if (req.outputCurrency === AssetHubToken.USDC) {
-        finalOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
+        finalOutputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal);
       } else {
-        if (!ctx.hydration) {
+        if (!ctx.hydrationSwap) {
           throw new APIError({
             message: "OnRampFinalizeEngine requires hydration output for AssetHub non-USDC",
             status: httpStatus.INTERNAL_SERVER_ERROR
@@ -49,17 +49,17 @@ export class OnRampFinalizeEngine implements Stage {
         }
         // Calculate gross output after subtracting XCM fees
         const originFeeInTargetCurrency = await this.price.convertCurrency(
-          ctx.hydration.xcmFees.origin.amount,
-          ctx.hydration.xcmFees.origin.currency as RampCurrency,
+          ctx.hydrationSwap.xcmFees.origin.amount,
+          ctx.hydrationSwap.xcmFees.origin.currency as RampCurrency,
           req.outputCurrency
         );
         const destinationFeeInTargetCurrency = await this.price.convertCurrency(
-          ctx.hydration.xcmFees.destination.amount,
-          ctx.hydration.xcmFees.destination.currency as RampCurrency,
+          ctx.hydrationSwap.xcmFees.destination.amount,
+          ctx.hydrationSwap.xcmFees.destination.currency as RampCurrency,
           req.outputCurrency
         );
         console.log("After price conversion in finalize", { destinationFeeInTargetCurrency, originFeeInTargetCurrency });
-        finalOutputAmountDecimal = new Big(ctx.hydration.amountOut)
+        finalOutputAmountDecimal = new Big(ctx.hydrationSwap.amountOut)
           .minus(originFeeInTargetCurrency)
           .minus(destinationFeeInTargetCurrency);
 
@@ -67,13 +67,13 @@ export class OnRampFinalizeEngine implements Stage {
       }
     } else {
       // EVM on-ramp with squidrouter as last step
-      if (!ctx.bridge?.outputAmountDecimal) {
+      if (!ctx.moonbeamToEvm?.outputAmountDecimal) {
         throw new APIError({
           message: "OnRampFinalizeEngine requires bridge output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
-      finalOutputAmountDecimal = new Big(ctx.bridge.outputAmountDecimal);
+      finalOutputAmountDecimal = new Big(ctx.moonbeamToEvm.outputAmountDecimal);
     }
 
     if (finalOutputAmountDecimal.lte(0)) {

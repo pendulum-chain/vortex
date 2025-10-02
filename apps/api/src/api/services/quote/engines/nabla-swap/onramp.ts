@@ -35,7 +35,7 @@ export class OnRampSwapEngine implements Stage {
       toPolkadotDestination: req.to
     });
 
-    ctx.nabla = {
+    ctx.nablaSwap = {
       effectiveExchangeRate: result.effectiveExchangeRate,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,

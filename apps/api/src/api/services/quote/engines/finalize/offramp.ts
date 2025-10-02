@@ -21,7 +21,7 @@ export class OffRampFinalizeEngine implements Stage {
       return;
     }
 
-    if (!ctx.nabla?.outputAmountDecimal) {
+    if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new APIError({ message: "OffRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
     if (!ctx.fees?.displayFiat?.total || !ctx.fees?.usd) {
@@ -37,7 +37,7 @@ export class OffRampFinalizeEngine implements Stage {
       });
     }
 
-    const finalGrossOutputAmountDecimal = new Big(ctx.nabla.outputAmountDecimal);
+    const finalGrossOutputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal);
 
     const display = ctx.fees.displayFiat;
     const totalFeeFiat = new Big(display.total);

@@ -50,6 +50,24 @@ export type EnginesRegistry = {
   [K in StageKey]?: Stage;
 };
 
+export interface BridgeMeta {
+  effectiveExchangeRate?: string;
+  fromNetwork: string;
+  fromToken: `0x${string}`;
+  inputAmountDecimal: Big;
+  inputAmountRaw: string;
+  outputAmountDecimal: Big;
+  outputAmountRaw: string;
+  toNetwork: string;
+  toToken: `0x${string}`;
+  networkFeeUSD: string;
+}
+
+export interface XcmMeta {
+  fromNetwork: string;
+  xcmFees: XcmFees;
+}
+
 // Strategy for a specific route/path
 export interface IRouteStrategy {
   // Ordered stages to execute for this route
@@ -79,34 +97,45 @@ export interface QuoteContext {
   targetFeeFiatCurrency: RampCurrency;
 
   // Intermediate computations populated by stages
-  preNabla: {
+  preNabla?: {
     deductibleFeeAmount?: Big;
     feeCurrency?: RampCurrency;
     // Representative currency for swap input (e.g., axlUSDC for eth)
     representativeInputCurrency?: RampCurrency;
-    // Input amount used for Nabla swap after pre-Nabla fee deduction
-    inputAmountForSwap?: Big;
   };
 
-  nabla?: {
+  nablaSwap?: {
+    inputAmountForSwap: Big;
+
+    inputCurrency?: RampCurrency;
     outputAmountRaw?: string; // raw from Nabla result
     outputAmountDecimal?: Big;
     effectiveExchangeRate?: string;
-    outputCurrency?: RampCurrency; // the Nabla output currency used
+    outputCurrency?: RampCurrency;
   };
 
-  bridge?: {
-    effectiveExchangeRate?: string;
-    fromNetwork: string;
-    fromToken: `0x${string}`;
-    inputAmountDecimal: Big;
-    inputAmountRaw: string;
-    outputAmountDecimal: Big;
-    outputAmountRaw: string;
-    toNetwork: string;
-    toToken: `0x${string}`;
-    networkFeeUSD: string;
+  hydrationSwap?: {
+    amountInRaw: string;
+    amountIn: string;
+    amountOutRaw: string;
+    amountOut: string;
+    assetIn: string;
+    assetOut: string;
   };
+
+  moonbeamToEvm?: BridgeMeta;
+
+  evmToMoonbeam?: BridgeMeta;
+
+  moonbeamToPendulumXcm?: XcmMeta;
+
+  hydrationToAssethubXcm?: XcmMeta;
+
+  pendulumToHydrationXcm?: XcmMeta;
+
+  pendulumToAssethubXcm?: XcmMeta;
+
+  pendulumToMoonbeamXcm?: XcmMeta;
 
   // Fees in baseline and display currency
   fees?: {
@@ -132,16 +161,6 @@ export interface QuoteContext {
     rate: string;
     partnerId?: string;
     subsidyAmountInOutputToken?: string;
-  };
-
-  hydration?: {
-    amountInRaw: string;
-    amountIn: string;
-    amountOutRaw: string;
-    amountOut: string;
-    assetIn: string;
-    assetOut: string;
-    xcmFees: XcmFees;
   };
 
   // Accumulated logs/notes for debugging (optional)

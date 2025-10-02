@@ -26,6 +26,8 @@ export interface NablaSwapRequest {
 }
 
 export interface NablaSwapResult {
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
   nablaOutputAmountRaw: string;
   nablaOutputAmountDecimal: Big;
   effectiveExchangeRate?: string;
@@ -90,8 +92,10 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
     );
     return {
       effectiveExchangeRate: swapResult.effectiveExchangeRate,
+      inputTokenPendulumDetails,
       nablaOutputAmountDecimal: swapResult.preciseQuotedAmountOut.preciseBigDecimal,
-      nablaOutputAmountRaw: swapResult.preciseQuotedAmountOut.rawBalance.toFixed()
+      nablaOutputAmountRaw: swapResult.preciseQuotedAmountOut.rawBalance.toFixed(),
+      outputTokenPendulumDetails
     };
   } catch (error) {
     logger.error("Error calculating Nabla swap output:", error);

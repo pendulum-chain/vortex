@@ -101,13 +101,13 @@ export async function createBRLAToEvmFinalizationTransactions(
     outputTokenPendulumDetails
   });
 
-  if (!quote.metadata.bridge?.outputAmountRaw) {
+  if (!quote.metadata.moonbeamToEvm?.outputAmountRaw) {
     throw new Error("Missing bridge output amount for Moonbeam");
   }
 
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     moonbeamEphemeralEntry.address,
-    quote.metadata.bridge.outputAmountRaw,
+    quote.metadata.moonbeamToEvm.outputAmountRaw,
     outputTokenDetails.pendulumRepresentative.currencyId
   );
 
@@ -136,7 +136,7 @@ export async function createBRLAToEvmFinalizationTransactions(
     fromAddress: moonbeamEphemeralEntry.address,
     fromToken: AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain,
     moonbeamEphemeralStartingNonce: moonbeamNonce,
-    rawAmount: quote.metadata.bridge.outputAmountRaw,
+    rawAmount: quote.metadata.moonbeamToEvm.outputAmountRaw,
     toNetwork: outputTokenDetails.network,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });

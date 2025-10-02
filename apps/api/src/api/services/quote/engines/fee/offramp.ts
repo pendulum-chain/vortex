@@ -15,7 +15,7 @@ export class OffRampFeeEngine implements Stage {
       return;
     }
 
-    const outputAmountOfframp = ctx.nabla?.outputAmountDecimal?.toString() ?? "0";
+    const outputAmountOfframp = ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0";
 
     const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
       from: req.from,

@@ -55,7 +55,7 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
 
     const outputAmountMoonbeamRaw = multiplyByPowerOfTen(bridgeAmount, ERC20_EURE_POLYGON_DECIMALS).toString();
 
-    ctx.bridge = {
+    ctx.moonbeamToEvm = {
       effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
       fromNetwork,
       fromToken,
@@ -92,7 +92,7 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
     // For this flow, the Nabla input currency is a USD stablecoin so we don't need to convert prices
     // biome-ignore lint/style/noNonNullAssertion: Justification: We check ctx.fees.usd above
     const usdFees = ctx.fees.usd!;
-    ctx.preNabla.inputAmountForSwap = ctx.bridge.outputAmountDecimal
+    ctx.preNabla.inputAmountForSwap = ctx.moonbeamToEvm.outputAmountDecimal
       .minus(usdFees.vortex)
       .minus(usdFees.partnerMarkup)
       .minus(usdFees.network);

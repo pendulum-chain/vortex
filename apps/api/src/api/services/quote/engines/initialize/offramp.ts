@@ -75,8 +75,11 @@ export class OffRampInitializeEngine implements Stage {
     ctx.preNabla = {
       deductibleFeeAmount: new Big(preNablaDeductibleFeeAmount),
       feeCurrency,
-      inputAmountForSwap,
       representativeInputCurrency: representativeCurrency
+    };
+
+    ctx.nablaSwap = {
+      inputAmountForSwap
     };
 
     ctx.addNote?.(

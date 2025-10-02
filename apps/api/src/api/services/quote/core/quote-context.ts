@@ -20,9 +20,7 @@ export class QuoteContext implements IQuoteContext {
 
   preNabla: IQuoteContext["preNabla"] = {};
 
-  nabla: IQuoteContext["nabla"] | undefined;
-
-  bridge: IQuoteContext["bridge"] | undefined;
+  bridge: IQuoteContext["moonbeamToEvm"] | undefined;
 
   fees: IQuoteContext["fees"] | undefined;
 

@@ -19,7 +19,7 @@ export class OnRampHydrationEngine implements Stage {
       return;
     }
 
-    if (!ctx.nabla?.outputAmountDecimal) {
+    if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new Error("OnRampHydrationEngine requires nabla.outputAmountDecimal in context");
     }
 
@@ -29,7 +29,7 @@ export class OnRampHydrationEngine implements Stage {
 
     const assetIn = inputTokenDetails.hydrationId;
     const assetOut = outputTokenDetails.hydrationId;
-    const amountIn = ctx.nabla.outputAmountDecimal.toFixed(inputTokenDetails.decimals);
+    const amountIn = ctx.nablaSwap.outputAmountDecimal.toFixed(inputTokenDetails.decimals);
 
     const trade = await getBestSellPriceFor(assetIn, assetOut, amountIn);
 
@@ -41,7 +41,7 @@ export class OnRampHydrationEngine implements Stage {
     const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
     const { fees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
 
-    ctx.hydration = {
+    ctx.hydrationSwap = {
       amountIn,
       amountInRaw,
       amountOut,

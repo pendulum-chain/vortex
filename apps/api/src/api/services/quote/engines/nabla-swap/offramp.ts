@@ -14,6 +14,10 @@ export class OffRampSwapEngine implements Stage {
       return;
     }
 
+    if (!ctx.nablaSwap?.inputAmountForSwap) {
+      throw new Error("OffRampSwapEngine: Missing input amount for swap from previous stage");
+    }
+
     let nablaOutputCurrency: RampCurrency;
     if (req.to === "pix") {
       nablaOutputCurrency = FiatToken.BRL;
@@ -25,7 +29,7 @@ export class OffRampSwapEngine implements Stage {
       throw new Error(`OffRampSwapEngine: Unsupported off-ramp destination: ${req.to}`);
     }
 
-    const inputAmountForSwap = ctx.preNabla.inputAmountForSwap?.toString() ?? req.inputAmount;
+    const inputAmountForSwap = ctx.nablaSwap.inputAmountForSwap.toString();
 
     const result = await calculateNablaSwapOutput({
       fromPolkadotDestination: req.from,
@@ -38,11 +42,13 @@ export class OffRampSwapEngine implements Stage {
 
     validateAmountLimits(result.nablaOutputAmountDecimal, req.outputCurrency as FiatToken, "max", req.rampType);
 
-    ctx.nabla = {
+    ctx.nablaSwap = {
+      ...ctx.nablaSwap,
       effectiveExchangeRate: result.effectiveExchangeRate,
+      inputCurrency: result.inputTokenPendulumDetails.currency,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
-      outputCurrency: nablaOutputCurrency
+      outputCurrency: result.outputTokenPendulumDetails.currency
     };
 
     ctx.addNote?.(
