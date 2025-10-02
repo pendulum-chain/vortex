@@ -49,7 +49,7 @@ const refetchQuote = async (
   const now = Date.now();
   const expires = new Date(quote.expiresAt).getTime();
   const secondsLeft = Math.round((expires - now) / 1000);
-  console.log(`Quote expires in ${secondsLeft} seconds`);
+
   if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
     try {
       const newQuote = await QuoteService.createQuote(
@@ -103,6 +103,9 @@ export const rampMachine = setup({
       }
       await new Promise(resolve => setTimeout(resolve, 30000));
       await refetchQuote(quote, partnerId, event => self.send(event));
+    },
+    reloadKeepingParams: () => {
+      window.location.reload();
     },
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,

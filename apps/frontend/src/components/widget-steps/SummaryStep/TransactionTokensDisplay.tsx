@@ -26,8 +26,8 @@ import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
 
-// Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
-const ONRAMP_EXPIRY_MINUTES = 5;
+// Default expiry time for quotes is 10 minutes
+const QUOTE_EXPIRY_TIME = 10;
 
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
@@ -44,14 +44,15 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const { address, chainId } = useVortexAccount();
 
   const [timeLeft, setTimeLeft] = useState({
-    minutes: ONRAMP_EXPIRY_MINUTES,
+    minutes: QUOTE_EXPIRY_TIME,
     seconds: 0
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
-  const { isQuoteExpired, rampState, quote } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState, quote, quoteLocked } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
+    quoteLocked: state.context.quoteLocked,
     rampState: state.context.rampState
   }));
 
@@ -59,17 +60,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     let targetTimestamp: number | null = null;
     if (!quote) return; // Quote must exist
 
-    if (isOnramp) {
-      // Onramp: Use ramp creation time + expiry duration
-      const createdAt = rampState?.ramp?.createdAt;
-      if (createdAt) {
-        targetTimestamp = new Date(createdAt).getTime() + ONRAMP_EXPIRY_MINUTES * 60 * 1000;
-      }
-    } else {
-      // Offramp: Use quote expiry time directly
-      const expiresAt = quote.expiresAt;
-      targetTimestamp = new Date(expiresAt).getTime();
-    }
+    const expiresAt = quote.expiresAt;
+    targetTimestamp = new Date(expiresAt).getTime();
 
     setTargetTimestamp(targetTimestamp);
 
@@ -162,6 +154,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
+      {quoteLocked && targetTimestamp !== null && !isQuoteExpired && (
+        <div className="my-4 text-center font-semibold text-gray-600">
+          {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
+        </div>
+      )}
     </div>
   );
 };
