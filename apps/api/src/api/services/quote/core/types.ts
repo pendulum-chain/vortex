@@ -153,12 +153,6 @@ export interface QuoteContext {
     displayFiat?: QuoteFeeStructure;
   };
 
-  // Final amounts
-  amounts?: {
-    finalGrossOutput?: Big; // before discount
-    finalNetOutput?: Big; // after fees and discount
-  };
-
   subsidy?: {
     applied: boolean;
     rate: string;

@@ -24,50 +24,19 @@ export class OffRampFinalizeEngine implements Stage {
     if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new APIError({ message: "OffRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
-    if (!ctx.fees?.displayFiat?.total || !ctx.fees?.usd) {
+    if (!ctx.fees?.displayFiat?.anchor) {
       throw new APIError({
-        message: "OffRampFinalizeEngine requires computed fees",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-    if (!ctx.preNabla?.deductibleFeeAmount || !ctx.preNabla?.feeCurrency) {
-      throw new APIError({
-        message: "OffRampFinalizeEngine requires pre-Nabla fee data",
+        message: "OffRampFinalizeEngine requires computed anchor fees",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
-    const finalGrossOutputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal);
-
-    const display = ctx.fees.displayFiat;
-    const totalFeeFiat = new Big(display.total);
-
-    const preNablaInDisplayFiat = await this.price.convertCurrency(
-      ctx.preNabla.deductibleFeeAmount.toString(),
-      ctx.preNabla.feeCurrency as RampCurrency,
-      display.currency as RampCurrency
-    );
-    const adjustedTotalFeeFiat = totalFeeFiat.minus(preNablaInDisplayFiat);
-
-    const totalFeeInOutputFiat = await this.price.convertCurrency(
-      adjustedTotalFeeFiat.toString(),
-      display.currency,
-      req.outputCurrency
-    );
-    const finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
-
-    if (finalNetOutputAmount.lte(0)) {
-      throw new APIError({
-        message: "Input amount too low to cover calculated fees",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    const anchorFee = ctx.fees.displayFiat.anchor;
+    const offrampAmountBeforeAnchorFees = ctx.nablaSwap.outputAmountDecimal.toString();
+    const finalNetOutputAmount = new Big(offrampAmountBeforeAnchorFees).minus(anchorFee);
+    const outputAmountString = finalNetOutputAmount.toFixed(2, 0);
 
     validateAmountLimits(finalNetOutputAmount, req.outputCurrency as FiatToken, "min", req.rampType);
-
-    const outputAmountStr = finalNetOutputAmount.toFixed(2, 0);
-
-    const offrampAmountBeforeAnchorFees = new Big(outputAmountStr).plus(display.anchor).toFixed();
 
     const record = await QuoteTicket.create({
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -76,7 +45,7 @@ export class OffRampFinalizeEngine implements Stage {
       inputAmount: req.inputAmount,
       inputCurrency: req.inputCurrency,
       metadata: { ...ctx, offrampAmountBeforeAnchorFees },
-      outputAmount: outputAmountStr,
+      outputAmount: outputAmountString,
       outputCurrency: req.outputCurrency,
       partnerId: ctx.partner?.id || null,
       rampType: req.rampType,
@@ -91,7 +60,7 @@ export class OffRampFinalizeEngine implements Stage {
       id: record.id,
       inputAmount: trimTrailingZeros(record.inputAmount),
       inputCurrency: record.inputCurrency,
-      outputAmount: trimTrailingZeros(outputAmountStr),
+      outputAmount: trimTrailingZeros(outputAmountString),
       outputCurrency: record.outputCurrency,
       rampType: record.rampType,
       to: record.to
