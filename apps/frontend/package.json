@@ -51,7 +51,7 @@
     "tailwind-merge": "^3.1.0",
     "tailwindcss": "^4.0.3",
     "viem": "catalog:",
-    "wagmi": "^2.14.16",
+    "wagmi": "catalog:",
     "web3": "^4.16.0",
     "xstate": "^5.20.1",
     "yup": "^1.4.0",
