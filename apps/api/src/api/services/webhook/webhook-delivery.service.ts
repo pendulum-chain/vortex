@@ -13,10 +13,6 @@ export class WebhookDeliveryService {
     return crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
   }
 
-  private mapRampDirectionToTransactionType(rampDirection: RampDirection): TransactionType {
-    return rampDirection === RampDirection.BUY ? "BUY" : "SELL";
-  }
-
   private mapPhaseToStatus(phase: string): TransactionStatus {
     if (phase === "complete") return "COMPLETE";
     if (phase === "failed" || phase === "timedOut") return "FAILED";
@@ -100,7 +96,7 @@ export class WebhookDeliveryService {
           sessionId,
           transactionId,
           transactionStatus: "PENDING",
-          transactionType: this.mapRampDirectionToTransactionType(transactionType)
+          transactionType: transactionType
         },
         timestamp: new Date().toISOString()
       };
@@ -134,7 +130,7 @@ export class WebhookDeliveryService {
           sessionId,
           transactionId,
           transactionStatus: this.mapPhaseToStatus(newPhase),
-          transactionType: this.mapRampDirectionToTransactionType(transactionType)
+          transactionType: transactionType
         },
         timestamp: new Date().toISOString()
       };
