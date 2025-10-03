@@ -131,10 +131,10 @@ router.use("/maintenance", maintenanceRoutes);
 router.use("/monerium", moneriumRoutes);
 
 /**
- * POST v1/webhooks
- * DELETE v1/webhooks
+ * POST v1/webhook
+ * DELETE v1/webhook
  */
-router.use("/webhooks", webhookRoutes);
+router.use("/webhook", webhookRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
