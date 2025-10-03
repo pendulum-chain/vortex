@@ -11,7 +11,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     events: {
       allowNull: false,
       defaultValue: ["TRANSACTION_CREATED", "STATUS_CHANGE"],
-      type: DataTypes.ARRAY(DataTypes.ENUM("TRANSACTION_CREATED", "STATUS_CHANGE"))
+      type: DataTypes.ARRAY(DataTypes.STRING)
     },
     id: {
       defaultValue: DataTypes.UUIDV4,
@@ -36,12 +36,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     transactionId: {
       allowNull: true,
       field: "transaction_id",
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
-      references: {
-        key: "id",
-        model: "ramp_states"
-      },
       type: DataTypes.UUID
     },
     updatedAt: {
@@ -56,6 +50,19 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
         isUrl: true
       }
     }
+  });
+
+  // Add foreign key constraint
+  await queryInterface.addConstraint("webhooks", {
+    fields: ["transaction_id"],
+    name: "fk_webhooks_transaction_id",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      field: "id",
+      table: "ramp_states"
+    },
+    type: "foreign key"
   });
 
   // Create indexes for efficient querying
@@ -83,6 +90,9 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.removeIndex("webhooks", "idx_webhooks_session_id");
   await queryInterface.removeIndex("webhooks", "idx_webhooks_active");
   await queryInterface.removeIndex("webhooks", "idx_webhooks_active_events");
+
+  // Remove foreign key constraint
+  await queryInterface.removeConstraint("webhooks", "fk_webhooks_transaction_id");
 
   // Drop table
   await queryInterface.dropTable("webhooks");
