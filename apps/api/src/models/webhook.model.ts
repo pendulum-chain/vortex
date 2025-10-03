@@ -1,7 +1,6 @@
+import { WebhookEventType } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-
-export type WebhookEventType = "TRANSACTION_CREATED" | "STATUS_CHANGE";
 
 export interface WebhookAttributes {
   id: string;
@@ -47,7 +46,7 @@ Webhook.init(
     },
     events: {
       allowNull: false,
-      defaultValue: ["TRANSACTION_CREATED", "STATUS_CHANGE"],
+      defaultValue: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
       type: DataTypes.ARRAY(DataTypes.STRING),
       validate: {
         isValidEventArray(value: WebhookEventType[]) {
@@ -55,7 +54,7 @@ Webhook.init(
             throw new Error("events must be a non-empty array");
           }
 
-          const validEvents: WebhookEventType[] = ["TRANSACTION_CREATED", "STATUS_CHANGE"];
+          const validEvents: WebhookEventType[] = [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE];
           for (const event of value) {
             if (!validEvents.includes(event)) {
               throw new Error(`Invalid event type: ${event}`);

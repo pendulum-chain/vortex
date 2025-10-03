@@ -1,4 +1,4 @@
-import { RampDirection, TransactionStatus, TransactionType, WebhookPayload } from "@packages/shared";
+import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } from "@packages/shared";
 import crypto from "crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";
@@ -14,9 +14,9 @@ export class WebhookDeliveryService {
   }
 
   private mapPhaseToStatus(phase: string): TransactionStatus {
-    if (phase === "complete") return "COMPLETE";
-    if (phase === "failed" || phase === "timedOut") return "FAILED";
-    return "PENDING";
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
   }
 
   private async deliverWebhook(webhook: Webhook, payload: WebhookPayload, attempt = 1): Promise<boolean> {
@@ -83,7 +83,11 @@ export class WebhookDeliveryService {
     transactionType: RampDirection
   ): Promise<void> {
     try {
-      const webhooks = await webhookService.findWebhooksForEvent("TRANSACTION_CREATED", transactionId, sessionId);
+      const webhooks = await webhookService.findWebhooksForEvent(
+        WebhookEventType.TRANSACTION_CREATED,
+        transactionId,
+        sessionId
+      );
 
       if (webhooks.length === 0) {
         logger.debug(`No webhooks found for TRANSACTION_CREATED event: ${transactionId}`);
@@ -91,11 +95,11 @@ export class WebhookDeliveryService {
       }
 
       const payload: WebhookPayload = {
-        eventType: "TRANSACTION_CREATED",
+        eventType: WebhookEventType.TRANSACTION_CREATED,
         payload: {
           sessionId,
           transactionId,
-          transactionStatus: "PENDING",
+          transactionStatus: TransactionStatus.PENDING,
           transactionType: transactionType
         },
         timestamp: new Date().toISOString()
@@ -117,7 +121,7 @@ export class WebhookDeliveryService {
     transactionType: RampDirection
   ): Promise<void> {
     try {
-      const webhooks = await webhookService.findWebhooksForEvent("STATUS_CHANGE", transactionId, sessionId);
+      const webhooks = await webhookService.findWebhooksForEvent(WebhookEventType.STATUS_CHANGE, transactionId, sessionId);
 
       if (webhooks.length === 0) {
         logger.debug(`No webhooks found for STATUS_CHANGE event: ${transactionId}`);
@@ -125,7 +129,7 @@ export class WebhookDeliveryService {
       }
 
       const payload: WebhookPayload = {
-        eventType: "STATUS_CHANGE",
+        eventType: WebhookEventType.STATUS_CHANGE,
         payload: {
           sessionId,
           transactionId,

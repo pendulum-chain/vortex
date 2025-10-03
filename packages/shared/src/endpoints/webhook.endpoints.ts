@@ -1,8 +1,15 @@
-export type WebhookEventType = "TRANSACTION_CREATED" | "STATUS_CHANGE";
+import { RampDirection } from "src/types";
 
-export type TransactionStatus = "PENDING" | "COMPLETE" | "FAILED";
+export enum WebhookEventType {
+  TRANSACTION_CREATED = "TRANSACTION_CREATED",
+  STATUS_CHANGE = "STATUS_CHANGE"
+}
 
-export type TransactionType = "BUY" | "SELL";
+export enum TransactionStatus {
+  PENDING = "PENDING",
+  COMPLETE = "COMPLETE",
+  FAILED = "FAILED"
+}
 
 export interface RegisterWebhookRequest {
   url: string;
@@ -35,17 +42,17 @@ export interface WebhookPayloadBase {
   transactionId: string;
   sessionId: string | null;
   transactionStatus: TransactionStatus;
-  transactionType: TransactionType;
+  transactionType: RampDirection;
 }
 
 export interface TransactionCreatedWebhookPayload {
-  eventType: "TRANSACTION_CREATED";
+  eventType: WebhookEventType.TRANSACTION_CREATED;
   timestamp: string;
   payload: WebhookPayloadBase;
 }
 
 export interface StatusChangeWebhookPayload {
-  eventType: "STATUS_CHANGE";
+  eventType: WebhookEventType.STATUS_CHANGE;
   timestamp: string;
   payload: WebhookPayloadBase;
 }

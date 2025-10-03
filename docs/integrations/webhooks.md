@@ -83,6 +83,27 @@ Remove a webhook subscription.
 
 ## Event Types
 
+Vortex uses enum values for event types and transaction status for better type safety and consistency.
+
+### WebhookEventType Enum
+
+```typescript
+export enum WebhookEventType {
+  TRANSACTION_CREATED = "TRANSACTION_CREATED",
+  STATUS_CHANGE = "STATUS_CHANGE"
+}
+```
+
+### TransactionStatus Enum
+
+```typescript
+export enum TransactionStatus {
+  PENDING = "PENDING",
+  COMPLETE = "COMPLETE",
+  FAILED = "FAILED"
+}
+```
+
 ### TRANSACTION_CREATED
 
 Triggered when a new transaction is created/started.
