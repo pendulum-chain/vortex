@@ -3,6 +3,7 @@ import crypto from "crypto";
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
+import RampState from "../../../models/rampState.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
 
@@ -56,6 +57,17 @@ export class WebhookService {
           message: "Either transactionId or sessionId must be provided",
           status: httpStatus.BAD_REQUEST
         });
+      }
+
+      // Validate that transactionId exists in the database if provided
+      if (transactionId) {
+        const existingTransaction = await RampState.findByPk(transactionId);
+        if (!existingTransaction) {
+          throw new APIError({
+            message: `Transaction with ID ${transactionId} not found`,
+            status: httpStatus.NOT_FOUND
+          });
+        }
       }
 
       // Generate a secure secret for HMAC signing
