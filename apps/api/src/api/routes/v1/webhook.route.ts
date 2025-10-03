@@ -28,7 +28,7 @@ const router = Router();
  * @apiError (Bad Request 400) InvalidURL URL must use HTTPS
  * @apiError (Bad Request 400) MissingTarget Either transactionId or sessionId must be provided
  */
-router.post("/register", webhookController.registerWebhook);
+router.post("/", webhookController.registerWebhook);
 
 /**
  * @api {delete} v1/webhooks/:id Delete webhook
