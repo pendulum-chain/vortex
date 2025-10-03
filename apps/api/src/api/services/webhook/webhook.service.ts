@@ -91,7 +91,7 @@ export class WebhookService {
         events: webhook.events,
         id: webhook.id,
         isActive: webhook.isActive,
-        secret: webhook.secret, // Include the secret in the response
+        secret: webhook.secret, // Returned only during registration
         sessionId: webhook.sessionId,
         transactionId: webhook.transactionId,
         url: webhook.url

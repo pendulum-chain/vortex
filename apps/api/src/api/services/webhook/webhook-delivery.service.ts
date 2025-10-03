@@ -38,6 +38,9 @@ export class WebhookDeliveryService {
           "Content-Type": "application/json",
           "User-Agent": "Vortex-Webhooks/1.0",
           "X-Vortex-Signature": `sha256=${signature}`,
+          // The timestamp allows webhook receivers to validate request freshness and prevent replay attacks.
+          // Recipients should verify the timestamp is within a reasonable window (e.g., 5 minutes)
+          // and reject requests with timestamps too old or too far in the future.
           "X-Vortex-Timestamp": timestamp.toString()
         },
         method: "POST",
@@ -142,33 +145,6 @@ export class WebhookDeliveryService {
       logger.info(`Triggered STATUS_CHANGE webhooks for transaction: ${transactionId} (${webhooks.length} webhooks)`);
     } catch (error) {
       logger.error(`Error triggering STATUS_CHANGE webhooks for ${transactionId}:`, error);
-    }
-  }
-
-  public async testWebhookDelivery(webhookId: string): Promise<boolean> {
-    try {
-      const webhook = await webhookService.getWebhookById(webhookId);
-
-      if (!webhook) {
-        logger.error(`Webhook not found for test: ${webhookId}`);
-        return false;
-      }
-
-      const testPayload: WebhookPayload = {
-        eventType: "TRANSACTION_CREATED",
-        payload: {
-          sessionId: "test-session-id",
-          transactionId: "test-transaction-id",
-          transactionStatus: "PENDING",
-          transactionType: "BUY"
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      return await this.deliverWebhook(webhook, testPayload);
-    } catch (error) {
-      logger.error(`Error testing webhook delivery for ${webhookId}:`, error);
-      return false;
     }
   }
 }
