@@ -33,7 +33,7 @@ export class WebhookService {
 
       // Validate events if provided
       if (events) {
-        const validEventTypes: WebhookEventType[] = ["TRANSACTION_CREATED", "STATUS_CHANGE"];
+        const validEventTypes: WebhookEventType[] = Object.values(WebhookEventType);
         const invalidEvents = events.filter(event => !validEventTypes.includes(event));
 
         if (invalidEvents.length > 0) {
@@ -73,7 +73,7 @@ export class WebhookService {
       // Generate a secure secret for HMAC signing
       const secret = this.generateWebhookSecret();
 
-      const webhookEvents: WebhookEventType[] = events || ["TRANSACTION_CREATED", "STATUS_CHANGE"];
+      const webhookEvents: WebhookEventType[] = events || Object.values(WebhookEventType);
 
       const webhook = await Webhook.create({
         events: webhookEvents,
