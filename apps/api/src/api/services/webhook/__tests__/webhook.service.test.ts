@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { mock } from 'bun:test';
 import { WebhookService } from '../webhook.service';
 import { APIError } from '../../../errors/api-error';
-import { WebhookEventType } from '@packages/shared';
+import { WebhookEventType, RegisterWebhookRequest, RegisterWebhookResponse } from '@packages/shared';
+import Webhook, { WebhookAttributes } from '../../../../models/webhook.model';
 
 // Mock factory functions
-const createMockWebhook = (overrides: Partial<any> = {}) => ({
+const createMockWebhook = (overrides: Partial<WebhookAttributes> = {}) => ({
   id: 'webhook-123',
   url: 'https://example.com/webhook',
   transactionId: 'tx-123',
@@ -14,18 +15,19 @@ const createMockWebhook = (overrides: Partial<any> = {}) => ({
   isActive: true,
   secret: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   createdAt: new Date('2025-01-15T10:30:00.000Z'),
+  updatedAt: new Date('2025-01-15T10:30:00.000Z'),
   ...overrides
-});
+} as Webhook);
 
-const createMockRampState = (overrides: Partial<any> = {}) => ({
+const createMockRampState = (overrides: Partial<{ id: string }> = {}) => ({
   id: 'tx-123',
   ...overrides
 });
 
-const createMockWebhookArray = (webhooks: Partial<any>[] = []) =>
+const createMockWebhookArray = (webhooks: Partial<WebhookAttributes>[] = []) =>
   webhooks.length > 0 ? webhooks.map(webhook => createMockWebhook(webhook)) : [
-    { id: 'webhook-1', transactionId: 'tx-123' },
-    { id: 'webhook-2', transactionId: null, sessionId: null }
+    createMockWebhook({ id: 'webhook-1', transactionId: 'tx-123' }),
+    createMockWebhook({ id: 'webhook-2', transactionId: null, sessionId: null })
   ];
 
 // Create mock functions first

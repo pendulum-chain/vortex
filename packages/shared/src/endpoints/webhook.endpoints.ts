@@ -1,4 +1,4 @@
-import { RampDirection } from "src/types";
+import { RampDirection } from "@packages/shared";
 
 export enum WebhookEventType {
   TRANSACTION_CREATED = "TRANSACTION_CREATED",
