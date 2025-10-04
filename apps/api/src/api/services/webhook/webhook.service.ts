@@ -3,7 +3,7 @@ import crypto from "crypto";
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
-import RampState from "../../../models/rampState.model";
+import QuoteTicket from "../../../models/quoteTicket.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
 
@@ -61,7 +61,7 @@ export class WebhookService {
 
       // Validate that transactionId exists in the database if provided
       if (transactionId) {
-        const existingTransaction = await RampState.findByPk(transactionId);
+        const existingTransaction = await QuoteTicket.findByPk(transactionId);
         if (!existingTransaction) {
           throw new APIError({
             message: `Transaction with ID ${transactionId} not found`,
