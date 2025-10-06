@@ -29,15 +29,16 @@ export class OffRampFromAssethubInitializeEngine implements Stage {
       return;
     }
 
-    const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
-      req.inputAmount,
-      req.inputCurrency,
-      req.outputCurrency,
-      req.rampType,
-      req.from,
-      req.to,
-      ctx.partner?.id || undefined
-    );
+    const { preNablaDeductibleFeeAmount: deductibleFeeAmountInFeeCurrency, feeCurrency } =
+      await calculatePreNablaDeductibleFees(
+        req.inputAmount,
+        req.inputCurrency,
+        req.outputCurrency,
+        req.rampType,
+        req.from,
+        req.to,
+        ctx.partner?.id || undefined
+      );
 
     const fromNetwork = getNetworkFromDestination(req.from);
     if (!fromNetwork) {
@@ -45,9 +46,15 @@ export class OffRampFromAssethubInitializeEngine implements Stage {
     }
 
     const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
+    const deductibleFeeAmountInSwapCurrency = await this.price.convertCurrency(
+      deductibleFeeAmountInFeeCurrency.toString(),
+      feeCurrency,
+      representativeCurrency
+    );
 
     ctx.preNabla = {
-      deductibleFeeAmount: new Big(preNablaDeductibleFeeAmount),
+      deductibleFeeAmountInFeeCurrency,
+      deductibleFeeAmountInSwapCurrency: new Big(deductibleFeeAmountInSwapCurrency),
       feeCurrency,
       representativeInputCurrency: representativeCurrency
     };

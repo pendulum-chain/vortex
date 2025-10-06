@@ -1,4 +1,13 @@
-import { FiatToken, RampCurrency, RampDirection } from "@packages/shared";
+import {
+  AssetHubToken,
+  FiatToken,
+  getAnyFiatTokenDetails,
+  getPendulumDetails,
+  Networks,
+  PENDULUM_USDC_AXL,
+  RampCurrency,
+  RampDirection
+} from "@packages/shared";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
@@ -14,9 +23,17 @@ export class OffRampSwapEngine implements Stage {
       return;
     }
 
-    if (!ctx.nablaSwap?.inputAmountForSwap) {
-      throw new Error("OffRampSwapEngine: Missing input amount for swap from previous stage");
+    if (!ctx.preNabla?.deductibleFeeAmountInSwapCurrency) {
+      throw new Error("OffRampSwapEngine: Missing deductible fee amount from preNabla");
     }
+
+    const inputAmountPreFees =
+      req.from === "assethub" ? ctx.assethubToPendulumXcm?.outputAmountDecimal : ctx.evmToPendulum?.outputAmountDecimal;
+    if (!inputAmountPreFees) {
+      throw new Error("OffRampSwapEngine: Missing input amount from previous stage");
+    }
+
+    const inputAmountForSwap = inputAmountPreFees.minus(ctx.preNabla.deductibleFeeAmountInSwapCurrency).toString();
 
     let nablaOutputCurrency: RampCurrency;
     if (req.to === "pix") {
@@ -29,15 +46,16 @@ export class OffRampSwapEngine implements Stage {
       throw new Error(`OffRampSwapEngine: Unsupported off-ramp destination: ${req.to}`);
     }
 
-    const inputAmountForSwap = ctx.nablaSwap.inputAmountForSwap.toString();
+    // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
+    const inputTokenPendulumDetails =
+      req.from === "assethub" ? getPendulumDetails(req.inputCurrency, Networks.AssetHub) : PENDULUM_USDC_AXL;
+    const outputTokenPendulumDetails = getPendulumDetails(req.outputCurrency as FiatToken);
 
     const result = await calculateNablaSwapOutput({
-      fromPolkadotDestination: req.from,
       inputAmountForSwap,
-      inputCurrency: req.inputCurrency,
-      nablaOutputCurrency,
-      rampType: req.rampType,
-      toPolkadotDestination: req.to
+      inputTokenPendulumDetails,
+      outputTokenPendulumDetails,
+      rampType: req.rampType
     });
 
     validateAmountLimits(result.nablaOutputAmountDecimal, req.outputCurrency as FiatToken, "max", req.rampType);
@@ -45,10 +63,13 @@ export class OffRampSwapEngine implements Stage {
     ctx.nablaSwap = {
       ...ctx.nablaSwap,
       effectiveExchangeRate: result.effectiveExchangeRate,
-      inputCurrency: result.inputTokenPendulumDetails.currency,
+      inputAmountForSwap,
+      inputCurrency: inputTokenPendulumDetails.currency,
+      inputDecimals: inputTokenPendulumDetails.decimals,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
-      outputCurrency: result.outputTokenPendulumDetails.currency
+      outputCurrency: outputTokenPendulumDetails.currency,
+      outputDecimals: outputTokenPendulumDetails.decimals
     };
 
     ctx.addNote?.(

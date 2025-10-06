@@ -106,9 +106,10 @@ export interface QuoteContext {
 
   // Intermediate computations populated by stages
   preNabla?: {
-    deductibleFeeAmount?: Big;
+    deductibleFeeAmountInFeeCurrency?: Big;
     feeCurrency?: RampCurrency;
     // Representative currency for swap input (e.g., axlUSDC for eth)
+    deductibleFeeAmountInSwapCurrency?: Big;
     representativeInputCurrency?: RampCurrency;
   };
 

@@ -44,18 +44,21 @@ export class OffRampFeeEngine implements Stage {
       partnerMarkupFeeDisplay = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency);
     }
 
+    // For offramps, the user paid the network fee in their wallet already
+    const network = "0";
+
     ctx.fees = {
       displayFiat: {
         anchor: anchorFeeDisplay,
         currency: displayCurrency,
-        network: "0",
+        network,
         partnerMarkup: partnerMarkupFeeDisplay,
         total: (Number(vortexFeeDisplay) + Number(anchorFeeDisplay) + Number(partnerMarkupFeeDisplay)).toFixed(2),
         vortex: vortexFeeDisplay
       },
       usd: {
         anchor: anchorFeeUsd,
-        network: "0",
+        network,
         partnerMarkup: partnerMarkupFeeUsd,
         total: (Number(vortexFeeUsd) + Number(anchorFeeUsd) + Number(partnerMarkupFeeUsd)).toFixed(6),
         vortex: vortexFeeUsd
@@ -64,8 +67,10 @@ export class OffRampFeeEngine implements Stage {
 
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const usd = ctx.fees.usd!;
+    // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
+    const display = ctx.fees.displayFiat!;
     ctx.addNote?.(
-      `OffRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}] display=${displayCurrency}`
+      `OffRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}], display[vortex=${display.vortex}, anchor=${display.anchor}, partner=${display.partnerMarkup}]`
     );
   }
 }

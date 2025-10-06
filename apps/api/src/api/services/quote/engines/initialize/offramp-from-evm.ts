@@ -27,15 +27,16 @@ export class OffRampFromEvmInitializeEngine implements Stage {
       return;
     }
 
-    const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
-      req.inputAmount,
-      req.inputCurrency,
-      req.outputCurrency,
-      req.rampType,
-      req.from,
-      req.to,
-      ctx.partner?.id || undefined
-    );
+    const { preNablaDeductibleFeeAmount: deductibleFeeAmountInFeeCurrency, feeCurrency } =
+      await calculatePreNablaDeductibleFees(
+        req.inputAmount,
+        req.inputCurrency,
+        req.outputCurrency,
+        req.rampType,
+        req.from,
+        req.to,
+        ctx.partner?.id || undefined
+      );
 
     const fromNetwork = getNetworkFromDestination(req.from);
     if (!fromNetwork) {
@@ -43,9 +44,19 @@ export class OffRampFromEvmInitializeEngine implements Stage {
     }
 
     const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
+    console.log("representativeCurrency", representativeCurrency);
+    console.log("Deductible Fee Amount in Fee Currency", deductibleFeeAmountInFeeCurrency.toString());
+    const deductibleFeeAmountInSwapCurrency = await this.price.convertCurrency(
+      deductibleFeeAmountInFeeCurrency.toString(),
+      feeCurrency,
+      representativeCurrency,
+      6
+    );
+    console.log("Deductible Fee Amount in Swap Currency", deductibleFeeAmountInSwapCurrency);
 
     ctx.preNabla = {
-      deductibleFeeAmount: new Big(preNablaDeductibleFeeAmount),
+      deductibleFeeAmountInFeeCurrency,
+      deductibleFeeAmountInSwapCurrency: new Big(deductibleFeeAmountInSwapCurrency),
       feeCurrency,
       representativeInputCurrency: representativeCurrency
     };

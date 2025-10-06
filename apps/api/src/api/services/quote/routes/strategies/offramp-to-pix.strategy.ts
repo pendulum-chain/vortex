@@ -23,8 +23,8 @@ export class OfframpToPixStrategy implements IRouteStrategy {
     return {
       [StageKey.OffRampInitialize]:
         ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
-      [StageKey.OffRampSwap]: new OffRampSwapEngine(),
       [StageKey.OffRampFee]: new OffRampFeeEngine(),
+      [StageKey.OffRampSwap]: new OffRampSwapEngine(),
       [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),
       [StageKey.OffRampFinalize]: new OffRampFinalizeEngine()
     };

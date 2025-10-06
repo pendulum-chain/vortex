@@ -57,11 +57,11 @@ export class OnRampSwapEngine implements Stage {
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwap,
       inputCurrency: inputTokenPendulumDetails.currency,
-      inputDecimals: result.inputTokenPendulumDetails.decimals,
+      inputDecimals: inputTokenPendulumDetails.decimals,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
       outputCurrency: outputTokenPendulumDetails.currency,
-      outputDecimals: result.outputTokenPendulumDetails.decimals
+      outputDecimals: outputTokenPendulumDetails.decimals
     };
 
     ctx.addNote?.(
