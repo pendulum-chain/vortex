@@ -1,5 +1,4 @@
 import { RegisterWebhookRequest, RegisterWebhookResponse, WebhookEventType } from "@packages/shared";
-import crypto from "crypto";
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
@@ -8,10 +7,6 @@ import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
 
 export class WebhookService {
-  private generateWebhookSecret(): string {
-    return crypto.randomBytes(32).toString("hex");
-  }
-
   public async registerWebhook(request: RegisterWebhookRequest): Promise<RegisterWebhookResponse> {
     try {
       const { url, transactionId, sessionId, events } = request;
@@ -70,15 +65,11 @@ export class WebhookService {
         }
       }
 
-      // Generate a secure secret for HMAC signing
-      const secret = this.generateWebhookSecret();
-
       const webhookEvents: WebhookEventType[] = events || Object.values(WebhookEventType);
 
       const webhook = await Webhook.create({
         events: webhookEvents,
         isActive: true,
-        secret,
         sessionId: sessionId || null,
         transactionId: transactionId || null,
         url
@@ -91,7 +82,6 @@ export class WebhookService {
         events: webhook.events,
         id: webhook.id,
         isActive: webhook.isActive,
-        secret: webhook.secret, // Returned only during registration
         sessionId: webhook.sessionId,
         transactionId: webhook.transactionId,
         url: webhook.url
