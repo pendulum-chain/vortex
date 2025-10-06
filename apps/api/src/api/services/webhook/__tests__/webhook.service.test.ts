@@ -13,7 +13,6 @@ const createMockWebhook = (overrides: Partial<WebhookAttributes> = {}) => ({
   sessionId: null,
   events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
   isActive: true,
-  secret: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   createdAt: new Date('2025-01-15T10:30:00.000Z'),
   updatedAt: new Date('2025-01-15T10:30:00.000Z'),
   ...overrides
@@ -110,7 +109,6 @@ describe('WebhookService', () => {
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
-        secret: mockWebhook.secret,
         sessionId: null,
         transactionId: 'tx-123',
         url: 'https://example.com/webhook'
@@ -123,7 +121,6 @@ describe('WebhookService', () => {
         sessionId: null,
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
-        secret: mockWebhook.secret,
         createdAt: '2025-01-15T10:30:00.000Z'
       });
     });
@@ -148,7 +145,6 @@ describe('WebhookService', () => {
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
-        secret: mockWebhook.secret,
         sessionId: 'session-456',
         transactionId: null,
         url: 'https://example.com/webhook'
@@ -161,7 +157,6 @@ describe('WebhookService', () => {
         sessionId: 'session-456',
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
-        secret: mockWebhook.secret,
         createdAt: '2025-01-15T10:30:00.000Z'
       });
     });
@@ -188,7 +183,6 @@ describe('WebhookService', () => {
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.STATUS_CHANGE],
         isActive: true,
-        secret: mockWebhook.secret,
         sessionId: 'session-789',
         transactionId: null,
         url: 'https://example.com/webhook'
@@ -378,7 +372,6 @@ describe('WebhookService', () => {
       // Use mock factory
       const mockWebhook = createMockWebhook({
         url: 'https://example.com',
-        secret: 'secret123',
         events: [WebhookEventType.TRANSACTION_CREATED]
       });
 
