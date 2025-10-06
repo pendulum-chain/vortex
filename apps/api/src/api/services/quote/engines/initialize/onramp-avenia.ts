@@ -9,7 +9,7 @@ export class OnRampInitializeAveniaEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampInputPlannerEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -35,6 +35,6 @@ export class OnRampInitializeAveniaEngine implements Stage {
       xcmFees
     };
 
-    ctx.addNote?.(`OnRampInitializeAveniaEngine: assuming ${mintedBrla.toFixed()} BRLA minted on ephemeral account`);
+    ctx.addNote?.(`Assuming ${mintedBrla.toFixed()} BRLA minted on ephemeral account`);
   }
 }

@@ -23,7 +23,7 @@ export class OffRampFromEvmInitializeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampFromEvmInitializeEngine: skipped for on-ramp request");
+      ctx.addNote?.("Skipped for on-ramp request");
       return;
     }
 
@@ -44,15 +44,12 @@ export class OffRampFromEvmInitializeEngine implements Stage {
     }
 
     const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
-    console.log("representativeCurrency", representativeCurrency);
-    console.log("Deductible Fee Amount in Fee Currency", deductibleFeeAmountInFeeCurrency.toString());
     const deductibleFeeAmountInSwapCurrency = await this.price.convertCurrency(
       deductibleFeeAmountInFeeCurrency.toString(),
       feeCurrency,
       representativeCurrency,
       6
     );
-    console.log("Deductible Fee Amount in Swap Currency", deductibleFeeAmountInSwapCurrency);
 
     ctx.preNabla = {
       deductibleFeeAmountInFeeCurrency,
@@ -83,7 +80,7 @@ export class OffRampFromEvmInitializeEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OffRampFromEvmInitializeEngine: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToPendulum?.inputAmountRaw}, output=${ctx.evmToPendulum?.outputAmountDecimal.toString()} ${ctx.evmToPendulum?.toToken}, raw=${ctx.evmToPendulum?.outputAmountRaw}`
+      `Initialized: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToPendulum?.inputAmountRaw}, output=${ctx.evmToPendulum?.outputAmountDecimal.toString()} ${ctx.evmToPendulum?.toToken}, raw=${ctx.evmToPendulum?.outputAmountRaw}`
     );
   }
 }

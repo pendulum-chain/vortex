@@ -9,7 +9,7 @@ export class OnRampDiscountEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampDiscountEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -41,8 +41,6 @@ export class OnRampDiscountEngine implements Stage {
       rate: rate.toString()
     };
 
-    ctx.addNote?.(
-      `OnRampDiscountEngine: partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`
-    );
+    ctx.addNote?.(`partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`);
   }
 }

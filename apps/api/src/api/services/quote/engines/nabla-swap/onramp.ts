@@ -17,7 +17,7 @@ export class OnRampSwapEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampSwapEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -65,7 +65,7 @@ export class OnRampSwapEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OnRampSwapEngine: Nabla swap from ${inputTokenPendulumDetails.currency} to ${outputTokenPendulumDetails.currency}, input amount ${inputAmountForSwap}, output amount ${result.nablaOutputAmountDecimal.toFixed()}`
+      `Nabla swap from ${inputTokenPendulumDetails.currency} to ${outputTokenPendulumDetails.currency}, input amount ${inputAmountForSwap}, output amount ${result.nablaOutputAmountDecimal.toFixed()}`
     );
   }
 }

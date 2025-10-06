@@ -21,7 +21,7 @@ export class OnRampHydrationEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampHydrationEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -87,8 +87,6 @@ export class OnRampHydrationEngine implements Stage {
       xcmFees
     };
 
-    ctx.addNote?.(
-      `OnRampHydrationEngine: swap ${amountIn} ${inputTokenDetails.assetSymbol} to ${amountOut} ${outputTokenDetails.assetSymbol}`
-    );
+    ctx.addNote?.(`Swap ${amountIn} ${inputTokenDetails.assetSymbol} to ${amountOut} ${outputTokenDetails.assetSymbol}`);
   }
 }

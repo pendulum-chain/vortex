@@ -17,7 +17,7 @@ export class OffRampFinalizeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampFinalizeEngine: skipped for on-ramp request");
+      ctx.addNote?.("Skipped for on-ramp request");
       return;
     }
 
@@ -65,6 +65,6 @@ export class OffRampFinalizeEngine implements Stage {
       rampType: record.rampType,
       to: record.to
     };
-    ctx.addNote?.("OffRampFinalizeEngine: persisted quote and built response");
+    ctx.addNote?.("Persisted quote and built response");
   }
 }

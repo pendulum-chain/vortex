@@ -13,7 +13,7 @@ export class OnRampInitializeMoneriumEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampInputPlannerEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -30,7 +30,7 @@ export class OnRampInitializeMoneriumEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OnRampInitializeMoneriumEngine: ${amountIn.toString()} ${req.inputCurrency} -> ${amountOut.toString()} ${req.outputCurrency} (fee: ${moneriumFee.toString()})`
+      `Initialized: ${amountIn.toString()} ${req.inputCurrency} -> ${amountOut.toString()} ${req.outputCurrency} (fee: ${moneriumFee.toString()})`
     );
   }
 }

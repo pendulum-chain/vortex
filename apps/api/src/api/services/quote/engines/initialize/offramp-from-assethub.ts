@@ -25,7 +25,7 @@ export class OffRampFromAssethubInitializeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampFromAssethubInitializeEngine: skipped for on-ramp request");
+      ctx.addNote?.("Skipped for on-ramp request");
       return;
     }
 
@@ -103,7 +103,7 @@ export class OffRampFromAssethubInitializeEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OffRampFromAssethubInitializeEngine: input=${inputAmountDecimal.toString()} ${fromToken}, raw=${inputAmountRaw}, output=${outputAmountDecimal.toString()} ${fromToken}, raw=${outputAmountRaw}`
+      `Initialized: input=${inputAmountDecimal.toString()} ${fromToken}, raw=${inputAmountRaw}, output=${outputAmountDecimal.toString()} ${fromToken}, raw=${outputAmountRaw}`
     );
   }
 }

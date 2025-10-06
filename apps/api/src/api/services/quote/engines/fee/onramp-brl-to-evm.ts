@@ -19,7 +19,7 @@ export class OnRampAveniaToEvmFeeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampAveniaToEvmFeeEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -96,7 +96,7 @@ export class OnRampAveniaToEvmFeeEngine implements Stage {
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const usd = ctx.fees.usd!;
     ctx.addNote?.(
-      `OnRampAveniaToEvmFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
+      `Fees: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
     );
   }
 }

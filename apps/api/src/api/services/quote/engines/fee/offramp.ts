@@ -11,7 +11,7 @@ export class OffRampFeeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampFeeEngine: skipped for on-ramp request");
+      ctx.addNote?.("Skipped for on-ramp request");
       return;
     }
 
@@ -70,7 +70,7 @@ export class OffRampFeeEngine implements Stage {
     // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
     const display = ctx.fees.displayFiat!;
     ctx.addNote?.(
-      `OffRampFeeEngine: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}], display[vortex=${display.vortex}, anchor=${display.anchor}, partner=${display.partnerMarkup}]`
+      `Fees: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}], display[vortex=${display.vortex}, anchor=${display.anchor}, partner=${display.partnerMarkup}]`
     );
   }
 }

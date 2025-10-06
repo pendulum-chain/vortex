@@ -15,7 +15,7 @@ export class OnRampFinalizeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("OnRampFinalizeEngine: skipped for off-ramp request");
+      ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
 
@@ -25,8 +25,6 @@ export class OnRampFinalizeEngine implements Stage {
     if (!ctx.nablaSwap?.outputAmountDecimal) {
       throw new APIError({ message: "OnRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
-
-    console.log("In finalize engine", ctx);
 
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
@@ -107,6 +105,6 @@ export class OnRampFinalizeEngine implements Stage {
       to: record.to
     };
 
-    ctx.addNote?.("OnRampFinalizeEngine: persisted quote and built response");
+    ctx.addNote?.("Persisted quote and built response");
   }
 }

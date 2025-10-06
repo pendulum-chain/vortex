@@ -19,7 +19,7 @@ export class OffRampSwapEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampSwapEngine: skipped for on-ramp request");
+      ctx.addNote?.("Skipped for on-ramp request");
       return;
     }
 
@@ -34,17 +34,6 @@ export class OffRampSwapEngine implements Stage {
     }
 
     const inputAmountForSwap = inputAmountPreFees.minus(ctx.preNabla.deductibleFeeAmountInSwapCurrency).toString();
-
-    let nablaOutputCurrency: RampCurrency;
-    if (req.to === "pix") {
-      nablaOutputCurrency = FiatToken.BRL;
-    } else if (req.to === "sepa") {
-      nablaOutputCurrency = FiatToken.EURC;
-    } else if (req.to === "cbu") {
-      nablaOutputCurrency = FiatToken.ARS;
-    } else {
-      throw new Error(`OffRampSwapEngine: Unsupported off-ramp destination: ${req.to}`);
-    }
 
     // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
     const inputTokenPendulumDetails =
@@ -73,9 +62,7 @@ export class OffRampSwapEngine implements Stage {
     };
 
     ctx.addNote?.(
-      `OffRampSwapEngine: output=${result.nablaOutputAmountDecimal.toString()} ${String(
-        nablaOutputCurrency
-      )}, raw=${result.nablaOutputAmountRaw}`
+      `Nabla swap from ${inputTokenPendulumDetails.currency} to ${outputTokenPendulumDetails.currency}, input amount ${inputAmountForSwap}, output amount ${result.nablaOutputAmountDecimal.toFixed()}`
     );
   }
 }
