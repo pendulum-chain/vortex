@@ -288,6 +288,12 @@
       "buy": "Comprar",
       "sell": "Vender"
     },
+    "RampFollowUpRedirectStep": {
+      "afterLink": ".",
+      "beforeLink": "Estamos redirecionando você de volta para seu parceiro em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",
+      "link": "aqui",
+      "title": "Sua rampa está sendo processada agora"
+    },
     "RampSubmitButton": {
       "connectDesignatedWallet": "Por favor, conecte a carteira designada '{{address}}'"
     },
