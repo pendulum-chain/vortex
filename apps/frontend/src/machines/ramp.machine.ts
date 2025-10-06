@@ -17,6 +17,8 @@ import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState }
 
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
+export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
+
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
@@ -131,14 +133,6 @@ export const rampMachine = setup({
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
     urlCleanerWithCallbackAction: ({ context }) => {
       handleCallbackUrlRedirect(context.callbackUrl);
-    },
-    urlCleanerWithCallbackActionWithDelay: ({ context }) => {
-      new Promise<void>(resolve => {
-        setTimeout(() => {
-          handleCallbackUrlRedirect(context.callbackUrl);
-          resolve();
-        }, 3000);
-      });
     }
   },
   actors: {
@@ -416,11 +410,15 @@ export const rampMachine = setup({
       }
     },
     RedirectCallback: {
-      entry: [
-        { type: "resetRamp" },
-        { params: { context: (self as any).context }, type: "urlCleanerWithCallbackActionWithDelay" }
-      ],
-      type: "final"
+      after: {
+        5000: {
+          actions: [
+            { type: "resetRamp" },
+            { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }
+          ],
+          target: "Idle"
+        }
+      }
     },
     RegisterRamp: {
       invoke: {

@@ -3,6 +3,7 @@ import { useSelector } from "@xstate/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { SUCCESS_CALLBACK_DELAY_MS } from "../../../machines/ramp.machine";
 
 const Checkmark = () => (
   <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-blue-700">
@@ -14,7 +15,7 @@ export const RampFollowUpRedirectStep = () => {
   const rampActor = useRampActor();
   const { callbackUrl } = useSelector(rampActor, state => state.context);
   const { t } = useTranslation();
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(SUCCESS_CALLBACK_DELAY_MS / 1000);
 
   useEffect(() => {
     const timer = setInterval(() => {
