@@ -14,7 +14,7 @@ import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OffRampInitializeEngine implements Stage {
+export class OffRampFromEvmInitializeEngine implements Stage {
   readonly key = StageKey.OffRampInitialize;
 
   private price = priceFeedService;
@@ -23,7 +23,7 @@ export class OffRampInitializeEngine implements Stage {
     const req = ctx.request;
 
     if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("OffRampInputPlannerEngine: skipped for on-ramp request");
+      ctx.addNote?.("OffRampFromEvmInitializeEngine: skipped for on-ramp request");
       return;
     }
 
@@ -50,41 +50,29 @@ export class OffRampInitializeEngine implements Stage {
       representativeInputCurrency: representativeCurrency
     };
 
-    if (req.from !== Networks.AssetHub) {
-      const quoteRequest: EvmBridgeQuoteRequest = {
-        amountDecimal: req.inputAmount,
-        fromNetwork: req.from as Networks,
-        inputCurrency: req.inputCurrency as OnChainToken,
-        outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
-        rampType: req.rampType,
-        toNetwork: Networks.Moonbeam
-      };
-      const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
+    const quoteRequest: EvmBridgeQuoteRequest = {
+      amountDecimal: req.inputAmount,
+      fromNetwork: req.from as Networks,
+      inputCurrency: req.inputCurrency as OnChainToken,
+      outputCurrency: EvmToken.AXLUSDC as unknown as OnChainToken,
+      rampType: req.rampType,
+      toNetwork: Networks.Moonbeam
+    };
+    const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
 
-      ctx.evmToPendulum = {
-        ...quoteRequest,
-        fromToken: bridgeQuote.fromToken,
-        inputAmountDecimal: Big(quoteRequest.amountDecimal),
-        inputAmountRaw: bridgeQuote.inputAmountRaw,
-        networkFeeUSD: bridgeQuote.networkFeeUSD,
-        outputAmountDecimal: bridgeQuote.outputAmountDecimal,
-        outputAmountRaw: bridgeQuote.outputAmountRaw,
-        toToken: bridgeQuote.toToken
-      };
-    } else {
-      ctx.assethubToPendulumXcm = {
-        fromToken: "",
-        inputAmountDecimal: undefined,
-        inputAmountRaw: "",
-        outputAmountDecimal: undefined,
-        outputAmountRaw: "",
-        toToken: "",
-        xcmFees: undefined
-      };
-    }
+    ctx.evmToPendulum = {
+      ...quoteRequest,
+      fromToken: bridgeQuote.fromToken,
+      inputAmountDecimal: Big(quoteRequest.amountDecimal),
+      inputAmountRaw: bridgeQuote.inputAmountRaw,
+      networkFeeUSD: bridgeQuote.networkFeeUSD,
+      outputAmountDecimal: bridgeQuote.outputAmountDecimal,
+      outputAmountRaw: bridgeQuote.outputAmountRaw,
+      toToken: bridgeQuote.toToken
+    };
 
     ctx.addNote?.(
-      `OffRampInputPlannerEngine: fee=${preNablaDeductibleFeeAmount.toString()} ${feeCurrency}, rep=${representativeCurrency}, inputForSwap=${inputAmountForSwap.toString()}`
+      `OffRampFromEvmInitializeEngine: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToPendulum?.inputAmountRaw}, output=${ctx.evmToPendulum?.outputAmountDecimal.toString()} ${ctx.evmToPendulum?.toToken}, raw=${ctx.evmToPendulum?.outputAmountRaw}`
     );
   }
 }

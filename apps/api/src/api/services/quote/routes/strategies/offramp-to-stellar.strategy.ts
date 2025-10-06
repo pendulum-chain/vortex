@@ -2,7 +2,8 @@ import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../c
 import { OffRampDiscountEngine } from "../../engines/discount/offramp";
 import { OffRampFeeEngine } from "../../engines/fee/offramp";
 import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
-import { OffRampInitializeEngine } from "../../engines/initialize/offramp";
+import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
+import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
 
 export class OfframpToStellarStrategy implements IRouteStrategy {
@@ -18,9 +19,10 @@ export class OfframpToStellarStrategy implements IRouteStrategy {
     ];
   }
 
-  getEngines(_ctx: QuoteContext): EnginesRegistry {
+  getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OffRampInitialize]: new OffRampInitializeEngine(),
+      [StageKey.OffRampInitialize]:
+        ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
       [StageKey.OffRampSwap]: new OffRampSwapEngine(),
       [StageKey.OffRampFee]: new OffRampFeeEngine(),
       [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),
