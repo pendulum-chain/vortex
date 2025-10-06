@@ -2,28 +2,51 @@ import { EvmClient, PoolService, Trade, TradeRouter, TxBuilderFactory } from "@g
 import { ApiManager } from "@packages/shared";
 
 export class HydrationRouter {
-  private tradeRouter: TradeRouter;
-  private poolService: PoolService;
-  private evmClient: EvmClient;
-  private txBuilderFactory: TxBuilderFactory;
+  private _tradeRouter?: TradeRouter;
+  private _poolService?: PoolService;
+  private _evmClient?: EvmClient;
+  private _txBuilderFactory?: TxBuilderFactory;
+
+  private readonly initPromise: Promise<void>;
 
   constructor() {
     const apiManager = ApiManager.getInstance();
-    apiManager.getApi("hydration").then(({ api }) => {
+    this.initPromise = apiManager.getApi("hydration").then(({ api }) => {
       const evmClient = new EvmClient(api);
-      this.evmClient = evmClient;
+      this._evmClient = evmClient;
 
-      this.poolService = new PoolService(api, evmClient);
-      this.tradeRouter = new TradeRouter(this.poolService);
-      this.poolService.syncRegistry();
+      const poolService = new PoolService(api, evmClient);
+      this._poolService = poolService;
 
-      this.txBuilderFactory = new TxBuilderFactory(api, evmClient);
+      const tradeRouter = new TradeRouter(poolService);
+      this._tradeRouter = tradeRouter;
+
+      // Fire-and-forget; router can still serve while registry syncs
+      void poolService.syncRegistry();
+
+      this._txBuilderFactory = new TxBuilderFactory(api, evmClient);
 
       console.log("Constructed HydrationRouter");
     });
   }
+
+  // Expose readiness for callers that want to await initialization during bootstrap
+  ready(): Promise<void> {
+    return this.initPromise;
+  }
+
+  // Guarded accessors keep method signatures clean and fail fast if used too early
+  private get tradeRouter(): TradeRouter {
+    if (!this._tradeRouter) throw new Error("HydrationRouter not initialized yet");
+    return this._tradeRouter;
+  }
+
+  private get txBuilderFactory(): TxBuilderFactory {
+    if (!this._txBuilderFactory) throw new Error("HydrationRouter not initialized yet");
+    return this._txBuilderFactory;
+  }
+
   async getBestSellPriceFor(assetIn: string, assetOut: string, amountIn: string) {
-    // Calculate spot price
     return await this.tradeRouter.getBestSell(assetIn, assetOut, amountIn);
   }
 
@@ -36,4 +59,5 @@ export class HydrationRouter {
   }
 }
 
-export default new HydrationRouter();
+const hydrationRouter = new HydrationRouter();
+export default hydrationRouter;
