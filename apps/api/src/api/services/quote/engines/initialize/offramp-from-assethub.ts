@@ -82,12 +82,12 @@ export class OffRampFromAssethubInitializeEngine implements Stage {
     const originFeeInTargetCurrency = await this.price.convertCurrency(
       xcmFees.origin.amount,
       xcmFees.origin.currency as RampCurrency,
-      req.outputCurrency
+      req.inputCurrency
     );
     const destinationFeeInTargetCurrency = await this.price.convertCurrency(
       xcmFees.destination.amount,
       xcmFees.destination.currency as RampCurrency,
-      req.outputCurrency
+      req.inputCurrency
     );
     const outputAmountDecimal = inputAmountDecimal.minus(originFeeInTargetCurrency).minus(destinationFeeInTargetCurrency);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, fromTokenDecimals).toFixed(0);
