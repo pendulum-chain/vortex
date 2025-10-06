@@ -69,6 +69,7 @@ export const create = async (
       const url = buildLockedUrl(body);
       res.status(httpStatus.OK).json({ url });
     } else {
+      // Create a quote to verify the desired parameters are valid. The quote itself is not used.
       await quoteService.createQuote({
         from: body.from,
         inputAmount: body.inputAmount,
