@@ -1,19 +1,12 @@
-export interface SubaccountData {
-  id: string;
-  fullName: string;
-  phone: string;
-  kyc: KYCData;
-  address: BrlaAddress;
-  createdAt: string;
-  wallets: { evm: string; tron: string };
-  brCode: string;
-}
-
 export type AveniaIdentityStatus = "NOT-IDENTIFIED" | "CONFIRMED";
 
 export enum AveniaAccountType {
   INDIVIDUAL = "INDIVIDUAL",
   COMPANY = "COMPANY"
+}
+
+export function isValidAveniaAccountType(value: string): value is AveniaAccountType {
+  return Object.values(AveniaAccountType).includes(value as AveniaAccountType);
 }
 
 export interface AveniaSubaccountAccountInfo {
@@ -35,137 +28,10 @@ export interface AveniaSubaccount {
   accountInfo: AveniaSubaccountAccountInfo;
 }
 
-export interface KYCData {
-  level: number;
-  documentData: string;
-  documentType: string;
-  limits: {
-    limitMint: number;
-    limitBurn: number;
-    limitSwapBuy: number;
-    limitSwapSell: number;
-    limitBRLAOutOwnAccount: number;
-    limitBRLAOutThirdParty: number;
-  };
-}
-
-type TaxIdType = "CPF" | "CNPJ";
-
-type BrlaAddress = {
-  cep: string;
-  city: string;
-  state: string;
-  street: string;
-  number: string;
-  district: string;
-  complement?: string;
-};
-
-export interface RegisterSubaccountPayload {
-  phone: string;
-  taxIdType: TaxIdType;
-  address: BrlaAddress;
-  fullName: string;
-  cpf: string;
-  birthdate: string;
-  companyName?: string;
-  startDate?: string;
-  cnpj?: string;
-}
-
-export interface OfframpPayload {
-  pixKey: string;
-  amount: number;
-  taxId: string;
-}
-
-export interface OnrampPayload {
-  amount: string;
-  referenceLabel: string;
-  subaccountId: string;
-}
-
 export interface PixKeyData {
   name: string;
   taxId: string;
   bankName: string;
-}
-
-// Interface response from /pay-in/pix/history
-export interface DepositLog {
-  chain: string;
-  walletAddress: string;
-  amount: number;
-  taxId: string;
-  due: string;
-  id: string;
-  createdAt: string;
-  status: string;
-  payerName: string;
-  updatedAt: string;
-  mintOps: MintOp[];
-  referenceLabel: string;
-  externalId: string;
-  payerBankCode: string;
-  payerBranchCode: string;
-  payerAccountNumber: string;
-  payerAccountType: string;
-}
-
-// Interface response from /swap/history
-export interface SwapLog {
-  chain: string;
-  walletAddress: string;
-  receiverAddress: string;
-  brlaAmount: number;
-  usdAmount: number;
-  basePrice: string;
-  baseFee: string;
-  coin: string;
-  id: string;
-  createdAt: string;
-  status: string;
-  smartContractOps: SmartContractOp[];
-  externalId: string;
-}
-
-interface Feedback {
-  id: string;
-  success: boolean;
-  errorMsg: string;
-  createdAt: string;
-}
-
-interface SmartContractOp {
-  id: string;
-  operationName: string;
-  posted: boolean;
-  tx: string;
-  notPostedReason: string;
-  createdAt: string;
-  isRetry: boolean;
-  feedback: Feedback;
-}
-
-interface MintOp {
-  id: string;
-  amount: number;
-  createdReason: string;
-  createdAt: string;
-  fee: number;
-  smartContractOps: SmartContractOp[];
-}
-
-// /fast-quote endpoint related types
-
-export type FastQuoteOperationType = "swap";
-
-export type FastQuoteCoin = "BRLA" | "USDC";
-
-export enum BrlaSupportedChain {
-  BRLA = "Moonbeam",
-  Polygon = "Polygon"
-  // etc
 }
 
 export interface AveniaQuoteResponse {
@@ -175,127 +41,8 @@ export interface AveniaQuoteResponse {
   inputAmount: string;
 }
 
-export interface FastQuoteQueryParams {
-  subaccountId: string | undefined;
-  operation: FastQuoteOperationType;
-  amount: number;
-  inputCoin: FastQuoteCoin;
-  outputCoin: FastQuoteCoin;
-  chain: BrlaSupportedChain;
-  markup?: string;
-  fixOutput: boolean;
-}
-
-export interface FastQuoteResponse {
-  basePrice: string;
-  token: string;
-  sub: string;
-  operation: string;
-  amountBrl: string;
-  amountUsd: string;
-  amountToken: string;
-  baseFee: string;
-  gasFee: string;
-  markupFee: string;
-  inputCoin: string;
-  outputCoin: string;
-  chain: string;
-  subaccountId: string;
-}
-
-// on-chain/history/out endpoint related types
-
-export interface OnchainLog {
-  id: string;
-  userId: string;
-  fromChain: string;
-  toChain: string;
-  from: string;
-  to: string;
-  value: string;
-  outputValue: string;
-  outputCoin: string;
-  inputCoin: string;
-  createdAt: string;
-  externalId: string;
-  fromBusinessAccount: boolean;
-  exactOutput: boolean;
-  coverDifference: boolean;
-  usdcPermit: null | string;
-  usdtPermit: null | string;
-  brlaPermit: null | string;
-  smartContractOps: SmartContractOperation[];
-  notifyEmail: boolean;
-  forced: boolean;
-  reason: string;
-  receiverName: string;
-  receiverTaxId: string;
-}
-
-// /swap Endpoint related types
-export interface SwapPayload {
-  token: string;
-  receiverAddress: string;
-  externalId?: string;
-}
-
-// Other nested types
-export enum SmartContractOperationType {
-  MINT = "MINT",
-  BURN = "BURN"
-}
-
 export function isValidKYCDocType(value: string): value is AveniaDocumentType {
   return Object.values(AveniaDocumentType).includes(value as unknown as AveniaDocumentType);
-}
-
-export interface KycLevel2Response {
-  id: string;
-  selfieUploadUrl: string;
-  RGFrontUploadUrl: string;
-  RGBackUploadUrl: string;
-  CNHUploadUrl: string;
-}
-
-export interface KycRetryPayload {
-  fullName: string;
-  cpf: string;
-  birthdate: string;
-  cnpj?: string;
-  companyName?: string;
-  startDate?: string;
-}
-
-interface SmartContractOperation {
-  id: string;
-  operationName: SmartContractOperationType;
-  operationId: string;
-  operationType: string;
-  executed: boolean;
-  tx: string;
-  reason: string;
-  createdAt: string;
-  isRetry: boolean;
-  feedback: OperationFeedback;
-}
-
-interface OperationFeedback {
-  id: string;
-  feedbackType: string;
-  operationId: string;
-  smartcontractOperationId: string;
-  success: boolean;
-  errorMsg: string;
-  createdAt: string;
-}
-
-export interface OnChainOutPayload {
-  chain: string;
-  to: string;
-  value: number;
-  exactOutput: boolean;
-  inputCoin: string;
-  outputCoin: string;
 }
 
 export enum BrlaCurrency {
@@ -433,6 +180,36 @@ export interface AveniaPayoutTicket extends BaseTicket {
     deadline: number;
     personalSignature: string;
     personalSignatureDeadline: number;
+  };
+  RefundableParameter: string;
+}
+
+export interface AveniaPayinTicket extends BaseTicket {
+  brazilianFiatSenderInfo: {
+    id: string;
+    ticketId: string;
+    name: string;
+    taxId: string;
+    bankCode: string;
+    branchCode: string;
+    accountNumber: string;
+    accountType: string;
+    endToEndId: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+  brlPixInputInfo: {
+    id: string;
+    ticketId: string;
+    referenceLabel: string;
+    additionalData: string;
+    brCode: string;
   };
   RefundableParameter: string;
 }

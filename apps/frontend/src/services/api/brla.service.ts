@@ -40,17 +40,6 @@ export class BrlaService {
   }
 
   /**
-   * Get the status of an offramp operation
-   * @param taxId The user's tax ID
-   * @returns The offramp status
-   */
-  static async getRampStatus(taxId: string): Promise<BrlaGetRampStatusResponse> {
-    return apiRequest<BrlaGetRampStatusResponse>("get", `${this.BASE_PATH}/getRampStatus`, undefined, {
-      params: { taxId }
-    });
-  }
-
-  /**
    * Get the KYC status of a subaccount
    * @param taxId The user's tax ID
    * @returns The KYC status
