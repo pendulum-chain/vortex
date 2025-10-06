@@ -1,11 +1,13 @@
 import {
   AveniaKYCDataUploadRequest,
+  CreateQuoteRequest,
   Currency,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
   PriceProvider,
+  QuoteError,
   RampDirection,
   RegisterSubaccountPayload,
   TokenConfig,
@@ -389,6 +391,22 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
   //   return;
   // }
+
+  next();
+};
+
+export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+
+  if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
+    return;
+  }
 
   next();
 };
