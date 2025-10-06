@@ -11,10 +11,10 @@ const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
 export interface RouteParams {
   fromAddress: string;
   fromChain: string;
-  fromToken: string;
+  fromToken: `0x${string}`;
   fromAmount: string;
   toChain: string;
-  toToken: string;
+  toToken: `0x${string}`;
   toAddress: string;
   bypassGuardrails: boolean;
   slippageConfig: {
