@@ -42,7 +42,7 @@ function getValidationPattern(fieldId: StandardAveniaFieldOptions) {
  * for processing PIX transfers to Brazilian bank accounts.
  */
 
-export const AveniaKycEligibilityFields: FC = () => {
+export const AveniaKycEligibilityFields: FC<{ isWalletAddressDisabled?: boolean }> = ({ isWalletAddressDisabled }) => {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
@@ -55,6 +55,7 @@ export const AveniaKycEligibilityFields: FC = () => {
         {FIELDS.map(field => (
           <AveniaField
             className="mt-2"
+            disabled={field.id === StandardAveniaFieldOptions.WALLET_ADDRESS && isWalletAddressDisabled}
             id={field.id}
             index={field.index}
             key={field.id}

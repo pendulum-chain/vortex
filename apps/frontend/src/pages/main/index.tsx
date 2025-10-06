@@ -1,20 +1,18 @@
-import { useSelector } from "@xstate/react";
 import { Trans } from "react-i18next";
-import { useRampActor } from "../../contexts/rampState";
+import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
+import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { BaseLayout } from "../../layouts";
 import { Quote } from "../quote";
 import { Ramp } from "../ramp";
 import MainSections from "./MainSections";
 
 export const Main = () => {
-  const rampActor = useRampActor();
-  const { machineState } = useSelector(rampActor, state => ({
-    machineState: state.value
-  }));
+  const isWidgetMode = useWidgetMode();
+  useSetRampUrlParams();
 
   const main = (
     <main>
-      {machineState === "Idle" ? (
+      {!isWidgetMode ? (
         <>
           <div className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] pb-4">
             <div className="flex grow-1 flex-col items-center justify-evenly md:flex-row">

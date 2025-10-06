@@ -5,6 +5,7 @@ import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
+import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
@@ -46,6 +47,8 @@ const WidgetContent = () => {
     return false;
   });
 
+  const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
+
   if (isMoneriumRedirect) {
     return <MoneriumRedirectStep />;
   }
@@ -62,6 +65,10 @@ const WidgetContent = () => {
     }
 
     return isCnpj ? <AveniaKYBForm /> : <AveniaKYCForm />;
+  }
+
+  if (isInitialQuoteFailed) {
+    return <InitialQuoteFailedStep />;
   }
 
   return <DetailsStep />;
