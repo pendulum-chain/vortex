@@ -277,17 +277,18 @@ export class PriceFeedService {
 
   private async convertUsdToFiat(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
     const rate = await this.getUsdToFiatExchangeRate(toCurrency);
-    const result = new Big(amount).mul(rate).toFixed(decimals);
+    const result = new Big(amount).mul(new Big(rate)).toFixed(decimals);
     logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using rate: ${rate}`);
     return result;
   }
 
   private async convertFiatToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
     const rate = await this.getUsdToFiatExchangeRate(fromCurrency);
-    if (rate <= 0) {
+    const rateBig = new Big(rate);
+    if (rateBig.lte(0)) {
       throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
     }
-    const result = new Big(amount).div(rate).toFixed(decimals);
+    const result = new Big(amount).div(rateBig).toFixed(decimals);
     logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using inverse rate: 1/${rate}`);
     return result;
   }
@@ -339,15 +340,20 @@ export class PriceFeedService {
     amount: string,
     fromCurrency: RampCurrency,
     toCurrency: RampCurrency,
-    decimals = 6
+    decimals: number | null = null // Allow overriding, but default to null
   ): Promise<string> {
     fromCurrency = fromCurrency.toUpperCase() as RampCurrency;
     toCurrency = toCurrency.toUpperCase() as RampCurrency;
+
+    // Determine target decimals based on currency type, unless explicitly overridden
+    const targetDecimals = decimals !== null ? decimals : isFiatToken(toCurrency) ? 2 : 8;
+    logger.debug(`Target decimals for ${toCurrency} set to ${targetDecimals}`);
+
     try {
       // If currencies are the same, return the original amount
       if (fromCurrency === toCurrency) {
         logger.debug(`Currencies are the same (${fromCurrency}), returning original amount: ${amount}`);
-        return amount;
+        return new Big(amount).toFixed(targetDecimals);
       }
 
       // Check if both currencies are USD-like stablecoins
@@ -359,26 +365,27 @@ export class PriceFeedService {
       }
 
       if (isUsdLikeCurrency(fromCurrency) && isFiatToken(toCurrency)) {
-        return this.convertUsdToFiat(amount, toCurrency, decimals);
+        return this.convertUsdToFiat(amount, toCurrency, targetDecimals);
       }
 
       if (isFiatToken(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        return this.convertFiatToUsd(amount, fromCurrency, decimals);
+        return this.convertFiatToUsd(amount, fromCurrency, targetDecimals);
       }
 
       if (isUsdLikeCurrency(fromCurrency) && !isFiatToken(toCurrency) && !isUsdLikeCurrency(toCurrency)) {
-        return this.convertUsdToCrypto(amount, toCurrency, decimals);
+        return this.convertUsdToCrypto(amount, toCurrency, targetDecimals);
       }
 
       if (!isFiatToken(fromCurrency) && !isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        return this.convertCryptoToUsd(amount, fromCurrency, decimals);
+        return this.convertCryptoToUsd(amount, fromCurrency, targetDecimals);
       }
 
       // For other currency pairs, convert via USD as an intermediate step
       logger.debug(`Converting ${fromCurrency} to ${toCurrency} via USD as intermediate`);
-      const amountInUSD = await this.convertCurrency(amount, fromCurrency, EvmToken.USDC);
+      // Pass null for decimals to let the recursive call determine the correct precision
+      const amountInUSD = await this.convertCurrency(amount, fromCurrency, EvmToken.USDC, null);
 
-      return this.convertCurrency(amountInUSD, EvmToken.USDC, toCurrency);
+      return this.convertCurrency(amountInUSD, EvmToken.USDC, toCurrency, null);
     } catch (error) {
       if (error instanceof Error) {
         logger.error(`Error converting ${amount} from ${fromCurrency} to ${toCurrency}: ${error.message}`);
