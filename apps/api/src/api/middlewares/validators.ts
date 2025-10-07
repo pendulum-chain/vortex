@@ -3,6 +3,8 @@ import {
   CreateAveniaSubaccountRequest,
   CreateQuoteRequest,
   Currency,
+  GetWidgetUrlLocked,
+  GetWidgetUrlRefresh,
   isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -16,7 +18,7 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@packages/shared";
-import { RequestHandler } from "express";
+import { Request, RequestHandler } from "express";
 import httpStatus from "http-status";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
@@ -388,6 +390,18 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   }
 
   next();
+};
+
+export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (
+  req,
+  res,
+  next
+) => {
+  if ((req.body as GetWidgetUrlLocked).quoteId) {
+    return next();
+  }
+
+  return validateCreateQuoteInput(req as Request<unknown, unknown, CreateQuoteRequest>, res, next);
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {

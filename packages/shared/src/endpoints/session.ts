@@ -1,6 +1,4 @@
-import { DestinationType } from "../helpers";
-import { RampDirection } from "../types";
-import { Currency } from "./price.endpoints";
+import { CreateQuoteRequest } from "./quote.endpoints";
 
 export interface GetWidgetUrlLocked {
   quoteId: string;
@@ -10,13 +8,7 @@ export interface GetWidgetUrlLocked {
   externalCustomerId?: string;
 }
 
-export interface GetWidgetUrlRefresh {
-  inputAmount: string;
-  rampType: RampDirection;
-  from: DestinationType;
-  to: DestinationType;
-  inputCurrency: Currency;
-  outputCurrency: Currency;
+export interface GetWidgetUrlRefresh extends CreateQuoteRequest {
   externalSessionId: string;
   walletAddressLocked?: string;
   externalTransactionId?: string;
