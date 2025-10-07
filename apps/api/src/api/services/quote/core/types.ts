@@ -171,6 +171,15 @@ export interface QuoteContext {
 
   pendulumToMoonbeamXcm?: XcmMeta;
 
+  pendulumToStellar?: {
+    amountIn: Big;
+    amountInRaw: string;
+    amountOut: Big;
+    amountOutRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   // Fees in baseline and display currency
   fees?: {
     // Baseline normalization currency: USD

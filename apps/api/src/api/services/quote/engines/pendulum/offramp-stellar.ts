@@ -1,19 +1,9 @@
-import {
-  AssetHubToken,
-  EvmToken,
-  multiplyByPowerOfTen,
-  Networks,
-  OnChainToken,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
-import { calculateNablaSwapOutput } from "../../core/nabla";
-import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OnRampPendulumTransferEngine implements Stage {
+export class OffRampToStellarPendulumTransferEngine implements Stage {
   readonly key = StageKey.OffRampPendulumTransfer;
 
   private price = priceFeedService;
@@ -26,17 +16,22 @@ export class OnRampPendulumTransferEngine implements Stage {
       return;
     }
 
-    if (
-      !ctx.nablaSwap?.outputAmountDecimal ||
-      !ctx.nablaSwap?.outputCurrency ||
-      !ctx.nablaSwap?.outputAmountRaw ||
-      !ctx.nablaSwap?.outputDecimals
-    ) {
+    if (!ctx.nablaSwap) {
       throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
     }
 
-    // TODO
-    // ctx.pendulumToStellar = { ... }
+    const amountIn = ctx.nablaSwap.outputAmountDecimal;
+    const amountInRaw = ctx.nablaSwap.outputAmountRaw;
+    const fee = new Big(0); // The fee is not paid in the token being transferred
+
+    ctx.pendulumToStellar = {
+      amountIn,
+      amountInRaw,
+      amountOut: amountIn, // The fees are not paid in the token being transferred, so amountOut = amountIn
+      amountOutRaw: amountInRaw,
+      currency: ctx.nablaSwap.outputCurrency,
+      fee
+    };
 
     ctx.addNote?.(``);
   }

@@ -9,7 +9,6 @@ import {
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
   createPendulumToMoonbeamTransfer,
-  EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   FiatToken,
@@ -378,7 +377,7 @@ async function createBRLTransactions(
  * @param nextNonce Next available nonce
  * @returns Updated nonce and state metadata
  */
-async function createStellarTransactions(
+async function createSpacewalkTransactions(
   params: {
     outputAmountRaw: string;
     stellarEphemeralEntry: AccountMeta;
@@ -574,25 +573,6 @@ export async function prepareOfframpTransactions({
   }
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
-  if (!quote.metadata?.offrampAmountBeforeAnchorFees) {
-    throw new Error("Quote metadata is missing offrampAmountBeforeAnchorFees");
-  }
-
-  const offrampAmountBeforeAnchorFeesUnits = new Big(quote.metadata.offrampAmountBeforeAnchorFees);
-  const offrampAmountBeforeAnchorFeesRaw = multiplyByPowerOfTen(
-    offrampAmountBeforeAnchorFeesUnits,
-    outputTokenDetails.decimals
-  ).toFixed(0, 0);
-
-  if (stellarPaymentData && stellarPaymentData.amount) {
-    const stellarAmount = new Big(stellarPaymentData.amount);
-    if (!stellarAmount.eq(offrampAmountBeforeAnchorFeesUnits)) {
-      throw new Error(
-        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`
-      );
-    }
-  }
-
   const stellarEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Stellar);
   if (!stellarEphemeralEntry) {
     throw new Error("Stellar ephemeral not found");
@@ -703,6 +683,12 @@ export async function prepareOfframpTransactions({
           );
         }
 
+        if (!quote.metadata.pendulumToMoonbeamXcm) {
+          throw new Error("Quote metadata is missing pendulumToMoonbeamXcm information");
+        }
+
+        const offrampAmountBeforeAnchorFeesRaw = quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw;
+
         const brlResult = await createBRLTransactions(
           {
             account,
@@ -732,8 +718,24 @@ export async function prepareOfframpTransactions({
           throw new Error("Stellar payment data must be provided for offramp");
         }
 
+        if (!quote.metadata.pendulumToStellar) {
+          throw new Error("Quote metadata is missing pendulumToStellar information");
+        }
+
+        const offrampAmountBeforeAnchorFeesUnits = quote.metadata.pendulumToStellar.amountOut;
+        const offrampAmountBeforeAnchorFeesRaw = quote.metadata.pendulumToStellar.amountOutRaw;
+
+        if (stellarPaymentData && stellarPaymentData.amount) {
+          const stellarAmount = new Big(stellarPaymentData.amount);
+          if (!stellarAmount.eq(offrampAmountBeforeAnchorFeesUnits)) {
+            throw new Error(
+              `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`
+            );
+          }
+        }
+
         // Use helper function to create Stellar transactions
-        const stellarResult = await createStellarTransactions(
+        const stellarResult = await createSpacewalkTransactions(
           {
             account,
             outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
@@ -762,6 +764,12 @@ export async function prepareOfframpTransactions({
       if (!stellarPaymentData) {
         throw new Error("Stellar payment data must be provided for offramp");
       }
+
+      if (!quote.metadata.pendulumToStellar) {
+        throw new Error("Quote metadata is missing pendulumToStellar information");
+      }
+
+      const offrampAmountBeforeAnchorFeesUnits = quote.metadata.pendulumToStellar.amountOut;
 
       await createStellarPaymentTransactions(
         {
