@@ -26,7 +26,6 @@ export interface RegisterWebhookResponse {
   events: WebhookEventType[];
   isActive: boolean;
   createdAt: string;
-  secret: string; // The webhook secret is returned only during registration
 }
 
 export interface DeleteWebhookRequest {
