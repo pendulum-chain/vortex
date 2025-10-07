@@ -3,6 +3,7 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   ApiManager,
+  AXL_USDC_MOONBEAM,
   addAdditionalTransactionsToMeta,
   createAssethubToPendulumXCM,
   createNablaTransactionsForOfframp,
@@ -51,16 +52,15 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi("pendulum");
 
-  const metadata = quote.metadata as QuoteTicketMetadata;
-  if (!metadata.usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
     logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
     return null;
   }
 
-  const networkFeeUSD = metadata.usdFeeStructure.network;
-  const vortexFeeUSD = metadata.usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
+  const networkFeeUSD = usdFeeStructure.network;
+  const vortexFeeUSD = usdFeeStructure.vortex;
+  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
   const vortexPartner = await Partner.findOne({
@@ -137,20 +137,21 @@ async function createEvmSourceTransactions(
     pendulumEphemeralAddress: string;
     fromNetwork: Networks;
     inputAmountRaw: string;
-    inputTokenDetails: EvmTokenDetails;
+    fromToken: `0x${string}`;
+    toToken: `0x${string}`;
   },
   unsignedTxs: UnsignedTx[]
 ): Promise<Partial<StateMetadata>> {
-  const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, inputTokenDetails } = params;
+  const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, fromToken, toToken } = params;
 
   const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } =
     await createOfframpSquidrouterTransactions({
       fromAddress: userAddress,
       fromNetwork,
-      fromToken: inputTokenDetails.erc20AddressSourceChain,
-      inputTokenDetails,
+      fromToken,
       pendulumAddressDestination: pendulumEphemeralAddress,
-      rawAmount: inputAmountRaw
+      rawAmount: inputAmountRaw,
+      toToken
     });
 
   unsignedTxs.push({
@@ -182,6 +183,7 @@ async function createEvmSourceTransactions(
  * Creates transactions for AssetHub source networks
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
+ * @param fromNetwork Source network
  */
 async function createAssetHubSourceTransactions(
   params: {
@@ -229,23 +231,15 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
-  // The input amount for the Nabla swap was already calculated in the quote
-  const inputAmountForNablaSwapRaw = multiplyByPowerOfTen(
-    new Big(quote.metadata.inputAmountForNablaSwapDecimal),
-    inputTokenPendulumDetails.decimals
-  ).toFixed(0, 0);
+  if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
+    throw new Error("Missing nablaSwap input amount in quote metadata");
+  }
 
-  // For these minimums, we use the output amount after all fees have been deducted except for the anchor fee.
-  const anchorFeeInOutputCurrency = quote.fee.anchor; // No conversion needed, already in output currency
-  const outputBeforeAnchorFee = new Big(quote.outputAmount).minus(anchorFeeInOutputCurrency);
-  const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenPendulumDetails.decimals).toFixed();
+  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwap.inputAmountForSwapRaw;
+  const outputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw);
 
-  const nablaHardMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
-  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
-    new Big(nablaHardMinimumOutput),
-    outputTokenPendulumDetails.decimals
-  ).toFixed(0, 0);
+  const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
     inputAmountForNablaSwapRaw,
@@ -278,7 +272,6 @@ async function createNablaSwapTransactions(
   return {
     nextNonce,
     stateMeta: {
-      inputAmountBeforeSwapRaw: inputAmountForNablaSwapRaw,
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions
@@ -616,12 +609,8 @@ export async function prepareOfframpTransactions({
   // Initialize state metadata
   stateMeta = {
     inputTokenPendulumDetails,
-    outputAmountBeforeFinalStep: {
-      raw: offrampAmountBeforeAnchorFeesRaw,
-      units: offrampAmountBeforeAnchorFeesUnits.toFixed()
-    },
+    outputCurrency: quote.outputCurrency,
     outputTokenPendulumDetails,
-    outputTokenType: quote.outputCurrency,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address
   };
 
@@ -633,9 +622,10 @@ export async function prepareOfframpTransactions({
     const evmSourceMetadata = await createEvmSourceTransactions(
       {
         fromNetwork,
+        fromToken: inputTokenDetails.erc20AddressSourceChain,
         inputAmountRaw,
-        inputTokenDetails,
         pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+        toToken: AXL_USDC_MOONBEAM,
         userAddress
       },
       unsignedTxs

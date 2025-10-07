@@ -50,22 +50,16 @@ export async function prepareMoneriumEvmOfframpTransactions({
   if (!inputTokenDetails) {
     throw new Error(`Input token details not found for ${quote.inputCurrency} on network ${fromNetwork}`);
   }
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 
   if (!isFiatToken(quote.outputCurrency)) {
     throw new Error(`Output currency must be fiat token for offramp, got ${quote.outputCurrency}`);
   }
-  const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
-  if (!quote.metadata?.offrampAmountBeforeAnchorFees) {
-    throw new Error("Quote metadata is missing offrampAmountBeforeAnchorFees");
+  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    throw new Error("Monerium Offramp requires moneriumMint metadata with amountOutRaw.");
   }
 
-  const offrampAmountBeforeAnchorFeesUnits = new Big(quote.metadata.offrampAmountBeforeAnchorFees);
-  const offrampAmountBeforeAnchorFeesRaw = multiplyByPowerOfTen(
-    offrampAmountBeforeAnchorFeesUnits,
-    outputTokenDetails.decimals
-  ).toFixed(0, 0);
+  const inputAmountRaw = quote.metadata.moneriumMint.amountOutRaw;
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
@@ -73,12 +67,8 @@ export async function prepareMoneriumEvmOfframpTransactions({
   // Initialize state metadata
   stateMeta = {
     inputTokenPendulumDetails,
-    outputAmountBeforeFinalStep: {
-      raw: offrampAmountBeforeAnchorFeesRaw,
-      units: offrampAmountBeforeAnchorFeesUnits.toFixed()
-    },
-    outputTokenPendulumDetails,
-    outputTokenType: quote.outputCurrency
+    outputCurrency: quote.outputCurrency,
+    outputTokenPendulumDetails
   };
 
   if (!userAddress) {

@@ -1,6 +1,4 @@
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { Extrinsic } from "@polkadot/types/interfaces";
-import { ISubmittableResult } from "@polkadot/types/types";
 import { ApiManager, SubstrateApiNetwork } from "../pendulum/apiManager";
 
 /**
@@ -28,7 +26,8 @@ export async function dryRunExtrinsic(extrinsic: Extrinsic, network: SubstrateAp
   // The dryRunApi is a runtime call, so we use api.call.
   const dryRunResult =
     network === "moonbeam"
-      ? await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength, resultXcmVersions)
+      ? // biome-ignore lint/suspicious/noExplicitAny: Moonbeam has a different signature for dryRunCall
+        await (api.call.dryRunApi.dryRunCall as any)(origin, extrinsicHexWithoutLength, resultXcmVersions)
       : await api.call.dryRunApi.dryRunCall(origin, extrinsicHexWithoutLength);
 
   return dryRunResult;
