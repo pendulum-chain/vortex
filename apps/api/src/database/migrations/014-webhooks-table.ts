@@ -24,15 +24,15 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       field: "is_active",
       type: DataTypes.BOOLEAN
     },
+    quoteId: {
+      allowNull: true,
+      field: "quote_id",
+      type: DataTypes.UUID
+    },
     sessionId: {
       allowNull: true,
       field: "session_id",
       type: DataTypes.STRING(255)
-    },
-    transactionId: {
-      allowNull: true,
-      field: "transaction_id",
-      type: DataTypes.UUID
     },
     updatedAt: {
       allowNull: false,
@@ -50,8 +50,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   // Add foreign key constraint
   await queryInterface.addConstraint("webhooks", {
-    fields: ["transaction_id"],
-    name: "fk_webhooks_transaction_id",
+    fields: ["quote_id"],
+    name: "fk_webhooks_quote_id",
     onDelete: "CASCADE",
     onUpdate: "CASCADE",
     references: {
@@ -62,8 +62,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Create indexes for efficient querying
-  await queryInterface.addIndex("webhooks", ["transaction_id"], {
-    name: "idx_webhooks_transaction_id"
+  await queryInterface.addIndex("webhooks", ["quote_id"], {
+    name: "idx_webhooks_quote_id"
   });
 
   await queryInterface.addIndex("webhooks", ["session_id"], {
@@ -82,13 +82,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Drop indexes
-  await queryInterface.removeIndex("webhooks", "idx_webhooks_transaction_id");
+  await queryInterface.removeIndex("webhooks", "idx_webhooks_quote_id");
   await queryInterface.removeIndex("webhooks", "idx_webhooks_session_id");
   await queryInterface.removeIndex("webhooks", "idx_webhooks_active");
   await queryInterface.removeIndex("webhooks", "idx_webhooks_active_events");
 
   // Remove foreign key constraint
-  await queryInterface.removeConstraint("webhooks", "fk_webhooks_transaction_id");
+  await queryInterface.removeConstraint("webhooks", "fk_webhooks_quote_id");
 
   // Drop table
   await queryInterface.dropTable("webhooks");
