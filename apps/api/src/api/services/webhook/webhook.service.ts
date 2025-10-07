@@ -9,7 +9,7 @@ import { APIError } from "../../errors/api-error";
 export class WebhookService {
   public async registerWebhook(request: RegisterWebhookRequest): Promise<RegisterWebhookResponse> {
     try {
-      const { url, transactionId, sessionId, events } = request;
+      const { url, quoteId, sessionId, events } = request;
 
       // Validate URL format
       if (!url) {
@@ -46,20 +46,20 @@ export class WebhookService {
         }
       }
 
-      // Validate that at least one of transactionId or sessionId is provided
-      if (!transactionId && !sessionId) {
+      // Validate that at least one of quoteId or sessionId is provided
+      if (!quoteId && !sessionId) {
         throw new APIError({
-          message: "Either transactionId or sessionId must be provided",
+          message: "Either quoteId or sessionId must be provided",
           status: httpStatus.BAD_REQUEST
         });
       }
 
-      // Validate that transactionId exists in the database if provided
-      if (transactionId) {
-        const existingTransaction = await QuoteTicket.findByPk(transactionId);
-        if (!existingTransaction) {
+      // Validate that quoteId exists in the database if provided
+      if (quoteId) {
+        const existingQuote = await QuoteTicket.findByPk(quoteId);
+        if (!existingQuote) {
           throw new APIError({
-            message: `Transaction with ID ${transactionId} not found`,
+            message: `Quote with ID ${quoteId} not found`,
             status: httpStatus.NOT_FOUND
           });
         }
@@ -70,8 +70,8 @@ export class WebhookService {
       const webhook = await Webhook.create({
         events: webhookEvents,
         isActive: true,
+        quoteId: quoteId || null,
         sessionId: sessionId || null,
-        transactionId: transactionId || null,
         url
       });
 
@@ -82,8 +82,8 @@ export class WebhookService {
         events: webhook.events,
         id: webhook.id,
         isActive: webhook.isActive,
+        quoteId: webhook.quoteId,
         sessionId: webhook.sessionId,
-        transactionId: webhook.transactionId,
         url: webhook.url
       };
     } catch (error: unknown) {
@@ -126,7 +126,7 @@ export class WebhookService {
    */
   public async findWebhooksForEvent(
     eventType: WebhookEventType,
-    transactionId: string,
+    quoteId: string,
     sessionId?: string | null
   ): Promise<Webhook[]> {
     try {
@@ -139,9 +139,9 @@ export class WebhookService {
 
       const orConditions: WhereOptions[] = [];
 
-      // Match webhooks subscribed to this specific transaction
-      if (transactionId) {
-        orConditions.push({ transactionId });
+      // Match webhooks subscribed to this specific quote
+      if (quoteId) {
+        orConditions.push({ quoteId });
       }
 
       // Match webhooks subscribed to this specific session
@@ -149,10 +149,10 @@ export class WebhookService {
         orConditions.push({ sessionId });
       }
 
-      // Match webhooks with no specific transaction or session (global webhooks)
+      // Match webhooks with no specific quote or session (global webhooks)
       orConditions.push({
-        sessionId: null,
-        transactionId: null
+        quoteId: null,
+        sessionId: null
       });
 
       if (orConditions.length > 0) {

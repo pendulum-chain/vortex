@@ -13,7 +13,7 @@ export enum TransactionStatus {
 
 export interface RegisterWebhookRequest {
   url: string;
-  transactionId?: string;
+  quoteId?: string;
   sessionId?: string;
   events?: WebhookEventType[];
 }
@@ -21,7 +21,7 @@ export interface RegisterWebhookRequest {
 export interface RegisterWebhookResponse {
   id: string;
   url: string;
-  transactionId: string | null;
+  quoteId: string | null;
   sessionId: string | null;
   events: WebhookEventType[];
   isActive: boolean;
@@ -38,7 +38,7 @@ export interface DeleteWebhookResponse {
 }
 
 export interface WebhookPayloadBase {
-  transactionId: string;
+  quoteId: string;
   sessionId: string | null;
   transactionStatus: TransactionStatus;
   transactionType: RampDirection;

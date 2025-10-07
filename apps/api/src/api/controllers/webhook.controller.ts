@@ -11,7 +11,7 @@ export const registerWebhook = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { url, transactionId, sessionId, events } = req.body;
+    const { url, quoteId, sessionId, events } = req.body;
 
     if (!url) {
       throw new APIError({
@@ -35,17 +35,17 @@ export const registerWebhook = async (
       });
     }
 
-    if (!transactionId && !sessionId) {
+    if (!quoteId && !sessionId) {
       throw new APIError({
-        message: "Either transactionId or sessionId must be provided",
+        message: "Either quoteId or sessionId must be provided",
         status: httpStatus.BAD_REQUEST
       });
     }
 
     const webhook = await webhookService.registerWebhook({
       events,
+      quoteId,
       sessionId,
-      transactionId,
       url
     });
 

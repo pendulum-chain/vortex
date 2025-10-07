@@ -5,7 +5,7 @@ import sequelize from "../config/database";
 export interface WebhookAttributes {
   id: string;
   url: string;
-  transactionId: string | null;
+  quoteId: string | null;
   sessionId: string | null;
   events: WebhookEventType[];
   isActive: boolean;
@@ -20,7 +20,7 @@ class Webhook extends Model<WebhookAttributes, WebhookCreationAttributes> implem
 
   declare url: string;
 
-  declare transactionId: string | null;
+  declare quoteId: string | null;
 
   declare sessionId: string | null;
 
@@ -71,19 +71,19 @@ Webhook.init(
       field: "is_active",
       type: DataTypes.BOOLEAN
     },
-    sessionId: {
+    quoteId: {
       allowNull: true,
-      field: "session_id",
-      type: DataTypes.STRING(255)
-    },
-    transactionId: {
-      allowNull: true,
-      field: "transaction_id",
+      field: "quote_id",
       references: {
         key: "id",
         model: "quote_tickets"
       },
       type: DataTypes.UUID
+    },
+    sessionId: {
+      allowNull: true,
+      field: "session_id",
+      type: DataTypes.STRING(255)
     },
     updatedAt: {
       allowNull: false,
@@ -107,8 +107,8 @@ Webhook.init(
   {
     indexes: [
       {
-        fields: ["transaction_id"],
-        name: "idx_webhooks_transaction_id"
+        fields: ["quote_id"],
+        name: "idx_webhooks_quote_id"
       },
       {
         fields: ["session_id"],

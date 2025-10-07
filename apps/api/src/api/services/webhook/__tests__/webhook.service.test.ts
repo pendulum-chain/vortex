@@ -9,7 +9,7 @@ import Webhook, { WebhookAttributes } from '../../../../models/webhook.model';
 const createMockWebhook = (overrides: Partial<WebhookAttributes> = {}) => ({
   id: 'webhook-123',
   url: 'https://example.com/webhook',
-  transactionId: 'tx-123',
+  quoteId: 'quote-123',
   sessionId: null,
   events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
   isActive: true,
@@ -25,8 +25,8 @@ const createMockRampState = (overrides: Partial<{ id: string }> = {}) => ({
 
 const createMockWebhookArray = (webhooks: Partial<WebhookAttributes>[] = []) =>
   webhooks.length > 0 ? webhooks.map(webhook => createMockWebhook(webhook)) : [
-    createMockWebhook({ id: 'webhook-1', transactionId: 'tx-123' }),
-    createMockWebhook({ id: 'webhook-2', transactionId: null, sessionId: null })
+    createMockWebhook({ id: 'webhook-1', quoteId: 'quote-123' }),
+    createMockWebhook({ id: 'webhook-2', quoteId: null, sessionId: null })
   ];
 
 // Create mock functions first
@@ -91,33 +91,33 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook', () => {
-    it('should register a webhook with transactionId', async () => {
+    it('should register a webhook with quoteId', async () => {
       const mockWebhook = createMockWebhook();
 
       // Setup mocks
-      rampStateFindByPkMock.mockResolvedValue(createMockRampState()); // Transaction exists
+      rampStateFindByPkMock.mockResolvedValue(createMockRampState()); // Quote exists
       createMock.mockResolvedValue(mockWebhook);
 
       // Execute
       const result = await webhookService.registerWebhook({
         url: 'https://example.com/webhook',
-        transactionId: 'tx-123'
+        quoteId: 'quote-123'
       });
 
       // Verify
-      expect(rampStateFindByPkMock).toHaveBeenCalledWith('tx-123');
+      expect(rampStateFindByPkMock).toHaveBeenCalledWith('quote-123');
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
         sessionId: null,
-        transactionId: 'tx-123',
+        quoteId: 'quote-123',
         url: 'https://example.com/webhook'
       });
 
       expect(result).toEqual({
         id: 'webhook-123',
         url: 'https://example.com/webhook',
-        transactionId: 'tx-123',
+        quoteId: 'quote-123',
         sessionId: null,
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
@@ -128,7 +128,7 @@ describe('WebhookService', () => {
     it('should register a webhook with sessionId', async () => {
       const mockWebhook = createMockWebhook({
         id: 'webhook-456',
-        transactionId: null,
+        quoteId: null,
         sessionId: 'session-456'
       });
 
@@ -146,14 +146,14 @@ describe('WebhookService', () => {
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
         sessionId: 'session-456',
-        transactionId: null,
+        quoteId: null,
         url: 'https://example.com/webhook'
       });
 
       expect(result).toEqual({
         id: 'webhook-456',
         url: 'https://example.com/webhook',
-        transactionId: null,
+        quoteId: null,
         sessionId: 'session-456',
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
@@ -164,7 +164,7 @@ describe('WebhookService', () => {
     it('should register a webhook with custom events', async () => {
       const mockWebhook = createMockWebhook({
         id: 'webhook-789',
-        transactionId: null,
+        quoteId: null,
         sessionId: 'session-789',
         events: [WebhookEventType.STATUS_CHANGE]
       });
@@ -184,7 +184,7 @@ describe('WebhookService', () => {
         events: [WebhookEventType.STATUS_CHANGE],
         isActive: true,
         sessionId: 'session-789',
-        transactionId: null,
+        quoteId: null,
         url: 'https://example.com/webhook'
       });
 
@@ -198,7 +198,7 @@ describe('WebhookService', () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'https://example.com/webhook',
-        transactionId: 'tx-123'
+        quoteId: 'quote-123'
       })).rejects.toBeInstanceOf(APIError);
     });
 
@@ -206,14 +206,14 @@ describe('WebhookService', () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'http://example.com/webhook',
-        transactionId: 'tx-123'
+        quoteId: 'quote-123'
       })).rejects.toBeInstanceOf(APIError);
     });
 
     it('should reject missing URL', async () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
-        transactionId: 'tx-123'
+        quoteId: 'quote-123'
       } as any)).rejects.toBeInstanceOf(APIError);
     });
 
@@ -221,7 +221,7 @@ describe('WebhookService', () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'https://example.com/webhook',
-        transactionId: 'tx-123',
+        quoteId: 'quote-123',
         events: ['INVALID_EVENT' as any]
       })).rejects.toBeInstanceOf(APIError);
     });
@@ -230,26 +230,26 @@ describe('WebhookService', () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'https://example.com/webhook',
-        transactionId: 'tx-123',
+        quoteId: 'quote-123',
         events: []
       })).rejects.toBeInstanceOf(APIError);
     });
 
-    it('should reject when neither transactionId nor sessionId is provided', async () => {
+    it('should reject when neither quoteId nor sessionId is provided', async () => {
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'https://example.com/webhook'
       })).rejects.toBeInstanceOf(APIError);
     });
 
-    it('should reject when transactionId does not exist', async () => {
-      // Setup mocks - transaction not found
+    it('should reject when quoteId does not exist', async () => {
+      // Setup mocks - quote not found
       rampStateFindByPkMock.mockResolvedValue(null);
 
       // Execute and verify
       await expect(webhookService.registerWebhook({
         url: 'https://example.com/webhook',
-        transactionId: 'non-existent-tx'
+        quoteId: 'non-existent-quote'
       })).rejects.toBeInstanceOf(APIError);
     });
   });
@@ -298,11 +298,11 @@ describe('WebhookService', () => {
   });
 
   describe('findWebhooksForEvent', () => {
-    it('should find webhooks for a specific transaction', async () => {
+    it('should find webhooks for a specific quote', async () => {
       // Use mock factory
       const mockWebhooks = createMockWebhookArray([
-        { id: 'webhook-1', transactionId: 'tx-123', events: [WebhookEventType.TRANSACTION_CREATED] },
-        { id: 'webhook-2', transactionId: null, sessionId: null, events: [WebhookEventType.TRANSACTION_CREATED] }
+        { id: 'webhook-1', quoteId: 'quote-123', events: [WebhookEventType.TRANSACTION_CREATED] },
+        { id: 'webhook-2', quoteId: null, sessionId: null, events: [WebhookEventType.TRANSACTION_CREATED] }
       ]);
 
       // Setup mocks
@@ -311,7 +311,7 @@ describe('WebhookService', () => {
       // Execute
       const result = await webhookService.findWebhooksForEvent(
         WebhookEventType.TRANSACTION_CREATED,
-        'tx-123'
+        'quote-123'
       );
 
       // Verify
@@ -324,12 +324,12 @@ describe('WebhookService', () => {
       expect(result).toEqual(mockWebhooks);
     });
 
-    it('should find webhooks for session and transaction', async () => {
+    it('should find webhooks for session and quote', async () => {
       // Use mock factory
       const mockWebhooks = createMockWebhookArray([
-        { id: 'webhook-1', transactionId: 'tx-123', events: [WebhookEventType.STATUS_CHANGE] },
-        { id: 'webhook-2', transactionId: null, sessionId: 'session-456', events: [WebhookEventType.STATUS_CHANGE] },
-        { id: 'webhook-3', transactionId: null, sessionId: null, events: [WebhookEventType.STATUS_CHANGE] }
+        { id: 'webhook-1', quoteId: 'quote-123', events: [WebhookEventType.STATUS_CHANGE] },
+        { id: 'webhook-2', quoteId: null, sessionId: 'session-456', events: [WebhookEventType.STATUS_CHANGE] },
+        { id: 'webhook-3', quoteId: null, sessionId: null, events: [WebhookEventType.STATUS_CHANGE] }
       ]);
 
       // Setup mocks
@@ -338,7 +338,7 @@ describe('WebhookService', () => {
       // Execute
       const result = await webhookService.findWebhooksForEvent(
         WebhookEventType.STATUS_CHANGE,
-        'tx-123',
+        'quote-123',
         'session-456'
       );
 
@@ -359,7 +359,7 @@ describe('WebhookService', () => {
       // Execute
       const result = await webhookService.findWebhooksForEvent(
         WebhookEventType.TRANSACTION_CREATED,
-        'tx-123'
+        'quote-123'
       );
 
       // Verify - should return empty array on error

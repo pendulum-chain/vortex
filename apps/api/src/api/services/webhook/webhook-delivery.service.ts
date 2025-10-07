@@ -78,27 +78,23 @@ export class WebhookDeliveryService {
   }
 
   public async triggerTransactionCreated(
-    transactionId: string,
+    quoteId: string,
     sessionId: string | null,
     transactionType: RampDirection
   ): Promise<void> {
     try {
-      const webhooks = await webhookService.findWebhooksForEvent(
-        WebhookEventType.TRANSACTION_CREATED,
-        transactionId,
-        sessionId
-      );
+      const webhooks = await webhookService.findWebhooksForEvent(WebhookEventType.TRANSACTION_CREATED, quoteId, sessionId);
 
       if (webhooks.length === 0) {
-        logger.debug(`No webhooks found for TRANSACTION_CREATED event: ${transactionId}`);
+        logger.debug(`No webhooks found for TRANSACTION_CREATED event: ${quoteId}`);
         return;
       }
 
       const payload: WebhookPayload = {
         eventType: WebhookEventType.TRANSACTION_CREATED,
         payload: {
+          quoteId,
           sessionId,
-          transactionId,
           transactionStatus: TransactionStatus.PENDING,
           transactionType: transactionType
         },
@@ -108,31 +104,31 @@ export class WebhookDeliveryService {
       const deliveryPromises = webhooks.map(webhook => this.deliverWithRetry(webhook, payload));
       await Promise.allSettled(deliveryPromises);
 
-      logger.info(`Triggered TRANSACTION_CREATED webhooks for transaction: ${transactionId} (${webhooks.length} webhooks)`);
+      logger.info(`Triggered TRANSACTION_CREATED webhooks for quote: ${quoteId} (${webhooks.length} webhooks)`);
     } catch (error) {
-      logger.error(`Error triggering TRANSACTION_CREATED webhooks for ${transactionId}:`, error);
+      logger.error(`Error triggering TRANSACTION_CREATED webhooks for ${quoteId}:`, error);
     }
   }
 
   public async triggerStatusChange(
-    transactionId: string,
+    quoteId: string,
     sessionId: string | null,
     newPhase: string,
     transactionType: RampDirection
   ): Promise<void> {
     try {
-      const webhooks = await webhookService.findWebhooksForEvent(WebhookEventType.STATUS_CHANGE, transactionId, sessionId);
+      const webhooks = await webhookService.findWebhooksForEvent(WebhookEventType.STATUS_CHANGE, quoteId, sessionId);
 
       if (webhooks.length === 0) {
-        logger.debug(`No webhooks found for STATUS_CHANGE event: ${transactionId}`);
+        logger.debug(`No webhooks found for STATUS_CHANGE event: ${quoteId}`);
         return;
       }
 
       const payload: WebhookPayload = {
         eventType: WebhookEventType.STATUS_CHANGE,
         payload: {
+          quoteId,
           sessionId,
-          transactionId,
           transactionStatus: this.mapPhaseToStatus(newPhase),
           transactionType: transactionType
         },
@@ -142,9 +138,9 @@ export class WebhookDeliveryService {
       const deliveryPromises = webhooks.map(webhook => this.deliverWithRetry(webhook, payload));
       await Promise.allSettled(deliveryPromises);
 
-      logger.info(`Triggered STATUS_CHANGE webhooks for transaction: ${transactionId} (${webhooks.length} webhooks)`);
+      logger.info(`Triggered STATUS_CHANGE webhooks for quote: ${quoteId} (${webhooks.length} webhooks)`);
     } catch (error) {
-      logger.error(`Error triggering STATUS_CHANGE webhooks for ${transactionId}:`, error);
+      logger.error(`Error triggering STATUS_CHANGE webhooks for ${quoteId}:`, error);
     }
   }
 }
