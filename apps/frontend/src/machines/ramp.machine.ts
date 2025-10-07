@@ -413,8 +413,8 @@ export const rampMachine = setup({
       after: {
         5000: {
           actions: [
-            { type: "resetRamp" },
-            { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }
+            { params: ({ context }: { context: RampContext }) => ({ context }), type: "urlCleanerWithCallbackAction" },
+            { type: "resetRamp" }
           ],
           target: "Idle"
         }

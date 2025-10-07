@@ -290,7 +290,7 @@
     },
     "RampFollowUpRedirectStep": {
       "afterLink": ".",
-      "beforeLink": "Estamos redirecionando você de volta para seu parceiro em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",
+      "beforeLink": "Você será redirecionado em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",
       "link": "aqui",
       "title": "Sua rampa está sendo processada agora"
     },
