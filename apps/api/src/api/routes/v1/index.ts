@@ -3,7 +3,6 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
 import brlaRoutes from "./brla.route";
-import cryptoRoutes from "./crypto.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import maintenanceRoutes from "./maintenance.route";
@@ -12,6 +11,7 @@ import moonbeamRoutes from "./moonbeam.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import pendulumRoutes from "./pendulum.route";
 import priceRoutes from "./price.route";
+import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
@@ -140,7 +140,7 @@ router.use("/webhook", webhookRoutes);
 /**
  * GET v1/public-key
  */
-router.use("/public-key", cryptoRoutes);
+router.use("/public-key", publicKeyRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
