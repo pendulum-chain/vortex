@@ -20,7 +20,8 @@ export const useStepper = () => {
     isRegisterOrUpdate,
     rampPaymentConfirmed,
     rampSummaryVisible,
-    rampFollowUp
+    rampFollowUp,
+    redirectCallback
   } = useSelector(rampActor, state => ({
     isKycActive: state.matches("KYC"),
     isKycComplete: state.matches("KycComplete"),
@@ -28,14 +29,15 @@ export const useStepper = () => {
     isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
     rampFollowUp: state.matches("RampFollowUp"),
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-    rampSummaryVisible: state.matches("KycComplete")
+    rampSummaryVisible: state.matches("KycComplete"),
+    redirectCallback: state.matches("RedirectCallback")
   }));
 
   const secondStepActive = isKycComplete || isKycActive || isKycFailure;
-  const secondStepComplete = rampFollowUp || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
+  const secondStepComplete = rampFollowUp || redirectCallback || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
-  const thirdStepComplete = rampFollowUp || rampPaymentConfirmed;
+  const thirdStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed;
 
   const steps = useMemo((): Step[] => {
     return [

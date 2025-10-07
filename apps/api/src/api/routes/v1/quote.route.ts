@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { createQuote, getQuote } from "../../controllers/quote.controller";
+import { validateCreateQuoteInput } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -30,7 +31,7 @@ const router: Router = Router({ mergeParams: true });
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  */
-router.route("/").post(createQuote);
+router.route("/").post(validateCreateQuoteInput, createQuote);
 
 /**
  * @api {get} v1/quotes/:id Get quote

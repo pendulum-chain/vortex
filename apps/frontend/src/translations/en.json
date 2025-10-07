@@ -250,6 +250,11 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "The passed parameters are invalid. You will be redirected shortly.",
+      "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
+      "tryAgain": "Try Again"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },
@@ -281,6 +286,15 @@
     "quoteSubmitButton": {
       "buy": "Buy",
       "sell": "Sell"
+    },
+    "RampFollowUpRedirectStep": {
+      "afterLink": ".",
+      "beforeLink": "You will be redirected in {{countdown}}s. If you are not automatically redirected, please click ",
+      "link": "here",
+      "title": "Your ramp is being processed now"
+    },
+    "RampSubmitButton": {
+      "connectDesignatedWallet": "Please connect the designated wallet '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",
@@ -522,6 +536,7 @@
         "buttons": {
           "next": "Next"
         },
+        "quoteChangedWarning": "Your quote has changed. Please confirm the new output amount before proceeding.",
         "title": "Enter Details"
       }
     }

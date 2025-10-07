@@ -15,6 +15,7 @@ import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
+import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
 import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
@@ -99,6 +100,11 @@ router.use("/rating", ratingRoutes);
  * POST v1/siwe
  */
 router.use("/siwe", siweRoutes);
+
+/**
+ * POST v1/session
+ */
+router.use("/session", sessionRoutes);
 
 /**
  * GET v1/brla

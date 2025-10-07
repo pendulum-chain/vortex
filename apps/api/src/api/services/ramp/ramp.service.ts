@@ -721,7 +721,6 @@ export class RampService extends BaseRampService {
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
-    console.log("DEBUG: created avenia quote: ", aveniaQuote);
     const aveniaTicket = await brlaApiService.createPixInputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
@@ -736,7 +735,6 @@ export class RampService extends BaseRampService {
       taxIdRecord.subAccountId
     );
 
-    console.log("DEBUG: created avenia ticket: ", aveniaTicket);
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
   }
 
