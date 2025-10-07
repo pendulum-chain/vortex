@@ -24,10 +24,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       field: "is_active",
       type: DataTypes.BOOLEAN
     },
-    secret: {
-      allowNull: false,
-      type: DataTypes.STRING(255)
-    },
     sessionId: {
       allowNull: true,
       field: "session_id",
@@ -60,7 +56,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onUpdate: "CASCADE",
     references: {
       field: "id",
-      table: "ramp_states"
+      table: "quote_tickets"
     },
     type: "foreign key"
   });
