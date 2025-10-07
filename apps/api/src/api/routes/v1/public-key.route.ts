@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPublicKey } from "../../controllers/crypto.controller";
+import { getPublicKey } from "../../controllers/public-key.controller";
 
 const router = Router();
 
