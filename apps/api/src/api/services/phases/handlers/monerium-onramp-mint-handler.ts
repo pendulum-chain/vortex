@@ -7,6 +7,7 @@ import {
   RampPhase
 } from "@packages/shared";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -21,11 +22,23 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { inputAmountUnits, walletAddress, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
+    const { walletAddress } = state.state as StateMetadata;
 
-    if (!inputAmountUnits || !walletAddress || !inputAmountBeforeSwapRaw) {
+    if (!walletAddress) {
       throw new Error("MoneriumOnrampMintPhaseHandler: State metadata corrupted. This is a bug.");
     }
+
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.moneriumMint?.amountOutRaw) {
+      throw new Error("MoneriumOnrampMintPhaseHandler: Missing moneriumMint metadata.");
+    }
+
+    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.amountOutRaw;
+
     try {
       const pollingTimeMs = 1000;
 

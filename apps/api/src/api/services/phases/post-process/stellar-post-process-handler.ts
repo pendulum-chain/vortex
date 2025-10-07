@@ -22,7 +22,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    if (state.type !== RampDirection.SELL || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
+    if (state.type !== RampDirection.SELL || state.state.outputCurrency === FiatToken.BRL) {
       return false;
     }
 

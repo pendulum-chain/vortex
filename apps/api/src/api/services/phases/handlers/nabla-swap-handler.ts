@@ -11,6 +11,7 @@ import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -25,22 +26,21 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const {
-      nablaSoftMinimumOutputRaw,
-      pendulumEphemeralAddress,
-      inputAmountBeforeSwapRaw,
-      inputTokenPendulumDetails,
-      outputTokenPendulumDetails
-    } = state.state as StateMetadata;
+    const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    if (
-      !nablaSoftMinimumOutputRaw ||
-      !pendulumEphemeralAddress ||
-      !inputAmountBeforeSwapRaw ||
-      !inputTokenPendulumDetails ||
-      !outputTokenPendulumDetails
-    ) {
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    const { nablaSoftMinimumOutputRaw, pendulumEphemeralAddress, inputTokenPendulumDetails, outputTokenPendulumDetails } =
+      state.state as StateMetadata;
+
+    if (!nablaSoftMinimumOutputRaw || !pendulumEphemeralAddress || !inputTokenPendulumDetails || !outputTokenPendulumDetails) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
+    }
+
+    if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
+      throw new Error("Missing input amount for swap in quote metadata");
     }
 
     try {
@@ -74,7 +74,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         contractDeploymentAddress: NABLA_ROUTER,
         limits: defaultReadLimits,
         messageArguments: [
-          inputAmountBeforeSwapRaw,
+          quote.metadata.nablaSwap.inputAmountForSwapRaw,
           [inputTokenPendulumDetails.erc20WrapperAddress, outputTokenPendulumDetails.erc20WrapperAddress]
         ],
         messageName: "getAmountOut"

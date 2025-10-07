@@ -10,6 +10,7 @@ import {
 import Big from "big.js";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 
@@ -45,10 +46,21 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       return state;
     }
 
-    const { polygonEphemeralAddress, inputAmountBeforeSwapRaw } = state.state;
+    const quote = await QuoteTicket.findByPk(state.id);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.moneriumMint?.amountOutRaw) {
+      throw new Error("MoneriumOnrampSelfTransfer: Missing moneriumMint metadata.");
+    }
+
+    const { polygonEphemeralAddress } = state.state;
     if (!polygonEphemeralAddress) {
       throw new Error("MoneriumOnrampSelfTransfer: Polygon ephemeral address not defined in the state. This is a bug.");
     }
+
+    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.amountOutRaw;
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({

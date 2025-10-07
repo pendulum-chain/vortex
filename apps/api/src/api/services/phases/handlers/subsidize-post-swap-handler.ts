@@ -2,6 +2,7 @@ import { ApiManager, FiatToken, RampDirection, RampPhase } from "@packages/share
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
@@ -18,11 +19,20 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress, outputTokenPendulumDetails, outputAmountBeforeFinalStep, outputTokenType } =
-      state.state as StateMetadata;
+    const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    if (!pendulumEphemeralAddress || !outputTokenPendulumDetails || !outputAmountBeforeFinalStep || !outputTokenType) {
+    const { pendulumEphemeralAddress, outputTokenPendulumDetails } = state.state as StateMetadata;
+
+    if (!pendulumEphemeralAddress || !outputTokenPendulumDetails) {
       throw new Error("SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.");
+    }
+
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.nablaSwap?.outputAmountRaw) {
+      throw new Error("Missing output amount before final step in quote metadata");
     }
 
     try {
@@ -37,11 +47,13 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
 
-      const requiredAmount = Big(outputAmountBeforeFinalStep.raw).sub(currentBalance);
+      const expectedSwapOutputAmountRaw = quote.metadata.nablaSwap.outputAmountRaw;
+
+      const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
-          `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${outputAmountBeforeFinalStep.raw}`
+          `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
         const txHash = await pendulumNode.api.tx.tokens
@@ -71,7 +83,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     }
 
     // off ramp cases
-    if (state.state.outputTokenType === FiatToken.BRL) {
+    if (state.state.outputCurrency === FiatToken.BRL) {
       return "pendulumToMoonbeam";
     }
     return "spacewalkRedeem";

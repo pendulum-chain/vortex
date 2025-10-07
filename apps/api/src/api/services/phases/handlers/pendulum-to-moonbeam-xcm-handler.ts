@@ -16,6 +16,7 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -29,7 +30,13 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, brlaEvmAddress, outputAmountBeforeFinalStep } = state.state;
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, brlaEvmAddress } = state.state;
 
     if (!pendulumEphemeralAddress) {
       throw new Error("Ephemeral address not defined in the state. This is a bug.");
@@ -41,6 +48,12 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       );
     }
 
+    if (!quote.metadata.pendulumToMoonbeamXcm?.outputAmountRaw) {
+      throw new Error("Missing output amount for Pendulum to Moonbeam XCM in quote metadata");
+    }
+
+    const expectedOutputAmountRaw = quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw;
+
     const didTokensLeavePendulum = async () => {
       // Token is always either axlUSDC or BRL.
       const currencyId =
@@ -51,7 +64,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
 
       // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
-      return currentBalance.lt(outputAmountBeforeFinalStep.raw);
+      return currentBalance.lt(expectedOutputAmountRaw);
     };
 
     const didTokensArriveOnMoonbeam = async () => {
@@ -61,7 +74,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
           ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address
           : AXL_USDC_MOONBEAM;
       const ownerAddress =
-        state.type === RampDirection.SELL && state.state.outputTokenType === FiatToken.BRL
+        state.type === RampDirection.SELL && state.state.outputCurrency === FiatToken.BRL
           ? brlaEvmAddress
           : moonbeamEphemeralAddress;
 
@@ -71,7 +84,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         tokenAddress: tokenAddress as `0x${string}`
       });
 
-      return balance.gte(Big(outputAmountBeforeFinalStep.raw));
+      return balance.gte(expectedOutputAmountRaw);
     };
 
     try {

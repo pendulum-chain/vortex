@@ -9,17 +9,19 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
+import { calculateNablaSwapOutput } from "../../core/nabla";
+import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
 
-export class OnRampPendulumTransferEngine implements Stage {
-  readonly key = StageKey.OnRampPendulumTransfer;
+export class OffRampToAveniaPendulumTransferEngine implements Stage {
+  readonly key = StageKey.OffRampPendulumTransfer;
 
   private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    if (req.rampType !== RampDirection.BUY) {
+    if (req.rampType !== RampDirection.SELL) {
       ctx.addNote?.("Skipped for off-ramp request");
       return;
     }
@@ -64,7 +66,7 @@ export class OnRampPendulumTransferEngine implements Stage {
       .minus(destinationFeeInTargetCurrency);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();
 
-    const xcmMeta: XcmMeta = {
+    ctx.pendulumToMoonbeamXcm = {
       fromToken: ctx.nablaSwap.outputCurrency,
       inputAmountDecimal: ctx.nablaSwap.outputAmountDecimal,
       inputAmountRaw: ctx.nablaSwap.outputAmountRaw,
@@ -73,19 +75,6 @@ export class OnRampPendulumTransferEngine implements Stage {
       toToken: ctx.nablaSwap.outputCurrency,
       xcmFees
     };
-
-    if (req.to === "assethub") {
-      if (req.outputCurrency !== AssetHubToken.USDC) {
-        // Transfer to Hydration first for non-USDC AssetHub tokens
-        ctx.pendulumToHydrationXcm = xcmMeta;
-      } else {
-        // Direct transfer from Pendulum to AssetHub
-        ctx.pendulumToAssethubXcm = xcmMeta;
-      }
-    } else {
-      // Transfer from Pendulum to Moonbeam
-      ctx.pendulumToMoonbeamXcm = xcmMeta;
-    }
 
     ctx.addNote?.(
       `Calculated XCM transfer with ${xcmFees.origin.amount} ${xcmFees.origin.currency} origin fee and ${xcmFees.destination.amount} ${xcmFees.destination.currency} destination fee`

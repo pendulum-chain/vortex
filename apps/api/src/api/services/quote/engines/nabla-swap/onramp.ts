@@ -3,6 +3,7 @@ import {
   EvmToken,
   FiatToken,
   getPendulumDetails,
+  multiplyByPowerOfTen,
   Networks,
   PENDULUM_USDC_AXL,
   RampDirection
@@ -39,12 +40,13 @@ export class OnRampSwapEngine implements Stage {
     // Also, the input currency for the swap here is always USDC
     const preSwapFees = ctx.fees.usd.total;
 
-    const inputAmountForSwap = amountReceivedOnPendulum.minus(preSwapFees).toString();
-
     // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
     const inputTokenPendulumDetails = req.from === "pix" ? getPendulumDetails(FiatToken.BRL) : PENDULUM_USDC_AXL;
     const outputTokenPendulumDetails =
       req.to === "assethub" ? getPendulumDetails(AssetHubToken.USDC, Networks.AssetHub) : PENDULUM_USDC_AXL;
+
+    const inputAmountForSwap = amountReceivedOnPendulum.minus(preSwapFees).toString();
+    const inputAmountForSwapRaw = multiplyByPowerOfTen(inputAmountForSwap, inputTokenPendulumDetails.decimals).toString();
 
     const result = await calculateNablaSwapOutput({
       inputAmountForSwap,
@@ -56,6 +58,7 @@ export class OnRampSwapEngine implements Stage {
     ctx.nablaSwap = {
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwap,
+      inputAmountForSwapRaw,
       inputCurrency: inputTokenPendulumDetails.currency,
       inputDecimals: inputTokenPendulumDetails.decimals,
       outputAmountDecimal: result.nablaOutputAmountDecimal,

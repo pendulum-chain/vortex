@@ -12,6 +12,7 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import TaxId from "../../../../models/taxId.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -24,19 +25,15 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const {
-      taxId,
-      pixDestination,
-      outputAmountBeforeFinalStep,
-      outputTokenType,
-      receiverTaxId,
-      moonbeamEphemeralAddress,
-      payOutTicketId,
-      outputAmount
-    } = state.state as StateMetadata;
+    const { taxId, pixDestination, payOutTicketId, outputAmount, outputCurrency } = state.state as StateMetadata;
 
-    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !outputTokenType || !outputAmount) {
+    if (!taxId || !pixDestination || !outputAmount) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
+    }
+
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
     }
 
     const taxIdRecord = await TaxId.findByPk(taxId);
@@ -44,9 +41,15 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: SubaccountId must exist at this stage. This is a bug.");
     }
 
-    if (!isFiatTokenEnum(outputTokenType)) {
+    if (!isFiatTokenEnum(outputCurrency)) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Invalid token type.");
     }
+
+    if (!quote.metadata.pendulumToMoonbeamXcm?.outputAmountDecimal) {
+      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Missing pendulumToMoonbeamXcm metadata.");
+    }
+
+    const amountForPayout = quote.metadata.pendulumToMoonbeamXcm.outputAmountDecimal;
 
     const brlaApiService = BrlaApiService.getInstance();
 
@@ -66,13 +69,13 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         try {
           const balanceResponse = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
           if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
-            if (new Big(balanceResponse.balances.BRLA).gte(outputAmountBeforeFinalStep.units)) {
+            if (new Big(balanceResponse.balances.BRLA).gte(amountForPayout)) {
               logger.info(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
               return balanceResponse;
             }
             logger.info(
               `Insufficient BRLA balance. Needed units: ${
-                outputAmountBeforeFinalStep.units
+                amountForPayout
               }, have (in units): ${new Big(balanceResponse.balances.BRLA).toString()}. Retrying in 5s...`
             );
           }
@@ -87,7 +90,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         throw lastError;
       }
       throw new Error(
-        `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${outputAmountBeforeFinalStep.units} units.`
+        `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${amountForPayout} units.`
       );
     };
 

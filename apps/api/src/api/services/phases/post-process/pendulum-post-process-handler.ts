@@ -37,9 +37,7 @@ export class PendulumPostProcessHandler extends BasePostProcessHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { outputTokenType } = state.state as StateMetadata;
-
-    if (!outputTokenType) {
+    if (!state.state.outputCurrency) {
       return [false, this.createErrorObject("Output token type is not defined in the state. This is a bug.")];
     }
 

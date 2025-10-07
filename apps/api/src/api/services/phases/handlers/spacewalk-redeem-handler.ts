@@ -1,6 +1,7 @@
 import { ApiManager, decodeSubmittableExtrinsic, RampPhase } from "@packages/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { checkBalancePeriodically } from "../../stellar/checkBalance";
 import { createVaultService } from "../../stellar/vaultService";
@@ -22,24 +23,26 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const {
-      pendulumEphemeralAddress,
-      outputAmountBeforeFinalStep,
-      stellarTarget,
-      executeSpacewalkNonce,
-      stellarEphemeralAccountId
-    } = state.state as StateMetadata;
+    const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    if (
-      !pendulumEphemeralAddress ||
-      !outputAmountBeforeFinalStep ||
-      !stellarTarget ||
-      !executeSpacewalkNonce ||
-      !stellarEphemeralAccountId
-    ) {
+    const { pendulumEphemeralAddress, stellarTarget, executeSpacewalkNonce, stellarEphemeralAccountId } =
+      state.state as StateMetadata;
+
+    if (!pendulumEphemeralAddress || !stellarTarget || !executeSpacewalkNonce || !stellarEphemeralAccountId) {
       logger.error("SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.");
       return this.transitionToNextPhase(state, "failed");
     }
+
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.nablaSwap?.outputAmountDecimal || !quote.metadata.nablaSwap?.outputAmountRaw) {
+      throw new Error("Missing output amount for Spacewalk Redeem in quote metadata");
+    }
+
+    const outputAmountUnits = quote.metadata.nablaSwap.outputAmountDecimal.toString();
+    const outputAmountRaw = quote.metadata.nablaSwap.outputAmountRaw;
 
     // Check if Stellar target account exists on the network and has the respective trustline.
     // Otherwise, the redeem will end up with a 'claimable-payment' operation on Stellar that we cannot claim.
@@ -72,7 +75,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       // Re-execution guard
       if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > executeSpacewalkNonce) {
         await this.waitForOutputTokensToArriveOnStellar(
-          outputAmountBeforeFinalStep.units,
+          outputAmountUnits,
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string
         );
@@ -83,9 +86,9 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         pendulumNode,
         stellarTarget.stellarTokenDetails.stellarAsset.code.hex,
         stellarTarget.stellarTokenDetails.stellarAsset.issuer.hex,
-        outputAmountBeforeFinalStep.raw
+        outputAmountRaw
       );
-      logger.info(`Requesting redeem of ${outputAmountBeforeFinalStep.units} tokens for vault ${vaultService.vaultId}`);
+      logger.info(`Requesting redeem of ${outputAmountUnits} tokens for vault ${vaultService.vaultId}`);
 
       const redeemExtrinsic = decodeSubmittableExtrinsic(spacewalkRedeemTransaction, pendulumNode.api);
       const redeemRequestEvent = await vaultService.submitRedeem(pendulumEphemeralAddress, redeemExtrinsic);
@@ -93,7 +96,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       logger.info(`Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${vaultService.vaultId}`);
 
       await this.waitForOutputTokensToArriveOnStellar(
-        outputAmountBeforeFinalStep.units,
+        outputAmountUnits,
         stellarEphemeralAccountId,
         stellarTarget.stellarTokenDetails.stellarAsset.code.string
       );
@@ -104,7 +107,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       if ((e as Error).message.includes("AmountExceedsUserBalance")) {
         logger.info("Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.");
         await this.waitForOutputTokensToArriveOnStellar(
-          outputAmountBeforeFinalStep.units,
+          outputAmountUnits,
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string
         );

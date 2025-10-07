@@ -27,6 +27,7 @@ export enum StageKey {
   OnRampNablaSwap = "OnRampNablaSwap",
   OffRampSwap = "OffRampSwap",
   OnRampPendulumTransfer = "OnRampPendulumTransfer",
+  OffRampPendulumTransfer = "OffRampPendulumTransfer",
   OnRampHydration = "OnRampHydration",
   OnRampSquidRouter = "OnRampSquidRouter",
   OnRampFee = "OnRampFee",
