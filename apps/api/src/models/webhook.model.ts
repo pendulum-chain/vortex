@@ -5,7 +5,6 @@ import sequelize from "../config/database";
 export interface WebhookAttributes {
   id: string;
   url: string;
-  secret: string;
   transactionId: string | null;
   sessionId: string | null;
   events: WebhookEventType[];
@@ -20,8 +19,6 @@ class Webhook extends Model<WebhookAttributes, WebhookCreationAttributes> implem
   declare id: string;
 
   declare url: string;
-
-  declare secret: string;
 
   declare transactionId: string | null;
 
@@ -74,10 +71,6 @@ Webhook.init(
       field: "is_active",
       type: DataTypes.BOOLEAN
     },
-    secret: {
-      allowNull: false,
-      type: DataTypes.STRING(255)
-    },
     sessionId: {
       allowNull: true,
       field: "session_id",
@@ -88,7 +81,7 @@ Webhook.init(
       field: "transaction_id",
       references: {
         key: "id",
-        model: "ramp_states"
+        model: "quote_tickets"
       },
       type: DataTypes.UUID
     },
