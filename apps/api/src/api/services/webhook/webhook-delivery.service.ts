@@ -1,5 +1,5 @@
 import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } from "@packages/shared";
-import crypto from "crypto";
+import cryptoService from "../../../config/crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";
 import webhookService from "./webhook.service";
@@ -9,8 +9,8 @@ export class WebhookDeliveryService {
   private readonly timeoutMs = 30000;
   private readonly retryDelays = [1000, 2000, 4000, 8000, 16000];
 
-  private generateSignature(payload: string, secret: string): string {
-    return crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+  private generateSignature(payload: string): string {
+    return cryptoService.signPayload(payload);
   }
 
   private mapPhaseToStatus(phase: string): TransactionStatus {
@@ -22,7 +22,7 @@ export class WebhookDeliveryService {
   private async deliverWebhook(webhook: Webhook, payload: WebhookPayload, attempt = 1): Promise<boolean> {
     try {
       const payloadString = JSON.stringify(payload);
-      const signature = this.generateSignature(payloadString, webhook.secret);
+      const signature = this.generateSignature(payloadString);
       const timestamp = Math.floor(Date.now() / 1000);
 
       const controller = new AbortController();
@@ -33,7 +33,7 @@ export class WebhookDeliveryService {
         headers: {
           "Content-Type": "application/json",
           "User-Agent": "Vortex-Webhooks/1.0",
-          "X-Vortex-Signature": `sha256=${signature}`,
+          "X-Vortex-Signature": signature,
           // The timestamp allows webhook receivers to validate request freshness and prevent replay attacks.
           // Recipients should verify the timestamp is within a reasonable window (e.g., 5 minutes)
           // and reject requests with timestamps too old or too far in the future.
