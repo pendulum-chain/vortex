@@ -48,21 +48,9 @@ export class OffRampToAveniaPendulumTransferEngine implements Stage {
       }
     };
 
-    const originFeeInTargetCurrency = await this.price.convertCurrency(
-      xcmFees.origin.amount,
-      xcmFees.origin.currency as RampCurrency,
-      req.outputCurrency
-    );
-    const destinationFeeInTargetCurrency = await this.price.convertCurrency(
-      xcmFees.destination.amount,
-      xcmFees.destination.currency as RampCurrency,
-      req.outputCurrency
-    );
-
-    const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
-      .plus(ctx.subsidy.subsidyAmountInOutputToken)
-      .minus(originFeeInTargetCurrency)
-      .minus(destinationFeeInTargetCurrency);
+    // We don't need to deduct the XCM fees from the output amount because the fees are not paid in the token
+    // being transferred but in GLMR
+    const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal).plus(ctx.subsidy.subsidyAmountInOutputToken);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();
 
     ctx.pendulumToMoonbeamXcm = {

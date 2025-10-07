@@ -216,6 +216,4 @@ export interface QuoteContext {
   builtResponse?: QuoteResponse;
 }
 
-export interface QuoteTicketMetadata extends Omit<QuoteContext, "now" | "addNote" | "builtResponse"> {
-  offrampAmountBeforeAnchorFees?: string;
-}
+export type QuoteTicketMetadata = Omit<QuoteContext, "now" | "addNote" | "builtResponse">;

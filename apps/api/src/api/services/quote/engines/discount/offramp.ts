@@ -40,10 +40,8 @@ export class OffRampDiscountEngine implements Stage {
 
     const rate = discountPartner?.discount ?? 0;
 
-    const subsidyAmountInOutputToken = ctx.nablaSwap.outputAmountDecimal.mul(1 + rate);
-    const subsidyAmountInOutputTokenRaw = Big(ctx.nablaSwap.outputAmountRaw)
-      .mul(1 + rate)
-      .toFixed(0, 0);
+    const subsidyAmountInOutputToken = ctx.nablaSwap.outputAmountDecimal.mul(rate);
+    const subsidyAmountInOutputTokenRaw = Big(ctx.nablaSwap.outputAmountRaw).mul(rate).toFixed(0, 0);
 
     ctx.subsidy = {
       applied: rate > 0,

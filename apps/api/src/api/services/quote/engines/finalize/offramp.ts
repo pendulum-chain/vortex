@@ -21,9 +21,6 @@ export class OffRampFinalizeEngine implements Stage {
       return;
     }
 
-    if (!ctx.nablaSwap?.outputAmountDecimal) {
-      throw new APIError({ message: "OffRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
     if (!ctx.fees?.displayFiat?.anchor) {
       throw new APIError({
         message: "OffRampFinalizeEngine requires computed anchor fees",
@@ -32,7 +29,15 @@ export class OffRampFinalizeEngine implements Stage {
     }
 
     const anchorFee = ctx.fees.displayFiat.anchor;
-    const offrampAmountBeforeAnchorFees = ctx.nablaSwap.outputAmountDecimal.toString();
+    const offrampAmountBeforeAnchorFees =
+      req.to === "pix" ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal : ctx.pendulumToStellar?.amountOut;
+    if (!offrampAmountBeforeAnchorFees) {
+      throw new APIError({
+        message: "OffRampFinalizeEngine requires pendulumToMoonbeamXcm or pendulumToStellar output",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
     const finalNetOutputAmount = new Big(offrampAmountBeforeAnchorFees).minus(anchorFee);
     const outputAmountString = finalNetOutputAmount.toFixed(2, 0);
 
@@ -44,7 +49,7 @@ export class OffRampFinalizeEngine implements Stage {
       from: req.from,
       inputAmount: req.inputAmount,
       inputCurrency: req.inputCurrency,
-      metadata: { ...ctx, offrampAmountBeforeAnchorFees },
+      metadata: ctx,
       outputAmount: outputAmountString,
       outputCurrency: req.outputCurrency,
       partnerId: ctx.partner?.id || null,
