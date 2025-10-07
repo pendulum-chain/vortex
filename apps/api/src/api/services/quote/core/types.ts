@@ -115,6 +115,7 @@ export interface QuoteContext {
 
   nablaSwap?: {
     inputAmountForSwap: string;
+    inputAmountForSwapRaw: string;
     inputCurrency: RampCurrency;
     inputDecimals: number;
     outputAmountRaw: string;
@@ -135,14 +136,18 @@ export interface QuoteContext {
 
   moneriumMint?: {
     amountIn: Big;
+    amountInRaw: string;
     amountOut: Big;
+    amountOutRaw: string;
     fee: Big;
     currency: RampCurrency;
   };
 
   aveniaMint?: {
     amountIn: Big;
+    amountInRaw: string;
     amountOut: Big;
+    amountOutRaw: string;
     fee: Big;
     currency: RampCurrency;
   };

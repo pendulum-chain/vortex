@@ -30,32 +30,17 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   const { toNetwork, outputTokenDetails, pendulumEphemeralEntry, moonbeamEphemeralEntry, polygonEphemeralEntry } =
     validateMoneriumOnramp(quote, signingAccounts);
 
-  const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
-    0,
-    0
-  );
-
-  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
-  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
-    outputAmountBeforeFinalStepRaw,
-    -outputTokenDetails.decimals
-  ).toFixed();
-
+  if (!quote.metadata.moonbeamToEvm?.outputAmountRaw) {
+    throw new Error("Missing moonbeamToEvm output amount in quote metadata");
+  }
   const inputTokenPendulumDetails = getPendulumDetails(EvmToken.USDC);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
   stateMeta = {
     destinationAddress,
-    inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
-    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
+    inputTokenPendulumDetails,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-    outputAmountBeforeFinalStep: {
-      raw: outputAmountBeforeFinalStepRaw,
-      units: outputAmountBeforeFinalStepUnits
-    },
     outputTokenPendulumDetails,
-    outputTokenType: quote.outputCurrency,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: destinationAddress
@@ -70,8 +55,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
         unsignedTxs,
         destinationAddress,
         moonbeamEphemeralEntry,
-        polygonEphemeralEntry,
-        inputAmountPostAnchorFeeRaw
+        polygonEphemeralEntry
       );
     }
 

@@ -2,8 +2,10 @@ import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
+  EvmToken,
   EvmTransactionData,
   getNetworkId,
+  getPendulumDetails,
   isAssetHubTokenDetails,
   Networks,
   UnsignedTx
@@ -34,17 +36,18 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, ERC20_EURE_POLYGON_DECIMALS).toFixed(
-    0,
-    0
-  );
+  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    throw new Error("Missing moonbeamToEvm output amount in quote metadata");
+  }
+  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.amountOutRaw).toFixed(0, 0);
+
+  const inputTokenPendulumDetails = getPendulumDetails(EvmToken.USDC);
+  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
   stateMeta = {
     destinationAddress,
-    inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
-    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
-    outputTokenType: quote.outputCurrency,
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: destinationAddress
   };

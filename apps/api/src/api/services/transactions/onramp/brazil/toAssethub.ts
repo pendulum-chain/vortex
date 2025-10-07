@@ -1,6 +1,4 @@
 import { getNetworkId, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
-import Big from "big.js";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { AveniaOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateAveniaOnramp } from "../common/validation";
@@ -25,32 +23,14 @@ export async function prepareAveniaToAssethubOnrampTransactions({
     validateAveniaOnramp(quote, signingAccounts);
   const toNetworkId = getNetworkId(toNetwork);
 
-  const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
-  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(inputAmountPostAnchorFeeUnits, inputTokenDetails.decimals).toFixed(
-    0,
-    0
-  );
-
-  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
-  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
-    outputAmountBeforeFinalStepRaw,
-    -outputTokenDetails.decimals
-  ).toFixed();
-
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
   stateMeta = {
     destinationAddress,
-    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
     inputTokenPendulumDetails,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-    outputAmountBeforeFinalStep: {
-      raw: outputAmountBeforeFinalStepRaw,
-      units: outputAmountBeforeFinalStepUnits
-    },
     outputTokenPendulumDetails,
-    outputTokenType: quote.outputCurrency,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     taxId
   };
@@ -60,9 +40,9 @@ export async function prepareAveniaToAssethubOnrampTransactions({
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       await createBRLAInitialTransactions(
+        quote,
         unsignedTxs,
         pendulumEphemeralEntry.address,
-        inputAmountPostAnchorFeeRaw,
         inputTokenDetails,
         moonbeamEphemeralEntry,
         toNetworkId

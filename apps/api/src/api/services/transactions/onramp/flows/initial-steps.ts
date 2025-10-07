@@ -18,9 +18,13 @@ export async function createMoneriumInitialTransactions(
   unsignedTxs: UnsignedTx[],
   destinationAddress: string,
   moonbeamEphemeralEntry: AccountMeta,
-  polygonEphemeralEntry: AccountMeta,
-  inputAmountPostAnchorFeeRaw: string
+  polygonEphemeralEntry: AccountMeta
 ) {
+  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    throw new Error("Missing moneriumMint amountOutRaw in quote metadata");
+  }
+  const inputAmountPostAnchorFeeRaw = quote.metadata.moneriumMint.amountOutRaw;
+
   const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
 
   unsignedTxs.push({
@@ -80,13 +84,18 @@ export async function createMoneriumInitialTransactions(
 }
 
 export async function createBRLAInitialTransactions(
+  quote: QuoteTicketAttributes,
   unsignedTxs: UnsignedTx[],
   pendulumEphemeralAddress: string,
-  inputAmountPostAnchorFeeRaw: string,
   inputTokenDetails: MoonbeamTokenDetails,
   moonbeamEphemeralEntry: AccountMeta,
   toNetworkId: number
 ) {
+  if (!quote.metadata.aveniaMint) {
+    throw new Error("Missing aveniaMint in quote metadata");
+  }
+  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaMint.amountOutRaw;
+
   let moonbeamNonce = 0;
   moonbeamNonce = await addMoonbeamTransactions(
     {

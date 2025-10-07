@@ -1,4 +1,4 @@
-import { getPendulumDetails, RampDirection } from "@packages/shared";
+import { ERC20_EURE_POLYGON_DECIMALS, getPendulumDetails, multiplyByPowerOfTen, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
@@ -18,13 +18,18 @@ export class OnRampInitializeMoneriumEngine implements Stage {
     }
 
     // Calculate Monerium input and output (of minting/deposit)
+    const eurTokenDecimals = ERC20_EURE_POLYGON_DECIMALS;
     const amountIn = new Big(req.inputAmount);
+    const amountInRaw = multiplyByPowerOfTen(amountIn, eurTokenDecimals).toFixed(0, 0);
     const moneriumFee = Big(0);
     const amountOut = amountIn.minus(moneriumFee);
+    const amountOutRaw = multiplyByPowerOfTen(amountOut, eurTokenDecimals).toFixed(0, 0);
 
     ctx.moneriumMint = {
       amountIn,
+      amountInRaw,
       amountOut,
+      amountOutRaw,
       currency: ctx.request.inputCurrency,
       fee: moneriumFee
     };

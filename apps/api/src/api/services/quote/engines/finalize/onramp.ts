@@ -22,9 +22,6 @@ export class OnRampFinalizeEngine implements Stage {
     if (!ctx.fees?.displayFiat) {
       throw new APIError({ message: "OnRampFinalizeEngine requires displayFiat", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
-    if (!ctx.nablaSwap?.outputAmountDecimal) {
-      throw new APIError({ message: "OnRampFinalizeEngine requires Nabla output", status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
 
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {

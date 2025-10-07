@@ -3,6 +3,7 @@ import {
   FiatToken,
   getAnyFiatTokenDetails,
   getPendulumDetails,
+  multiplyByPowerOfTen,
   Networks,
   PENDULUM_USDC_AXL,
   RampCurrency,
@@ -33,12 +34,13 @@ export class OffRampSwapEngine implements Stage {
       throw new Error("OffRampSwapEngine: Missing input amount from previous stage");
     }
 
-    const inputAmountForSwap = inputAmountPreFees.minus(ctx.preNabla.deductibleFeeAmountInSwapCurrency).toString();
-
     // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
     const inputTokenPendulumDetails =
       req.from === "assethub" ? getPendulumDetails(req.inputCurrency, Networks.AssetHub) : PENDULUM_USDC_AXL;
     const outputTokenPendulumDetails = getPendulumDetails(req.outputCurrency as FiatToken);
+
+    const inputAmountForSwap = inputAmountPreFees.minus(ctx.preNabla.deductibleFeeAmountInSwapCurrency).toString();
+    const inputAmountForSwapRaw = multiplyByPowerOfTen(inputAmountForSwap, inputTokenPendulumDetails.decimals).toString();
 
     const result = await calculateNablaSwapOutput({
       inputAmountForSwap,
@@ -53,6 +55,7 @@ export class OffRampSwapEngine implements Stage {
       ...ctx.nablaSwap,
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwap,
+      inputAmountForSwapRaw,
       inputCurrency: inputTokenPendulumDetails.currency,
       inputDecimals: inputTokenPendulumDetails.decimals,
       outputAmountDecimal: result.nablaOutputAmountDecimal,

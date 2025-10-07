@@ -36,16 +36,16 @@ export async function createFeeDistributionTransaction(quote: QuoteTicketAttribu
   const { api } = await apiManager.getApi("pendulum");
 
   // Get the metadata with USD fee structure
-  const metadata = quote.metadata as QuoteTicketMetadata;
-  if (!metadata.usdFeeStructure) {
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
     logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
     return null;
   }
 
   // Read fee components from metadata.usdFeeStructure
-  const networkFeeUSD = metadata.usdFeeStructure.network;
-  const vortexFeeUSD = metadata.usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
+  const networkFeeUSD = usdFeeStructure.network;
+  const vortexFeeUSD = usdFeeStructure.vortex;
+  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
   const vortexPartner = await Partner.findOne({
@@ -221,39 +221,16 @@ export async function addNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
+  if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
+    throw new Error("Missing nablaSwap input amount in quote metadata");
+  }
+
   // The input amount for the swap was already calculated in the quote.
-  const inputAmountForNablaSwapRaw = multiplyByPowerOfTen(
-    new Big(quote.metadata.inputAmountForNablaSwapDecimal),
-    inputTokenPendulumDetails.decimals
-  ).toFixed(0, 0);
+  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwap.inputAmountForSwapRaw;
+  const outputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw);
 
-  // For these minimums, we use the output amount after anchor fee deduction but before the other fees are deducted.
-  // This is because for onramps, the anchor fee is deducted before the nabla swap.
-  const anchorFeeInSwapOutputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.anchor,
-    quote.inputCurrency,
-    outputTokenPendulumDetails.currency // Use the currency of the output token's pendulum representative
-  );
-  const totalFeeInSwapOutputCurrency = await priceFeedService.convertCurrency(
-    quote.fee.total,
-    quote.inputCurrency,
-    outputTokenPendulumDetails.currency // Use the currency of the output token's pendulum representative
-  );
-  const outputAfterAnchorFee = new Big(quote.outputAmount)
-    .plus(totalFeeInSwapOutputCurrency)
-    .minus(anchorFeeInSwapOutputCurrency);
-
-  const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenPendulumDetails.decimals).toFixed(
-    0,
-    0
-  );
-
-  const nablaHardMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
-  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenPendulumDetails.decimals).toFixed(
-    0,
-    0
-  );
+  const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOnramp(
     inputAmountForNablaSwapRaw,
@@ -288,7 +265,6 @@ export async function addNablaSwapTransactions(
   return {
     nextNonce,
     stateMeta: {
-      inputAmountBeforeSwapRaw: inputAmountForNablaSwapRaw,
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions

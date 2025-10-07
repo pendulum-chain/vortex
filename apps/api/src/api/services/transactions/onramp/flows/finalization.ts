@@ -34,16 +34,17 @@ export async function createAssetHubFinalizationTransactions(
     outputTokenPendulumDetails
   });
 
-  const finalOutputAmountRaw = multiplyByPowerOfTen(
-    new Big(quote.outputAmount),
-    outputTokenDetails.pendulumRepresentative.decimals
-  ).toFixed(0, 0);
-
   if (quote.outputCurrency === "USDC") {
+    if (!quote.metadata.pendulumToAssethubXcm?.inputAmountRaw) {
+      throw new Error("Missing input amount for Pendulum to Assethub transfer");
+    }
+
+    const transferAmountRaw = quote.metadata.pendulumToAssethubXcm?.inputAmountRaw;
+
     const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
       destinationAddress,
       outputTokenDetails.pendulumRepresentative.currencyId,
-      finalOutputAmountRaw
+      transferAmountRaw
     );
 
     unsignedTxs.push({
@@ -56,10 +57,14 @@ export async function createAssetHubFinalizationTransactions(
     });
     pendulumNonce++;
   } else {
+    if (!quote.metadata.pendulumToHydrationXcm?.inputAmountRaw) {
+      throw new Error("Missing input amount for Pendulum to Hydration transfer");
+    }
+    const transferAmountRaw = quote.metadata.pendulumToHydrationXcm?.inputAmountRaw;
     const pendulumToHydrationXcmTransaction = await createPendulumToHydrationTransfer(
       destinationAddress,
       outputTokenDetails.pendulumRepresentative.currencyId,
-      finalOutputAmountRaw // FIXME possibly adjust this
+      transferAmountRaw
     );
     unsignedTxs.push({
       meta: {},

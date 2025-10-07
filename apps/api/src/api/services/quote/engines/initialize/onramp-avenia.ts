@@ -13,11 +13,24 @@ export class OnRampInitializeAveniaEngine implements Stage {
       return;
     }
 
+    const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+    const amountIn = new Big(req.inputAmount);
+    const amountInRaw = multiplyByPowerOfTen(amountIn, brlaTokenDetails.decimals).toString();
+
     // We received minted BRLA on the ephemeral account
     // TODO get actual quote from Avenia API to get estimate for fees
-    const mintedBrla = new Big(req.inputAmount).minus(0.01); // assume 0.01 BRLA fees for minting
-    const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+    const fee = Big(0.01); // assume 0.01 BRLA fees for minting
+    const mintedBrla = new Big(req.inputAmount).minus(fee);
     const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrla, brlaTokenDetails.decimals).toString();
+
+    ctx.aveniaMint = {
+      amountIn,
+      amountInRaw,
+      amountOut: mintedBrla,
+      amountOutRaw: mintedBrlaRaw,
+      currency: FiatToken.BRL,
+      fee
+    };
 
     // TODO implement actual derivation of XCM fees
     const xcmFees: XcmFees = {
