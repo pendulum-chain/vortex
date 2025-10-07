@@ -5,7 +5,7 @@ import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampHydrationEngine } from "../../engines/hydration/onramp";
 import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
-import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
+import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/onramp";
 import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
 export class OnrampMoneriumToAssethubStrategy implements IRouteStrategy {

@@ -5,7 +5,7 @@ import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
 import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
-import { OffRampToStellarPendulumTransferEngine } from "../../engines/pendulum/offramp-stellar";
+import { OffRampToStellarPendulumTransferEngine } from "../../engines/pendulum-transfers/offramp-stellar";
 
 export class OfframpToStellarStrategy implements IRouteStrategy {
   readonly name = "OffRampStellar";

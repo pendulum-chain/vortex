@@ -8,7 +8,7 @@ import { OnRampHydrationEngine } from "../../engines/hydration/onramp";
 import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
 import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
-import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
+import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/onramp";
 import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
 export class OnrampAveniaToAssethubStrategy implements IRouteStrategy {

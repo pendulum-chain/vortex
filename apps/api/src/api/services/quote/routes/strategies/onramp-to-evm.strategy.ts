@@ -6,7 +6,7 @@ import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
 import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
-import { OnRampPendulumTransferEngine } from "../../engines/pendulum/onramp";
+import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/onramp";
 import { SpecialOnrampEurEvmEngine } from "../../engines/special-onramp-eur-evm";
 import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-moonbeam-to-evm";
 

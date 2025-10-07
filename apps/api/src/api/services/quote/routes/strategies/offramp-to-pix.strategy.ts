@@ -5,7 +5,7 @@ import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
 import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
-import { OffRampToAveniaPendulumTransferEngine } from "../../engines/pendulum/offramp-avenia";
+import { OffRampToAveniaPendulumTransferEngine } from "../../engines/pendulum-transfers/offramp-avenia";
 
 export class OfframpToPixStrategy implements IRouteStrategy {
   readonly name = "OffRampPix";
