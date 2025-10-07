@@ -42,7 +42,7 @@ export interface GetQuoteRequest {
 export enum QuoteError {
   // Validation errors
   MissingRequiredFields = "Missing required fields",
-  InvalidRampType = 'Invalid ramp type, must be "on" or "off"',
+  InvalidRampType = 'Invalid ramp type, must be "BUY" or "SELL"',
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",

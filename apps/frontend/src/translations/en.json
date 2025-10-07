@@ -287,6 +287,12 @@
       "buy": "Buy",
       "sell": "Sell"
     },
+    "RampFollowUpRedirectStep": {
+      "afterLink": ".",
+      "beforeLink": "You will be redirected in {{countdown}}s. If you are not automatically redirected, please click ",
+      "link": "here",
+      "title": "Your ramp is being processed now"
+    },
     "RampSubmitButton": {
       "connectDesignatedWallet": "Please connect the designated wallet '{{address}}'"
     },

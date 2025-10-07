@@ -17,6 +17,8 @@ import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState }
 
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
+export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
+
 const initialRampContext: RampContext = {
   address: undefined,
   authToken: undefined,
@@ -69,6 +71,19 @@ const refetchQuote = async (
   }
 };
 
+const handleCallbackUrlRedirect = (callbackUrl: string | undefined) => {
+  if (callbackUrl) {
+    console.log("Redirecting to callback url...", callbackUrl);
+    window.location.assign(callbackUrl);
+  } else {
+    // As a fallback, we just clean the URL like in urlCleaner
+    console.log("No callback URL provided, cleaning URL parameters instead.");
+    const cleanUrl = window.location.origin;
+    window.history.replaceState({}, "", cleanUrl);
+    window.location.reload();
+  }
+};
+
 export type RampMachineEvents =
   | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
   | { type: "onDone"; input: RampState }
@@ -117,17 +132,7 @@ export const rampMachine = setup({
     }),
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
     urlCleanerWithCallbackAction: ({ context }) => {
-      const { callbackUrl } = context;
-      if (callbackUrl) {
-        console.log("Redirecting to callback url...");
-        window.location.href = callbackUrl;
-      } else {
-        // As a fallback, we just clean the URL like in urlCleaner
-        console.log("No callback URL provided, cleaning URL parameters instead.");
-        const cleanUrl = window.location.origin;
-        window.history.replaceState({}, "", cleanUrl);
-        window.location.reload();
-      }
+      handleCallbackUrlRedirect(context.callbackUrl);
     }
   },
   actors: {
@@ -404,6 +409,17 @@ export const rampMachine = setup({
         }
       }
     },
+    RedirectCallback: {
+      after: {
+        5000: {
+          actions: [
+            { params: ({ context }: { context: RampContext }) => ({ context }), type: "urlCleanerWithCallbackAction" },
+            { type: "resetRamp" }
+          ],
+          target: "Idle"
+        }
+      }
+    },
     RegisterRamp: {
       invoke: {
         input: ({ context }) => context,
@@ -432,9 +448,15 @@ export const rampMachine = setup({
     StartRamp: {
       invoke: {
         input: ({ context }) => context,
-        onDone: {
-          target: "RampFollowUp"
-        },
+        onDone: [
+          {
+            guard: ({ context }) => !!context.callbackUrl,
+            target: "RedirectCallback"
+          },
+          {
+            target: "RampFollowUp"
+          }
+        ],
         onError: {
           actions: [{ type: "setFailedMessage" }],
           target: "Resetting"

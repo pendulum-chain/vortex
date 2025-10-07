@@ -19,22 +19,6 @@ export const createQuote = async (
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
 
-    // Validate required fields
-    if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
-      throw new APIError({
-        message: QuoteError.MissingRequiredFields,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    // Validate ramp type
-    if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
-      throw new APIError({
-        message: QuoteError.InvalidRampType,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
     // Create quote
     const quote = await quoteService.createQuote({
       from,
