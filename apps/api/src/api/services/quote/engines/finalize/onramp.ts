@@ -62,16 +62,6 @@ export class OnRampFinalizeEngine implements Stage {
 
     validateAmountLimits(req.inputAmount, req.inputCurrency as FiatToken, "min", req.rampType);
 
-    let discountSubsidyAmount = new Big(0);
-
-    if (ctx.subsidy?.applied && ctx.subsidy.rate) {
-      const rate = new Big(ctx.subsidy.rate);
-      discountSubsidyAmount = finalOutputAmountDecimal.mul(rate);
-      finalOutputAmountDecimal = finalOutputAmountDecimal.plus(discountSubsidyAmount);
-
-      ctx.subsidy.subsidyAmountInOutputToken = discountSubsidyAmount.toFixed(6, 0);
-    }
-
     const outputAmountStr = finalOutputAmountDecimal.toFixed(6, 0);
 
     const record = await QuoteTicket.create({

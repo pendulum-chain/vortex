@@ -1,4 +1,5 @@
 import { RampDirection } from "@packages/shared";
+import Big from "big.js";
 import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -11,6 +12,10 @@ export class OffRampDiscountEngine implements Stage {
     if (req.rampType !== RampDirection.SELL) {
       ctx.addNote?.("Skipped for on-ramp request");
       return;
+    }
+
+    if (!ctx.nablaSwap) {
+      throw new Error("OffRampDiscountEngine requires nablaSwap in context");
     }
 
     let discountPartner = ctx.partner?.id
@@ -35,10 +40,17 @@ export class OffRampDiscountEngine implements Stage {
 
     const rate = discountPartner?.discount ?? 0;
 
+    const subsidyAmountInOutputToken = ctx.nablaSwap.outputAmountDecimal.mul(1 + rate);
+    const subsidyAmountInOutputTokenRaw = Big(ctx.nablaSwap.outputAmountRaw)
+      .mul(1 + rate)
+      .toFixed(0, 0);
+
     ctx.subsidy = {
       applied: rate > 0,
       partnerId: discountPartner?.id,
-      rate: rate.toString()
+      rate: rate.toString(),
+      subsidyAmountInOutputToken,
+      subsidyAmountInOutputTokenRaw
     };
 
     ctx.addNote?.(`partner=${discountPartner?.name || "vortex"} (${discountPartner?.id || "N/A"}), rate=${rate}`);

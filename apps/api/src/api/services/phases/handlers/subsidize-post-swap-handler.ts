@@ -35,6 +35,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Missing output amount before final step in quote metadata");
     }
 
+    if (!quote.metadata.subsidy) {
+      throw new Error("Missing subsidy information in quote metadata");
+    }
+
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
@@ -47,7 +51,9 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
 
-      const expectedSwapOutputAmountRaw = quote.metadata.nablaSwap.outputAmountRaw;
+      // Add the (potential) subsidy amount to the expected swap output to get the target balance
+      const expectedSwapOutputAmountRaw =
+        quote.metadata.nablaSwap.outputAmountRaw + quote.metadata.subsidy.subsidyAmountInOutputTokenRaw;
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {

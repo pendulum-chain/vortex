@@ -197,7 +197,8 @@ export interface QuoteContext {
     applied: boolean;
     rate: string;
     partnerId?: string;
-    subsidyAmountInOutputToken?: string;
+    subsidyAmountInOutputToken: Big;
+    subsidyAmountInOutputTokenRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)

@@ -24,13 +24,12 @@ export class OnRampPendulumTransferEngine implements Stage {
       return;
     }
 
-    if (
-      !ctx.nablaSwap?.outputAmountDecimal ||
-      !ctx.nablaSwap?.outputCurrency ||
-      !ctx.nablaSwap?.outputAmountRaw ||
-      !ctx.nablaSwap?.outputDecimals
-    ) {
+    if (!ctx.nablaSwap) {
       throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
+    }
+
+    if (!ctx.subsidy) {
+      throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
     }
 
     // We currently can't really estimate XCM fees on Pendulum because we don't have the dry-run API available.
@@ -58,8 +57,8 @@ export class OnRampPendulumTransferEngine implements Stage {
       req.outputCurrency
     );
 
-    // FIXME take potential discount/subsidy into account
     const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
+      .plus(ctx.subsidy.subsidyAmountInOutputToken)
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();

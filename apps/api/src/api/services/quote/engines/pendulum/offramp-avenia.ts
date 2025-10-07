@@ -26,13 +26,12 @@ export class OffRampToAveniaPendulumTransferEngine implements Stage {
       return;
     }
 
-    if (
-      !ctx.nablaSwap?.outputAmountDecimal ||
-      !ctx.nablaSwap?.outputCurrency ||
-      !ctx.nablaSwap?.outputAmountRaw ||
-      !ctx.nablaSwap?.outputDecimals
-    ) {
-      throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
+    if (!ctx.nablaSwap) {
+      throw new Error("OffRampToAveniaPendulumTransferEngine requires nablaSwap in context");
+    }
+
+    if (!ctx.subsidy) {
+      throw new Error("OffRampToAveniaPendulumTransferEngine requires subsidy in context");
     }
 
     // We currently can't really estimate XCM fees on Pendulum because we don't have the dry-run API available.
@@ -60,8 +59,8 @@ export class OffRampToAveniaPendulumTransferEngine implements Stage {
       req.outputCurrency
     );
 
-    // FIXME take potential discount/subsidy into account
     const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
+      .plus(ctx.subsidy.subsidyAmountInOutputToken)
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();

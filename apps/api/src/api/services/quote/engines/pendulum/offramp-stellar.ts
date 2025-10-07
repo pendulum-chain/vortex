@@ -20,9 +20,13 @@ export class OffRampToStellarPendulumTransferEngine implements Stage {
       throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
     }
 
-    const amountIn = ctx.nablaSwap.outputAmountDecimal;
-    const amountInRaw = ctx.nablaSwap.outputAmountRaw;
+    if (!ctx.subsidy) {
+      throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
+    }
+
     const fee = new Big(0); // The fee is not paid in the token being transferred
+    const amountIn = ctx.nablaSwap.outputAmountDecimal.plus(ctx.subsidy.subsidyAmountInOutputToken);
+    const amountInRaw = new Big(ctx.nablaSwap.outputAmountRaw).plus(ctx.subsidy.subsidyAmountInOutputTokenRaw).toFixed(0, 0);
 
     ctx.pendulumToStellar = {
       amountIn,

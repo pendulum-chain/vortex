@@ -5,6 +5,7 @@ import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
 import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
+import { OffRampToStellarPendulumTransferEngine } from "../../engines/pendulum/offramp-stellar";
 
 export class OfframpToStellarStrategy implements IRouteStrategy {
   readonly name = "OffRampStellar";
@@ -15,6 +16,7 @@ export class OfframpToStellarStrategy implements IRouteStrategy {
       StageKey.OffRampSwap,
       StageKey.OffRampFee,
       StageKey.OffRampDiscount,
+      StageKey.OffRampPendulumTransfer,
       StageKey.OffRampFinalize
     ];
   }
@@ -26,6 +28,7 @@ export class OfframpToStellarStrategy implements IRouteStrategy {
       [StageKey.OffRampSwap]: new OffRampSwapEngine(),
       [StageKey.OffRampFee]: new OffRampFeeEngine(),
       [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),
+      [StageKey.OffRampPendulumTransfer]: new OffRampToStellarPendulumTransferEngine(),
       [StageKey.OffRampFinalize]: new OffRampFinalizeEngine()
     };
   }
