@@ -136,6 +136,11 @@ router.use("/monerium", moneriumRoutes);
  */
 router.use("/webhook", webhookRoutes);
 
+/**
+ * GET v1/public-key
+ */
+router.use("/public-key", cryptocurrenciesRoutes);
+
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
 });
