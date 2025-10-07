@@ -6,6 +6,7 @@ dotenv.config({
 });
 
 import { ApiManager, EventPoller, EvmClientManager } from "@packages/shared";
+import cryptoService from "./config/crypto";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
@@ -52,6 +53,9 @@ const initializeApp = async () => {
   try {
     // Validate environment variables before starting the server
     validateRequiredEnvVars();
+
+    // Initialize RSA keys for webhook signing
+    cryptoService.initializeKeys();
 
     // Test database connection
     await testDatabaseConnection();
