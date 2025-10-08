@@ -13,7 +13,7 @@ import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampHydrationEngine implements Stage {
-  readonly key = StageKey.OnRampHydration;
+  readonly key = StageKey.HydrationSwap;
 
   private price = priceFeedService;
 

@@ -2,7 +2,7 @@ import { FiatToken, RampDirection } from "@packages/shared";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampMoneriumToEvmFeeEngine implements Stage {
-  readonly key = StageKey.OnRampFee;
+  readonly key = StageKey.Fee;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

@@ -14,7 +14,7 @@ import { QuoteContext, Stage, StageKey } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
 
 export class OffRampSwapEngine implements Stage {
-  readonly key = StageKey.OffRampSwap;
+  readonly key = StageKey.NablaSwap;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

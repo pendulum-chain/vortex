@@ -3,7 +3,7 @@ import Big from "big.js";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampInitializeAveniaEngine implements Stage {
-  readonly key = StageKey.OnRampInitialize;
+  readonly key = StageKey.Initialize;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

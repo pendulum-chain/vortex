@@ -12,7 +12,7 @@ import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSwapEngine implements Stage {
-  readonly key = StageKey.OnRampNablaSwap;
+  readonly key = StageKey.NablaSwap;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

@@ -12,24 +12,24 @@ export class OfframpToStellarStrategy implements IRouteStrategy {
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [
-      StageKey.OffRampInitialize,
-      StageKey.OffRampSwap,
-      StageKey.OffRampFee,
-      StageKey.OffRampDiscount,
-      StageKey.OffRampPendulumTransfer,
-      StageKey.OffRampFinalize
+      StageKey.Initialize,
+      StageKey.NablaSwap,
+      StageKey.Fee,
+      StageKey.Discount,
+      StageKey.PendulumTransfer,
+      StageKey.Finalize
     ];
   }
 
   getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OffRampInitialize]:
+      [StageKey.Initialize]:
         ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
-      [StageKey.OffRampSwap]: new OffRampSwapEngine(),
-      [StageKey.OffRampFee]: new OffRampFeeEngine(),
-      [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),
-      [StageKey.OffRampPendulumTransfer]: new OffRampToStellarPendulumTransferEngine(),
-      [StageKey.OffRampFinalize]: new OffRampFinalizeEngine()
+      [StageKey.NablaSwap]: new OffRampSwapEngine(),
+      [StageKey.Fee]: new OffRampFeeEngine(),
+      [StageKey.Discount]: new OffRampDiscountEngine(),
+      [StageKey.PendulumTransfer]: new OffRampToStellarPendulumTransferEngine(),
+      [StageKey.Finalize]: new OffRampFinalizeEngine()
     };
   }
 }

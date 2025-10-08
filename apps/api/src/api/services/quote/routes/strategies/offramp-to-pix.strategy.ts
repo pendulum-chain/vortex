@@ -12,24 +12,24 @@ export class OfframpToPixStrategy implements IRouteStrategy {
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [
-      StageKey.OffRampInitialize,
-      StageKey.OffRampSwap,
-      StageKey.OffRampFee,
-      StageKey.OffRampDiscount,
-      StageKey.OffRampPendulumTransfer,
-      StageKey.OffRampFinalize
+      StageKey.Initialize,
+      StageKey.NablaSwap,
+      StageKey.Fee,
+      StageKey.Discount,
+      StageKey.PendulumTransfer,
+      StageKey.Finalize
     ];
   }
 
   getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OffRampInitialize]:
+      [StageKey.Initialize]:
         ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
-      [StageKey.OffRampFee]: new OffRampFeeEngine(),
-      [StageKey.OffRampSwap]: new OffRampSwapEngine(),
-      [StageKey.OffRampDiscount]: new OffRampDiscountEngine(),
-      [StageKey.OffRampPendulumTransfer]: new OffRampToAveniaPendulumTransferEngine(),
-      [StageKey.OffRampFinalize]: new OffRampFinalizeEngine()
+      [StageKey.Fee]: new OffRampFeeEngine(),
+      [StageKey.NablaSwap]: new OffRampSwapEngine(),
+      [StageKey.Discount]: new OffRampDiscountEngine(),
+      [StageKey.PendulumTransfer]: new OffRampToAveniaPendulumTransferEngine(),
+      [StageKey.Finalize]: new OffRampFinalizeEngine()
     };
   }
 }

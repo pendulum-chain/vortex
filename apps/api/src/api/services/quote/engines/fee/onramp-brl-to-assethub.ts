@@ -12,7 +12,7 @@ import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } fro
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampAveniaToAssethubFeeEngine implements Stage {
-  readonly key = StageKey.OnRampFee;
+  readonly key = StageKey.Fee;
   private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {

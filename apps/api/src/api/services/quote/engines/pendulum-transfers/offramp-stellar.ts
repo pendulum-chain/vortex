@@ -4,7 +4,7 @@ import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampToStellarPendulumTransferEngine implements Stage {
-  readonly key = StageKey.OffRampPendulumTransfer;
+  readonly key = StageKey.PendulumTransfer;
 
   private price = priceFeedService;
 

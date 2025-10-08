@@ -14,7 +14,7 @@ import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
 
 export class OffRampToAveniaPendulumTransferEngine implements Stage {
-  readonly key = StageKey.OffRampPendulumTransfer;
+  readonly key = StageKey.PendulumTransfer;
 
   private price = priceFeedService;
 

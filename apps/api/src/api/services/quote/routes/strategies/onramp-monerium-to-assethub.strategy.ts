@@ -14,38 +14,38 @@ export class OnrampMoneriumToAssethubStrategy implements IRouteStrategy {
   getStages(ctx: QuoteContext): StageKey[] {
     if (ctx.request.outputCurrency === "USDC") {
       return [
-        StageKey.OnRampInitialize,
-        StageKey.OnRampSquidRouter,
-        StageKey.OnRampFee,
-        StageKey.OnRampNablaSwap,
-        StageKey.OnRampDiscount,
-        StageKey.OnRampPendulumTransfer,
-        StageKey.OnRampFinalize
+        StageKey.Initialize,
+        StageKey.SquidRouter,
+        StageKey.Fee,
+        StageKey.NablaSwap,
+        StageKey.Discount,
+        StageKey.PendulumTransfer,
+        StageKey.Finalize
       ];
     } else {
       return [
-        StageKey.OnRampInitialize,
-        StageKey.OnRampSquidRouter,
-        StageKey.OnRampFee,
-        StageKey.OnRampNablaSwap,
-        StageKey.OnRampDiscount,
-        StageKey.OnRampPendulumTransfer,
-        StageKey.OnRampHydration, // Add Hydration stage for non-USDC output
-        StageKey.OnRampFinalize
+        StageKey.Initialize,
+        StageKey.SquidRouter,
+        StageKey.Fee,
+        StageKey.NablaSwap,
+        StageKey.Discount,
+        StageKey.PendulumTransfer,
+        StageKey.HydrationSwap, // Add Hydration stage for non-USDC output
+        StageKey.Finalize
       ];
     }
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInitialize]: new OnRampInitializeMoneriumEngine(),
-      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterEurToAssetHubEngine(),
-      [StageKey.OnRampFee]: new OnRampMoneriumToAssethubFeeEngine(),
-      [StageKey.OnRampNablaSwap]: new OnRampSwapEngine(),
-      [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
-      [StageKey.OnRampPendulumTransfer]: new OnRampPendulumTransferEngine(),
-      [StageKey.OnRampHydration]: new OnRampHydrationEngine(),
-      [StageKey.OnRampFinalize]: new OnRampFinalizeEngine()
+      [StageKey.Initialize]: new OnRampInitializeMoneriumEngine(),
+      [StageKey.SquidRouter]: new OnRampSquidRouterEurToAssetHubEngine(),
+      [StageKey.Fee]: new OnRampMoneriumToAssethubFeeEngine(),
+      [StageKey.NablaSwap]: new OnRampSwapEngine(),
+      [StageKey.Discount]: new OnRampDiscountEngine(),
+      [StageKey.PendulumTransfer]: new OnRampPendulumTransferEngine(),
+      [StageKey.HydrationSwap]: new OnRampHydrationEngine(),
+      [StageKey.Finalize]: new OnRampFinalizeEngine()
     };
   }
 }

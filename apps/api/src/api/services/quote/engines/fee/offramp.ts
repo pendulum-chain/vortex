@@ -4,7 +4,7 @@ import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampFeeEngine implements Stage {
-  readonly key = StageKey.OffRampFee;
+  readonly key = StageKey.Fee;
   private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {

@@ -9,7 +9,7 @@ import { QuoteContext, Stage, StageKey } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
 
 export class OffRampFinalizeEngine implements Stage {
-  readonly key = StageKey.OffRampFinalize;
+  readonly key = StageKey.Finalize;
 
   private price = priceFeedService;
 

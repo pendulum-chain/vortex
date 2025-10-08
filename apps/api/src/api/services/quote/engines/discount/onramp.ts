@@ -4,7 +4,7 @@ import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampDiscountEngine implements Stage {
-  readonly key = StageKey.OnRampDiscount;
+  readonly key = StageKey.Discount;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

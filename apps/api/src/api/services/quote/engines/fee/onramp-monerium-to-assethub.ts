@@ -4,7 +4,7 @@ import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampMoneriumToAssethubFeeEngine implements Stage {
-  readonly key = StageKey.OnRampFee;
+  readonly key = StageKey.Fee;
   private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {

@@ -17,7 +17,7 @@ import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OffRampFromAssethubInitializeEngine implements Stage {
-  readonly key = StageKey.OffRampInitialize;
+  readonly key = StageKey.Initialize;
 
   private price = priceFeedService;
 

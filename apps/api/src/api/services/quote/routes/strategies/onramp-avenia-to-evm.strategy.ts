@@ -12,25 +12,25 @@ export class OnrampAveniaToEvmStrategy implements IRouteStrategy {
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [
-      StageKey.OnRampInitialize,
-      StageKey.OnRampFee,
-      StageKey.OnRampNablaSwap,
-      StageKey.OnRampDiscount,
-      StageKey.OnRampPendulumTransfer,
-      StageKey.OnRampSquidRouter,
-      StageKey.OnRampFinalize
+      StageKey.Initialize,
+      StageKey.Fee,
+      StageKey.NablaSwap,
+      StageKey.Discount,
+      StageKey.PendulumTransfer,
+      StageKey.SquidRouter,
+      StageKey.Finalize
     ];
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInitialize]: new OnRampInitializeAveniaEngine(),
-      [StageKey.OnRampFee]: new OnRampAveniaToEvmFeeEngine(),
-      [StageKey.OnRampNablaSwap]: new OnRampSwapEngine(),
-      [StageKey.OnRampDiscount]: new OnRampDiscountEngine(),
-      [StageKey.OnRampPendulumTransfer]: new OnRampPendulumTransferEngine(),
-      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterBrlToEvmEngine(),
-      [StageKey.OnRampFinalize]: new OnRampFinalizeEngine()
+      [StageKey.Initialize]: new OnRampInitializeAveniaEngine(),
+      [StageKey.Fee]: new OnRampAveniaToEvmFeeEngine(),
+      [StageKey.NablaSwap]: new OnRampSwapEngine(),
+      [StageKey.Discount]: new OnRampDiscountEngine(),
+      [StageKey.PendulumTransfer]: new OnRampPendulumTransferEngine(),
+      [StageKey.SquidRouter]: new OnRampSquidRouterBrlToEvmEngine(),
+      [StageKey.Finalize]: new OnRampFinalizeEngine()
     };
   }
 }

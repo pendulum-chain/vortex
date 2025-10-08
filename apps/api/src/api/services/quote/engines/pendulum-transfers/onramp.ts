@@ -12,7 +12,7 @@ import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
 
 export class OnRampPendulumTransferEngine implements Stage {
-  readonly key = StageKey.OnRampPendulumTransfer;
+  readonly key = StageKey.PendulumTransfer;
 
   private price = priceFeedService;
 

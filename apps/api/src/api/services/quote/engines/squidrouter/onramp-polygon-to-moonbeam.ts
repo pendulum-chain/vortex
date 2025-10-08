@@ -4,7 +4,7 @@ import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../core/sq
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
-  readonly key = StageKey.OnRampSquidRouter;
+  readonly key = StageKey.SquidRouter;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

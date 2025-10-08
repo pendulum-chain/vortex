@@ -12,32 +12,16 @@ import {
 } from "@packages/shared";
 import { Big } from "big.js";
 
-// Route profiles (optional tagging)
-export enum RouteProfile {
-  OnRampEvm = "OnRampEvm",
-  OnRampAssetHub = "OnRampAssetHub",
-  OffRampPix = "OffRampPix",
-  OffRampStellar = "OffRampStellar"
-}
-
 // Stage identifiers in the pipeline
 export enum StageKey {
-  OnRampInitialize = "OnRampInitialize",
-  OffRampInitialize = "OffRampInitialize",
-  OnRampNablaSwap = "OnRampNablaSwap",
-  OffRampSwap = "OffRampSwap",
-  OnRampPendulumTransfer = "OnRampPendulumTransfer",
-  OffRampPendulumTransfer = "OffRampPendulumTransfer",
-  OnRampHydration = "OnRampHydration",
-  OnRampSquidRouter = "OnRampSquidRouter",
-  OnRampFee = "OnRampFee",
-  OffRampFee = "OffRampFee",
-  OnRampDiscount = "OnRampDiscount",
-  OffRampDiscount = "OffRampDiscount",
-  OnRampFinalize = "OnRampFinalize",
-  OffRampFinalize = "OffRampFinalize",
-  // Special-case engine for Monerium EUR on-ramp to EVM
-  SpecialOnrampEurEvm = "SpecialOnrampEurEvm"
+  Initialize = "Initialize",
+  NablaSwap = "NablaSwap",
+  PendulumTransfer = "PendulumTransfer",
+  HydrationSwap = "HydrationSwap",
+  SquidRouter = "SquidRouter",
+  Fee = "Fee",
+  Discount = "Discount",
+  Finalize = "Finalize"
 }
 
 // Minimal stage contract

@@ -7,7 +7,7 @@ import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export class OnRampInitializeMoneriumEngine implements Stage {
-  readonly key = StageKey.OnRampInitialize;
+  readonly key = StageKey.Initialize;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

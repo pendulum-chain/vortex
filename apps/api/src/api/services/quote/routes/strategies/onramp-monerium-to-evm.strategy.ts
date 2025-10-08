@@ -8,15 +8,15 @@ export class OnrampMoneriumToEvmStrategy implements IRouteStrategy {
   readonly name = "OnRampEvm";
 
   getStages(_ctx: QuoteContext): StageKey[] {
-    return [StageKey.OnRampInitialize, StageKey.OnRampFee, StageKey.OnRampSquidRouter, StageKey.OnRampFinalize];
+    return [StageKey.Initialize, StageKey.Fee, StageKey.SquidRouter, StageKey.Finalize];
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.OnRampInitialize]: new OnRampInitializeMoneriumEngine(),
-      [StageKey.OnRampFee]: new OnRampMoneriumToEvmFeeEngine(),
-      [StageKey.OnRampSquidRouter]: new OnRampSquidRouterEurToEvmEngine(),
-      [StageKey.OnRampFinalize]: new OnRampFinalizeEngine()
+      [StageKey.Initialize]: new OnRampInitializeMoneriumEngine(),
+      [StageKey.Fee]: new OnRampMoneriumToEvmFeeEngine(),
+      [StageKey.SquidRouter]: new OnRampSquidRouterEurToEvmEngine(),
+      [StageKey.Finalize]: new OnRampFinalizeEngine()
     };
   }
 }

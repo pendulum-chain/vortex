@@ -9,7 +9,7 @@ import { QuoteContext, Stage, StageKey } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
 
 export class OnRampFinalizeEngine implements Stage {
-  readonly key = StageKey.OnRampFinalize;
+  readonly key = StageKey.Finalize;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
