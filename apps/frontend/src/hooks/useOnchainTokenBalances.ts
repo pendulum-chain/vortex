@@ -95,7 +95,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
         };
 
         const freeBalance = accountData.data.free || 0;
-        const formattedBalance = nativeToDecimal(freeBalance, -nativeToken.decimals).toFixed(4, 0).toString();
+        const formattedBalance = nativeToDecimal(freeBalance, nativeToken.decimals).toFixed(4, 0).toString();
 
         setNativeBalance({
           ...nativeToken,
@@ -211,6 +211,14 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
         const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
         const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
         const formattedBalance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
+        console.log(
+          "Converted offrampable balance:",
+          offrampableBalance,
+          "to",
+          formattedBalance,
+          "for token:",
+          token.assetSymbol
+        );
 
         return { ...token, balance: formattedBalance };
       });

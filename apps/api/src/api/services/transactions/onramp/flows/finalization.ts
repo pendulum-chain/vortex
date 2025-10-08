@@ -7,7 +7,9 @@ import {
   createPendulumToMoonbeamTransfer,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
+  isAssetHubTokenDetails,
   isEvmTokenDetails,
+  Networks,
   OnChainTokenDetails,
   PendulumTokenDetails,
   UnsignedTx
@@ -15,6 +17,7 @@ import {
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
 import { encodeEvmTransactionData } from "../../index";
 import { addPendulumCleanupTx } from "../common/transactions";
 
@@ -76,7 +79,50 @@ export async function createAssetHubFinalizationTransactions(
     });
     pendulumNonce++;
 
-    // TODO create other transactions for hydration, ie. the swap and transfer to destinationAddress on Assethub
+    if (!quote.metadata.hydrationSwap) {
+      throw new Error("Missing hydration swap details for Hydration finalization");
+    }
+
+    let hydrationNonce = 0;
+    const { assetIn, assetOut, amountIn, amountOutRaw } = quote.metadata.hydrationSwap;
+    const hydrationSwap = await buildHydrationSwapTransaction(assetIn, assetOut, amountIn, pendulumEphemeralEntry.address);
+
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Hydration,
+      nonce: hydrationNonce,
+      phase: "hydrationSwap",
+      signer: pendulumEphemeralEntry.address,
+      txData: encodeSubmittableExtrinsic(hydrationSwap)
+    });
+    hydrationNonce++;
+
+    if (!isAssetHubTokenDetails(outputTokenDetails)) {
+      throw new Error(
+        `Output token must be an AssetHub token for finalization to AssetHub, got ${outputTokenDetails.assetSymbol}`
+      );
+    }
+    const hydrationAssetId = outputTokenDetails.hydrationId;
+
+    // biome-ignore lint/style/noNonNullAssertion: Can't be undefined if it's not native
+    const assethubAssetId = outputTokenDetails.isNative ? "native" : outputTokenDetails.foreignAssetId!;
+
+    const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(
+      destinationAddress,
+      amountOutRaw,
+      hydrationAssetId,
+      assethubAssetId
+    );
+
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Hydration,
+      nonce: hydrationNonce,
+      phase: "hydrationToAssethubXcm",
+      signer: pendulumEphemeralEntry.address,
+      txData: encodeSubmittableExtrinsic(hydrationToAssethubTransfer)
+    });
+    hydrationNonce++;
   }
 
   unsignedTxs.push({

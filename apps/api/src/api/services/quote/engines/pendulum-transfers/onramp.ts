@@ -1,12 +1,4 @@
-import {
-  AssetHubToken,
-  EvmToken,
-  multiplyByPowerOfTen,
-  Networks,
-  OnChainToken,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
+import { AssetHubToken, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
@@ -32,13 +24,32 @@ export class OnRampPendulumTransferEngine implements Stage {
       throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
     }
 
+    const hydrationDestinationFee = {
+      amount: "0.15",
+      amountRaw: "150000",
+      currency: "USDC"
+    };
+
+    const assethubDestinationFee = {
+      amount: "0.10",
+      amountRaw: "100000",
+      currency: "USDC"
+    };
+
+    const moonbeamDestinationFee = {
+      amount: "0.15",
+      amountRaw: "150000",
+      currency: "USDC"
+    };
+
     // We currently can't really estimate XCM fees on Pendulum because we don't have the dry-run API available.
     const xcmFees = {
-      destination: {
-        amount: "0.01",
-        amountRaw: "10000",
-        currency: "USDC"
-      },
+      destination:
+        req.to === "assethub"
+          ? req.outputCurrency !== AssetHubToken.USDC
+            ? hydrationDestinationFee
+            : assethubDestinationFee
+          : moonbeamDestinationFee,
       origin: {
         amount: "0.01",
         amountRaw: "10000",

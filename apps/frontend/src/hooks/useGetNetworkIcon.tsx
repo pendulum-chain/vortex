@@ -17,7 +17,8 @@ export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.Avalanche]: AVALANCHE,
   [Networks.Moonbeam]: "",
   [Networks.Pendulum]: "",
-  [Networks.Stellar]: ""
+  [Networks.Stellar]: "",
+  [Networks.Hydration]: ""
 };
 
 export function useGetNetworkIcon(network: Networks) {

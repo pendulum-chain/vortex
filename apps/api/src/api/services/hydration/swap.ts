@@ -1,4 +1,4 @@
-import { EvmClient, PoolService, Trade, TradeRouter, TxBuilderFactory } from "@galacticcouncil/sdk";
+import { EvmClient, PoolService, PoolType, Trade, TradeRouter, TxBuilderFactory } from "@galacticcouncil/sdk";
 import { ApiManager } from "@packages/shared";
 
 export class HydrationRouter {
@@ -18,7 +18,8 @@ export class HydrationRouter {
       const poolService = new PoolService(api, evmClient);
       this._poolService = poolService;
 
-      const tradeRouter = new TradeRouter(poolService);
+      // Limiting the pools speeds up queries
+      const tradeRouter = new TradeRouter(poolService, { includeOnly: [PoolType.Omni, PoolType.Stable] });
       this._tradeRouter = tradeRouter;
 
       // Fire-and-forget; router can still serve while registry syncs
@@ -50,7 +51,7 @@ export class HydrationRouter {
     return await this.tradeRouter.getBestSell(assetIn, assetOut, amountIn);
   }
 
-  async createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.5) {
+  async createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.2) {
     const txBuilder = this.txBuilderFactory.trade(trade);
     txBuilder.withBeneficiary(beneficiaryAddress);
     txBuilder.withSlippage(slippage);

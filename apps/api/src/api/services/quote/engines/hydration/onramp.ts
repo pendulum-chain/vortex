@@ -25,8 +25,8 @@ export class OnRampHydrationEngine implements Stage {
       return;
     }
 
-    if (!ctx.nablaSwap?.outputAmountDecimal) {
-      throw new Error("OnRampHydrationEngine requires nabla.outputAmountDecimal in context");
+    if (!ctx.pendulumToHydrationXcm) {
+      throw new Error("OnRampHydrationEngine requires pendulumToHydrationXcm in context");
     }
 
     // We will always use Assethub USDC as the input token of the swap
@@ -35,7 +35,7 @@ export class OnRampHydrationEngine implements Stage {
 
     const assetIn = inputTokenDetails.hydrationId;
     const assetOut = outputTokenDetails.hydrationId;
-    const amountIn = ctx.nablaSwap.outputAmountDecimal.toFixed(inputTokenDetails.decimals);
+    const amountIn = ctx.pendulumToHydrationXcm.outputAmountDecimal.toString();
 
     const trade = await HydrationRouter.getBestSellPriceFor(assetIn, assetOut, amountIn);
 
