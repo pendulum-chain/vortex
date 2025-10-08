@@ -1,6 +1,6 @@
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OffRampDiscountEngine } from "../../engines/discount/offramp";
-import { OffRampFeeEngine } from "../../engines/fee/offramp";
+import { OffRampFeeAveniaEngine } from "../../engines/fee/offramp-avenia";
 import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
 import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
@@ -25,7 +25,7 @@ export class OfframpToPixStrategy implements IRouteStrategy {
     return {
       [StageKey.Initialize]:
         ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
-      [StageKey.Fee]: new OffRampFeeEngine(),
+      [StageKey.Fee]: new OffRampFeeAveniaEngine(),
       [StageKey.NablaSwap]: new OffRampSwapEngine(),
       [StageKey.Discount]: new OffRampDiscountEngine(),
       [StageKey.PendulumTransfer]: new OffRampToAveniaPendulumTransferEngine(),

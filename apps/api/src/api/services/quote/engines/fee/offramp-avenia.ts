@@ -1,9 +1,10 @@
-import { EvmToken, RampDirection } from "@packages/shared";
+import { AveniaPaymentMethod, BrlaApiService, BrlaCurrency, EvmToken, FiatToken, RampDirection } from "@packages/shared";
+import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OffRampFeeEngine implements Stage {
+export class OffRampFeeAveniaEngine implements Stage {
   readonly key = StageKey.Fee;
   private price = priceFeedService;
 
@@ -15,9 +16,13 @@ export class OffRampFeeEngine implements Stage {
       return;
     }
 
-    const outputAmountOfframp = ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0";
+    if (!ctx.nablaSwap) {
+      throw new Error("OffRampFeeAveniaEngine requires nablaSwap in context");
+    }
 
-    const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
+    const outputAmountOfframp = ctx.nablaSwap.outputAmountDecimal.toFixed(2, 0);
+
+    const { feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
       from: req.from,
       inputAmount: req.inputAmount,
       inputCurrency: req.inputCurrency,
@@ -28,9 +33,18 @@ export class OffRampFeeEngine implements Stage {
       to: req.to
     });
 
+    const brlaApiService = BrlaApiService.getInstance();
+    const aveniaQuote = await brlaApiService.createPayOutQuote({
+      outputAmount: outputAmountOfframp,
+      outputThirdParty: false
+    });
+
+    const anchorFee = new Big(aveniaQuote.inputAmount).minus(aveniaQuote.outputAmount).toString();
+    const anchorFeeCurrency = FiatToken.BRL;
+
     const usdCurrency = EvmToken.USDC;
     const vortexFeeUsd = await this.price.convertCurrency(vortexFee, feeCurrency, usdCurrency);
-    const anchorFeeUsd = await this.price.convertCurrency(anchorFee, feeCurrency, usdCurrency);
+    const anchorFeeUsd = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, usdCurrency);
     const partnerMarkupFeeUsd = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, usdCurrency);
 
     const displayCurrency = ctx.targetFeeFiatCurrency;
@@ -40,7 +54,7 @@ export class OffRampFeeEngine implements Stage {
 
     if (feeCurrency !== displayCurrency) {
       vortexFeeDisplay = await this.price.convertCurrency(vortexFee, feeCurrency, displayCurrency);
-      anchorFeeDisplay = await this.price.convertCurrency(anchorFee, feeCurrency, displayCurrency);
+      anchorFeeDisplay = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, displayCurrency);
       partnerMarkupFeeDisplay = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency);
     }
 

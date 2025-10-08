@@ -252,6 +252,7 @@ export class BrlaApiService {
       outputPaymentMethod: quoteParams.outputPaymentMethod,
       outputThirdParty: String(quoteParams.outputThirdParty)
     });
+
     if (quoteParams.subAccountId) {
       urlSearchParams.append("subAccountId", quoteParams.subAccountId);
     }
@@ -260,7 +261,7 @@ export class BrlaApiService {
   }
 
   public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<AveniaQuoteResponse> {
-    const query = new URLSearchParams({
+    const urlSearchParams = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
@@ -268,9 +269,14 @@ export class BrlaApiService {
       outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
       outputCurrency: BrlaCurrency.BRL,
       outputPaymentMethod: AveniaPaymentMethod.PIX,
-      outputThirdParty: String(quoteParams.outputThirdParty),
-      subAccountId: quoteParams.subAccountId
-    }).toString();
+      outputThirdParty: String(quoteParams.outputThirdParty)
+    });
+
+    if (quoteParams.subAccountId) {
+      urlSearchParams.append("subAccountId", quoteParams.subAccountId);
+    }
+
+    const query = urlSearchParams.toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 

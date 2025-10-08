@@ -342,7 +342,7 @@ export enum BlockchainSendMethod {
 export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
-  subAccountId: string;
+  subAccountId?: string;
 }
 
 export enum AveniaTicketStatus {
