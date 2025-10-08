@@ -1,8 +1,9 @@
-// @ts-nocheck
-
 import {
   ApiManager,
+  AveniaPaymentMethod,
+  AveniaTicketStatus,
   BrlaApiService,
+  BrlaCurrency,
   checkEvmBalancePeriodically,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
@@ -18,6 +19,7 @@ import {
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   multiplyByPowerOfTen,
   Networks,
+  OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
   waitUntilTrue
@@ -32,6 +34,40 @@ import { polygon } from "viem/chains";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
+
+async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string): Promise<AveniaTicketStatus> {
+  const pollInterval = 5000; // 5 seconds
+  const timeout = 5 * 60 * 1000; // 5 minutes
+  const startTime = Date.now();
+  let lastError: any;
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      const ticket = await brlaApiService.getAveniaPayoutTicket(ticketId, "");
+      if (ticket && ticket.status) {
+        // TODO we log here, because for onchain swap PAID may not be the right final status
+        console.log(`Ticket ${ticketId} status: ${ticket.status}`);
+        if (ticket.status === AveniaTicketStatus.PAID) {
+          return AveniaTicketStatus.PAID;
+        }
+        if (ticket.status === AveniaTicketStatus.FAILED) {
+          throw new Error("Ticket status is FAILED");
+        }
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  if (lastError) {
+    console.error("Polling for ticket status timed out with an error: ", lastError);
+    throw new Error(`Polling for ticket status timed out with an error: ${lastError.message}`);
+  }
+
+  throw new Error("Polling for ticket status timed out.");
+}
 
 export async function checkInitialPendulumBalance(pendulumAddress: string, requiredAmount: string): Promise<Big> {
   const apiManager = ApiManager.getInstance();
@@ -138,26 +174,6 @@ export async function waitForBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: strin
   console.log(`${brlaAmount.toFixed(4, 0)} BRLA successfully teleported to Polygon account.`);
 }
 
-export async function transferBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: string): Promise<void> {
-  const { walletClient: polygonWalletClient } = getPolygonEvmClients();
-  const { brlaBusinessAccountAddress } = getConfig();
-  console.log(
-    `Sending ${brlaAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonWalletClient.account.address}...`
-  );
-  const brlaApiService = BrlaApiService.getInstance();
-  await brlaApiService.transferBrlaToDestination(polygonWalletClient.account.address, brlaAmount, "Polygon");
-
-  console.log(`Waiting for ${brlaAmount.toFixed(4, 0)} BRLA to be transferred to controlled account on Polygon...`);
-  await checkEvmBalancePeriodically(
-    brlaMoonbeamTokenDetails.polygonErc20Address,
-    polygonWalletClient.account.address,
-    brlaAmountRaw,
-    1_000, // 1 second
-    5 * 60 * 1_000, // 5 minutes
-    Networks.Polygon
-  );
-}
-
 export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: string, pendulumAddress: string) {
   console.log(`Transferring ${usdcAmountRaw} USDC to Moonbeam via SquidRouter...`);
 
@@ -231,77 +247,32 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
 /// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
 export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
-  const amountInCents = brlaAmount.mul(100).toFixed(0, 0); // Convert to cents as BRLA API expects amounts in cents
-  const fastQuoteParams: FastQuoteQueryParams = {
-    amount: Number(amountInCents),
-    chain: BrlaSupportedChain.Polygon,
-    fixOutput: false,
-    inputCoin: "BRLA",
-    operation: "swap",
-    outputCoin: "USDC",
-    subaccountId: undefined // We do the swap on the business account, so no subaccount ID is needed
+  const aveniaOnchainSwapParams: OnchainSwapQuoteParams = {
+    inputAmount: brlaAmount.toFixed(0, 0),
+    inputCurrency: BrlaCurrency.BRLA,
+    outputCurrency: BrlaCurrency.USDC
   };
 
   const brlaApiService = BrlaApiService.getInstance();
-  const quote = await brlaApiService.createFastQuote(fastQuoteParams);
-  console.log(`Created fast quote for swapping ${brlaAmount.toFixed(4, 0)} BRLA to USDC.axl:`, quote);
+  const quote = await brlaApiService.createOnchainSwapQuote(aveniaOnchainSwapParams);
+  console.log(`Created quote for swapping ${brlaAmount.toFixed(4, 0)} BRLA to USDC.axl:`, quote);
 
-  // Get USDC balance of receiver before the swap. BRLA is using USDCe on Polygon, so we need to check USDCe balance.
-  const usdcDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
-  const receiverBalanceBeforeRaw = await getEvmTokenBalance({
-    chain: Networks.Polygon,
-    ownerAddress: receiverAddress,
-    tokenAddress: usdcDetails.erc20AddressSourceChain
+  const ticket = await brlaApiService.createOnchainSwapTicket({
+    quoteToken: quote.quoteToken,
+    ticketBlockchainOutput: {
+      walletAddress: receiverAddress,
+      walletChain: AveniaPaymentMethod.MOONBEAM
+    }
   });
-  console.log(`Receiver USDC balance before swap: ${receiverBalanceBeforeRaw} USDC`);
-
-  const { id } = await brlaApiService.swapRequest({
-    receiverAddress,
-    token: quote.token
-  });
-
-  console.log("Swap request created on BRLA API service with ID:", id);
+  console.log(`Created on-chain swap ticket with ID: ${ticket.id}`);
 
   // Wait a couple seconds for the swap to be processed on BRLA API service
   await new Promise(resolve => setTimeout(resolve, 10_000));
 
-  // Find transaction receipt
-  let success = false;
-  let txHash: string | undefined;
-  const maxRetries = 5;
-  const retryDelayMs = 60_000; // 60 seconds
+  // Check ticket status
+  await checkTicketStatusPaid(brlaApiService, ticket.id);
 
-  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
-    if (retryCount > 0) {
-      console.log(`Swap transaction hash not found for ID: ${id}. Retry ${retryCount}/${maxRetries}...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-    }
-
-    const swapHistory = await brlaApiService.getSwapHistory(undefined);
-    const swapLog = swapHistory.find(tx => tx.id === id);
-    success = Boolean(swapLog?.smartContractOps[0]?.feedback.success);
-    txHash = swapLog?.smartContractOps[0]?.tx;
-
-    if (success && txHash) {
-      if (retryCount > 0) {
-        console.log(`Found transaction hash on retry ${retryCount}: ${txHash}`);
-      }
-      break;
-    }
-
-    if (retryCount === maxRetries) {
-      throw new Error(`Swap transaction hash not found for ID: ${id} after ${maxRetries} retries.`);
-    }
-  }
-
-  if (!txHash) throw new Error(`Swap transaction hash not found for ID: ${id}.`);
-
-  const { publicClient: polygonPublicClient } = getPolygonEvmClients();
-  console.log(`Waiting for swap transaction ${txHash} to be confirmed on Polygon...`);
-  await waitForTransactionConfirmation(txHash, polygonPublicClient, 3);
-  console.log(`Swap transaction ${txHash} confirmed on Polygon.`);
-
-  return { amountUsd: quote.amountUsd, fee: quote.baseFee, rate: quote.basePrice };
+  return { amountUsd: brlaAmount.toString(), fee: "0", quoteToken: quote.quoteToken, rate: "1.0", ticketId: ticket.id };
 }
 
 export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pendulumAddress: string): Promise<void> {
@@ -355,3 +326,40 @@ export async function waitForAxlUsdcOnPendulum(
   await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
   console.log("USDC successfully arrived on Pendulum account.");
 }
+
+export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
+  const pollInterval = 5000; // 5 seconds
+  const timeout = 5 * 60 * 1000; // 5 minutes
+  const startTime = Date.now();
+  let lastError: any;
+  const brlaAmountUnits = brlaAmountBig.toFixed(0, 0);
+  const brlaApiService = BrlaApiService.getInstance();
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      const balanceResponse = await brlaApiService.getMainAccountBalance();
+      if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
+        if (new Big(balanceResponse.balances.BRLA).gte(brlaAmountUnits)) {
+          console.log(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
+          return balanceResponse;
+        }
+        console.log(
+          `Insufficient BRLA balance. Needed units: ${
+            brlaAmountUnits
+          }, have (in units): ${new Big(balanceResponse.balances.BRLA).toString()}. Retrying in 5s...`
+        );
+      }
+    } catch (error) {
+      lastError = error;
+      console.log(`Polling for balance failed with error. Retrying...`, lastError);
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+  if (lastError) {
+    console.log("BrlaPayoutOnMoonbeamPhaseHandler: Polling for balance failed: ", lastError);
+    throw lastError;
+  }
+  throw new Error(
+    `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${brlaAmountUnits} units.`
+  );
+};

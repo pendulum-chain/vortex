@@ -4,10 +4,10 @@ import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import {
   checkInitialPendulumBalance,
+  pollForSufficientBalance,
   sendBrlaToMoonbeam,
   swapAxlusdcToBrla,
   swapBrlaToUsdcOnBrlaApiService,
-  transferBrlaOnPolygon,
   transferUsdcToMoonbeamWithSquidrouter,
   triggerXcmFromMoonbeam,
   waitForAxlUsdcOnPendulum,
@@ -39,9 +39,9 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   // Calculate raw amount for subsequent steps
   const brlaAmountRaw = multiplyByPowerOfTen(brlaAmount, brlaFiatTokenDetails.decimals).toFixed(0, 0);
 
-  // Step 4: Wait for BRLA to appear on Polygon (automatic teleportation)
-  await waitForBrlaOnPolygon(brlaAmount, brlaAmountRaw);
-  console.log(`BRLA appeared on Polygon: ${brlaAmount}`);
+  // Step 4: Wait for BRLA to appear on the internal Avenia balance.
+  await pollForSufficientBalance(brlaAmount);
+  console.log(`BRLA appeared on the internal Avenia balance: ${brlaAmount}`);
 
   // Step 5: Swap BRLA to USDC.e on Polygon via BRLA API service and send to custom Polygon account
   const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, polygonAccountAddress as `0x${string}`);

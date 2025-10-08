@@ -88,6 +88,12 @@ export interface PayOutQuoteParams {
   subAccountId: string;
 }
 
+export interface OnchainSwapQuoteParams {
+  inputCurrency: BrlaCurrency;
+  inputAmount: string;
+  outputCurrency: BrlaCurrency;
+}
+
 export enum AveniaTicketStatus {
   PENDING = "PENDING",
   PAID = "PAID",
@@ -132,7 +138,6 @@ export interface PixOutputTicketOutput {
   id: string;
 }
 
-// TODO verify ticket endpoint outputs for this modality
 export interface PixOutputTicketPayload {
   quoteToken: string;
   ticketBrlPixOutput: {
@@ -147,6 +152,14 @@ export interface PixOutputTicketPayload {
       nonce: number;
       deadline: number;
     };
+  };
+}
+
+export interface OnchainSwapTicketPayload {
+  quoteToken: string;
+  ticketBlockchainOutput: {
+    walletChain: string;
+    walletAddress: string;
   };
 }
 

@@ -15,6 +15,7 @@ import {
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
+  OnchainSwapTicketPayload,
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
@@ -110,7 +111,7 @@ export interface EndpointMapping {
   };
   [Endpoint.Tickets]: {
     POST: {
-      body: PixInputTicketPayload | PixOutputTicketPayload;
+      body: PixInputTicketPayload | PixOutputTicketPayload | OnchainSwapTicketPayload;
       response: PixInputTicketOutput | PixOutputTicketOutput;
     };
     GET: {
