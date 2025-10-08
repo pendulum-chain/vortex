@@ -751,7 +751,7 @@ export class RampService extends BaseRampService {
 
     if (oldPhase !== newPhase) {
       webhookDeliveryService
-        .triggerStatusChange(id, rampState.state.sessionId || null, newPhase, rampState.type)
+        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, newPhase, rampState.type)
         .catch(error => {
           logger.error(`Error triggering STATUS_CHANGE webhook for ${id}:`, error);
         });
