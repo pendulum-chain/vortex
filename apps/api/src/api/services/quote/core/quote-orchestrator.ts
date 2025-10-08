@@ -9,6 +9,7 @@ export class QuoteOrchestrator {
     const engines = this.engines ? this.engines : strategy.getEngines(ctx);
 
     for (const stageKey of stages) {
+      console.log("Executing stage:", stageKey);
       const engine = engines[stageKey];
       if (!engine) {
         throw new Error(`Engine for stage '${stageKey}' not registered in registry (strategy='${strategy.name}')`);

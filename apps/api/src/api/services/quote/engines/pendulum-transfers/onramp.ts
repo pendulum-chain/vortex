@@ -57,6 +57,8 @@ export class OnRampPendulumTransferEngine implements Stage {
       req.outputCurrency
     );
 
+    // FIXME only the Hydration transfer needs to deduct the fees like this.
+    // For the other transfers, the fee is either paid in GLMR or DOT
     const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
       .plus(ctx.subsidy.subsidyAmountInOutputToken)
       .minus(originFeeInTargetCurrency)

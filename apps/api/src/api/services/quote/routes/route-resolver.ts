@@ -1,14 +1,15 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { Networks, RampDirection } from "@packages/shared";
+import { FiatToken, Networks, RampDirection } from "@packages/shared";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
+import { OnrampAveniaToEvmStrategy } from "./strategies/onramp-avenia-to-evm.strategy";
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
-import { OnrampToEvmStrategy } from "./strategies/onramp-to-evm.strategy";
+import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
@@ -19,9 +20,13 @@ export class RouteResolver {
         } else {
           return new OnrampMoneriumToAssethubStrategy();
         }
+      } else {
+        if (ctx.request.inputCurrency === FiatToken.EURC) {
+          return new OnrampMoneriumToEvmStrategy();
+        } else {
+          return new OnrampAveniaToEvmStrategy();
+        }
       }
-      // Any non-AssetHub chain treated as EVM (Polygon/Ethereum/Base/etc.)
-      return new OnrampToEvmStrategy();
     }
 
     switch (ctx.to) {

@@ -1,27 +1,49 @@
-import { AXL_USDC_MOONBEAM, ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, Networks, RampDirection } from "@packages/shared";
+import {
+  AXL_USDC_MOONBEAM,
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
+  EvmToken,
+  getNetworkFromDestination,
+  getOnChainTokenDetails,
+  isOnChainToken,
+  Networks,
+  OnChainToken,
+  RampDirection
+} from "@packages/shared";
+import Big from "big.js";
+import httpStatus from "http-status";
+import { APIError } from "../../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../core/squidrouter";
+import { priceFeedService } from "../../../priceFeed.service";
+import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
-export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
+export class OnRampSquidRouterEurToEvmEngine implements Stage {
   readonly key = StageKey.OnRampSquidRouter;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    if (req.rampType !== RampDirection.BUY || req.to !== "assethub") {
-      ctx.addNote?.("OnRampSquidRouterToAssetHubEngine: skipped");
+    if (req.rampType !== RampDirection.BUY || req.to === "assethub") {
+      ctx.addNote?.("Skipped");
       return;
     }
 
-    if (!ctx.moneriumMint) {
+    if (!ctx.moneriumMint?.amountOut) {
       throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
 
     const fromToken = ERC20_EURE_POLYGON;
     const fromNetwork = Networks.Polygon;
-    const toToken = AXL_USDC_MOONBEAM;
-    const toNetwork = Networks.Moonbeam;
+    const toNetwork = getNetworkFromDestination(req.to);
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+
+    if (!toNetwork) {
+      throw new APIError({
+        message: `Invalid network for destination: ${req.to} `,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const bridgeRequest: EvmBridgeRequest = {
       amountRaw: ctx.moneriumMint.amountOutRaw,
@@ -41,7 +63,7 @@ export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
       ERC20_EURE_POLYGON_DECIMALS
     ).toString();
 
-    ctx.evmToMoonbeam = {
+    ctx.evmToEvm = {
       effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
       fromNetwork,
       fromToken,

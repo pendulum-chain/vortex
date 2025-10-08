@@ -23,6 +23,8 @@ export class OnRampFinalizeEngine implements Stage {
       throw new APIError({ message: "OnRampFinalizeEngine requires displayFiat", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
+    console.log("Finalize context:", JSON.stringify(ctx, null, 2));
+
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
       if (req.outputCurrency === AssetHubToken.USDC) {
@@ -43,14 +45,25 @@ export class OnRampFinalizeEngine implements Stage {
         finalOutputAmountDecimal = ctx.hydrationToAssethubXcm.outputAmountDecimal;
       }
     } else {
-      // EVM on-ramp with squidrouter as last step
-      if (!ctx.moonbeamToEvm?.outputAmountDecimal) {
-        throw new APIError({
-          message: "OnRampFinalizeEngine requires bridge output for EVM",
-          status: httpStatus.INTERNAL_SERVER_ERROR
-        });
+      if (ctx.request.inputCurrency === FiatToken.EURC) {
+        // EVM on-ramp from EVM to EVM (Monerium)
+        if (!ctx.evmToEvm?.outputAmountDecimal) {
+          throw new APIError({
+            message: "OnRampFinalizeEngine requires bridge output for EVM",
+            status: httpStatus.INTERNAL_SERVER_ERROR
+          });
+        }
+        finalOutputAmountDecimal = new Big(ctx.evmToEvm.outputAmountDecimal);
+      } else {
+        // EVM on-ramp with squidrouter as last step
+        if (!ctx.moonbeamToEvm?.outputAmountDecimal) {
+          throw new APIError({
+            message: "OnRampFinalizeEngine requires bridge output for EVM",
+            status: httpStatus.INTERNAL_SERVER_ERROR
+          });
+        }
+        finalOutputAmountDecimal = new Big(ctx.moonbeamToEvm.outputAmountDecimal);
       }
-      finalOutputAmountDecimal = new Big(ctx.moonbeamToEvm.outputAmountDecimal);
     }
 
     if (finalOutputAmountDecimal.lte(0)) {

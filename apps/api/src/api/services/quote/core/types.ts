@@ -155,6 +155,8 @@ export interface QuoteContext {
 
   assethubToPendulumXcm?: XcmMeta;
 
+  evmToEvm?: BridgeMeta;
+
   evmToMoonbeam?: BridgeMeta;
 
   hydrationToAssethubXcm?: XcmMeta;
