@@ -23,7 +23,11 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
       return;
     }
 
-    const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
+    if (!ctx.aveniaMint) {
+      throw new Error("OnRampFeeAveniaToAssethubEngine requires aveniaMint in context");
+    }
+
+    const { feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
       from: req.from,
       inputAmount: req.inputAmount,
       inputCurrency: req.inputCurrency,
@@ -33,6 +37,10 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
       to: req.to
     });
 
+    // The anchor fee was dynamically obtained from the Avenia quote in a previous step
+    const anchorFee = ctx.aveniaMint.fee.toString();
+    const anchorFeeCurrency = ctx.aveniaMint.currency;
+
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
       throw new Error(`OnRampFeeAveniaToAssethubEngine: invalid network for destination: ${req.to}`);
@@ -40,7 +48,7 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
 
     const usdCurrency = EvmToken.USDC;
     const vortexFeeUsd = await this.price.convertCurrency(vortexFee, feeCurrency, usdCurrency);
-    const anchorFeeUsd = await this.price.convertCurrency(anchorFee, feeCurrency, usdCurrency);
+    const anchorFeeUsd = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, usdCurrency);
     const partnerMarkupFeeUsd = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, usdCurrency);
     const networkFeeUsd = "0.03"; // FIXME We don't have a good estimate for XCM fees yet
 
@@ -52,7 +60,7 @@ export class OnRampAveniaToAssethubFeeEngine implements Stage {
 
     if (feeCurrency !== displayCurrency) {
       vortexFeeDisplay = await this.price.convertCurrency(vortexFee, feeCurrency, displayCurrency);
-      anchorFeeDisplay = await this.price.convertCurrency(anchorFee, feeCurrency, displayCurrency);
+      anchorFeeDisplay = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, displayCurrency);
       partnerMarkupFeeDisplay = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency);
       networkFeeDisplay = await this.price.convertCurrency(networkFeeUsd, usdCurrency, displayCurrency);
     }

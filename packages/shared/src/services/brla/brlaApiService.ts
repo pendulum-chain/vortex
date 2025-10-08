@@ -243,16 +243,19 @@ export class BrlaApiService {
   }
 
   public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {
-    const query = new URLSearchParams({
+    const urlSearchParams = new URLSearchParams({
       inputAmount: quoteParams.inputAmount,
       inputCurrency: quoteParams.inputCurrency,
       inputPaymentMethod: quoteParams.inputPaymentMethod,
       inputThirdParty: String(quoteParams.inputThirdParty),
       outputCurrency: quoteParams.outputCurrency,
       outputPaymentMethod: quoteParams.outputPaymentMethod,
-      outputThirdParty: String(quoteParams.outputThirdParty),
-      subAccountId: quoteParams.subAccountId
-    }).toString();
+      outputThirdParty: String(quoteParams.outputThirdParty)
+    });
+    if (quoteParams.subAccountId) {
+      urlSearchParams.append("subAccountId", quoteParams.subAccountId);
+    }
+    const query = urlSearchParams.toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 

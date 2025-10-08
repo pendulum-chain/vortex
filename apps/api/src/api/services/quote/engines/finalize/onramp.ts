@@ -23,8 +23,6 @@ export class OnRampFinalizeEngine implements Stage {
       throw new APIError({ message: "OnRampFinalizeEngine requires displayFiat", status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    console.log("Finalize context:", JSON.stringify(ctx, null, 2));
-
     let finalOutputAmountDecimal: Big;
     if (req.to === "assethub") {
       if (req.outputCurrency === AssetHubToken.USDC) {

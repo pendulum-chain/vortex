@@ -1,4 +1,13 @@
-import { FiatToken, getAnyFiatTokenDetailsMoonbeam, multiplyByPowerOfTen, RampDirection, XcmFees } from "@packages/shared";
+import {
+  AveniaPaymentMethod,
+  BrlaApiService,
+  BrlaCurrency,
+  FiatToken,
+  getAnyFiatTokenDetailsMoonbeam,
+  multiplyByPowerOfTen,
+  RampDirection,
+  XcmFees
+} from "@packages/shared";
 import Big from "big.js";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -17,11 +26,31 @@ export class OnRampInitializeAveniaEngine implements Stage {
     const amountIn = new Big(req.inputAmount);
     const amountInRaw = multiplyByPowerOfTen(amountIn, brlaTokenDetails.decimals).toString();
 
+    const brlaApiService = BrlaApiService.getInstance();
+    const aveniaQuote = await brlaApiService.createPayInQuote({
+      inputAmount: amountIn.toString(),
+      inputCurrency: BrlaCurrency.BRL,
+      inputPaymentMethod: AveniaPaymentMethod.PIX,
+      inputThirdParty: false,
+      outputCurrency: BrlaCurrency.BRLA,
+      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputThirdParty: false
+    });
+
+    // We add a small buffer for the gas fees
+    const gasFee = aveniaQuote.appliedFees.find(fee => fee.type === "Gas Fee");
+    let gasFeeBuffer = new Big(0.1); // Default to 0.1 BRL if we can't find the gas fee
+    if (gasFee) {
+      const gasFeeAmount = new Big(gasFee.amount);
+      // We add a 50% buffer to the applied gas fee
+      gasFeeBuffer = gasFeeAmount.mul(0.5);
+    }
+
     // We received minted BRLA on the ephemeral account
-    // TODO get actual quote from Avenia API to get estimate for fees
-    const fee = Big(0.01); // assume 0.01 BRLA fees for minting
-    const mintedBrla = new Big(req.inputAmount).minus(fee);
+    const mintedBrla = new Big(aveniaQuote.outputAmount).minus(gasFeeBuffer);
     const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrla, brlaTokenDetails.decimals).toString();
+
+    const fee = amountIn.minus(mintedBrla);
 
     ctx.aveniaMint = {
       amountIn,
@@ -38,6 +67,8 @@ export class OnRampInitializeAveniaEngine implements Stage {
       origin: { amount: "0.01", amountRaw: "1000", currency: "USDC" }
     };
 
+    // The fees are not deducted from the minted BRLA because they are paid in GLMR,
+    // so the input and output amounts are the same
     ctx.moonbeamToPendulumXcm = {
       fromToken: FiatToken.BRL,
       inputAmountDecimal: mintedBrla,
