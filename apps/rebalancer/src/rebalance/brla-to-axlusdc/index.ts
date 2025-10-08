@@ -1,14 +1,13 @@
-import { multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
+import { AXL_USDC_MOONBEAM, multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
-import { getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
+import { getMoonbeamEvmClients, getPendulumAccount } from "../../utils/config.ts";
 import {
   checkInitialPendulumBalance,
   pollForSufficientBalance,
   sendBrlaToMoonbeam,
   swapAxlusdcToBrla,
   swapBrlaToUsdcOnBrlaApiService,
-  transferUsdcToMoonbeamWithSquidrouter,
   triggerXcmFromMoonbeam,
   waitForAxlUsdcOnPendulum,
   waitForBrlaOnPolygon
@@ -20,8 +19,8 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log(`Starting rebalance from BRLA to USDC.axl with amount: ${amountAxlUsdc}`);
 
   const pendulumAccount = getPendulumAccount();
-  const { walletClient: polygonWalletClient } = await getPolygonEvmClients();
-  const polygonAccountAddress = polygonWalletClient.account.address;
+  const { walletClient: moonbeamWalletClient } = await getMoonbeamEvmClients();
+  const moonbeamAccountAddress = moonbeamWalletClient.account.address;
 
   // Step 1: Check initial balance
   const initialBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
@@ -36,34 +35,24 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   await sendBrlaToMoonbeam(brlaAmount, brlaFiatTokenDetails.pendulumRepresentative);
   console.log(`Sent ${brlaAmount} BRLA to Moonbeam`);
 
-  // Calculate raw amount for subsequent steps
-  const brlaAmountRaw = multiplyByPowerOfTen(brlaAmount, brlaFiatTokenDetails.decimals).toFixed(0, 0);
-
   // Step 4: Wait for BRLA to appear on the internal Avenia balance.
   await pollForSufficientBalance(brlaAmount);
   console.log(`BRLA appeared on the internal Avenia balance: ${brlaAmount}`);
 
-  // Step 5: Swap BRLA to USDC.e on Polygon via BRLA API service and send to custom Polygon account
-  const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, polygonAccountAddress as `0x${string}`);
-  console.log(`Swapped ${brlaAmount} BRLA to USDC.e on Polygon with a rate of ${brlaToUsdcSwapQuote.rate} USDC.e per BRLA`);
+  // Step 5: Swap BRLA to USDC.e using Avenia, on Moonbeam.
+  const brlaToUsdcSwapQuote = await swapBrlaToUsdcOnBrlaApiService(brlaAmount, moonbeamAccountAddress as `0x${string}`);
+
+  console.log(`Swapped ${brlaAmount} BRLA to USDC.e on Moonbeam with a rate of ${brlaToUsdcSwapQuote.rate} USDC.e per BRLA`);
 
   const usdcAmountRaw = multiplyByPowerOfTen(brlaToUsdcSwapQuote.amountUsd, usdcTokenDetails.decimals).toFixed(0, 0);
 
-  // Step 6: Swap and transfer USDC.e from Polygon to USDC.axl on Moonbeam using SquidRouter
-  const { squidRouterReceiverId, amountUsd } = await transferUsdcToMoonbeamWithSquidrouter(
-    usdcAmountRaw,
-    pendulumAccount.address
-  );
-  console.log(`Swapped BRLA to USDC.axl on Polygon, receiver ID: ${squidRouterReceiverId}`);
-
   // Step 7: Trigger XCM from Moonbeam to send USDC.axl back to Pendulum
-  // Wait for 30 seconds to ensure the SquidRouter transaction is processed
   await new Promise(resolve => setTimeout(resolve, 30000));
-  await triggerXcmFromMoonbeam(squidRouterReceiverId, pendulumAccount.address);
+  await triggerXcmFromMoonbeam(usdcAmountRaw, pendulumAccount.address, AXL_USDC_MOONBEAM);
   console.log("Triggered XCM from Moonbeam to Pendulum");
 
   // Step 8: Wait for USDC.axl to arrive on Pendulum
-  await waitForAxlUsdcOnPendulum(Big(amountUsd), pendulumAccount.address, initialBalance);
+  await waitForAxlUsdcOnPendulum(Big(brlaToUsdcSwapQuote.amountUsd), pendulumAccount.address, initialBalance);
   console.log("USDC.axl arrived on Pendulum");
 
   const finalBalance = await checkInitialPendulumBalance(pendulumAccount.address, "0");
@@ -72,7 +61,9 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   console.log(
     `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}`
   );
-  console.log(`Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${amountUsd} USDC.axl`);
+  console.log(
+    `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${brlaToUsdcSwapQuote.amountUsd} USDC.axl`
+  );
   console.log(
     `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(initialBalance)).toFixed(4, 0)}`
   );
@@ -81,7 +72,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   await slackNotifier.sendMessage({
     text:
       `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}\n` +
-      `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${amountUsd} USDC.axl\n` +
+      `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${brlaToUsdcSwapQuote.amountUsd} USDC.axl\n` +
       `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(initialBalance)).toFixed(4, 0)}`
   });
 }

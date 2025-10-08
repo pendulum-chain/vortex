@@ -39,6 +39,7 @@ export interface AveniaQuoteResponse {
   inputCurrency: string;
   inputPaymentMethod: string;
   inputAmount: string;
+  outputAmount: string;
 }
 
 export function isValidKYCDocType(value: string): value is AveniaDocumentType {
@@ -225,6 +226,34 @@ export interface AveniaPayinTicket extends BaseTicket {
     brCode: string;
   };
   RefundableParameter: string;
+}
+
+export interface AveniaSwapTicket extends BaseTicket {
+  blockchainSenderInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    txHash: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+  blockchainInputInfo: {
+    id: string;
+    ticketId: string;
+    r: string;
+    s: string;
+    v: number;
+    nonce: number;
+    deadline: number;
+    personalSignature: string;
+    personalSignatureDeadline: number;
+  };
 }
 
 // Limit types

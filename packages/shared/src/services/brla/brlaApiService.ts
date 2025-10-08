@@ -20,6 +20,7 @@ import {
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
+  AveniaSwapTicket,
   AveniaTicketStatus,
   BlockchainSendMethod,
   BrlaCurrency,
@@ -294,5 +295,14 @@ export class BrlaApiService {
       return aveniaTicketsQueryResponse.tickets.filter((ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket);
     }
     throw new Error("Invalid response from Avenia API for getAveniaPayinTickets");
+  }
+
+  public async getAveniaSwapTicket(ticketId: string): Promise<AveniaSwapTicket> {
+    const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", undefined, undefined, ticketId);
+    if ("ticket" in aveniaTicketsQueryResponse) {
+      return aveniaTicketsQueryResponse.ticket as AveniaSwapTicket;
+    }
+
+    throw new Error("Invalid response from Avenia API for getAveniaSwapTicket");
   }
 }

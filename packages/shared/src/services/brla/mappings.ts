@@ -8,6 +8,7 @@ import {
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
+  AveniaSwapTicket,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -116,7 +117,9 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: { ticket: AveniaPayoutTicket | AveniaPayinTicket } | { tickets: AveniaPayoutTicket[] | AveniaPayinTicket[] };
+      response:
+        | { ticket: AveniaPayoutTicket | AveniaPayinTicket | AveniaSwapTicket }
+        | { tickets: AveniaPayoutTicket[] | AveniaPayinTicket[] | AveniaSwapTicket[] };
     };
     PATCH: {
       body: undefined;
