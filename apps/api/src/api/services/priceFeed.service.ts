@@ -358,6 +358,7 @@ export class PriceFeedService {
 
       // Check if both currencies are USD-like stablecoins
       const isUsdLikeCurrency = (currency: RampCurrency): boolean =>
+        currency.toUpperCase() === "USD" ||
         Object.values(UsdLikeEvmToken).includes(normalizeTokenSymbol(currency) as unknown as UsdLikeEvmToken);
 
       if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {

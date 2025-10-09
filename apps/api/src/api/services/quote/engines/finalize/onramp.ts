@@ -72,6 +72,5 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
 
   protected validate(ctx: QuoteContext, { amount }: FinalizeComputation): void {
     validateAmountLimits(ctx.request.inputAmount, ctx.request.inputCurrency as FiatToken, "min", ctx.request.rampType);
-    validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "min", ctx.request.rampType);
   }
 }
