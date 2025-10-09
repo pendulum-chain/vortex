@@ -1,31 +1,15 @@
-import {
-  AssetHubToken,
-  EvmToken,
-  multiplyByPowerOfTen,
-  Networks,
-  OnChainToken,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
+import { multiplyByPowerOfTen, RampDirection } from "@packages/shared";
 import Big from "big.js";
-import { priceFeedService } from "../../../priceFeed.service";
-import { calculateNablaSwapOutput } from "../../core/nabla";
-import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
+import { QuoteContext, XcmMeta } from "../../core/types";
+import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig } from "./index";
 
-export class OffRampToAveniaPendulumTransferEngine implements Stage {
-  readonly key = StageKey.PendulumTransfer;
+export class OffRampToAveniaPendulumTransferEngine extends BasePendulumTransferEngine {
+  readonly config: PendulumTransferConfig = {
+    direction: RampDirection.SELL,
+    skipNote: "Skipped for off-ramp request"
+  };
 
-  private price = priceFeedService;
-
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
       throw new Error("OffRampToAveniaPendulumTransferEngine requires nablaSwap in context");
     }
@@ -33,38 +17,36 @@ export class OffRampToAveniaPendulumTransferEngine implements Stage {
     if (!ctx.subsidy) {
       throw new Error("OffRampToAveniaPendulumTransferEngine requires subsidy in context");
     }
+  }
 
-    // We currently can't really estimate XCM fees on Pendulum because we don't have the dry-run API available.
-    const xcmFees = {
-      destination: {
-        amount: "0.01",
-        amountRaw: "10000",
-        currency: "USDC"
-      },
-      origin: {
-        amount: "0.01",
-        amountRaw: "10000",
-        currency: "USDC"
-      }
-    };
+  protected async compute(ctx: QuoteContext): Promise<PendulumTransferComputation> {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const nablaSwap = ctx.nablaSwap!;
+
+    const xcmFees = this.createXcmFees(ctx);
 
     // We don't need to deduct the XCM fees from the output amount because the fees are not paid in the token
     // being transferred but in GLMR
-    const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal).plus(ctx.subsidy.subsidyAmountInOutputToken);
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();
+    const outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toString();
 
-    ctx.pendulumToMoonbeamXcm = {
-      fromToken: ctx.nablaSwap.outputCurrency,
-      inputAmountDecimal: ctx.nablaSwap.outputAmountDecimal,
-      inputAmountRaw: ctx.nablaSwap.outputAmountRaw,
+    const xcmMeta: XcmMeta = {
+      fromToken: nablaSwap.outputCurrency,
+      inputAmountDecimal: nablaSwap.outputAmountDecimal,
+      inputAmountRaw: nablaSwap.outputAmountRaw,
       outputAmountDecimal,
       outputAmountRaw,
-      toToken: ctx.nablaSwap.outputCurrency,
+      toToken: nablaSwap.outputCurrency,
       xcmFees
     };
 
-    ctx.addNote?.(
-      `Calculated XCM transfer with ${xcmFees.origin.amount} ${xcmFees.origin.currency} origin fee and ${xcmFees.destination.amount} ${xcmFees.destination.currency} destination fee`
-    );
+    return {
+      data: xcmMeta,
+      type: "xcm"
+    };
+  }
+
+  protected assign(ctx: QuoteContext, computation: PendulumTransferComputation): void {
+    ctx.pendulumToMoonbeamXcm = computation.data as XcmMeta;
   }
 }

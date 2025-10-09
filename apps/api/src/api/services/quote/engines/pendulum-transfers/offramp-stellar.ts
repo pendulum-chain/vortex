@@ -1,42 +1,48 @@
 import { RampDirection } from "@packages/shared";
 import Big from "big.js";
-import { priceFeedService } from "../../../priceFeed.service";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
+import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig, StellarData } from "./index";
 
-export class OffRampToStellarPendulumTransferEngine implements Stage {
-  readonly key = StageKey.PendulumTransfer;
+export class OffRampToStellarPendulumTransferEngine extends BasePendulumTransferEngine {
+  readonly config: PendulumTransferConfig = {
+    direction: RampDirection.SELL,
+    skipNote: "Skipped for off-ramp request"
+  };
 
-  private price = priceFeedService;
-
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
-      throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
+      throw new Error("OffRampToStellarPendulumTransferEngine requires nablaSwap in context");
     }
 
     if (!ctx.subsidy) {
-      throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
+      throw new Error("OffRampToStellarPendulumTransferEngine requires subsidy in context");
     }
+  }
+
+  protected async compute(ctx: QuoteContext): Promise<PendulumTransferComputation> {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const nablaSwap = ctx.nablaSwap!;
 
     const fee = new Big(0); // The fee is not paid in the token being transferred
-    const amountIn = ctx.nablaSwap.outputAmountDecimal.plus(ctx.subsidy.subsidyAmountInOutputToken);
-    const amountInRaw = new Big(ctx.nablaSwap.outputAmountRaw).plus(ctx.subsidy.subsidyAmountInOutputTokenRaw).toFixed(0, 0);
+    const amountIn = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const amountInRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
 
-    ctx.pendulumToStellar = {
+    const stellarData: StellarData = {
       amountIn,
       amountInRaw,
       amountOut: amountIn, // The fees are not paid in the token being transferred, so amountOut = amountIn
       amountOutRaw: amountInRaw,
-      currency: ctx.nablaSwap.outputCurrency,
+      currency: nablaSwap.outputCurrency,
       fee
     };
 
-    ctx.addNote?.(``);
+    return {
+      data: stellarData,
+      type: "stellar"
+    };
+  }
+
+  protected assign(ctx: QuoteContext, computation: PendulumTransferComputation): void {
+    ctx.pendulumToStellar = computation.data as StellarData;
   }
 }

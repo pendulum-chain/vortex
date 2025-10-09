@@ -1,21 +1,18 @@
 import { AssetHubToken, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
-import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
+import { QuoteContext, XcmMeta } from "../../core/types";
+import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig } from "./index";
 
-export class OnRampPendulumTransferEngine implements Stage {
-  readonly key = StageKey.PendulumTransfer;
+export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
+  readonly config: PendulumTransferConfig = {
+    direction: RampDirection.BUY,
+    skipNote: "Skipped for off-ramp request"
+  };
 
   private price = priceFeedService;
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
       throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
     }
@@ -23,6 +20,12 @@ export class OnRampPendulumTransferEngine implements Stage {
     if (!ctx.subsidy) {
       throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
     }
+  }
+
+  protected async compute(ctx: QuoteContext): Promise<PendulumTransferComputation> {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const nablaSwap = ctx.nablaSwap!;
+    const req = ctx.request;
 
     const hydrationDestinationFee = {
       amount: "0.15",
@@ -70,21 +73,30 @@ export class OnRampPendulumTransferEngine implements Stage {
 
     // FIXME only the Hydration transfer needs to deduct the fees like this.
     // For the other transfers, the fee is either paid in GLMR or DOT
-    const outputAmountDecimal = new Big(ctx.nablaSwap.outputAmountDecimal)
-      .plus(ctx.subsidy.subsidyAmountInOutputToken)
+    const outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal))
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ctx.nablaSwap.outputDecimals).toString();
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toString();
 
     const xcmMeta: XcmMeta = {
-      fromToken: ctx.nablaSwap.outputCurrency,
-      inputAmountDecimal: ctx.nablaSwap.outputAmountDecimal,
-      inputAmountRaw: ctx.nablaSwap.outputAmountRaw,
+      fromToken: nablaSwap.outputCurrency,
+      inputAmountDecimal: nablaSwap.outputAmountDecimal,
+      inputAmountRaw: nablaSwap.outputAmountRaw,
       outputAmountDecimal,
       outputAmountRaw,
-      toToken: ctx.nablaSwap.outputCurrency,
+      toToken: nablaSwap.outputCurrency,
       xcmFees
     };
+
+    return {
+      data: xcmMeta,
+      type: "xcm"
+    };
+  }
+
+  protected assign(ctx: QuoteContext, computation: PendulumTransferComputation): void {
+    const req = ctx.request;
+    const xcmMeta = computation.data as XcmMeta;
 
     if (req.to === "assethub") {
       if (req.outputCurrency !== AssetHubToken.USDC) {
@@ -98,9 +110,5 @@ export class OnRampPendulumTransferEngine implements Stage {
       // Transfer from Pendulum to Moonbeam
       ctx.pendulumToMoonbeamXcm = xcmMeta;
     }
-
-    ctx.addNote?.(
-      `Calculated XCM transfer with ${xcmFees.origin.amount} ${xcmFees.origin.currency} origin fee and ${xcmFees.destination.amount} ${xcmFees.destination.currency} destination fee`
-    );
   }
 }
