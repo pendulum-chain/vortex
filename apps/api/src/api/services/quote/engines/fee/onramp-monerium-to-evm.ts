@@ -1,5 +1,6 @@
-import { FiatToken, RampDirection } from "@packages/shared";
+import { EvmToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { assignFeeSummary } from "./index";
 
 export class OnRampMoneriumToEvmFeeEngine implements Stage {
   readonly key = StageKey.Fee;
@@ -12,29 +13,11 @@ export class OnRampMoneriumToEvmFeeEngine implements Stage {
       return;
     }
 
-    // For now, we don't charge any fees for this path
-    ctx.fees = {
-      displayFiat: {
-        anchor: "0",
-        currency: FiatToken.EURC,
-        network: "0",
-        partnerMarkup: "0",
-        total: "0",
-        vortex: "0"
-      },
-      usd: {
-        anchor: "0",
-        network: "0",
-        partnerMarkup: "0",
-        total: "0",
-        vortex: "0"
-      }
-    };
-
-    // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
-    const usd = ctx.fees.usd!;
-    ctx.addNote?.(
-      `Fees: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}]}`
-    );
+    await assignFeeSummary(ctx, {
+      anchor: { amount: "0", currency: FiatToken.EURC as RampCurrency },
+      network: { amount: "0", currency: EvmToken.USDC as RampCurrency },
+      partnerMarkup: { amount: "0", currency: FiatToken.EURC as RampCurrency },
+      vortex: { amount: "0", currency: FiatToken.EURC as RampCurrency }
+    });
   }
 }
