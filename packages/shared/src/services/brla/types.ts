@@ -39,6 +39,8 @@ export interface AveniaQuoteResponse {
   inputCurrency: string;
   inputPaymentMethod: string;
   inputAmount: string;
+  outputAmount: string;
+  basePrice?: string;
 }
 
 export function isValidKYCDocType(value: string): value is AveniaDocumentType {
@@ -88,6 +90,12 @@ export interface PayOutQuoteParams {
   subAccountId: string;
 }
 
+export interface OnchainSwapQuoteParams {
+  inputCurrency: BrlaCurrency;
+  inputAmount: string;
+  outputCurrency: BrlaCurrency;
+}
+
 export enum AveniaTicketStatus {
   PENDING = "PENDING",
   PAID = "PAID",
@@ -108,7 +116,24 @@ export interface BaseTicket {
     id: string;
     ticketId: string;
     inputPaymentMethod: string;
+    outputAmount: string;
+    appliedFees: AveniaOperationFee[];
   };
+}
+
+export interface AveniaOperationFee {
+  type: FeeType;
+  amount: string;
+  currency: BrlaCurrency;
+  rebatable: boolean;
+}
+
+export enum FeeType {
+  MARKUP = "Markup Fee",
+  GAS = "Gas Fee",
+  CONVERSION = "Conversion Fee",
+  IN = "In Fee",
+  OUT = "Out Fee"
 }
 
 export interface PixInputTicketPayload {
@@ -132,7 +157,6 @@ export interface PixOutputTicketOutput {
   id: string;
 }
 
-// TODO verify ticket endpoint outputs for this modality
 export interface PixOutputTicketPayload {
   quoteToken: string;
   ticketBrlPixOutput: {
@@ -147,6 +171,14 @@ export interface PixOutputTicketPayload {
       nonce: number;
       deadline: number;
     };
+  };
+}
+
+export interface OnchainSwapTicketPayload {
+  quoteToken: string;
+  ticketBlockchainOutput: {
+    walletChain: string;
+    walletAddress: string;
   };
 }
 
@@ -212,6 +244,34 @@ export interface AveniaPayinTicket extends BaseTicket {
     brCode: string;
   };
   RefundableParameter: string;
+}
+
+export interface AveniaSwapTicket extends BaseTicket {
+  blockchainSenderInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    txHash: string;
+  };
+  blockchainReceiverInfo: {
+    id: string;
+    ticketId: string;
+    walletAddress: string;
+    walletChain: string;
+    walletMemo: string;
+    txHash: string;
+  };
+  blockchainInputInfo: {
+    id: string;
+    ticketId: string;
+    r: string;
+    s: string;
+    v: number;
+    nonce: number;
+    deadline: number;
+    personalSignature: string;
+    personalSignatureDeadline: number;
+  };
 }
 
 // Limit types
