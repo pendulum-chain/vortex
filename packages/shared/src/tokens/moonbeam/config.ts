@@ -17,8 +17,8 @@ export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails
       name: "Brazilian Real",
       symbol: "BRL"
     },
-    maxBuyAmountRaw: "150000000000000000000000",
-    maxSellAmountRaw: "150000000000000000000000",
+    maxBuyAmountRaw: "120000000000000000000000",
+    maxSellAmountRaw: "120000000000000000000000",
     minBuyAmountRaw: "3000000000000000000",
     minSellAmountRaw: "3000000000000000000",
     moonbeamErc20Address: "0xfeb25f3fddad13f82c4d6dbc1481516f62236429", // 3 BRL.
