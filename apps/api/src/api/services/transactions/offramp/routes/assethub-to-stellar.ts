@@ -37,15 +37,16 @@ export async function prepareAssethubToStellarOfframpTransactions({
   const { fromNetwork, inputTokenDetails, outputTokenDetails, stellarEphemeralEntry, pendulumEphemeralEntry } =
     validateOfframpQuote(quote, signingAccounts);
 
-  validateStellarOfframp(outputTokenDetails, stellarPaymentData);
-  validateStellarOfframpMetadata(quote);
+  const { stellarTokenDetails, stellarPaymentData: validatedStellarPaymentData } = validateStellarOfframp(
+    outputTokenDetails,
+    stellarPaymentData
+  );
+  const { offrampAmountBeforeAnchorFeesUnits, offrampAmountBeforeAnchorFeesRaw } = validateStellarOfframpMetadata(quote);
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
-  const offrampAmountBeforeAnchorFeesUnits = quote.metadata.pendulumToStellar!.amountOut;
-  const offrampAmountBeforeAnchorFeesRaw = quote.metadata.pendulumToStellar!.amountOutRaw;
 
-  if (stellarPaymentData && stellarPaymentData.amount) {
-    const stellarAmount = new Big(stellarPaymentData.amount);
+  if (validatedStellarPaymentData.amount) {
+    const stellarAmount = new Big(validatedStellarPaymentData.amount);
     if (!stellarAmount.eq(offrampAmountBeforeAnchorFeesUnits)) {
       throw new Error(
         `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`
@@ -124,9 +125,9 @@ export async function prepareAssethubToStellarOfframpTransactions({
     {
       account: pendulumAccount,
       outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
-      outputTokenDetails: outputTokenDetails as any, // Validated as Stellar token above
+      outputTokenDetails: stellarTokenDetails,
       stellarEphemeralEntry,
-      stellarPaymentData: stellarPaymentData!
+      stellarPaymentData: validatedStellarPaymentData
     },
     unsignedTxs,
     pendulumCleanupTx,

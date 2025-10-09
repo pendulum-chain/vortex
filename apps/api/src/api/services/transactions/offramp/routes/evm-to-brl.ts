@@ -44,10 +44,15 @@ export async function prepareEvmToBRLOfframpTransactions({
     signingAccounts
   );
 
-  validateBRLOfframp(quote, { brlaEvmAddress, pixDestination, receiverTaxId, taxId });
+  const {
+    brlaEvmAddress: validatedBrlaEvmAddress,
+    pixDestination: validatedPixDestination,
+    taxId: validatedTaxId,
+    receiverTaxId: validatedReceiverTaxId,
+    offrampAmountBeforeAnchorFeesRaw
+  } = validateBRLOfframp(quote, { brlaEvmAddress, pixDestination, receiverTaxId, taxId });
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
-  const offrampAmountBeforeAnchorFeesRaw = quote.metadata.pendulumToMoonbeamXcm!.outputAmountRaw;
 
   // Initialize state metadata
   stateMeta = {
@@ -130,12 +135,12 @@ export async function prepareEvmToBRLOfframpTransactions({
   const brlResult = await createBRLTransactions(
     {
       account: pendulumAccount,
-      brlaEvmAddress: brlaEvmAddress!,
+      brlaEvmAddress: validatedBrlaEvmAddress,
       outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
       outputTokenPendulumDetails: outputTokenDetails.pendulumRepresentative,
-      pixDestination: pixDestination!,
-      receiverTaxId: receiverTaxId!,
-      taxId: taxId!
+      pixDestination: validatedPixDestination,
+      receiverTaxId: validatedReceiverTaxId,
+      taxId: validatedTaxId
     },
     unsignedTxs,
     pendulumCleanupTx,
