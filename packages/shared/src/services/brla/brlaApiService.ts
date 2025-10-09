@@ -198,7 +198,7 @@ export class BrlaApiService {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Fixed. We know it comes from the our balance
       inputThirdParty: String(false),
       outputCurrency: quoteParams.outputCurrency,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.POLYGON,
       outputThirdParty: String(false) // Fixed. We know it goes to our Moonbeam account.
     }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);

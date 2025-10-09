@@ -40,6 +40,7 @@ export interface AveniaQuoteResponse {
   inputPaymentMethod: string;
   inputAmount: string;
   outputAmount: string;
+  basePrice?: string;
 }
 
 export function isValidKYCDocType(value: string): value is AveniaDocumentType {
@@ -115,7 +116,24 @@ export interface BaseTicket {
     id: string;
     ticketId: string;
     inputPaymentMethod: string;
+    outputAmount: string;
+    appliedFees: AveniaOperationFee[];
   };
+}
+
+export interface AveniaOperationFee {
+  type: FeeType;
+  amount: string;
+  currency: BrlaCurrency;
+  rebatable: boolean;
+}
+
+export enum FeeType {
+  MARKUP = "Markup Fee",
+  GAS = "Gas Fee",
+  CONVERSION = "Conversion Fee",
+  IN = "In Fee",
+  OUT = "Out Fee"
 }
 
 export interface PixInputTicketPayload {

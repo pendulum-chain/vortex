@@ -1,13 +1,11 @@
 import {
   ApiManager,
-  AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaSwapTicket,
   AveniaTicketStatus,
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
-  createMoonbeamToPendulumXCM,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
   createPendulumToMoonbeamTransfer,
@@ -15,7 +13,8 @@ import {
   EvmToken,
   EvmTokenDetails,
   encodePayload,
-  getEvmTokenBalance,
+  evmTokenConfig,
+  FeeType,
   getOnChainTokenDetails,
   getStatusAxelarScan,
   getTokenOutAmount,
@@ -25,7 +24,6 @@ import {
   OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
-  submitMoonbeamXcm,
   waitUntilTrue
 } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
@@ -37,7 +35,7 @@ import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
-import { getConfig, getMoonbeamEvmClients, getPendulumAccount } from "../../utils/config.ts";
+import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
 
 async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string): Promise<AveniaSwapTicket> {
@@ -50,8 +48,6 @@ async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: s
     try {
       const ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
       if (ticket && ticket.status) {
-        // TODO we log here, because for onchain swap PAID may not be the right final status
-        console.log(`Ticket ${ticketId} status: ${ticket.status}`);
         if (ticket.status === AveniaTicketStatus.PAID) {
           return ticket;
         }
@@ -179,76 +175,107 @@ export async function waitForBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: strin
   console.log(`${brlaAmount.toFixed(4, 0)} BRLA successfully teleported to Polygon account.`);
 }
 
-// export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: string, pendulumAddress: string) {
-//   console.log(`Transferring ${usdcAmountRaw} USDC to Moonbeam via SquidRouter...`);
+export async function waitForUSDCOnPolygon(usdcAmount: Big, usdcAmountRaw: string): Promise<void> {
+  const { brlaBusinessAccountAddress } = getConfig();
+  const { walletClient: polygonWalletClient } = await getPolygonEvmClients();
+  const polygonAccountAddress = polygonWalletClient.account.address;
+  const usdcPolygonDetails = evmTokenConfig[Networks.Polygon][EvmToken.USDC];
 
-//   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
+  if (!usdcPolygonDetails) {
+    throw new Error("USDC token details not found for Polygon.");
+  }
 
-//   const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
+  console.log(
+    `Waiting for ${usdcAmount.toFixed(4, 0)} USDC to be teleported to Polygon account ${brlaBusinessAccountAddress}...`
+  );
+  await checkEvmBalancePeriodically(
+    usdcPolygonDetails.erc20AddressSourceChain,
+    polygonAccountAddress,
+    usdcAmountRaw,
+    1_000, // 1 second
+    5 * 60 * 1_000, // 5 minutes
+    Networks.Polygon
+  );
+  console.log(`${usdcAmount.toFixed(4, 0)} USDC successfully teleported to Polygon account.`);
+}
 
-//   const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
-//     fromAddress: polygonWalletClient.account.address,
-//     fromNetwork: Networks.Polygon,
-//     inputTokenDetails: usdcTokenDetails,
-//     pendulumAddressDestination: pendulumAddress,
-//     rawAmount: usdcAmountRaw
-//   });
+export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: string, pendulumAddress: string) {
+  console.log(`Transferring ${usdcAmountRaw} USDC to Moonbeam via SquidRouter...`);
 
-//   const approveDataExtended = {
-//     account: polygonWalletClient.account,
-//     chain: polygon,
-//     data: approveData.data,
-//     gas: BigInt(approveData.gas),
-//     maxFeePerGas: approveData.maxFeePerGas ? BigInt(approveData.maxFeePerGas) * 5n : BigInt(187500000000),
-//     maxPriorityFeePerGas: approveData.maxPriorityFeePerGas
-//       ? BigInt(approveData.maxPriorityFeePerGas) * 5n
-//       : BigInt(187500000000),
-//     to: approveData.to,
-//     value: BigInt(approveData.value)
-//   };
+  const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
-//   console.log("Approving BRLA for swap on Polygon...");
-//   const approveHash = await polygonWalletClient.sendTransaction(approveDataExtended);
-//   console.log(`BRLA approval for swap on Polygon sent with transaction hash: ${approveHash}. Waiting for confirmation...`);
-//   await waitForTransactionConfirmation(approveHash, polygonPublicClient);
-//   console.log("BRLA approved for swap on Polygon. Transaction hash:", approveHash);
+  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
 
-//   const swapDataExtended = {
-//     account: polygonWalletClient.account,
-//     chain: polygon,
-//     data: swapData.data,
-//     gas: BigInt(swapData.gas),
-//     maxFeePerGas: swapData.maxFeePerGas ? BigInt(swapData.maxFeePerGas) * 5n : BigInt(187500000000),
-//     maxPriorityFeePerGas: swapData.maxPriorityFeePerGas ? BigInt(swapData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
-//     to: swapData.to,
-//     value: BigInt(swapData.value)
-//   };
+  const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
+    fromAddress: polygonWalletClient.account.address,
+    fromNetwork: Networks.Polygon,
+    inputTokenDetails: usdcTokenDetails,
+    pendulumAddressDestination: pendulumAddress,
+    rawAmount: usdcAmountRaw
+  });
 
-//   console.log("Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...");
-//   const swapHash = await polygonWalletClient.sendTransaction(swapDataExtended);
-//   console.log(`BRLA swap to USDC.axl on Moonbeam sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
-//   await waitForTransactionConfirmation(swapHash, polygonPublicClient);
-//   console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
-//   // Wait until the swap is executed on Axelar
-//   let isExecuted = false;
-//   while (!isExecuted) {
-//     const axelarScanStatus = await getStatusAxelarScan(swapHash);
+  const suggestedTipApprove = approveData.maxPriorityFeePerGas ? BigInt(approveData.maxPriorityFeePerGas) : 0n;
+  const effectiveTipApprove = suggestedTipApprove > BigInt(25000000000n) ? suggestedTipApprove : BigInt(25000000000n);
 
-//     if (!axelarScanStatus) {
-//       console.log(`No Axelar status found for swap hash ${swapHash}.`);
-//       await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before checking again
-//       continue;
-//     }
-//     if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
-//       isExecuted = true;
-//       console.log(`Transaction ${swapHash} successfully executed on Axelar.`);
-//       break;
-//     }
-//   }
+  console.log("priority fee", approveData.maxPriorityFeePerGas, swapData.maxPriorityFeePerGas);
+  const approveDataExtended = {
+    account: polygonWalletClient.account,
+    chain: polygon,
+    data: approveData.data,
+    gas: BigInt(approveData.gas),
+    maxFeePerGas: maxFeePerGas * 5n,
+    maxPriorityFeePerGas: maxPriorityFeePerGas * 5n,
+    to: approveData.to,
+    value: BigInt(approveData.value)
+  };
 
-//   return { amountUsd: route.estimate.toAmountUSD, squidRouterReceiverId };
-// }
+  console.log("Approving BRLA for swap on Polygon...");
+  const approveHash = await polygonWalletClient.sendTransaction(approveDataExtended);
+  console.log(`BRLA approval for swap on Polygon sent with transaction hash: ${approveHash}. Waiting for confirmation...`);
+  await waitForTransactionConfirmation(approveHash, polygonPublicClient);
+  console.log("BRLA approved for swap on Polygon. Transaction hash:", approveHash);
+
+  const suggestedTipSwap = swapData.maxPriorityFeePerGas ? BigInt(swapData.maxPriorityFeePerGas) : 0n;
+  const effectiveTipSwap = suggestedTipSwap > BigInt(25000000000n) ? suggestedTipSwap : BigInt(25000000000n);
+
+  const swapDataExtended = {
+    account: polygonWalletClient.account,
+    chain: polygon,
+    data: swapData.data,
+    gas: BigInt(swapData.gas),
+    maxFeePerGas: maxFeePerGas * 5n,
+    maxPriorityFeePerGas: maxPriorityFeePerGas * 5n,
+    to: swapData.to,
+    value: BigInt(swapData.value)
+  };
+
+  console.log("Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...");
+  const swapHash = await polygonWalletClient.sendTransaction(swapDataExtended);
+  console.log(`BRLA swap to USDC.axl on Moonbeam sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
+  await waitForTransactionConfirmation(swapHash, polygonPublicClient);
+  console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
+
+  // Wait until the swap is executed on Axelar
+  let isExecuted = false;
+  while (!isExecuted) {
+    const axelarScanStatus = await getStatusAxelarScan(swapHash);
+
+    if (!axelarScanStatus) {
+      console.log(`No Axelar status found for swap hash ${swapHash}.`);
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before checking again
+      continue;
+    }
+    if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
+      isExecuted = true;
+      console.log(`Transaction ${swapHash} successfully executed on Axelar.`);
+      break;
+    }
+  }
+
+  return { amountUsd: route.estimate.toAmountUSD, squidRouterReceiverId };
+}
 
 /// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
 export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
@@ -266,7 +293,7 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
     quoteToken: quote.quoteToken,
     ticketBlockchainOutput: {
       walletAddress: receiverAddress,
-      walletChain: AveniaPaymentMethod.MOONBEAM
+      walletChain: AveniaPaymentMethod.POLYGON
     }
   });
   console.log(`Created on-chain swap ticket with ID: ${ticket.id}`);
@@ -276,43 +303,48 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
 
   // Check ticket status
   const paidTicket = await checkTicketStatusPaid(brlaApiService, ticket.id);
+  const paidAmount = Big(paidTicket.quote.outputAmount);
 
-  return { amountUsd: quote.outputAmount, fee: "0", quoteToken: quote.quoteToken, rate: "1.0", ticketId: ticket.id };
+  //Double check: Wait for USDC to appear on Polygon.
+  const usdcAmountRaw = multiplyByPowerOfTen(paidAmount, 6).toFixed(0, 0);
+  await waitForUSDCOnPolygon(paidAmount, usdcAmountRaw);
+  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === FeeType.CONVERSION) ?? "0";
+
+  return {
+    amountUsd: paidAmount.toFixed(6),
+    fee: conversionFee,
+    quoteToken: quote.quoteToken,
+    rate: quote.basePrice,
+    ticketId: ticket.id
+  };
 }
 
-export async function triggerXcmFromMoonbeam(
-  rawAmount: string,
-  pendulumAddress: string,
-  tokenMoonbeamAddress: string
-): Promise<void> {
+export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pendulumAddress: string): Promise<void> {
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumAddress));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const data = encodeFunctionData({
+    abi: splitReceiverABI,
+    args: [squidRouterReceiverId, squidRouterPayload],
+    functionName: "executeXCM"
+  });
+
   const { walletClient: moonbeamWalletClient, publicClient: moonbeamPublicClient } = getMoonbeamEvmClients();
   const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamPublicClient.estimateFeesPerGas();
-
-  const apiManager = ApiManager.getInstance();
-  const moonbeamNode = await apiManager.getApi("moonbeam");
-
-  const xcmTransaction = await createMoonbeamToPendulumXCM(pendulumAddress, rawAmount, tokenMoonbeamAddress);
-  console.log("xcm Transaction", xcmTransaction);
-  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-  const keyring = new Keyring({ type: "ethereum" });
-  const keypair = keyring.addFromUri(`${getConfig().moonbeamAccountSecret}/${ethDerPath}`);
-
-  const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(keypair.address);
-
-  const signedXcmTransaction = await xcmTransaction.signAsync(keypair, { era: 0, nonce: accountNonce });
-
-  const xcmHash = await submitMoonbeamXcm(keypair.address, signedXcmTransaction);
-
-  // console.log(`USDC.axl sent to Pendulum via Receiver contract with transaction hash: ${xcmHash}. Waiting for confirmation...`);
-  // await waitForTransactionConfirmation(xcmHash, moonbeamPublicClient);
-  // console.log("USDC.axl successfully sent to Pendulum via Receiver contract. Transaction hash:", xcmHash);
+  console.log("Sending transaction to make XCM call to Pendulum via Receiver contract...");
+  console.log("'ExecuteXCM' args:", [squidRouterReceiverId, squidRouterPayload]);
+  const xcmHash = await moonbeamWalletClient.sendTransaction({
+    data,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+    value: 0n
+  });
+  console.log(`USDC.axl sent to Pendulum via Receiver contract with transaction hash: ${xcmHash}. Waiting for confirmation...`);
+  await waitForTransactionConfirmation(xcmHash, moonbeamPublicClient);
+  console.log("USDC.axl successfully sent to Pendulum via Receiver contract. Transaction hash:", xcmHash);
 }
 
-export async function waitForAxlUsdcOnPendulum(
-  expectedAmountToReceive: Big,
-  pendulumAddress: string,
-  initialBalance: Big
-): Promise<void> {
+export async function waitForAxlUsdcOnPendulum(pendulumAddress: string, initialBalance: Big): Promise<void> {
   const apiManager = ApiManager.getInstance();
   const pendulumNode = await apiManager.getApi("pendulum");
 
@@ -325,8 +357,8 @@ export async function waitForAxlUsdcOnPendulum(
 
     // Check that newBalance is again almost equal to the old current balance but with some small difference due to fees
     const tolerance = 0.05; // 5% tolerance
-    const lowerBound = initialBalance.add(expectedAmountToReceive.times(1 - tolerance));
-    const upperBound = initialBalance.add(expectedAmountToReceive.times(1 + tolerance));
+    const lowerBound = initialBalance.times(1 - tolerance);
+    const upperBound = initialBalance.times(1 + tolerance);
     return newBalance.gte(lowerBound) && newBalance.lte(upperBound);
   };
 

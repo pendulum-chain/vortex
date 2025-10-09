@@ -1,11 +1,12 @@
-import { createEvmClientsAndConfig } from "@packages/shared";
+import { createEvmClientsAndConfig, EvmClientManager, Networks } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
-import { mnemonicToAccount } from "viem/accounts";
+import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 
 export function getConfig() {
   if (!process.env.PENDULUM_ACCOUNT_SECRET) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");
   if (!process.env.MOONBEAM_ACCOUNT_SECRET) throw new Error("Missing MOONBEAM_ACCOUNT_SECRET environment variable");
+  if (!process.env.POLYGON_ACCOUNT_SECRET) throw new Error("Missing POLYGON_ACCOUNT_SECRET environment variable");
 
   return {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
@@ -15,8 +16,9 @@ export function getConfig() {
 
     moonbeamAccountSecret: process.env.MOONBEAM_ACCOUNT_SECRET,
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
+    polygonAccountSecret: process.env.POLYGON_ACCOUNT_SECRET,
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
-    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25
+    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25 // Default to 0.25 if not set
   };
 }
 
@@ -32,4 +34,17 @@ export function getMoonbeamEvmClients() {
 
   const moonbeamExecutorAccount = mnemonicToAccount(config.moonbeamAccountSecret as `0x${string}`);
   return createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
+}
+
+export function getPolygonEvmClients() {
+  const config = getConfig();
+
+  const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  //const polygonAccount = privateKeyToAccount(config.polygonAccountSecret as `0x${string}`);
+  const walletClient = evmClientManager.getWalletClient(Networks.Polygon, polygonExecutorAccount);
+
+  return { publicClient: polygonClient, walletClient };
 }
