@@ -1,21 +1,13 @@
 import { ERC20_EURE_POLYGON_DECIMALS, getPendulumDetails, multiplyByPowerOfTen, RampDirection } from "@packages/shared";
 import Big from "big.js";
-import httpStatus from "http-status";
-import { APIError } from "../../../../errors/api-error";
-import { priceFeedService } from "../../../priceFeed.service";
-import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
+import { BaseInitializeEngine } from "./index";
 
-export class OnRampInitializeMoneriumEngine implements Stage {
-  readonly key = StageKey.Initialize;
+export class OnRampInitializeMoneriumEngine extends BaseInitializeEngine {
+  readonly config = { direction: RampDirection.BUY, skipNote: "Skipped for off-ramp request" };
 
-  async execute(ctx: QuoteContext): Promise<void> {
+  protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
 
     // Calculate Monerium input and output (of minting/deposit)
     const eurTokenDecimals = ERC20_EURE_POLYGON_DECIMALS;

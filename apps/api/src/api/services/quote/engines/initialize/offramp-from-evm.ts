@@ -1,62 +1,16 @@
-import {
-  EvmToken,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  Networks,
-  OnChainToken,
-  RampDirection
-} from "@packages/shared";
+import { EvmToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
-import httpStatus from "http-status";
-import { APIError } from "../../../../errors/api-error";
-import { priceFeedService } from "../../../priceFeed.service";
-import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
+import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
-export class OffRampFromEvmInitializeEngine implements Stage {
-  readonly key = StageKey.Initialize;
+export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
+  readonly config = { direction: RampDirection.SELL, skipNote: "Skipped for on-ramp request" };
 
-  private price = priceFeedService;
+  protected async executeInternal(ctx: QuoteContext): Promise<void> {
+    await assignPreNablaContext(ctx);
 
-  async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for on-ramp request");
-      return;
-    }
-
-    const { preNablaDeductibleFeeAmount: deductibleFeeAmountInFeeCurrency, feeCurrency } =
-      await calculatePreNablaDeductibleFees(
-        req.inputAmount,
-        req.inputCurrency,
-        req.outputCurrency,
-        req.rampType,
-        req.from,
-        req.to,
-        ctx.partner?.id || undefined
-      );
-
-    const fromNetwork = getNetworkFromDestination(req.from);
-    if (!fromNetwork) {
-      throw new APIError({ message: `Invalid source network: ${req.from}`, status: httpStatus.BAD_REQUEST });
-    }
-
-    const representativeCurrency = getPendulumDetails(req.inputCurrency, fromNetwork).currency;
-    const deductibleFeeAmountInSwapCurrency = await this.price.convertCurrency(
-      deductibleFeeAmountInFeeCurrency.toString(),
-      feeCurrency,
-      representativeCurrency,
-      6
-    );
-
-    ctx.preNabla = {
-      deductibleFeeAmountInFeeCurrency,
-      deductibleFeeAmountInSwapCurrency: new Big(deductibleFeeAmountInSwapCurrency),
-      feeCurrency,
-      representativeInputCurrency: representativeCurrency
-    };
 
     const quoteRequest: EvmBridgeQuoteRequest = {
       amountDecimal: req.inputAmount,
@@ -66,6 +20,7 @@ export class OffRampFromEvmInitializeEngine implements Stage {
       rampType: req.rampType,
       toNetwork: Networks.Moonbeam
     };
+
     const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
 
     ctx.evmToPendulum = {
