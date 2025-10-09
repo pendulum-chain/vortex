@@ -39,12 +39,6 @@ export abstract class BaseInitializeEngine implements Stage {
   protected abstract executeInternal(ctx: QuoteContext): Promise<void>;
 }
 
-export function assertContext<T>(value: T | undefined | null, message: string): asserts value is NonNullable<T> {
-  if (value === undefined || value === null) {
-    throw new Error(message);
-  }
-}
-
 export async function assignPreNablaContext(ctx: QuoteContext): Promise<void> {
   const req = ctx.request;
 

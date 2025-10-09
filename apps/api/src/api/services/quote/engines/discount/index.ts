@@ -7,6 +7,37 @@ const DEFAULT_PARTNER_NAME = "vortex";
 
 type ActivePartner = Pick<Partner, "id" | "discount" | "name"> | null;
 
+export abstract class BaseDiscountEngine implements Stage {
+  abstract readonly config: DiscountStageConfig;
+
+  readonly key = StageKey.Discount;
+
+  async execute(ctx: QuoteContext): Promise<void> {
+    const { request } = ctx;
+    const { direction, skipNote, missingContextMessage } = this.config;
+
+    if (request.rampType !== direction) {
+      ctx.addNote?.(skipNote);
+      return;
+    }
+
+    const nablaSwap = ctx.nablaSwap;
+    if (!nablaSwap) {
+      throw new Error(missingContextMessage);
+    }
+
+    const partner = await resolveDiscountPartner(ctx, request.rampType);
+    const rate = partner?.discount ?? 0;
+
+    ctx.subsidy = buildDiscountSubsidy(rate, partner, {
+      outputAmountDecimal: nablaSwap.outputAmountDecimal,
+      outputAmountRaw: nablaSwap.outputAmountRaw
+    });
+
+    ctx.addNote?.(formatPartnerNote(partner, rate));
+  }
+}
+
 interface DiscountSubsidyPayload {
   outputAmountDecimal: Big;
   outputAmountRaw: string;
@@ -66,35 +97,4 @@ export function buildDiscountSubsidy(
 
 export function formatPartnerNote(partner: ActivePartner, rate: number): string {
   return `partner=${partner?.name || DEFAULT_PARTNER_NAME} (${partner?.id || "N/A"}), rate=${rate}`;
-}
-
-export abstract class BaseDiscountEngine implements Stage {
-  abstract readonly config: DiscountStageConfig;
-
-  readonly key = StageKey.Discount;
-
-  async execute(ctx: QuoteContext): Promise<void> {
-    const { request } = ctx;
-    const { direction, skipNote, missingContextMessage } = this.config;
-
-    if (request.rampType !== direction) {
-      ctx.addNote?.(skipNote);
-      return;
-    }
-
-    const nablaSwap = ctx.nablaSwap;
-    if (!nablaSwap) {
-      throw new Error(missingContextMessage);
-    }
-
-    const partner = await resolveDiscountPartner(ctx, request.rampType);
-    const rate = partner?.discount ?? 0;
-
-    ctx.subsidy = buildDiscountSubsidy(rate, partner, {
-      outputAmountDecimal: nablaSwap.outputAmountDecimal,
-      outputAmountRaw: nablaSwap.outputAmountRaw
-    });
-
-    ctx.addNote?.(formatPartnerNote(partner, rate));
-  }
 }

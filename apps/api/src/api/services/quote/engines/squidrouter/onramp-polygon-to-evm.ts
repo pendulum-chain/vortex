@@ -23,9 +23,7 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
       throw new Error("OnRampSquidRouterEurToEvmEngine: skipped for assethub");
     }
 
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const moneriumMint = ctx.moneriumMint;
-    if (!moneriumMint?.amountOut) {
+    if (!ctx.moneriumMint?.amountOut) {
       throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
   }

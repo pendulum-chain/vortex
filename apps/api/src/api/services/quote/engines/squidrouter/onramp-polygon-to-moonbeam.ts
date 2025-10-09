@@ -13,8 +13,7 @@ export class OnRampSquidRouterEurToAssetHubEngine extends BaseSquidRouterEngine 
       throw new Error("OnRampSquidRouterEurToAssetHubEngine: skipped for non-assethub");
     }
 
-    const moneriumMint = ctx.moneriumMint;
-    if (!moneriumMint) {
+    if (!ctx.moneriumMint) {
       throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
   }
