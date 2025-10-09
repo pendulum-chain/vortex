@@ -1,44 +1,23 @@
-import {
-  AveniaPaymentMethod,
-  BrlaApiService,
-  BrlaCurrency,
-  EvmToken,
-  FiatToken,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
+import { BrlaApiService, EvmToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
-import { calculateFeeComponents } from "../../core/quote-fees";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
-import { assignFeeSummary } from "./index";
+import { QuoteContext } from "../../core/types";
+import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
-export class OffRampFeeAveniaEngine implements Stage {
-  readonly key = StageKey.Fee;
+export class OffRampFeeAveniaEngine extends BaseFeeEngine {
+  readonly config: FeeConfig = {
+    direction: RampDirection.SELL,
+    skipNote: "Skipped for on-ramp request"
+  };
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for on-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
       throw new Error("OffRampFeeAveniaEngine requires nablaSwap in context");
     }
+  }
 
-    const outputAmountOfframp = ctx.nablaSwap.outputAmountDecimal.toFixed(2, 0);
-
-    const { feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
-      from: req.from,
-      inputAmount: req.inputAmount,
-      inputCurrency: req.inputCurrency,
-      outputAmountOfframp,
-      outputCurrency: req.outputCurrency,
-      partnerName: ctx.partner?.id || undefined,
-      rampType: req.rampType,
-      to: req.to
-    });
+  protected async compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation> {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const outputAmountOfframp = ctx.nablaSwap!.outputAmountDecimal.toFixed(2, 0);
 
     const brlaApiService = BrlaApiService.getInstance();
     const aveniaQuote = await brlaApiService.createPayOutQuote({
@@ -46,14 +25,12 @@ export class OffRampFeeAveniaEngine implements Stage {
       outputThirdParty: false
     });
 
-    const anchorFee = new Big(aveniaQuote.inputAmount).minus(aveniaQuote.outputAmount).toString();
+    const computedAnchorFee = new Big(aveniaQuote.inputAmount).minus(aveniaQuote.outputAmount).toString();
     const anchorFeeCurrency = FiatToken.BRL as RampCurrency;
 
-    await assignFeeSummary(ctx, {
-      anchor: { amount: anchorFee, currency: anchorFeeCurrency },
-      network: { amount: "0", currency: EvmToken.USDC as RampCurrency },
-      partnerMarkup: { amount: partnerMarkupFee, currency: feeCurrency },
-      vortex: { amount: vortexFee, currency: feeCurrency }
-    });
+    return {
+      anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
+      network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
+    };
   }
 }

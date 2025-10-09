@@ -1,7 +1,8 @@
-import { EvmToken, RampCurrency } from "@packages/shared";
+import { EvmToken, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
-import { QuoteContext } from "../../core/types";
+import { calculateFeeComponents } from "../../core/quote-fees";
+import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export interface FeeComponentInput {
   amount: string;
@@ -13,6 +14,58 @@ export interface FeeSummaryInput {
   anchor: FeeComponentInput;
   partnerMarkup: FeeComponentInput;
   network?: FeeComponentInput;
+}
+
+export interface FeeConfig {
+  direction: RampDirection;
+  skipNote: string;
+}
+
+export interface FeeComputation {
+  anchor: FeeComponentInput;
+  network: FeeComponentInput;
+}
+
+export abstract class BaseFeeEngine implements Stage {
+  abstract readonly config: FeeConfig;
+
+  readonly key = StageKey.Fee;
+
+  protected abstract validate(ctx: QuoteContext): void;
+
+  protected abstract compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation>;
+
+  async execute(ctx: QuoteContext): Promise<void> {
+    const { request } = ctx;
+    const { direction, skipNote } = this.config;
+
+    if (request.rampType !== direction) {
+      ctx.addNote?.(skipNote);
+      return;
+    }
+
+    this.validate(ctx);
+
+    const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
+      from: request.from,
+      inputAmount: request.inputAmount,
+      inputCurrency: request.inputCurrency,
+      outputAmountOfframp: ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0",
+      outputCurrency: request.outputCurrency,
+      partnerName: ctx.partner?.id || undefined,
+      rampType: request.rampType,
+      to: request.to
+    });
+
+    const { anchor, network } = await this.compute(ctx, anchorFee, feeCurrency);
+
+    await assignFeeSummary(ctx, {
+      anchor,
+      network,
+      partnerMarkup: { amount: partnerMarkupFee, currency: feeCurrency },
+      vortex: { amount: vortexFee, currency: feeCurrency }
+    });
+  }
 }
 
 /**

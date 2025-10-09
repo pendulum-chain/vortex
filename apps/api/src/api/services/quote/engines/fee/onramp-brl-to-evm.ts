@@ -6,63 +6,50 @@ import {
   RampCurrency,
   RampDirection
 } from "@packages/shared";
-import { calculateFeeComponents } from "../../core/quote-fees";
 import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
-import { assignFeeSummary, FeeSummaryInput } from "./index";
+import { QuoteContext } from "../../core/types";
+import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
-export class OnRampAveniaToEvmFeeEngine implements Stage {
-  readonly key = StageKey.Fee;
+export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
+  readonly config: FeeConfig = {
+    direction: RampDirection.BUY,
+    skipNote: "Skipped for off-ramp request"
+  };
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.aveniaMint) {
       throw new Error("OnRampFeeAveniaToEvmEngine requires aveniaMint in context");
     }
+  }
 
-    const { feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
-      from: req.from,
-      inputAmount: req.inputAmount,
-      inputCurrency: req.inputCurrency,
-      outputCurrency: req.outputCurrency,
-      partnerName: ctx.partner?.id || undefined,
-      rampType: req.rampType,
-      to: req.to
-    });
+  protected async compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation> {
+    const { request } = ctx;
 
-    const anchorFee = ctx.aveniaMint.fee.toString();
-    const anchorFeeCurrency = ctx.aveniaMint.currency as RampCurrency;
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const computedAnchorFee = ctx.aveniaMint!.fee.toString();
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const anchorFeeCurrency = ctx.aveniaMint!.currency as RampCurrency;
 
-    const toNetwork = getNetworkFromDestination(req.to);
+    const toNetwork = getNetworkFromDestination(request.to);
     if (!toNetwork) {
-      throw new Error(`OnRampAveniaToEvmFeeEngine: invalid network for destination: ${req.to}`);
+      throw new Error(`OnRampFeeAveniaToEvmEngine: invalid network for destination: ${request.to}`);
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
+    const toToken = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
     const bridgeResult = await calculateEvmBridgeAndNetworkFee({
-      amountRaw: req.inputAmount,
+      amountRaw: request.inputAmount,
       fromNetwork: Networks.Moonbeam,
       fromToken: AXL_USDC_MOONBEAM,
-      originalInputAmountForRateCalc: req.inputAmount,
-      rampType: req.rampType,
+      originalInputAmountForRateCalc: request.inputAmount,
+      rampType: request.rampType,
       toNetwork,
       toToken
     });
 
-    const components: FeeSummaryInput = {
-      anchor: { amount: anchorFee, currency: anchorFeeCurrency },
-      network: { amount: bridgeResult.networkFeeUSD, currency: "USD" as RampCurrency },
-      partnerMarkup: { amount: partnerMarkupFee, currency: feeCurrency },
-      vortex: { amount: vortexFee, currency: feeCurrency }
+    return {
+      anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
+      network: { amount: bridgeResult.networkFeeUSD, currency: "USD" as RampCurrency }
     };
-
-    await assignFeeSummary(ctx, components);
   }
 }
