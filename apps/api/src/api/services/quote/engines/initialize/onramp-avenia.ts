@@ -13,7 +13,10 @@ import { QuoteContext } from "../../core/types";
 import { assignMoonbeamToPendulumXcm, BaseInitializeEngine, buildXcmMeta } from "./index";
 
 export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
-  readonly config = { direction: RampDirection.BUY, skipNote: "Skipped for off-ramp request" };
+  readonly config = {
+    direction: RampDirection.BUY,
+    skipNote: "OnRampInitializeAveniaEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
+  };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

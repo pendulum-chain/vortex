@@ -7,16 +7,20 @@ import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from
 export class OnRampSquidRouterBrlToEvmEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
     direction: RampDirection.BUY,
-    skipNote: "OnRampSquidRouterBrlToEvmEngine: skipped"
+    skipNote: "OnRampSquidRouterBrlToEvmEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
   };
 
   protected validate(ctx: QuoteContext): void {
     if (ctx.request.to === "assethub") {
-      throw new Error("OnRampSquidRouterBrlToEvmEngine: skipped for assethub");
+      throw new Error(
+        "OnRampSquidRouterBrlToEvmEngine: Skipped because destination is assethub, this engine handles EVM destinations only"
+      );
     }
 
     if (!ctx.pendulumToMoonbeamXcm) {
-      throw new Error("OnRampSquidRouterBrlToEvmEngine requires Nabla output in context");
+      throw new Error(
+        "OnRampSquidRouterBrlToEvmEngine: Missing pendulumToMoonbeamXcm in context - ensure pendulum-transfers stage ran successfully"
+      );
     }
   }
 
@@ -24,7 +28,9 @@ export class OnRampSquidRouterBrlToEvmEngine extends BaseSquidRouterEngine {
     const req = ctx.request;
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
-      throw new Error(`OnRampSquidRouterBrlToEvmEngine: invalid network for destination: ${req.to}`);
+      throw new Error(
+        `OnRampSquidRouterBrlToEvmEngine: Invalid network for destination: ${req.to} - ensure destination is a valid EVM network`
+      );
     }
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;

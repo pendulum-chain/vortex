@@ -41,7 +41,12 @@ export class QuoteService extends BaseRampService {
     const orchestrator = new QuoteOrchestrator();
     const resolver = new RouteResolver();
     const strategy = resolver.resolve(ctx);
-    await orchestrator.run(strategy, ctx);
+    try {
+      await orchestrator.run(strategy, ctx);
+    } catch (error) {
+      logger.error(error instanceof Error ? error.message : String(error));
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
 
     console.log("Quote context", ctx);
 

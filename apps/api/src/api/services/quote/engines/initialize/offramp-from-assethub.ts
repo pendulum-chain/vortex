@@ -3,7 +3,10 @@ import { QuoteContext } from "../../core/types";
 import { assignAssethubToPendulumXcm, assignPreNablaContext, BaseInitializeEngine, buildXcmMeta } from "./index";
 
 export class OffRampFromAssethubInitializeEngine extends BaseInitializeEngine {
-  readonly config = { direction: RampDirection.SELL, skipNote: "Skipped for on-ramp request" };
+  readonly config = {
+    direction: RampDirection.SELL,
+    skipNote: "OffRampFromAssethubInitializeEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
+  };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     await assignPreNablaContext(ctx);
@@ -14,7 +17,9 @@ export class OffRampFromAssethubInitializeEngine extends BaseInitializeEngine {
 
     const meta = ctx.assethubToPendulumXcm;
     if (!meta) {
-      throw new Error("Assethub XCM context not assigned");
+      throw new Error(
+        "OffRampFromAssethubInitializeEngine: Assethub XCM context not assigned - ensure assignAssethubToPendulumXcm ran successfully"
+      );
     }
 
     ctx.addNote?.(

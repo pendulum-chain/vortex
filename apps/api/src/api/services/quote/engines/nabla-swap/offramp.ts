@@ -15,12 +15,14 @@ import { BaseNablaSwapEngine, NablaSwapComputation } from "./index";
 export class OffRampSwapEngine extends BaseNablaSwapEngine {
   readonly config = {
     direction: RampDirection.SELL,
-    skipNote: "Skipped for on-ramp request"
+    skipNote: "OffRampSwapEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
   } as const;
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.preNabla?.deductibleFeeAmountInSwapCurrency) {
-      throw new Error("Missing deductible fee amount from preNabla");
+      throw new Error(
+        "OffRampSwapEngine: Missing deductibleFeeAmountInSwapCurrency in preNabla context - ensure initialize stage ran successfully"
+      );
     }
   }
 
@@ -30,7 +32,7 @@ export class OffRampSwapEngine extends BaseNablaSwapEngine {
     const inputAmountPreFees =
       request.from === "assethub" ? ctx.assethubToPendulumXcm?.outputAmountDecimal : ctx.evmToPendulum?.outputAmountDecimal;
     if (!inputAmountPreFees) {
-      throw new Error("OffRampSwapEngine: Missing input amount from previous stage");
+      throw new Error("OffRampSwapEngine: Missing input amount from previous stage - ensure initialize stage ran successfully");
     }
 
     const inputTokenPendulumDetails =

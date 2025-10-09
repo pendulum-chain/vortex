@@ -7,18 +7,18 @@ import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransf
 export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
   readonly config: PendulumTransferConfig = {
     direction: RampDirection.BUY,
-    skipNote: "Skipped for off-ramp request"
+    skipNote: "OnRampPendulumTransferEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
   };
 
   private price = priceFeedService;
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
-      throw new Error("OnRampPendulumTransferEngine requires nablaSwap in context");
+      throw new Error("OnRampPendulumTransferEngine: Missing nablaSwap in context - ensure nabla-swap stage ran successfully");
     }
 
     if (!ctx.subsidy) {
-      throw new Error("OnRampPendulumTransferEngine requires subsidy in context");
+      throw new Error("OnRampPendulumTransferEngine: Missing subsidy in context - ensure subsidy calculation ran successfully");
     }
   }
 

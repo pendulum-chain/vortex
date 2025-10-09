@@ -5,7 +5,10 @@ import { QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
 export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
-  readonly config = { direction: RampDirection.SELL, skipNote: "Skipped for on-ramp request" };
+  readonly config = {
+    direction: RampDirection.SELL,
+    skipNote: "OffRampFromEvmInitializeEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
+  };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     await assignPreNablaContext(ctx);

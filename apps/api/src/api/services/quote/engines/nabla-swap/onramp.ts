@@ -6,12 +6,12 @@ import { BaseNablaSwapEngine, NablaSwapComputation } from "./index";
 export class OnRampSwapEngine extends BaseNablaSwapEngine {
   readonly config = {
     direction: RampDirection.BUY,
-    skipNote: "Skipped for off-ramp request"
+    skipNote: "OnRampSwapEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
   } as const;
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.fees?.usd) {
-      throw new Error("Fees in USD must be calculated first");
+      throw new Error("OnRampSwapEngine: Fees in USD must be calculated first - ensure fee stage ran successfully");
     }
   }
 
@@ -25,7 +25,9 @@ export class OnRampSwapEngine extends BaseNablaSwapEngine {
     } else if (ctx.moonbeamToPendulumXcm) {
       amountReceivedOnPendulum = ctx.moonbeamToPendulumXcm.outputAmountDecimal;
     } else {
-      throw new Error("OnRampSwapEngine: Missing evmToMoonbeam or moonbeamToPendulumXcm quote data from previous stage");
+      throw new Error(
+        "OnRampSwapEngine: Missing evmToMoonbeam or moonbeamToPendulumXcm quote data from previous stage - ensure initialize stage ran successfully"
+      );
     }
 
     const inputTokenPendulumDetails = request.from === "pix" ? getPendulumDetails(FiatToken.BRL) : PENDULUM_USDC_AXL;

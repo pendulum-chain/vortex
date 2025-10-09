@@ -4,7 +4,10 @@ import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";
 
 export class OnRampInitializeMoneriumEngine extends BaseInitializeEngine {
-  readonly config = { direction: RampDirection.BUY, skipNote: "Skipped for off-ramp request" };
+  readonly config = {
+    direction: RampDirection.BUY,
+    skipNote: "OnRampInitializeMoneriumEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
+  };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;

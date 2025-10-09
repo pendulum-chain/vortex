@@ -6,16 +6,20 @@ import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransf
 export class OffRampToAveniaPendulumTransferEngine extends BasePendulumTransferEngine {
   readonly config: PendulumTransferConfig = {
     direction: RampDirection.SELL,
-    skipNote: "Skipped for off-ramp request"
+    skipNote: "OffRampToAveniaPendulumTransferEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
   };
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.nablaSwap) {
-      throw new Error("OffRampToAveniaPendulumTransferEngine requires nablaSwap in context");
+      throw new Error(
+        "OffRampToAveniaPendulumTransferEngine: Missing nablaSwap in context - ensure nabla-swap stage ran successfully"
+      );
     }
 
     if (!ctx.subsidy) {
-      throw new Error("OffRampToAveniaPendulumTransferEngine requires subsidy in context");
+      throw new Error(
+        "OffRampToAveniaPendulumTransferEngine: Missing subsidy in context - ensure subsidy calculation ran successfully"
+      );
     }
   }
 

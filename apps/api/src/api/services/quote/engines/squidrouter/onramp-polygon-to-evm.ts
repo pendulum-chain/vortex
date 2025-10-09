@@ -15,16 +15,20 @@ import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from
 export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
     direction: RampDirection.BUY,
-    skipNote: "Skipped"
+    skipNote: "OnRampSquidRouterEurToEvmEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
   };
 
   protected validate(ctx: QuoteContext): void {
     if (ctx.request.to === "assethub") {
-      throw new Error("OnRampSquidRouterEurToEvmEngine: skipped for assethub");
+      throw new Error(
+        "OnRampSquidRouterEurToEvmEngine: Skipped because destination is assethub, this engine handles EVM destinations only"
+      );
     }
 
     if (!ctx.moneriumMint?.amountOut) {
-      throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
+      throw new Error(
+        "OnRampSquidRouterEurToEvmEngine: Missing moneriumMint.amountOut in context - ensure initialize stage ran successfully"
+      );
     }
   }
 

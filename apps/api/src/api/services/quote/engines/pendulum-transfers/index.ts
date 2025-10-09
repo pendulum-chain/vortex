@@ -58,7 +58,8 @@ export abstract class BasePendulumTransferEngine implements Stage {
         `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
       );
     } else {
-      ctx.addNote?.(``);
+      const stellarData = computation.data as StellarData;
+      ctx.addNote?.(`Calculated Stellar transfer with amount ${stellarData.amountIn.toString()} ${stellarData.currency}`);
     }
   }
 
