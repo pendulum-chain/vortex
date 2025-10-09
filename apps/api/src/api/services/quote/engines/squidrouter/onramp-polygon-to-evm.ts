@@ -1,43 +1,38 @@
 import {
-  AXL_USDC_MOONBEAM,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
-  EvmToken,
   getNetworkFromDestination,
-  getOnChainTokenDetails,
-  isOnChainToken,
   Networks,
   OnChainToken,
   RampDirection
 } from "@packages/shared";
-import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { priceFeedService } from "../../../priceFeed.service";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
+import { QuoteContext } from "../../core/types";
+import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
-export class OnRampSquidRouterEurToEvmEngine implements Stage {
-  readonly key = StageKey.SquidRouter;
+export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
+  readonly config: SquidRouterConfig = {
+    direction: RampDirection.BUY,
+    skipNote: "Skipped"
+  };
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY || req.to === "assethub") {
-      ctx.addNote?.("Skipped");
-      return;
+  protected validate(ctx: QuoteContext): void {
+    if (ctx.request.to === "assethub") {
+      throw new Error("OnRampSquidRouterEurToEvmEngine: skipped for assethub");
     }
 
-    if (!ctx.moneriumMint?.amountOut) {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const moneriumMint = ctx.moneriumMint;
+    if (!moneriumMint?.amountOut) {
       throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
+  }
 
-    const fromToken = ERC20_EURE_POLYGON;
-    const fromNetwork = Networks.Polygon;
+  protected compute(ctx: QuoteContext): SquidRouterComputation {
+    const req = ctx.request;
     const toNetwork = getNetworkFromDestination(req.to);
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
-
     if (!toNetwork) {
       throw new APIError({
         message: `Invalid network for destination: ${req.to} `,
@@ -45,39 +40,22 @@ export class OnRampSquidRouterEurToEvmEngine implements Stage {
       });
     }
 
-    const bridgeRequest: EvmBridgeRequest = {
-      amountRaw: ctx.moneriumMint.amountOutRaw,
-      fromNetwork,
-      fromToken,
-      originalInputAmountForRateCalc: ctx.moneriumMint.amountOutRaw,
-      rampType: req.rampType,
-      toNetwork,
-      toToken
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const moneriumMint = ctx.moneriumMint!;
+
+    return {
+      data: {
+        amountRaw: moneriumMint.amountOutRaw,
+        fromNetwork: Networks.Polygon,
+        fromToken: ERC20_EURE_POLYGON,
+        inputAmountDecimal: moneriumMint.amountOut,
+        inputAmountRaw: moneriumMint.amountOutRaw,
+        outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
+        toNetwork,
+        toToken
+      },
+      type: "evm-to-evm"
     };
-
-    const bridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const squidRouterNetworkFeeUSD = bridgeResult.networkFeeUSD;
-
-    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(
-      bridgeResult.finalGrossOutputAmountDecimal,
-      ERC20_EURE_POLYGON_DECIMALS
-    ).toString();
-
-    ctx.evmToEvm = {
-      effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
-      fromNetwork,
-      fromToken,
-      inputAmountDecimal: ctx.moneriumMint.amountOut,
-      inputAmountRaw: ctx.moneriumMint.amountOutRaw,
-      networkFeeUSD: squidRouterNetworkFeeUSD,
-      outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
-      outputAmountRaw: outputAmountMoonbeamRaw,
-      toNetwork,
-      toToken
-    };
-
-    ctx.addNote?.(
-      `OnRampSquidRouterEurToAssetHubEngine: output=${bridgeResult.finalGrossOutputAmountDecimal.toString()} ${String(toToken)}, raw=${outputAmountMoonbeamRaw}`
-    );
   }
 }

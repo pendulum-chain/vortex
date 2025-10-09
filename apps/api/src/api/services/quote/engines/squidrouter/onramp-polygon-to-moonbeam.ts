@@ -1,61 +1,40 @@
 import { AXL_USDC_MOONBEAM, ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, Networks, RampDirection } from "@packages/shared";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
-import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest } from "../../core/squidrouter";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
+import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
-export class OnRampSquidRouterEurToAssetHubEngine implements Stage {
-  readonly key = StageKey.SquidRouter;
+export class OnRampSquidRouterEurToAssetHubEngine extends BaseSquidRouterEngine {
+  readonly config: SquidRouterConfig = {
+    direction: RampDirection.BUY,
+    skipNote: "OnRampSquidRouterToAssetHubEngine: skipped"
+  };
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY || req.to !== "assethub") {
-      ctx.addNote?.("OnRampSquidRouterToAssetHubEngine: skipped");
-      return;
+  protected validate(ctx: QuoteContext): void {
+    if (ctx.request.to !== "assethub") {
+      throw new Error("OnRampSquidRouterEurToAssetHubEngine: skipped for non-assethub");
     }
 
-    if (!ctx.moneriumMint) {
+    const moneriumMint = ctx.moneriumMint;
+    if (!moneriumMint) {
       throw new Error("OnRampSquidRouterToAssetHubEngine requires Monerium mint output in context");
     }
+  }
 
-    const fromToken = ERC20_EURE_POLYGON;
-    const fromNetwork = Networks.Polygon;
-    const toToken = AXL_USDC_MOONBEAM;
-    const toNetwork = Networks.Moonbeam;
+  protected compute(ctx: QuoteContext): SquidRouterComputation {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const moneriumMint = ctx.moneriumMint!;
 
-    const bridgeRequest: EvmBridgeRequest = {
-      amountRaw: ctx.moneriumMint.amountOutRaw,
-      fromNetwork,
-      fromToken,
-      originalInputAmountForRateCalc: ctx.moneriumMint.amountOutRaw,
-      rampType: req.rampType,
-      toNetwork,
-      toToken
+    return {
+      data: {
+        amountRaw: moneriumMint.amountOutRaw,
+        fromNetwork: Networks.Polygon,
+        fromToken: ERC20_EURE_POLYGON,
+        inputAmountDecimal: moneriumMint.amountOut,
+        inputAmountRaw: moneriumMint.amountOutRaw,
+        outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
+        toNetwork: Networks.Moonbeam,
+        toToken: AXL_USDC_MOONBEAM
+      },
+      type: "evm-to-moonbeam"
     };
-
-    const bridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-    const squidRouterNetworkFeeUSD = bridgeResult.networkFeeUSD;
-
-    const outputAmountMoonbeamRaw = multiplyByPowerOfTen(
-      bridgeResult.finalGrossOutputAmountDecimal,
-      ERC20_EURE_POLYGON_DECIMALS
-    ).toString();
-
-    ctx.evmToMoonbeam = {
-      effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
-      fromNetwork,
-      fromToken,
-      inputAmountDecimal: ctx.moneriumMint.amountOut,
-      inputAmountRaw: ctx.moneriumMint.amountOutRaw,
-      networkFeeUSD: squidRouterNetworkFeeUSD,
-      outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
-      outputAmountRaw: outputAmountMoonbeamRaw,
-      toNetwork,
-      toToken
-    };
-
-    ctx.addNote?.(
-      `OnRampSquidRouterEurToAssetHubEngine: output=${bridgeResult.finalGrossOutputAmountDecimal.toString()} ${String(toToken)}, raw=${outputAmountMoonbeamRaw}`
-    );
   }
 }
