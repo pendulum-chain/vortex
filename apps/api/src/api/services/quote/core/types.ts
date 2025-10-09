@@ -4,6 +4,7 @@
 import {
   CreateQuoteRequest,
   DestinationType,
+  PendulumCurrencyId,
   QuoteFeeStructure,
   QuoteResponse,
   RampCurrency,
@@ -102,10 +103,14 @@ export interface QuoteContext {
     inputAmountForSwap: string;
     inputAmountForSwapRaw: string;
     inputCurrency: RampCurrency;
+    inputCurrencyId: PendulumCurrencyId;
+    inputToken: string; // ERC20 wrapper address
     inputDecimals: number;
     outputAmountRaw: string;
     outputAmountDecimal: Big;
+    outputCurrencyId: PendulumCurrencyId;
     outputDecimals: number;
+    outputToken: string; // ERC20 wrapper address
     effectiveExchangeRate?: string;
     outputCurrency: RampCurrency;
   };

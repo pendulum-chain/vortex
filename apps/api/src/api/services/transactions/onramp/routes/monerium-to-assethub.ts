@@ -17,7 +17,7 @@ import { validateMoneriumOnramp } from "../common/validation";
 
 /**
  * Prepares all transactions for a Monerium (EUR) onramp to AssetHub.
- * This route handles: EUR → Polygon (EURE) → Moonbeam (axlUSDC) → Pendulum (swap) → AssetHub (final transfer)
+ * This route handles: EUR → Polygon (EURe) → Moonbeam (axlUSDC) → Pendulum (swap) → AssetHub (final transfer)
  */
 export async function prepareMoneriumToAssethubOnrampTransactions({
   quote,
@@ -32,15 +32,13 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     validateMoneriumOnramp(quote, signingAccounts);
 
   // Get token details
-  const inputTokenPendulumDetails = getPendulumDetails(EvmToken.USDC);
+  const inputTokenPendulumDetails = getPendulumDetails(EvmToken.AXLUSDC);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
   // Setup state metadata
   stateMeta = {
     destinationAddress,
-    inputTokenPendulumDetails,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-    outputTokenPendulumDetails,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: destinationAddress
@@ -50,7 +48,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    // Pendulum: Nabla swap and fee distribution
+    // Pendulum: Nabla swap and transfer to AssetHub
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
       let pendulumNonce = 0;
 
@@ -139,6 +137,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
         });
         hydrationNonce++;
 
+        // Transfer from Hydration to AssetHub
         if (!isAssetHubTokenDetails(outputTokenDetails)) {
           throw new Error(
             `Output token must be an AssetHub token for finalization to AssetHub, got ${outputTokenDetails.assetSymbol}`

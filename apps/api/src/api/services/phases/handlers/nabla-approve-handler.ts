@@ -1,4 +1,11 @@
-import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  NABLA_ROUTER,
+  RampPhase
+} from "@packages/shared";
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
@@ -24,14 +31,13 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
-      throw new Error("Missing input amount for swap in quote metadata");
+    if (!quote.metadata.nablaSwap) {
+      throw new Error("Missing nablaSwap info in quote metadata");
     }
 
-    // Pre check: check if the approve has already been performed.
     try {
       const approval = await pendulumNode.api.query.tokenAllowance.approvals(
-        state.state.inputTokenPendulumDetails.currencyId,
+        quote.metadata.nablaSwap.inputCurrencyId,
         state.state.pendulumEphemeralAddress,
         NABLA_ROUTER
       );

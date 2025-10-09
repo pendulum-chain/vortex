@@ -1,4 +1,11 @@
-import { ApiManager, FiatToken, RampDirection, RampPhase } from "@packages/shared";
+import {
+  ApiManager,
+  FiatToken,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  RampDirection,
+  RampPhase
+} from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -24,11 +31,17 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress, outputTokenPendulumDetails } = state.state as StateMetadata;
+    const { pendulumEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !outputTokenPendulumDetails) {
+    if (!pendulumEphemeralAddress) {
       throw new Error("SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
+
+    const toNetwork = getNetworkFromDestination(quote.to);
+    if (!toNetwork) {
+      throw new Error(`Invalid network for destination ${quote.to}`);
+    }
+    const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
     if (!quote.metadata.nablaSwap?.outputAmountRaw) {
       throw new Error("Missing output amount before final step in quote metadata");

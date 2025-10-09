@@ -1,4 +1,12 @@
-import { ApiManager, createEvmClientsAndConfig, encodePayload, RampPhase, waitUntilTrue } from "@packages/shared";
+import {
+  ApiManager,
+  createEvmClientsAndConfig,
+  encodePayload,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  RampPhase,
+  waitUntilTrue
+} from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
@@ -9,6 +17,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -19,24 +28,18 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const {
-      pendulumEphemeralAddress,
-      inputTokenPendulumDetails,
-      moonbeamXcmTransactionHash,
-      squidRouterReceiverId,
-      squidRouterReceiverHash
-    } = state.state as StateMetadata;
+    const { pendulumEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
+      state.state as StateMetadata;
 
-    if (
-      !pendulumEphemeralAddress ||
-      !inputTokenPendulumDetails ||
-      !squidRouterReceiverId ||
-      !squidRouterReceiverId ||
-      !squidRouterReceiverHash
-    ) {
+    if (!pendulumEphemeralAddress || !squidRouterReceiverId || !squidRouterReceiverId || !squidRouterReceiverHash) {
       throw new Error("MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -44,9 +47,13 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
 
     const didInputTokenArrivedOnPendulum = async () => {
+      if (!quote.metadata.nablaSwap) {
+        throw new Error("MoonbeamToPendulumXcmPhaseHandler: Missing nablaSwap info in quote metadata");
+      }
+
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.currencyId
+        quote.metadata.nablaSwap.inputCurrencyId
       );
 
       // @ts-ignore

@@ -1,4 +1,4 @@
-import { ApiManager, RampPhase } from "@packages/shared";
+import { ApiManager, getNetworkFromDestination, getPendulumDetails, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -21,15 +21,21 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    const { pendulumEphemeralAddress, inputTokenPendulumDetails } = state.state as StateMetadata;
+    const { pendulumEphemeralAddress } = state.state as StateMetadata;
 
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!pendulumEphemeralAddress || !inputTokenPendulumDetails) {
+    if (!pendulumEphemeralAddress) {
       throw new Error("SubsidizePreSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
+
+    const fromNetwork = getNetworkFromDestination(quote.from);
+    if (!fromNetwork) {
+      throw new Error(`Invalid network for source ${quote.from}`);
+    }
+    const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
 
     if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
       throw new Error("Missing input amount before swap in quote metadata");

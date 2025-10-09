@@ -107,11 +107,15 @@ export abstract class BaseNablaSwapEngine implements Stage {
       inputAmountForSwap,
       inputAmountForSwapRaw,
       inputCurrency: inputToken.currency,
+      inputCurrencyId: inputToken.currencyId,
       inputDecimals: inputToken.decimals,
+      inputToken: inputToken.erc20WrapperAddress,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
       outputCurrency: outputToken.currency,
-      outputDecimals: outputToken.decimals
+      outputCurrencyId: outputToken.currencyId,
+      outputDecimals: outputToken.decimals,
+      outputToken: outputToken.erc20WrapperAddress
     };
   }
 

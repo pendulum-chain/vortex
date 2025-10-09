@@ -2,6 +2,8 @@ import {
   ApiManager,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
+  getNetworkFromDestination,
+  getPendulumDetails,
   NABLA_ROUTER,
   RampDirection,
   RampPhase
@@ -32,10 +34,9 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const { nablaSoftMinimumOutputRaw, pendulumEphemeralAddress, inputTokenPendulumDetails, outputTokenPendulumDetails } =
-      state.state as StateMetadata;
+    const { nablaSoftMinimumOutputRaw, pendulumEphemeralAddress } = state.state as StateMetadata;
 
-    if (!nablaSoftMinimumOutputRaw || !pendulumEphemeralAddress || !inputTokenPendulumDetails || !outputTokenPendulumDetails) {
+    if (!nablaSoftMinimumOutputRaw || !pendulumEphemeralAddress) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
     }
 
@@ -75,7 +76,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         limits: defaultReadLimits,
         messageArguments: [
           quote.metadata.nablaSwap.inputAmountForSwapRaw,
-          [inputTokenPendulumDetails.erc20WrapperAddress, outputTokenPendulumDetails.erc20WrapperAddress]
+          [quote.metadata.nablaSwap.inputToken, quote.metadata.nablaSwap.outputToken]
         ],
         messageName: "getAmountOut"
       });

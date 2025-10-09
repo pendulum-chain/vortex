@@ -65,10 +65,7 @@ export async function prepareMoneriumEvmOfframpTransactions({
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
 
   // Initialize state metadata
-  stateMeta = {
-    inputTokenPendulumDetails,
-    outputTokenPendulumDetails
-  };
+  stateMeta = {};
 
   if (!userAddress) {
     throw new Error("User address must be provided for offramping.");

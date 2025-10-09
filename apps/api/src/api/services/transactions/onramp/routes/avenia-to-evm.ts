@@ -46,9 +46,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   // Setup state metadata
   stateMeta = {
     destinationAddress,
-    inputTokenPendulumDetails,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
-    outputTokenPendulumDetails,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     taxId
   };

@@ -1,8 +1,6 @@
 import { ExtrinsicOptions, IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 
 export interface StateMetadata {
-  inputTokenPendulumDetails: PendulumTokenDetails;
-  outputTokenPendulumDetails: PendulumTokenDetails;
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
   squidRouterReceiverId: string;

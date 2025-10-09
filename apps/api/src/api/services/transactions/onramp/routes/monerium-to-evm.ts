@@ -9,6 +9,7 @@ import {
   Networks,
   UnsignedTx
 } from "@packages/shared";
+import Big from "big.js";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
@@ -17,7 +18,7 @@ import { validateMoneriumOnramp } from "../common/validation";
 
 /**
  * Prepares all transactions for a Monerium (EUR) onramp to EVM chain.
- * This route handles: EUR → Polygon (EURE) → Squidrouter → EVM (final transfer)
+ * This route handles: EUR → Polygon (EURE) → EVM (final transfer)
  */
 export async function prepareMoneriumToEvmOnrampTransactions({
   quote,
@@ -34,24 +35,17 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  // Get token details
-  const inputTokenPendulumDetails = getPendulumDetails(EvmToken.USDC);
-  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    throw new Error("Missing moonbeamToEvm output amount in quote metadata");
+  }
+  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.amountOutRaw).toFixed(0, 0);
 
   // Setup state metadata
   stateMeta = {
     destinationAddress,
-    inputTokenPendulumDetails,
-    outputTokenPendulumDetails,
     walletAddress: destinationAddress
   };
 
-  if (!quote.metadata.moneriumMint?.amountOutRaw) {
-    throw new Error("Missing moneriumMint amountOutRaw in quote metadata");
-  }
-  const inputAmountPostAnchorFeeRaw = quote.metadata.moneriumMint.amountOutRaw;
-
-  // User approve transaction
   const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, destinationAddress);
 
   unsignedTxs.push({
@@ -63,14 +57,12 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
-  // Build transactions for each network
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+    if (accountNetworkId === getNetworkId(Networks.Polygon)) {
       let polygonAccountNonce = 0;
 
-      // Ephemeral self-transfer
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,
         destinationAddress,
@@ -86,7 +78,6 @@ export async function prepareMoneriumToEvmOnrampTransactions({
         txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
-      // Squidrouter transactions
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
         destinationAddress,
         fromAddress: account.address,
