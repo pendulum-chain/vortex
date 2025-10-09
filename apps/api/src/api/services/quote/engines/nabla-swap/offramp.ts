@@ -3,69 +3,44 @@ import {
   FiatToken,
   getAnyFiatTokenDetails,
   getPendulumDetails,
-  multiplyByPowerOfTen,
   Networks,
   PENDULUM_USDC_AXL,
   RampCurrency,
   RampDirection
 } from "@packages/shared";
-import { calculateNablaSwapOutput } from "../../core/nabla";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
-import { validateAmountLimits } from "../../core/validation-helpers";
+import { Big } from "big.js";
+import { QuoteContext } from "../../core/types";
+import { BaseNablaSwapEngine, NablaSwapComputation } from "./index";
 
-export class OffRampSwapEngine implements Stage {
-  readonly key = StageKey.NablaSwap;
+export class OffRampSwapEngine extends BaseNablaSwapEngine {
+  readonly config = {
+    direction: RampDirection.SELL,
+    skipNote: "Skipped for on-ramp request"
+  } as const;
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for on-ramp request");
-      return;
-    }
-
+  protected validate(ctx: QuoteContext): void {
     if (!ctx.preNabla?.deductibleFeeAmountInSwapCurrency) {
-      throw new Error("OffRampSwapEngine: Missing deductible fee amount from preNabla");
+      throw new Error("Missing deductible fee amount from preNabla");
     }
+  }
+
+  protected compute(ctx: QuoteContext): NablaSwapComputation {
+    const { request } = ctx;
 
     const inputAmountPreFees =
-      req.from === "assethub" ? ctx.assethubToPendulumXcm?.outputAmountDecimal : ctx.evmToPendulum?.outputAmountDecimal;
+      request.from === "assethub" ? ctx.assethubToPendulumXcm?.outputAmountDecimal : ctx.evmToPendulum?.outputAmountDecimal;
     if (!inputAmountPreFees) {
       throw new Error("OffRampSwapEngine: Missing input amount from previous stage");
     }
 
-    // If we are on-ramping from Sepa, we already swapped EUR to axlUSDC with Squidrouter
     const inputTokenPendulumDetails =
-      req.from === "assethub" ? getPendulumDetails(req.inputCurrency, Networks.AssetHub) : PENDULUM_USDC_AXL;
-    const outputTokenPendulumDetails = getPendulumDetails(req.outputCurrency as FiatToken);
+      request.from === "assethub" ? getPendulumDetails(request.inputCurrency, Networks.AssetHub) : PENDULUM_USDC_AXL;
+    const outputTokenPendulumDetails = getPendulumDetails(request.outputCurrency as FiatToken);
 
-    const inputAmountForSwap = inputAmountPreFees.minus(ctx.preNabla.deductibleFeeAmountInSwapCurrency).toString();
-    const inputAmountForSwapRaw = multiplyByPowerOfTen(inputAmountForSwap, inputTokenPendulumDetails.decimals).toString();
-
-    const result = await calculateNablaSwapOutput({
-      inputAmountForSwap,
+    return {
+      inputAmountPreFees,
       inputTokenPendulumDetails,
-      outputTokenPendulumDetails,
-      rampType: req.rampType
-    });
-
-    validateAmountLimits(result.nablaOutputAmountDecimal, req.outputCurrency as FiatToken, "max", req.rampType);
-
-    ctx.nablaSwap = {
-      ...ctx.nablaSwap,
-      effectiveExchangeRate: result.effectiveExchangeRate,
-      inputAmountForSwap,
-      inputAmountForSwapRaw,
-      inputCurrency: inputTokenPendulumDetails.currency,
-      inputDecimals: inputTokenPendulumDetails.decimals,
-      outputAmountDecimal: result.nablaOutputAmountDecimal,
-      outputAmountRaw: result.nablaOutputAmountRaw,
-      outputCurrency: outputTokenPendulumDetails.currency,
-      outputDecimals: outputTokenPendulumDetails.decimals
+      outputTokenPendulumDetails
     };
-
-    ctx.addNote?.(
-      `Nabla swap from ${inputTokenPendulumDetails.currency} to ${outputTokenPendulumDetails.currency}, input amount ${inputAmountForSwap}, output amount ${result.nablaOutputAmountDecimal.toFixed()}`
-    );
   }
 }
