@@ -1,67 +1,60 @@
-import { AssetHubToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, FiatToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
-import { priceFeedService } from "../../../priceFeed.service";
-import { trimTrailingZeros } from "../../core/helpers";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
+import { BaseFinalizeEngine, FinalizeComputation } from ".";
 
-export class OnRampFinalizeEngine implements Stage {
-  readonly key = StageKey.Finalize;
+export class OnRampFinalizeEngine extends BaseFinalizeEngine {
+  readonly config = {
+    direction: RampDirection.BUY,
+    missingFeesMessage: "OnRampFinalizeEngine requires displayFiat",
+    skipNote: "Skipped for off-ramp request"
+  } as const;
 
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.BUY) {
-      ctx.addNote?.("Skipped for off-ramp request");
-      return;
-    }
-
-    if (!ctx.fees?.displayFiat) {
-      throw new APIError({ message: "OnRampFinalizeEngine requires displayFiat", status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
+  protected async computeOutput(ctx: QuoteContext): Promise<FinalizeComputation> {
+    const { request } = ctx;
 
     let finalOutputAmountDecimal: Big;
-    if (req.to === "assethub") {
-      if (req.outputCurrency === AssetHubToken.USDC) {
-        if (!ctx.pendulumToAssethubXcm?.outputAmountDecimal) {
+    if (request.to === "assethub") {
+      if (request.outputCurrency === AssetHubToken.USDC) {
+        const output = ctx.pendulumToAssethubXcm?.outputAmountDecimal;
+        if (!output) {
           throw new APIError({
             message: "OnRampFinalizeEngine requires pendulumToAssethubXcm output for AssetHub non-USDC",
             status: httpStatus.INTERNAL_SERVER_ERROR
           });
         }
-        finalOutputAmountDecimal = new Big(ctx.pendulumToAssethubXcm?.outputAmountDecimal);
+        finalOutputAmountDecimal = new Big(output);
       } else {
-        if (!ctx.hydrationToAssethubXcm?.outputAmountDecimal) {
+        const output = ctx.hydrationToAssethubXcm?.outputAmountDecimal;
+        if (!output) {
           throw new APIError({
             message: "OnRampFinalizeEngine requires hydrationToAssethubXcm output for AssetHub non-USDC",
             status: httpStatus.INTERNAL_SERVER_ERROR
           });
         }
-        finalOutputAmountDecimal = ctx.hydrationToAssethubXcm.outputAmountDecimal;
+        finalOutputAmountDecimal = output;
       }
+    } else if (request.inputCurrency === FiatToken.EURC) {
+      const output = ctx.evmToEvm?.outputAmountDecimal;
+      if (!output) {
+        throw new APIError({
+          message: "OnRampFinalizeEngine requires bridge output for EVM",
+          status: httpStatus.INTERNAL_SERVER_ERROR
+        });
+      }
+      finalOutputAmountDecimal = new Big(output);
     } else {
-      if (ctx.request.inputCurrency === FiatToken.EURC) {
-        // EVM on-ramp from EVM to EVM (Monerium)
-        if (!ctx.evmToEvm?.outputAmountDecimal) {
-          throw new APIError({
-            message: "OnRampFinalizeEngine requires bridge output for EVM",
-            status: httpStatus.INTERNAL_SERVER_ERROR
-          });
-        }
-        finalOutputAmountDecimal = new Big(ctx.evmToEvm.outputAmountDecimal);
-      } else {
-        // EVM on-ramp with squidrouter as last step
-        if (!ctx.moonbeamToEvm?.outputAmountDecimal) {
-          throw new APIError({
-            message: "OnRampFinalizeEngine requires bridge output for EVM",
-            status: httpStatus.INTERNAL_SERVER_ERROR
-          });
-        }
-        finalOutputAmountDecimal = new Big(ctx.moonbeamToEvm.outputAmountDecimal);
+      const output = ctx.moonbeamToEvm?.outputAmountDecimal;
+      if (!output) {
+        throw new APIError({
+          message: "OnRampFinalizeEngine requires bridge output for EVM",
+          status: httpStatus.INTERNAL_SERVER_ERROR
+        });
       }
+      finalOutputAmountDecimal = new Big(output);
     }
 
     if (finalOutputAmountDecimal.lte(0)) {
@@ -71,38 +64,14 @@ export class OnRampFinalizeEngine implements Stage {
       });
     }
 
-    validateAmountLimits(req.inputAmount, req.inputCurrency as FiatToken, "min", req.rampType);
-
-    const outputAmountStr = finalOutputAmountDecimal.toFixed(6, 0);
-
-    const record = await QuoteTicket.create({
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      fee: ctx.fees.displayFiat,
-      from: req.from,
-      inputAmount: req.inputAmount,
-      inputCurrency: req.inputCurrency,
-      metadata: ctx,
-      outputAmount: outputAmountStr,
-      outputCurrency: req.outputCurrency,
-      partnerId: ctx.partner?.id || null,
-      rampType: req.rampType,
-      status: "pending",
-      to: req.to
-    });
-
-    ctx.builtResponse = {
-      expiresAt: record.expiresAt,
-      fee: ctx.fees.displayFiat,
-      from: record.from,
-      id: record.id,
-      inputAmount: trimTrailingZeros(record.inputAmount),
-      inputCurrency: record.inputCurrency,
-      outputAmount: trimTrailingZeros(outputAmountStr),
-      outputCurrency: record.outputCurrency,
-      rampType: record.rampType,
-      to: record.to
+    return {
+      amount: finalOutputAmountDecimal,
+      decimals: 6
     };
+  }
 
-    ctx.addNote?.("Persisted quote and built response");
+  protected validate(ctx: QuoteContext, { amount }: FinalizeComputation): void {
+    validateAmountLimits(ctx.request.inputAmount, ctx.request.inputCurrency as FiatToken, "min", ctx.request.rampType);
+    validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "min", ctx.request.rampType);
   }
 }

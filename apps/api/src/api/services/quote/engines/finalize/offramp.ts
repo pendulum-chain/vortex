@@ -1,36 +1,30 @@
-import { FiatToken, QuoteResponse, RampCurrency, RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
-import { priceFeedService } from "../../../priceFeed.service";
-import { trimTrailingZeros } from "../../core/helpers";
-import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { QuoteContext } from "../../core/types";
 import { validateAmountLimits } from "../../core/validation-helpers";
+import { BaseFinalizeEngine, FinalizeComputation } from ".";
 
-export class OffRampFinalizeEngine implements Stage {
-  readonly key = StageKey.Finalize;
+export class OffRampFinalizeEngine extends BaseFinalizeEngine {
+  readonly config = {
+    direction: RampDirection.SELL,
+    missingFeesMessage: "OffRampFinalizeEngine requires computed anchor fees",
+    skipNote: "Skipped for on-ramp request"
+  } as const;
 
-  private price = priceFeedService;
-
-  async execute(ctx: QuoteContext): Promise<void> {
-    const req = ctx.request;
-
-    if (req.rampType !== RampDirection.SELL) {
-      ctx.addNote?.("Skipped for on-ramp request");
-      return;
-    }
-
-    if (!ctx.fees?.displayFiat?.anchor) {
+  protected async computeOutput(ctx: QuoteContext): Promise<FinalizeComputation> {
+    const anchorFee = ctx.fees?.displayFiat?.anchor;
+    if (anchorFee === undefined) {
       throw new APIError({
         message: "OffRampFinalizeEngine requires computed anchor fees",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
-    const anchorFee = ctx.fees.displayFiat.anchor;
     const offrampAmountBeforeAnchorFees =
-      req.to === "pix" ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal : ctx.pendulumToStellar?.amountOut;
+      ctx.request.to === "pix" ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal : ctx.pendulumToStellar?.amountOut;
+
     if (!offrampAmountBeforeAnchorFees) {
       throw new APIError({
         message: "OffRampFinalizeEngine requires pendulumToMoonbeamXcm or pendulumToStellar output",
@@ -38,38 +32,15 @@ export class OffRampFinalizeEngine implements Stage {
       });
     }
 
-    const finalNetOutputAmount = new Big(offrampAmountBeforeAnchorFees).minus(anchorFee);
-    const outputAmountString = finalNetOutputAmount.toFixed(2, 0);
+    const amount = new Big(offrampAmountBeforeAnchorFees).minus(anchorFee);
 
-    validateAmountLimits(finalNetOutputAmount, req.outputCurrency as FiatToken, "min", req.rampType);
-
-    const record = await QuoteTicket.create({
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      fee: ctx.fees.displayFiat,
-      from: req.from,
-      inputAmount: req.inputAmount,
-      inputCurrency: req.inputCurrency,
-      metadata: ctx,
-      outputAmount: outputAmountString,
-      outputCurrency: req.outputCurrency,
-      partnerId: ctx.partner?.id || null,
-      rampType: req.rampType,
-      status: "pending",
-      to: req.to
-    });
-
-    ctx.builtResponse = {
-      expiresAt: record.expiresAt,
-      fee: ctx.fees.displayFiat,
-      from: record.from,
-      id: record.id,
-      inputAmount: trimTrailingZeros(record.inputAmount),
-      inputCurrency: record.inputCurrency,
-      outputAmount: trimTrailingZeros(outputAmountString),
-      outputCurrency: record.outputCurrency,
-      rampType: record.rampType,
-      to: record.to
+    return {
+      amount,
+      decimals: 2
     };
-    ctx.addNote?.("Persisted quote and built response");
+  }
+
+  protected validate(ctx: QuoteContext, { amount }: FinalizeComputation): void {
+    validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "min", ctx.request.rampType);
   }
 }

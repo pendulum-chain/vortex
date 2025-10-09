@@ -1,19 +1,18 @@
 import {
   AXL_USDC_MOONBEAM,
-  EvmToken,
   getNetworkFromDestination,
   Networks,
   OnChainToken,
+  RampCurrency,
   RampDirection
 } from "@packages/shared";
-import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { assignFeeSummary, FeeSummaryInput } from "./index";
 
 export class OnRampAveniaToEvmFeeEngine implements Stage {
   readonly key = StageKey.Fee;
-  private price = priceFeedService;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
@@ -37,9 +36,8 @@ export class OnRampAveniaToEvmFeeEngine implements Stage {
       to: req.to
     });
 
-    // The anchor fee was dynamically obtained from the Avenia quote in a previous step
     const anchorFee = ctx.aveniaMint.fee.toString();
-    const anchorFeeCurrency = ctx.aveniaMint.currency;
+    const anchorFeeCurrency = ctx.aveniaMint.currency as RampCurrency;
 
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
@@ -48,9 +46,8 @@ export class OnRampAveniaToEvmFeeEngine implements Stage {
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
-    // We estimate the network fee early here to be able to transfer it on Pendulum
     const bridgeResult = await calculateEvmBridgeAndNetworkFee({
-      amountRaw: req.inputAmount, // Just use the input amount as we only estimate here
+      amountRaw: req.inputAmount,
       fromNetwork: Networks.Moonbeam,
       fromToken: AXL_USDC_MOONBEAM,
       originalInputAmountForRateCalc: req.inputAmount,
@@ -59,52 +56,13 @@ export class OnRampAveniaToEvmFeeEngine implements Stage {
       toToken
     });
 
-    const usdCurrency = EvmToken.USDC;
-    const vortexFeeUsd = await this.price.convertCurrency(vortexFee, feeCurrency, usdCurrency);
-    const anchorFeeUsd = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, usdCurrency);
-    const partnerMarkupFeeUsd = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, usdCurrency);
-    const networkFeeUsd = bridgeResult.networkFeeUSD;
-
-    const displayCurrency = ctx.targetFeeFiatCurrency;
-    let vortexFeeDisplay = vortexFee;
-    let anchorFeeDisplay = anchorFee;
-    let partnerMarkupFeeDisplay = partnerMarkupFee;
-    let networkFeeDisplay = networkFeeUsd;
-
-    if (feeCurrency !== displayCurrency) {
-      vortexFeeDisplay = await this.price.convertCurrency(vortexFee, feeCurrency, displayCurrency);
-      anchorFeeDisplay = await this.price.convertCurrency(anchorFee, anchorFeeCurrency, displayCurrency);
-      partnerMarkupFeeDisplay = await this.price.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency);
-      networkFeeDisplay = await this.price.convertCurrency(networkFeeUsd, usdCurrency, displayCurrency);
-    }
-
-    ctx.fees = {
-      displayFiat: {
-        anchor: anchorFeeDisplay,
-        currency: displayCurrency,
-        network: networkFeeDisplay,
-        partnerMarkup: partnerMarkupFeeDisplay,
-        total: (
-          Number(vortexFeeDisplay) +
-          Number(anchorFeeDisplay) +
-          Number(partnerMarkupFeeDisplay) +
-          Number(networkFeeDisplay)
-        ).toFixed(2),
-        vortex: vortexFeeDisplay
-      },
-      usd: {
-        anchor: anchorFeeUsd,
-        network: networkFeeUsd,
-        partnerMarkup: partnerMarkupFeeUsd,
-        total: (Number(vortexFeeUsd) + Number(anchorFeeUsd) + Number(partnerMarkupFeeUsd) + Number(networkFeeUsd)).toFixed(6),
-        vortex: vortexFeeUsd
-      }
+    const components: FeeSummaryInput = {
+      anchor: { amount: anchorFee, currency: anchorFeeCurrency },
+      network: { amount: bridgeResult.networkFeeUSD, currency: "USD" as RampCurrency },
+      partnerMarkup: { amount: partnerMarkupFee, currency: feeCurrency },
+      vortex: { amount: vortexFee, currency: feeCurrency }
     };
 
-    // biome-ignore lint/style/noNonNullAssertion: Justification: checked above
-    const usd = ctx.fees.usd!;
-    ctx.addNote?.(
-      `Fees: usd[vortex=${usd.vortex}, anchor=${usd.anchor}, partner=${usd.partnerMarkup}, network=${usd.network}] display=${displayCurrency}`
-    );
+    await assignFeeSummary(ctx, components);
   }
 }
