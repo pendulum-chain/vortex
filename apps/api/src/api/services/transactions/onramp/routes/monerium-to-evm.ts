@@ -1,7 +1,6 @@
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
-  ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
   EvmTransactionData,
   getNetworkId,
@@ -10,8 +9,6 @@ import {
   Networks,
   UnsignedTx
 } from "@packages/shared";
-import Big from "big.js";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
@@ -19,8 +16,8 @@ import { OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/t
 import { validateMoneriumOnramp } from "../common/validation";
 
 /**
- * Main function to prepare all transactions for an on-ramp operation
- * Creates and signs all required transactions so they are ready to be submitted.
+ * Prepares all transactions for a Monerium (EUR) onramp to EVM chain.
+ * This route handles: EUR → Polygon (EURE) → Squidrouter → EVM (final transfer)
  */
 export async function prepareMoneriumToEvmOnrampTransactions({
   quote,
@@ -30,29 +27,32 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
-  const { toNetwork, outputTokenDetails, polygonEphemeralEntry } = validateMoneriumOnramp(quote, signingAccounts);
+  // Validate inputs and extract required data
+  const { toNetwork, outputTokenDetails } = validateMoneriumOnramp(quote, signingAccounts);
 
   if (isAssetHubTokenDetails(outputTokenDetails)) {
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  if (!quote.metadata.moneriumMint?.amountOutRaw) {
-    throw new Error("Missing moonbeamToEvm output amount in quote metadata");
-  }
-  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.amountOutRaw).toFixed(0, 0);
-
+  // Get token details
   const inputTokenPendulumDetails = getPendulumDetails(EvmToken.USDC);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
 
+  // Setup state metadata
   stateMeta = {
     destinationAddress,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: destinationAddress
   };
 
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, polygonEphemeralEntry.address);
+  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    throw new Error("Missing moneriumMint amountOutRaw in quote metadata");
+  }
+  const inputAmountPostAnchorFeeRaw = quote.metadata.moneriumMint.amountOutRaw;
+
+  // User approve transaction
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, destinationAddress);
 
   unsignedTxs.push({
     meta: {},
@@ -63,16 +63,18 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
+  // Build transactions for each network
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       let polygonAccountNonce = 0;
 
+      // Ephemeral self-transfer
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,
         destinationAddress,
-        polygonEphemeralEntry.address
+        account.address
       );
 
       unsignedTxs.push({
@@ -84,6 +86,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
         txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
       });
 
+      // Squidrouter transactions
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
         destinationAddress,
         fromAddress: account.address,
