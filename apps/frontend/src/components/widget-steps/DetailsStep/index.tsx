@@ -87,7 +87,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
           <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-center space-x-3">
               <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              <p className="text-sm text-gray-700">{t("pages.widget.details.quoteChangedWarning")}</p>
+              <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
             </div>
           </div>
         )}
