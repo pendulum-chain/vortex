@@ -12,6 +12,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
@@ -48,30 +49,35 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return "fundEphemeral";
   }
 
-  protected getRequiresPendulumEphemeralAddress(state: RampState): boolean {
+  protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
     // Pendulum ephemeral address is required for all cases except when the input currency is EURC.
-    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC) {
+    if (isOnramp(state) && inputCurrency === FiatToken.EURC) {
       return false;
     }
     return true;
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
     const moonbeamNode = await apiManager.getApi("moonbeam");
 
     const { moonbeamEphemeralAddress, pendulumEphemeralAddress, polygonEphemeralAddress } = state.state as StateMetadata;
-    const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state);
+    const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state, quote.inputCurrency);
 
     // Ephemeral checks.
     if (!pendulumEphemeralAddress && requiresPendulumEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing pendulumEphemeralAddress. This is a bug.");
     }
-    if (isOnramp(state) && state.state.inputCurrency === FiatToken.BRL && !moonbeamEphemeralAddress) {
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL && !moonbeamEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing moonbeamEphemeralAddress. This is a bug.");
     }
-    if (isOnramp(state) && state.state.inputCurrency === FiatToken.EURC && !polygonEphemeralAddress) {
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC && !polygonEphemeralAddress) {
       throw new Error("FundEphemeralPhaseHandler: State metadata corrupted, missing polygonEphemeralAddress. This is a bug.");
     }
 
@@ -102,7 +108,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.info(`Funding PEN ephemeral account ${pendulumEphemeralAddress}`);
         if (isOnramp(state) && state.to !== Networks.AssetHub) {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
-        } else if (state.state.outputCurrency === FiatToken.BRL) {
+        } else if (quote.outputCurrency === FiatToken.BRL) {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, true);
         } else {
           await fundEphemeralAccount("pendulum", pendulumEphemeralAddress, false);

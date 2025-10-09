@@ -25,9 +25,9 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, pixDestination, payOutTicketId, outputAmount, outputCurrency } = state.state as StateMetadata;
+    const { taxId, pixDestination, payOutTicketId } = state.state as StateMetadata;
 
-    if (!taxId || !pixDestination || !outputAmount) {
+    if (!taxId || !pixDestination) {
       throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -35,6 +35,9 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
+
+    const outputAmount = quote.outputAmount;
+    const outputCurrency = quote.outputCurrency;
 
     const taxIdRecord = await TaxId.findByPk(taxId);
     if (!taxIdRecord) {

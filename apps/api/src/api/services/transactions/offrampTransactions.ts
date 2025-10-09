@@ -589,7 +589,6 @@ export async function prepareOfframpTransactions({
   // Initialize state metadata
   stateMeta = {
     inputTokenPendulumDetails,
-    outputCurrency: quote.outputCurrency,
     outputTokenPendulumDetails,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address
   };

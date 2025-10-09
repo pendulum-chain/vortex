@@ -74,9 +74,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
           ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address
           : AXL_USDC_MOONBEAM;
       const ownerAddress =
-        state.type === RampDirection.SELL && state.state.outputCurrency === FiatToken.BRL
-          ? brlaEvmAddress
-          : moonbeamEphemeralAddress;
+        state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
         chain: Networks.Moonbeam,

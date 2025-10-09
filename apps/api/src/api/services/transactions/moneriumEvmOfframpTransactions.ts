@@ -67,7 +67,6 @@ export async function prepareMoneriumEvmOfframpTransactions({
   // Initialize state metadata
   stateMeta = {
     inputTokenPendulumDetails,
-    outputCurrency: quote.outputCurrency,
     outputTokenPendulumDetails
   };
 

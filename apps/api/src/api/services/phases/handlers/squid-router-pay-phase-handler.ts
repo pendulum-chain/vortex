@@ -18,6 +18,7 @@ import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -60,6 +61,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * @returns The updated ramp state
    */
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
 
     if (state.type === RampDirection.SELL) {
@@ -75,7 +81,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       }
 
       // Enter check status loop
-      await this.checkStatus(state, bridgeCallHash);
+      await this.checkStatus(state, bridgeCallHash, quote);
 
       if (state.to === Networks.AssetHub) {
         return this.transitionToNextPhase(state, "moonbeamToPendulumXcm");
@@ -92,14 +98,14 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Gets the status of the Axelar bridge
    * @param txHash The swap (bridgeCall) transaction hash
    */
-  private async checkStatus(state: RampState, swapHash: string): Promise<void> {
+  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
     try {
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
       // initial delay to allow for API indexing.
       await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
       while (!isExecuted) {
-        const squidrouterStatus = await this.getSquidrouterStatus(swapHash, state);
+        const squidrouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
         if (squidrouterStatus.status === "success") {
           isExecuted = true;
@@ -133,9 +139,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
           const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
-          payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state);
+          payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
-          const isPolygon = state.state.inputCurrency !== FiatToken.BRL;
+          const isPolygon = quote.inputCurrency !== FiatToken.BRL;
           const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
           const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber(); // Both MATIC and GLMR have 18 decimals
           const payerAccount = isPolygon
@@ -177,9 +183,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     tokenValueRaw: string,
     swapHash: `0x${string}`,
     logIndex: number,
-    state: RampState
+    state: RampState,
+    quote: QuoteTicket
   ): Promise<Hash> {
-    if (state.state.inputCurrency === FiatToken.BRL) {
+    if (quote.inputCurrency === FiatToken.BRL) {
       return this.executeFundTransactionOnMoonbeam(tokenValueRaw, swapHash, logIndex);
     } else {
       return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
@@ -277,10 +284,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async getSquidrouterStatus(swapHash: string, state: RampState): Promise<SquidRouterPayResponse> {
+  private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
       // Always Polygon for Monerium onramp, Moonbeam for BRL
-      const fromChain = state.state.inputCurrency === FiatToken.EURC ? Networks.Polygon : Networks.Moonbeam;
+      const fromChain = quote.inputCurrency === FiatToken.EURC ? Networks.Polygon : Networks.Moonbeam;
       const fromChainId = getNetworkId(fromChain)?.toString();
       const toChainId = getNetworkId(state.to)?.toString();
 

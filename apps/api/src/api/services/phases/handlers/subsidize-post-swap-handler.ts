@@ -15,20 +15,19 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
-
-    const quote = await QuoteTicket.findByPk(state.quoteId);
 
     const { pendulumEphemeralAddress, outputTokenPendulumDetails } = state.state as StateMetadata;
 
     if (!pendulumEphemeralAddress || !outputTokenPendulumDetails) {
       throw new Error("SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.");
-    }
-
-    if (!quote) {
-      throw new Error("Quote not found for the given state");
     }
 
     if (!quote.metadata.nablaSwap?.outputAmountRaw) {
@@ -72,14 +71,14 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
       }
 
-      return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
+      return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap:", e);
       throw new Error("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
     }
   }
 
-  protected nextPhaseSelector(state: RampState): RampPhase {
+  protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
     // onramp cases
     if (state.type === RampDirection.BUY) {
       if (state.to === "assethub") {
@@ -89,7 +88,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     }
 
     // off ramp cases
-    if (state.state.outputCurrency === FiatToken.BRL) {
+    if (quote.outputCurrency === FiatToken.BRL) {
       return "pendulumToMoonbeam";
     }
     return "spacewalkRedeem";

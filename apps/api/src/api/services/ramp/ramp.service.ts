@@ -40,11 +40,11 @@ import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
 import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumEvmOfframpTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
-import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/brazil/toAssethub";
-import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/brazil/toEvm";
 import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
-import { prepareMoneriumToAssethubOnrampTransactions } from "../transactions/onramp/euro/toAssethub";
-import { prepareMoneriumToEvmOnrampTransactions } from "../transactions/onramp/euro/toEvm";
+import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/routes/avenia-to-assethub";
+import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/routes/avenia-to-evm";
+import { prepareMoneriumToAssethubOnrampTransactions } from "../transactions/onramp/routes/monerium-to-assethub";
+import { prepareMoneriumToEvmOnrampTransactions } from "../transactions/onramp/routes/monerium-to-evm";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -331,10 +331,6 @@ export class RampService extends BaseRampService {
           aveniaTicketId,
           depositQrCode,
           ibanPaymentData,
-          inputAmount: quote.inputAmount,
-          inputCurrency: quote.inputCurrency,
-          outputAmount: quote.outputAmount,
-          outputCurrency: quote.outputCurrency,
           ...request.additionalData,
           ...stateMeta
         } as StateMetadata,
@@ -550,18 +546,28 @@ export class RampService extends BaseRampService {
       }
     });
 
-    const transactions = rampStates.map(ramp => ({
-      date: ramp.createdAt.toISOString(),
-      fromAmount: ramp.state.inputAmount || "",
-      fromCurrency: ramp.state.inputCurrency || "",
-      fromNetwork: ramp.from,
-      id: ramp.id,
-      status: this.mapPhaseToStatus(ramp.currentPhase),
-      toAmount: ramp.state.outputAmount || "",
-      toCurrency: ramp.state.outputCurrency || "",
-      toNetwork: ramp.to,
-      type: ramp.type
-    }));
+    // Fetch quotes for the ramp states
+    const quoteIds = rampStates.map(ramp => ramp.quoteId);
+    const quotes = await QuoteTicket.findAll({
+      where: { id: quoteIds }
+    });
+    const quoteMap = new Map(quotes.map(quote => [quote.id, quote]));
+
+    const transactions = rampStates.map(ramp => {
+      const quote = quoteMap.get(ramp.quoteId);
+      return {
+        date: ramp.createdAt.toISOString(),
+        fromAmount: quote?.inputAmount || "",
+        fromCurrency: quote?.inputCurrency || "",
+        fromNetwork: ramp.from,
+        id: ramp.id,
+        status: this.mapPhaseToStatus(ramp.currentPhase),
+        toAmount: quote?.outputAmount || "",
+        toCurrency: quote?.outputCurrency || "",
+        toNetwork: ramp.to,
+        type: ramp.type
+      };
+    });
 
     return { transactions };
   }

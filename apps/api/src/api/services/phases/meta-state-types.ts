@@ -1,10 +1,6 @@
 import { ExtrinsicOptions, IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
 
 export interface StateMetadata {
-  inputAmount: string;
-  outputAmount: string;
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
   inputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenPendulumDetails: PendulumTokenDetails;
   nablaSoftMinimumOutputRaw: string;
