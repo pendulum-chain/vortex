@@ -3,10 +3,8 @@ import {
   ERC20_EURE_POLYGON,
   EvmTokenDetails,
   EvmTransactionData,
-  getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
-  getPendulumDetails,
   isEvmTokenDetails,
   isFiatToken,
   isOnChainToken,
@@ -14,28 +12,25 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
-import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
-import { getFirstMoneriumLinkedAddress } from "../monerium";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
-import { StateMetadata } from "../phases/meta-state-types";
-import { encodeEvmTransactionData } from "./index";
+import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+import { getFirstMoneriumLinkedAddress } from "../../../monerium";
+import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+import { StateMetadata } from "../../../phases/meta-state-types";
+import { encodeEvmTransactionData } from "../../index";
+import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export interface MoneriumOfframpTransactionParams {
-  quote: QuoteTicketAttributes;
-  userAddress?: string;
-  moneriumAuthToken?: string;
-}
-
-export async function prepareMoneriumEvmOfframpTransactions({
+/**
+ * Prepares all transactions for an EVM to Monerium EVM offramp.
+ * This route handles: EVM → Polygon (EURE) → Monerium EVM
+ */
+export async function prepareEvmToMoneriumEvmOfframpTransactions({
   quote,
+  signingAccounts,
   userAddress,
   moneriumAuthToken
-}: MoneriumOfframpTransactionParams): Promise<{
-  unsignedTxs: UnsignedTx[];
-  stateMeta: Partial<StateMetadata>;
-}> {
+}: OfframpTransactionParams & { moneriumAuthToken?: string }): Promise<OfframpTransactionsWithMeta> {
   const unsignedTxs: UnsignedTx[] = [];
-  let stateMeta: Partial<StateMetadata> = {};
+  const stateMeta: Partial<StateMetadata> = {};
 
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
@@ -60,12 +55,6 @@ export async function prepareMoneriumEvmOfframpTransactions({
   }
 
   const inputAmountRaw = quote.metadata.moneriumMint.amountOutRaw;
-
-  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
-  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
-
-  // Initialize state metadata
-  stateMeta = {};
 
   if (!userAddress) {
     throw new Error("User address must be provided for offramping.");
@@ -113,5 +102,5 @@ export async function prepareMoneriumEvmOfframpTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
-  return { stateMeta, unsignedTxs }; // Return the unsigned transactions and state meta
+  return { stateMeta, unsignedTxs };
 }

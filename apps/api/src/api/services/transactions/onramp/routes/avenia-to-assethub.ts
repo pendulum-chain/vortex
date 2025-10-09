@@ -169,6 +169,7 @@ export async function prepareAveniaToAssethubOnrampTransactions({
           );
         }
         const hydrationAssetId = outputTokenDetails.hydrationId;
+        // biome-ignore lint/style/noNonNullAssertion: Checked by isAssetHubTokenDetails
         const assethubAssetId = outputTokenDetails.isNative ? "native" : outputTokenDetails.foreignAssetId!;
 
         const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(
