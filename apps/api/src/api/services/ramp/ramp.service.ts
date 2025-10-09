@@ -20,6 +20,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
@@ -739,6 +740,25 @@ export class RampService extends BaseRampService {
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
   }
 
+  private mapPhaseToWebhookStatus(phase: RampPhase): TransactionStatus {
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
+  }
+
+  private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
+    const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
+    const newStatus = this.mapPhaseToWebhookStatus(newPhase);
+
+    if (oldStatus !== newStatus) {
+      webhookDeliveryService
+        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, newPhase, rampState.type)
+        .catch(error => {
+          logger.error(`Error triggering STATUS_CHANGE webhook for ${rampState.id}:`, error);
+        });
+    }
+  }
+
   protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
     const rampState = await RampState.findByPk(id);
     if (!rampState) {
@@ -750,11 +770,7 @@ export class RampService extends BaseRampService {
     await super.logPhaseTransition(id, newPhase, metadata);
 
     if (oldPhase !== newPhase) {
-      webhookDeliveryService
-        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, newPhase, rampState.type)
-        .catch(error => {
-          logger.error(`Error triggering STATUS_CHANGE webhook for ${id}:`, error);
-        });
+      await this.notifyStatusChangeIfNeeded(rampState, oldPhase, newPhase);
     }
   }
 }
