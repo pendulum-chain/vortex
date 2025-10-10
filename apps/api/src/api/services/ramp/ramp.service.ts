@@ -40,11 +40,8 @@ import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareEvmToMoneriumEvmOfframpTransactions } from "../transactions/offramp/routes/evm-to-monerium-evm";
+import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
-import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/routes/avenia-to-assethub";
-import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/routes/avenia-to-evm";
-import { prepareMoneriumToAssethubOnrampTransactions } from "../transactions/onramp/routes/monerium-to-assethub";
-import { prepareMoneriumToEvmOnrampTransactions } from "../transactions/onramp/routes/monerium-to-evm";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -151,10 +148,7 @@ export class RampService extends BaseRampService {
       taxId: additionalData.taxId
     };
 
-    const { unsignedTxs, stateMeta } =
-      quote.to === Networks.AssetHub
-        ? await prepareAveniaToAssethubOnrampTransactions(params)
-        : await prepareAveniaToEvmOnrampTransactions(params);
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
@@ -195,10 +189,7 @@ export class RampService extends BaseRampService {
         signingAccounts: normalizedSigningAccounts
       };
 
-      const { unsignedTxs, stateMeta } =
-        quote.to === Networks.AssetHub
-          ? await prepareMoneriumToAssethubOnrampTransactions(params)
-          : await prepareMoneriumToEvmOnrampTransactions(params);
+      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
       const ibanPaymentData = {
         bic: ibanData.bic,
