@@ -183,12 +183,12 @@ export async function addMoonbeamTransactions(
   // Create and add Moonbeam cleanup transaction
   const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
 
-  // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
+  // For assethub, we skip the 2 squidRouter transactions, so nonce is 2 lower.
   // TODO is the moonbeamCleanup nonce too high?
   const moonbeamCleanupNonce =
     toNetworkId === getNetworkId(Networks.AssetHub)
-      ? nextNonce // no nonce increase we skip squidrouter transactions
-      : nextNonce + 2; // +2 because we need to account for squidrouter approve and swap
+      ? nextNonce // no nonce increase we skip squidRouter transactions
+      : nextNonce + 2; // +2 because we need to account for squidRouter approve and swap
 
   unsignedTxs.push({
     meta: {},

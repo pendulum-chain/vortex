@@ -87,7 +87,7 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
       throw new Error("Invalid response from Squid Router API");
     }
 
-    // FIXME remove this check once squidrouter works as expected again.
+    // FIXME remove this check once squidRouter works as expected again.
     // Check if slippage of received route is reasonable.
     const route = result.data.route;
     if (route.estimate?.aggregateSlippage !== undefined) {
@@ -142,7 +142,7 @@ export async function getStatus(
     if (error instanceof AxiosError && error.response) {
       logger.current.error("API error:", error.response.data);
     }
-    logger.current.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
+    logger.current.error(`Couldn't get status from squidRouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }

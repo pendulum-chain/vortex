@@ -39,7 +39,7 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
     const networkName = "moonbeam";
     const moonbeamNode = await apiManager.getApi(networkName);
 
-    // Wait for at least 15 minutes after the complete phase, to allow time for squidrouter to refund
+    // Wait for at least 15 minutes after the complete phase, to allow time for squidRouter to refund
     try {
       const completeEntry = state.phaseHistory.find(entry => entry.phase === "complete");
 

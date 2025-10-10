@@ -105,20 +105,20 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // initial delay to allow for API indexing.
       await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
       while (!isExecuted) {
-        const squidrouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
+        const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
-        if (squidrouterStatus.status === "success") {
+        if (squidRouterStatus.status === "success") {
           isExecuted = true;
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
           break;
         }
-        if (!squidrouterStatus) {
-          logger.warn(`SquidRouterPayPhaseHandler: No squidrouter status found for swap hash ${swapHash}.`);
-          throw this.createRecoverableError("No squidrouter status found for swap hash.");
+        if (!squidRouterStatus) {
+          logger.warn(`SquidRouterPayPhaseHandler: No squidRouter status found for swap hash ${swapHash}.`);
+          throw this.createRecoverableError("No squidRouter status found for swap hash.");
         }
 
         // If route is on the same chain, we must skip the Axelar check.
-        if (!squidrouterStatus.isGMPTransaction) {
+        if (!squidRouterStatus.isGMPTransaction) {
           await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
         }
 
@@ -295,8 +295,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error("SquidRouterPayPhaseHandler: Invalid from or to network for Squidrouter status check");
       }
 
-      const squidrouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
-      return squidrouterStatus;
+      const squidRouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
+      return squidRouterStatus;
     } catch (error) {
       logger.error(`SquidRouterPayPhaseHandler: Error fetching Squidrouter status for swap hash ${swapHash}:`, error);
       throw this.createRecoverableError(

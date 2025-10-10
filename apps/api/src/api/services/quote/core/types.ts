@@ -181,7 +181,7 @@ export interface QuoteContext {
       vortex: string;
       anchor: string;
       partnerMarkup: string;
-      network: string; // squidrouter only for now
+      network: string; // squidRouter only for now
       total: string;
     };
     displayFiat?: QuoteFeeStructure;
