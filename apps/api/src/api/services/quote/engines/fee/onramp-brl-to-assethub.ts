@@ -28,8 +28,6 @@ export class OnRampAveniaToAssethubFeeEngine extends BaseFeeEngine {
       throw new Error(`OnRampFeeAveniaToAssethubEngine: invalid network for destination: ${request.to}`);
     }
 
-    void getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork);
-
     const networkFeeUsd = "0.03"; // FIXME We don't have a good estimate for XCM fees yet
 
     return {
