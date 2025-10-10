@@ -17,7 +17,7 @@ export interface ApiComponents {
 }
 
 interface NetworkState {
-  assetHub?: ApiComponents;
+  assethub?: ApiComponents;
   pendulum?: ApiComponents;
   moonbeam?: ApiComponents;
 }
@@ -76,7 +76,7 @@ const usePolkadotNodes = () => {
 };
 
 enum NodeName {
-  AssetHub = "assetHub",
+  AssetHub = "assethub",
   Pendulum = "pendulum",
   Moonbeam = "moonbeam"
 }
@@ -102,14 +102,14 @@ const useMoonbeamNode = () => {
 
 const initializeNetworks = async (): Promise<NetworkState> => {
   try {
-    const [assetHub, pendulum, moonbeam] = await Promise.all([
+    const [assethub, pendulum, moonbeam] = await Promise.all([
       createApiComponents(ASSETHUB_WSS),
       createApiComponents(PENDULUM_WSS),
       createApiComponents(MOONBEAM_WSS)
     ]);
 
     return {
-      [NodeName.AssetHub]: assetHub,
+      [NodeName.AssetHub]: assethub,
       [NodeName.Pendulum]: pendulum,
       moonbeam
     };

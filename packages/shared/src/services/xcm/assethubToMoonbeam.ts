@@ -17,7 +17,7 @@ export async function createAssethubToMoonbeamTransferWithSwapOnHydration(
 
   // TODO: Make fee amounts and minAmountOut configurable
   const hydrationFeeAmount = "500000"; // 0.5 USDT
-  const assetHubFeeAmount = "500000000 "; // 0.5 DOT // "100000"; // 0.1 USDT
+  const assethubFeeAmount = "500000000 "; // 0.5 DOT // "100000"; // 0.1 USDT
   const minDotAmountOut = "1000000000"; // 0.1 DOT
 
   const xcmMessage = {
@@ -110,7 +110,7 @@ export async function createAssethubToMoonbeamTransferWithSwapOnHydration(
                   {
                     BuyExecution: {
                       fees: {
-                        fun: { Fungible: assetHubFeeAmount },
+                        fun: { Fungible: assethubFeeAmount },
                         id: {
                           interior: "Here",
                           parents: 1 // DOT on AssetHub

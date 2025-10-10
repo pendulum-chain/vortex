@@ -362,7 +362,7 @@
       "secondInputLabel": "Você recebe",
       "sellButton": "Vender",
       "validation": {
-        "assetHubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub.",
+        "assethubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub.",
         "calculatingQuote": "Calculando cotação...",
         "fiatToken": {
           "required": "Token fiat é obrigatório"

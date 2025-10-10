@@ -1,7 +1,7 @@
 import {
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
-  assetHubTokenConfig,
+  assethubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   evmTokenConfig,
@@ -58,11 +58,11 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
 export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | null => {
   const [nativeBalance, setNativeBalance] = useState<AssetHubTokenDetailsWithBalance | null>(null);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assetHubNode } = useAssetHubNode();
+  const { apiComponents: assethubNode } = useAssetHubNode();
   const { selectedNetwork } = useNetwork();
 
   const nativeToken = useMemo(() => {
-    const assethubTokens = Object.values(assetHubTokenConfig);
+    const assethubTokens = Object.values(assethubTokenConfig);
     return assethubTokens.find(token => token.isNative);
   }, []);
 
@@ -74,7 +74,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
     // If substrate wallet is not connected or node is not available,
     // still show the token with zero balance
-    if (!substrateAddress || !assetHubNode) {
+    if (!substrateAddress || !assethubNode) {
       setNativeBalance({
         ...nativeToken,
         balance: "0.0000"
@@ -84,7 +84,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
     const getNativeBalance = async () => {
       try {
-        const { api } = assetHubNode;
+        const { api } = assethubNode;
         const accountInfo = await api.query.system.account(substrateAddress);
         const accountData = accountInfo.toJSON() as {
           data: {
@@ -108,7 +108,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     };
 
     getNativeBalance();
-  }, [assetHubNode, substrateAddress, selectedNetwork, nativeToken]);
+  }, [assethubNode, substrateAddress, selectedNetwork, nativeToken]);
 
   return nativeBalance;
 };
@@ -174,7 +174,7 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
   const [balances, setBalances] = useState<Array<AssetHubTokenDetailsWithBalance>>([]);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assetHubNode } = useAssetHubNode();
+  const { apiComponents: assethubNode } = useAssetHubNode();
 
   useEffect(() => {
     // If there are no tokens to process, return early
@@ -182,7 +182,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
 
     // If substrate wallet is not connected or node is not available,
     // still show the tokens with zero balances
-    if (!substrateAddress || !assetHubNode) {
+    if (!substrateAddress || !assethubNode) {
       const tokensWithZeroBalances = tokens.map(token => ({
         ...token,
         balance: "0.00"
@@ -192,7 +192,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     }
 
     const getBalances = async () => {
-      const { api } = assetHubNode;
+      const { api } = assethubNode;
 
       const assetIds = tokens.map(token => token.foreignAssetId).filter(Boolean);
       const assetInfos = await api.query.assets.asset.multi(assetIds);
@@ -227,7 +227,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     };
 
     getBalances();
-  }, [assetHubNode, tokens, substrateAddress]);
+  }, [assethubNode, tokens, substrateAddress]);
 
   return balances;
 };
@@ -239,11 +239,11 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
   const evmBalances = useEvmBalances(evmTokens);
   const substrateBalances = useAssetHubBalances(substrateTokens);
   const evmNativeBalance = useEvmNativeBalance();
-  const assetHubNativeBalance = useAssetHubNativeBalance();
+  const assethubNativeBalance = useAssetHubNativeBalance();
 
   return useMemo(() => {
     // Combine all token balances
-    const allTokens = [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(Boolean);
+    const allTokens = [...evmBalances, ...substrateBalances, assethubNativeBalance, evmNativeBalance].filter(Boolean);
 
     // Deduplicate tokens by network-symbol pair
     const uniqueTokens = new Map();
@@ -257,5 +257,5 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
     });
 
     return Array.from(uniqueTokens.values()) as OnChainTokenDetailsWithBalance[];
-  }, [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
+  }, [assethubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
 };

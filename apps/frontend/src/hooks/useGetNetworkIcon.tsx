@@ -1,6 +1,6 @@
 import { Networks } from "@packages/shared";
 import ARBITRUM from "../assets/chains/arbitrum.svg";
-import ASSET_HUB from "../assets/chains/assetHub.svg";
+import ASSET_HUB from "../assets/chains/assethub.svg";
 import AVALANCHE from "../assets/chains/avalanche.svg";
 import BASE from "../assets/chains/base.svg";
 import BSC from "../assets/chains/bsc.svg";

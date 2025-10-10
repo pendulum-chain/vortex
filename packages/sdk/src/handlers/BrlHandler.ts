@@ -158,7 +158,7 @@ export class BrlHandler implements RampHandler {
 
     const updateRequest: UpdateRampRequest = {
       additionalData: {
-        assetHubToPendulumHash: additionalData.assetHubToPendulumHash,
+        assethubToPendulumHash: additionalData.assethubToPendulumHash,
         squidRouterApproveHash: additionalData.squidRouterApproveHash,
         squidRouterSwapHash: additionalData.squidRouterSwapHash
       },

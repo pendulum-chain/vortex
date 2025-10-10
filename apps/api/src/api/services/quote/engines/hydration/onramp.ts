@@ -1,6 +1,6 @@
 import {
   AssetHubToken,
-  assetHubTokenConfig,
+  assethubTokenConfig,
   createHydrationToAssethubTransfer,
   multiplyByPowerOfTen,
   RampCurrency,
@@ -30,8 +30,8 @@ export class OnRampHydrationEngine implements Stage {
     }
 
     // We will always use Assethub USDC as the input token of the swap
-    const inputTokenDetails = assetHubTokenConfig[AssetHubToken.USDC];
-    const outputTokenDetails = assetHubTokenConfig[req.outputCurrency as AssetHubToken];
+    const inputTokenDetails = assethubTokenConfig[AssetHubToken.USDC];
+    const outputTokenDetails = assethubTokenConfig[req.outputCurrency as AssetHubToken];
 
     const assetIn = inputTokenDetails.hydrationId;
     const assetOut = outputTokenDetails.hydrationId;

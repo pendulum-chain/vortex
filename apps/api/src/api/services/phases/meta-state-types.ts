@@ -29,7 +29,7 @@ export interface StateMetadata {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };
-  assetHubToPendulumHash: string;
+  assethubToPendulumHash: string;
   hydrationToAssethubXcmHash?: string;
   pendulumToAssethubXcmHash?: string;
   pendulumToHydrationXcmHash?: string;

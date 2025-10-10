@@ -236,7 +236,7 @@ graph TD
         direction LR
         M_off[Start Off-Ramp] --> N_off{Input Asset Source?};
         N_off -->|EVM| O_off[moonbeamToPendulum];
-        N_off -->|AssetHub| P_off[distributeFees_assetHub];
+        N_off -->|AssetHub| P_off[distributeFees_assethub];
         O_off --> Q_off[distributeFees_evm];
         P_off --> R_off[subsidizePreSwap];
         Q_off --> R_off;
