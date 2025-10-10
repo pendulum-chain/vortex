@@ -10,13 +10,14 @@ export async function buildHydrationSwapTransaction(
   assetIn: string,
   assetOut: string,
   amountIn: string,
-  beneficiaryAddress: string
+  beneficiaryAddress: string,
+  slippagePercent?: number
 ) {
   const { api } = await ApiManager.getInstance().getApi("hydration");
 
   await hydrationRouter.ready();
   const trade = await hydrationRouter.getBestSellPriceFor(assetIn, assetOut, amountIn);
-  const swapTx = await hydrationRouter.createTransactionForTrade(trade, beneficiaryAddress);
+  const swapTx = await hydrationRouter.createTransactionForTrade(trade, beneficiaryAddress, slippagePercent);
 
   // Pay the tx fee in the output asset of the swap
   const changeFeeCurrencyTx = api.tx.multiTransactionPayment.setCurrency(assetOut);

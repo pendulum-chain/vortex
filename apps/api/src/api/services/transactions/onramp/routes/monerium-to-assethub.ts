@@ -125,7 +125,13 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
         let hydrationNonce = 0;
         const { assetIn, assetOut, amountIn, amountOutRaw } = quote.metadata.hydrationSwap;
-        const hydrationSwap = await buildHydrationSwapTransaction(assetIn, assetOut, amountIn, pendulumEphemeralEntry.address);
+        const hydrationSwap = await buildHydrationSwapTransaction(
+          assetIn,
+          assetOut,
+          amountIn,
+          pendulumEphemeralEntry.address,
+          quote.metadata.hydrationSwap.slippagePercent
+        );
 
         unsignedTxs.push({
           meta: {},

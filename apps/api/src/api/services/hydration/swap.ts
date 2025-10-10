@@ -51,7 +51,7 @@ export class HydrationRouter {
     return await this.tradeRouter.getBestSell(assetIn, assetOut, amountIn);
   }
 
-  async createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.2) {
+  async createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.1) {
     const txBuilder = this.txBuilderFactory.trade(trade);
     txBuilder.withBeneficiary(beneficiaryAddress);
     txBuilder.withSlippage(slippage);

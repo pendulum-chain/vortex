@@ -44,6 +44,10 @@ export class OnRampHydrationEngine implements Stage {
     const assetOutDecimals = trade.swaps[trade.swaps.length - 1].assetOutDecimals;
     const amountOut = multiplyByPowerOfTen(amountOutRaw, -assetOutDecimals).toFixed(assetOutDecimals);
 
+    const slippagePercent = 0.1; // We hardcode slippage to 0.1 for now
+    const amountOutMin = new Big(amountOut).mul(new Big(1).minus(slippagePercent / 100)).toString();
+    const amountOutMinRaw = multiplyByPowerOfTen(amountOutMin, assetOutDecimals).toString();
+
     const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
     const { fees: xcmFees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
 
@@ -51,14 +55,18 @@ export class OnRampHydrationEngine implements Stage {
       amountIn,
       amountInRaw,
       amountOut,
+      amountOutMin,
+      amountOutMinRaw,
       amountOutRaw,
       assetIn: assetIn,
-      assetOut: assetOut
+      assetOut: assetOut,
+      slippagePercent
     };
 
     // Calculations for XCM transfer
-    const xcmInputAmountDecimal = Big(amountOut);
-    const xcmInputAmountRaw = Big(amountOutRaw);
+    // To be safe, we use the minimum output amount for XCM transfer calculations
+    const xcmInputAmountDecimal = Big(amountOutMin);
+    const xcmInputAmountRaw = Big(amountOutMinRaw);
 
     // Calculate gross output after subtracting XCM fees
     const originFeeInTargetCurrency = await this.price.convertCurrency(
@@ -72,7 +80,7 @@ export class OnRampHydrationEngine implements Stage {
       req.outputCurrency
     );
 
-    const outputAmountDecimal = new Big(ctx.hydrationSwap.amountOut)
+    const outputAmountDecimal = new Big(xcmInputAmountDecimal)
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toString();

@@ -120,8 +120,11 @@ export interface QuoteContext {
     amountIn: string;
     amountOutRaw: string;
     amountOut: string;
+    amountOutMinRaw: string;
+    amountOutMin: string;
     assetIn: string;
     assetOut: string;
+    slippagePercent: number;
   };
 
   moneriumMint?: {
