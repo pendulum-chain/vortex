@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  FiatTokenDetails,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -106,8 +107,8 @@ export function validateBRLOfframp(
  * @returns Validated Stellar token details and payment data
  */
 export function validateStellarOfframp(
-  outputTokenDetails: any,
-  stellarPaymentData?: any
+  outputTokenDetails: FiatTokenDetails,
+  stellarPaymentData?: PaymentData
 ): {
   stellarTokenDetails: StellarTokenDetails;
   stellarPaymentData: PaymentData;
@@ -135,12 +136,12 @@ export function validateStellarOfframpMetadata(quote: QuoteTicketAttributes): {
   offrampAmountBeforeAnchorFeesUnits: Big;
   offrampAmountBeforeAnchorFeesRaw: string;
 } {
-  if (!quote.metadata.pendulumToStellar?.amountOut || !quote.metadata.pendulumToStellar?.amountOutRaw) {
+  if (!quote.metadata.pendulumToStellar?.outputAmountDecimal || !quote.metadata.pendulumToStellar?.outputAmountRaw) {
     throw new Error("Quote metadata is missing pendulumToStellar information");
   }
 
   return {
-    offrampAmountBeforeAnchorFeesRaw: quote.metadata.pendulumToStellar.amountOutRaw,
-    offrampAmountBeforeAnchorFeesUnits: new Big(quote.metadata.pendulumToStellar.amountOut)
+    offrampAmountBeforeAnchorFeesRaw: quote.metadata.pendulumToStellar.outputAmountRaw,
+    offrampAmountBeforeAnchorFeesUnits: new Big(quote.metadata.pendulumToStellar.outputAmountDecimal)
   };
 }

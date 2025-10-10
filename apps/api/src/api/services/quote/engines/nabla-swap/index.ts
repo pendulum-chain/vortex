@@ -96,7 +96,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
   private assignNablaSwapContext(
     ctx: QuoteContext,
     result: { effectiveExchangeRate?: string; nablaOutputAmountDecimal: Big; nablaOutputAmountRaw: string },
-    inputAmountForSwap: string,
+    inputAmountForSwapDecimal: string,
     inputAmountForSwapRaw: string,
     inputToken: PendulumTokenDetails,
     outputToken: PendulumTokenDetails
@@ -104,7 +104,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
     ctx.nablaSwap = {
       ...ctx.nablaSwap,
       effectiveExchangeRate: result.effectiveExchangeRate,
-      inputAmountForSwap,
+      inputAmountForSwapDecimal,
       inputAmountForSwapRaw,
       inputCurrency: inputToken.currency,
       inputCurrencyId: inputToken.currencyId,

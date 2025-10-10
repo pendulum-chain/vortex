@@ -33,11 +33,11 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    if (!quote.metadata.moneriumMint?.outputAmountRaw) {
       throw new Error("MoneriumOnrampMintPhaseHandler: Missing moneriumMint metadata.");
     }
 
-    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.amountOutRaw;
+    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.outputAmountRaw;
 
     try {
       const pollingTimeMs = 1000;

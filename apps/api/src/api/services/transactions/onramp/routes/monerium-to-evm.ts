@@ -35,10 +35,10 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
   }
 
-  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+  if (!quote.metadata.moneriumMint?.outputAmountRaw) {
     throw new Error("Missing moonbeamToEvm output amount in quote metadata");
   }
-  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.amountOutRaw).toFixed(0, 0);
+  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.outputAmountRaw).toFixed(0, 0);
 
   // Setup state metadata
   stateMeta = {

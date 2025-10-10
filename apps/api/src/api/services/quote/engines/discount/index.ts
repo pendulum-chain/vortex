@@ -83,14 +83,14 @@ export function buildDiscountSubsidy(
   partner: ActivePartner,
   payload: DiscountSubsidyPayload
 ): QuoteContext["subsidy"] {
-  const subsidyAmountInOutputToken = payload.outputAmountDecimal.mul(rate);
+  const subsidyAmountInOutputTokenDecimal = payload.outputAmountDecimal.mul(rate);
   const subsidyAmountInOutputTokenRaw = new Big(payload.outputAmountRaw).mul(rate).toFixed(0, 0);
 
   return {
     applied: rate > 0,
     partnerId: partner?.id,
     rate: rate.toString(),
-    subsidyAmountInOutputToken,
+    subsidyAmountInOutputTokenDecimal,
     subsidyAmountInOutputTokenRaw
   };
 }

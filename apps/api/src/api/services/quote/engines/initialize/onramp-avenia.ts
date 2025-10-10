@@ -22,12 +22,12 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     const req = ctx.request;
 
     const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
-    const amountIn = new Big(req.inputAmount);
-    const amountInRaw = multiplyByPowerOfTen(amountIn, brlaTokenDetails.decimals).toString();
+    const inputAmountDecimal = new Big(req.inputAmount);
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, brlaTokenDetails.decimals).toString();
 
     const brlaApiService = BrlaApiService.getInstance();
     const aveniaQuote = await brlaApiService.createPayInQuote({
-      inputAmount: amountIn.toString(),
+      inputAmount: inputAmountDecimal.toString(),
       inputCurrency: BrlaCurrency.BRL,
       inputPaymentMethod: AveniaPaymentMethod.PIX,
       inputThirdParty: false,
@@ -46,22 +46,22 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     }
 
     // We received minted BRLA on the ephemeral account
-    const mintedBrla = new Big(aveniaQuote.outputAmount).minus(gasFeeBuffer);
-    const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrla, brlaTokenDetails.decimals).toString();
-    const fee = amountIn.minus(mintedBrla);
+    const mintedBrlaDecimal = new Big(aveniaQuote.outputAmount).minus(gasFeeBuffer);
+    const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrlaDecimal, brlaTokenDetails.decimals).toString();
+    const fee = inputAmountDecimal.minus(mintedBrlaDecimal);
 
     ctx.aveniaMint = {
-      amountIn,
-      amountInRaw,
-      amountOut: mintedBrla,
-      amountOutRaw: mintedBrlaRaw,
       currency: FiatToken.BRL,
-      fee
+      fee,
+      inputAmountDecimal,
+      inputAmountRaw,
+      outputAmountDecimal: mintedBrlaDecimal,
+      outputAmountRaw: mintedBrlaRaw
     };
 
     const xcmFees = buildXcmMeta();
-    await assignMoonbeamToPendulumXcm(ctx, xcmFees, mintedBrla, mintedBrlaRaw);
+    await assignMoonbeamToPendulumXcm(ctx, xcmFees, mintedBrlaDecimal, mintedBrlaRaw);
 
-    ctx.addNote?.(`Assuming ${mintedBrla.toFixed()} BRLA minted on ephemeral account`);
+    ctx.addNote?.(`Assuming ${mintedBrlaDecimal.toFixed()} BRLA minted on ephemeral account`);
   }
 }

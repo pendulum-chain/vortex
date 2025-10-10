@@ -14,23 +14,23 @@ export class OnRampInitializeMoneriumEngine extends BaseInitializeEngine {
 
     // Calculate Monerium input and output (of minting/deposit)
     const eurTokenDecimals = ERC20_EURE_POLYGON_DECIMALS;
-    const amountIn = new Big(req.inputAmount);
-    const amountInRaw = multiplyByPowerOfTen(amountIn, eurTokenDecimals).toFixed(0, 0);
+    const inputAmountDecimal = new Big(req.inputAmount);
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, eurTokenDecimals).toFixed(0, 0);
     const moneriumFee = Big(0);
-    const amountOut = amountIn.minus(moneriumFee);
-    const amountOutRaw = multiplyByPowerOfTen(amountOut, eurTokenDecimals).toFixed(0, 0);
+    const outputAmountDecimal = inputAmountDecimal.minus(moneriumFee);
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, eurTokenDecimals).toFixed(0, 0);
 
     ctx.moneriumMint = {
-      amountIn,
-      amountInRaw,
-      amountOut,
-      amountOutRaw,
       currency: ctx.request.inputCurrency,
-      fee: moneriumFee
+      fee: moneriumFee,
+      inputAmountDecimal: inputAmountDecimal,
+      inputAmountRaw: inputAmountRaw,
+      outputAmountDecimal,
+      outputAmountRaw
     };
 
     ctx.addNote?.(
-      `Initialized: ${amountIn.toString()} ${req.inputCurrency} -> ${amountOut.toString()} ${req.outputCurrency} (fee: ${moneriumFee.toString()})`
+      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${outputAmountDecimal.toString()} ${req.outputCurrency} (fee: ${moneriumFee.toString()})`
     );
   }
 }

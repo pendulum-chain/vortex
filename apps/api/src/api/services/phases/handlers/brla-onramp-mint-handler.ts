@@ -38,11 +38,11 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.aveniaMint?.amountOutRaw) {
+    if (!quote.metadata.aveniaMint?.outputAmountRaw) {
       throw new Error("Missing expected amount to be received in Moonbeam in quote metadata");
     }
 
-    const expectedAmountReceived = quote.metadata.aveniaMint?.amountOutRaw;
+    const expectedAmountReceived = quote.metadata.aveniaMint?.outputAmountRaw;
 
     try {
       const pollingTimeMs = 1000;

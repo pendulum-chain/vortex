@@ -84,7 +84,7 @@ export abstract class BasePendulumTransferEngine implements Stage {
 
   protected mergeSubsidy(ctx: QuoteContext, outputAmountDecimal: Big): Big {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    return outputAmountDecimal.plus(ctx.subsidy!.subsidyAmountInOutputToken);
+    return outputAmountDecimal.plus(ctx.subsidy!.subsidyAmountInOutputTokenDecimal);
   }
 
   protected mergeSubsidyRaw(ctx: QuoteContext, outputAmountRaw: Big): Big {

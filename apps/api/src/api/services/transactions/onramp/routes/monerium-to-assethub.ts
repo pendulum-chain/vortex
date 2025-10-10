@@ -124,11 +124,11 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
         }
 
         let hydrationNonce = 0;
-        const { assetIn, assetOut, amountIn, amountOutRaw } = quote.metadata.hydrationSwap;
+        const { inputAsset, outputAsset, inputAmountDecimal, outputAmountRaw } = quote.metadata.hydrationSwap;
         const hydrationSwap = await buildHydrationSwapTransaction(
-          assetIn,
-          assetOut,
-          amountIn,
+          inputAsset,
+          outputAsset,
+          inputAmountDecimal,
           pendulumEphemeralEntry.address,
           quote.metadata.hydrationSwap.slippagePercent
         );
@@ -154,7 +154,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
         const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(
           destinationAddress,
-          amountOutRaw,
+          outputAmountRaw,
           hydrationAssetId,
           assethubAssetId
         );

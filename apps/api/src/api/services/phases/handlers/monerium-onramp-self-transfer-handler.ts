@@ -51,7 +51,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.moneriumMint?.amountOutRaw) {
+    if (!quote.metadata.moneriumMint?.outputAmountRaw) {
       throw new Error("MoneriumOnrampSelfTransfer: Missing moneriumMint metadata.");
     }
 
@@ -60,7 +60,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       throw new Error("MoneriumOnrampSelfTransfer: Polygon ephemeral address not defined in the state. This is a bug.");
     }
 
-    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.amountOutRaw;
+    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.outputAmountRaw;
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({

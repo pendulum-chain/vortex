@@ -55,10 +55,10 @@ export async function prepareAveniaToAssethubOnrampTransactions({
 
     // Moonbeam: Initial BRLA transfer to Pendulum
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      if (!quote.metadata.aveniaMint?.amountOutRaw) {
+      if (!quote.metadata.aveniaMint?.outputAmountRaw) {
         throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
       }
-      const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaMint.amountOutRaw;
+      const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaMint.outputAmountRaw;
 
       await addMoonbeamTransactions(
         {
@@ -149,11 +149,11 @@ export async function prepareAveniaToAssethubOnrampTransactions({
         }
 
         let hydrationNonce = 0;
-        const { assetIn, assetOut, amountIn, amountOutRaw } = quote.metadata.hydrationSwap;
+        const { inputAsset, outputAsset, inputAmountDecimal, outputAmountRaw } = quote.metadata.hydrationSwap;
         const hydrationSwap = await buildHydrationSwapTransaction(
-          assetIn,
-          assetOut,
-          amountIn,
+          inputAsset,
+          outputAsset,
+          inputAmountDecimal,
           pendulumEphemeralEntry.address,
           quote.metadata.hydrationSwap.slippagePercent
         );
@@ -180,7 +180,7 @@ export async function prepareAveniaToAssethubOnrampTransactions({
 
         const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(
           destinationAddress,
-          amountOutRaw,
+          outputAmountRaw,
           hydrationAssetId,
           assethubAssetId
         );

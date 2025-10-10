@@ -100,7 +100,7 @@ export interface QuoteContext {
   };
 
   nablaSwap?: {
-    inputAmountForSwap: string;
+    inputAmountForSwapDecimal: string;
     inputAmountForSwapRaw: string;
     inputCurrency: RampCurrency;
     inputCurrencyId: PendulumCurrencyId;
@@ -116,31 +116,31 @@ export interface QuoteContext {
   };
 
   hydrationSwap?: {
-    amountInRaw: string;
-    amountIn: string;
-    amountOutRaw: string;
-    amountOut: string;
-    amountOutMinRaw: string;
-    amountOutMin: string;
-    assetIn: string;
-    assetOut: string;
+    inputAmountRaw: string;
+    inputAmountDecimal: string;
+    outputAmountRaw: string;
+    outputAmountDecimal: string;
+    minOutputAmountRaw: string;
+    minOutputAmountDecimal: string;
+    inputAsset: string; // Hydration Asset ID
+    outputAsset: string; // Hydration Asset ID
     slippagePercent: number;
   };
 
   moneriumMint?: {
-    amountIn: Big;
-    amountInRaw: string;
-    amountOut: Big;
-    amountOutRaw: string;
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
     fee: Big;
     currency: RampCurrency;
   };
 
   aveniaMint?: {
-    amountIn: Big;
-    amountInRaw: string;
-    amountOut: Big;
-    amountOutRaw: string;
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
     fee: Big;
     currency: RampCurrency;
   };
@@ -166,10 +166,10 @@ export interface QuoteContext {
   pendulumToMoonbeamXcm?: XcmMeta;
 
   pendulumToStellar?: {
-    amountIn: Big;
-    amountInRaw: string;
-    amountOut: Big;
-    amountOutRaw: string;
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
     fee: Big;
     currency: RampCurrency;
   };
@@ -191,7 +191,7 @@ export interface QuoteContext {
     applied: boolean;
     rate: string;
     partnerId?: string;
-    subsidyAmountInOutputToken: Big;
+    subsidyAmountInOutputTokenDecimal: Big;
     subsidyAmountInOutputTokenRaw: string;
   };
 

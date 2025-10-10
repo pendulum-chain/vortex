@@ -23,7 +23,7 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
     }
 
     const offrampAmountBeforeAnchorFees =
-      ctx.request.to === "pix" ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal : ctx.pendulumToStellar?.amountOut;
+      ctx.request.to === "pix" ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal : ctx.pendulumToStellar?.outputAmountDecimal;
 
     if (!offrampAmountBeforeAnchorFees) {
       throw new APIError({

@@ -37,12 +37,12 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.pendulumToStellar?.amountOut || !quote.metadata.pendulumToStellar?.amountOutRaw) {
+    if (!quote.metadata.pendulumToStellar?.outputAmountDecimal || !quote.metadata.pendulumToStellar?.outputAmountRaw) {
       throw new Error("Missing output amount for Spacewalk Redeem in quote metadata");
     }
 
-    const outputAmountUnits = quote.metadata.pendulumToStellar?.amountOut.toString();
-    const outputAmountRaw = quote.metadata.pendulumToStellar?.amountOutRaw;
+    const outputAmountUnits = quote.metadata.pendulumToStellar?.outputAmountDecimal.toString();
+    const outputAmountRaw = quote.metadata.pendulumToStellar?.outputAmountRaw;
 
     // Check if Stellar target account exists on the network and has the respective trustline.
     // Otherwise, the redeem will end up with a 'claimable-payment' operation on Stellar that we cannot claim.

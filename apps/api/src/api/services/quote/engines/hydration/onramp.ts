@@ -52,14 +52,14 @@ export class OnRampHydrationEngine implements Stage {
     const { fees: xcmFees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
 
     ctx.hydrationSwap = {
-      amountIn,
-      amountInRaw,
-      amountOut,
-      amountOutMin,
-      amountOutMinRaw,
-      amountOutRaw,
-      assetIn: assetIn,
-      assetOut: assetOut,
+      inputAmountDecimal: amountIn,
+      inputAmountRaw: amountInRaw,
+      inputAsset: assetIn,
+      minOutputAmountDecimal: amountOutMin,
+      minOutputAmountRaw: amountOutMinRaw,
+      outputAmountDecimal: amountOut,
+      outputAmountRaw: amountOutRaw,
+      outputAsset: assetOut,
       slippagePercent
     };
 

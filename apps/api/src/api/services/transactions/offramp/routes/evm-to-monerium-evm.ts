@@ -50,11 +50,11 @@ export async function prepareEvmToMoneriumEvmOfframpTransactions({
     throw new Error(`Output currency must be fiat token for offramp, got ${quote.outputCurrency}`);
   }
 
-  if (!quote.metadata.moneriumMint?.amountOutRaw) {
+  if (!quote.metadata.moneriumMint?.outputAmountRaw) {
     throw new Error("Monerium Offramp requires moneriumMint metadata with amountOutRaw.");
   }
 
-  const inputAmountRaw = quote.metadata.moneriumMint.amountOutRaw;
+  const inputAmountRaw = quote.metadata.moneriumMint.outputAmountRaw;
 
   if (!userAddress) {
     throw new Error("User address must be provided for offramping.");

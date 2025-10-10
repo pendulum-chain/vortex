@@ -25,7 +25,7 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
       );
     }
 
-    if (!ctx.moneriumMint?.amountOut) {
+    if (!ctx.moneriumMint?.outputAmountDecimal) {
       throw new Error(
         "OnRampSquidRouterEurToEvmEngine: Missing moneriumMint.amountOut in context - ensure initialize stage ran successfully"
       );
@@ -48,11 +48,11 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
 
     return {
       data: {
-        amountRaw: moneriumMint.amountOutRaw,
+        amountRaw: moneriumMint.outputAmountRaw,
         fromNetwork: Networks.Polygon,
         fromToken: ERC20_EURE_POLYGON,
-        inputAmountDecimal: moneriumMint.amountOut,
-        inputAmountRaw: moneriumMint.amountOutRaw,
+        inputAmountDecimal: moneriumMint.outputAmountDecimal,
+        inputAmountRaw: moneriumMint.outputAmountRaw,
         outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
         toNetwork,
         toToken
