@@ -10,6 +10,7 @@ export interface OfframpTransactionParams {
   taxId?: string;
   receiverTaxId?: string;
   brlaEvmAddress?: string;
+  moneriumAuthToken?: string;
 }
 
 export interface OfframpTransactionsWithMeta {

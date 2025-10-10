@@ -5,12 +5,12 @@ import {
   isEvmTokenDetails,
   OnChainToken
 } from "@packages/shared";
-import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./offramp/common/types";
-import { prepareAssethubToBRLOfframpTransactions } from "./offramp/routes/assethub-to-brl";
-import { prepareAssethubToStellarOfframpTransactions } from "./offramp/routes/assethub-to-stellar";
-import { prepareEvmToBRLOfframpTransactions } from "./offramp/routes/evm-to-brl";
-import { prepareEvmToMoneriumEvmOfframpTransactions } from "./offramp/routes/evm-to-monerium-evm";
-import { prepareEvmToStellarOfframpTransactions } from "./offramp/routes/evm-to-stellar";
+import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/types";
+import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
+import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
+import { prepareEvmToBRLOfframpTransactions } from "./routes/evm-to-brl";
+import { prepareEvmToMoneriumEvmOfframpTransactions } from "./routes/evm-to-monerium-evm";
+import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
 
 export async function prepareOfframpTransactions(params: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const { quote } = params;
@@ -28,7 +28,7 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
     } else {
       return prepareAssethubToBRLOfframpTransactions(params);
     }
-  } else if (quote.outputCurrency === FiatToken.EURC) {
+  } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
     // Monerium EVM offramp
     return prepareEvmToMoneriumEvmOfframpTransactions(params);
   } else {

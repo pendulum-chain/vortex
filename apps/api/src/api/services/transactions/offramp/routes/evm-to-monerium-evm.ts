@@ -28,7 +28,7 @@ export async function prepareEvmToMoneriumEvmOfframpTransactions({
   signingAccounts,
   userAddress,
   moneriumAuthToken
-}: OfframpTransactionParams & { moneriumAuthToken?: string }): Promise<OfframpTransactionsWithMeta> {
+}: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const unsignedTxs: UnsignedTx[] = [];
   const stateMeta: Partial<StateMetadata> = {};
 

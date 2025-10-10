@@ -38,8 +38,8 @@ import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
+import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareEvmToMoneriumEvmOfframpTransactions } from "../transactions/offramp/routes/evm-to-monerium-evm";
-import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareAveniaToAssethubOnrampTransactions } from "../transactions/onramp/routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactions } from "../transactions/onramp/routes/avenia-to-evm";
@@ -234,7 +234,7 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-    const { unsignedTxs, stateMeta } = await prepareEvmToMoneriumEvmOfframpTransactions({
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       moneriumAuthToken: additionalData.moneriumAuthToken,
       quote,
       signingAccounts: [],
