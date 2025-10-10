@@ -30,7 +30,7 @@ export const verifyStatusActor = fromPromise<VerifyStatusActorOutput, AveniaKycC
           const reason = response.failureReason || KycFailureReason.UNKNOWN;
           resolve({ reason, type: "REJECTED" });
         }
-      } catch (error) {
+      } catch (_error) {
         failureCount++;
         if (failureCount >= MAX_FAILURES) {
           clearInterval(interval);

@@ -11,10 +11,10 @@ const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
 export interface RouteParams {
   fromAddress: string;
   fromChain: string;
-  fromToken: string;
+  fromToken: `0x${string}`;
   fromAmount: string;
   toChain: string;
-  toToken: string;
+  toToken: `0x${string}`;
   toAddress: string;
   bypassGuardrails: boolean;
   slippageConfig: {
@@ -43,33 +43,6 @@ export interface SquidRouterPayResponse {
   squidTransactionStatus: string;
   isGMPTransaction: boolean;
   routeStatus: RouteStatus[];
-}
-// This function creates the parameters for the Squidrouter API to get a route for onramping.
-// This route will always be from Moonbeam to another EVM chain.
-export function createOnrampRouteParams(
-  fromAddress: string,
-  amount: string,
-  outputTokenDetails: EvmTokenDetails,
-  toNetwork: Networks,
-  addressDestination: string
-): RouteParams {
-  const fromChainId = getNetworkId(Networks.Moonbeam);
-  const toChainId = getNetworkId(toNetwork);
-
-  return {
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress,
-    fromAmount: amount,
-    fromChain: fromChainId.toString(),
-    fromToken: AXL_USDC_MOONBEAM,
-    slippageConfig: {
-      autoMode: 1
-    },
-    toAddress: addressDestination,
-    toChain: toChainId.toString(),
-    toToken: outputTokenDetails.erc20AddressSourceChain
-  };
 }
 
 export interface SquidrouterRoute {
@@ -114,7 +87,7 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
       throw new Error("Invalid response from Squid Router API");
     }
 
-    // FIXME remove this check once squidrouter works as expected again.
+    // FIXME remove this check once squidRouter works as expected again.
     // Check if slippage of received route is reasonable.
     const route = result.data.route;
     if (route.estimate?.aggregateSlippage !== undefined) {
@@ -169,21 +142,23 @@ export async function getStatus(
     if (error instanceof AxiosError && error.response) {
       logger.current.error("API error:", error.response.data);
     }
-    logger.current.error(`Couldn't get status from squidrouter for transactionID ${transactionId}.}`);
+    logger.current.error(`Couldn't get status from squidRouter for transactionID ${transactionId}.}`);
     throw error;
   }
 }
 
 // This function creates the parameters for the Squidrouter API to get a route for offramping.
 // This route will always be from another EVM chain to Moonbeam.
-export function createOfframpRouteParams(
-  fromAddress: string,
-  amount: string,
-  inputTokenDetails: EvmTokenDetails,
-  fromNetwork: Networks,
-  receivingContractAddress: string,
-  squidRouterReceiverHash: string
-): RouteParams {
+export function createRouteParamsWithMoonbeamPostHook(params: {
+  fromAddress: string;
+  amount: string;
+  fromToken: `0x${string}`;
+  fromNetwork: Networks;
+  receivingContractAddress: string;
+  squidRouterReceiverHash: string;
+}): RouteParams {
+  const { fromAddress, amount, fromToken, fromNetwork, receivingContractAddress, squidRouterReceiverHash } = params;
+
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(Networks.Moonbeam);
 
@@ -205,7 +180,7 @@ export function createOfframpRouteParams(
     fromAddress,
     fromAmount: amount,
     fromChain: fromChainId.toString(),
-    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromToken,
     postHook: {
       calls: [
         // approval call.
@@ -253,15 +228,17 @@ export function createOfframpRouteParams(
   };
 }
 
-export function createGenericRouteParams(
-  fromAddress: string,
-  amount: string,
-  inputTokenDetails: EvmTokenDetails,
-  outputTokenDetails: EvmTokenDetails,
-  fromNetwork: Networks,
-  toNetwork: Networks,
-  destinationAddress: string
-): RouteParams {
+export function createGenericRouteParams(params: {
+  fromAddress: string;
+  amount: string;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
+  fromNetwork: Networks;
+  toNetwork: Networks;
+  destinationAddress: string;
+}): RouteParams {
+  const { fromAddress, amount, fromToken, toToken, fromNetwork, toNetwork, destinationAddress } = params;
+
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(toNetwork);
 
@@ -271,13 +248,13 @@ export function createGenericRouteParams(
     fromAddress,
     fromAmount: amount,
     fromChain: fromChainId.toString(),
-    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromToken,
     slippageConfig: {
       autoMode: 1
     },
     toAddress: destinationAddress,
     toChain: toChainId.toString(),
-    toToken: outputTokenDetails.erc20AddressSourceChain
+    toToken
   };
 }
 

@@ -1,9 +1,17 @@
-import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  NABLA_ROUTER,
+  RampPhase
+} from "@packages/shared";
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 
@@ -17,14 +25,23 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    // Pre check: check if the approve has already been performed.
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.nablaSwap) {
+      throw new Error("Missing nablaSwap info in quote metadata");
+    }
+
     try {
       const approval = await pendulumNode.api.query.tokenAllowance.approvals(
-        state.state.inputTokenPendulumDetails.currencyId,
+        quote.metadata.nablaSwap.inputCurrencyId,
         state.state.pendulumEphemeralAddress,
         NABLA_ROUTER
       );
-      const requiredAmount = new Big(state.state.inputAmountBeforeSwapRaw);
+      const requiredAmount = new Big(quote.metadata.nablaSwap.inputAmountForSwapRaw);
       const approvedAmount = approval.toString() !== "" ? Big(approval.toString()) : Big(0);
       if (approvedAmount.gte(requiredAmount)) {
         logger.info("NablaApprovePhaseHandler: Amount already approved. Skipping approval.");

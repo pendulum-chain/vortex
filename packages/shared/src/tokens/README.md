@@ -51,7 +51,7 @@ import {
 
   // Configurations
   evmTokenConfig,
-  assetHubTokenConfig,
+  assethubTokenConfig,
   stellarTokenConfig,
   moonbeamTokenConfig,
 

@@ -4,7 +4,6 @@ export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
-  | "timedOut"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -12,11 +11,14 @@ export type RampPhase =
   | "fundEphemeral"
   | "nablaApprove"
   | "nablaSwap"
+  | "hydrationSwap"
+  | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
   | "moonbeamToPendulumXcm"
-  | "pendulumToMoonbeam"
+  | "pendulumToMoonbeamXcm"
+  | "pendulumToHydrationXcm"
   | "assethubToPendulum"
-  | "pendulumToAssethub"
+  | "pendulumToAssethubXcm"
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"
@@ -113,7 +115,7 @@ export interface UpdateRampRequest {
   additionalData?: {
     squidRouterApproveHash?: string;
     squidRouterSwapHash?: string;
-    assetHubToPendulumHash?: string;
+    assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     [key: string]: unknown;
   };

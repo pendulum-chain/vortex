@@ -37,10 +37,10 @@ import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
-import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumEvmOfframpTransactions";
-import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
-import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
-import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import { prepareOfframpTransactions } from "../transactions/offramp";
+import { prepareEvmToMoneriumEvmOfframpTransactions } from "../transactions/offramp/routes/evm-to-monerium-evm";
+import { prepareOnrampTransactions } from "../transactions/onramp";
+import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -112,7 +112,7 @@ export class RampService extends BaseRampService {
     return { stateMeta, unsignedTxs };
   }
 
-  private async prepareOnrampTransactionsMethod(
+  private async prepareAveniaOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
@@ -140,12 +140,14 @@ export class RampService extends BaseRampService {
       moonbeamEphemeralEntry.address
     );
 
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(
+    const params: AveniaOnrampTransactionParams = {
+      destinationAddress: additionalData.destinationAddress,
       quote,
-      normalizedSigningAccounts,
-      additionalData.destinationAddress,
-      additionalData.taxId
-    );
+      signingAccounts: normalizedSigningAccounts,
+      taxId: additionalData.taxId
+    };
+
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
@@ -180,11 +182,13 @@ export class RampService extends BaseRampService {
         profileId: ibanData.profile
       });
 
-      const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
+      const params: OnrampTransactionParams = {
         destinationAddress: additionalData.destinationAddress,
         quote,
         signingAccounts: normalizedSigningAccounts
-      });
+      };
+
+      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
       const ibanPaymentData = {
         bic: ibanData.bic,
@@ -220,9 +224,10 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-    const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOfframpTransactions({
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       moneriumAuthToken: additionalData.moneriumAuthToken,
       quote,
+      signingAccounts: [],
       userAddress: additionalData.walletAddress
     });
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
@@ -255,7 +260,7 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
-      return this.prepareOnrampTransactionsMethod(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+      return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
 
@@ -317,10 +322,6 @@ export class RampService extends BaseRampService {
           aveniaTicketId,
           depositQrCode,
           ibanPaymentData,
-          inputAmount: quote.inputAmount,
-          inputCurrency: quote.inputCurrency,
-          outputAmount: quote.outputAmount,
-          outputCurrency: quote.outputCurrency,
           ...request.additionalData,
           ...stateMeta
         } as StateMetadata,
@@ -536,18 +537,28 @@ export class RampService extends BaseRampService {
       }
     });
 
-    const transactions = rampStates.map(ramp => ({
-      date: ramp.createdAt.toISOString(),
-      fromAmount: ramp.state.inputAmount || "",
-      fromCurrency: ramp.state.inputCurrency || "",
-      fromNetwork: ramp.from,
-      id: ramp.id,
-      status: this.mapPhaseToStatus(ramp.currentPhase),
-      toAmount: ramp.state.outputAmount || "",
-      toCurrency: ramp.state.outputCurrency || "",
-      toNetwork: ramp.to,
-      type: ramp.type
-    }));
+    // Fetch quotes for the ramp states
+    const quoteIds = rampStates.map(ramp => ramp.quoteId);
+    const quotes = await QuoteTicket.findAll({
+      where: { id: quoteIds }
+    });
+    const quoteMap = new Map(quotes.map(quote => [quote.id, quote]));
+
+    const transactions = rampStates.map(ramp => {
+      const quote = quoteMap.get(ramp.quoteId);
+      return {
+        date: ramp.createdAt.toISOString(),
+        fromAmount: quote?.inputAmount || "",
+        fromCurrency: quote?.inputCurrency || "",
+        fromNetwork: ramp.from,
+        id: ramp.id,
+        status: this.mapPhaseToStatus(ramp.currentPhase),
+        toAmount: quote?.outputAmount || "",
+        toCurrency: quote?.outputCurrency || "",
+        toNetwork: ramp.to,
+        type: ramp.type
+      };
+    });
 
     return { transactions };
   }

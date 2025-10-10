@@ -1,5 +1,15 @@
-import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  logger,
+  RampPhase,
+  submitMoonbeamXcm,
+  waitUntilTrue
+} from "@packages/shared";
 import Big from "big.js";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -10,20 +20,29 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
     const moonbeamNode = await apiManager.getApi("moonbeam");
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const { pendulumEphemeralAddress, inputTokenPendulumDetails, moonbeamEphemeralAddress } = state.state as StateMetadata;
+    const { pendulumEphemeralAddress, moonbeamEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !inputTokenPendulumDetails || !moonbeamEphemeralAddress) {
+    if (!pendulumEphemeralAddress || !moonbeamEphemeralAddress) {
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     const didInputTokenArriveOnPendulum = async () => {
+      if (!quote.metadata.nablaSwap) {
+        throw new Error("MoonbeamToPendulumXcmPhaseHandler: Missing nablaSwap info in quote metadata");
+      }
+
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         pendulumEphemeralAddress,
-        inputTokenPendulumDetails.currencyId
+        quote.metadata.nablaSwap.inputCurrencyId
       );
 
       // @ts-ignore

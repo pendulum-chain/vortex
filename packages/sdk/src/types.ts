@@ -106,12 +106,12 @@ export interface EurOnrampUpdateAdditionalData {
 export interface BrlOfframpUpdateAdditionalData {
   squidRouterApproveHash?: string;
   squidRouterSwapHash?: string;
-  assetHubToPendulumHash?: string;
+  assethubToPendulumHash?: string;
 }
 export interface EurOfframpUpdateAdditionalData {
   squidRouterApproveHash?: string;
   squidRouterSwapHash?: string;
-  assetHubToPendulumHash?: string;
+  assethubToPendulumHash?: string;
 }
 
 export interface BrlKycResponse {

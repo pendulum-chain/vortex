@@ -116,7 +116,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     requiredUserActionsCompleted: false,
     signedTransactions,
     userSigningMeta: {
-      assetHubToPendulumHash: undefined,
+      assethubToPendulumHash: undefined,
       moneriumOnrampApproveHash: undefined,
       squidRouterApproveHash: undefined,
       squidRouterSwapHash: undefined

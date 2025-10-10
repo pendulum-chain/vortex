@@ -47,7 +47,7 @@ export const signTransactionsActor = async ({
 
   let squidRouterApproveHash: string | undefined = undefined;
   let squidRouterSwapHash: string | undefined = undefined;
-  let assetHubToPendulumHash: string | undefined = undefined;
+  let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampApproveHash: string | undefined = undefined;
 
@@ -90,7 +90,7 @@ export const signTransactionsActor = async ({
           throw new Error("Missing assethubApiComponents. Assethub API is not available.");
         }
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-        assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
+        assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "moneriumOnrampSelfTransfer") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
@@ -113,7 +113,7 @@ export const signTransactionsActor = async ({
   }
 
   const additionalData = {
-    assetHubToPendulumHash,
+    assethubToPendulumHash,
     moneriumOfframpSignature,
     squidRouterApproveHash,
     squidRouterSwapHash
@@ -128,7 +128,7 @@ export const signTransactionsActor = async ({
     ...rampState,
     ramp: updatedRampProcess,
     userSigningMeta: {
-      assetHubToPendulumHash,
+      assethubToPendulumHash,
       moneriumOnrampApproveHash,
       squidRouterApproveHash,
       squidRouterSwapHash
