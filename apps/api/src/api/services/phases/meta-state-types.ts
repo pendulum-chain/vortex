@@ -12,6 +12,8 @@ export interface StateMetadata {
     stellarTokenDetails: StellarTokenDetails;
   };
   executeSpacewalkNonce: number;
+  // Only used in onramp - brla
+  aveniaTicketId: string;
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;

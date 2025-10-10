@@ -5,7 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager, EventPoller, EvmClientManager } from "@packages/shared";
+import { ApiManager, EvmClientManager } from "@packages/shared";
 import { config, testDatabaseConnection } from "./config";
 import app from "./config/express";
 import logger from "./config/logger";
@@ -79,8 +79,6 @@ const initializeApp = async () => {
     process.exit(1);
   }
 };
-
-export const eventPoller = new EventPoller(WEBHOOKS_CACHE_URL, DEFAULT_POLLING_INTERVAL);
 
 // Start the application
 initializeApp();

@@ -20,7 +20,6 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
-  SubaccountData,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,

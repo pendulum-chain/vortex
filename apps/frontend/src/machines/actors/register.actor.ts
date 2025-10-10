@@ -25,13 +25,13 @@ export class RegisterRampError extends Error {
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, address, authToken, paymentData } = input;
+  const { executionInput, chainId, address, authToken, paymentData, quote } = input;
 
   console.log("Registering ramp with input:", input);
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
-  if (!executionInput) {
-    throw new RegisterRampError("Execution input is required to register ramp.", RegisterRampErrorType.InvalidInput);
+  if (!executionInput || !quote) {
+    throw new RegisterRampError("Execution input and quote are required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
   if (!address) {
@@ -44,7 +44,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
-  const quoteId = executionInput.quote.id;
+  const quoteId = quote.id;
   const signingAccounts: AccountMeta[] = [
     {
       address: executionInput.ephemerals.stellarEphemeral.address,
@@ -62,7 +62,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   let additionalData: RegisterRampRequest["additionalData"] = {};
 
-  if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
+  if (quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       destinationAddress: address,
       taxId: executionInput.taxId
@@ -111,7 +111,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const updatedRampProcess = await RampService.updateRamp(rampProcess.id, signedTransactions);
 
   const newRampState: RampState = {
-    quote: executionInput.quote,
+    quote,
     ramp: updatedRampProcess,
     requiredUserActionsCompleted: false,
     signedTransactions,

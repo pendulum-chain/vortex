@@ -13,7 +13,6 @@ import {
 
 const MainSections: FC = () => {
   const isWidgetMode = useWidgetMode();
-
   if (isWidgetMode) {
     return null;
   }

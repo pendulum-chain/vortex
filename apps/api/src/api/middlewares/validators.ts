@@ -1,25 +1,28 @@
 import {
   AveniaKYCDataUploadRequest,
+  CreateAveniaSubaccountRequest,
+  CreateQuoteRequest,
   Currency,
+  GetWidgetUrlLocked,
+  GetWidgetUrlRefresh,
+  isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
   PriceProvider,
+  QuoteError,
   RampDirection,
-  RegisterSubaccountPayload,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@packages/shared";
-import { RequestHandler } from "express";
+import { Request, RequestHandler } from "express";
 import httpStatus from "http-status";
-import { ParsedQs } from "qs";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
-import { EvmAddress } from "../services/brla/brlaTeleportService";
 
 interface CreationBody {
   accountId: string;
@@ -62,12 +65,6 @@ interface SiweValidateBody {
   nonce: string;
   signature: string;
   siweMessage: string;
-}
-
-export interface PayInCodeQuery extends ParsedQs {
-  taxId: string;
-  amount: string;
-  receiverAddress: EvmAddress;
 }
 
 export const validateCreationInput: RequestHandler = (req, res, next) => {
@@ -367,30 +364,44 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 };
 
 export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
-    req.body as RegisterSubaccountPayload;
+  const { accountType } = req.body as CreateAveniaSubaccountRequest;
 
-  // if (!phone) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing phone parameter" });
-  //   return;
-  // }
-
-  // if (!address) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing address parameter" });
-  //   return;
-  // }
-
-  // if (!fullName) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing fullName parameter" });
-  //   return;
-  // }
-
-  // if (!birthdate) {
-  //   res.status(httpStatus.BAD_REQUEST).json({ error: "Missing birthdate parameter" });
-  //   return;
-  // }
+  if (!accountType || !isValidAveniaAccountType(accountType)) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `Invalid accountType.`
+    });
+    return;
+  }
 
   next();
+};
+
+export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+
+  if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
+    return;
+  }
+
+  next();
+};
+
+export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (
+  req,
+  res,
+  next
+) => {
+  if ((req.body as GetWidgetUrlLocked).quoteId) {
+    return next();
+  }
+
+  return validateCreateQuoteInput(req as Request<unknown, unknown, CreateQuoteRequest>, res, next);
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {

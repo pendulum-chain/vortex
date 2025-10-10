@@ -251,6 +251,11 @@
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
       "poweredBy": "Desenvolvido por"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "Os parâmetros passados são inválidos. Você será redirecionado em breve.",
+      "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
+      "tryAgain": "Tente novamente"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporariamente desativado"
     },
@@ -282,6 +287,15 @@
     "quoteSubmitButton": {
       "buy": "Comprar",
       "sell": "Vender"
+    },
+    "RampFollowUpRedirectStep": {
+      "afterLink": ".",
+      "beforeLink": "Você será redirecionado em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",
+      "link": "aqui",
+      "title": "Sua rampa está sendo processada agora"
+    },
+    "RampSubmitButton": {
+      "connectDesignatedWallet": "Por favor, conecte a carteira designada '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
@@ -525,6 +539,7 @@
         "buttons": {
           "next": "Próximo"
         },
+        "quoteChangedWarning": "Sua cotação foi alterada. Por favor, confirme o novo valor de saída antes de continuar.",
         "title": "Insira os detalhes"
       }
     }
