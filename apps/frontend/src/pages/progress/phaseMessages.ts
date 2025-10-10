@@ -77,7 +77,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     pendulumToHydrationXcm: t("pages.progress.pendulumToHydrationXcm", {
       assetSymbol: outputAssetSymbol
     }),
-    pendulumToMoonbeam: t("pages.progress.pendulumToMoonbeam", {
+    pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
     }),
     spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {

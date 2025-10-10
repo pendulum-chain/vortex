@@ -476,7 +476,7 @@
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
-      "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
       "squidRouterSwap": "Transferring {{assetSymbol}} from {{fromNetwork}} to {{toNetwork}}",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
       "success": "Transaction completed successfully!",
