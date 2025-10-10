@@ -1,7 +1,7 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { FiatToken, Networks, RampDirection } from "@packages/shared";
+import { AssetHubToken, FiatToken, Networks, RampDirection } from "@packages/shared";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
@@ -13,6 +13,7 @@ import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
+    // Onramps
     if (ctx.direction === RampDirection.BUY) {
       if (ctx.to === Networks.AssetHub) {
         if (ctx.from === "pix") {
@@ -26,6 +27,17 @@ export class RouteResolver {
         } else {
           return new OnrampAveniaToEvmStrategy();
         }
+      }
+    }
+
+    // Offramps
+
+    // Explicitly disallow Assethub USDT and DOT
+    if (ctx.from === Networks.AssetHub) {
+      if (ctx.request.inputCurrency === AssetHubToken.USDT) {
+        throw new Error("Offramp from USDT on AssetHub is currently not supported");
+      } else if (ctx.request.inputCurrency === AssetHubToken.DOT) {
+        throw new Error("Offramp from DOT on AssetHub is currently not supported");
       }
     }
 
