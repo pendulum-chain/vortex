@@ -119,7 +119,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
         meta: {},
         network: pendulumEphemeralEntry.network,
         nonce: pendulumNonce,
-        phase: "pendulumToMoonbeam",
+        phase: "pendulumToMoonbeamXcm",
         signer: pendulumEphemeralEntry.address,
         txData: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction)
       });

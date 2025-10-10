@@ -1,5 +1,6 @@
 import {
   ApiManager,
+  AssetHubToken,
   FiatToken,
   getNetworkFromDestination,
   getPendulumDetails,
@@ -95,14 +96,20 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     // onramp cases
     if (state.type === RampDirection.BUY) {
       if (state.to === "assethub") {
-        return "pendulumToAssethubXcm";
+        if (quote.outputCurrency === AssetHubToken.USDC) {
+          // USDC can directly go to AssetHub
+          return "pendulumToAssethubXcm";
+        } else {
+          // USDT and DOT need to go via Hydration
+          return "pendulumToHydrationXcm";
+        }
       }
-      return "pendulumToMoonbeam";
+      return "pendulumToMoonbeamXcm";
     }
 
     // off ramp cases
     if (quote.outputCurrency === FiatToken.BRL) {
-      return "pendulumToMoonbeam";
+      return "pendulumToMoonbeamXcm";
     }
     return "spacewalkRedeem";
   }

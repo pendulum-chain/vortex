@@ -30,9 +30,12 @@ export interface StateMetadata {
     swapExtrinsicOptions: ExtrinsicOptions;
   };
   assetHubToPendulumHash: string;
+  hydrationToAssethubXcmHash?: string;
   pendulumToAssethubXcmHash?: string;
+  pendulumToHydrationXcmHash?: string;
   pendulumToMoonbeamXcmHash?: string;
   moonbeamXcmTransactionHash: string;
+  hydrationSwapHash?: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;

@@ -257,3 +257,40 @@ export const submitXTokens = async (
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
+
+export const submitExtrinsic = async (
+  extrinsic: SubmittableExtrinsic<"promise">,
+  api?: ApiPromise
+): Promise<{ hash: string | undefined }> =>
+  new Promise((resolve, reject) => {
+    return extrinsic
+      .send((submissionResult: ISubmittableResult) => {
+        const { status, dispatchError } = submissionResult;
+
+        if (status.isFinalized) {
+          const hash = status.asFinalized.toString();
+
+          if (dispatchError) {
+            if (dispatchError.isModule && api) {
+              // for module errors, we have the section indexed, lookup
+              const decoded = api.registry.findMetaError(dispatchError.asModule);
+              const { docs, name, section } = decoded;
+
+              reject(`Extrinsic submission failed: ${section}.${name}: ${docs.join(" ")}`);
+            } else {
+              // Other, CannotLookup, BadOrigin, no extra info
+              reject(`Extrinsic submission failed: ${dispatchError.toString()}`);
+            }
+          }
+
+          resolve({ hash });
+        }
+      })
+      .catch(error => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes("1012:")) {
+          reject(new TransactionTemporarilyBannedError("Transaction for xtokens transfer is temporarily banned."));
+        }
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
+      });
+  });

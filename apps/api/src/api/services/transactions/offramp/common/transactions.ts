@@ -337,7 +337,7 @@ export async function createBRLTransactions(
     meta: {},
     network: account.network,
     nonce: nextNonce,
-    phase: "pendulumToMoonbeam",
+    phase: "pendulumToMoonbeamXcm",
     signer: account.address,
     txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction)
   });

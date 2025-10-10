@@ -15,7 +15,7 @@ export type RampPhase =
   | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
   | "moonbeamToPendulumXcm"
-  | "pendulumToMoonbeam"
+  | "pendulumToMoonbeamXcm"
   | "pendulumToHydrationXcm"
   | "assethubToPendulum"
   | "pendulumToAssethubXcm"

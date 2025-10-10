@@ -23,7 +23,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "pendulumToMoonbeam";
+    return "pendulumToMoonbeamXcm";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -95,7 +95,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
       }
 
-      const { txData: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, "pendulumToMoonbeam");
+      const { txData: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, "pendulumToMoonbeamXcm");
 
       if (typeof pendulumToMoonbeamTransaction !== "string") {
         throw new Error("PendulumToMoonbeamPhaseHandler: Invalid transaction data. This is a bug.");
