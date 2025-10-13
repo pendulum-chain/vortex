@@ -29,7 +29,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: moonbeam,
       name: Networks.Moonbeam,
-      rpcUrl: MOONBEAM_WSS
+      rpcUrl: apiKey ? `https://moonbeam-mainnet.g.alchemy.com/v2/${apiKey}` : MOONBEAM_WSS
     },
     {
       chain: arbitrum,
