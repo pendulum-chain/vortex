@@ -1,14 +1,18 @@
-import type {
+// Types re-exported used to create quotes.
+import {
   CreateQuoteRequest,
   EphemeralAccount,
+  EphemeralAccountType,
+  EvmToken,
+  FiatToken,
+  Networks,
   PaymentData,
   PaymentMethod,
   QuoteResponse,
+  RampDirection,
   RampPhase,
   UnsignedTx
 } from "@packages/shared";
-// Types re-exported used to create quotes.
-import { EvmToken, FiatToken, Networks, RampDirection } from "@packages/shared";
 
 export type { PaymentMethod };
 export { EvmToken, FiatToken, Networks, RampDirection };
@@ -124,8 +128,8 @@ export interface RampState {
   quoteId: string;
   ephemerals: {
     stellarEphemeral?: EphemeralAccount;
-    pendulumEphemeral?: EphemeralAccount;
-    moonbeamEphemeral?: EphemeralAccount;
+    substrateEphemeral?: EphemeralAccount;
+    evmEphemeral?: EphemeralAccount;
   };
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[];
@@ -152,5 +156,5 @@ export type RampHandler = {};
 
 // Context methods that handlers can use from VortexSdk
 export interface VortexSdkContext {
-  storeEphemerals: (ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string) => Promise<void>;
+  storeEphemerals: (ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount }, rampId: string) => Promise<void>;
 }

@@ -1,12 +1,12 @@
-import type {
+import {
   AccountMeta,
   EphemeralAccount,
+  EphemeralAccountType,
   RampProcess,
   RegisterRampRequest,
   UnsignedTx,
   UpdateRampRequest
 } from "@packages/shared";
-import { Networks } from "@packages/shared";
 import { BrlKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
 import type {
@@ -20,32 +20,32 @@ import type {
 export class BrlHandler implements RampHandler {
   private apiService: ApiService;
   private context: VortexSdkContext;
-  private generateEphemerals: (networks: Networks[]) => Promise<{
-    ephemerals: { [key in Networks]?: EphemeralAccount };
+  private generateEphemerals: () => Promise<{
+    ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
     accountMetas: AccountMeta[];
   }>;
   private signTransactions: (
     unsignedTxs: UnsignedTx[],
     ephemerals: {
       stellarEphemeral?: EphemeralAccount;
-      pendulumEphemeral?: EphemeralAccount;
-      moonbeamEphemeral?: EphemeralAccount;
+      substrateEphemeral?: EphemeralAccount;
+      evmEphemeral?: EphemeralAccount;
     }
   ) => Promise<any[]>;
 
   constructor(
     apiService: ApiService,
     context: VortexSdkContext,
-    generateEphemerals: (networks: Networks[]) => Promise<{
-      ephemerals: { [key in Networks]?: EphemeralAccount };
+    generateEphemerals: () => Promise<{
+      ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
       accountMetas: AccountMeta[];
     }>,
     signTransactions: (
       unsignedTxs: UnsignedTx[],
       ephemerals: {
         stellarEphemeral?: EphemeralAccount;
-        pendulumEphemeral?: EphemeralAccount;
-        moonbeamEphemeral?: EphemeralAccount;
+        substrateEphemeral?: EphemeralAccount;
+        evmEphemeral?: EphemeralAccount;
       }
     ) => Promise<any[]>
   ) {
@@ -73,8 +73,7 @@ export class BrlHandler implements RampHandler {
 
     await this.validateBrlKyc(additionalData.taxId);
 
-    const requiredNetworks = [Networks.Pendulum, Networks.Moonbeam]; // Hardcoded for BRL onramp.
-    const { ephemerals, accountMetas } = await this.generateEphemerals(requiredNetworks);
+    const { ephemerals, accountMetas } = await this.generateEphemerals();
 
     const registerRequest: RegisterRampRequest = {
       additionalData: {
@@ -90,9 +89,9 @@ export class BrlHandler implements RampHandler {
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
-      moonbeamEphemeral: ephemerals[Networks.Moonbeam],
-      pendulumEphemeral: ephemerals[Networks.Pendulum],
-      stellarEphemeral: ephemerals[Networks.Stellar]
+      evmEphemeral: ephemerals.EVM,
+      stellarEphemeral: ephemerals.Stellar,
+      substrateEphemeral: ephemerals.Substrate
     });
 
     const updateRequest: UpdateRampRequest = {
@@ -113,8 +112,7 @@ export class BrlHandler implements RampHandler {
 
     await this.validateBrlKyc(additionalData.taxId);
 
-    const requiredNetworks = [Networks.Pendulum, Networks.Moonbeam, Networks.Stellar];
-    const { ephemerals, accountMetas } = await this.generateEphemerals(requiredNetworks);
+    const { ephemerals, accountMetas } = await this.generateEphemerals();
 
     const registerRequest: RegisterRampRequest = {
       additionalData: {
@@ -132,9 +130,9 @@ export class BrlHandler implements RampHandler {
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
-      moonbeamEphemeral: ephemerals[Networks.Moonbeam],
-      pendulumEphemeral: ephemerals[Networks.Pendulum],
-      stellarEphemeral: ephemerals[Networks.Stellar]
+      evmEphemeral: ephemerals.EVM,
+      stellarEphemeral: ephemerals.Stellar,
+      substrateEphemeral: ephemerals.Substrate
     });
 
     const updateRequest: UpdateRampRequest = {
