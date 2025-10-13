@@ -139,8 +139,8 @@ RampState.init(
         isValidTxArray(value: PresignedTx[] | null) {
           if (value === null) return;
 
-          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
-            throw new Error("presignedTxs must be an array with 1-8 elements");
+          if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
+            throw new Error("presignedTxs must be an array with 1-100 elements");
           }
 
           for (const tx of value) {

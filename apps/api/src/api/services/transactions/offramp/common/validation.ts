@@ -41,13 +41,13 @@ export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccoun
 
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
-  const stellarEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Stellar);
+  const stellarEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Stellar");
   if (!stellarEphemeralEntry) {
     throw new Error("Stellar ephemeral not found");
   }
 
-  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
-  if (!pendulumEphemeralEntry) {
+  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
+  if (!substrateEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
   }
 
@@ -55,8 +55,8 @@ export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccoun
     fromNetwork,
     inputTokenDetails,
     outputTokenDetails,
-    pendulumEphemeralEntry,
-    stellarEphemeralEntry
+    stellarEphemeralEntry,
+    substrateEphemeralEntry
   };
 }
 

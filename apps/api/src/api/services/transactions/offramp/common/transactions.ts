@@ -10,13 +10,7 @@ import {
   createPendulumToMoonbeamTransfer,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
-  FiatToken,
   getNetworkFromDestination,
-  getNetworkId,
-  getOnChainTokenDetails,
-  getPendulumDetails,
-  isEvmTokenDetails,
-  isStellarOutputTokenDetails,
   Networks,
   PaymentData,
   PENDULUM_USDC_ASSETHUB,
@@ -33,7 +27,6 @@ import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
-import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 import { prepareSpacewalkRedeemTransaction } from "../../spacewalk/redeem";
 import { buildPaymentAndMergeTx } from "../../stellar/offrampTransaction";
 
@@ -242,7 +235,7 @@ export async function createNablaSwapTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "nablaApprove",
     signer: account.address,
@@ -252,7 +245,7 @@ export async function createNablaSwapTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "nablaSwap",
     signer: account.address,
@@ -291,7 +284,7 @@ export async function addFeeDistributionTransaction(
   if (feeDistributionTx) {
     unsignedTxs.push({
       meta: {},
-      network: account.network,
+      network: Networks.Pendulum,
       nonce: nextNonce,
       phase: "distributeFees",
       signer: account.address,
@@ -335,7 +328,7 @@ export async function createBRLTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "pendulumToMoonbeamXcm",
     signer: account.address,
@@ -393,7 +386,7 @@ export async function createSpacewalkTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "spacewalkRedeem",
     signer: account.address,
@@ -450,7 +443,7 @@ export async function createStellarPaymentTransactions(
     meta: {
       expectedSequenceNumber: expectedSequenceNumbers[0]
     },
-    network: account.network,
+    network: Networks.Stellar,
     nonce: 0,
     phase: "stellarCreateAccount",
     signer: account.address,
@@ -461,7 +454,7 @@ export async function createStellarPaymentTransactions(
     meta: {
       expectedSequenceNumber: expectedSequenceNumbers[0]
     },
-    network: account.network,
+    network: Networks.Stellar,
     nonce: 1,
     phase: "stellarPayment",
     signer: account.address,
@@ -472,7 +465,7 @@ export async function createStellarPaymentTransactions(
     meta: {
       expectedSequenceNumber: expectedSequenceNumbers[0]
     },
-    network: account.network,
+    network: Networks.Stellar,
     nonce: 2,
     phase: "stellarCleanup",
     signer: account.address,

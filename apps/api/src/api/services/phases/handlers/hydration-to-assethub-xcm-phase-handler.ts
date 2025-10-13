@@ -20,9 +20,9 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
     const networkName = "hydration";
     const hydrationNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
     }
 
@@ -30,7 +30,7 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
       const { txData: hydrationToAssethub } = this.getPresignedTransaction(state, "pendulumToHydrationXcm");
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(hydrationToAssethub as string, hydrationNode.api);
-      const { hash } = await submitXcm(getAddressForFormat(pendulumEphemeralAddress, hydrationNode.ss58Format), xcmExtrinsic);
+      const { hash } = await submitXcm(getAddressForFormat(substrateEphemeralAddress, hydrationNode.ss58Format), xcmExtrinsic);
 
       state.state = {
         ...state.state,

@@ -1,6 +1,7 @@
 import {
   AccountMeta,
   ApiManager,
+  EphemeralAccountType,
   FiatToken,
   getAddressForFormat,
   Networks,
@@ -52,19 +53,15 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const signingAccounts: AccountMeta[] = [
     {
       address: executionInput.ephemerals.stellarEphemeral.address,
-      network: Networks.Stellar
+      type: EphemeralAccountType.Stellar
     },
     {
-      address: executionInput.ephemerals.moonbeamEphemeral.address,
-      network: Networks.Moonbeam
+      address: executionInput.ephemerals.evmEphemeral.address,
+      type: EphemeralAccountType.EVM
     },
     {
-      address: executionInput.ephemerals.pendulumEphemeral.address,
-      network: Networks.Pendulum
-    },
-    {
-      address: executionInput.ephemerals.hydrationEphemeral.address,
-      network: Networks.Hydration
+      address: executionInput.ephemerals.substrateEphemeral.address,
+      type: EphemeralAccountType.Substrate
     }
   ];
 
@@ -101,14 +98,21 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
   const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
+    console.log("Filtering tx", tx);
     if (!address) {
       return true;
     }
+    console.log("Comparing tx signer", tx.signer, "with address", address, "on chainId", chainId);
 
-    return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
-      ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
-      : tx.signer.toLowerCase() !== address.toLowerCase();
+    const filter =
+      chainId < 0 && (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub || tx.network === Networks.Hydration)
+        ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
+        : tx.signer.toLowerCase() !== address.toLowerCase();
+    console.log("Filter", filter);
+    return filter;
   });
+
+  console.log("ephemeral transactions to sign:", ephemeralTxs);
 
   const signedTransactions = await signUnsignedTransactions(
     ephemeralTxs,

@@ -36,13 +36,13 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, brlaEvmAddress } = state.state;
+    const { substrateEphemeralAddress, evmEphemeralAddress, brlaEvmAddress } = state.state;
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("Ephemeral address not defined in the state. This is a bug.");
     }
 
-    if (!moonbeamEphemeralAddress && !brlaEvmAddress) {
+    if (!evmEphemeralAddress && !brlaEvmAddress) {
       throw new Error(
         "Moonbeam ephemeral address and BRL EVM address not defined in the state. One of them should be defined. This is a bug."
       );
@@ -60,7 +60,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
         state.type === RampDirection.SELL
           ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).pendulumRepresentative.currencyId
           : PENDULUM_USDC_AXL.currencyId;
-      const balanceResponse = await pendulumNode.api.query.tokens.accounts(pendulumEphemeralAddress, currencyId);
+      const balanceResponse = await pendulumNode.api.query.tokens.accounts(substrateEphemeralAddress, currencyId);
 
       // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
@@ -74,7 +74,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
           ? getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL).moonbeamErc20Address
           : AXL_USDC_MOONBEAM;
       const ownerAddress =
-        state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL ? brlaEvmAddress : moonbeamEphemeralAddress;
+        state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL ? brlaEvmAddress : evmEphemeralAddress;
 
       const balance = await getEvmTokenBalance({
         chain: Networks.Moonbeam,
@@ -104,7 +104,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToMoonbeamTransaction, pendulumNode.api);
       logger.info(`PendulumToMoonbeamPhaseHandler: Submitting XCM transfer to Moonbeam for ramp ${state.id}`);
       const { hash } = await submitXTokens(
-        getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format),
+        getAddressForFormat(substrateEphemeralAddress, pendulumNode.ss58Format),
         xcmExtrinsic
       );
 
@@ -116,7 +116,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       // XCM is payed by the ephemeral, in GLMR, with a fixed value of MOONBEAM_XCM_FEE_GLMR
       const subsidyAmount = nativeToDecimal(MOONBEAM_XCM_FEE_GLMR, 18).toNumber();
       const hashToStore = hash ?? "0x";
-      await this.createSubsidy(state, subsidyAmount, SubsidyToken.GLMR, pendulumEphemeralAddress, hashToStore);
+      await this.createSubsidy(state, subsidyAmount, SubsidyToken.GLMR, substrateEphemeralAddress, hashToStore);
 
       state.state = {
         ...state.state,

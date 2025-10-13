@@ -55,8 +55,8 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       throw new Error("MoneriumOnrampSelfTransfer: Missing moneriumMint metadata.");
     }
 
-    const { polygonEphemeralAddress } = state.state;
-    if (!polygonEphemeralAddress) {
+    const { evmEphemeralAddress } = state.state;
+    if (!evmEphemeralAddress) {
       throw new Error("MoneriumOnrampSelfTransfer: Polygon ephemeral address not defined in the state. This is a bug.");
     }
 
@@ -65,7 +65,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({
         chain: Networks.Polygon,
-        ownerAddress: polygonEphemeralAddress as `0x${string}`,
+        ownerAddress: evmEphemeralAddress as `0x${string}`,
         tokenAddress: ERC20_EURE_POLYGON
       });
       return balance.gte(Big(inputAmountBeforeSwapRaw));
@@ -73,7 +73,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
     try {
       if (await didTokensArriveOnEvm()) {
-        logger.info(`Tokens have arrived on Polygon ephemeral address: ${polygonEphemeralAddress}. Skipping self-transfer.`);
+        logger.info(`Tokens have arrived on Polygon ephemeral address: ${evmEphemeralAddress}. Skipping self-transfer.`);
         return this.transitionToNextPhase(state, "squidRouterSwap");
       }
     } catch (error) {

@@ -38,7 +38,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     try {
       const approval = await pendulumNode.api.query.tokenAllowance.approvals(
         quote.metadata.nablaSwap.inputCurrencyId,
-        state.state.pendulumEphemeralAddress,
+        state.state.substrateEphemeralAddress,
         NABLA_ROUTER
       );
       const requiredAmount = new Big(quote.metadata.nablaSwap.inputAmountForSwapRaw);

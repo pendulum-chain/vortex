@@ -8,7 +8,6 @@ import {
   encodeSubmittableExtrinsic,
   getNetworkFromDestination,
   getNetworkId,
-  MoonbeamTokenDetails,
   Networks,
   PENDULUM_USDC_ASSETHUB,
   PENDULUM_USDC_AXL,
@@ -21,7 +20,6 @@ import Partner from "../../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { priceFeedService } from "../../../priceFeed.service";
 import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 
@@ -130,7 +128,7 @@ export async function addFeeDistributionTransaction(
   if (feeDistributionTx) {
     unsignedTxs.push({
       meta: {},
-      network: account.network,
+      network: Networks.Pendulum,
       nonce: nextNonce,
       phase: "distributeFees",
       signer: account.address,
@@ -171,7 +169,7 @@ export async function addMoonbeamTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Moonbeam,
     nonce: nextNonce,
     phase: "moonbeamToPendulumXcm",
     signer: account.address,
@@ -192,7 +190,7 @@ export async function addMoonbeamTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Moonbeam,
     nonce: moonbeamCleanupNonce,
     phase: "moonbeamCleanup",
     signer: account.address,
@@ -243,7 +241,7 @@ export async function addNablaSwapTransactions(
   // Add Nabla approve transaction
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "nablaApprove",
     signer: account.address,
@@ -254,7 +252,7 @@ export async function addNablaSwapTransactions(
   // Add Nabla swap transaction
   unsignedTxs.push({
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     nonce: nextNonce,
     phase: "nablaSwap",
     signer: account.address,
@@ -293,7 +291,7 @@ export async function addPendulumCleanupTx(params: {
 
   return {
     meta: {},
-    network: account.network,
+    network: Networks.Pendulum,
     phase: "pendulumCleanup",
     signer: account.address,
     txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)

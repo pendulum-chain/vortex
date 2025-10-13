@@ -19,14 +19,10 @@ interface SubmissionError extends Error {
 }
 
 const createEphemerals = () => {
-  // Reuse the same substrate ephemeral for Pendulum and Hydration
-  const substrateEphemeral = createPendulumEphemeral();
-
   return {
-    hydrationEphemeral: substrateEphemeral,
-    moonbeamEphemeral: createMoonbeamEphemeral(),
-    pendulumEphemeral: substrateEphemeral,
-    stellarEphemeral: createStellarEphemeral()
+    evmEphemeral: createMoonbeamEphemeral(),
+    stellarEphemeral: createStellarEphemeral(),
+    substrateEphemeral: createPendulumEphemeral()
   };
 };
 

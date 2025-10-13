@@ -7,7 +7,7 @@ import {
   ApiManager,
   BrlaApiService,
   DestinationType,
-  EphemeralAccount,
+  EphemeralAccount, EphemeralAccountType,
   EvmToken,
   FiatToken,
   Networks,
@@ -40,9 +40,9 @@ const QUOTE_FROM = "evm";
 const filePath = path.join(__dirname, "lastRampState.json");
 
 interface TestSigningAccounts {
-  stellar: EphemeralAccount;
-  moonbeam: EphemeralAccount;
-  pendulum: EphemeralAccount;
+  EVM: EphemeralAccount;
+  Substrate: EphemeralAccount;
+  Stellar: EphemeralAccount;
 }
 
 async function getPendulumNode(): Promise<API> {
@@ -54,6 +54,12 @@ async function getPendulumNode(): Promise<API> {
 async function getMoonbeamNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
   const networkName = "moonbeam";
+  return await apiManager.getApi(networkName);
+}
+
+async function getHydrationNode(): Promise<API> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = "hydration";
   return await apiManager.getApi(networkName);
 }
 
@@ -84,15 +90,15 @@ export async function createMoonbeamEphemeralSeed(): Promise<EphemeralAccount> {
 }
 
 const testSigningAccounts: TestSigningAccounts = {
-  moonbeam: await createMoonbeamEphemeralSeed(),
-  pendulum: await createSubstrateEphemeral(),
-  stellar: createStellarEphemeral()
+  EVM: await createMoonbeamEphemeralSeed(),
+  Substrate: await createSubstrateEphemeral(),
+  Stellar: createStellarEphemeral()
 };
 
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map(networkKey => {
   const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
-  const network = networkKey as Networks;
-  return { address, network };
+  const network = networkKey as EphemeralAccountType;
+  return { address, type: network };
 });
 
 console.log("Test Signing Accounts:", testSigningAccountsMeta);
@@ -249,15 +255,18 @@ describe("PhaseProcessor Integration Test", () => {
 
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
+      const hydrationNode = await getHydrationNode();
+
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp?.unsignedTxs,
         {
-          moonbeamEphemeral: testSigningAccounts.moonbeam,
-          pendulumEphemeral: testSigningAccounts.pendulum,
-          stellarEphemeral: testSigningAccounts.stellar
+          evmEphemeral: testSigningAccounts.EVM,
+          substrateEphemeral: testSigningAccounts.Substrate,
+          stellarEphemeral: testSigningAccounts.Stellar
         },
         pendulumNode.api,
-        moonbeamNode.api
+        moonbeamNode.api,
+        hydrationNode.api
       );
       console.log("Presigned transactions:", presignedTxs);
     } catch (error: unknown) {

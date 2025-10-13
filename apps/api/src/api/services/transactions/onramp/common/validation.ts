@@ -20,8 +20,8 @@ export function validateAveniaOnramp(
 ): {
   toNetwork: Networks;
   outputTokenDetails: OnChainTokenDetails;
-  pendulumEphemeralEntry: AccountMeta;
-  moonbeamEphemeralEntry: AccountMeta;
+  substrateEphemeralEntry: AccountMeta;
+  evmEphemeralEntry: AccountMeta;
   inputTokenDetails: MoonbeamTokenDetails;
 } {
   const toNetwork = getNetworkFromDestination(quote.to);
@@ -29,13 +29,13 @@ export function validateAveniaOnramp(
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
 
-  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
-  if (!pendulumEphemeralEntry) {
+  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
+  if (!substrateEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
   }
 
-  const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!moonbeamEphemeralEntry) {
+  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+  if (!evmEphemeralEntry) {
     throw new Error("Moonbeam ephemeral not found");
   }
 
@@ -57,7 +57,7 @@ export function validateAveniaOnramp(
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
   }
 
-  return { inputTokenDetails, moonbeamEphemeralEntry, outputTokenDetails, pendulumEphemeralEntry, toNetwork };
+  return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, substrateEphemeralEntry, toNetwork };
 }
 
 export function validateMoneriumOnramp(
@@ -66,9 +66,8 @@ export function validateMoneriumOnramp(
 ): {
   toNetwork: Networks;
   outputTokenDetails: OnChainTokenDetails;
-  pendulumEphemeralEntry: AccountMeta;
-  moonbeamEphemeralEntry: AccountMeta;
-  polygonEphemeralEntry: AccountMeta;
+  substrateEphemeralEntry: AccountMeta;
+  evmEphemeralEntry: AccountMeta;
 } {
   const toNetwork = getNetworkFromDestination(quote.to);
   if (!toNetwork) {
@@ -91,20 +90,15 @@ export function validateMoneriumOnramp(
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
   }
 
-  const polygonEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!polygonEphemeralEntry) {
+  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+  if (!evmEphemeralEntry) {
     throw new Error("Polygon ephemeral not found");
   }
 
-  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
-  if (!pendulumEphemeralEntry) {
+  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
+  if (!substrateEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
   }
 
-  const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-  if (!moonbeamEphemeralEntry) {
-    throw new Error("Moonbeam ephemeral not found");
-  }
-
-  return { moonbeamEphemeralEntry, outputTokenDetails, pendulumEphemeralEntry, polygonEphemeralEntry, toNetwork };
+  return { evmEphemeralEntry, outputTokenDetails, substrateEphemeralEntry, toNetwork };
 }

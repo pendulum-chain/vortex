@@ -21,9 +21,9 @@ export class HydrationSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "hydration";
     const hydrationNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
     }
 

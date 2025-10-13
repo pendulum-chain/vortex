@@ -32,9 +32,9 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -54,7 +54,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-        pendulumEphemeralAddress,
+        substrateEphemeralAddress,
         outputTokenPendulumDetails.currencyId
       );
 
@@ -76,7 +76,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         );
         const fundingAccountKeypair = getFundingAccount();
         const txHash = await pendulumNode.api.tx.tokens
-          .transfer(pendulumEphemeralAddress, outputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
+          .transfer(substrateEphemeralAddress, outputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
 
         const subsidyAmount = nativeToDecimal(requiredAmount, outputTokenPendulumDetails.decimals).toNumber();

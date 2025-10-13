@@ -36,14 +36,14 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const { pendulumEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
+    const { substrateEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
       state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !squidRouterReceiverId || !squidRouterReceiverId || !squidRouterReceiverHash) {
+    if (!substrateEphemeralAddress || !squidRouterReceiverId || !squidRouterReceiverId || !squidRouterReceiverHash) {
       throw new Error("MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
-    const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
+    const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(substrateEphemeralAddress));
     const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
 
     const didInputTokenArrivedOnPendulum = async () => {
@@ -52,7 +52,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       }
 
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-        pendulumEphemeralAddress,
+        substrateEphemeralAddress,
         quote.metadata.nablaSwap.inputCurrencyId
       );
 

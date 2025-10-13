@@ -27,9 +27,9 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { moonbeamEphemeralAddress } = state.state as StateMetadata;
+    const { evmEphemeralAddress } = state.state as StateMetadata;
 
-    if (!moonbeamEphemeralAddress) {
+    if (!evmEphemeralAddress) {
       throw new Error("BrlaOnrampMintHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -50,7 +50,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
       await checkEvmBalancePeriodically(
         tokenDetails.moonbeamErc20Address,
-        moonbeamEphemeralAddress,
+        evmEphemeralAddress,
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,

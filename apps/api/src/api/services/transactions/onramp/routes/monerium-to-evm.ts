@@ -28,7 +28,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   const unsignedTxs: UnsignedTx[] = [];
 
   // Validate inputs and extract required data
-  const { toNetwork, outputTokenDetails } = validateMoneriumOnramp(quote, signingAccounts);
+  const { toNetwork, outputTokenDetails, evmEphemeralEntry } = validateMoneriumOnramp(quote, signingAccounts);
 
   if (isAssetHubTokenDetails(outputTokenDetails)) {
     throw new Error(`AssetHub token ${quote.outputCurrency} is not supported for onramp.`);
@@ -57,55 +57,49 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
-  for (const account of signingAccounts) {
-    const accountNetworkId = getNetworkId(account.network);
+  let polygonAccountNonce = 0;
 
-    if (accountNetworkId === getNetworkId(Networks.Polygon)) {
-      let polygonAccountNonce = 0;
+  const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
+    inputAmountPostAnchorFeeRaw,
+    moneriumWalletAddress,
+    evmEphemeralEntry.address
+  );
 
-      const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
-        inputAmountPostAnchorFeeRaw,
-        moneriumWalletAddress,
-        account.address
-      );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "moneriumOnrampSelfTransfer",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
+  });
 
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "moneriumOnrampSelfTransfer",
-        signer: account.address,
-        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
-      });
+  const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
+    destinationAddress: moneriumWalletAddress,
+    fromAddress: evmEphemeralEntry.address,
+    fromToken: ERC20_EURE_POLYGON,
+    rawAmount: inputAmountPostAnchorFeeRaw,
+    toNetwork,
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  });
 
-      const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-        destinationAddress: moneriumWalletAddress,
-        fromAddress: account.address,
-        fromToken: ERC20_EURE_POLYGON,
-        rawAmount: inputAmountPostAnchorFeeRaw,
-        toNetwork,
-        toToken: outputTokenDetails.erc20AddressSourceChain
-      });
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "squidRouterApprove",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+  });
 
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "squidRouterApprove",
-        signer: account.address,
-        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-      });
-
-      unsignedTxs.push({
-        meta: {},
-        network: Networks.Polygon,
-        nonce: polygonAccountNonce++,
-        phase: "squidRouterSwap",
-        signer: account.address,
-        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-      });
-    }
-  }
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "squidRouterSwap",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
 
   return { stateMeta, unsignedTxs };
 }

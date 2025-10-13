@@ -34,9 +34,9 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const { nablaSoftMinimumOutputRaw, pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (!nablaSoftMinimumOutputRaw || !pendulumEphemeralAddress) {
+    if (!nablaSoftMinimumOutputRaw || !substrateEphemeralAddress) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
     }
 
@@ -71,7 +71,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const response = await readMessage({
         abi: new Abi(routerAbi),
         api: pendulumNode.api,
-        callerAddress: pendulumEphemeralAddress,
+        callerAddress: substrateEphemeralAddress,
         contractDeploymentAddress: NABLA_ROUTER,
         limits: defaultReadLimits,
         messageArguments: [

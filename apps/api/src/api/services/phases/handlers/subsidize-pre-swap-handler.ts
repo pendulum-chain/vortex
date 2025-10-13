@@ -21,13 +21,13 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    const { pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
 
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("SubsidizePreSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
@@ -43,7 +43,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-        pendulumEphemeralAddress,
+        substrateEphemeralAddress,
         inputTokenPendulumDetails.currencyId
       );
 
@@ -65,7 +65,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
         // TODO this and other calls, add to executeApiCall to avoid low priority errors.
         const txHash = await pendulumNode.api.tx.tokens
-          .transfer(pendulumEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
+          .transfer(substrateEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
 
         const subsidyAmount = nativeToDecimal(requiredAmount, inputTokenPendulumDetails.decimals).toNumber();

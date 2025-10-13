@@ -39,7 +39,7 @@ export async function prepareEvmToBRLOfframpTransactions({
   let stateMeta: Partial<StateMetadata> = {};
 
   // Validate inputs and extract required data
-  const { fromNetwork, inputTokenDetails, outputTokenDetails, pendulumEphemeralEntry } = validateOfframpQuote(
+  const { fromNetwork, inputTokenDetails, outputTokenDetails, substrateEphemeralEntry } = validateOfframpQuote(
     quote,
     signingAccounts
   );
@@ -56,7 +56,7 @@ export async function prepareEvmToBRLOfframpTransactions({
 
   // Initialize state metadata
   stateMeta = {
-    pendulumEphemeralAddress: pendulumEphemeralEntry.address
+    substrateEphemeralAddress: substrateEphemeralEntry.address
   };
 
   if (!userAddress) {
@@ -73,7 +73,7 @@ export async function prepareEvmToBRLOfframpTransactions({
       fromNetwork,
       fromToken: inputTokenDetails.erc20AddressSourceChain,
       inputAmountRaw,
-      pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+      pendulumEphemeralAddress: substrateEphemeralEntry.address,
       toToken: "0xA0b86a33E6441e88C5F2712C3E9b74F5F4e3E3D6", // AXL USDC on Moonbeam
       userAddress
     },
@@ -86,9 +86,9 @@ export async function prepareEvmToBRLOfframpTransactions({
   };
 
   // Process Pendulum account
-  const pendulumAccount = signingAccounts.find(account => account.network === Networks.Pendulum);
-  if (!pendulumAccount) {
-    throw new Error("Pendulum account not found");
+  const substrateAccount = signingAccounts.find(account => account.type === "Substrate");
+  if (!substrateAccount) {
+    throw new Error("Substrate account not found");
   }
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
@@ -97,12 +97,12 @@ export async function prepareEvmToBRLOfframpTransactions({
   let pendulumNonce = 0;
 
   // Add fee distribution transaction
-  pendulumNonce = await addFeeDistributionTransaction(quote, pendulumAccount, unsignedTxs, pendulumNonce);
+  pendulumNonce = await addFeeDistributionTransaction(quote, substrateAccount, unsignedTxs, pendulumNonce);
 
   // Create Nabla swap transactions
   const nablaResult = await createNablaSwapTransactions(
     {
-      account: pendulumAccount,
+      account: substrateAccount,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails,
       quote
@@ -125,16 +125,16 @@ export async function prepareEvmToBRLOfframpTransactions({
 
   const pendulumCleanupTx: Omit<UnsignedTx, "nonce"> = {
     meta: {},
-    network: pendulumAccount.network,
+    network: Networks.Pendulum,
     phase: "pendulumCleanup",
-    signer: pendulumAccount.address,
+    signer: substrateAccount.address,
     txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)
   };
 
   // Create BRL transactions
   const brlResult = await createBRLTransactions(
     {
-      account: pendulumAccount,
+      account: substrateAccount,
       brlaEvmAddress: validatedBrlaEvmAddress,
       outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
       outputTokenPendulumDetails: outputTokenDetails.pendulumRepresentative,

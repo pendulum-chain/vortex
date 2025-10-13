@@ -34,7 +34,7 @@ export async function prepareAssethubToStellarOfframpTransactions({
   let stateMeta: Partial<StateMetadata> = {};
 
   // Validate inputs and extract required data
-  const { fromNetwork, inputTokenDetails, outputTokenDetails, stellarEphemeralEntry, pendulumEphemeralEntry } =
+  const { fromNetwork, inputTokenDetails, outputTokenDetails, stellarEphemeralEntry, substrateEphemeralEntry } =
     validateOfframpQuote(quote, signingAccounts);
 
   const { stellarTokenDetails, stellarPaymentData: validatedStellarPaymentData } = validateStellarOfframp(
@@ -56,7 +56,7 @@ export async function prepareAssethubToStellarOfframpTransactions({
 
   // Initialize state metadata
   stateMeta = {
-    pendulumEphemeralAddress: pendulumEphemeralEntry.address
+    substrateEphemeralAddress: substrateEphemeralEntry.address
   };
 
   if (!userAddress) {
@@ -67,7 +67,7 @@ export async function prepareAssethubToStellarOfframpTransactions({
   await createAssetHubSourceTransactions(
     {
       inputAmountRaw,
-      pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+      pendulumEphemeralAddress: substrateEphemeralEntry.address,
       userAddress
     },
     unsignedTxs,
@@ -75,9 +75,9 @@ export async function prepareAssethubToStellarOfframpTransactions({
   );
 
   // Process Pendulum account
-  const pendulumAccount = signingAccounts.find(account => account.network === Networks.Pendulum);
-  if (!pendulumAccount) {
-    throw new Error("Pendulum account not found");
+  const substrateAccount = signingAccounts.find(account => account.type === "Substrate");
+  if (!substrateAccount) {
+    throw new Error("Substrate account not found");
   }
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
@@ -86,12 +86,12 @@ export async function prepareAssethubToStellarOfframpTransactions({
   let pendulumNonce = 0;
 
   // Add fee distribution transaction
-  pendulumNonce = await addFeeDistributionTransaction(quote, pendulumAccount, unsignedTxs, pendulumNonce);
+  pendulumNonce = await addFeeDistributionTransaction(quote, substrateAccount, unsignedTxs, pendulumNonce);
 
   // Create Nabla swap transactions
   const nablaResult = await createNablaSwapTransactions(
     {
-      account: pendulumAccount,
+      account: substrateAccount,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails,
       quote
@@ -114,16 +114,16 @@ export async function prepareAssethubToStellarOfframpTransactions({
 
   const pendulumCleanupTx: Omit<UnsignedTx, "nonce"> = {
     meta: {},
-    network: pendulumAccount.network,
+    network: Networks.Pendulum,
     phase: "pendulumCleanup",
-    signer: pendulumAccount.address,
+    signer: substrateAccount.address,
     txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)
   };
 
   // Create Spacewalk transactions
   const stellarResult = await createSpacewalkTransactions(
     {
-      account: pendulumAccount,
+      account: substrateAccount,
       outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
       outputTokenDetails: stellarTokenDetails,
       stellarEphemeralEntry,

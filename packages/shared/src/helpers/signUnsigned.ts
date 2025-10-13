@@ -240,9 +240,8 @@ export async function signUnsignedTransactions(
   unsignedTxs: UnsignedTx[],
   ephemerals: {
     stellarEphemeral?: EphemeralAccount;
-    pendulumEphemeral?: EphemeralAccount;
-    moonbeamEphemeral?: EphemeralAccount;
-    hydrationEphemeral?: EphemeralAccount;
+    substrateEphemeral?: EphemeralAccount;
+    evmEphemeral?: EphemeralAccount;
   },
   pendulumApi: ApiPromise,
   moonbeamApi: ApiPromise,
@@ -260,8 +259,8 @@ export async function signUnsignedTransactions(
   const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon);
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
 
-  if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
-    evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);
+  if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.evmEphemeral) {
+    evmClients = createEvmWalletClients(ephemerals.evmEphemeral, alchemyApiKey);
   }
 
   try {
@@ -288,8 +287,8 @@ export async function signUnsignedTransactions(
     }
 
     for (const tx of hydrationTxs) {
-      if (!ephemerals.hydrationEphemeral) {
-        throw new Error("Missing Hydration ephemeral account");
+      if (!ephemerals.substrateEphemeral) {
+        throw new Error("Missing Substrate ephemeral account");
       }
 
       if (!hydrationApi) {
@@ -301,7 +300,7 @@ export async function signUnsignedTransactions(
       }
 
       const keyring = new Keyring({ type: "sr25519" });
-      const keypair = keyring.addFromUri(ephemerals.hydrationEphemeral.secret);
+      const keypair = keyring.addFromUri(ephemerals.substrateEphemeral.secret);
 
       const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, hydrationApi, tx.nonce);
 
@@ -313,7 +312,7 @@ export async function signUnsignedTransactions(
     }
 
     for (const tx of pendulumTxs) {
-      if (!ephemerals.pendulumEphemeral) {
+      if (!ephemerals.substrateEphemeral) {
         throw new Error("Missing Pendulum ephemeral account");
       }
 
@@ -326,7 +325,7 @@ export async function signUnsignedTransactions(
       }
 
       const keyring = new Keyring({ type: "sr25519" });
-      const keypair = keyring.addFromUri(ephemerals.pendulumEphemeral.secret);
+      const keypair = keyring.addFromUri(ephemerals.substrateEphemeral.secret);
 
       const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, pendulumApi, tx.nonce);
 
@@ -339,7 +338,7 @@ export async function signUnsignedTransactions(
 
     // Process Moonbeam transactions
     for (const tx of moonbeamTxs) {
-      if (!ephemerals.moonbeamEphemeral) {
+      if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
 
@@ -359,7 +358,7 @@ export async function signUnsignedTransactions(
         signedTxs.push(txWithMeta);
       } else {
         const keyring = new Keyring({ type: "ethereum" });
-        const keypair = keyring.addFromUri(`${ephemerals.moonbeamEphemeral.secret}/${ethDerPath}`);
+        const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
 
         const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, moonbeamApi, tx.nonce);
 
@@ -373,7 +372,7 @@ export async function signUnsignedTransactions(
 
     // Process Polygon transactions
     for (const tx of polygonTxs) {
-      if (!ephemerals.moonbeamEphemeral) {
+      if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
 

@@ -49,22 +49,24 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const quote = useQuote();
 
   // When onramping from EUR -> Assethub, we need to show the wallet address field
-  const showWalletAddressField = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
-  const forceNetwork = showWalletAddressField ? Networks.Polygon : undefined;
+  const isMoneriumToAssethubRamp = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
+  const forceNetwork = isMoneriumToAssethubRamp ? Networks.Polygon : undefined;
 
-  const { address } = useVortexAccount(forceNetwork);
+  const { address, evmAddress, substrateAddress } = useVortexAccount(forceNetwork);
 
   const walletForm = walletLockedFromState || address || undefined;
+
   const { form } = useRampForm({
-    moneriumWalletAddress: walletForm,
+    moneriumWalletAddress: evmAddress,
     pixId,
     taxId,
-    walletAddress: showWalletAddressField ? undefined : walletForm
+    walletAddress: isMoneriumToAssethubRamp ? substrateAddress : walletForm
   });
 
   useEffect(() => {
-    showWalletAddressField ? form.setValue("moneriumWalletAddress", walletForm) : form.setValue("walletAddress", walletForm);
-  }, [walletForm, form, showWalletAddressField]);
+    form.setValue("moneriumWalletAddress", evmAddress);
+    form.setValue("walletAddress", walletForm);
+  }, [walletForm, form, evmAddress]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -89,7 +91,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
         <DetailsStepForm
           isBrazilLanding={isBrazilLanding}
           isWalletAddressDisabled={!!walletLockedFromState}
-          showWalletAddressField={showWalletAddressField}
+          showWalletAddressField={isMoneriumToAssethubRamp}
           signingState={signingState}
         />
         {isSep24Redo && (
@@ -100,7 +102,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
             </div>
           </div>
         )}
-        <DetailsStepActions requiresConnection={!canSkipConnection} signingState={signingState} />
+        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>

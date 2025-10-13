@@ -21,9 +21,8 @@ export interface StateMetadata {
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
-  moonbeamEphemeralAddress: string;
-  pendulumEphemeralAddress: string;
-  polygonEphemeralAddress: string;
+  evmEphemeralAddress: string;
+  substrateEphemeralAddress: string;
   moonbeamEphemeralAccount: { secret: string; address: string };
   finalUserAddress: string;
   nabla: {

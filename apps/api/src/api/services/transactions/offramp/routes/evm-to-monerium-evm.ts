@@ -1,7 +1,6 @@
 import {
   createOfframpSquidrouterTransactionsToEvm,
   ERC20_EURE_POLYGON,
-  EvmTokenDetails,
   EvmTransactionData,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -11,10 +10,7 @@ import {
   Networks,
   UnsignedTx
 } from "@packages/shared";
-import Big from "big.js";
-import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { getFirstMoneriumLinkedAddress } from "../../../monerium";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";

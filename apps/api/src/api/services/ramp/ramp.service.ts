@@ -3,6 +3,7 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  EphemeralAccountType,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -44,21 +45,21 @@ import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
-  const allowedNetworks = new Set(Object.values(Networks).map(network => network.toLowerCase()));
+  const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
 
   accounts.forEach(account => {
-    if (!allowedNetworks.has(account.network.toLowerCase())) {
-      throw new Error(`Invalid network: "${account.network}" provided.`);
+    if (!allowedNetworks.has(account.type.toLowerCase())) {
+      throw new Error(`Invalid network: "${account.type}" provided.`);
     }
 
-    const network = Object.values(Networks).find(network => network.toLowerCase() === account.network.toLowerCase());
-    if (!network) {
-      throw new Error(`Invalid network: "${account.network}" provided.`);
+    const type = Object.values(EphemeralAccountType).find(type => type.toLowerCase() === account.type.toLowerCase());
+    if (!type) {
+      throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
     }
 
     normalizedAccounts.push({
       address: account.address,
-      network
+      type: type
     });
   });
 
@@ -124,8 +125,8 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const moonbeamEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Moonbeam);
-    if (!moonbeamEphemeralEntry) {
+    const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+    if (!evmEphemeralEntry) {
       throw new APIError({
         message: "Moonbeam ephemeral not found",
         status: httpStatus.BAD_REQUEST
@@ -136,7 +137,7 @@ export class RampService extends BaseRampService {
       additionalData.taxId,
       quote,
       quote.inputAmount,
-      moonbeamEphemeralEntry.address
+      evmEphemeralEntry.address
     );
 
     const params: AveniaOnrampTransactionParams = {

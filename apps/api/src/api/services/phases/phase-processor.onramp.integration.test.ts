@@ -2,7 +2,10 @@
 import { describe, expect, it, mock } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { AccountMeta, EphemeralAccount, EvmToken, FiatToken, Networks, RampDirection, signUnsignedTransactions } from "@packages/shared";
+import {
+  AccountMeta, EphemeralAccount,
+  EphemeralAccountType, EvmToken, FiatToken, Networks, RampDirection, signUnsignedTransactions
+} from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
@@ -38,6 +41,12 @@ async function getPendulumNode(): Promise<API> {
 async function getMoonbeamNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
   const networkName = "moonbeam";
+  return await apiManager.getApi(networkName);
+}
+
+async function getHydrationNode(): Promise<API> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = "hydration";
   return await apiManager.getApi(networkName);
 }
 
@@ -79,8 +88,8 @@ const testSigningAccounts = {
 // convert into AccountMeta
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map(networkKey => {
   const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
-  const network = networkKey as Networks;
-  return { address, network };
+  const network = networkKey as EphemeralAccountType;
+  return { address, type: network };
 });
 
 console.log("Test Signing Accounts:", testSigningAccountsMeta);
@@ -196,15 +205,18 @@ describe("Onramp PhaseProcessor Integration Test", () => {
 
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
+      const hydrationNode = await getHydrationNode();
+
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp?.unsignedTxs,
         {
-          moonbeamEphemeral: testSigningAccounts.moonbeam,
-          pendulumEphemeral: testSigningAccounts.pendulum,
+          evmEphemeral: testSigningAccounts.moonbeam,
+          substrateEphemeral: testSigningAccounts.pendulum,
           stellarEphemeral: testSigningAccounts.stellar
         },
         pendulumNode.api,
-        moonbeamNode.api
+        moonbeamNode.api,
+        hydrationNode.api,
       );
 
       await rampService.updateRamp({

@@ -78,7 +78,7 @@ export async function swapAxlusdcToBrla(amount: string): Promise<Big> {
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
     amountRaw,
-    { address: callerAddress, network: Networks.Pendulum },
+    { address: callerAddress, type: Networks.Pendulum },
     usdcTokenDetails,
     brlaFiatTokenDetails.pendulumRepresentative,
     minOutputRaw

@@ -25,10 +25,10 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
-    const { pendulumEphemeralAddress, stellarTarget, executeSpacewalkNonce, stellarEphemeralAccountId } =
+    const { substrateEphemeralAddress, stellarTarget, executeSpacewalkNonce, stellarEphemeralAccountId } =
       state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !stellarTarget || !executeSpacewalkNonce || !stellarEphemeralAccountId) {
+    if (!substrateEphemeralAddress || !stellarTarget || !executeSpacewalkNonce || !stellarEphemeralAccountId) {
       logger.error("SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.");
       return this.transitionToNextPhase(state, "failed");
     }
@@ -68,7 +68,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const accountData = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
+      const accountData = await pendulumNode.api.query.system.account(substrateEphemeralAddress);
       // @ts-ignore
       const currentEphemeralAccountNonce = await accountData.nonce.toNumber();
 
@@ -91,7 +91,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       logger.info(`Requesting redeem of ${outputAmountUnits} tokens for vault ${vaultService.vaultId}`);
 
       const redeemExtrinsic = decodeSubmittableExtrinsic(spacewalkRedeemTransaction, pendulumNode.api);
-      const redeemRequestEvent = await vaultService.submitRedeem(pendulumEphemeralAddress, redeemExtrinsic);
+      const redeemRequestEvent = await vaultService.submitRedeem(substrateEphemeralAddress, redeemExtrinsic);
 
       logger.info(`Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${vaultService.vaultId}`);
 

@@ -12,8 +12,8 @@ export async function createNablaTransactionsForOfframp(
   outputTokenPendulumDetails: PendulumTokenDetails,
   nablaHardMinimumOutputRaw: string
 ) {
-  if (ephemeral.network !== Networks.Pendulum) {
-    throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
+  if (ephemeral.type !== "Substrate") {
+    throw new Error(`Can't create Nabla transactions for ${ephemeral.type}`);
   }
 
   const apiManager = ApiManager.getInstance();
@@ -57,8 +57,8 @@ export async function createNablaTransactionsForOnramp(
   outputTokenPendulumDetails: PendulumTokenDetails,
   nablaHardMinimumOutputRaw: string
 ) {
-  if (ephemeral.network !== Networks.Pendulum) {
-    throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
+  if (ephemeral.type !== "Substrate") {
+    throw new Error(`Can't create Nabla transactions for ${ephemeral.type}`);
   }
 
   const apiManager = ApiManager.getInstance();

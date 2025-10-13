@@ -32,9 +32,15 @@ export type RampPhase =
 
 export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
 
+export enum EphemeralAccountType {
+  Stellar = "Stellar",
+  Substrate = "Substrate",
+  EVM = "EVM"
+}
+
 export interface AccountMeta {
   address: string;
-  network: Networks;
+  type: EphemeralAccountType;
 }
 
 export interface EvmTransactionData {
