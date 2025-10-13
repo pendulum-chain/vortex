@@ -1,4 +1,4 @@
-import { isNetworkEVM } from "@packages/shared";
+import { isNetworkEVM, Networks } from "@packages/shared";
 import { useNetwork } from "../../../contexts/network";
 import { EVMWalletButton } from "../EVMWalletButton";
 import { PolkadotWalletButton } from "../PolkadotWalletButton";
@@ -12,18 +12,19 @@ interface ConnectWalletButtonProps {
   customStyles?: string;
   hideIcon?: boolean;
   variant?: WalletButtonVariant;
+  forceNetwork?: Networks;
 }
 
 export const ConnectWalletButton = ({
   customStyles,
   hideIcon,
-  variant = WalletButtonVariant.Standard
+  variant = WalletButtonVariant.Standard,
+  forceNetwork
 }: ConnectWalletButtonProps) => {
   const { selectedNetwork } = useNetwork();
 
-  if (isNetworkEVM(selectedNetwork)) {
-    return <EVMWalletButton customStyles={customStyles} hideIcon={hideIcon} variant={variant} />;
-  }
+  const isEVM = (forceNetwork && isNetworkEVM(forceNetwork)) || isNetworkEVM(selectedNetwork);
+  const ButtonComponent = isEVM ? EVMWalletButton : PolkadotWalletButton;
 
-  return <PolkadotWalletButton customStyles={customStyles} hideIcon={hideIcon} variant={variant} />;
+  return <ButtonComponent customStyles={customStyles} forceNetwork={forceNetwork} hideIcon={hideIcon} variant={variant} />;
 };
