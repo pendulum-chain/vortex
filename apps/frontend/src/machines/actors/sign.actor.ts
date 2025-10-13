@@ -1,4 +1,4 @@
-import { getAddressForFormat, getOnChainTokenDetails, RampDirection } from "@packages/shared";
+import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@packages/shared";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
@@ -31,13 +31,15 @@ export const signTransactionsActor = async ({
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
-    if (!address) {
+    // If a monerium wallet address is provided in the execution input, we use that as the signer address.
+    const signerAddress = executionInput?.moneriumWalletAddress || address;
+    if (!signerAddress) {
       return false;
     }
 
-    return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
-      ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(address, 0)
-      : tx.signer.toLowerCase() === address.toLowerCase();
+    return chainId < 0 && (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub)
+      ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(signerAddress, 0)
+      : tx.signer.toLowerCase() === signerAddress.toLowerCase();
   });
 
   if (!userTxs || userTxs.length === 0) {
