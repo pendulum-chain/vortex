@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  ApiManager,
   FiatToken,
   getAddressForFormat,
   Networks,
@@ -8,7 +9,7 @@ import {
   signUnsignedTransactions
 } from "@packages/shared";
 import { config } from "../../config";
-import { moonbeamApiService, pendulumApiService, RampService } from "../../services/api";
+import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
@@ -38,8 +39,11 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     throw new RegisterRampError("Wallet address is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
-  const pendulumApiComponents = await pendulumApiService.getApi();
-  const moonbeamApiComponents = await moonbeamApiService.getApi();
+  const apiManager = ApiManager.getInstance();
+  const pendulumApiComponents = await apiManager.getApi(Networks.Pendulum);
+  const moonbeamApiComponents = await apiManager.getApi(Networks.Moonbeam);
+  const hydrationApiComponents = await apiManager.getApi(Networks.Hydration);
+
   if (!chainId) {
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
@@ -57,6 +61,10 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     {
       address: executionInput.ephemerals.pendulumEphemeral.address,
       network: Networks.Pendulum
+    },
+    {
+      address: executionInput.ephemerals.hydrationEphemeral.address,
+      network: Networks.Hydration
     }
   ];
 
@@ -107,6 +115,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     executionInput.ephemerals,
     pendulumApiComponents.api,
     moonbeamApiComponents.api,
+    hydrationApiComponents.api,
     config.alchemyApiKey
   );
 

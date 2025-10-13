@@ -214,6 +214,7 @@ export class VortexSdk {
         ephemerals,
         this.networkManager.getPendulumApi() as any, // TODO fix typing
         this.networkManager.getMoonbeamApi() as any,
+        this.networkManager.getHydrationApi() as any,
         this.networkManager.getAlchemyApiKey()
       );
 

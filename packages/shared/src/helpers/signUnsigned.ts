@@ -11,6 +11,7 @@ import {
   EphemeralAccount,
   isEvmTransactionData,
   MOONBEAM_WSS,
+  Networks,
   PresignedTx,
   UnsignedTx
 } from "../index";
@@ -241,9 +242,11 @@ export async function signUnsignedTransactions(
     stellarEphemeral?: EphemeralAccount;
     pendulumEphemeral?: EphemeralAccount;
     moonbeamEphemeral?: EphemeralAccount;
+    hydrationEphemeral?: EphemeralAccount;
   },
   pendulumApi: ApiPromise,
   moonbeamApi: ApiPromise,
+  hydrationApi: ApiPromise,
   alchemyApiKey?: string
 ): Promise<PresignedTx[]> {
   // Wait for initialization of crypto libraries
@@ -253,8 +256,9 @@ export async function signUnsignedTransactions(
 
   // Create EVM wallet clients once at the beginning if needed
   let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
-  const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
-  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
+  const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
+  const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon);
+  const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
 
   if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
     evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);
@@ -281,6 +285,31 @@ export async function signUnsignedTransactions(
         const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
         signedTxs.push(txWithMeta);
       }
+    }
+
+    for (const tx of hydrationTxs) {
+      if (!ephemerals.hydrationEphemeral) {
+        throw new Error("Missing Hydration ephemeral account");
+      }
+
+      if (!hydrationApi) {
+        throw new Error("Hydration API is required for signing transactions");
+      }
+
+      if (isEvmTransactionData(tx.txData)) {
+        throw new Error("Invalid Hydration transaction data format");
+      }
+
+      const keyring = new Keyring({ type: "sr25519" });
+      const keypair = keyring.addFromUri(ephemerals.hydrationEphemeral.secret);
+
+      const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, hydrationApi, tx.nonce);
+
+      const primaryTx = multiSignedTxs[0];
+
+      const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
+
+      signedTxs.push(txWithMeta);
     }
 
     for (const tx of pendulumTxs) {

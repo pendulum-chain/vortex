@@ -18,11 +18,17 @@ interface SubmissionError extends Error {
   message: string;
 }
 
-const createEphemerals = () => ({
-  moonbeamEphemeral: createMoonbeamEphemeral(),
-  pendulumEphemeral: createPendulumEphemeral(),
-  stellarEphemeral: createStellarEphemeral()
-});
+const createEphemerals = () => {
+  // Reuse the same substrate ephemeral for Pendulum and Hydration
+  const substrateEphemeral = createPendulumEphemeral();
+
+  return {
+    hydrationEphemeral: substrateEphemeral,
+    moonbeamEphemeral: createMoonbeamEphemeral(),
+    pendulumEphemeral: substrateEphemeral,
+    stellarEphemeral: createStellarEphemeral()
+  };
+};
 
 export const useRampSubmission = () => {
   const rampActor = useRampActor();

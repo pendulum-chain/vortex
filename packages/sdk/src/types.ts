@@ -140,6 +140,7 @@ export interface VortexSdkConfig {
   apiBaseUrl: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
+  hydrationWsUrl?: string;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;

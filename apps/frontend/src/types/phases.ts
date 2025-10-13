@@ -32,6 +32,7 @@ export interface RampExecutionInput {
     stellarEphemeral: EphemeralAccount;
     pendulumEphemeral: EphemeralAccount;
     moonbeamEphemeral: EphemeralAccount;
+    hydrationEphemeral: EphemeralAccount;
   };
   paymentData?: PaymentData;
   taxId?: string;
