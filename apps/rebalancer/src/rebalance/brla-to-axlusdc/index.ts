@@ -26,8 +26,6 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
   // Step 1: Check initial balance
   const initialBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
   // Step 2: Swap USDC.axl to BRLA on Pendulum
-  // We make sure that only 2 decimals are used in the BRLA amount because the BRLA API service expects amounts in cents
-  // and we don't need more precision than that.
   const brlaAmount = Big((await swapAxlusdcToBrla(amountAxlUsdc)).toFixed(2, 0));
   console.log(`Swapped ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA`);
 
