@@ -27,8 +27,6 @@ async function checkForRebalancing() {
     const amountAxlUsdc = process.env.REBALANCING_AMOUNT_USD_TO_BRL || "1";
     await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
   }
-
-  await rebalanceBrlaToUsdcAxl("1");
 }
 
 checkForRebalancing()

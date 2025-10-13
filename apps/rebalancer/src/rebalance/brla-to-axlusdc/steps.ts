@@ -216,7 +216,6 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
-  console.log("priority fee", approveData.maxPriorityFeePerGas, swapData.maxPriorityFeePerGas);
   const approveDataExtended = {
     account: polygonWalletClient.account,
     chain: polygon,

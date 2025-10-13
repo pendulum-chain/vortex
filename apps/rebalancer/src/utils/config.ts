@@ -43,7 +43,6 @@ export function getPolygonEvmClients() {
   const evmClientManager = EvmClientManager.getInstance();
   const polygonClient = evmClientManager.getClient(Networks.Polygon);
 
-  //const polygonAccount = privateKeyToAccount(config.polygonAccountSecret as `0x${string}`);
   const walletClient = evmClientManager.getWalletClient(Networks.Polygon, polygonExecutorAccount);
 
   return { publicClient: polygonClient, walletClient };
