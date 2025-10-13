@@ -94,7 +94,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: ERC20_EURE_POLYGON,
     rawAmount: inputAmountPostAnchorFeeRaw,
-    toNetwork,
+    toNetwork: Networks.Moonbeam,
     toToken: AXL_USDC_MOONBEAM
   });
 

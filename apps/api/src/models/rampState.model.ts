@@ -183,8 +183,8 @@ RampState.init(
       type: DataTypes.JSONB,
       validate: {
         isValidTxArray(value: UnsignedTx[]) {
-          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
-            throw new Error("unsignedTxs must be an array with 1-8 elements");
+          if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
+            throw new Error("unsignedTxs must be an array with 1-100 elements");
           }
         }
       }
