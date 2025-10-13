@@ -216,9 +216,6 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
-  const suggestedTipApprove = approveData.maxPriorityFeePerGas ? BigInt(approveData.maxPriorityFeePerGas) : 0n;
-  const effectiveTipApprove = suggestedTipApprove > BigInt(25000000000n) ? suggestedTipApprove : BigInt(25000000000n);
-
   console.log("priority fee", approveData.maxPriorityFeePerGas, swapData.maxPriorityFeePerGas);
   const approveDataExtended = {
     account: polygonWalletClient.account,
@@ -236,9 +233,6 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
   console.log(`BRLA approval for swap on Polygon sent with transaction hash: ${approveHash}. Waiting for confirmation...`);
   await waitForTransactionConfirmation(approveHash, polygonPublicClient);
   console.log("BRLA approved for swap on Polygon. Transaction hash:", approveHash);
-
-  const suggestedTipSwap = swapData.maxPriorityFeePerGas ? BigInt(swapData.maxPriorityFeePerGas) : 0n;
-  const effectiveTipSwap = suggestedTipSwap > BigInt(25000000000n) ? suggestedTipSwap : BigInt(25000000000n);
 
   const swapDataExtended = {
     account: polygonWalletClient.account,

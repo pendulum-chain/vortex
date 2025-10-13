@@ -1,4 +1,4 @@
-import { AXL_USDC_MOONBEAM, multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
+import { multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
@@ -10,8 +10,7 @@ import {
   swapBrlaToUsdcOnBrlaApiService,
   transferUsdcToMoonbeamWithSquidrouter,
   triggerXcmFromMoonbeam,
-  waitForAxlUsdcOnPendulum,
-  waitForBrlaOnPolygon
+  waitForAxlUsdcOnPendulum
 } from "./steps.ts";
 
 /// Takes care of rebalancing an overfull BRLA pool on Pendulum with the axl.USDC pool on Pendulum.
