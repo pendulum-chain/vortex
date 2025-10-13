@@ -1,25 +1,15 @@
-import { RampCurrency, RampDirection } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
-import { priceFeedService } from "../../../priceFeed.service";
-import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
+import { QuoteContext, Stage, StageKey, StellarMeta, XcmMeta } from "../../core/types";
 
 export interface PendulumTransferConfig {
   direction: RampDirection;
   skipNote: string;
 }
 
-export interface StellarData {
-  amountIn: Big;
-  amountInRaw: string;
-  amountOut: Big;
-  amountOutRaw: string;
-  fee: Big;
-  currency: RampCurrency;
-}
-
 export interface PendulumTransferComputation {
   type: "xcm" | "stellar";
-  data: XcmMeta | StellarData;
+  data: XcmMeta | StellarMeta;
 }
 
 export abstract class BasePendulumTransferEngine implements Stage {
@@ -58,8 +48,10 @@ export abstract class BasePendulumTransferEngine implements Stage {
         `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
       );
     } else {
-      const stellarData = computation.data as StellarData;
-      ctx.addNote?.(`Calculated Stellar transfer with amount ${stellarData.amountIn.toString()} ${stellarData.currency}`);
+      const stellarData = computation.data as StellarMeta;
+      ctx.addNote?.(
+        `Calculated Stellar transfer with amount ${stellarData.inputAmountDecimal.toString()} ${stellarData.currency}`
+      );
     }
   }
 

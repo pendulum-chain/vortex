@@ -1,7 +1,7 @@
 import { RampDirection } from "@packages/shared";
 import Big from "big.js";
-import { QuoteContext } from "../../core/types";
-import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig, StellarData } from "./index";
+import { QuoteContext, StellarMeta } from "../../core/types";
+import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig } from "./index";
 
 export class OffRampToStellarPendulumTransferEngine extends BasePendulumTransferEngine {
   readonly config: PendulumTransferConfig = {
@@ -29,16 +29,17 @@ export class OffRampToStellarPendulumTransferEngine extends BasePendulumTransfer
     const nablaSwap = ctx.nablaSwap!;
 
     const fee = new Big(0); // The fee is not paid in the token being transferred
-    const amountIn = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
-    const amountInRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
 
-    const stellarData: StellarData = {
-      amountIn,
-      amountInRaw,
-      amountOut: amountIn, // The fees are not paid in the token being transferred, so amountOut = amountIn
-      amountOutRaw: amountInRaw,
+    const stellarData: StellarMeta = {
       currency: nablaSwap.outputCurrency,
-      fee
+      fee,
+      inputAmountDecimal,
+      inputAmountRaw,
+      // The fees are not paid in the token being transferred, so amountOut = amountIn
+      outputAmountDecimal: inputAmountDecimal,
+      outputAmountRaw: inputAmountRaw
     };
 
     return {
@@ -48,6 +49,6 @@ export class OffRampToStellarPendulumTransferEngine extends BasePendulumTransfer
   }
 
   protected assign(ctx: QuoteContext, computation: PendulumTransferComputation): void {
-    ctx.pendulumToStellar = computation.data as StellarData;
+    ctx.pendulumToStellar = computation.data as StellarMeta;
   }
 }
