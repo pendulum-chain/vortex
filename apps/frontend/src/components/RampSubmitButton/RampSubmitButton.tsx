@@ -153,7 +153,19 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampState, machineState, t, toToken, stellarData, rampPaymentConfirmed, quote]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampState,
+    machineState,
+    t,
+    toToken,
+    stellarData,
+    rampPaymentConfirmed,
+    quote,
+    accountAddress,
+    walletLocked
+  ]);
 };
 
 export const RampSubmitButton = ({ className }: { className?: string }) => {
