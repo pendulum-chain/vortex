@@ -63,8 +63,8 @@ export async function prepareAveniaToAssethubOnrampTransactions({
       await addMoonbeamTransactions(
         {
           account: moonbeamEphemeralEntry,
-          inputAmountPostAnchorFeeRaw,
-          inputTokenDetails,
+          fromToken: inputTokenDetails.moonbeamErc20Address,
+          inputAmountRaw: inputAmountPostAnchorFeeRaw,
           pendulumEphemeralAddress: pendulumEphemeralEntry.address,
           toNetworkId
         },

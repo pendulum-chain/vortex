@@ -1,10 +1,8 @@
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
-  EvmToken,
   EvmTransactionData,
   getNetworkId,
-  getPendulumDetails,
   isAssetHubTokenDetails,
   Networks,
   UnsignedTx
@@ -13,7 +11,7 @@ import Big from "big.js";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
-import { OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
+import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
 /**
@@ -23,8 +21,9 @@ import { validateMoneriumOnramp } from "../common/validation";
 export async function prepareMoneriumToEvmOnrampTransactions({
   quote,
   signingAccounts,
-  destinationAddress
-}: OnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
+  destinationAddress,
+  moneriumWalletAddress
+}: MoneriumOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -43,17 +42,18 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   // Setup state metadata
   stateMeta = {
     destinationAddress,
+    moneriumWalletAddress,
     walletAddress: destinationAddress
   };
 
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, destinationAddress);
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, moneriumWalletAddress);
 
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
     nonce: 0,
     phase: "moneriumOnrampSelfTransfer",
-    signer: destinationAddress,
+    signer: moneriumWalletAddress,
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
 
@@ -65,7 +65,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 
       const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
         inputAmountPostAnchorFeeRaw,
-        destinationAddress,
+        moneriumWalletAddress,
         account.address
       );
 
@@ -79,7 +79,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
       });
 
       const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-        destinationAddress,
+        destinationAddress: moneriumWalletAddress,
         fromAddress: account.address,
         fromToken: ERC20_EURE_POLYGON,
         rawAmount: inputAmountPostAnchorFeeRaw,

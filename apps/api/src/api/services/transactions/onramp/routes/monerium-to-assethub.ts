@@ -1,18 +1,30 @@
 import {
+  AXL_USDC_MOONBEAM,
+  createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createPendulumToAssethubTransfer,
   createPendulumToHydrationTransfer,
-  EvmToken,
+  ERC20_EURE_POLYGON,
+  EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkId,
   getPendulumDetails,
   isAssetHubTokenDetails,
   Networks,
+  PENDULUM_USDC_AXL,
   UnsignedTx
 } from "@packages/shared";
+import Big from "big.js";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
-import { addFeeDistributionTransaction, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
-import { OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
+import { encodeEvmTransactionData } from "../../index";
+import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
+import {
+  addFeeDistributionTransaction,
+  addMoonbeamTransactions,
+  addNablaSwapTransactions,
+  addPendulumCleanupTx
+} from "../common/transactions";
+import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
 /**
@@ -22,34 +34,118 @@ import { validateMoneriumOnramp } from "../common/validation";
 export async function prepareMoneriumToAssethubOnrampTransactions({
   quote,
   signingAccounts,
-  destinationAddress
-}: OnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
+  destinationAddress,
+  moneriumWalletAddress
+}: MoneriumOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
   // Validate inputs and extract required data
   const { toNetwork, outputTokenDetails, pendulumEphemeralEntry, moonbeamEphemeralEntry, polygonEphemeralEntry } =
     validateMoneriumOnramp(quote, signingAccounts);
-
-  // Get token details
-  const inputTokenPendulumDetails = getPendulumDetails(EvmToken.AXLUSDC);
-  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+  const toNetworkId = getNetworkId(toNetwork);
 
   // Setup state metadata
   stateMeta = {
     destinationAddress,
+    moneriumWalletAddress,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     polygonEphemeralAddress: polygonEphemeralEntry.address,
     walletAddress: destinationAddress
   };
 
+  if (!quote.metadata.moneriumMint?.outputAmountRaw) {
+    throw new Error("Missing moonbeamToEvm output amount in quote metadata");
+  }
+
+  const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.outputAmountRaw).toFixed(0, 0);
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, moneriumWalletAddress);
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: 0,
+    phase: "moneriumOnrampSelfTransfer",
+    signer: moneriumWalletAddress,
+    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
+  });
+
   // Build transactions for each network
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
+    if (accountNetworkId === getNetworkId(Networks.Polygon)) {
+      let polygonAccountNonce = 0;
+
+      const polygonSelfTransferTxData = await createOnrampEphemeralSelfTransfer(
+        inputAmountPostAnchorFeeRaw,
+        moneriumWalletAddress,
+        account.address
+      );
+
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "moneriumOnrampSelfTransfer",
+        signer: account.address,
+        txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
+      });
+
+      const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
+        destinationAddress: moneriumWalletAddress,
+        fromAddress: account.address,
+        fromToken: ERC20_EURE_POLYGON,
+        rawAmount: inputAmountPostAnchorFeeRaw,
+        toNetwork,
+        toToken: AXL_USDC_MOONBEAM
+      });
+
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "squidRouterApprove",
+        signer: account.address,
+        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+      });
+
+      unsignedTxs.push({
+        meta: {},
+        network: Networks.Polygon,
+        nonce: polygonAccountNonce++,
+        phase: "squidRouterSwap",
+        signer: account.address,
+        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+      });
+    }
+
+    // Moonbeam: Initial BRLA transfer to Pendulum
+    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      if (!quote.metadata.evmToMoonbeam?.outputAmountRaw) {
+        throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
+      }
+      const receivedTokensOnMoonbeam = quote.metadata.evmToMoonbeam.outputAmountRaw;
+
+      await addMoonbeamTransactions(
+        {
+          account: moonbeamEphemeralEntry,
+          fromToken: AXL_USDC_MOONBEAM,
+          inputAmountRaw: receivedTokensOnMoonbeam,
+          pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+          toNetworkId
+        },
+        unsignedTxs,
+        0 // start nonce
+      );
+    }
+
     // Pendulum: Nabla swap and transfer to AssetHub
     if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+      const inputTokenPendulumDetails = PENDULUM_USDC_AXL;
+      const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+
       let pendulumNonce = 0;
 
       // Add Nabla swap transactions
@@ -150,6 +246,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
           );
         }
         const hydrationAssetId = outputTokenDetails.hydrationId;
+        // biome-ignore lint/style/noNonNullAssertion: Checked by isAssetHubTokenDetails
         const assethubAssetId = outputTokenDetails.isNative ? "native" : outputTokenDetails.foreignAssetId!;
 
         const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(

@@ -22,7 +22,7 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { walletAddress } = state.state as StateMetadata;
+    const { moneriumWalletAddress: walletAddress } = state.state as StateMetadata;
 
     if (!walletAddress) {
       throw new Error("MoneriumOnrampMintPhaseHandler: State metadata corrupted. This is a bug.");

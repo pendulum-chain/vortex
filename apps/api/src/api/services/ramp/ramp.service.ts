@@ -38,9 +38,8 @@ import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions";
 import { prepareOfframpTransactions } from "../transactions/offramp";
-import { prepareEvmToMoneriumEvmOfframpTransactions } from "../transactions/offramp/routes/evm-to-monerium-evm";
 import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams, OnrampTransactionParams } from "../transactions/onramp/common/types";
+import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -162,9 +161,14 @@ export class RampService extends BaseRampService {
     depositQrCode: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (!additionalData || !additionalData.moneriumAuthToken || additionalData.destinationAddress === undefined) {
+    if (
+      !additionalData ||
+      !additionalData.moneriumAuthToken ||
+      !additionalData.destinationAddress ||
+      !additionalData.moneriumWalletAddress
+    ) {
       throw new APIError({
-        message: "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp",
+        message: "Parameters moneriumAuthToken, destinationAddress and moneriumWalletAddress are required for Monerium onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -172,7 +176,7 @@ export class RampService extends BaseRampService {
     try {
       // Validate the user mint address
       const ibanData = await getIbanForAddress(
-        additionalData.destinationAddress,
+        additionalData.moneriumWalletAddress,
         additionalData.moneriumAuthToken,
         quote.to as EvmNetworks // Fixme: assethub network type issue.
       );
@@ -182,8 +186,9 @@ export class RampService extends BaseRampService {
         profileId: ibanData.profile
       });
 
-      const params: OnrampTransactionParams = {
+      const params: MoneriumOnrampTransactionParams = {
         destinationAddress: additionalData.destinationAddress,
+        moneriumWalletAddress: additionalData.moneriumWalletAddress,
         quote,
         signingAccounts: normalizedSigningAccounts
       };

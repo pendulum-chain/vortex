@@ -9,6 +9,8 @@ export interface OnrampTransactionParams {
 
 export type AveniaOnrampTransactionParams = OnrampTransactionParams & { taxId: string };
 
+export type MoneriumOnrampTransactionParams = OnrampTransactionParams & { moneriumWalletAddress: string };
+
 export interface OnrampTransactionsWithMeta {
   unsignedTxs: UnsignedTx[];
   stateMeta: Partial<Record<string, unknown>>;

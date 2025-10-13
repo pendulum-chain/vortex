@@ -152,21 +152,21 @@ export async function addFeeDistributionTransaction(
 export async function addMoonbeamTransactions(
   params: {
     pendulumEphemeralAddress: string;
-    inputAmountPostAnchorFeeRaw: string;
-    inputTokenDetails: MoonbeamTokenDetails;
+    inputAmountRaw: string;
+    fromToken: `0x${string}`;
     account: AccountMeta;
     toNetworkId: number;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  const { pendulumEphemeralAddress, inputAmountPostAnchorFeeRaw, inputTokenDetails, account, toNetworkId } = params;
+  const { pendulumEphemeralAddress, inputAmountRaw, fromToken, account, toNetworkId } = params;
 
   // Create and add Moonbeam to Pendulum XCM transaction
   const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
     pendulumEphemeralAddress,
-    inputAmountPostAnchorFeeRaw,
-    inputTokenDetails.moonbeamErc20Address
+    inputAmountRaw,
+    fromToken
   );
 
   unsignedTxs.push({

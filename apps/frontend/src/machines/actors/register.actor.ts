@@ -70,7 +70,8 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: address,
-      moneriumAuthToken: authToken
+      moneriumAuthToken: authToken,
+      moneriumWalletAddress: executionInput.moneriumWalletAddress
     };
   } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
@@ -83,6 +84,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     additionalData = {
       // moneriumAuthToken is only relevant after enabling Monerium offramps.
       // moneriumAuthToken: authToken,
+      // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
       walletAddress: address
     };

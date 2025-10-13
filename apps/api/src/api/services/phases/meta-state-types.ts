@@ -17,6 +17,7 @@ export interface StateMetadata {
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
+  moneriumWalletAddress: string | undefined;
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;

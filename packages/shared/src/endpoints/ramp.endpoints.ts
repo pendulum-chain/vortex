@@ -91,6 +91,7 @@ export interface RegisterRampRequest {
   additionalData?: {
     walletAddress?: string;
     destinationAddress?: string;
+    moneriumWalletAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;
