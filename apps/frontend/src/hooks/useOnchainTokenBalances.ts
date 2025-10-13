@@ -204,22 +204,17 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
         const assetInfo = assetInfos[index];
         const accountInfo = accountInfos[index];
 
-        const { minBalance: rawMinBalance } = assetInfo.toJSON() as {
-          minBalance: number;
-        };
+        const rawMinBalance = assetInfo
+          ? (
+              assetInfo.toJSON() as {
+                minBalance: number;
+              }
+            ).minBalance
+          : 0;
 
-        const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
+        const rawBalance = accountInfo ? (assetInfo.toJSON() as { balance: number }).balance : 0;
         const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
         const formattedBalance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
-        console.log(
-          "Converted offrampable balance:",
-          offrampableBalance,
-          "to",
-          formattedBalance,
-          "for token:",
-          token.assetSymbol
-        );
-
         return { ...token, balance: formattedBalance };
       });
 
