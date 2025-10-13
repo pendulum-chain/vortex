@@ -67,7 +67,7 @@ export const useRampSubmission = () => {
   );
 
   const prepareExecutionInput = useCallback(
-    (data: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+    (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
       validateSubmissionData(data);
       if (!quote) {
         throw new Error("No quote available. Please try again.");
@@ -84,6 +84,7 @@ export const useRampSubmission = () => {
       const executionInput: RampExecutionInput = {
         ephemerals,
         fiatToken,
+        moneriumWalletAddress: data.moneriumWalletAddress,
         network,
         onChainToken,
         pixId: data.pixId,
@@ -116,7 +117,7 @@ export const useRampSubmission = () => {
   );
 
   const onRampConfirm = useCallback(
-    async (data?: { pixId?: string; taxId?: string; walletAddress?: string }) => {
+    async (data?: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
       if (executionPreparing) return;
       setExecutionPreparing(true);
 

@@ -1,4 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
+import { FiatToken, Networks } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
@@ -29,6 +30,7 @@ export interface SigningState {
 export interface FormData {
   pixId?: string;
   taxId?: string;
+  moneriumWalletAddress?: string;
   walletAddress?: string;
 }
 
@@ -42,21 +44,27 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     walletLockedFromState: state.context.walletLocked
   }));
 
-  const { address } = useVortexAccount();
   const taxId = useTaxId();
   const pixId = usePixId();
   const quote = useQuote();
 
+  // When onramping from EUR -> Assethub, we need to show the wallet address field
+  const showWalletAddressField = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
+  const forceNetwork = showWalletAddressField ? Networks.Polygon : undefined;
+
+  const { address } = useVortexAccount(forceNetwork);
+
   const walletForm = walletLockedFromState || address || undefined;
   const { form } = useRampForm({
+    moneriumWalletAddress: walletForm,
     pixId,
     taxId,
-    walletAddress: walletForm
+    walletAddress: showWalletAddressField ? undefined : walletForm
   });
 
   useEffect(() => {
-    form.setValue("walletAddress", walletForm);
-  }, [walletForm, form]);
+    showWalletAddressField ? form.setValue("moneriumWalletAddress", walletForm) : form.setValue("walletAddress", walletForm);
+  }, [walletForm, form, showWalletAddressField]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -81,13 +89,14 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
         <DetailsStepForm
           isBrazilLanding={isBrazilLanding}
           isWalletAddressDisabled={!!walletLockedFromState}
+          showWalletAddressField={showWalletAddressField}
           signingState={signingState}
         />
         {isSep24Redo && (
           <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-center space-x-3">
               <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              <p className="text-sm text-gray-700">{t("pages.widget.details.quoteChangedWarning")}</p>
+              <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
             </div>
           </div>
         )}

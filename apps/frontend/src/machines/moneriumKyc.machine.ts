@@ -27,10 +27,11 @@ export class MoneriumKycMachineError extends Error {
 export const moneriumKycMachine = setup({
   actors: {
     checkUserStatus: fromPromise(async ({ input }: { input: MoneriumKycContext }) => {
-      if (!input.address) {
+      const address = input.executionInput?.moneriumWalletAddress || input.address;
+      if (!address) {
         throw new Error("Address is required");
       }
-      return MoneriumService.checkUserStatus(input.address);
+      return MoneriumService.checkUserStatus(address);
     }),
     exchangeMoneriumCode: fromPromise(async ({ input }: { input: MoneriumKycContext }): Promise<{ authToken: string }> => {
       if (!input.authCode) {
@@ -44,11 +45,12 @@ export const moneriumKycMachine = setup({
       }: {
         input: { context: MoneriumKycContext; parent: AnyActorRef };
       }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        if (!input.context.address || !input.context.getMessageSignature) {
+        const address = input.context.executionInput?.moneriumWalletAddress || input.context.address;
+        if (!address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }
         const { authUrl, codeVerifier } = await handleMoneriumSiweAuth(
-          input.context.address,
+          address,
           input.context.getMessageSignature,
           input.parent
         );
@@ -61,14 +63,11 @@ export const moneriumKycMachine = setup({
       }: {
         input: { context: MoneriumKycContext; parent: AnyActorRef };
       }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        if (!input.context.address || !input.context.getMessageSignature) {
+        const address = input.context.executionInput?.moneriumWalletAddress || input.context.address;
+        if (!address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }
-        const { authUrl, codeVerifier } = await initiateMoneriumAuth(
-          input.context.address,
-          input.context.getMessageSignature,
-          input.parent
-        );
+        const { authUrl, codeVerifier } = await initiateMoneriumAuth(address, input.context.getMessageSignature, input.parent);
         return { authUrl, codeVerifier };
       }
     )

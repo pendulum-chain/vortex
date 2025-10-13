@@ -27,6 +27,7 @@ export interface RampExecutionInput {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   userWalletAddress: string;
+  moneriumWalletAddress?: string; // Only needed for Monerium offramps to non-EVM chains (e.g. Monerium -> Assethub)
   ephemerals: {
     stellarEphemeral: EphemeralAccount;
     pendulumEphemeral: EphemeralAccount;
