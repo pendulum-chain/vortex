@@ -1,4 +1,4 @@
-import { DestinationType, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
+import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -17,6 +17,9 @@ export interface QuoteTicketAttributes {
   expiresAt: Date;
   status: "pending" | "consumed" | "expired";
   metadata: QuoteTicketMetadata;
+  paymentMethod: PaymentMethod | null;
+  countryCode: string | null;
+  network: Networks | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,7 @@ export interface QuoteTicketMetadata {
     discount: string;
     subsidyAmountInOutputToken: string;
   };
+  sessionId?: string;
 }
 
 // Define the attributes that can be set during creation
@@ -67,6 +71,12 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare metadata: QuoteTicketMetadata;
 
+  declare paymentMethod: PaymentMethod | null;
+
+  declare countryCode: string | null;
+
+  declare network: Networks | null;
+
   declare createdAt: Date;
 
   declare updatedAt: Date;
@@ -75,6 +85,11 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 // Initialize the model
 QuoteTicket.init(
   {
+    countryCode: {
+      allowNull: true,
+      field: "country_code",
+      type: DataTypes.STRING(2)
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -114,6 +129,10 @@ QuoteTicket.init(
       allowNull: false,
       type: DataTypes.JSONB
     },
+    network: {
+      allowNull: true,
+      type: DataTypes.STRING(20)
+    },
     outputAmount: {
       allowNull: false,
       field: "output_amount",
@@ -134,6 +153,11 @@ QuoteTicket.init(
         model: "partners"
       },
       type: DataTypes.UUID
+    },
+    paymentMethod: {
+      allowNull: true,
+      field: "payment_method",
+      type: DataTypes.STRING(20)
     },
     rampType: {
       allowNull: false,
