@@ -28,6 +28,7 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
 import { APIError } from "../../../errors/api-error";
+import { deriveFromTo } from "../../../helpers/payment-method-mapper";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
@@ -76,8 +77,16 @@ async function calculateInputAmountForNablaSwap(
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
+    // Derive from/to if countryCode and network provided
+    let { from, to } = request;
+    if (request.countryCode && request.network) {
+      const derived = deriveFromTo(request.countryCode, request.network, request.rampType);
+      from = derived.from;
+      to = derived.to;
+    }
+
     // a. Initial Setup
-    validateChainSupport(request.rampType, request.from, request.to);
+    validateChainSupport(request.rampType, from, to);
 
     // Fetch partner details
     let partner = null;
@@ -216,41 +225,48 @@ export class QuoteService extends BaseRampService {
       };
 
       const quote = await QuoteTicket.create({
+        countryCode: request.countryCode || null,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         fee: feeToStore,
-        from: request.from,
+        from,
         id: uuidv4(),
         inputAmount: request.inputAmount,
         inputCurrency: request.inputCurrency,
-        metadata: {} as QuoteTicketMetadata,
+        metadata: { sessionId: request.sessionId } as QuoteTicketMetadata,
+        network: request.network || null,
         outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
         partnerId: partner?.id || null,
+        paymentMethod: request.paymentMethod || null,
         rampType: request.rampType,
         status: "pending",
-        to: request.to
+        to
       });
 
-      const responseFeeStructure: QuoteFeeStructure = {
-        anchor: "0",
-        currency: targetFeeFiatCurrency,
-        network: "0",
-        partnerMarkup: "0",
-        total: "0",
-        vortex: "0"
-      };
-
       return {
+        anchorFeeFiat: "0",
+        anchorFeeUsd: "0",
         expiresAt: quote.expiresAt,
-        fee: responseFeeStructure,
+        feeCurrency: targetFeeFiatCurrency,
         from: quote.from,
         id: quote.id,
         inputAmount: trimTrailingZeros(quote.inputAmount),
         inputCurrency: quote.inputCurrency,
+        networkFeeFiat: "0",
+        networkFeeUsd: "0",
         outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
         outputCurrency: quote.outputCurrency,
+        partnerFeeFiat: "0",
+        partnerFeeUsd: "0",
+        processingFeeFiat: "0",
+        processingFeeUsd: "0",
         rampType: quote.rampType,
-        to: quote.to
+        sessionId: request.sessionId,
+        to: quote.to,
+        totalFeeFiat: "0",
+        totalFeeUsd: "0",
+        vortexFeeFiat: "0",
+        vortexFeeUsd: "0"
       };
     }
 
@@ -484,9 +500,10 @@ export class QuoteService extends BaseRampService {
 
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
+      countryCode: request.countryCode || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       fee: feeToStore,
-      from: request.from,
+      from,
       id: uuidv4(),
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
