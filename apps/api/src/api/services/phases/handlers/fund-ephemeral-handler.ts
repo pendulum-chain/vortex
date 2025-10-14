@@ -147,12 +147,17 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     // await 30 seconds to ensure the funding is settled.
     await new Promise(resolve => setTimeout(resolve, 30000));
 
-    return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
+    return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
   }
 
-  protected nextPhaseSelector(state: RampState): RampPhase {
-    if (isOnramp(state)) {
-      return "squidRouterSwap";
+  protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
+    // brla onramp case
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
+      return "moonbeamToPendulumXcm";
+    }
+    // monerium onramp case
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
+      return "moneriumOnrampSelfTransfer";
     }
 
     // off ramp cases
