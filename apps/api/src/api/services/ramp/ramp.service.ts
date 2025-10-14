@@ -26,6 +26,7 @@ import {
   UpdateRampResponse,
   validateMaskedNumber
 } from "@packages/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
@@ -294,6 +295,17 @@ export class RampService extends BaseRampService {
         });
       }
 
+      // Validate sessionId if both quote and request have it
+      const requestSessionId = additionalData?.sessionId;
+      const quoteSessionId = quote.metadata.sessionId;
+
+      if (requestSessionId && quoteSessionId && requestSessionId !== quoteSessionId) {
+        throw new APIError({
+          message: `SessionId mismatch. Quote has sessionId '${quoteSessionId}' but request provided '${requestSessionId}'`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
@@ -498,24 +510,63 @@ export class RampService extends BaseRampService {
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<GetRampStatusResponse | null> {
+  public async getRampStatus(id: string, showUnsignedTxs = false): Promise<GetRampStatusResponse | null> {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
       return null;
     }
 
-    return {
+    // Fetch associated quote for fee data
+    const quote = await QuoteTicket.findByPk(rampState.quoteId);
+
+    if (!quote) {
+      throw new APIError({
+        message: "Associated quote not found",
+        status: httpStatus.NOT_FOUND
+      });
+    }
+
+    // Calculate processing fees
+    const processingFeeFiat = new Big(quote.fee.anchor).plus(quote.fee.vortex).toFixed();
+    const processingFeeUsd = new Big(quote.metadata.usdFeeStructure.anchor)
+      .plus(quote.metadata.usdFeeStructure.vortex)
+      .toFixed();
+
+    const response: GetRampStatusResponse = {
+      anchorFeeFiat: quote.fee.anchor,
+      anchorFeeUsd: quote.metadata.usdFeeStructure.anchor,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase: rampState.currentPhase,
+      depositQrCode: rampState.state.depositQrCode,
+      feeCurrency: quote.fee.currency,
       from: rampState.from,
+      ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
+      inputAmount: quote.inputAmount,
+      networkFeeFiat: quote.fee.network,
+      networkFeeUsd: quote.metadata.usdFeeStructure.network,
+      outputAmount: quote.outputAmount,
+      partnerFeeFiat: quote.fee.partnerMarkup,
+      partnerFeeUsd: quote.metadata.usdFeeStructure.partnerMarkup,
+      paymentMethod: quote.paymentMethod ?? undefined,
+      processingFeeFiat,
+      processingFeeUsd,
       quoteId: rampState.quoteId,
+      sessionId: rampState.state.sessionId,
+      status: this.mapPhaseToStatus(rampState.currentPhase),
       to: rampState.to,
+      totalFeeFiat: quote.fee.total,
+      totalFeeUsd: quote.metadata.usdFeeStructure.total,
       type: rampState.type,
-      unsignedTxs: rampState.unsignedTxs,
-      updatedAt: rampState.updatedAt.toISOString()
+      updatedAt: rampState.updatedAt.toISOString(),
+      vortexFeeFiat: quote.fee.vortex,
+      vortexFeeUsd: quote.metadata.usdFeeStructure.vortex,
+      walletAddress: rampState.state.walletAddress,
+      ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
     };
+
+    return response;
   }
 
   /**
@@ -564,10 +615,10 @@ export class RampService extends BaseRampService {
   /**
    * Map ramp phase to a user-friendly status
    */
-  private mapPhaseToStatus(phase: RampPhase): string {
-    if (phase === "complete") return "success";
-    if (phase === "failed" || phase === "timedOut") return "failed";
-    return "pending";
+  private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
   }
 
   /**
