@@ -8,7 +8,7 @@ import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/o
 import { OnRampSquidRouterBrlToEvmEngine } from "../../engines/squidrouter/onramp-moonbeam-to-evm";
 
 export class OnrampAveniaToEvmStrategy implements IRouteStrategy {
-  readonly name = "OnRampEvm";
+  readonly name = "OnRampAveniaToEvm";
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [

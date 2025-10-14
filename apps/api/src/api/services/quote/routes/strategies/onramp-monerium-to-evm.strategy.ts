@@ -5,7 +5,7 @@ import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-
 import { OnRampSquidRouterEurToEvmEngine } from "../../engines/squidrouter/onramp-polygon-to-evm";
 
 export class OnrampMoneriumToEvmStrategy implements IRouteStrategy {
-  readonly name = "OnRampEvm";
+  readonly name = "OnRampMoneriumToEvm";
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [StageKey.Initialize, StageKey.Fee, StageKey.SquidRouter, StageKey.Finalize];
