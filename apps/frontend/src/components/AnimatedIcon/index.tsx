@@ -66,7 +66,7 @@ export const AnimatedIcon: FC<AnimatedIconProps> = ({
           </motion.div>
         ) : (
           <motion.span key="success" {...successIconProps} onAnimationComplete={handleAnimationComplete}>
-            {successIcon || <CheckCircleIcon className="h-3.5 w-3.5" />}
+            {successIcon || <CheckCircleIcon className="h-4 w-4" />}
           </motion.span>
         )}
       </AnimatePresence>
