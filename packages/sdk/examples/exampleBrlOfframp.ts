@@ -51,7 +51,7 @@ async function runBrlOfframpExample() {
     console.log(`   Quote ID: ${quote.id}`);
     console.log(`   Input: ${quote.inputAmount} ${quote.inputCurrency}`);
     console.log(`   Output: ${quote.outputAmount} ${quote.outputCurrency}`);
-    console.log(`   Fee: ${quote.fee}`);
+    console.log(`   Total Fee: ${quote.totalFeeFiat} ${quote.feeCurrency}`);
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {

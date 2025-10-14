@@ -197,7 +197,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp?.unsignedTxs,
+        registeredRamp?.unsignedTxs || [],
         {
           moonbeamEphemeral: testSigningAccounts.moonbeam,
           pendulumEphemeral: testSigningAccounts.pendulum,

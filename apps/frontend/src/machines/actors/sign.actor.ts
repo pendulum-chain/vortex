@@ -30,7 +30,7 @@ export const signTransactionsActor = async ({
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
-  const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
+  const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
     if (!address) {
       return false;
     }

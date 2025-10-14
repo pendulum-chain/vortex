@@ -147,7 +147,23 @@ export interface GetRampStatusRequest {
   id: string;
 }
 
-export type GetRampStatusResponse = RampProcess;
+export interface GetRampStatusResponse extends RampProcess {
+  // Fee fields in fiat currency
+  anchorFeeFiat: string;
+  networkFeeFiat: string;
+  partnerFeeFiat: string;
+  vortexFeeFiat: string;
+  totalFeeFiat: string;
+  processingFeeFiat: string;
+  feeCurrency: string;
+  // Fee fields in USD
+  anchorFeeUsd: string;
+  networkFeeUsd: string;
+  partnerFeeUsd: string;
+  vortexFeeUsd: string;
+  totalFeeUsd: string;
+  processingFeeUsd: string;
+}
 
 export interface GetRampErrorLogsRequest {
   id: string;

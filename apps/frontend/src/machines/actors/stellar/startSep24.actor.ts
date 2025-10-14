@@ -28,7 +28,7 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
         executionInput.userWalletAddress
       );
 
-      const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);
+      const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.anchorFeeFiat);
 
       const anchorSessionParams: IAnchorSessionParams = {
         offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),

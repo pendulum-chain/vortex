@@ -228,7 +228,7 @@ describe("PhaseProcessor Integration Test", () => {
 
       const additionalData: RegisterRampRequest["additionalData"] = {
         paymentData: {
-          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.fee.total)).toString(),
+          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.totalFeeFiat)).toString(),
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
           memo: "1204asjfnaksf10982e4",
           memoType: "text" as const
@@ -250,7 +250,7 @@ describe("PhaseProcessor Integration Test", () => {
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp?.unsignedTxs,
+        registeredRamp?.unsignedTxs || [],
         {
           moonbeamEphemeral: testSigningAccounts.moonbeam,
           pendulumEphemeral: testSigningAccounts.pendulum,
