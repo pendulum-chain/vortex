@@ -1,6 +1,6 @@
 import {
   AXL_USDC_MOONBEAM,
-  createOnrampSquidrouterTransactionsFromPolygonToEvm,
+  createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook,
   createPendulumToAssethubTransfer,
   createPendulumToHydrationTransfer,
   ERC20_EURE_POLYGON,
@@ -89,14 +89,14 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
   });
 
-  const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-    destinationAddress: moneriumWalletAddress,
-    fromAddress: evmEphemeralEntry.address,
-    fromToken: ERC20_EURE_POLYGON,
-    rawAmount: inputAmountPostAnchorFeeRaw,
-    toNetwork: Networks.Moonbeam,
-    toToken: AXL_USDC_MOONBEAM
-  });
+  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } =
+    await createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook({
+      destinationAddress: substrateEphemeralEntry.address,
+      fromAddress: evmEphemeralEntry.address,
+      fromToken: ERC20_EURE_POLYGON,
+      rawAmount: inputAmountPostAnchorFeeRaw,
+      toToken: AXL_USDC_MOONBEAM
+    });
 
   unsignedTxs.push({
     meta: {},
@@ -115,6 +115,13 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
+
+  stateMeta = {
+    ...stateMeta,
+    squidRouterQuoteId,
+    squidRouterReceiverHash,
+    squidRouterReceiverId
+  };
 
   // Moonbeam: Initial BRLA transfer to Pendulum
   if (!quote.metadata.evmToMoonbeam?.outputAmountRaw) {

@@ -1,11 +1,18 @@
 import {
   AXL_USDC_MOONBEAM,
-  AXL_USDC_MOONBEAM_DETAILS,
+  createRandomString,
+  createRouteParamsWithMoonbeamPostHook,
+  createSquidRouterHash,
   ERC20_EURE_POLYGON,
-  EvmAddress,
   EvmClientManager,
-  Networks
+  EvmTransactionData,
+  encodePayload,
+  getSquidRouterConfig,
+  Networks,
+  SquidrouterRoute
 } from "@packages/shared";
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 
@@ -29,25 +36,12 @@ export interface OnrampSquidrouterParamsFromPolygon {
 }
 
 export interface OnrampTransactionData {
-  approveData: {
-    to: EvmAddress;
-    data: EvmAddress;
-    value: string;
-    gas: string;
-    nonce?: number;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-  };
-  swapData: {
-    to: EvmAddress;
-    data: EvmAddress;
-    value: string;
-    gas: string;
-    nonce?: number;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-  };
+  approveData: EvmTransactionData;
+  swapData: EvmTransactionData;
+  route: SquidrouterRoute;
   squidRouterQuoteId?: string;
+  squidRouterReceiverHash?: string;
+  squidRouterReceiverId?: string;
 }
 
 export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
@@ -63,7 +57,7 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
     const routeResult = await getRoute(routeParams);
     const { route } = routeResult.data;
 
-    return await createTransactionDataFromRoute({
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
       inputTokenErc20Address: AXL_USDC_MOONBEAM,
       nonce: params.moonbeamEphemeralStartingNonce,
       publicClient: moonbeamClient,
@@ -71,40 +65,13 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
       route,
       swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
     });
-  } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
-  }
-}
 
-// Onramp transaction from polygon to Moonbeam (always axlUSDC. Tokens are later send to AssetHub via XCM.
-export async function createOnrampSquidrouterTransactionsFromPolygonToAssethub(
-  params: OnrampSquidrouterParamsFromPolygon
-): Promise<OnrampTransactionData> {
-  if (params.toNetwork !== Networks.AssetHub) {
-    throw new Error("toNetwork must be AssetHub for this flow.");
-  }
-
-  const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
-
-  // The output token is always axlUSDC on Moonbeam for AssetHub onramps via Squidrouter
-  const toToken = AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain;
-  const fromNetwork = Networks.Polygon;
-  const toNetwork = Networks.Moonbeam;
-
-  const routeParams = createGenericRouteParams({ ...params, amount: params.rawAmount, fromNetwork, toNetwork, toToken });
-
-  try {
-    const routeResult = await getRoute(routeParams);
-    const { route } = routeResult.data;
-
-    return await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON,
-      publicClient: polygonClient,
-      rawAmount: params.rawAmount,
+    return {
+      approveData,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
-    });
+      squidRouterQuoteId,
+      swapData
+    };
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
   }
@@ -129,13 +96,66 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
     const routeResult = await getRoute(routeParams);
     const { route } = routeResult.data;
 
-    return await createTransactionDataFromRoute({
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
       inputTokenErc20Address: ERC20_EURE_POLYGON,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
       swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
     });
+    return {
+      approveData,
+      route,
+      squidRouterQuoteId,
+      swapData
+    };
+  } catch (e) {
+    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+  }
+}
+
+// Onramp from Polygon directly to any token on any EVM chain.
+export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook(
+  params: Omit<OnrampSquidrouterParamsFromPolygon, "toNetwork">
+): Promise<OnrampTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+  const fromNetwork = Networks.Polygon;
+
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.destinationAddress));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+  const { receivingContractAddress } = getSquidRouterConfig(fromNetwork);
+
+  const routeParams = createRouteParamsWithMoonbeamPostHook({
+    ...params,
+    amount: params.rawAmount,
+    fromNetwork,
+    receivingContractAddress,
+    squidRouterReceiverHash
+  });
+
+  try {
+    const routeResult = await getRoute(routeParams);
+    const { route } = routeResult.data;
+
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
+      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      publicClient: polygonClient,
+      rawAmount: params.rawAmount,
+      route,
+      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+    });
+
+    return {
+      approveData,
+      route,
+      squidRouterQuoteId,
+      squidRouterReceiverHash,
+      squidRouterReceiverId,
+      swapData
+    };
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
   }

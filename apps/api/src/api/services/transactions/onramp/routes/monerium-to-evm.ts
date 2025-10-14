@@ -73,14 +73,15 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(polygonSelfTransferTxData) as EvmTransactionData
   });
 
-  const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-    destinationAddress: moneriumWalletAddress,
-    fromAddress: evmEphemeralEntry.address,
-    fromToken: ERC20_EURE_POLYGON,
-    rawAmount: inputAmountPostAnchorFeeRaw,
-    toNetwork,
-    toToken: outputTokenDetails.erc20AddressSourceChain
-  });
+  const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
+    await createOnrampSquidrouterTransactionsFromPolygonToEvm({
+      destinationAddress: moneriumWalletAddress,
+      fromAddress: evmEphemeralEntry.address,
+      fromToken: ERC20_EURE_POLYGON,
+      rawAmount: inputAmountPostAnchorFeeRaw,
+      toNetwork,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
 
   unsignedTxs.push({
     meta: {},
@@ -99,6 +100,13 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
+
+  stateMeta = {
+    ...stateMeta,
+    squidRouterQuoteId,
+    squidRouterReceiverHash,
+    squidRouterReceiverId
+  };
 
   return { stateMeta, unsignedTxs };
 }
