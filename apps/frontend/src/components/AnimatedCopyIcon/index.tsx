@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FC, ReactNode, useEffect, useState } from "react";
 import { CopyIcon } from "../../assets/CopyIcon";
 
-interface AnimatedIconProps {
+interface AnimatedCopyIconProps {
   className?: string;
   successIcon?: ReactNode;
   defaultIcon?: ReactNode;
@@ -35,7 +35,7 @@ const successIconProps = {
   initial: { filter: "blur(10px)", opacity: 0, scale: 0.75 }
 };
 
-export const AnimatedIcon: FC<AnimatedIconProps> = ({
+export const AnimatedCopyIcon: FC<AnimatedCopyIconProps> = ({
   className = "h-4 w-4",
   trigger,
   onAnimationComplete,

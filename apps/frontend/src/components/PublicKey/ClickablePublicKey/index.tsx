@@ -1,5 +1,5 @@
 import { CSSProperties, JSX, useState } from "react";
-import { AnimatedIcon } from "../../AnimatedIcon";
+import { AnimatedCopyIcon } from "../../AnimatedCopyIcon";
 import { FormatPublicKeyVariant, PublicKey } from "..";
 
 export interface ClickablePublicKeyProps {
@@ -35,7 +35,7 @@ export const ClickablePublicKey = (props: ClickablePublicKeyProps) => {
       type="button"
     >
       <PublicKey {...props} />
-      <AnimatedIcon className="h-4 w-4" onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
+      <AnimatedCopyIcon className="h-4 w-4" onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
     </button>
   );
 };

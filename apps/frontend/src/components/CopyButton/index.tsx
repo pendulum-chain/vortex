@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ToastMessage, useToastMessage } from "../../helpers/notifications";
 import { useClipboard } from "../../hooks/useClipboard";
-import { AnimatedIcon } from "../AnimatedIcon";
+import { AnimatedCopyIcon } from "../AnimatedCopyIcon";
 
 interface CopyButtonProps {
   text: string;
@@ -48,11 +48,11 @@ export const CopyButton = ({ text, className = "", noBorder = false, iconPositio
   return (
     <button aria-label={t("components.copyButton.ariaLabel")} className={buttonClasses} onClick={handleClick} type="button">
       {iconPosition === "left" && (
-        <AnimatedIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
+        <AnimatedCopyIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
       )}
       {text}
       {iconPosition === "right" && (
-        <AnimatedIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
+        <AnimatedCopyIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
       )}
     </button>
   );
