@@ -1,4 +1,3 @@
-import { CopyIcon } from "../../../assets/CopyIcon";
 import { useClipboard } from "../../../hooks/useClipboard";
 import { ClickablePublicKey, ClickablePublicKeyProps } from "../ClickablePublicKey";
 
@@ -15,5 +14,5 @@ export const CopyablePublicKey = ({ onClick, publicKey, ...props }: CopyablePubl
     clipboard.copyToClipboard(publicKey);
   };
 
-  return <ClickablePublicKey {...{ ...props, publicKey }} icon={<CopyIcon />} onClick={handleClick} />;
+  return <ClickablePublicKey {...{ ...props, publicKey }} onClick={handleClick} />;
 };

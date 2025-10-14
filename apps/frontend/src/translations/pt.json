@@ -170,6 +170,9 @@
         "success": "Verificação bem-sucedida"
       }
     },
+    "copyButton": {
+      "ariaLabel": "Copiar para a área de transferência"
+    },
     "detailsDescription": {
       "connectWallet": "Conecte sua carteira para continuar o processo",
       "signToConfirm": "Verifique se você é o proprietário da carteira"

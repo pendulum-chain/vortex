@@ -169,6 +169,9 @@
         "success": "Verification successful"
       }
     },
+    "copyButton": {
+      "ariaLabel": "Copy to clipboard"
+    },
     "detailsDescription": {
       "connectWallet": "Connect your wallet to continue the process",
       "signToConfirm": "Verify you are the owner of the wallet"
