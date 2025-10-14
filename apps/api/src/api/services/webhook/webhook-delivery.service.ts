@@ -80,6 +80,7 @@ export class WebhookDeliveryService {
   public async triggerTransactionCreated(
     quoteId: string,
     sessionId: string | null,
+    transactionId: string,
     transactionType: RampDirection
   ): Promise<void> {
     try {
@@ -95,6 +96,7 @@ export class WebhookDeliveryService {
         payload: {
           quoteId,
           sessionId,
+          transactionId,
           transactionStatus: TransactionStatus.PENDING,
           transactionType: transactionType
         },
@@ -113,6 +115,7 @@ export class WebhookDeliveryService {
   public async triggerStatusChange(
     quoteId: string,
     sessionId: string | null,
+    transactionId: string,
     newPhase: string,
     transactionType: RampDirection
   ): Promise<void> {
@@ -129,6 +132,7 @@ export class WebhookDeliveryService {
         payload: {
           quoteId,
           sessionId,
+          transactionId,
           transactionStatus: this.mapPhaseToStatus(newPhase),
           transactionType: transactionType
         },

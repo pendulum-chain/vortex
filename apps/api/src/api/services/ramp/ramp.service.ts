@@ -347,7 +347,12 @@ export class RampService extends BaseRampService {
 
       console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
       webhookDeliveryService
-        .triggerTransactionCreated(rampState.quoteId, (rampState.state?.sessionId as string) || null, quote.rampType)
+        .triggerTransactionCreated(
+          rampState.quoteId,
+          (rampState.state?.sessionId as string) || null,
+          rampState.id,
+          quote.rampType
+        )
         .catch(error => {
           logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
         });
@@ -752,7 +757,7 @@ export class RampService extends BaseRampService {
 
     if (oldStatus !== newStatus) {
       webhookDeliveryService
-        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, newPhase, rampState.type)
+        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, rampState.id, newPhase, rampState.type)
         .catch(error => {
           logger.error(`Error triggering STATUS_CHANGE webhook for ${rampState.id}:`, error);
         });
