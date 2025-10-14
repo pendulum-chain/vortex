@@ -11,8 +11,8 @@ export interface AssetHubTokenDetails extends BaseTokenDetails {
   assetSymbol: string;
   networkAssetIcon: string;
   network: Networks;
-  foreignAssetId?: number;
-  hydrationId: string;
+  foreignAssetId?: number; // The identifier of this token in AssetHub's assets registry
+  hydrationId: string; // The identifier of this token in Hydration's assets registry
   isNative: boolean;
   pendulumRepresentative: PendulumTokenDetails;
 }
