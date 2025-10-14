@@ -16,7 +16,7 @@ Fees are a crucial part of the ramp process. The following describes the intende
 4.  **Application Logic & Charging:**
     *   The individual fee components (`network`, `vortex`, `anchor`, `partnerMarkup`) are calculated during the quote phase.
     *   The **`anchor` fee** is charged by the respective anchor service (BRLA or Stellar) in the native fiat currency (e.g., BRL, EURC) during the phase where interaction with the anchor occurs. The system must account for this deduction when initiating transfers to/from the anchor.
-        *   On-Ramp BRL: Charged by BRLA during `brlaTeleport`.
+        *   On-Ramp BRL: Charged by BRLA during `brlaOnrampMint`.
         *   Off-Ramp BRL: Charged by BRLA during `brlaPayoutOnMoonbeam`.
         *   Off-Ramp Stellar (EURC, ARS, etc.): Charged by the Stellar anchor during `stellarPayment`.
     *   The **`vortex`**, **`network`**, and **`partnerMarkup` fees** are handled separately. They are effectively set aside from the main flow and distributed to their respective destination accounts during a dedicated `distributeFees` phase.
@@ -34,7 +34,7 @@ The ramp process is managed by a state machine, transitioning through various ph
 1.  **Quote Request:** User requests a quote (`quote.service.ts`). Fees are calculated and applied as described above.
 2.  **Register Ramp:** User accepts the quote. The system validates the quote, prepares necessary unsigned transactions based on the fee-adjusted amounts, and creates a `RampState` record (`ramp.service.ts`). The initial phase is set to `initial`.
 3.  **Start Ramp:** User signs transactions client-side and submits them. The system validates signatures, updates the `RampState`, and triggers the `phaseProcessor` (`ramp.service.ts`).
-4.  **Phase: `initial` (`initial-phase-handler.ts`):** Checks for signed transactions (off-ramp). If Stellar is involved, submits the pre-signed `stellarCreateAccount` transaction. The next phase depends on the journey: it transitions to `brlaTeleport` for the BRL on-ramp, and `fundEphemeral` for others.
+4.  **Phase: `initial` (`initial-phase-handler.ts`):** Checks for signed transactions (off-ramp). If Stellar is involved, submits the pre-signed `stellarCreateAccount` transaction. The next phase depends on the journey: it transitions to `brlaOnrampMint` for the BRL on-ramp, and `fundEphemeral` for others.
 5.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Checks and funds the required Pendulum and/or Moonbeam ephemeral accounts with small amounts of native tokens (PEN, GLMR) to cover transaction fees for subsequent steps. Transitions based on ramp type and source/destination.
 
 ---
@@ -78,9 +78,9 @@ This journey handles on-ramping from EUR using Monerium. It follows one of two m
 This journey handles on-ramping from BRL using the BRLA token. It involves a series of swaps and transfers across Moonbeam, Pendulum, and potentially Hydration, depending on the final destination asset.
 
 *   **Starts After:** `initial`
-*   **Next Phase:** `brlaTeleport`
+*   **Next Phase:** `brlaOnrampMint`
 
-6.  **Phase: `brlaTeleport` (`brla-teleport-handler.ts`):** Teleports BRLA tokens to Moonbeam and transitions to `moonbeamToPendulumXcm`.
+6.  **Phase: `brlaOnrampMint` (`brla-onramp-mint-handler.ts`):** Teleports BRLA tokens to Moonbeam and transitions to `moonbeamToPendulumXcm`.
 7.  **Phase: `moonbeamToPendulumXcm` (`moonbeam-to-pendulum-xcm-handler.ts`):** Transfers the BRLA tokens from Moonbeam to Pendulum via XCM. Transitions to `distributeFees`.
 8.  **Phase: `distributeFees` (New Handler):** Distributes Vortex, Network, and Partner fees. Transitions to `subsidizePreSwap`.
 9.  **Phase: `subsidizePreSwap` (`subsidize-pre-swap-handler.ts`):** Tops up the asset balance if needed before the swap. Transitions to `nablaApprove`.
@@ -207,7 +207,7 @@ graph TD
 
         subgraph BRLA_Flow [BRLA BRL Initial Steps]
             direction LR
-            B_Start[brlaTeleport] --> B_to_P[moonbeamToPendulumXcm];
+            B_Start[brlaOnrampMint] --> B_FUND[fundEphemeral] --> B_to_P[moonbeamToPendulumXcm];
         end
 
         %% --- Monerium Flow Branches ---
