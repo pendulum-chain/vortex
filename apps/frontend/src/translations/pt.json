@@ -267,6 +267,15 @@
       },
       "button": "Modo de Manutenção"
     },
+    "moneriumFormStep": {
+      "description": {
+        "1": "Por favor, insira o endereço onde deseja receber os ativos no AssetHub.",
+        "2": "Em seguida, autentique-se com nosso parceiro de stablecoin <a>Monerium</a> conectando sua carteira EVM."
+      },
+      "field": {
+        "label": "Endereço da Carteira AssetHub"
+      }
+    },
     "moneriumRedirect": {
       "cancel": "Cancelar",
       "description": "Você foi redirecionado para nosso parceiro...",
@@ -381,6 +390,10 @@
         "taxId": {
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
+        },
+        "walletAddress": {
+          "format": "Endereço de carteira inválido",
+          "required": "Endereço de carteira é obrigatório"
         }
       }
     },

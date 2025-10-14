@@ -1,6 +1,6 @@
 import { SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { AveniaFormStep } from "../AveniaFormStep";
-import { MoneriumFormStep } from "../MoneriumFormStep";
+import { MoneriumAssethubFormStep } from "../MoneriumAssethubFormStep";
 import { SigningState } from "./index";
 
 export interface DetailsStepFormProps {
@@ -24,7 +24,7 @@ export const DetailsStepForm = ({
     <>
       <div className={`mt-8 grid flex-grow gap-3 ${className || ""}`}>
         {isBrazilLanding && <AveniaFormStep isWalletAddressDisabled={isWalletAddressDisabled} />}
-        {showWalletAddressField && <MoneriumFormStep />}
+        {showWalletAddressField && <MoneriumAssethubFormStep />}
       </div>
 
       {signingBoxVisible && (

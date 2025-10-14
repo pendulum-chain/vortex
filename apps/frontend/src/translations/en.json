@@ -266,6 +266,15 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumFormStep": {
+      "description": {
+        "1": "Please enter the address where you want to receive the assets on AssetHub.",
+        "2": "Then, authenticate with our stablecoin partner <a>Monerium</a> by connecting your EVM wallet."
+      },
+      "field": {
+        "label": "AssetHub Wallet Address"
+      }
+    },
     "moneriumRedirect": {
       "cancel": "Cancel",
       "description": "You have been redirected to our partner...",
@@ -381,6 +390,10 @@
         "taxId": {
           "format": "Invalid CPF or CNPJ format",
           "required": "CPF or CNPJ is required when transferring BRL"
+        },
+        "walletAddress": {
+          "format": "Invalid wallet address",
+          "required": "Wallet address is required"
         }
       }
     },

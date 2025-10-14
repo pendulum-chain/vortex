@@ -1,22 +1,22 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useFormContext, useFormState } from "react-hook-form";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { cn } from "../../../helpers/cn";
 import { Field } from "../../Field";
 
-export interface BrazilDetailsFormProps {
+export interface MoneriumFormStepProps {
   className?: string;
-  isWalletAddressDisabled?: boolean;
 }
 
-export const MoneriumFormStep = ({ className, isWalletAddressDisabled }: BrazilDetailsFormProps) => {
+export const MoneriumAssethubFormStep = ({ className }: MoneriumFormStepProps) => {
   const { t } = useTranslation();
 
-  const id = "walletAddress";
-
-  // It required to be inside a FormProvider (react-hook-form)
+  // This component is required to be inside a FormProvider (react-hook-form)
   const { register } = useFormContext();
   const { errors } = useFormState();
+
+  // This name has to match the field in the form data
+  const id = "walletAddress";
   const errorMessage = errors[id]?.message as string;
 
   return (
@@ -35,21 +35,34 @@ export const MoneriumFormStep = ({ className, isWalletAddressDisabled }: BrazilD
             type: "spring"
           }}
         >
+          <div>
+            <p className="mb-4 text-gray-600 text-sm">{t("components.moneriumFormStep.description.1")}</p>
+          </div>
           <label className="mb-1 block" htmlFor={id}>
-            Wallet Address
+            {t("components.moneriumFormStep.field.label")}
           </label>
           <Field
             className={cn("w-full p-2", errors[id] && "border border-red-500")}
             id={id}
             register={register(id, {
-              pattern: {
-                message: "Invalid wallet address",
-                value: /^0x[a-fA-F0-9]{40}$/ // FIXME
-              },
-              required: true
+              required: t("components.swap.validation.walletAddress.required")
             })}
           />
           {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
+          <p className="mt-6 mb-4 text-gray-600 text-sm">
+            <Trans
+              components={{
+                a: <a className="underline" href="https://www.monerium.com" rel="noreferrer" target="_blank" />
+              }}
+              i18nKey={"components.moneriumFormStep.description.2"}
+            >
+              Then, authenticate with our stablecoin partner
+              <a className="underline" href="https://www.monerium.com" rel="noreferrer" target="_blank">
+                Monerium
+              </a>{" "}
+              by connecting your EVM wallet.
+            </Trans>
+          </p>
         </motion.div>
       </AnimatePresence>
     </div>
