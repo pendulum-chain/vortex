@@ -1,15 +1,11 @@
-import { FiatToken } from "@packages/shared";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OnRampDiscountEngine } from "../../engines/discount/onramp";
 import { OnRampAveniaToAssethubFeeEngine } from "../../engines/fee/onramp-brl-to-assethub";
-import { OnRampMoneriumToAssethubFeeEngine } from "../../engines/fee/onramp-monerium-to-assethub";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampHydrationEngine } from "../../engines/hydration/onramp";
 import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
-import { OnRampInitializeMoneriumEngine } from "../../engines/initialize/onramp-monerium";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
 import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/onramp";
-import { OnRampSquidRouterEurToAssetHubEngine } from "../../engines/squidrouter/onramp-polygon-to-moonbeam";
 
 export class OnrampAveniaToAssethubStrategy implements IRouteStrategy {
   readonly name = "OnRampAveniaToAssetHub";

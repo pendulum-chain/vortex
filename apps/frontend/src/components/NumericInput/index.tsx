@@ -1,4 +1,4 @@
-import { ChangeEvent, ClipboardEvent, useEffect, useRef } from "react";
+import { ChangeEvent, useEffect, useRef } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
 import { cn } from "../../helpers/cn";
 import { handleOnChangeNumericInput, handleOnPasteNumericInput, trimToMaxDecimals } from "./helpers";

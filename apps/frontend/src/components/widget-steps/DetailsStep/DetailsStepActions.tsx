@@ -1,5 +1,4 @@
 import { Networks } from "@packages/shared";
-import { boolean, string } from "yup";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { ConnectWalletSection } from "../../ConnectWalletSection";
 import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";

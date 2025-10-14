@@ -1,9 +1,9 @@
-import { beforeAll, describe, it, mock } from "bun:test";
+import {beforeAll, describe, it, mock} from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../../../models/rampState.model";
-import { PhaseProcessor } from "./phase-processor";
+import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
+import {PhaseProcessor} from "./phase-processor";
 import registerPhaseHandlers from "./register-handlers";
 
 const RAMP_STATE_RECOVERY = {

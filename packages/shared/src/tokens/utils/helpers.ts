@@ -2,7 +2,7 @@
  * Helper functions for token configuration
  */
 
-import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
+import { isNetworkEVM, Networks } from "../../helpers";
 import logger from "../../logger";
 import { assethubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";

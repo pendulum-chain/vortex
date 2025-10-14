@@ -1,20 +1,27 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock } from "bun:test";
+import {describe, expect, it, mock} from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  AccountMeta, EphemeralAccount,
-  EphemeralAccountType, EvmToken, FiatToken, Networks, RampDirection, signUnsignedTransactions
+  AccountMeta,
+  API,
+  ApiManager,
+  EphemeralAccount,
+  EphemeralAccountType,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RampDirection,
+  signUnsignedTransactions
 } from "@packages/shared";
-import { Keyring } from "@polkadot/api";
-import { mnemonicGenerate } from "@polkadot/util-crypto";
-import { Keypair } from "stellar-sdk";
+import {Keyring} from "@polkadot/api";
+import {mnemonicGenerate} from "@polkadot/util-crypto";
+import {Keypair} from "stellar-sdk";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import { API, ApiManager } from "@packages/shared";
-import { QuoteService } from "../quote";
-import { RampService } from "../ramp/ramp.service";
-import { PhaseProcessor } from "./phase-processor";
+import {QuoteService} from "../quote";
+import {RampService} from "../ramp/ramp.service";
+import {PhaseProcessor} from "./phase-processor";
 import registerPhaseHandlers from "./register-handlers";
 
 const TAX_ID = process.env.TAX_ID;

@@ -1,4 +1,4 @@
-import { KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@packages/shared";
+import { KycAttemptResult, KycFailureReason } from "@packages/shared";
 import { fromPromise } from "xstate";
 import { fetchKycStatus } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";

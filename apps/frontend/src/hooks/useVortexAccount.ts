@@ -1,5 +1,4 @@
 import { ASSETHUB_CHAIN_ID, isNetworkEVM, Networks } from "@packages/shared";
-import { Signer } from "@polkadot/types/types";
 import * as Sentry from "@sentry/react";
 import { useCallback, useEffect, useMemo } from "react";
 import { useAccount, useSignMessage } from "wagmi";

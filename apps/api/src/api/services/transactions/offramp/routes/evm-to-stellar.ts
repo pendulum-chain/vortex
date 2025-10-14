@@ -1,14 +1,5 @@
-import {
-  AccountMeta,
-  encodeSubmittableExtrinsic,
-  getNetworkId,
-  getPendulumDetails,
-  isEvmTokenDetails,
-  Networks,
-  UnsignedTx
-} from "@packages/shared";
+import { encodeSubmittableExtrinsic, getPendulumDetails, isEvmTokenDetails, Networks, UnsignedTx } from "@packages/shared";
 import Big from "big.js";
-import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";

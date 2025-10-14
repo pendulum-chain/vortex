@@ -5,7 +5,6 @@ import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { isStellarNetworkError } from "../handlers/fund-ephemeral-handler";
-import { StateMetadata } from "../meta-state-types";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const NETWORK_PASSPHRASE = StellarNetworks.PUBLIC;

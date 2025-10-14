@@ -1,12 +1,4 @@
-import {
-  AssetHubToken,
-  FiatToken,
-  getPendulumDetails,
-  Networks,
-  PENDULUM_USDC_AXL,
-  PendulumTokenDetails,
-  RampDirection
-} from "@packages/shared";
+import { FiatToken, PendulumTokenDetails, RampDirection } from "@packages/shared";
 import { Big } from "big.js";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
@@ -27,10 +19,6 @@ export abstract class BaseNablaSwapEngine implements Stage {
   abstract readonly config: NablaSwapConfig;
 
   readonly key = StageKey.NablaSwap;
-
-  protected abstract validate(ctx: QuoteContext): void;
-
-  protected abstract compute(ctx: QuoteContext): NablaSwapComputation;
 
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
@@ -69,6 +57,10 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
     this.addNote(ctx, inputTokenPendulumDetails, outputTokenPendulumDetails, inputAmountForSwap, result);
   }
+
+  protected abstract validate(ctx: QuoteContext): void;
+
+  protected abstract compute(ctx: QuoteContext): NablaSwapComputation;
 
   private getDeductibleFeeAmount(ctx: QuoteContext): Big {
     if (ctx.request.rampType === RampDirection.SELL) {

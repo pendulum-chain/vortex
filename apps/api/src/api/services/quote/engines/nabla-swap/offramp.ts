@@ -1,14 +1,4 @@
-import {
-  AssetHubToken,
-  FiatToken,
-  getAnyFiatTokenDetails,
-  getPendulumDetails,
-  Networks,
-  PENDULUM_USDC_AXL,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
-import { Big } from "big.js";
+import { FiatToken, getPendulumDetails, Networks, PENDULUM_USDC_AXL, RampDirection } from "@packages/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseNablaSwapEngine, NablaSwapComputation } from "./index";
 

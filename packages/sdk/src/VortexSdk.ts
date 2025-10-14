@@ -3,7 +3,6 @@ import {
   CreateQuoteRequest,
   EphemeralAccount,
   EphemeralAccountType,
-  Networks,
   QuoteResponse,
   RampDirection,
   RampProcess,
@@ -46,10 +45,6 @@ export class VortexSdk {
     );
 
     this.initializationPromise = this.networkManager.waitForInitialization();
-  }
-
-  private async ensureInitialized(): Promise<void> {
-    await this.initializationPromise;
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
@@ -161,6 +156,10 @@ export class VortexSdk {
         }
       }
     }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    await this.initializationPromise;
   }
 
   private async generateEphemerals(): Promise<{

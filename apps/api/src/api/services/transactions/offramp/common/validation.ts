@@ -7,7 +7,6 @@ import {
   isFiatToken,
   isOnChainToken,
   isStellarOutputTokenDetails,
-  Networks,
   PaymentData,
   StellarTokenDetails
 } from "@packages/shared";
@@ -114,7 +113,7 @@ export function validateStellarOfframp(
   stellarPaymentData: PaymentData;
 } {
   if (!isStellarOutputTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output currency must be Stellar token for offramp, got output token details type`);
+    throw new Error("Output currency must be Stellar token for offramp, got output token details type");
   }
 
   if (!stellarPaymentData?.anchorTargetAccount) {

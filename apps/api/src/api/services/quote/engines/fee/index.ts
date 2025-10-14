@@ -31,10 +31,6 @@ export abstract class BaseFeeEngine implements Stage {
 
   readonly key = StageKey.Fee;
 
-  protected abstract validate(ctx: QuoteContext): void;
-
-  protected abstract compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation>;
-
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
     const { direction, skipNote } = this.config;
@@ -66,6 +62,10 @@ export abstract class BaseFeeEngine implements Stage {
       vortex: { amount: vortexFee, currency: feeCurrency }
     });
   }
+
+  protected abstract validate(ctx: QuoteContext): void;
+
+  protected abstract compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation>;
 }
 
 /**

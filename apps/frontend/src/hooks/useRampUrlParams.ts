@@ -345,5 +345,17 @@ export const useSetRampUrlParams = () => {
     }
 
     hasInitialized.current = true;
-  }, []);
+  }, [
+    cryptoLocked,
+    fiat,
+    handleFiatToken,
+    inputAmount,
+    onToggle,
+    partnerId,
+    rampDirection,
+    resetRampForm,
+    setInputAmount,
+    setOnChainToken,
+    setPartnerIdFn
+  ]);
 };

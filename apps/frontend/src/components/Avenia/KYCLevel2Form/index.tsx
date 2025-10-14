@@ -1,4 +1,4 @@
-import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { AveniaDocumentType } from "@packages/shared";
 import { motion } from "motion/react";
 import React, { useState } from "react";

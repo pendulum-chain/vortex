@@ -243,85 +243,6 @@ export class PriceFeedService {
   }
 
   /**
-   * Helper function to map RampCurrency to CoinGecko token ID
-   * @param currency - The RampCurrency to map
-   * @returns The corresponding CoinGecko token ID or null if not mappable
-   */
-  private getCoinGeckoTokenId(currency: RampCurrency): string | null {
-    // Using 'this' to satisfy eslint
-    this.logger(`Getting CoinGecko token ID for ${currency}`);
-
-    const tokenIdMap: Record<string, string> = {
-      AVAX: "avalanche-2",
-      BNB: "binancecoin",
-      DOT: "polkadot",
-      ETH: "ethereum",
-      GLMR: "moonbeam",
-      HDX: "hydradx",
-      MATIC: "matic-network"
-    };
-
-    return tokenIdMap[currency.toUpperCase()] || null;
-  }
-
-  // Helper method to satisfy eslint for 'this' usage
-  // eslint-disable-next-line class-methods-use-this
-  private logger(message: string): void {
-    logger.debug(message);
-  }
-
-  private convertUsdLikeToUsdLike(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency): string {
-    logger.debug(`Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`);
-    return amount;
-  }
-
-  private async convertUsdToFiat(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
-    const rate = await this.getUsdToFiatExchangeRate(toCurrency);
-    const result = new Big(amount).mul(new Big(rate)).toFixed(decimals);
-    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using rate: ${rate}`);
-    return result;
-  }
-
-  private async convertFiatToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
-    const rate = await this.getUsdToFiatExchangeRate(fromCurrency);
-    const rateBig = new Big(rate);
-    if (rateBig.lte(0)) {
-      throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
-    }
-    const result = new Big(amount).div(rateBig).toFixed(decimals);
-    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using inverse rate: 1/${rate}`);
-    return result;
-  }
-
-  private async convertUsdToCrypto(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
-    const tokenId = this.getCoinGeckoTokenId(toCurrency);
-    if (!tokenId) {
-      throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
-    }
-
-    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
-    if (cryptoPriceUSD <= 0) {
-      throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
-    }
-
-    const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
-    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
-    return result;
-  }
-
-  private async convertCryptoToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
-    const tokenId = this.getCoinGeckoTokenId(fromCurrency);
-    if (!tokenId) {
-      throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
-    }
-
-    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
-    const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
-    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using price: ${cryptoPriceUSD}`);
-    return result;
-  }
-
-  /**
    * Unified bidirectional currency conversion function
    *
    * Converts an amount from one currency to another, handling all possible conversion paths:
@@ -400,6 +321,8 @@ export class PriceFeedService {
     }
   }
 
+  // Helper method to satisfy eslint for 'this' usage
+
   // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
   async checkOnchainOraclePricesUpToDate(): Promise<void> {
     logger.info("Performing onchain oracle prices check...");
@@ -446,6 +369,84 @@ export class PriceFeedService {
     } catch (error) {
       logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
+  }
+
+  /**
+   * Helper function to map RampCurrency to CoinGecko token ID
+   * @param currency - The RampCurrency to map
+   * @returns The corresponding CoinGecko token ID or null if not mappable
+   */
+  private getCoinGeckoTokenId(currency: RampCurrency): string | null {
+    // Using 'this' to satisfy eslint
+    this.logger(`Getting CoinGecko token ID for ${currency}`);
+
+    const tokenIdMap: Record<string, string> = {
+      AVAX: "avalanche-2",
+      BNB: "binancecoin",
+      DOT: "polkadot",
+      ETH: "ethereum",
+      GLMR: "moonbeam",
+      HDX: "hydradx",
+      MATIC: "matic-network"
+    };
+
+    return tokenIdMap[currency.toUpperCase()] || null;
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  private logger(message: string): void {
+    logger.debug(message);
+  }
+
+  private convertUsdLikeToUsdLike(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency): string {
+    logger.debug(`Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`);
+    return amount;
+  }
+
+  private async convertUsdToFiat(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
+    const rate = await this.getUsdToFiatExchangeRate(toCurrency);
+    const result = new Big(amount).mul(new Big(rate)).toFixed(decimals);
+    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using rate: ${rate}`);
+    return result;
+  }
+
+  private async convertFiatToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
+    const rate = await this.getUsdToFiatExchangeRate(fromCurrency);
+    const rateBig = new Big(rate);
+    if (rateBig.lte(0)) {
+      throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
+    }
+    const result = new Big(amount).div(rateBig).toFixed(decimals);
+    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using inverse rate: 1/${rate}`);
+    return result;
+  }
+
+  private async convertUsdToCrypto(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
+    const tokenId = this.getCoinGeckoTokenId(toCurrency);
+    if (!tokenId) {
+      throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
+    }
+
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
+    if (cryptoPriceUSD <= 0) {
+      throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
+    }
+
+    const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
+    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
+    return result;
+  }
+
+  private async convertCryptoToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
+    const tokenId = this.getCoinGeckoTokenId(fromCurrency);
+    if (!tokenId) {
+      throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
+    }
+
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
+    const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
+    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using price: ${cryptoPriceUSD}`);
+    return result;
   }
 }
 

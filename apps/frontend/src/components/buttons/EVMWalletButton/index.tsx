@@ -1,4 +1,4 @@
-import { EvmNetworks, isNetworkEVM, Networks } from "@packages/shared";
+import { isNetworkEVM, Networks } from "@packages/shared";
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
 import { useTranslation } from "react-i18next";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";

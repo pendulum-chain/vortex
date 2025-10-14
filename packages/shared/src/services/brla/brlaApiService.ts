@@ -1,12 +1,5 @@
 import * as forge from "node-forge";
-import {
-  BRLA_API_KEY,
-  BRLA_BASE_URL,
-  BRLA_PRIVATE_KEY,
-  CreateAveniaSubaccountRequest,
-  DocumentUploadRequest,
-  DocumentUploadResponse
-} from "../..";
+import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {

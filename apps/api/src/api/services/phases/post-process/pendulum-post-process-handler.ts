@@ -3,7 +3,6 @@ import { submitExtrinsic } from "@pendulum-chain/api-solang";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { StateMetadata } from "../meta-state-types";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 /**

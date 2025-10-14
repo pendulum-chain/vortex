@@ -45,77 +45,6 @@ class CleanupWorker {
   }
 
   /**
-   * Run the cleanup process
-   */
-  // eslint-disable-next-line class-methods-use-this
-  private async cleanup(): Promise<void> {
-    logger.info("Running cleanup worker cycle");
-    try {
-      // Delete expired quotes
-      const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
-      if (expiredQuotesCount > 0) {
-        logger.info(`Deleted ${expiredQuotesCount} expired quotes`);
-      }
-
-      // Post-process completed RampStates
-      await this.postProcessCompletedStates();
-
-      logger.info("Cleanup worker cycle completed");
-    } catch (error) {
-      logger.error("Error during cleanup worker cycle:", error);
-    }
-  }
-
-  /**
-   * Post-process RampStates that have been completed but not cleaned up yet
-   */
-  private async postProcessCompletedStates(): Promise<void> {
-    try {
-      const states = await RampState.findAll({
-        where: {
-          currentPhase: "complete",
-          from: {
-            [Op.ne]: "sepa" // Exclude SEPA onramp states as the ephemerals are not cleaned up.
-          },
-          postCompleteState: {
-            cleanup: {
-              cleanupCompleted: false
-            }
-          }
-        }
-      });
-
-      if (states.length === 0) {
-        logger.info("No completed RampStates found needing post-processing.");
-        return;
-      }
-
-      logger.info(`Found ${states.length} completed RampStates that need post-processing`);
-
-      const processPromises = states.map(async state => {
-        try {
-          await this.processCleanup(state);
-          return { stateId: state.id, status: "fulfilled" };
-        } catch (error) {
-          logger.error(`Error processing cleanup for state ${state.id}:`, error);
-          // Don't update the state here, processCleanup handles its own updates
-          return { reason: error, stateId: state.id, status: "rejected" };
-        }
-      });
-
-      // Use allSettled to allow individual state processing to fail without stopping others
-      const results = await Promise.allSettled(processPromises);
-      const successful = results.filter(r => r.status === "fulfilled").length;
-      const failed = results.length - successful;
-      logger.info(
-        `Post-processing attempt completed for ${states.length} states. Successful: ${successful}, Failed: ${failed}`
-      );
-    } catch (error) {
-      logger.error("Error fetching states in postProcessCompletedStates:", error);
-    }
-  }
-
-  /**
    * Process a single state with appropriate cleanup handlers
    * @param state The state to process
    */
@@ -187,6 +116,77 @@ class CleanupWorker {
       logger.info(`All cleanup handlers successful for state ${state.id}, marked cleanup as complete`);
     } else {
       logger.warn(`Some cleanup handlers failed for state ${state.id}, will retry on next cycle`);
+    }
+  }
+
+  /**
+   * Run the cleanup process
+   */
+  // eslint-disable-next-line class-methods-use-this
+  private async cleanup(): Promise<void> {
+    logger.info("Running cleanup worker cycle");
+    try {
+      // Delete expired quotes
+      const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
+      if (expiredQuotesCount > 0) {
+        logger.info(`Deleted ${expiredQuotesCount} expired quotes`);
+      }
+
+      // Post-process completed RampStates
+      await this.postProcessCompletedStates();
+
+      logger.info("Cleanup worker cycle completed");
+    } catch (error) {
+      logger.error("Error during cleanup worker cycle:", error);
+    }
+  }
+
+  /**
+   * Post-process RampStates that have been completed but not cleaned up yet
+   */
+  private async postProcessCompletedStates(): Promise<void> {
+    try {
+      const states = await RampState.findAll({
+        where: {
+          currentPhase: "complete",
+          from: {
+            [Op.ne]: "sepa" // Exclude SEPA onramp states as the ephemerals are not cleaned up.
+          },
+          postCompleteState: {
+            cleanup: {
+              cleanupCompleted: false
+            }
+          }
+        }
+      });
+
+      if (states.length === 0) {
+        logger.info("No completed RampStates found needing post-processing.");
+        return;
+      }
+
+      logger.info(`Found ${states.length} completed RampStates that need post-processing`);
+
+      const processPromises = states.map(async state => {
+        try {
+          await this.processCleanup(state);
+          return { stateId: state.id, status: "fulfilled" };
+        } catch (error) {
+          logger.error(`Error processing cleanup for state ${state.id}:`, error);
+          // Don't update the state here, processCleanup handles its own updates
+          return { reason: error, stateId: state.id, status: "rejected" };
+        }
+      });
+
+      // Use allSettled to allow individual state processing to fail without stopping others
+      const results = await Promise.allSettled(processPromises);
+      const successful = results.filter(r => r.status === "fulfilled").length;
+      const failed = results.length - successful;
+      logger.info(
+        `Post-processing attempt completed for ${states.length} states. Successful: ${successful}, Failed: ${failed}`
+      );
+    } catch (error) {
+      logger.error("Error fetching states in postProcessCompletedStates:", error);
     }
   }
 }

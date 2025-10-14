@@ -2,11 +2,8 @@ import { EvmClient, PoolService, PoolType, Trade, TradeRouter, TxBuilderFactory 
 import { ApiManager } from "@packages/shared";
 
 export class HydrationRouter {
-  private _tradeRouter?: TradeRouter;
   private _poolService?: PoolService;
   private _evmClient?: EvmClient;
-  private _txBuilderFactory?: TxBuilderFactory;
-
   private readonly initPromise: Promise<void>;
 
   constructor() {
@@ -31,10 +28,7 @@ export class HydrationRouter {
     });
   }
 
-  // Expose readiness for callers that want to await initialization during bootstrap
-  ready(): Promise<void> {
-    return this.initPromise;
-  }
+  private _tradeRouter?: TradeRouter;
 
   // Guarded accessors keep method signatures clean and fail fast if used too early
   private get tradeRouter(): TradeRouter {
@@ -42,9 +36,16 @@ export class HydrationRouter {
     return this._tradeRouter;
   }
 
+  private _txBuilderFactory?: TxBuilderFactory;
+
   private get txBuilderFactory(): TxBuilderFactory {
     if (!this._txBuilderFactory) throw new Error("HydrationRouter not initialized yet");
     return this._txBuilderFactory;
+  }
+
+  // Expose readiness for callers that want to await initialization during bootstrap
+  ready(): Promise<void> {
+    return this.initPromise;
   }
 
   async getBestSellPriceFor(assetIn: string, assetOut: string, amountIn: string) {

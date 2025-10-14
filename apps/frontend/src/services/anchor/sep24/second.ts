@@ -1,6 +1,5 @@
 import { config } from "../../../config";
 import { IAnchorSessionParams, ISep24Intermediate, SepResult } from "../../../types/sep";
-import { fetchSigningServiceAccountId } from "../../signingService";
 
 interface Sep24TransactionStatus {
   status: string;

@@ -4,7 +4,6 @@ import {
   ERC20_EURE_POLYGON,
   EvmAddress,
   EvmClientManager,
-  EvmTokenDetails,
   Networks
 } from "@packages/shared";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";

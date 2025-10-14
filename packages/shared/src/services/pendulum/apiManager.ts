@@ -66,39 +66,6 @@ export class ApiManager {
     return ApiManager.instance;
   }
 
-  private async getSpecVersion(apiInstance: ApiPromise): Promise<number> {
-    const runtimeVersion = await apiInstance.call.core.version();
-    const human = runtimeVersion.toHuman() as { specVersion: number };
-    return human.specVersion;
-  }
-
-  private getNetworkConfig(networkName: SubstrateApiNetwork): NetworkConfig {
-    const network = this.networks.find(n => n.name === networkName);
-    if (!network) {
-      throw new Error(`Network ${networkName} not configured`);
-    }
-    return network;
-  }
-
-  private async connectApi(networkName: SubstrateApiNetwork): Promise<API> {
-    const network = this.getNetworkConfig(networkName);
-
-    // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
-    const wsProvider = new WsProvider(network.wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
-    const api = await ApiPromise.create({
-      noInitWarn: true,
-      provider: wsProvider
-    });
-
-    const chainProperties = api.registry.getChainProperties();
-    const ss58Format = Number(chainProperties?.get("ss58Format")?.toString() ?? 42);
-    const decimals = Number(chainProperties?.get("tokenDecimals")?.toHuman()[0]) ?? 12;
-
-    this.previousSpecVersions.set(networkName, await this.getSpecVersion(api));
-
-    return { api, decimals, ss58Format };
-  }
-
   public async populateApi(networkName: SubstrateApiNetwork): Promise<API> {
     const network = this.getNetworkConfig(networkName);
     logger.current.info(`Connecting to node ${network.wsUrl}...`);
@@ -135,50 +102,6 @@ export class ApiManager {
     }
 
     return apiInstance;
-  }
-
-  private async getNonce(senderKeypair: KeyringPair, networkName: SubstrateApiNetwork): Promise<number> {
-    let nonceQueue = this.nonceQueues.get(networkName);
-    if (!nonceQueue) {
-      nonceQueue = Promise.resolve();
-      this.nonceQueues.set(networkName, nonceQueue);
-    }
-
-    // Create a new promise that continues from the current queue
-    const newNoncePromise = nonceQueue
-      .catch(err => {
-        logger.current.error(`Previous nonce retrieval error for ${networkName}:`, err);
-      })
-      .then(async () => {
-        const apiInstance = await this.getApi(networkName);
-        const nonceMap = this.currentTransactionNonce.get(networkName);
-
-        if (!nonceMap) {
-          throw new Error(`Nonce map not initialized for network ${networkName}`);
-        }
-
-        const nonceRpc = (await apiInstance.api.rpc.system.accountNextIndex(senderKeypair.publicKey)).toNumber();
-        const lastUsedNonce = nonceMap.get(senderKeypair.address) ?? 0;
-
-        if (nonceRpc > lastUsedNonce || nonceRpc === 0) {
-          nonceMap.set(senderKeypair.address, nonceRpc);
-          return nonceRpc;
-        }
-
-        logger.current.info(
-          `Nonce mismatch detected on ${networkName}. RPC: ${nonceRpc}, ApiManager: ${lastUsedNonce}, sending transaction with nonce ${
-            lastUsedNonce + 1
-          }`
-        );
-        nonceMap.set(senderKeypair.address, lastUsedNonce + 1);
-        return lastUsedNonce + 1;
-      });
-
-    // Update the queue in the map
-    this.nonceQueues.set(networkName, newNoncePromise);
-
-    // Wait for and return the nonce
-    return await newNoncePromise;
   }
 
   public async executeApiCall(
@@ -247,5 +170,82 @@ export class ApiManager {
         throw initialError;
       }
     }
+  }
+
+  private async getSpecVersion(apiInstance: ApiPromise): Promise<number> {
+    const runtimeVersion = await apiInstance.call.core.version();
+    const human = runtimeVersion.toHuman() as { specVersion: number };
+    return human.specVersion;
+  }
+
+  private getNetworkConfig(networkName: SubstrateApiNetwork): NetworkConfig {
+    const network = this.networks.find(n => n.name === networkName);
+    if (!network) {
+      throw new Error(`Network ${networkName} not configured`);
+    }
+    return network;
+  }
+
+  private async connectApi(networkName: SubstrateApiNetwork): Promise<API> {
+    const network = this.getNetworkConfig(networkName);
+
+    // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
+    const wsProvider = new WsProvider(network.wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
+    const api = await ApiPromise.create({
+      noInitWarn: true,
+      provider: wsProvider
+    });
+
+    const chainProperties = api.registry.getChainProperties();
+    const ss58Format = Number(chainProperties?.get("ss58Format")?.toString() ?? 42);
+    const decimals = Number(chainProperties?.get("tokenDecimals")?.toHuman()[0]) ?? 12;
+
+    this.previousSpecVersions.set(networkName, await this.getSpecVersion(api));
+
+    return { api, decimals, ss58Format };
+  }
+
+  private async getNonce(senderKeypair: KeyringPair, networkName: SubstrateApiNetwork): Promise<number> {
+    let nonceQueue = this.nonceQueues.get(networkName);
+    if (!nonceQueue) {
+      nonceQueue = Promise.resolve();
+      this.nonceQueues.set(networkName, nonceQueue);
+    }
+
+    // Create a new promise that continues from the current queue
+    const newNoncePromise = nonceQueue
+      .catch(err => {
+        logger.current.error(`Previous nonce retrieval error for ${networkName}:`, err);
+      })
+      .then(async () => {
+        const apiInstance = await this.getApi(networkName);
+        const nonceMap = this.currentTransactionNonce.get(networkName);
+
+        if (!nonceMap) {
+          throw new Error(`Nonce map not initialized for network ${networkName}`);
+        }
+
+        const nonceRpc = (await apiInstance.api.rpc.system.accountNextIndex(senderKeypair.publicKey)).toNumber();
+        const lastUsedNonce = nonceMap.get(senderKeypair.address) ?? 0;
+
+        if (nonceRpc > lastUsedNonce || nonceRpc === 0) {
+          nonceMap.set(senderKeypair.address, nonceRpc);
+          return nonceRpc;
+        }
+
+        logger.current.info(
+          `Nonce mismatch detected on ${networkName}. RPC: ${nonceRpc}, ApiManager: ${lastUsedNonce}, sending transaction with nonce ${
+            lastUsedNonce + 1
+          }`
+        );
+        nonceMap.set(senderKeypair.address, lastUsedNonce + 1);
+        return lastUsedNonce + 1;
+      });
+
+    // Update the queue in the map
+    this.nonceQueues.set(networkName, newNoncePromise);
+
+    // Wait for and return the nonce
+    return await newNoncePromise;
   }
 }

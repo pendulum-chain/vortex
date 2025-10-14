@@ -1,4 +1,4 @@
-import { EvmToken, FiatToken, getNetworkId, Networks, RampDirection } from "@packages/shared";
+import { FiatToken, getNetworkId, Networks, RampDirection } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";

@@ -4,8 +4,7 @@ import {
   createHydrationToAssethubTransfer,
   multiplyByPowerOfTen,
   RampCurrency,
-  RampDirection,
-  XcmFees
+  RampDirection
 } from "@packages/shared";
 import Big from "big.js";
 import HydrationRouter from "../../../hydration/swap";

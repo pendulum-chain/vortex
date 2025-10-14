@@ -1,29 +1,25 @@
+import { ApiManager, EvmClientManager, setLogger } from "@packages/shared";
 import dotenv from "dotenv";
 import path from "path";
-
-dotenv.config({
-  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
-});
-
-import { ApiManager, EvmClientManager } from "@packages/shared";
 import { config, testDatabaseConnection } from "./config";
 import app from "./config/express";
 import logger from "./config/logger";
 import {
   CLIENT_DOMAIN_SECRET,
-  DEFAULT_POLLING_INTERVAL,
   FUNDING_SECRET,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  PENDULUM_FUNDING_SEED,
-  WEBHOOKS_CACHE_URL
+  PENDULUM_FUNDING_SEED
 } from "./constants/constants";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
-import { setLogger } from "@packages/shared";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
+
+dotenv.config({
+  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
+});
 
 const { port, env } = config;
 

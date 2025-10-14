@@ -1,4 +1,4 @@
-import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, OnChainToken, RampDirection } from "@packages/shared";
+import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 import { useRampDirection } from "../../stores/rampDirectionStore";

@@ -1,5 +1,4 @@
 import { AXL_USDC_MOONBEAM, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@packages/shared";
-import Big from "big.js";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";

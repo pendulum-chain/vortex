@@ -1,8 +1,5 @@
-import { test } from "bun:test";
-import {
-  createMoonbeamToAssethubTransferWithSwapOnHydration,
-  dryRunExtrinsic,
-} from "@packages/shared";
+import {test} from "bun:test";
+import {createMoonbeamToAssethubTransferWithSwapOnHydration, dryRunExtrinsic,} from "@packages/shared";
 
 test("dry-run moonbeam to assethub with swap on hydration", async () => {
   // Hardcoded values for testing purposes

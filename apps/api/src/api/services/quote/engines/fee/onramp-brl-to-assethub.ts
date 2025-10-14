@@ -1,5 +1,4 @@
-import { getNetworkFromDestination, Networks, OnChainToken, RampCurrency, RampDirection } from "@packages/shared";
-import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
+import { getNetworkFromDestination, RampCurrency, RampDirection } from "@packages/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 

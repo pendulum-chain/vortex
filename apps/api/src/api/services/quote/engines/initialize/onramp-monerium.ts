@@ -1,4 +1,4 @@
-import { ERC20_EURE_POLYGON_DECIMALS, getPendulumDetails, multiplyByPowerOfTen, RampDirection } from "@packages/shared";
+import { ERC20_EURE_POLYGON_DECIMALS, multiplyByPowerOfTen, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";

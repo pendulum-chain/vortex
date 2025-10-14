@@ -29,10 +29,6 @@ export abstract class BaseSquidRouterEngine implements Stage {
 
   readonly key = StageKey.SquidRouter;
 
-  protected abstract validate(ctx: QuoteContext): void;
-
-  protected abstract compute(ctx: QuoteContext): SquidRouterComputation;
-
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
     const { direction, skipNote } = this.config;
@@ -54,6 +50,10 @@ export abstract class BaseSquidRouterEngine implements Stage {
 
     this.addNote(computation.type, ctx, bridgeResult, computation.data);
   }
+
+  protected abstract validate(ctx: QuoteContext): void;
+
+  protected abstract compute(ctx: QuoteContext): SquidRouterComputation;
 
   private buildBridgeRequest(data: SquidRouterData, req: CreateQuoteRequest): EvmBridgeRequest {
     return {

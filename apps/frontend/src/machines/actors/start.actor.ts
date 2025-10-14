@@ -1,7 +1,6 @@
 import { RampProcess } from "@packages/shared";
-import { fromPromise } from "xstate";
 import { RampService } from "../../services/api";
-import { RampContext, RampState } from "../types";
+import { RampContext } from "../types";
 
 export const startRampActor = async ({ input }: { input: RampContext }): Promise<RampProcess> => {
   const { rampState } = input;

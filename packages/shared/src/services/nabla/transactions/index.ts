@@ -1,4 +1,4 @@
-import { AccountMeta, ApiManager, encodeSubmittableExtrinsic, Networks, PendulumTokenDetails } from "@packages/shared";
+import { AccountMeta, ApiManager, encodeSubmittableExtrinsic, PendulumTokenDetails } from "@packages/shared";
 import { CreateExecuteMessageExtrinsicOptions } from "@pendulum-chain/api-solang";
 import { prepareNablaApproveTransaction } from "./approve";
 import { prepareNablaSwapTransaction } from "./swap";

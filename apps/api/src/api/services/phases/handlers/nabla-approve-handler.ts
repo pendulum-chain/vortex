@@ -1,11 +1,4 @@
-import {
-  ApiManager,
-  decodeSubmittableExtrinsic,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  NABLA_ROUTER,
-  RampPhase
-} from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
 import Big from "big.js";

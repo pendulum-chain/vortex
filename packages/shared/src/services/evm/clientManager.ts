@@ -76,6 +76,31 @@ export class EvmClientManager {
     return EvmClientManager.instance;
   }
 
+  public getClient(networkName: EvmNetworks): PublicClient {
+    let client = this.clientInstances.get(networkName);
+
+    if (!client) {
+      logger.current.info(`Creating new EVM client for ${networkName}`);
+      client = this.createClient(networkName);
+      this.clientInstances.set(networkName, client);
+    }
+
+    return client;
+  }
+
+  public getWalletClient(networkName: EvmNetworks, account: Account): WalletClient<Transport, Chain, Account> {
+    const key = this.generateWalletClientKey(networkName, account.address);
+    let walletClient = this.walletClientInstances.get(key);
+
+    if (!walletClient) {
+      logger.current.info(`Creating new EVM wallet client for ${networkName} with account ${account.address}`);
+      walletClient = this.createWalletClient(networkName, account);
+      this.walletClientInstances.set(key, walletClient);
+    }
+
+    return walletClient;
+  }
+
   private getNetworkConfig(networkName: EvmNetworks): EvmNetworkConfig {
     const network = this.networks.find(n => n.name === networkName);
     if (!network) {
@@ -119,31 +144,6 @@ export class EvmClientManager {
       chain: network.chain,
       transport
     });
-
-    return walletClient;
-  }
-
-  public getClient(networkName: EvmNetworks): PublicClient {
-    let client = this.clientInstances.get(networkName);
-
-    if (!client) {
-      logger.current.info(`Creating new EVM client for ${networkName}`);
-      client = this.createClient(networkName);
-      this.clientInstances.set(networkName, client);
-    }
-
-    return client;
-  }
-
-  public getWalletClient(networkName: EvmNetworks, account: Account): WalletClient<Transport, Chain, Account> {
-    const key = this.generateWalletClientKey(networkName, account.address);
-    let walletClient = this.walletClientInstances.get(key);
-
-    if (!walletClient) {
-      logger.current.info(`Creating new EVM wallet client for ${networkName} with account ${account.address}`);
-      walletClient = this.createWalletClient(networkName, account);
-      this.walletClientInstances.set(key, walletClient);
-    }
 
     return walletClient;
   }

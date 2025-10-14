@@ -11,12 +11,10 @@ interface IPendingEvent<T = unknown> {
 
 export class EventListener {
   static eventListeners = new Map<ApiPromise, EventListener>();
-
-  private unsubscribeHandle: (() => void) | null = null;
   pendingRedeemEvents: IPendingEvent[] = [];
   pendingXcmSentEvents: IPendingEvent[] = [];
-
   api: ApiPromise | undefined = undefined;
+  private unsubscribeHandle: (() => void) | null = null;
 
   constructor(api: ApiPromise) {
     this.api = api;

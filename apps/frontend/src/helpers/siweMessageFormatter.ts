@@ -8,14 +8,13 @@ interface SignInMessageFields {
 }
 
 export class SignInMessage {
+  static LOGIN_MESSAGE = " wants you to sign in with your account: ";
   public scheme: string;
   public domain: string;
   public address: string;
   public nonce: string;
   public expirationTime: string;
   public issuedAt?: string;
-
-  static LOGIN_MESSAGE = " wants you to sign in with your account: ";
 
   constructor(fields: SignInMessageFields) {
     this.scheme = fields.scheme;
@@ -24,14 +23,6 @@ export class SignInMessage {
     this.nonce = fields.nonce;
     this.expirationTime = new Date(fields.expirationTime).toISOString();
     this.issuedAt = fields.issuedAt ? new Date(fields.issuedAt).toISOString() : new Date().toISOString();
-  }
-
-  public toMessage(): string {
-    const header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
-
-    const body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
-
-    return `${header}\n\n${body}`;
   }
 
   public static fromMessage(message: string): SignInMessage {
@@ -62,5 +53,13 @@ export class SignInMessage {
       nonce,
       scheme: "https"
     });
+  }
+
+  public toMessage(): string {
+    const header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
+
+    const body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
+
+    return `${header}\n\n${body}`;
   }
 }

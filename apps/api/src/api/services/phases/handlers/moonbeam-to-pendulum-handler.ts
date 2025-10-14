@@ -1,12 +1,4 @@
-import {
-  ApiManager,
-  createEvmClientsAndConfig,
-  encodePayload,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  RampPhase,
-  waitUntilTrue
-} from "@packages/shared";
+import { ApiManager, createEvmClientsAndConfig, encodePayload, RampPhase, waitUntilTrue } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";

@@ -17,12 +17,6 @@ export abstract class BasePendulumTransferEngine implements Stage {
 
   readonly key = StageKey.PendulumTransfer;
 
-  protected abstract validate(ctx: QuoteContext): void;
-
-  protected abstract compute(ctx: QuoteContext): Promise<PendulumTransferComputation>;
-
-  protected abstract assign(ctx: QuoteContext, computation: PendulumTransferComputation): void;
-
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
     const { direction, skipNote } = this.config;
@@ -41,19 +35,11 @@ export abstract class BasePendulumTransferEngine implements Stage {
     this.addNote(ctx, computation);
   }
 
-  private addNote(ctx: QuoteContext, computation: PendulumTransferComputation): void {
-    if (computation.type === "xcm") {
-      const xcmData = computation.data as XcmMeta;
-      ctx.addNote?.(
-        `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
-      );
-    } else {
-      const stellarData = computation.data as StellarMeta;
-      ctx.addNote?.(
-        `Calculated Stellar transfer with amount ${stellarData.inputAmountDecimal.toString()} ${stellarData.currency}`
-      );
-    }
-  }
+  protected abstract validate(ctx: QuoteContext): void;
+
+  protected abstract compute(ctx: QuoteContext): Promise<PendulumTransferComputation>;
+
+  protected abstract assign(ctx: QuoteContext, computation: PendulumTransferComputation): void;
 
   protected createXcmFees(ctx: QuoteContext): {
     origin: { amount: string; amountRaw: string; currency: string };
@@ -82,5 +68,19 @@ export abstract class BasePendulumTransferEngine implements Stage {
   protected mergeSubsidyRaw(ctx: QuoteContext, outputAmountRaw: Big): Big {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     return outputAmountRaw.plus(ctx.subsidy!.subsidyAmountInOutputTokenRaw);
+  }
+
+  private addNote(ctx: QuoteContext, computation: PendulumTransferComputation): void {
+    if (computation.type === "xcm") {
+      const xcmData = computation.data as XcmMeta;
+      ctx.addNote?.(
+        `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
+      );
+    } else {
+      const stellarData = computation.data as StellarMeta;
+      ctx.addNote?.(
+        `Calculated Stellar transfer with amount ${stellarData.inputAmountDecimal.toString()} ${stellarData.currency}`
+      );
+    }
   }
 }

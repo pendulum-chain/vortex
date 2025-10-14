@@ -4,7 +4,6 @@ import {
   BrlaCreateSubaccountRequest,
   BrlaCreateSubaccountResponse,
   BrlaGetKycStatusResponse,
-  BrlaGetRampStatusResponse,
   BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,

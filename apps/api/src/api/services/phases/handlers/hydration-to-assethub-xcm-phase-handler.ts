@@ -1,11 +1,4 @@
-import {
-  ApiManager,
-  decodeSubmittableExtrinsic,
-  getAddressForFormat,
-  RampPhase,
-  submitXcm,
-  submitXTokens
-} from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXcm } from "@packages/shared";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";

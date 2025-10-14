@@ -77,13 +77,13 @@ export interface PartnerInfo {
 
 // Strategy for a specific route/path
 export interface IRouteStrategy {
+  // Optional: human-friendly name for logging
+  readonly name: string;
+
   // Ordered stages to execute for this route
   getStages(ctx: QuoteContext): StageKey[];
 
   getEngines(ctx: QuoteContext): EnginesRegistry;
-
-  // Optional: human-friendly name for logging
-  readonly name: string;
 }
 
 // Quote context flows through all stages. Defined in quote-context.ts.
@@ -199,17 +199,21 @@ export interface QuoteContext {
 
   // Accumulated logs/notes for debugging (optional)
   notes?: string[];
+  // Allow engines to supply a ready response (used by special-case engine and finalize stage)
+  builtResponse?: QuoteResponse;
 
   // Helper: convenience accessors
   get isOnRamp(): boolean;
-  get isOffRamp(): boolean;
-  get from(): DestinationType;
-  get to(): DestinationType;
-  get direction(): RampDirection;
-  addNote?(note: string): void;
 
-  // Allow engines to supply a ready response (used by special-case engine and finalize stage)
-  builtResponse?: QuoteResponse;
+  get isOffRamp(): boolean;
+
+  get from(): DestinationType;
+
+  get to(): DestinationType;
+
+  get direction(): RampDirection;
+
+  addNote?(note: string): void;
 }
 
 export type QuoteTicketMetadata = Omit<QuoteContext, "now" | "addNote" | "builtResponse">;

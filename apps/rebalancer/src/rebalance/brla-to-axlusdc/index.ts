@@ -7,7 +7,6 @@ import {
   sendBrlaToMoonbeam,
   swapAxlusdcToBrla,
   swapBrlaToUsdcOnBrlaApiService,
-  transferBrlaOnPolygon,
   transferUsdcToMoonbeamWithSquidrouter,
   triggerXcmFromMoonbeam,
   waitForAxlUsdcOnPendulum,

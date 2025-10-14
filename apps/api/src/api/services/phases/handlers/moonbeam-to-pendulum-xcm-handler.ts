@@ -1,13 +1,4 @@
-import {
-  ApiManager,
-  decodeSubmittableExtrinsic,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  logger,
-  RampPhase,
-  submitMoonbeamXcm,
-  waitUntilTrue
-} from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
 import Big from "big.js";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

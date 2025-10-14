@@ -2,8 +2,6 @@ import {
   ApiManager,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
-  getNetworkFromDestination,
-  getPendulumDetails,
   NABLA_ROUTER,
   RampDirection,
   RampPhase

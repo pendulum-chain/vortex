@@ -1,11 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  Language,
-  getBrowserLanguage,
-  getLanguageFromPath,
-  DEFAULT_LANGUAGE,
-  LANGUAGE_FAMILIES
-} from './helpers';
+import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {DEFAULT_LANGUAGE, getBrowserLanguage, getLanguageFromPath, Language, LANGUAGE_FAMILIES} from './helpers';
 
 // Setup global window mock for Node.js test environment
 declare global {

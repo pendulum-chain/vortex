@@ -2,7 +2,6 @@ import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON,
   EvmTransactionData,
-  getNetworkId,
   isAssetHubTokenDetails,
   Networks,
   UnsignedTx

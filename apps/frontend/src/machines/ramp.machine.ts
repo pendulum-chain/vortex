@@ -13,7 +13,7 @@ import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState } from "./types";
+import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 

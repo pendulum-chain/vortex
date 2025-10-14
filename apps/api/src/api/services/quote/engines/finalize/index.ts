@@ -22,12 +22,6 @@ export abstract class BaseFinalizeEngine implements Stage {
 
   readonly key = StageKey.Finalize;
 
-  protected abstract computeOutput(ctx: QuoteContext): Promise<FinalizeComputation>;
-
-  protected validate(ctx: QuoteContext, result: FinalizeComputation): void {
-    // Implemented by subclasses when necessary
-  }
-
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
     const { direction, skipNote, missingFeesMessage } = this.config;
@@ -75,5 +69,11 @@ export abstract class BaseFinalizeEngine implements Stage {
     };
 
     ctx.addNote?.("Persisted quote and built response");
+  }
+
+  protected abstract computeOutput(ctx: QuoteContext): Promise<FinalizeComputation>;
+
+  protected validate(ctx: QuoteContext, result: FinalizeComputation): void {
+    // Implemented by subclasses when necessary
   }
 }

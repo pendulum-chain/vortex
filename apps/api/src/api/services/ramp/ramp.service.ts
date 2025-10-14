@@ -11,7 +11,6 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
-  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -67,209 +66,6 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): Ac
 }
 
 export class RampService extends BaseRampService {
-  private async prepareOfframpBrlTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
-      throw new Error("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL");
-    }
-
-    const subaccount = await this.validateBrlaOfframpRequest(
-      additionalData.taxId,
-      additionalData.pixDestination,
-      additionalData.receiverTaxId,
-      quote.outputAmount
-    );
-
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      brlaEvmAddress: subaccount.wallets.evm,
-      pixDestination: additionalData.pixDestination,
-      quote,
-      receiverTaxId: additionalData.receiverTaxId,
-      signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData.paymentData,
-      taxId: additionalData.taxId,
-      userAddress: additionalData.walletAddress
-    });
-
-    return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
-  }
-
-  private async prepareOfframpNonBrlTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      quote,
-      signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData?.paymentData,
-      userAddress: additionalData?.walletAddress
-    });
-
-    return { stateMeta, unsignedTxs };
-  }
-
-  private async prepareAveniaOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
-    if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
-      throw new APIError({
-        message: "Parameters destinationAddress and taxId are required for onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-    if (!evmEphemeralEntry) {
-      throw new APIError({
-        message: "Moonbeam ephemeral not found",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(
-      additionalData.taxId,
-      quote,
-      quote.inputAmount,
-      evmEphemeralEntry.address
-    );
-
-    const params: AveniaOnrampTransactionParams = {
-      destinationAddress: additionalData.destinationAddress,
-      quote,
-      signingAccounts: normalizedSigningAccounts,
-      taxId: additionalData.taxId
-    };
-
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
-
-    return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
-  private async prepareMoneriumOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{
-    unsignedTxs: UnsignedTx[];
-    stateMeta: Partial<StateMetadata>;
-    depositQrCode: string;
-    ibanPaymentData?: IbanPaymentData;
-  }> {
-    if (
-      !additionalData ||
-      !additionalData.moneriumAuthToken ||
-      !additionalData.destinationAddress ||
-      !additionalData.moneriumWalletAddress
-    ) {
-      throw new APIError({
-        message: "Parameters moneriumAuthToken, destinationAddress and moneriumWalletAddress are required for Monerium onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    try {
-      // Validate the user mint address
-      const ibanData = await getIbanForAddress(
-        additionalData.moneriumWalletAddress,
-        additionalData.moneriumAuthToken,
-        quote.to as EvmNetworks // Fixme: assethub network type issue.
-      );
-
-      const userProfile = await getMoneriumUserProfile({
-        authToken: additionalData.moneriumAuthToken,
-        profileId: ibanData.profile
-      });
-
-      const params: MoneriumOnrampTransactionParams = {
-        destinationAddress: additionalData.destinationAddress,
-        moneriumWalletAddress: additionalData.moneriumWalletAddress,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      };
-
-      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
-
-      const ibanPaymentData = {
-        bic: ibanData.bic,
-        iban: ibanData.iban
-      };
-
-      const ibanCode = createEpcQrCodeData({
-        amount: quote.inputAmount,
-        bic: ibanData.bic,
-        iban: ibanData.iban,
-        name: userProfile.name
-      });
-      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
-        throw new APIError({
-          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      throw error;
-    }
-  }
-
-  private async prepareMoneriumOfframpTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
-      throw new APIError({
-        message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      moneriumAuthToken: additionalData.moneriumAuthToken,
-      quote,
-      signingAccounts: [],
-      userAddress: additionalData.walletAddress
-    });
-    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
-  private async prepareRampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[]
-  ): Promise<{
-    unsignedTxs: UnsignedTx[];
-    stateMeta: Partial<StateMetadata>;
-    depositQrCode?: string;
-    aveniaTicketId?: string;
-    ibanPaymentData?: IbanPaymentData;
-  }> {
-    if (quote.rampType === RampDirection.SELL) {
-      if (quote.outputCurrency === FiatToken.BRL) {
-        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
-        // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
-        // otherwise, it is automatically assumed to be a Monerium offramp.
-        // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
-      } else if (!additionalData?.moneriumAuthToken) {
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData);
-      } else {
-        return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
-      }
-    } else {
-      if (quote.inputCurrency === FiatToken.EURC) {
-        return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-      }
-      return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
-    }
-  }
-
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -570,15 +366,6 @@ export class RampService extends BaseRampService {
   }
 
   /**
-   * Map ramp phase to a user-friendly status
-   */
-  private mapPhaseToStatus(phase: RampPhase): string {
-    if (phase === "complete") return "success";
-    if (phase === "failed" || phase === "timedOut") return "failed";
-    return "pending";
-  }
-
-  /**
    * Append an error log to a ramping process.
    * This function limits the number of error logs to 100 per ramping process.
    * @param id The ID of the ramping process
@@ -598,18 +385,6 @@ export class RampService extends BaseRampService {
     const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
     await rampState.update({
       errorLogs: updatedErrorLogs
-    });
-  }
-
-  private async cancelRamp(id: string): Promise<void> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      throw new Error("Ramp not found.");
-    }
-
-    await this.updateRampState(id, {
-      currentPhase: "timedOut"
     });
   }
 
@@ -746,6 +521,230 @@ export class RampService extends BaseRampService {
     );
 
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
+  }
+
+  private async prepareOfframpBrlTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
+    if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
+      throw new Error("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL");
+    }
+
+    const subaccount = await this.validateBrlaOfframpRequest(
+      additionalData.taxId,
+      additionalData.pixDestination,
+      additionalData.receiverTaxId,
+      quote.outputAmount
+    );
+
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      brlaEvmAddress: subaccount.wallets.evm,
+      pixDestination: additionalData.pixDestination,
+      quote,
+      receiverTaxId: additionalData.receiverTaxId,
+      signingAccounts: normalizedSigningAccounts,
+      stellarPaymentData: additionalData.paymentData,
+      taxId: additionalData.taxId,
+      userAddress: additionalData.walletAddress
+    });
+
+    return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
+  }
+
+  private async prepareOfframpNonBrlTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      stellarPaymentData: additionalData?.paymentData,
+      userAddress: additionalData?.walletAddress
+    });
+
+    return { stateMeta, unsignedTxs };
+  }
+
+  private async prepareAveniaOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    signingAccounts: AccountMeta[]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
+    if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
+      throw new APIError({
+        message: "Parameters destinationAddress and taxId are required for onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+    if (!evmEphemeralEntry) {
+      throw new APIError({
+        message: "Moonbeam ephemeral not found",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(
+      additionalData.taxId,
+      quote,
+      quote.inputAmount,
+      evmEphemeralEntry.address
+    );
+
+    const params: AveniaOnrampTransactionParams = {
+      destinationAddress: additionalData.destinationAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      taxId: additionalData.taxId
+    };
+
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
+
+    return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
+  private async prepareMoneriumOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    depositQrCode: string;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (
+      !additionalData ||
+      !additionalData.moneriumAuthToken ||
+      !additionalData.destinationAddress ||
+      !additionalData.moneriumWalletAddress
+    ) {
+      throw new APIError({
+        message: "Parameters moneriumAuthToken, destinationAddress and moneriumWalletAddress are required for Monerium onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    try {
+      // Validate the user mint address
+      const ibanData = await getIbanForAddress(
+        additionalData.moneriumWalletAddress,
+        additionalData.moneriumAuthToken,
+        quote.to as EvmNetworks // Fixme: assethub network type issue.
+      );
+
+      const userProfile = await getMoneriumUserProfile({
+        authToken: additionalData.moneriumAuthToken,
+        profileId: ibanData.profile
+      });
+
+      const params: MoneriumOnrampTransactionParams = {
+        destinationAddress: additionalData.destinationAddress,
+        moneriumWalletAddress: additionalData.moneriumWalletAddress,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      };
+
+      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
+
+      const ibanPaymentData = {
+        bic: ibanData.bic,
+        iban: ibanData.iban
+      };
+
+      const ibanCode = createEpcQrCodeData({
+        amount: quote.inputAmount,
+        bic: ibanData.bic,
+        iban: ibanData.iban,
+        name: userProfile.name
+      });
+      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
+        throw new APIError({
+          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      throw error;
+    }
+  }
+
+  private async prepareMoneriumOfframpTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
+      throw new APIError({
+        message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      moneriumAuthToken: additionalData.moneriumAuthToken,
+      quote,
+      signingAccounts: [],
+      userAddress: additionalData.walletAddress
+    });
+    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
+  private async prepareRampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    signingAccounts: AccountMeta[]
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    depositQrCode?: string;
+    aveniaTicketId?: string;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (quote.rampType === RampDirection.SELL) {
+      if (quote.outputCurrency === FiatToken.BRL) {
+        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+        // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
+        // otherwise, it is automatically assumed to be a Monerium offramp.
+        // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
+      } else if (!additionalData?.moneriumAuthToken) {
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+      } else {
+        return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
+      }
+    } else {
+      if (quote.inputCurrency === FiatToken.EURC) {
+        return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+      }
+      return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+    }
+  }
+
+  /**
+   * Map ramp phase to a user-friendly status
+   */
+  private mapPhaseToStatus(phase: RampPhase): string {
+    if (phase === "complete") return "success";
+    if (phase === "failed" || phase === "timedOut") return "failed";
+    return "pending";
+  }
+
+  private async cancelRamp(id: string): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      throw new Error("Ramp not found.");
+    }
+
+    await this.updateRampState(id, {
+      currentPhase: "timedOut"
+    });
   }
 }
 

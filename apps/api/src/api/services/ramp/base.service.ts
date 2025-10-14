@@ -9,6 +9,21 @@ import { StateMetadata } from "../phases/meta-state-types";
 
 export class BaseRampService {
   /**
+   * Clean up expired quotes by deleting them from the database
+   */
+  public async cleanupExpiredQuotes(): Promise<number> {
+    const count = await QuoteTicket.destroy({
+      where: {
+        expiresAt: {
+          [Op.lt]: new Date()
+        },
+        status: "pending"
+      }
+    });
+    return count;
+  }
+
+  /**
    * Create a new ramp state
    */
   protected async createRampState(
@@ -120,20 +135,5 @@ export class BaseRampService {
       logger.error("Transaction failed:", error);
       throw error;
     }
-  }
-
-  /**
-   * Clean up expired quotes by deleting them from the database
-   */
-  public async cleanupExpiredQuotes(): Promise<number> {
-    const count = await QuoteTicket.destroy({
-      where: {
-        expiresAt: {
-          [Op.lt]: new Date()
-        },
-        status: "pending"
-      }
-    });
-    return count;
   }
 }

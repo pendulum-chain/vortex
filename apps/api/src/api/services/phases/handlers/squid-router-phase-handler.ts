@@ -35,35 +35,6 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Get the appropriate public client based on the input token
-   * Monerium's EUR uses polygon, BRL uses moonbeam
-   * @param state The current ramp state
-   * @returns The appropriate public client
-   */
-  private async getPublicClient(state: RampState): Promise<PublicClient> {
-    try {
-      const quote = await QuoteTicket.findByPk(state.quoteId);
-      if (!quote) {
-        throw new Error(`Quote not found for ramp ${state.id}`);
-      }
-
-      if (quote.inputCurrency === FiatToken.EURC) {
-        return this.polygonClient;
-      } else if (quote.inputCurrency === FiatToken.BRL) {
-        return this.moonbeamClient;
-      } else {
-        logger.info(
-          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
-        );
-        return this.moonbeamClient;
-      }
-    } catch (error) {
-      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
-      return this.moonbeamClient;
-    }
-  }
-
-  /**
    * Execute the phase
    * @param state The current ramp state
    * @returns The updated ramp state
@@ -128,6 +99,35 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Get the appropriate public client based on the input token
+   * Monerium's EUR uses polygon, BRL uses moonbeam
+   * @param state The current ramp state
+   * @returns The appropriate public client
+   */
+  private async getPublicClient(state: RampState): Promise<PublicClient> {
+    try {
+      const quote = await QuoteTicket.findByPk(state.quoteId);
+      if (!quote) {
+        throw new Error(`Quote not found for ramp ${state.id}`);
+      }
+
+      if (quote.inputCurrency === FiatToken.EURC) {
+        return this.polygonClient;
+      } else if (quote.inputCurrency === FiatToken.BRL) {
+        return this.moonbeamClient;
+      } else {
+        logger.info(
+          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
+        );
+        return this.moonbeamClient;
+      }
+    } catch (error) {
+      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
+      return this.moonbeamClient;
     }
   }
 

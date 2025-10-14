@@ -1,5 +1,4 @@
 import { Router } from "express";
-import * as quoteController from "../../controllers/quote.controller";
 import * as rampController from "../../controllers/ramp.controller";
 
 const router = Router();

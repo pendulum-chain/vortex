@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActorRefFrom, SnapshotFrom } from "xstate";
+import { ActorRefFrom } from "xstate";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, SIGNING_SERVICE_URL } from "../constants/constants";
 import { storageKeys } from "../constants/localStorage";
 import { SignInMessage } from "../helpers/siweMessageFormatter";

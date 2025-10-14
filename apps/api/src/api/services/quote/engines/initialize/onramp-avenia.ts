@@ -5,8 +5,7 @@ import {
   FiatToken,
   getAnyFiatTokenDetailsMoonbeam,
   multiplyByPowerOfTen,
-  RampDirection,
-  XcmFees
+  RampDirection
 } from "@packages/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
