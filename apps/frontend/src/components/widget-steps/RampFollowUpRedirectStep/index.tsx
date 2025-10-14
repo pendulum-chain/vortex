@@ -27,7 +27,7 @@ export const RampFollowUpRedirectStep = () => {
     }
 
     return () => clearInterval(timer);
-  }, [callbackUrl, countdown]);
+  }, [countdown]);
 
   return (
     <>
@@ -35,7 +35,7 @@ export const RampFollowUpRedirectStep = () => {
         <Checkmark />
       </div>
       <div className="mt-6 w-full">
-        <h1 className="mb-6 text-center font-bold text-xl text-blue-700 ">{t("components.RampFollowUpRedirectStep.title")}</h1>
+        <h1 className="mb-6 text-center font-bold text-blue-700 text-xl ">{t("components.RampFollowUpRedirectStep.title")}</h1>
       </div>
       <div style={{ padding: "20px", textAlign: "center" }}>
         <p>

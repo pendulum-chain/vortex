@@ -1,4 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
+import { FiatToken, Networks } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
@@ -29,6 +30,7 @@ export interface SigningState {
 export interface FormData {
   pixId?: string;
   taxId?: string;
+  moneriumWalletAddress?: string;
   walletAddress?: string;
 }
 
@@ -42,21 +44,29 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     walletLockedFromState: state.context.walletLocked
   }));
 
-  const { address } = useVortexAccount();
   const taxId = useTaxId();
   const pixId = usePixId();
   const quote = useQuote();
 
+  // When onramping from EUR -> Assethub, we need to show the wallet address field
+  const isMoneriumToAssethubRamp = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
+  const forceNetwork = isMoneriumToAssethubRamp ? Networks.Polygon : undefined;
+
+  const { address, evmAddress, substrateAddress } = useVortexAccount(forceNetwork);
+
   const walletForm = walletLockedFromState || address || undefined;
+
   const { form } = useRampForm({
+    moneriumWalletAddress: evmAddress,
     pixId,
     taxId,
-    walletAddress: walletForm
+    walletAddress: isMoneriumToAssethubRamp ? substrateAddress : walletForm
   });
 
   useEffect(() => {
+    form.setValue("moneriumWalletAddress", evmAddress);
     form.setValue("walletAddress", walletForm);
-  }, [walletForm, form]);
+  }, [walletForm, form, evmAddress]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -81,17 +91,18 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
         <DetailsStepForm
           isBrazilLanding={isBrazilLanding}
           isWalletAddressDisabled={!!walletLockedFromState}
+          showWalletAddressField={isMoneriumToAssethubRamp}
           signingState={signingState}
         />
         {isSep24Redo && (
           <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-center space-x-3">
               <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              <p className="text-sm text-gray-700">{t("pages.widget.details.quoteChangedWarning")}</p>
+              <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
             </div>
           </div>
         )}
-        <DetailsStepActions requiresConnection={!canSkipConnection} signingState={signingState} />
+        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>

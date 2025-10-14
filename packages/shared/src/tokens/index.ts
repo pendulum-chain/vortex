@@ -5,10 +5,10 @@
 export * from "./assethub/config";
 export * from "./constants/misc";
 // Constants
-export * from "./constants/pendulum";
 // Configurations
 export * from "./evm/config";
 export * from "./moonbeam/config";
+export * from "./pendulum/config";
 export * from "./stellar/config";
 // TokenConfig
 export * from "./tokenConfig";

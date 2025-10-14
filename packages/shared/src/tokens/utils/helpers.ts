@@ -2,9 +2,9 @@
  * Helper functions for token configuration
  */
 
-import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
+import { isNetworkEVM, Networks } from "../../helpers";
 import logger from "../../logger";
-import { assetHubTokenConfig } from "../assethub/config";
+import { assethubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
@@ -24,7 +24,7 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
 
   try {
     if (network === Networks.AssetHub) {
-      return assetHubTokenConfig[normalizedOnChainToken as AssetHubToken];
+      return assethubTokenConfig[normalizedOnChainToken as AssetHubToken];
     } else {
       if (isNetworkEVM(network)) {
         return evmTokenConfig[network][normalizedOnChainToken as EvmToken];
@@ -47,7 +47,7 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
 
   logger.current.error(`Invalid input token type: ${onChainToken}`);
   if (network === Networks.AssetHub) {
-    const firstAvailableToken = Object.values(assetHubTokenConfig)[0];
+    const firstAvailableToken = Object.values(assethubTokenConfig)[0];
     if (!firstAvailableToken) {
       throw new Error(`No tokens configured for network ${network}`);
     }

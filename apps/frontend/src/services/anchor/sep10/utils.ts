@@ -28,7 +28,7 @@ export const exists = (value?: string | null): value is string => !!value && val
 export async function fetchSep10Signatures(args: SignerServiceSep10Request) {
   try {
     return await fetchSignatures(args);
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     throw new Error("Could not fetch sep 10 signatures from backend");
   }
 }

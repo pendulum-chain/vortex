@@ -1,4 +1,3 @@
-import { InformationCircleIcon } from "@heroicons/react/20/solid";
 import { AveniaDocumentType } from "@packages/shared";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";

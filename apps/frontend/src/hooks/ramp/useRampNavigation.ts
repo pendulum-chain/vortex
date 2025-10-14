@@ -29,7 +29,7 @@ export const useRampNavigation = (
     }
 
     return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value, callbackUrl]);
+  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,

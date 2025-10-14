@@ -8,6 +8,7 @@ import {
   RampPhase
 } from "@packages/shared";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -26,11 +27,22 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { moonbeamEphemeralAddress, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
+    const { evmEphemeralAddress } = state.state as StateMetadata;
 
-    if (!moonbeamEphemeralAddress || !inputAmountBeforeSwapRaw) {
+    if (!evmEphemeralAddress) {
       throw new Error("BrlaOnrampMintHandler: State metadata corrupted. This is a bug.");
     }
+
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
+    if (!quote.metadata.aveniaMint?.outputAmountRaw) {
+      throw new Error("Missing expected amount to be received in Moonbeam in quote metadata");
+    }
+
+    const expectedAmountReceived = quote.metadata.aveniaMint?.outputAmountRaw;
 
     try {
       const pollingTimeMs = 1000;
@@ -38,8 +50,8 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
       await checkEvmBalancePeriodically(
         tokenDetails.moonbeamErc20Address,
-        moonbeamEphemeralAddress,
-        inputAmountBeforeSwapRaw,
+        evmEphemeralAddress,
+        expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
         Networks.Moonbeam

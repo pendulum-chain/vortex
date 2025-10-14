@@ -26,7 +26,7 @@ export function InitialQuoteFailedStep({ className }: InitialQuoteFailedStepProp
 
       return () => clearTimeout(timer);
     }
-  }, [callbackUrl]);
+  }, [callbackUrl, rampActor.send]);
 
   const handleTryAgain = () => {
     rampActor.send({ type: "RESET_RAMP" });

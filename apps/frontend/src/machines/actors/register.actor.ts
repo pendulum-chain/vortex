@@ -1,5 +1,7 @@
 import {
   AccountMeta,
+  ApiManager,
+  EphemeralAccountType,
   FiatToken,
   getAddressForFormat,
   Networks,
@@ -8,7 +10,7 @@ import {
   signUnsignedTransactions
 } from "@packages/shared";
 import { config } from "../../config";
-import { moonbeamApiService, pendulumApiService, RampService } from "../../services/api";
+import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
@@ -27,8 +29,6 @@ export class RegisterRampError extends Error {
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
   const { executionInput, chainId, address, authToken, paymentData, quote } = input;
 
-  console.log("Registering ramp with input:", input);
-
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
     throw new RegisterRampError("Execution input and quote are required to register ramp.", RegisterRampErrorType.InvalidInput);
@@ -38,8 +38,11 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     throw new RegisterRampError("Wallet address is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
-  const pendulumApiComponents = await pendulumApiService.getApi();
-  const moonbeamApiComponents = await moonbeamApiService.getApi();
+  const apiManager = ApiManager.getInstance();
+  const pendulumApiComponents = await apiManager.getApi(Networks.Pendulum);
+  const moonbeamApiComponents = await apiManager.getApi(Networks.Moonbeam);
+  const hydrationApiComponents = await apiManager.getApi(Networks.Hydration);
+
   if (!chainId) {
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
@@ -48,15 +51,15 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const signingAccounts: AccountMeta[] = [
     {
       address: executionInput.ephemerals.stellarEphemeral.address,
-      network: Networks.Stellar
+      type: EphemeralAccountType.Stellar
     },
     {
-      address: executionInput.ephemerals.moonbeamEphemeral.address,
-      network: Networks.Moonbeam
+      address: executionInput.ephemerals.evmEphemeral.address,
+      type: EphemeralAccountType.EVM
     },
     {
-      address: executionInput.ephemerals.pendulumEphemeral.address,
-      network: Networks.Pendulum
+      address: executionInput.ephemerals.substrateEphemeral.address,
+      type: EphemeralAccountType.Substrate
     }
   ];
 
@@ -70,7 +73,8 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: address,
-      moneriumAuthToken: authToken
+      moneriumAuthToken: authToken,
+      moneriumWalletAddress: executionInput.moneriumWalletAddress
     };
   } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
@@ -83,6 +87,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     additionalData = {
       // moneriumAuthToken is only relevant after enabling Monerium offramps.
       // moneriumAuthToken: authToken,
+      // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
       walletAddress: address
     };
@@ -95,7 +100,8 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       return true;
     }
 
-    return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
+    return chainId < 0 &&
+      (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub || tx.network === Networks.Hydration)
       ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
       : tx.signer.toLowerCase() !== address.toLowerCase();
   });
@@ -105,6 +111,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     executionInput.ephemerals,
     pendulumApiComponents.api,
     moonbeamApiComponents.api,
+    hydrationApiComponents.api,
     config.alchemyApiKey
   );
 
@@ -116,7 +123,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     requiredUserActionsCompleted: false,
     signedTransactions,
     userSigningMeta: {
-      assetHubToPendulumHash: undefined,
+      assethubToPendulumHash: undefined,
       moneriumOnrampApproveHash: undefined,
       squidRouterApproveHash: undefined,
       squidRouterSwapHash: undefined

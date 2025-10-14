@@ -1,5 +1,6 @@
 import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
 import Big from "big.js";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -10,20 +11,29 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
     const moonbeamNode = await apiManager.getApi("moonbeam");
     const pendulumNode = await apiManager.getApi("pendulum");
 
-    const { pendulumEphemeralAddress, inputTokenPendulumDetails, moonbeamEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress, evmEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !inputTokenPendulumDetails || !moonbeamEphemeralAddress) {
+    if (!substrateEphemeralAddress || !evmEphemeralAddress) {
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     const didInputTokenArriveOnPendulum = async () => {
+      if (!quote.metadata.nablaSwap) {
+        throw new Error("MoonbeamToPendulumXcmPhaseHandler: Missing nablaSwap info in quote metadata");
+      }
+
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
-        pendulumEphemeralAddress,
-        inputTokenPendulumDetails.currencyId
+        substrateEphemeralAddress,
+        quote.metadata.nablaSwap.inputCurrencyId
       );
 
       // @ts-ignore
@@ -39,15 +49,15 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
 
         // Check nonce of account
         const txNonce = xcmTransaction.nonce.toNumber();
-        const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(moonbeamEphemeralAddress);
+        const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(evmEphemeralAddress);
         if (txNonce !== accountNonce.toNumber()) {
           logger.current.warn(
-            `Nonce mismatch for XCM transaction of account ${moonbeamEphemeralAddress}: expected ${accountNonce.toNumber()}, got ${txNonce}`
+            `Nonce mismatch for XCM transaction of account ${evmEphemeralAddress}: expected ${accountNonce.toNumber()}, got ${txNonce}`
           );
         }
 
         // TODO verify this works on Moonbeam also. It does not.
-        await submitMoonbeamXcm(moonbeamEphemeralAddress, xcmTransaction);
+        await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
     } catch (e) {
       console.error("Error while executing moonbeam-to-pendulum xcm:", e);

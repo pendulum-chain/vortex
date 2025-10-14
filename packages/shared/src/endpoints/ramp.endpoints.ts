@@ -4,7 +4,6 @@ export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
-  | "timedOut"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -12,11 +11,14 @@ export type RampPhase =
   | "fundEphemeral"
   | "nablaApprove"
   | "nablaSwap"
+  | "hydrationSwap"
+  | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
   | "moonbeamToPendulumXcm"
-  | "pendulumToMoonbeam"
+  | "pendulumToMoonbeamXcm"
+  | "pendulumToHydrationXcm"
   | "assethubToPendulum"
-  | "pendulumToAssethub"
+  | "pendulumToAssethubXcm"
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"
@@ -30,9 +32,15 @@ export type RampPhase =
 
 export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
 
+export enum EphemeralAccountType {
+  Stellar = "Stellar",
+  Substrate = "Substrate",
+  EVM = "EVM"
+}
+
 export interface AccountMeta {
   address: string;
-  network: Networks;
+  type: EphemeralAccountType;
 }
 
 export interface EvmTransactionData {
@@ -89,6 +97,7 @@ export interface RegisterRampRequest {
   additionalData?: {
     walletAddress?: string;
     destinationAddress?: string;
+    moneriumWalletAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;
@@ -113,7 +122,7 @@ export interface UpdateRampRequest {
   additionalData?: {
     squidRouterApproveHash?: string;
     squidRouterSwapHash?: string;
-    assetHubToPendulumHash?: string;
+    assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     [key: string]: unknown;
   };

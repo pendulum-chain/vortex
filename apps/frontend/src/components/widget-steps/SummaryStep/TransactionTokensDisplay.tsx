@@ -88,7 +88,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [isOnramp, rampState?.ramp?.createdAt, executionInput.quote.expiresAt, rampActor.send, quote]);
+  }, [rampActor.send, quote]);
 
   const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
 

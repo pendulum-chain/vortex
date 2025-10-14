@@ -9,7 +9,7 @@
     *   **`UpdateRampRequest`**:
         *   `rampId: string`
         *   `presignedTxs: PresignedTx[]`
-        *   `additionalData?: { squidRouterApproveHash?: string; squidRouterSwapHash?: string; assetHubToPendulumHash?: string; [key: string]: unknown; }` (consistent with data `startRamp` might need)
+        *   `additionalData?: { squidRouterApproveHash?: string; squidRouterSwapHash?: string; assethubToPendulumHash?: string; [key: string]: unknown; }` (consistent with data `startRamp` might need)
     *   **`UpdateRampResponse`**:
         *   `RampProcess` (the updated ramp process object)
 

@@ -5,3 +5,4 @@ export * from "./functions";
 export * from "./networks";
 export * from "./parseNumbers";
 export * from "./signUnsigned";
+export * from "./squidrouter";

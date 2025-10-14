@@ -22,6 +22,8 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   distributeFees: 24,
   failed: 0,
   fundEphemeral: 20,
+  hydrationSwap: 30,
+  hydrationToAssethubXcm: 30,
   initial: 0,
   moneriumOnrampMint: 60,
   moneriumOnrampSelfTransfer: 20,
@@ -29,8 +31,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
   nablaSwap: 24,
-  pendulumToAssethub: 30,
-  pendulumToMoonbeam: 40,
+  pendulumToAssethubXcm: 30,
+  pendulumToHydrationXcm: 30,
+  pendulumToMoonbeamXcm: 40,
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
   squidRouterPay: 60,
@@ -436,7 +439,7 @@ export const ProgressPage = () => {
     fetchRampState();
     const intervalId = setInterval(fetchRampState, 5000);
     intervalRef.current = intervalId;
-  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType]);
+  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType, rampActor.send]);
 
   return (
     <main>

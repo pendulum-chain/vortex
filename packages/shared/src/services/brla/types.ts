@@ -34,11 +34,15 @@ export interface PixKeyData {
   bankName: string;
 }
 
+export type AveniaFeeType = "Markup Fee" | "In Fee" | "Conversion Fee" | "Out Fee" | "Gas Fee";
+
 export interface AveniaQuoteResponse {
   quoteToken: string;
   inputCurrency: string;
   inputPaymentMethod: string;
   inputAmount: string;
+  outputAmount: string;
+  appliedFees: { type: AveniaFeeType; amount: string; currency: string; rebatable: boolean; description: string }[];
 }
 
 export function isValidKYCDocType(value: string): value is AveniaDocumentType {
@@ -74,7 +78,7 @@ export interface PayInQuoteParams {
   outputPaymentMethod: AveniaPaymentMethod;
   inputThirdParty: boolean;
   outputThirdParty: boolean;
-  subAccountId: string;
+  subAccountId?: string;
 }
 
 export enum BlockchainSendMethod {
@@ -85,7 +89,7 @@ export enum BlockchainSendMethod {
 export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
-  subAccountId: string;
+  subAccountId?: string;
 }
 
 export enum AveniaTicketStatus {

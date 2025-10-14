@@ -35,35 +35,6 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Get the appropriate public client based on the input token
-   * Monerium's EUR uses polygon, BRL uses moonbeam
-   * @param state The current ramp state
-   * @returns The appropriate public client
-   */
-  private async getPublicClient(state: RampState): Promise<PublicClient> {
-    try {
-      const quote = await QuoteTicket.findByPk(state.quoteId);
-      if (!quote) {
-        throw new Error(`Quote not found for ramp ${state.id}`);
-      }
-
-      if (quote.inputCurrency === FiatToken.EURC) {
-        return this.polygonClient;
-      } else if (quote.inputCurrency === FiatToken.BRL) {
-        return this.moonbeamClient;
-      } else {
-        logger.info(
-          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
-        );
-        return this.moonbeamClient;
-      }
-    } catch (error) {
-      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
-      return this.moonbeamClient;
-    }
-  }
-
-  /**
    * Execute the phase
    * @param state The current ramp state
    * @returns The updated ramp state
@@ -103,7 +74,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
       // Wait for the approve transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, approveHash, chainId);
+      await this.waitForTransactionConfirmation(state, approveHash);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
@@ -111,7 +82,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Wait for the swap transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, swapHash, chainId);
+      await this.waitForTransactionConfirmation(state, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
 
       // Update the state with the transaction hashes
@@ -128,6 +99,35 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Get the appropriate public client based on the input token
+   * Monerium's EUR uses polygon, BRL uses moonbeam
+   * @param state The current ramp state
+   * @returns The appropriate public client
+   */
+  private async getPublicClient(state: RampState): Promise<PublicClient> {
+    try {
+      const quote = await QuoteTicket.findByPk(state.quoteId);
+      if (!quote) {
+        throw new Error(`Quote not found for ramp ${state.id}`);
+      }
+
+      if (quote.inputCurrency === FiatToken.EURC) {
+        return this.polygonClient;
+      } else if (quote.inputCurrency === FiatToken.BRL) {
+        return this.moonbeamClient;
+      } else {
+        logger.info(
+          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
+        );
+        return this.moonbeamClient;
+      }
+    } catch (error) {
+      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
+      return this.moonbeamClient;
     }
   }
 
@@ -154,9 +154,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * Wait for a transaction to be confirmed with exponential backoff
    * @param state The current ramp state
    * @param txHash The transaction hash
-   * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(state: RampState, txHash: string, _chainId: number): Promise<void> {
+  private async waitForTransactionConfirmation(state: RampState, txHash: string): Promise<void> {
     const maxRetries = 3;
     const baseDelay = 5000; // 5 seconds
     const maxDelay = 30000; // 30 seconds

@@ -1,5 +1,4 @@
-import { ASSETHUB_CHAIN_ID, isNetworkEVM } from "@packages/shared";
-import { Signer } from "@polkadot/types/types";
+import { ASSETHUB_CHAIN_ID, isNetworkEVM, Networks } from "@packages/shared";
 import * as Sentry from "@sentry/react";
 import { useCallback, useEffect, useMemo } from "react";
 import { useAccount, useSignMessage } from "wagmi";
@@ -9,8 +8,10 @@ import { useRampActor } from "../contexts/rampState";
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
-export const useVortexAccount = () => {
-  const { selectedNetwork } = useNetwork();
+export const useVortexAccount = (forceNetwork?: Networks) => {
+  const { selectedNetwork: contextNetwork } = useNetwork();
+  const selectedNetwork = forceNetwork ?? contextNetwork;
+
   const rampActor = useRampActor();
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
   const { chainId: evmChainId, address: evmAccountAddress } = useAccount();
@@ -65,29 +66,30 @@ export const useVortexAccount = () => {
 
   const getMessageSignature = useCallback(
     async (siweMessage: string) => {
-      let signature;
+      // For now, we only always need to sign with EVM accounts
+      const signature = await signMessageAsync({ message: siweMessage });
 
-      if (isNetworkEVM(selectedNetwork)) {
-        signature = await signMessageAsync({ message: siweMessage });
-      } else {
-        if (!polkadotWalletAccount) {
-          throw new Error("getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.");
-        }
-        const signer = polkadotWalletAccount.signer as Signer;
-        if (!signer.signRaw) {
-          throw new Error("Signer does not support raw signing");
-        }
-        const { signature: substrateSignature } = await signer.signRaw({
-          address: polkadotWalletAccount.address,
-          data: siweMessage,
-          type: "payload"
-        });
-        signature = substrateSignature;
-      }
+      // if (isNetworkEVM(selectedNetwork)) {
+      //   signature = await signMessageAsync({ message: siweMessage });
+      // } else {
+      //   if (!polkadotWalletAccount) {
+      //     throw new Error("getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.");
+      //   }
+      //   const signer = polkadotWalletAccount.signer as Signer;
+      //   if (!signer.signRaw) {
+      //     throw new Error("Signer does not support raw signing");
+      //   }
+      //   const { signature: substrateSignature } = await signer.signRaw({
+      //     address: polkadotWalletAccount.address,
+      //     data: siweMessage,
+      //     type: "payload"
+      //   });
+      //   signature = substrateSignature;
+      // }
 
       return signature;
     },
-    [polkadotWalletAccount, selectedNetwork, signMessageAsync]
+    [signMessageAsync]
   );
 
   // update the ramp actor with the current context

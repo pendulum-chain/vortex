@@ -1,5 +1,6 @@
 import ARS from "../assets/coins/ARS.png";
 import BRL from "../assets/coins/BRL.png";
+import DOT_ASSETHUB from "../assets/coins/DOT_ASSETHUB.svg";
 import ETH from "../assets/coins/ETH.svg";
 import ETH_ARBITRUM from "../assets/coins/ETH_ARBITRUM.svg";
 import ETH_BASE from "../assets/coins/ETH_BASE.svg";
@@ -17,6 +18,7 @@ import USDC_ETHEREUM from "../assets/coins/USDC_ETHEREUM.svg";
 import USDC_POLYGON from "../assets/coins/USDC_POLYGON.svg";
 import USDT from "../assets/coins/USDT.svg";
 import USDT_ARBITRUM from "../assets/coins/USDT_ARBITRUM.svg";
+import USDT_ASSETHUB from "../assets/coins/USDT_ASSETHUB.svg";
 import USDT_AVALANCHE from "../assets/coins/USDT_AVALANCHE.svg";
 import USDT_BASE from "../assets/coins/USDT_BASE.svg";
 import USDT_BSC from "../assets/coins/USDT_BSC.svg";
@@ -28,7 +30,9 @@ const ICONS = {
   arbitrumUSDC: USDC_ARBITRUM,
   arbitrumUSDT: USDT_ARBITRUM,
   ars: ARS,
+  assethubDOT: DOT_ASSETHUB,
   assethubUSDC: USDC_ASSETHUB,
+  assethubUSDT: USDT_ASSETHUB,
   avalancheUSDC: USDC_AVALANCHE,
   avalancheUSDT: USDT_AVALANCHE,
   baseETH: ETH_BASE,

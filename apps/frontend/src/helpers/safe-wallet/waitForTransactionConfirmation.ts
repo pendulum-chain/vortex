@@ -1,5 +1,5 @@
 import SafeApiKit from "@safe-global/api-kit";
-import { getChainId, getPublicClient, waitForTransactionReceipt } from "@wagmi/core";
+import { getChainId, getPublicClient } from "@wagmi/core";
 import { Hash, WaitForTransactionReceiptParameters } from "viem";
 
 import { useSafeWalletSignatureStore } from "../../stores/safeWalletSignaturesStore";

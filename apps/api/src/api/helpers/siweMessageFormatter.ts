@@ -8,20 +8,14 @@ interface SignInMessageFields {
 }
 
 class SignInMessage {
-  readonly scheme: string;
-
-  readonly domain: string;
-
-  readonly address: string;
-
-  readonly nonce: string;
-
-  readonly expirationTime: string;
-
-  readonly issuedAt: string;
-
   // fixed statement string
   static readonly LOGIN_MESSAGE = " wants you to sign in with your account: ";
+  readonly scheme: string;
+  readonly domain: string;
+  readonly address: string;
+  readonly nonce: string;
+  readonly expirationTime: string;
+  readonly issuedAt: string;
 
   constructor(fields: SignInMessageFields) {
     this.scheme = fields.scheme;
@@ -30,12 +24,6 @@ class SignInMessage {
     this.nonce = fields.nonce;
     this.expirationTime = new Date(fields.expirationTime).toISOString();
     this.issuedAt = fields.issuedAt ? new Date(fields.issuedAt).toISOString() : new Date().toISOString();
-  }
-
-  toMessage(): string {
-    const header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
-    const body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
-    return `${header}\n\n${body}`;
   }
 
   static fromMessage(message: string): SignInMessage {
@@ -64,6 +52,12 @@ class SignInMessage {
       nonce,
       scheme: "https"
     });
+  }
+
+  toMessage(): string {
+    const header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
+    const body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
+    return `${header}\n\n${body}`;
   }
 }
 

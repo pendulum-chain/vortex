@@ -2,6 +2,7 @@ import Big from "big.js";
 import { Horizon } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { HORIZON_URL } from "../../../../constants/constants";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { StateMetadata } from "../meta-state-types";
 
@@ -11,8 +12,13 @@ import { StateMetadata } from "../meta-state-types";
  */
 export async function verifyStellarPaymentSuccess(state: RampState): Promise<boolean> {
   const stateMetadata = state.state as StateMetadata;
+  const quote = await QuoteTicket.findByPk(state.quoteId);
 
-  const { stellarEphemeralAccountId, stellarTarget, outputAmountBeforeFinalStep } = stateMetadata;
+  const { stellarEphemeralAccountId, stellarTarget } = stateMetadata;
+
+  if (!quote) {
+    throw new Error("Quote not found for the given state");
+  }
 
   if (!stellarEphemeralAccountId) {
     throw new Error("Stellar ephemeral account ID not found in state metadata");
@@ -22,12 +28,12 @@ export async function verifyStellarPaymentSuccess(state: RampState): Promise<boo
     throw new Error("Stellar target information not found in state metadata");
   }
 
-  if (!outputAmountBeforeFinalStep) {
-    throw new Error("Output amount information not found in state metadata");
+  if (!quote.metadata.nablaSwap?.outputAmountDecimal) {
+    throw new Error("Missing output amount in quote metadata for Nabla Swap");
   }
 
   const { stellarTokenDetails } = stellarTarget;
-  const expectedPaymentAmount = new Big(outputAmountBeforeFinalStep.units);
+  const expectedPaymentAmount = new Big(quote.metadata.nablaSwap.outputAmountDecimal);
 
   try {
     logger.info(

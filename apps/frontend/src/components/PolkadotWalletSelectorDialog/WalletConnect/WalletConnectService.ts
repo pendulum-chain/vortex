@@ -1,4 +1,4 @@
-import { Signer, SignerResult } from "@polkadot/types/types";
+import { Signer } from "@polkadot/types/types";
 import { WalletAccount } from "@talismn/connect-wallets";
 import type { SessionTypes } from "@walletconnect/types/dist/types/sign-client/session";
 import UniversalProvider, { UniversalProviderOpts } from "@walletconnect/universal-provider";

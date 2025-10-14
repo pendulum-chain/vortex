@@ -61,8 +61,8 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
   const isAssetHub = networkType === Networks.AssetHub;
 
   if (isAssetHub) {
-    const assetHubTokenEntries = Object.entries(AssetHubToken);
-    const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
+    const assethubTokenEntries = Object.entries(AssetHubToken);
+    const matchedToken = assethubTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
     if (!matchedToken) {
       return AssetHubToken.USDC;
@@ -345,5 +345,17 @@ export const useSetRampUrlParams = () => {
     }
 
     hasInitialized.current = true;
-  }, []);
+  }, [
+    cryptoLocked,
+    fiat,
+    handleFiatToken,
+    inputAmount,
+    onToggle,
+    partnerId,
+    rampDirection,
+    resetRampForm,
+    setInputAmount,
+    setOnChainToken,
+    setPartnerIdFn
+  ]);
 };

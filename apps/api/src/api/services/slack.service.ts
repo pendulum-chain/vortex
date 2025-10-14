@@ -24,15 +24,6 @@ export class SlackNotifier {
     this.messageHistory = new Map();
   }
 
-  private isMessageAllowed(signature: string): boolean {
-    const now = Date.now();
-    const lastSent = this.messageHistory.get(signature);
-
-    if (!lastSent) return true;
-
-    return now - lastSent >= COOLDOWN_PERIOD_MS;
-  }
-
   public async sendMessage(message: SlackMessage): Promise<void> {
     const slackUserId = process.env.SLACK_USER_ID;
 
@@ -62,5 +53,14 @@ export class SlackNotifier {
 
     // Update the timestamp for this message
     this.messageHistory.set(signature, Date.now());
+  }
+
+  private isMessageAllowed(signature: string): boolean {
+    const now = Date.now();
+    const lastSent = this.messageHistory.get(signature);
+
+    if (!lastSent) return true;
+
+    return now - lastSent >= COOLDOWN_PERIOD_MS;
   }
 }

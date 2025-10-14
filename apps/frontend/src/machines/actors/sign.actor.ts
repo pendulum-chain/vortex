@@ -1,4 +1,4 @@
-import { getAddressForFormat, getOnChainTokenDetails, RampDirection } from "@packages/shared";
+import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@packages/shared";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
@@ -31,13 +31,15 @@ export const signTransactionsActor = async ({
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
-    if (!address) {
+    // If a monerium wallet address is provided in the execution input, we use that as the signer address.
+    const signerAddress = executionInput?.moneriumWalletAddress || address;
+    if (!signerAddress) {
       return false;
     }
 
-    return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
-      ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(address, 0)
-      : tx.signer.toLowerCase() === address.toLowerCase();
+    return chainId < 0 && (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub)
+      ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(signerAddress, 0)
+      : tx.signer.toLowerCase() === signerAddress.toLowerCase();
   });
 
   if (!userTxs || userTxs.length === 0) {
@@ -47,7 +49,7 @@ export const signTransactionsActor = async ({
 
   let squidRouterApproveHash: string | undefined = undefined;
   let squidRouterSwapHash: string | undefined = undefined;
-  let assetHubToPendulumHash: string | undefined = undefined;
+  let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampApproveHash: string | undefined = undefined;
 
@@ -90,7 +92,7 @@ export const signTransactionsActor = async ({
           throw new Error("Missing assethubApiComponents. Assethub API is not available.");
         }
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-        assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
+        assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "moneriumOnrampSelfTransfer") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
@@ -113,7 +115,7 @@ export const signTransactionsActor = async ({
   }
 
   const additionalData = {
-    assetHubToPendulumHash,
+    assethubToPendulumHash,
     moneriumOfframpSignature,
     squidRouterApproveHash,
     squidRouterSwapHash
@@ -128,7 +130,7 @@ export const signTransactionsActor = async ({
     ...rampState,
     ramp: updatedRampProcess,
     userSigningMeta: {
-      assetHubToPendulumHash,
+      assethubToPendulumHash,
       moneriumOnrampApproveHash,
       squidRouterApproveHash,
       squidRouterSwapHash
