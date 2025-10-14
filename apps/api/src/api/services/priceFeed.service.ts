@@ -321,8 +321,6 @@ export class PriceFeedService {
     }
   }
 
-  // Helper method to satisfy eslint for 'this' usage
-
   // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
   async checkOnchainOraclePricesUpToDate(): Promise<void> {
     logger.info("Performing onchain oracle prices check...");
