@@ -187,8 +187,8 @@ graph TD
         %% --- Reusable Subgraphs for Common Flows ---
         subgraph AssetHub_Finalization [AssetHub Finalization]
             direction LR
-            AHF_Start{Output Token?} -->|USDC| AHF_to_AH[pendulumToAssethub] --> Z[Complete];
-            AHF_Start -->|DOT/USDT| AHF_to_H[pendulumToHydration] --> AHF_H_Swap[hydrationSwap] --> AHF_H_to_AH[hydrationToAssethub] --> Z;
+            AHF_Start{Output Token?} -->|USDC| AHF_to_AH[pendulumToAssethubXcm] --> Z[Complete];
+            AHF_Start -->|DOT/USDT| AHF_to_H[pendulumToHydrationXcm] --> AHF_H_Swap[hydrationSwap] --> AHF_H_to_AH[hydrationToAssethubXcm] --> Z;
         end
 
         subgraph Pendulum_Swap [Pendulum Swap & Subsidize]
@@ -234,7 +234,8 @@ graph TD
 
     subgraph "Off-Ramp"
         direction LR
-        M_off[Start Off-Ramp] --> N_off{Input Asset Source?};
+        M_off[Start Off-Ramp] --> MN_off[fundEphemeral]
+        MN_off[fundEphemeral] --> N_off{Input Asset Source?};
         N_off -->|EVM| O_off[moonbeamToPendulum];
         N_off -->|AssetHub| P_off[distributeFees_assethub];
         O_off --> Q_off[distributeFees_evm];
