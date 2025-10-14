@@ -291,6 +291,14 @@
       "buy": "Comprar",
       "sell": "Vender"
     },
+    "quoteSummary": {
+      "exchangeDetails": "Detalhes da Troca",
+      "fullTransactionId": "ID Completo da Transação",
+      "hideExchangeDetails": "Ocultar detalhes da troca",
+      "showExchangeDetails": "Mostrar detalhes da troca",
+      "youReceive": "Você Recebe",
+      "youSend": "Você Envia"
+    },
     "RampFollowUpRedirectStep": {
       "afterLink": ".",
       "beforeLink": "Você será redirecionado em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",

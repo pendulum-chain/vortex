@@ -290,6 +290,14 @@
       "buy": "Buy",
       "sell": "Sell"
     },
+    "quoteSummary": {
+      "exchangeDetails": "Exchange Details",
+      "fullTransactionId": "Full Transaction ID",
+      "hideExchangeDetails": "Hide exchange details",
+      "showExchangeDetails": "Show exchange details",
+      "youReceive": "You Receive",
+      "youSend": "You Send"
+    },
     "RampFollowUpRedirectStep": {
       "afterLink": ".",
       "beforeLink": "You will be redirected in {{countdown}}s. If you are not automatically redirected, please click ",
