@@ -20,6 +20,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
@@ -41,6 +42,7 @@ import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumE
 import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -342,6 +344,18 @@ export class RampService extends BaseRampService {
         unsignedTxs: rampState.unsignedTxs,
         updatedAt: rampState.updatedAt.toISOString()
       };
+
+      console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
+      webhookDeliveryService
+        .triggerTransactionCreated(
+          rampState.quoteId,
+          (rampState.state?.sessionId as string) || null,
+          rampState.id,
+          quote.rampType
+        )
+        .catch(error => {
+          logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
+        });
 
       return response;
     });
@@ -729,6 +743,40 @@ export class RampService extends BaseRampService {
     );
 
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
+  }
+
+  private mapPhaseToWebhookStatus(phase: RampPhase): TransactionStatus {
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
+  }
+
+  private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
+    const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
+    const newStatus = this.mapPhaseToWebhookStatus(newPhase);
+
+    if (oldStatus !== newStatus) {
+      webhookDeliveryService
+        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, rampState.id, newPhase, rampState.type)
+        .catch(error => {
+          logger.error(`Error triggering STATUS_CHANGE webhook for ${rampState.id}:`, error);
+        });
+    }
+  }
+
+  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const oldPhase = rampState.currentPhase;
+
+    await super.logPhaseTransition(id, newPhase, metadata);
+
+    if (oldPhase !== newPhase) {
+      await this.notifyStatusChangeIfNeeded(rampState, oldPhase, newPhase);
+    }
   }
 }
 

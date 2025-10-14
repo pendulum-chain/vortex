@@ -6,17 +6,16 @@ dotenv.config({
 });
 
 import { ApiManager, EvmClientManager } from "@packages/shared";
+import cryptoService from "./config/crypto";
 import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
 import { config } from "./config/vars";
 import {
   CLIENT_DOMAIN_SECRET,
-  DEFAULT_POLLING_INTERVAL,
   FUNDING_SECRET,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  PENDULUM_FUNDING_SEED,
-  WEBHOOKS_CACHE_URL
+  PENDULUM_FUNDING_SEED
 } from "./constants/constants";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
@@ -52,6 +51,9 @@ const initializeApp = async () => {
   try {
     // Validate environment variables before starting the server
     validateRequiredEnvVars();
+
+    // Initialize RSA keys for webhook signing
+    cryptoService.initializeKeys();
 
     // Test database connection
     await testDatabaseConnection();
