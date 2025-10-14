@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/20/solid";
-import { QuoteFeeStructure, RampDirection } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
@@ -19,7 +19,7 @@ function calculateInterbankExchangeRate(
   rampType: string,
   inputAmountString: Big.BigSource,
   outputAmountString: Big.BigSource,
-  fee: QuoteFeeStructure
+  totalFeeFiat: string
 ) {
   const inputAmount = Big(inputAmountString);
   const outputAmount = Big(outputAmountString);
@@ -28,9 +28,9 @@ function calculateInterbankExchangeRate(
   let effectiveOutputAmount = outputAmount;
 
   if (rampType === RampDirection.BUY) {
-    effectiveInputAmount = inputAmount.minus(fee.total);
+    effectiveInputAmount = inputAmount.minus(totalFeeFiat);
   } else {
-    effectiveOutputAmount = outputAmount.plus(fee.total);
+    effectiveOutputAmount = outputAmount.plus(totalFeeFiat);
   }
 
   return effectiveInputAmount.gt(0) ? effectiveOutputAmount.div(effectiveInputAmount).toNumber() : 0;
@@ -56,19 +56,18 @@ export function RampFeeCollapse() {
   const quote = availableQuote
     ? availableQuote
     : {
-        fee: {
-          anchor: "0",
-          currency: fiatToken,
-          network: "0",
-          partnerMarkup: "0",
-          total: "0",
-          vortex: "0"
-        },
+        anchorFeeFiat: "0",
+        feeCurrency: fiatToken,
         inputAmount: 0,
         inputCurrency: rampDirection === RampDirection.BUY ? fiatToken : onChainToken,
+        networkFeeFiat: "0",
         outputAmount: 0,
         outputCurrency: rampDirection === RampDirection.BUY ? onChainToken : fiatToken,
-        rampType: RampDirection.BUY
+        partnerFeeFiat: "0",
+        processingFeeFiat: "0",
+        rampType: RampDirection.BUY,
+        totalFeeFiat: "0",
+        vortexFeeFiat: "0"
       };
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
@@ -77,28 +76,27 @@ export function RampFeeCollapse() {
     quote.rampType,
     quote.inputAmount,
     quote.outputAmount,
-    quote.fee
+    quote.totalFeeFiat || "0"
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
 
   // Generate fee items for display
   const feeItems: FeeItem[] = [];
 
-  // Combine Vortex, Anchor, and Partner Markup fees into a single processing fee
-  const processingFee = Big(quote.fee.vortex).plus(quote.fee.anchor).plus(quote.fee.partnerMarkup);
-  if (processingFee.gt(0)) {
+  // Use the pre-calculated processing fee from the API
+  if (Big(quote.processingFeeFiat || "0").gt(0)) {
     feeItems.push({
       label: t("components.feeCollapse.processingFee.label"),
       tooltip: t("components.feeCollapse.processingFee.tooltip"),
-      value: `${processingFee.toFixed(2)} ${quote.fee.currency.toUpperCase()}`
+      value: `${Big(quote.processingFeeFiat).toFixed(2)} ${(quote.feeCurrency || fiatToken).toUpperCase()}`
     });
   }
 
-  if (Big(quote.fee.network).gt(0)) {
+  if (Big(quote.networkFeeFiat || "0").gt(0)) {
     feeItems.push({
       label: t("components.feeCollapse.networkFee.label"),
       tooltip: t("components.feeCollapse.networkFee.tooltip"),
-      value: `${Big(quote.fee.network).toFixed(2)} ${quote.fee.currency.toUpperCase()}`
+      value: `${Big(quote.networkFeeFiat).toFixed(2)} ${(quote.feeCurrency || fiatToken).toUpperCase()}`
     });
   }
 
@@ -136,7 +134,7 @@ export function RampFeeCollapse() {
             <strong className="font-bold">{t("components.feeCollapse.totalFee")}</strong>
             <div className="flex">
               <span>
-                {quote.fee.total} {quote.fee.currency.toUpperCase()}
+                {quote.totalFeeFiat} {(quote.feeCurrency || fiatToken).toUpperCase()}
               </span>
             </div>
           </div>
