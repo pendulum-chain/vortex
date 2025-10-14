@@ -14,7 +14,6 @@ export async function createHydrationToAssethubTransfer(
   });
 
   const info = await transaction.senderAddress("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY").getXcmFeeEstimate();
-  console.log("info :", info);
 
   const destinationAmountRaw = info.destination.fee.toString();
   // The destination fee is always in AssetHub DOT which has 10 decimals

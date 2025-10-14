@@ -20,9 +20,6 @@ export async function dryRunExtrinsic(extrinsic: Extrinsic, network: SubstrateAp
   // This is required because the dryRunCall expects the extrinsic without the length prefix.
   const extrinsicHexWithoutLength = "0x" + extrinsic.toHex().slice(8);
 
-  console.log("Extrinsic Hex Without Length:", extrinsicHexWithoutLength);
-  console.log("Extrinsic hex:", extrinsic.toHex());
-
   // The dryRunApi is a runtime call, so we use api.call.
   const dryRunResult =
     network === "moonbeam"

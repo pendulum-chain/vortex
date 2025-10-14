@@ -13,7 +13,7 @@
     "@polkadot/api-derive": "catalog:",
     "@polkadot/extension-dapp": "^0.53.1",
     "@polkadot/extension-inject": "^0.53.1",
-    "@polkadot/keyring": "^13.1.1",
+    "@polkadot/keyring": "catalog:",
     "@polkadot/rpc-augment": "catalog:",
     "@polkadot/rpc-core": "catalog:",
     "@polkadot/rpc-provider": "catalog:",

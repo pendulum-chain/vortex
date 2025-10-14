@@ -67,8 +67,6 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
   const getMessageSignature = useCallback(
     async (siweMessage: string) => {
       // For now, we only always need to sign with EVM accounts
-
-      console.log("In getMessageSignature, signing SIWE message:", siweMessage);
       const signature = await signMessageAsync({ message: siweMessage });
 
       // if (isNetworkEVM(selectedNetwork)) {
