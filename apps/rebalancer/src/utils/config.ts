@@ -1,7 +1,6 @@
-import { createEvmClientsAndConfig } from "@packages/shared";
+import { EvmClientManager, Networks } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { mnemonicToAccount } from "viem/accounts";
-import { moonbeam, polygon } from "viem/chains";
 
 export function getConfig() {
   if (!process.env.PENDULUM_ACCOUNT_SECRET) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");
@@ -33,12 +32,20 @@ export function getMoonbeamEvmClients() {
   const config = getConfig();
 
   const moonbeamExecutorAccount = mnemonicToAccount(config.moonbeamAccountSecret as `0x${string}`);
-  return createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
+  const evmClientManager = EvmClientManager.getInstance();
+  return {
+    publicClient: evmClientManager.getClient(Networks.Moonbeam),
+    walletClient: evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount)
+  };
 }
 
 export function getPolygonEvmClients() {
   const config = getConfig();
 
   const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
-  return createEvmClientsAndConfig(polygonExecutorAccount, polygon);
+  const evmClientManager = EvmClientManager.getInstance();
+  return {
+    publicClient: evmClientManager.getClient(Networks.Polygon),
+    walletClient: evmClientManager.getWalletClient(Networks.Polygon, polygonExecutorAccount)
+  };
 }
