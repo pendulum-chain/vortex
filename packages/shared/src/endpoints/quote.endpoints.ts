@@ -1,4 +1,4 @@
-import { DestinationType, RampCurrency, RampDirection } from "../index";
+import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection } from "../index";
 
 // Fee structure
 export interface QuoteFeeStructure {
@@ -19,6 +19,10 @@ export interface CreateQuoteRequest {
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
   partnerId?: string; // Optional partner name for fee markup (not UUID)
+  paymentMethod?: PaymentMethod;
+  countryCode?: string;
+  network?: Networks;
+  sessionId?: string;
 }
 
 export interface QuoteResponse {
@@ -30,8 +34,26 @@ export interface QuoteResponse {
   outputAmount: string;
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
-  fee: QuoteFeeStructure;
+
+  // Flattened fees (Fiat)
+  networkFeeFiat: string;
+  anchorFeeFiat: string;
+  vortexFeeFiat: string;
+  partnerFeeFiat: string;
+  totalFeeFiat: string;
+  processingFeeFiat: string; // anchor + vortex
+  feeCurrency: RampCurrency;
+
+  // Flattened fees (USD)
+  networkFeeUsd: string;
+  anchorFeeUsd: string;
+  vortexFeeUsd: string;
+  partnerFeeUsd: string;
+  totalFeeUsd: string;
+  processingFeeUsd: string;
+
   expiresAt: Date;
+  sessionId?: string;
 }
 
 // GET /quotes/:id
