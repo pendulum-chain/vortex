@@ -29,7 +29,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: moonbeam,
       name: Networks.Moonbeam,
-      rpcUrl: apiKey ? `https://moonbeam-mainnet.g.alchemy.com/v2/${apiKey}` : MOONBEAM_WSS
+      rpcUrl: apiKey ? `https://moonbeam-mainnet.g.alchemy.com/v2/${apiKey}` : undefined
     },
     {
       chain: arbitrum,
@@ -87,11 +87,7 @@ export class EvmClientManager {
   private createClient(networkName: EvmNetworks): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
-    const transport = network.rpcUrl
-      ? network.name === Networks.Moonbeam
-        ? webSocket(MOONBEAM_WSS)
-        : http(network.rpcUrl)
-      : http();
+    const transport = network.rpcUrl ? http(network.rpcUrl) : http();
 
     const client = createPublicClient({
       chain: network.chain,
