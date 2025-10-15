@@ -224,6 +224,15 @@ export class QuoteService extends BaseRampService {
         vortex: "0"
       };
 
+      const usdFeeStructure = {
+        anchor: "0",
+        currency: "USD",
+        network: "0",
+        partnerMarkup: "0",
+        total: "0",
+        vortex: "0"
+      };
+
       const quote = await QuoteTicket.create({
         countryCode: request.countryCode || null,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -232,7 +241,7 @@ export class QuoteService extends BaseRampService {
         id: uuidv4(),
         inputAmount: request.inputAmount,
         inputCurrency: request.inputCurrency,
-        metadata: { sessionId: request.sessionId } as QuoteTicketMetadata,
+        metadata: { sessionId: request.sessionId, usdFeeStructure } as QuoteTicketMetadata,
         network: request.network || null,
         outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
