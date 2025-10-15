@@ -54,6 +54,11 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       return currentBalance.gt(Big(0));
     };
 
+    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+    const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
+
     const isHashRegisteredInSplitReceiver = async () => {
       const result = (await publicClient.readContract({
         abi: splitReceiverABI,
@@ -64,11 +69,6 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
 
       return result > 0n;
     };
-
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const evmClientManager = EvmClientManager.getInstance();
-    const publicClient = evmClientManager.getClient(Networks.Moonbeam);
-    const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
