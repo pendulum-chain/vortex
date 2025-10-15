@@ -10,7 +10,6 @@
       },
       "devDependencies": {
         "@biomejs/biome": "2.0.0",
-        "@socketsecurity/bun-security-scanner": "^1.1.0",
         "concurrently": "^9.1.2",
         "typescript": "catalog:",
       },
@@ -1219,8 +1218,6 @@
     "@smithy/util-utf8": ["@smithy/util-utf8@4.0.0", "", { "dependencies": { "@smithy/util-buffer-from": "^4.0.0", "tslib": "^2.6.2" } }, "sha512-b+zebfKCfRdgNJDknHCob3O7FpeYQN6ZG6YLExMcasDHsCXlsXCEuiPZeLnJLpwa5dvPetGlnGCiMHuLwGvFow=="],
 
     "@socket.io/component-emitter": ["@socket.io/component-emitter@3.1.2", "", {}, "sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA=="],
-
-    "@socketsecurity/bun-security-scanner": ["@socketsecurity/bun-security-scanner@1.1.0", "", {}, "sha512-kbZubfWPJzjohHBJjbT/vNRWh8y2hPnHjU3Qv5jxjZN0UvwetsJrfivixRwVZ+kZvIskkijXZTcyk0duYw/8WQ=="],
 
     "@spruceid/siwe-parser": ["@spruceid/siwe-parser@2.1.2", "", { "dependencies": { "@noble/hashes": "^1.1.2", "apg-js": "^4.3.0", "uri-js": "^4.4.1", "valid-url": "^1.0.9" } }, "sha512-d/r3S1LwJyMaRAKQ0awmo9whfXeE88Qt00vRj91q5uv5ATtWIQEGJ67Yr5eSZw5zp1/fZCXZYuEckt8lSkereQ=="],
 

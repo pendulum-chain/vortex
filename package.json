@@ -35,7 +35,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
-    "@socketsecurity/bun-security-scanner": "^1.1.0",
     "concurrently": "^9.1.2",
     "typescript": "catalog:"
   },
