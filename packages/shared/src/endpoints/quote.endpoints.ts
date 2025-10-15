@@ -21,7 +21,7 @@ export interface CreateQuoteRequest {
   partnerId?: string; // Optional partner name for fee markup (not UUID)
   paymentMethod?: PaymentMethod;
   countryCode?: string;
-  network?: Networks;
+  network: Networks;
   sessionId?: string;
 }
 

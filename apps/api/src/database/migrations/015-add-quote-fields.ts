@@ -12,7 +12,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   await queryInterface.addColumn("quote_tickets", "network", {
-    allowNull: true,
+    allowNull: false,
     type: DataTypes.STRING(20)
   });
 }

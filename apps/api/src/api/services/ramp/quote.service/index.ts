@@ -77,6 +77,13 @@ async function calculateInputAmountForNablaSwap(
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
+    if (!request.network) {
+      throw new APIError({
+        message: "Network is required",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     // Derive from/to if countryCode and network provided
     let { from, to } = request;
     if (request.countryCode && request.network) {
@@ -242,7 +249,7 @@ export class QuoteService extends BaseRampService {
         inputAmount: request.inputAmount,
         inputCurrency: request.inputCurrency,
         metadata: { sessionId: request.sessionId, usdFeeStructure } as QuoteTicketMetadata,
-        network: request.network || null,
+        network: request.network,
         outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
         partnerId: partner?.id || null,
@@ -524,7 +531,7 @@ export class QuoteService extends BaseRampService {
         subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
-      network: request.network || null,
+      network: request.network,
       outputAmount: finalNetOutputAmountStr,
       outputCurrency: request.outputCurrency,
       partnerId: partner?.id || null,

@@ -19,7 +19,7 @@ export interface QuoteTicketAttributes {
   metadata: QuoteTicketMetadata;
   paymentMethod: PaymentMethod | null;
   countryCode: string | null;
-  network: Networks | null;
+  network: Networks;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -75,7 +75,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare countryCode: string | null;
 
-  declare network: Networks | null;
+  declare network: Networks;
 
   declare createdAt: Date;
 
@@ -130,7 +130,7 @@ QuoteTicket.init(
       type: DataTypes.JSONB
     },
     network: {
-      allowNull: true,
+      allowNull: false,
       type: DataTypes.STRING(20)
     },
     outputAmount: {
