@@ -41,6 +41,7 @@ async function runBrlOfframpExample() {
       from: Networks.Polygon,
       inputAmount: "1",
       inputCurrency: EvmToken.USDC,
+      network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
       rampType: RampDirection.SELL,
       to: "pix" as const

@@ -221,6 +221,7 @@ describe("PhaseProcessor Integration Test", () => {
         from: QUOTE_FROM as DestinationType,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
+        network: Networks.Ethereum, // Offramp from EVM network
         outputCurrency: TEST_OUTPUT_CURRENCY,
         rampType: RampDirection.SELL,
         to: QUOTE_TO
