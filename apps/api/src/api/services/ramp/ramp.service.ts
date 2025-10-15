@@ -353,10 +353,12 @@ export class RampService extends BaseRampService {
         id: rampState.id,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
+        walletAddress: rampState.state.walletAddress
       };
 
       console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
@@ -442,10 +444,12 @@ export class RampService extends BaseRampService {
         id: rampState.id,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        walletAddress: rampState.state.walletAddress
       };
 
       return response;
