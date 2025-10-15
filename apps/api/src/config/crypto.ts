@@ -25,18 +25,22 @@ export class CryptoService {
   public initializeKeys(): void {
     try {
       const privateKeyPem = process.env.WEBHOOK_PRIVATE_KEY;
-      const publicKeyPem = process.env.WEBHOOK_PUBLIC_KEY;
 
-      if (privateKeyPem && publicKeyPem) {
+      if (privateKeyPem) {
+        const publicKey = crypto.createPublicKey(privateKeyPem).export({
+          format: "pem",
+          type: "spki"
+        });
+
         this.keyPair = {
           privateKey: privateKeyPem,
-          publicKey: publicKeyPem
+          publicKey: publicKey.toString()
         };
-        logger.info("RSA keys loaded from environment variables");
+        logger.info("RSA keys loaded from environment (public key derived from private)");
         return;
       }
 
-      logger.warn("RSA keys not found in environment, generating new key pair");
+      logger.warn("RSA private key not found in environment, generating new key pair");
       this.generateKeyPair();
     } catch (error) {
       logger.error("Failed to initialize RSA keys:", error);

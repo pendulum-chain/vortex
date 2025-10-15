@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { mock } from 'bun:test';
-import { WebhookDeliveryService } from '../webhook-delivery.service';
-import { RampDirection, WebhookEventType } from '@packages/shared';
+import {afterEach, beforeEach, describe, expect, it, mock} from 'bun:test';
+import {WebhookDeliveryService} from '../webhook-delivery.service';
+import {RampDirection, WebhookEventType} from '@packages/shared';
 
 // Mock factory functions
 const createMockWebhook = (overrides: Partial<any> = {}) => ({
@@ -138,6 +137,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerTransactionCreated(
         'tx-123',
         'session-456',
+        'tx-id',
         RampDirection.BUY
       );
 
@@ -174,6 +174,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerTransactionCreated(
         'tx-123',
         'session-456',
+      'tx-id',
         RampDirection.BUY
       );
 
@@ -200,6 +201,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerTransactionCreated(
         'tx-123',
         'session-456',
+        'tx-id',
         RampDirection.BUY
       );
 
@@ -232,6 +234,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerStatusChange(
         'tx-123',
         'session-456',
+        'tx-id',
         'complete',
         RampDirection.SELL
       );
@@ -276,6 +279,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerStatusChange(
         'tx-123',
         'session-456',
+        'tx-id',
         'failed',
         RampDirection.BUY
       );
@@ -307,6 +311,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerStatusChange(
         'tx-123',
         'session-456',
+        'tx-id',
         'timedOut',
         RampDirection.BUY
       );
@@ -338,6 +343,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerStatusChange(
         'tx-123',
         'session-456',
+        'tx-id',
         'someOtherPhase',
         RampDirection.BUY
       );
@@ -356,6 +362,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerStatusChange(
         'tx-123',
         'session-456',
+        'tx-id',
         'complete',
         RampDirection.SELL
       );
@@ -392,6 +399,7 @@ describe('WebhookDeliveryService', () => {
       await webhookDeliveryService.triggerTransactionCreated(
         'tx-123',
         'session-456',
+        'tx-id',
         RampDirection.BUY
       );
 
@@ -430,6 +438,7 @@ describe('WebhookDeliveryService', () => {
       await expect(webhookDeliveryService.triggerTransactionCreated(
         'tx-123',
         'session-456',
+        'tx-id',
         RampDirection.BUY
       )).resolves.toBeUndefined();
 

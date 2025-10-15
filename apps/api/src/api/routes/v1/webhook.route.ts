@@ -4,7 +4,7 @@ import * as webhookController from "../../controllers/webhook.controller";
 const router = Router();
 
 /**
- * @api {post} v1/webhooks/register Register webhook
+ * @api {post} v1/webhook Register webhook
  * @apiDescription Register a new webhook for transaction or session events
  * @apiVersion 1.0.0
  * @apiName RegisterWebhook
@@ -31,7 +31,7 @@ const router = Router();
 router.post("/", webhookController.registerWebhook);
 
 /**
- * @api {delete} v1/webhooks/:id Delete webhook
+ * @api {delete} v1/webhook/:id Delete webhook
  * @apiDescription Delete a webhook subscription
  * @apiVersion 1.0.0
  * @apiName DeleteWebhook

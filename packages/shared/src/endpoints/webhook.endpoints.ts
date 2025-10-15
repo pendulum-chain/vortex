@@ -40,6 +40,7 @@ export interface DeleteWebhookResponse {
 export interface WebhookPayloadBase {
   quoteId: string;
   sessionId: string | null;
+  transactionId: string;
   transactionStatus: TransactionStatus;
   transactionType: RampDirection;
 }
