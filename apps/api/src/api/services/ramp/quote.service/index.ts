@@ -1,6 +1,7 @@
 import {
   CreateQuoteRequest,
   createGenericRouteParams,
+  deriveFromTo,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
@@ -8,6 +9,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getPaymentMethodFromDestinations,
   getPendulumDetails,
   getRoute,
   isAssetHubTokenDetails,
@@ -28,7 +30,6 @@ import logger from "../../../../config/logger";
 import Partner from "../../../../models/partner.model";
 import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
 import { APIError } from "../../../errors/api-error";
-import { deriveFromTo } from "../../../helpers/payment-method-mapper";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 import { BaseRampService } from "../base.service";
@@ -240,6 +241,8 @@ export class QuoteService extends BaseRampService {
         vortex: "0"
       };
 
+      const paymentMethod = getPaymentMethodFromDestinations(from, to);
+
       const quote = await QuoteTicket.create({
         countryCode: request.countryCode || null,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -253,7 +256,7 @@ export class QuoteService extends BaseRampService {
         outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
         outputCurrency: request.outputCurrency,
         partnerId: partner?.id || null,
-        paymentMethod: request.paymentMethod || null,
+        paymentMethod,
         rampType: request.rampType,
         status: "pending",
         to
@@ -274,6 +277,7 @@ export class QuoteService extends BaseRampService {
         outputCurrency: quote.outputCurrency,
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
+        paymentMethod: quote.paymentMethod,
         processingFeeFiat: "0",
         processingFeeUsd: "0",
         rampType: quote.rampType,
@@ -514,6 +518,8 @@ export class QuoteService extends BaseRampService {
     const offrampAmountBeforeAnchorFees =
       request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
+    const paymentMethod = getPaymentMethodFromDestinations(from, to);
+
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
       countryCode: request.countryCode || null,
@@ -535,7 +541,7 @@ export class QuoteService extends BaseRampService {
       outputAmount: finalNetOutputAmountStr,
       outputCurrency: request.outputCurrency,
       partnerId: partner?.id || null,
-      paymentMethod: request.paymentMethod || null,
+      paymentMethod,
       rampType: request.rampType,
       status: "pending",
       to
@@ -560,6 +566,7 @@ export class QuoteService extends BaseRampService {
       outputCurrency: quote.outputCurrency,
       partnerFeeFiat: trimTrailingZeros(partnerMarkupFeeFiat),
       partnerFeeUsd: trimTrailingZeros(partnerMarkupFeeUsd),
+      paymentMethod: quote.paymentMethod,
       processingFeeFiat: trimTrailingZeros(processingFeeFiat),
       processingFeeUsd: trimTrailingZeros(processingFeeUsd),
       rampType: quote.rampType,
@@ -600,6 +607,7 @@ export class QuoteService extends BaseRampService {
       outputCurrency: quote.outputCurrency,
       partnerFeeFiat: trimTrailingZeros(quote.fee.partnerMarkup),
       partnerFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.partnerMarkup),
+      paymentMethod: quote.paymentMethod,
       processingFeeFiat: trimTrailingZeros(processingFeeFiat),
       processingFeeUsd: trimTrailingZeros(processingFeeUsd),
       rampType: quote.rampType,

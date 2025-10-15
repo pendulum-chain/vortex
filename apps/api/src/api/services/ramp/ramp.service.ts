@@ -321,6 +321,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState({
         currentPhase: "initial" as RampPhase,
         from: quote.from,
+        paymentMethod: quote.paymentMethod,
         postCompleteState: {
           cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null }
         },
@@ -350,6 +351,7 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         to: rampState.to,
         type: rampState.type,
@@ -438,6 +440,7 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         to: rampState.to,
         type: rampState.type,
@@ -501,6 +504,7 @@ export class RampService extends BaseRampService {
         currentPhase: rampState.currentPhase,
         from: rampState.from,
         id: rampState.id,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         to: rampState.to,
         type: rampState.type,
@@ -554,7 +558,7 @@ export class RampService extends BaseRampService {
       outputAmount: quote.outputAmount,
       partnerFeeFiat: quote.fee.partnerMarkup,
       partnerFeeUsd: quote.metadata.usdFeeStructure.partnerMarkup,
-      paymentMethod: quote.paymentMethod ?? undefined,
+      paymentMethod: rampState.paymentMethod,
       processingFeeFiat,
       processingFeeUsd,
       quoteId: rampState.quoteId,

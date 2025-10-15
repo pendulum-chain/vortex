@@ -52,6 +52,7 @@ export interface QuoteResponse {
   totalFeeUsd: string;
   processingFeeUsd: string;
 
+  paymentMethod: PaymentMethod;
   expiresAt: Date;
   sessionId?: string;
 }

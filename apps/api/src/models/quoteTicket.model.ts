@@ -17,7 +17,7 @@ export interface QuoteTicketAttributes {
   expiresAt: Date;
   status: "pending" | "consumed" | "expired";
   metadata: QuoteTicketMetadata;
-  paymentMethod: PaymentMethod | null;
+  paymentMethod: PaymentMethod;
   countryCode: string | null;
   network: Networks;
   createdAt: Date;
@@ -71,7 +71,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare metadata: QuoteTicketMetadata;
 
-  declare paymentMethod: PaymentMethod | null;
+  declare paymentMethod: PaymentMethod;
 
   declare countryCode: string | null;
 
@@ -155,7 +155,7 @@ QuoteTicket.init(
       type: DataTypes.UUID
     },
     paymentMethod: {
-      allowNull: true,
+      allowNull: false,
       field: "payment_method",
       type: DataTypes.STRING(20)
     },

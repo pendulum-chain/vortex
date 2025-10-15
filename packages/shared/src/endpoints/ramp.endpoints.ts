@@ -136,7 +136,7 @@ export interface RampProcess {
   unsignedTxs?: UnsignedTx[];
   depositQrCode?: string;
   ibanPaymentData?: IbanPaymentData;
-  paymentMethod?: PaymentMethod;
+  paymentMethod: PaymentMethod;
   sessionId?: string;
   walletAddress?: string;
   inputAmount?: string;
