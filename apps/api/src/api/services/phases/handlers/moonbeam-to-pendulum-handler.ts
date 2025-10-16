@@ -1,8 +1,8 @@
-import { ApiManager, createEvmClientsAndConfig, encodePayload, RampPhase, waitUntilTrue } from "@packages/shared";
+import { ApiManager, EvmClientManager, encodePayload, Networks, RampPhase, waitUntilTrue } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
-import { readContract } from "@wagmi/core";
+
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -54,20 +54,20 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       return currentBalance.gt(Big(0));
     };
 
+    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(Networks.Moonbeam);
+
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = (await readContract(evmConfig, {
+      const result = (await publicClient.readContract({
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
-        chainId: moonbeam.id,
         functionName: "xcmDataMapping"
       })) as bigint;
 
       return result > 0n;
     };
-
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, publicClient, evmConfig } = createEvmClientsAndConfig(moonbeamExecutorAccount, moonbeam);
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
@@ -89,7 +89,9 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           });
 
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-          obtainedHash = await walletClient.sendTransaction({
+
+          // blind retry for transaction submission
+          obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
             data,
             maxFeePerGas,
             maxPriorityFeePerGas,
