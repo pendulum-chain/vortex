@@ -25,7 +25,7 @@ export const createQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, sessionId } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
 
     const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
@@ -45,7 +45,6 @@ export const createQuote = async (
       outputCurrency,
       partnerId,
       rampType,
-      sessionId,
       to
     });
 
