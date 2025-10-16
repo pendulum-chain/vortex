@@ -295,17 +295,6 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Validate sessionId if both quote and request have it
-      const requestSessionId = additionalData?.sessionId;
-      const quoteSessionId = quote.metadata.sessionId;
-
-      if (requestSessionId && quoteSessionId && requestSessionId !== quoteSessionId) {
-        throw new APIError({
-          message: `SessionId mismatch. Quote has sessionId '${quoteSessionId}' but request provided '${requestSessionId}'`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
