@@ -22,7 +22,6 @@ export interface CreateQuoteRequest {
   paymentMethod?: PaymentMethod;
   countryCode?: string;
   network: Networks;
-  sessionId?: string;
 }
 
 export interface QuoteResponse {

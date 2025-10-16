@@ -57,7 +57,7 @@
     "aveniaSwapField": {
       "cpfOrCnpj": "CPF o CNPJ",
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "disclaimerOnramp": "O CPF e o endereço da carteira devem pertencer a <1>você</1>.",
       "pixKey": "Chave Pix",
       "placeholder": "Digite seu {{label}}",
       "walletAddress": "Endereço da Carteira"
@@ -392,6 +392,11 @@
         "taxId": {
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
+        },
+        "walletAddress": {
+          "formatEvm": "Endereço de carteira EVM inválido",
+          "formatSubstrate": "Endereço de carteira Polkadot inválido",
+          "required": "Endereço de carteira é obrigatório"
         }
       }
     },

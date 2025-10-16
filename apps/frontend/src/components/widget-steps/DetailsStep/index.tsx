@@ -47,16 +47,19 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const pixId = usePixId();
   const quote = useQuote();
 
-  const walletForm = walletLockedFromState || address || undefined;
   const { form } = useRampForm({
     pixId,
     taxId,
-    walletAddress: walletForm
+    walletAddress: walletLockedFromState || address || undefined
   });
 
   useEffect(() => {
-    form.setValue("walletAddress", walletForm);
-  }, [walletForm, form]);
+    if (walletLockedFromState) {
+      form.setValue("walletAddress", walletLockedFromState);
+    } else if (address) {
+      form.setValue("walletAddress", address);
+    }
+  }, [address, form, walletLockedFromState]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -68,9 +71,14 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   };
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
-  const canSkipConnection = quote?.from === "pix" && walletLockedFromState;
+  const canSkipConnection = quote?.from === "pix" || walletLockedFromState;
 
   const handleFormSubmit = (data: FormData) => {
+    rampActor.send({
+      address: data.walletAddress,
+      type: "SET_ADDRESS"
+    });
+
     onRampConfirm(data);
   };
 
