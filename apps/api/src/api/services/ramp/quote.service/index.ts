@@ -281,7 +281,6 @@ export class QuoteService extends BaseRampService {
         processingFeeFiat: "0",
         processingFeeUsd: "0",
         rampType: quote.rampType,
-        sessionId: request.sessionId,
         to: quote.to,
         totalFeeFiat: "0",
         totalFeeUsd: "0",
@@ -533,7 +532,6 @@ export class QuoteService extends BaseRampService {
         inputAmountForNablaSwapDecimal: inputAmountForNablaSwap.toFixed(undefined, 0),
         offrampAmountBeforeAnchorFees,
         onrampOutputAmountMoonbeamRaw,
-        sessionId: request.sessionId,
         subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
@@ -570,7 +568,6 @@ export class QuoteService extends BaseRampService {
       processingFeeFiat: trimTrailingZeros(processingFeeFiat),
       processingFeeUsd: trimTrailingZeros(processingFeeUsd),
       rampType: quote.rampType,
-      sessionId: request.sessionId,
       to: quote.to,
       totalFeeFiat: trimTrailingZeros(totalFeeFiat),
       totalFeeUsd: trimTrailingZeros(totalFeeUsd),

@@ -13,7 +13,7 @@ interface CopyButtonProps {
 }
 
 const getButtonClasses = (noBorder: boolean, className: string) => {
-  const baseClasses = "btn m-0 inline-flex items-center break-all rounded transition-colors";
+  const baseClasses = "btn m-0 inline-flex items-center break-all rounded transition-colors, h-fit!";
   const borderClasses = noBorder
     ? "border-none bg-transparent hover:bg-gray-100"
     : "border-gray-200 bg-gray-50 hover:bg-gray-100";

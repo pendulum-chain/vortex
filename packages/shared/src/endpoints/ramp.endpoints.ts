@@ -137,6 +137,8 @@ export interface RampProcess {
   depositQrCode?: string;
   ibanPaymentData?: IbanPaymentData;
   paymentMethod: PaymentMethod;
+  network?: Networks;
+  countryCode?: string;
   sessionId?: string;
   walletAddress?: string;
   inputAmount?: string;

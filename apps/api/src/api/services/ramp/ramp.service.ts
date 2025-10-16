@@ -551,6 +551,7 @@ export class RampService extends BaseRampService {
     const response: GetRampStatusResponse = {
       anchorFeeFiat: quote.fee.anchor,
       anchorFeeUsd: quote.metadata.usdFeeStructure.anchor,
+      countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase: rampState.currentPhase,
       depositQrCode: rampState.state.depositQrCode,
@@ -559,6 +560,7 @@ export class RampService extends BaseRampService {
       ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
       inputAmount: quote.inputAmount,
+      network: quote.network,
       networkFeeFiat: quote.fee.network,
       networkFeeUsd: quote.metadata.usdFeeStructure.network,
       outputAmount: quote.outputAmount,
@@ -577,7 +579,7 @@ export class RampService extends BaseRampService {
       updatedAt: rampState.updatedAt.toISOString(),
       vortexFeeFiat: quote.fee.vortex,
       vortexFeeUsd: quote.metadata.usdFeeStructure.vortex,
-      walletAddress: rampState.state.walletAddress,
+      walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
       ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
     };
 

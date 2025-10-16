@@ -13,7 +13,7 @@ import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { GetMessageSignatureCallback, RampContext, RampMachineActor, RampState } from "./types";
+import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
@@ -231,6 +231,13 @@ export const rampMachine = setup({
         initializeFailedMessage: ({ event }) => event.message
       })
     },
+    SET_QUOTE_PARAMS: {
+      actions: assign({
+        callbackUrl: ({ event }) => event.callbackUrl,
+        partnerId: ({ event }) => event.partnerId,
+        walletLocked: ({ event }) => event.walletLocked
+      })
+    },
     SET_SUBSTRATE_WALLET_ACCOUNT: {
       actions: assign({
         substrateWalletAccount: ({ event }) => event.walletAccount
@@ -264,13 +271,6 @@ export const rampMachine = setup({
             quoteLocked: ({ event }) => event.lock
           }),
           target: "LoadingQuote"
-        },
-        SET_QUOTE_PARAMS: {
-          actions: assign({
-            callbackUrl: ({ event }) => event.callbackUrl,
-            partnerId: ({ event }) => event.partnerId,
-            walletLocked: ({ event }) => event.walletLocked
-          })
         }
       }
     },
