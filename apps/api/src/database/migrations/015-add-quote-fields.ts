@@ -2,7 +2,7 @@ import { DataTypes, QueryInterface } from "sequelize";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addColumn("quote_tickets", "payment_method", {
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.STRING(20)
   });
 
@@ -12,7 +12,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   await queryInterface.addColumn("quote_tickets", "network", {
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.STRING(20)
   });
 }
