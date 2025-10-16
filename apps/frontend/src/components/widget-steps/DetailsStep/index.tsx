@@ -71,7 +71,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   };
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
-  const canSkipConnection = quote?.from === "pix" || walletLockedFromState;
+  const canSkipConnection = quote?.from === "pix";
 
   const handleFormSubmit = (data: FormData) => {
     rampActor.send({
