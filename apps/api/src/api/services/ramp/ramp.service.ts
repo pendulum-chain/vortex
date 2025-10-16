@@ -340,9 +340,12 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
@@ -431,9 +434,12 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
@@ -495,14 +501,21 @@ export class RampService extends BaseRampService {
       const response: StartRampResponse = {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
+        depositQrCode: rampState.state.depositQrCode,
         from: rampState.from,
+        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
+        walletAddress: rampState.state.walletAddress
       };
 
       return response;
