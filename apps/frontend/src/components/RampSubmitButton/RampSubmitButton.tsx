@@ -2,6 +2,7 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   FiatToken,
   FiatTokenDetails,
+  getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   RampDirection,
@@ -12,6 +13,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
@@ -27,19 +29,36 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
+  const { address: accountAddress } = useVortexAccount();
 
-  const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, quote } = useSelector(rampActor, state => ({
-    isQuoteExpired: state.context.isQuoteExpired,
-    machineState: state.value,
-    quote: state.context.quote,
-    rampPaymentConfirmed: state.context.rampPaymentConfirmed,
-    rampState: state.context.rampState
-  }));
+  const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, walletLocked, quote } = useSelector(
+    rampActor,
+    state => ({
+      isQuoteExpired: state.context.isQuoteExpired,
+      machineState: state.value,
+      quote: state.context.quote,
+      rampPaymentConfirmed: state.context.rampPaymentConfirmed,
+      rampState: state.context.rampState,
+      walletLocked: state.context.walletLocked
+    })
+  );
 
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
+
+    if (
+      walletLocked &&
+      isOfframp &&
+      accountAddress &&
+      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
+    ) {
+      return {
+        icon: null,
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
+      };
+    }
 
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
@@ -140,7 +159,19 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       icon: <Spinner />,
       text: t("components.swapSubmitButton.processing")
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampState, machineState, t, toToken, stellarData, rampPaymentConfirmed, quote]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampState,
+    machineState,
+    t,
+    toToken,
+    stellarData,
+    rampPaymentConfirmed,
+    quote,
+    accountAddress,
+    walletLocked
+  ]);
 };
 
 export const RampSubmitButton = ({ className }: { className?: string }) => {
@@ -151,12 +182,13 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
-  const { rampState, quote, executionInput, isQuoteExpired, machineState } = useSelector(rampActor, state => ({
+  const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
     machineState: state.value,
     quote: state.context.quote,
-    rampState: state.context.rampState
+    rampState: state.context.rampState,
+    walletLocked: state.context.walletLocked
   }));
 
   const stellarContext = stellarData?.context;
@@ -171,6 +203,14 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
+    if (
+      walletLocked &&
+      isOfframp &&
+      accountAddress &&
+      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
+    ) {
+      return true;
+    }
     if (machineState === "QuoteReady" || machineState === "KycComplete") {
       return false;
     }
@@ -207,6 +247,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     stellarData,
     machineState,
     moneriumKycActor,
+    walletLocked,
     accountAddress
   ]);
 

@@ -20,12 +20,13 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
-  SubaccountData,
+  TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
   UpdateRampResponse,
   validateMaskedNumber
 } from "@packages/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
@@ -42,6 +43,7 @@ import { prepareMoneriumEvmOfframpTransactions } from "../transactions/moneriumE
 import { prepareMoneriumEvmOnrampTransactions } from "../transactions/moneriumEvmOnrampTransactions";
 import { prepareOfframpTransactions } from "../transactions/offrampTransactions";
 import { prepareOnrampTransactions } from "../transactions/onrampTransactions";
+import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
@@ -308,6 +310,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState({
         currentPhase: "initial" as RampPhase,
         from: quote.from,
+        paymentMethod: quote.paymentMethod,
         postCompleteState: {
           cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null }
         },
@@ -337,12 +340,30 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
+        walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
+
+      console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
+      webhookDeliveryService
+        .triggerTransactionCreated(
+          rampState.quoteId,
+          (rampState.state?.sessionId as string) || null,
+          rampState.id,
+          quote.rampType
+        )
+        .catch(error => {
+          logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
+        });
 
       return response;
     });
@@ -413,11 +434,17 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
 
       return response;
@@ -474,13 +501,21 @@ export class RampService extends BaseRampService {
       const response: StartRampResponse = {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
+        depositQrCode: rampState.state.depositQrCode,
         from: rampState.from,
+        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: rampState.state.inputAmount,
+        outputAmount: rampState.state.outputAmount,
+        paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
+        status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
+        walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
 
       return response;
@@ -490,24 +525,65 @@ export class RampService extends BaseRampService {
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<GetRampStatusResponse | null> {
+  public async getRampStatus(id: string, showUnsignedTxs = false): Promise<GetRampStatusResponse | null> {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
       return null;
     }
 
-    return {
+    // Fetch associated quote for fee data
+    const quote = await QuoteTicket.findByPk(rampState.quoteId);
+
+    if (!quote) {
+      throw new APIError({
+        message: "Associated quote not found",
+        status: httpStatus.NOT_FOUND
+      });
+    }
+
+    // Calculate processing fees
+    const processingFeeFiat = new Big(quote.fee.anchor).plus(quote.fee.vortex).toFixed();
+    const processingFeeUsd = new Big(quote.metadata.usdFeeStructure.anchor)
+      .plus(quote.metadata.usdFeeStructure.vortex)
+      .toFixed();
+
+    const response: GetRampStatusResponse = {
+      anchorFeeFiat: quote.fee.anchor,
+      anchorFeeUsd: quote.metadata.usdFeeStructure.anchor,
+      countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase: rampState.currentPhase,
+      depositQrCode: rampState.state.depositQrCode,
+      feeCurrency: quote.fee.currency,
       from: rampState.from,
+      ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
+      inputAmount: quote.inputAmount,
+      network: quote.network,
+      networkFeeFiat: quote.fee.network,
+      networkFeeUsd: quote.metadata.usdFeeStructure.network,
+      outputAmount: quote.outputAmount,
+      partnerFeeFiat: quote.fee.partnerMarkup,
+      partnerFeeUsd: quote.metadata.usdFeeStructure.partnerMarkup,
+      paymentMethod: rampState.paymentMethod,
+      processingFeeFiat,
+      processingFeeUsd,
       quoteId: rampState.quoteId,
+      sessionId: rampState.state.sessionId,
+      status: this.mapPhaseToStatus(rampState.currentPhase),
       to: rampState.to,
+      totalFeeFiat: quote.fee.total,
+      totalFeeUsd: quote.metadata.usdFeeStructure.total,
       type: rampState.type,
-      unsignedTxs: rampState.unsignedTxs,
-      updatedAt: rampState.updatedAt.toISOString()
+      updatedAt: rampState.updatedAt.toISOString(),
+      vortexFeeFiat: quote.fee.vortex,
+      vortexFeeUsd: quote.metadata.usdFeeStructure.vortex,
+      walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
+      ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
     };
+
+    return response;
   }
 
   /**
@@ -556,10 +632,10 @@ export class RampService extends BaseRampService {
   /**
    * Map ramp phase to a user-friendly status
    */
-  private mapPhaseToStatus(phase: RampPhase): string {
-    if (phase === "complete") return "success";
-    if (phase === "failed" || phase === "timedOut") return "failed";
-    return "pending";
+  private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
   }
 
   /**
@@ -715,7 +791,6 @@ export class RampService extends BaseRampService {
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
-    console.log("DEBUG: created avenia quote: ", aveniaQuote);
     const aveniaTicket = await brlaApiService.createPixInputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
@@ -730,8 +805,41 @@ export class RampService extends BaseRampService {
       taxIdRecord.subAccountId
     );
 
-    console.log("DEBUG: created avenia ticket: ", aveniaTicket);
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
+  }
+
+  private mapPhaseToWebhookStatus(phase: RampPhase): TransactionStatus {
+    if (phase === "complete") return TransactionStatus.COMPLETE;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    return TransactionStatus.PENDING;
+  }
+
+  private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
+    const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
+    const newStatus = this.mapPhaseToWebhookStatus(newPhase);
+
+    if (oldStatus !== newStatus) {
+      webhookDeliveryService
+        .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, rampState.id, newPhase, rampState.type)
+        .catch(error => {
+          logger.error(`Error triggering STATUS_CHANGE webhook for ${rampState.id}:`, error);
+        });
+    }
+  }
+
+  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const oldPhase = rampState.currentPhase;
+
+    await super.logPhaseTransition(id, newPhase, metadata);
+
+    if (oldPhase !== newPhase) {
+      await this.notifyStatusChangeIfNeeded(rampState, oldPhase, newPhase);
+    }
   }
 }
 

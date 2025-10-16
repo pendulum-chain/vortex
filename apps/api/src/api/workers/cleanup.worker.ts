@@ -72,6 +72,8 @@ class CleanupWorker {
   private async postProcessCompletedStates(): Promise<void> {
     try {
       const states = await RampState.findAll({
+        limit: 5,
+        order: [["updatedAt", "DESC"]],
         where: {
           currentPhase: "complete",
           from: {

@@ -14,7 +14,6 @@ import {
   RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions,
-  SubaccountData
 } from "@packages/shared";
 import {Keyring} from "@polkadot/api";
 import {mnemonicGenerate} from "@polkadot/util-crypto";
@@ -164,36 +163,10 @@ QuoteTicket.create = mock(async (data: QuoteTicketCreationAttributes): Promise<Q
   return quoteTicket;
 }) as typeof QuoteTicket.create;
 
-const mockSubaccountData: SubaccountData = {
-  address: {
-    cep: "12345-678",
-    city: "Test City",
-    district: "Test District",
-    number: "123",
-    state: "TS",
-    street: "Test Street"
-  },
+const mockSubaccountData: { wallets: { evm: string }; brCode: string } = {
   brCode: "brcode123",
-  createdAt: new Date().toISOString(),
-  fullName: "Test User",
-  id: "subaccount123",
-  kyc: {
-    documentData: "75844401777",
-    documentType: "CPF",
-    level: 2,
-    limits: {
-      limitBRLAOutOwnAccount: 10000,
-      limitBRLAOutThirdParty: 10000,
-      limitBurn: 10000,
-      limitMint: 10000,
-      limitSwapBuy: 10000,
-      limitSwapSell: 10000
-    }
-  },
-  phone: "+1234567890",
   wallets: {
     evm: EVM_DESTINATION_ADDRESS,
-    tron: "tron123"
   }
 };
 
@@ -205,7 +178,7 @@ const mockBrlaApiService = {
   getAllEventsByUser: mock(async () => []),
   getOnChainHistoryOut: mock(async () => []),
   getPayInHistory: mock(async () => []),
-  getSubaccount: mock(async (): Promise<SubaccountData> => mockSubaccountData),
+  getSubaccount: mock(async (): Promise<{ wallets: { evm: string }; brCode: string }> => mockSubaccountData),
   login: mock(async (): Promise<void> => Promise.resolve()),
   sendRequest: mock(async () => ({})),
   swapRequest: mock(async () => ({ id: "swap123" })),
@@ -230,7 +203,7 @@ mock.module("../brla/helpers", () => {
 
 BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApiService);
 
-RampService.prototype.validateBrlaOfframpRequest = mock(async (): Promise<SubaccountData> => mockSubaccountData);
+RampService.prototype.validateBrlaOfframpRequest = mock(async (): Promise<{ wallets: { evm: string }; brCode: string }> => mockSubaccountData);
 
 RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
   // do nothing
@@ -248,6 +221,7 @@ describe("PhaseProcessor Integration Test", () => {
         from: QUOTE_FROM as DestinationType,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
+        network: Networks.Ethereum, // Offramp from EVM network
         outputCurrency: TEST_OUTPUT_CURRENCY,
         rampType: RampDirection.SELL,
         to: QUOTE_TO
@@ -255,7 +229,7 @@ describe("PhaseProcessor Integration Test", () => {
 
       const additionalData: RegisterRampRequest["additionalData"] = {
         paymentData: {
-          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.fee.total)).toString(),
+          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.totalFeeFiat)).toString(),
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
           memo: "1204asjfnaksf10982e4",
           memoType: "text" as const
@@ -277,7 +251,7 @@ describe("PhaseProcessor Integration Test", () => {
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp?.unsignedTxs,
+        registeredRamp?.unsignedTxs || [],
         {
           moonbeamEphemeral: testSigningAccounts.moonbeam,
           pendulumEphemeral: testSigningAccounts.pendulum,

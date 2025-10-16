@@ -1,7 +1,10 @@
 import {
   ApiManager,
+  AveniaPaymentMethod,
+  AveniaSwapTicket,
+  AveniaTicketStatus,
   BrlaApiService,
-  BrlaSupportedChain,
+  BrlaCurrency,
   checkEvmBalancePeriodically,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
@@ -10,20 +13,22 @@ import {
   EvmToken,
   EvmTokenDetails,
   encodePayload,
-  FastQuoteQueryParams,
-  getEvmTokenBalance,
+  evmTokenConfig,
+  FeeType,
   getOnChainTokenDetails,
   getStatusAxelarScan,
   getTokenOutAmount,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   multiplyByPowerOfTen,
   Networks,
+  OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
   waitUntilTrue
 } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
+import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
@@ -32,6 +37,38 @@ import { polygon } from "viem/chains";
 import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
+
+async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string): Promise<AveniaSwapTicket> {
+  const pollInterval = 5000; // 5 seconds
+  const timeout = 5 * 60 * 1000; // 5 minutes
+  const startTime = Date.now();
+  let lastError: any;
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      const ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
+      if (ticket && ticket.status) {
+        if (ticket.status === AveniaTicketStatus.PAID) {
+          return ticket;
+        }
+        if (ticket.status === AveniaTicketStatus.FAILED) {
+          throw new Error("Ticket status is FAILED");
+        }
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  if (lastError) {
+    console.error("Polling for ticket status timed out with an error: ", lastError);
+    throw new Error(`Polling for ticket status timed out with an error: ${lastError.message}`);
+  }
+
+  throw new Error("Polling for ticket status timed out.");
+}
 
 export async function checkInitialPendulumBalance(pendulumAddress: string, requiredAmount: string): Promise<Big> {
   const apiManager = ApiManager.getInstance();
@@ -138,24 +175,28 @@ export async function waitForBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: strin
   console.log(`${brlaAmount.toFixed(4, 0)} BRLA successfully teleported to Polygon account.`);
 }
 
-export async function transferBrlaOnPolygon(brlaAmount: Big, brlaAmountRaw: string): Promise<void> {
-  const { walletClient: polygonWalletClient } = getPolygonEvmClients();
+export async function waitForUSDCOnPolygon(usdcAmount: Big, usdcAmountRaw: string): Promise<void> {
   const { brlaBusinessAccountAddress } = getConfig();
-  console.log(
-    `Sending ${brlaAmount.toFixed(4, 0)} BRLA from business account ${brlaBusinessAccountAddress} to controlled account on Polygon ${polygonWalletClient.account.address}...`
-  );
-  const brlaApiService = BrlaApiService.getInstance();
-  await brlaApiService.transferBrlaToDestination(polygonWalletClient.account.address, brlaAmount, "Polygon");
+  const { walletClient: polygonWalletClient } = await getPolygonEvmClients();
+  const polygonAccountAddress = polygonWalletClient.account.address;
+  const usdcPolygonDetails = evmTokenConfig[Networks.Polygon][EvmToken.USDC];
 
-  console.log(`Waiting for ${brlaAmount.toFixed(4, 0)} BRLA to be transferred to controlled account on Polygon...`);
+  if (!usdcPolygonDetails) {
+    throw new Error("USDC token details not found for Polygon.");
+  }
+
+  console.log(
+    `Waiting for ${usdcAmount.toFixed(4, 0)} USDC to be teleported to Polygon account ${brlaBusinessAccountAddress}...`
+  );
   await checkEvmBalancePeriodically(
-    brlaMoonbeamTokenDetails.polygonErc20Address,
-    polygonWalletClient.account.address,
-    brlaAmountRaw,
+    usdcPolygonDetails.erc20AddressSourceChain,
+    polygonAccountAddress,
+    usdcAmountRaw,
     1_000, // 1 second
     5 * 60 * 1_000, // 5 minutes
     Networks.Polygon
   );
+  console.log(`${usdcAmount.toFixed(4, 0)} USDC successfully teleported to Polygon account.`);
 }
 
 export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: string, pendulumAddress: string) {
@@ -173,15 +214,15 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
     rawAmount: usdcAmountRaw
   });
 
+  const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
+
   const approveDataExtended = {
     account: polygonWalletClient.account,
     chain: polygon,
     data: approveData.data,
     gas: BigInt(approveData.gas),
-    maxFeePerGas: approveData.maxFeePerGas ? BigInt(approveData.maxFeePerGas) * 5n : BigInt(187500000000),
-    maxPriorityFeePerGas: approveData.maxPriorityFeePerGas
-      ? BigInt(approveData.maxPriorityFeePerGas) * 5n
-      : BigInt(187500000000),
+    maxFeePerGas: maxFeePerGas * 5n,
+    maxPriorityFeePerGas: maxPriorityFeePerGas * 5n,
     to: approveData.to,
     value: BigInt(approveData.value)
   };
@@ -197,8 +238,8 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
     chain: polygon,
     data: swapData.data,
     gas: BigInt(swapData.gas),
-    maxFeePerGas: swapData.maxFeePerGas ? BigInt(swapData.maxFeePerGas) * 5n : BigInt(187500000000),
-    maxPriorityFeePerGas: swapData.maxPriorityFeePerGas ? BigInt(swapData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
+    maxFeePerGas: maxFeePerGas * 5n,
+    maxPriorityFeePerGas: maxPriorityFeePerGas * 5n,
     to: swapData.to,
     value: BigInt(swapData.value)
   };
@@ -231,77 +272,44 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
 /// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
 export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
-  const amountInCents = brlaAmount.mul(100).toFixed(0, 0); // Convert to cents as BRLA API expects amounts in cents
-  const fastQuoteParams: FastQuoteQueryParams = {
-    amount: Number(amountInCents),
-    chain: BrlaSupportedChain.Polygon,
-    fixOutput: false,
-    inputCoin: "BRLA",
-    operation: "swap",
-    outputCoin: "USDC",
-    subaccountId: undefined // We do the swap on the business account, so no subaccount ID is needed
+  const aveniaOnchainSwapParams: OnchainSwapQuoteParams = {
+    inputAmount: brlaAmount.toFixed(12, 0),
+    inputCurrency: BrlaCurrency.BRLA,
+    outputCurrency: BrlaCurrency.USDC
   };
 
   const brlaApiService = BrlaApiService.getInstance();
-  const quote = await brlaApiService.createFastQuote(fastQuoteParams);
-  console.log(`Created fast quote for swapping ${brlaAmount.toFixed(4, 0)} BRLA to USDC.axl:`, quote);
+  const quote = await brlaApiService.createOnchainSwapQuote(aveniaOnchainSwapParams);
+  console.log(`Created quote for swapping ${brlaAmount.toFixed(4, 0)} BRLA to USDC.axl:`, quote);
 
-  // Get USDC balance of receiver before the swap. BRLA is using USDCe on Polygon, so we need to check USDCe balance.
-  const usdcDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
-  const receiverBalanceBeforeRaw = await getEvmTokenBalance({
-    chain: Networks.Polygon,
-    ownerAddress: receiverAddress,
-    tokenAddress: usdcDetails.erc20AddressSourceChain
+  const ticket = await brlaApiService.createOnchainSwapTicket({
+    quoteToken: quote.quoteToken,
+    ticketBlockchainOutput: {
+      walletAddress: receiverAddress,
+      walletChain: AveniaPaymentMethod.POLYGON
+    }
   });
-  console.log(`Receiver USDC balance before swap: ${receiverBalanceBeforeRaw} USDC`);
-
-  const { id } = await brlaApiService.swapRequest({
-    receiverAddress,
-    token: quote.token
-  });
-
-  console.log("Swap request created on BRLA API service with ID:", id);
+  console.log(`Created on-chain swap ticket with ID: ${ticket.id}`);
 
   // Wait a couple seconds for the swap to be processed on BRLA API service
   await new Promise(resolve => setTimeout(resolve, 10_000));
 
-  // Find transaction receipt
-  let success = false;
-  let txHash: string | undefined;
-  const maxRetries = 5;
-  const retryDelayMs = 60_000; // 60 seconds
+  // Check ticket status
+  const paidTicket = await checkTicketStatusPaid(brlaApiService, ticket.id);
+  const paidAmount = Big(paidTicket.quote.outputAmount);
 
-  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
-    if (retryCount > 0) {
-      console.log(`Swap transaction hash not found for ID: ${id}. Retry ${retryCount}/${maxRetries}...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-    }
+  //Double check: Wait for USDC to appear on Polygon.
+  const usdcAmountRaw = multiplyByPowerOfTen(paidAmount, 6).toFixed(0, 0);
+  await waitForUSDCOnPolygon(paidAmount, usdcAmountRaw);
+  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === FeeType.CONVERSION) ?? "0";
 
-    const swapHistory = await brlaApiService.getSwapHistory(undefined);
-    const swapLog = swapHistory.find(tx => tx.id === id);
-    success = Boolean(swapLog?.smartContractOps[0]?.feedback.success);
-    txHash = swapLog?.smartContractOps[0]?.tx;
-
-    if (success && txHash) {
-      if (retryCount > 0) {
-        console.log(`Found transaction hash on retry ${retryCount}: ${txHash}`);
-      }
-      break;
-    }
-
-    if (retryCount === maxRetries) {
-      throw new Error(`Swap transaction hash not found for ID: ${id} after ${maxRetries} retries.`);
-    }
-  }
-
-  if (!txHash) throw new Error(`Swap transaction hash not found for ID: ${id}.`);
-
-  const { publicClient: polygonPublicClient } = getPolygonEvmClients();
-  console.log(`Waiting for swap transaction ${txHash} to be confirmed on Polygon...`);
-  await waitForTransactionConfirmation(txHash, polygonPublicClient, 3);
-  console.log(`Swap transaction ${txHash} confirmed on Polygon.`);
-
-  return { amountUsd: quote.amountUsd, fee: quote.baseFee, rate: quote.basePrice };
+  return {
+    amountUsd: paidAmount.toFixed(6),
+    fee: conversionFee,
+    quoteToken: quote.quoteToken,
+    rate: quote.basePrice,
+    ticketId: ticket.id
+  };
 }
 
 export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pendulumAddress: string): Promise<void> {
@@ -329,11 +337,7 @@ export async function triggerXcmFromMoonbeam(squidRouterReceiverId: string, pend
   console.log("USDC.axl successfully sent to Pendulum via Receiver contract. Transaction hash:", xcmHash);
 }
 
-export async function waitForAxlUsdcOnPendulum(
-  expectedAmountToReceive: Big,
-  pendulumAddress: string,
-  initialBalance: Big
-): Promise<void> {
+export async function waitForAxlUsdcOnPendulum(pendulumAddress: string, initialBalance: Big): Promise<void> {
   const apiManager = ApiManager.getInstance();
   const pendulumNode = await apiManager.getApi("pendulum");
 
@@ -346,8 +350,8 @@ export async function waitForAxlUsdcOnPendulum(
 
     // Check that newBalance is again almost equal to the old current balance but with some small difference due to fees
     const tolerance = 0.05; // 5% tolerance
-    const lowerBound = initialBalance.add(expectedAmountToReceive.times(1 - tolerance));
-    const upperBound = initialBalance.add(expectedAmountToReceive.times(1 + tolerance));
+    const lowerBound = initialBalance.times(1 - tolerance);
+    const upperBound = initialBalance.times(1 + tolerance);
     return newBalance.gte(lowerBound) && newBalance.lte(upperBound);
   };
 
@@ -355,3 +359,40 @@ export async function waitForAxlUsdcOnPendulum(
   await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
   console.log("USDC successfully arrived on Pendulum account.");
 }
+
+export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
+  const pollInterval = 5000; // 5 seconds
+  const timeout = 5 * 60 * 1000; // 5 minutes
+  const startTime = Date.now();
+  let lastError: any;
+  const brlaAmountUnits = brlaAmountBig.toFixed(0, 0);
+  const brlaApiService = BrlaApiService.getInstance();
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      const balanceResponse = await brlaApiService.getMainAccountBalance();
+      if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
+        if (new Big(balanceResponse.balances.BRLA).gte(brlaAmountUnits)) {
+          console.log(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
+          return balanceResponse;
+        }
+        console.log(
+          `Insufficient BRLA balance. Needed units: ${
+            brlaAmountUnits
+          }, have (in units): ${new Big(balanceResponse.balances.BRLA).toString()}. Retrying in 5s...`
+        );
+      }
+    } catch (error) {
+      lastError = error;
+      console.log(`Polling for balance failed with error. Retrying...`, lastError);
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+  if (lastError) {
+    console.log("BrlaPayoutOnMoonbeamPhaseHandler: Polling for balance failed: ", lastError);
+    throw lastError;
+  }
+  throw new Error(
+    `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${brlaAmountUnits} units.`
+  );
+};

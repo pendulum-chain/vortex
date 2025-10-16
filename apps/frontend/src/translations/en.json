@@ -56,7 +56,7 @@
     "aveniaSwapField": {
       "cpfOrCnpj": "CPF or CNPJ",
       "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "disclaimerOnramp": "CPF and wallet address must belong to <1>you</1>.",
       "pixKey": "Pix key",
       "placeholder": "Enter your {{label}}",
       "walletAddress": "Wallet Address"
@@ -169,6 +169,9 @@
         "success": "Verification successful"
       }
     },
+    "copyButton": {
+      "ariaLabel": "Copy to clipboard"
+    },
     "detailsDescription": {
       "connectWallet": "Connect your wallet to continue the process",
       "signToConfirm": "Verify you are the owner of the wallet"
@@ -250,6 +253,11 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "poweredBy": "Powered by"
     },
+    "initialQuoteFailed": {
+      "invalidParameters": "The passed parameters are invalid. You will be redirected shortly.",
+      "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
+      "tryAgain": "Try Again"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },
@@ -281,6 +289,23 @@
     "quoteSubmitButton": {
       "buy": "Buy",
       "sell": "Sell"
+    },
+    "quoteSummary": {
+      "exchangeDetails": "Exchange Details",
+      "fullTransactionId": "Full Transaction ID",
+      "hideExchangeDetails": "Hide exchange details",
+      "showExchangeDetails": "Show exchange details",
+      "youReceive": "You Receive",
+      "youSend": "You Send"
+    },
+    "RampFollowUpRedirectStep": {
+      "afterLink": ".",
+      "beforeLink": "You will be redirected in {{countdown}}s. If you are not automatically redirected, please click ",
+      "link": "here",
+      "title": "Your ramp is being processed now"
+    },
+    "RampSubmitButton": {
+      "connectDesignatedWallet": "Please connect the designated wallet '{{address}}'"
     },
     "rating": {
       "howWouldYouRateYourExperience": "How would you rate your experience?",
@@ -367,6 +392,11 @@
         "taxId": {
           "format": "Invalid CPF or CNPJ format",
           "required": "CPF or CNPJ is required when transferring BRL"
+        },
+        "walletAddress": {
+          "formatEvm": "Invalid EVM wallet address",
+          "formatSubstrate": "Invalid Polkadot wallet address",
+          "required": "Wallet address is required"
         }
       }
     },
@@ -522,6 +552,7 @@
         "buttons": {
           "next": "Next"
         },
+        "quoteChangedWarning": "Your quote has changed. Please confirm the new output amount before proceeding.",
         "title": "Enter Details"
       }
     }

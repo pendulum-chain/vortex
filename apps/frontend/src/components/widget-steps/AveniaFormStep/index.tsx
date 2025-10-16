@@ -3,10 +3,11 @@ import { AveniaKycEligibilityFields } from "../../Avenia/AveniaKycEligibilityFie
 
 export interface BrazilDetailsFormProps {
   className?: string;
+  isWalletAddressDisabled?: boolean;
 }
 
-export const AveniaFormStep = ({ className }: BrazilDetailsFormProps) => (
+export const AveniaFormStep = ({ className, isWalletAddressDisabled }: BrazilDetailsFormProps) => (
   <div className={cn("mx-auto flex h-full w-full flex-col justify-center", className)}>
-    <AveniaKycEligibilityFields />
+    <AveniaKycEligibilityFields isWalletAddressDisabled={isWalletAddressDisabled} />
   </div>
 );

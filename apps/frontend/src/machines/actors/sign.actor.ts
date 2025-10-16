@@ -30,7 +30,7 @@ export const signTransactionsActor = async ({
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
-  const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
+  const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
     if (!address) {
       return false;
     }
@@ -101,6 +101,7 @@ export const signTransactionsActor = async ({
       }
     }
   } catch (error) {
+    console.log("Error during signing transactions: ", error);
     // We try to catch an error caused by user rejection of the signature request.
     if (error instanceof Error && error.message) {
       if (error.message.includes("User rejected the request")) {

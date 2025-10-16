@@ -11,13 +11,16 @@ import moonbeamRoutes from "./moonbeam.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import pendulumRoutes from "./pendulum.route";
 import priceRoutes from "./price.route";
+import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
+import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
 import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
 import subsidizeRoutes from "./subsidize.route";
+import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
   stellar: unknown;
@@ -99,6 +102,11 @@ router.use("/rating", ratingRoutes);
 router.use("/siwe", siweRoutes);
 
 /**
+ * POST v1/session
+ */
+router.use("/session", sessionRoutes);
+
+/**
  * GET v1/brla
  * POST v1/brla
  */
@@ -128,6 +136,17 @@ router.use("/maintenance", maintenanceRoutes);
  * GET v1/monerium
  */
 router.use("/monerium", moneriumRoutes);
+
+/**
+ * POST v1/webhook
+ * DELETE v1/webhook
+ */
+router.use("/webhook", webhookRoutes);
+
+/**
+ * GET v1/public-key
+ */
+router.use("/public-key", publicKeyRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

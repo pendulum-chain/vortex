@@ -1,4 +1,12 @@
-import { CreateQuoteRequest, GetQuoteRequest, Networks, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
+import {
+  CreateQuoteRequest,
+  GetQuoteRequest,
+  getNetworkFromDestination,
+  Networks,
+  QuoteError,
+  QuoteResponse,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -19,18 +27,11 @@ export const createQuote = async (
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
 
-    // Validate required fields
-    if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
-      throw new APIError({
-        message: QuoteError.MissingRequiredFields,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
-    // Validate ramp type
-    if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    if (!network) {
       throw new APIError({
-        message: QuoteError.InvalidRampType,
+        message: `Unable to determine network from ${rampType === RampDirection.BUY ? "to" : "from"} destination`,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -40,6 +41,7 @@ export const createQuote = async (
       from,
       inputAmount,
       inputCurrency,
+      network,
       outputCurrency,
       partnerId,
       rampType,

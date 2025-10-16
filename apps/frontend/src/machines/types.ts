@@ -20,18 +20,23 @@ export interface RampContext {
   initializeFailedMessage: string | undefined;
   isQuoteExpired: boolean;
   paymentData?: PaymentData;
+  partnerId?: string;
   quote: QuoteResponse | undefined;
   quoteId: string | undefined;
+  quoteLocked?: boolean;
   rampDirection: RampDirection | undefined;
   rampPaymentConfirmed: boolean;
   rampSigningPhase: RampSigningPhase | undefined;
   rampState: RampState | undefined;
   substrateWalletAccount: WalletAccount | undefined;
+  walletLocked?: string;
+  callbackUrl?: string;
+  externalSessionId?: string;
+  isSep24Redo?: boolean;
 }
 
 export type RampMachineEvents =
   | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
-  | { type: "CANCEL_RAMP" }
   | { type: "onDone"; input: RampState }
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
@@ -45,7 +50,9 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
+  | { type: "SET_PARTNER_ID"; partnerId?: string }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" };
 

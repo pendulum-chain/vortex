@@ -104,9 +104,8 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    */
   private async executeTransaction(txData: string): Promise<string> {
     try {
-      const txHash = await this.polygonClient.sendRawTransaction({
-        serializedTransaction: txData as `0x${string}`
-      });
+      const evmClientManager = EvmClientManager.getInstance();
+      const txHash = await evmClientManager.sendRawTransactionWithRetry(Networks.Polygon, txData as `0x${string}`);
       return txHash;
     } catch (error) {
       logger.error("Error sending raw transaction", error);

@@ -5,13 +5,11 @@ import { PoweredBy } from "../../components/PoweredBy";
 import { Offramp } from "../../components/Ramp/Offramp";
 import { Onramp } from "../../components/Ramp/Onramp";
 import { RampToggle } from "../../components/RampToggle";
-import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 
 export const Quote = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
-  useSetRampUrlParams();
 
   return (
     <main>

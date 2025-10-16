@@ -41,6 +41,7 @@ async function runBrlOfframpExample() {
       from: Networks.Polygon,
       inputAmount: "1",
       inputCurrency: EvmToken.USDC,
+      network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
       rampType: RampDirection.SELL,
       to: "pix" as const
@@ -51,7 +52,7 @@ async function runBrlOfframpExample() {
     console.log(`   Quote ID: ${quote.id}`);
     console.log(`   Input: ${quote.inputAmount} ${quote.inputCurrency}`);
     console.log(`   Output: ${quote.outputAmount} ${quote.outputCurrency}`);
-    console.log(`   Fee: ${quote.fee}`);
+    console.log(`   Total Fee: ${quote.totalFeeFiat} ${quote.feeCurrency}`);
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {
@@ -67,9 +68,12 @@ async function runBrlOfframpExample() {
     console.log(`   Ramp ID: ${rampProcess.id}`);
 
     // The unsignedTransactions object will always return the transactions the user must sign and broadcast, please check the docs for more information https://api-docs.vortexfinance.co/vortex-sdk-1289458m0.
-    console.log(
-      `   Unsigned transactions: ${unsignedTransactions.forEach(tx => console.log(`     - ${tx.phase} -to: ${(tx.txData as EvmTransactionData).to} (${(tx.txData as EvmTransactionData).data})`))}\n`
-    );
+    console.log("   Unsigned transactions:");
+    unsignedTransactions.forEach(tx => {
+      const { to, data, value } = tx.txData as EvmTransactionData;
+      console.log(`     - ${tx.phase}: Send to ${to} data ${data} with value ${value}`);
+    });
+    console.log("");
 
     console.log(
       "\n🛑 Complete the token payment on-chain now. Execute the transactions shown above (squidRouterApprove and squidRouterSwap), and save the corresponding transaction hashes."

@@ -131,7 +131,7 @@ function createEvmWalletClients(
   const moonbeamClient = createWalletClient({
     account: evmAccount,
     chain: moonbeam,
-    transport: webSocket(MOONBEAM_WSS)
+    transport: alchemyApiKey ? http(`https://moonbeam-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : webSocket(MOONBEAM_WSS)
   });
 
   const polygonTransport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();
