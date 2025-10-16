@@ -27,14 +27,13 @@ interface GetBalanceParams {
 export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
   try {
     const evmClientManager = EvmClientManager.getInstance();
-    const publicClient = evmClientManager.getClient(chain);
 
-    const balanceResult = (await publicClient.readContract({
+    const balanceResult = await evmClientManager.readContractWithRetry<string>(chain, {
       abi: erc20ABI,
       address: tokenAddress,
       args: [ownerAddress],
       functionName: "balanceOf"
-    })) as string;
+    });
 
     return new Big(balanceResult);
   } catch (err) {
@@ -50,19 +49,18 @@ export function checkEvmBalancePeriodically(
   timeoutMs: number,
   chain: EvmNetworks
 ): Promise<Big> {
+  const evmClientManager = EvmClientManager.getInstance();
+
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
-        const evmClientManager = EvmClientManager.getInstance();
-        const publicClient = evmClientManager.getClient(chain);
-
-        const result = (await publicClient.readContract({
+        const result = await evmClientManager.readContractWithRetry<string>(chain, {
           abi: erc20ABI,
           address: tokenAddress as EvmAddress,
           args: [brlaEvmAddress],
           functionName: "balanceOf"
-        })) as string;
+        });
 
         const someBalanceBig = new Big(result);
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
