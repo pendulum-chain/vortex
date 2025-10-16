@@ -1,6 +1,6 @@
-import { createEvmClientsAndConfig } from "@packages/shared";
+import { createEvmClientsAndConfig, EvmClientManager, Networks } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
-import { mnemonicToAccount } from "viem/accounts";
+import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 
 export function getConfig() {
@@ -12,13 +12,13 @@ export function getConfig() {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
     brlaBaseUrl: process.env.BRLA_BASE_URL || "https://api.avenia.io:8443",
 
-    brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0x50E9c023314019f63d2001F2edA92acF1d8ABe2a",
+    brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
 
     moonbeamAccountSecret: process.env.MOONBEAM_ACCOUNT_SECRET,
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
-    polygonAccountSecret: process.env.POLYGON_ACCOUNT_SECRET, // Default to 0.25 if not set
+    polygonAccountSecret: process.env.POLYGON_ACCOUNT_SECRET,
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
-    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25
+    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25 // Default to 0.25 if not set
   };
 }
 
@@ -40,5 +40,10 @@ export function getPolygonEvmClients() {
   const config = getConfig();
 
   const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
-  return createEvmClientsAndConfig(polygonExecutorAccount, polygon);
+  const evmClientManager = EvmClientManager.getInstance();
+  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+
+  const walletClient = evmClientManager.getWalletClient(Networks.Polygon, polygonExecutorAccount);
+
+  return { publicClient: polygonClient, walletClient };
 }
