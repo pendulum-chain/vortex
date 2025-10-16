@@ -56,7 +56,7 @@
     "aveniaSwapField": {
       "cpfOrCnpj": "CPF or CNPJ",
       "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "disclaimerOnramp": "CPF and wallet address must belong to <1>you</1>.",
       "pixKey": "Pix key",
       "placeholder": "Enter your {{label}}",
       "walletAddress": "Wallet Address"
