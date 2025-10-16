@@ -392,6 +392,11 @@
         "taxId": {
           "format": "Invalid CPF or CNPJ format",
           "required": "CPF or CNPJ is required when transferring BRL"
+        },
+        "walletAddress": {
+          "formatEvm": "Invalid EVM wallet address",
+          "formatSubstrate": "Invalid Polkadot wallet address",
+          "required": "Wallet address is required"
         }
       }
     },

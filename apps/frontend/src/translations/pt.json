@@ -392,6 +392,11 @@
         "taxId": {
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
+        },
+        "walletAddress": {
+          "formatEvm": "Endereço de carteira EVM inválido",
+          "formatSubstrate": "Endereço de carteira Polkadot inválido",
+          "required": "Endereço de carteira é obrigatório"
         }
       }
     },
