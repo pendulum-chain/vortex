@@ -57,7 +57,6 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const evmClientManager = EvmClientManager.getInstance();
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
-    const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
 
     const isHashRegisteredInSplitReceiver = async () => {
       const result = (await publicClient.readContract({
@@ -90,7 +89,9 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           });
 
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-          obtainedHash = await walletClient.sendTransaction({
+
+          // blind retry for transaction submission
+          obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
             data,
             maxFeePerGas,
             maxPriorityFeePerGas,
