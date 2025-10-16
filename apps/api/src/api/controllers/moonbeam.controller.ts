@@ -33,7 +33,8 @@ export const executeXcmController = async (
 
   try {
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const { walletClient, moonbeamClient } = createClients(moonbeamExecutorAccount);
+    const { moonbeamClient } = createClients(moonbeamExecutorAccount);
+    const evmClientManager = EvmClientManager.getInstance();
 
     const data = encodeFunctionData({
       abi: splitReceiverABI,
@@ -43,13 +44,14 @@ export const executeXcmController = async (
 
     try {
       const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamClient.estimateFeesPerGas();
-      const hash = await walletClient.sendTransaction({
+      // Safe to send multiple times. Idempotent.
+      const hash = (await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
         data,
         maxFeePerGas,
         maxPriorityFeePerGas,
         to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         value: 0n
-      });
+      })) as `0x${string}`;
       res.json({ hash });
       return;
     } catch (error) {

@@ -20,9 +20,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: moonbeam,
       name: Networks.Moonbeam,
-      rpcUrls: apiKey
-        ? [`https://moonbeam-mainnet.g.alchemy.com/v2/${apiKey}`, "https://rpc.api.moonbeam.network", ""]
-        : ["https://rpc.api.moonbeam.network", ""]
+      rpcUrls: ["https://rpc.api.moonbeam.network", "https://moonbeam-rpc.publicnode.com", ""]
     },
     {
       chain: arbitrum,
@@ -319,6 +317,37 @@ export class EvmClientManager {
         return await walletClient.sendTransaction(transactionParams);
       },
       "send transaction",
+      maxRetries,
+      initialDelayMs
+    );
+  }
+
+  /**
+   * Sends a raw transaction with smart retry logic using exponential backoff and RPC switching.
+   * Exhausts all available RPCs before repeating selections.
+   * This method should be used for idempotent operations where retrying is safe.
+   *
+   * @param networkName - The EVM network to send the transaction on
+   * @param serializedTransaction - The serialized transaction data
+   * @param maxRetries - Maximum number of retry attempts (default: 3)
+   * @param initialDelayMs - Initial delay in milliseconds before first retry (default: 1000)
+   * @returns Transaction hash
+   */
+  public async sendRawTransactionWithRetry(
+    networkName: EvmNetworks,
+    serializedTransaction: `0x${string}`,
+    maxRetries: number = 3,
+    initialDelayMs: number = 1000
+  ): Promise<string> {
+    return this.executeWithRetry(
+      networkName,
+      async rpcUrl => {
+        const publicClient = this.getClient(networkName, rpcUrl);
+        return await publicClient.sendRawTransaction({
+          serializedTransaction
+        });
+      },
+      "send raw transaction",
       maxRetries,
       initialDelayMs
     );

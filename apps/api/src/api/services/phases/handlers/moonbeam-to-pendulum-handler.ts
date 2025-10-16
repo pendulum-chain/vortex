@@ -59,12 +59,12 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = (await publicClient.readContract({
+      const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Moonbeam, {
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
         functionName: "xcmDataMapping"
-      })) as bigint;
+      });
 
       return result > 0n;
     };
