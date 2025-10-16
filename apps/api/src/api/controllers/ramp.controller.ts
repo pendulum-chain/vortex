@@ -126,14 +126,15 @@ export const startRamp = async (
  * @public
  */
 export const getRampStatus = async (
-  req: Request<GetRampStatusRequest>,
+  req: Request<GetRampStatusRequest, unknown, unknown, { showUnsignedTxs?: string }>,
   res: Response<GetRampStatusResponse>,
   next: NextFunction
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    const showUnsignedTxs = req.query.showUnsignedTxs === "true";
 
-    const ramp = await rampService.getRampStatus(id);
+    const ramp = await rampService.getRampStatus(id, showUnsignedTxs);
 
     if (!ramp) {
       throw new APIError({

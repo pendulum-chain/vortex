@@ -85,43 +85,54 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error("Missing presigned transactions for squidRouter phase");
       }
 
-      const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
-      if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
-        logger.warn(
-          `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`
-        );
-      }
+      let approveHash = state.state.squidRouterApproveHash;
+      // Check if the approve transaction has already been sent
+      if (!approveHash) {
+        const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
+        if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
+          logger.warn(
+            `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`
+          );
+        }
 
-      const destinationNetwork = getNetworkFromDestination(state.to);
-      const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
-      if (!chainId) {
-        throw new Error("Invalid destination network");
-      }
+        const destinationNetwork = getNetworkFromDestination(state.to);
+        const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
+        if (!chainId) {
+          throw new Error("Invalid destination network");
+        }
 
-      // Execute the approve transaction
-      const approveHash = await this.executeTransaction(state, approveTransaction.txData as string);
-      logger.info(`Approve transaction executed with hash: ${approveHash}`);
+        // Execute the approve transaction
+        approveHash = await this.executeTransaction(state, approveTransaction.txData as string);
+        logger.info(`Approve transaction executed with hash: ${approveHash}`);
+
+        // Update the state with the approve hash immediately after sending the transaction
+        await state.update({
+          state: {
+            ...state.state,
+            squidRouterApproveHash: approveHash
+          }
+        });
+      }
 
       // Wait for the approve transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, approveHash, chainId);
+      await this.waitForTransactionConfirmation(state, approveHash);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
       const swapHash = await this.executeTransaction(state, swapTransaction.txData as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
-      // Wait for the swap transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, swapHash, chainId);
-      logger.info(`Swap transaction confirmed: ${swapHash}`);
-
       // Update the state with the transaction hashes
       const updatedState = await state.update({
         state: {
           ...state.state,
-          squidRouterApproveHash: approveHash,
           squidRouterSwapHash: swapHash
         }
       });
+
+      // Wait for the swap transaction to be confirmed
+      await this.waitForTransactionConfirmation(state, swapHash);
+      logger.info(`Swap transaction confirmed: ${swapHash}`);
 
       // Transition to the next phase
       return this.transitionToNextPhase(updatedState, "squidRouterPay");
@@ -154,9 +165,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * Wait for a transaction to be confirmed with exponential backoff
    * @param state The current ramp state
    * @param txHash The transaction hash
-   * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(state: RampState, txHash: string, _chainId: number): Promise<void> {
+  private async waitForTransactionConfirmation(state: RampState, txHash: string): Promise<void> {
     const maxRetries = 3;
     const baseDelay = 5000; // 5 seconds
     const maxDelay = 30000; // 30 seconds

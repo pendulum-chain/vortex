@@ -1,4 +1,5 @@
-import { DestinationType, EvmAddress, Networks, RampDirection } from "../index";
+import { DestinationType, EvmAddress, Networks, PaymentMethod, RampDirection } from "../index";
+import { TransactionStatus } from "./webhook.endpoints";
 
 export type RampPhase =
   | "initial"
@@ -94,6 +95,7 @@ export interface RegisterRampRequest {
     receiverTaxId?: string;
     taxId?: string;
     moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
+    sessionId?: string;
     [key: string]: unknown;
   };
 }
@@ -126,20 +128,42 @@ export interface RampProcess {
   quoteId: string;
   type: RampDirection;
   currentPhase: RampPhase;
+  status?: TransactionStatus;
   from: DestinationType;
   to: DestinationType;
   createdAt: string;
   updatedAt: string;
-  unsignedTxs: UnsignedTx[];
+  unsignedTxs?: UnsignedTx[];
   depositQrCode?: string;
   ibanPaymentData?: IbanPaymentData;
+  paymentMethod: PaymentMethod;
+  sessionId?: string;
+  walletAddress?: string;
+  inputAmount?: string;
+  outputAmount?: string;
 }
 
 export interface GetRampStatusRequest {
   id: string;
 }
 
-export type GetRampStatusResponse = RampProcess;
+export interface GetRampStatusResponse extends RampProcess {
+  // Fee fields in fiat currency
+  anchorFeeFiat: string;
+  networkFeeFiat: string;
+  partnerFeeFiat: string;
+  vortexFeeFiat: string;
+  totalFeeFiat: string;
+  processingFeeFiat: string;
+  feeCurrency: string;
+  // Fee fields in USD
+  anchorFeeUsd: string;
+  networkFeeUsd: string;
+  partnerFeeUsd: string;
+  vortexFeeUsd: string;
+  totalFeeUsd: string;
+  processingFeeUsd: string;
+}
 
 export interface GetRampErrorLogsRequest {
   id: string;

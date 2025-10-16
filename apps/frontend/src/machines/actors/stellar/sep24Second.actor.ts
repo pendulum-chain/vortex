@@ -26,7 +26,7 @@ export const sep24SecondActor = fromPromise(
     }
     const outputToken = getTokenDetailsSpacewalk(executionInput.fiatToken);
 
-    const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);
+    const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.anchorFeeFiat);
 
     const anchorSessionParams: IAnchorSessionParams = {
       offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),
@@ -37,7 +37,7 @@ export const sep24SecondActor = fromPromise(
 
     const secondSep24Response = await sep24Second({ id, url: "" }, anchorSessionParams);
 
-    const amountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor).toFixed(2);
+    const amountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.anchorFeeFiat).toFixed(2);
 
     if (!Big(secondSep24Response.amount).eq(amountBeforeFees)) {
       throw new Error("Amount mismatch");

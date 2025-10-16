@@ -1,6 +1,7 @@
 import {
   CreateQuoteRequest,
   createGenericRouteParams,
+  deriveFromTo,
   ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
   EvmToken,
@@ -8,6 +9,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getPaymentMethodFromDestinations,
   getPendulumDetails,
   getRoute,
   isAssetHubTokenDetails,
@@ -76,8 +78,23 @@ async function calculateInputAmountForNablaSwap(
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
+    if (!request.network) {
+      throw new APIError({
+        message: "Network is required",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    // Derive from/to if countryCode and network provided
+    let { from, to } = request;
+    if (request.countryCode && request.network) {
+      const derived = deriveFromTo(request.countryCode, request.network, request.rampType);
+      from = derived.from;
+      to = derived.to;
+    }
+
     // a. Initial Setup
-    validateChainSupport(request.rampType, request.from, request.to);
+    validateChainSupport(request.rampType, from, to);
 
     // Fetch partner details
     let partner = null;
@@ -215,42 +232,60 @@ export class QuoteService extends BaseRampService {
         vortex: "0"
       };
 
-      const quote = await QuoteTicket.create({
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        fee: feeToStore,
-        from: request.from,
-        id: uuidv4(),
-        inputAmount: request.inputAmount,
-        inputCurrency: request.inputCurrency,
-        metadata: {} as QuoteTicketMetadata,
-        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
-        outputCurrency: request.outputCurrency,
-        partnerId: partner?.id || null,
-        rampType: request.rampType,
-        status: "pending",
-        to: request.to
-      });
-
-      const responseFeeStructure: QuoteFeeStructure = {
+      const usdFeeStructure = {
         anchor: "0",
-        currency: targetFeeFiatCurrency,
+        currency: "USD",
         network: "0",
         partnerMarkup: "0",
         total: "0",
         vortex: "0"
       };
 
+      const paymentMethod = getPaymentMethodFromDestinations(from, to);
+
+      const quote = await QuoteTicket.create({
+        countryCode: request.countryCode || null,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        fee: feeToStore,
+        from,
+        id: uuidv4(),
+        inputAmount: request.inputAmount,
+        inputCurrency: request.inputCurrency,
+        metadata: { usdFeeStructure } as QuoteTicketMetadata,
+        network: request.network,
+        outputAmount: finalGrossOutputAmountDecimal.toFixed(6, 0),
+        outputCurrency: request.outputCurrency,
+        partnerId: partner?.id || null,
+        paymentMethod,
+        rampType: request.rampType,
+        status: "pending",
+        to
+      });
+
       return {
+        anchorFeeFiat: "0",
+        anchorFeeUsd: "0",
         expiresAt: quote.expiresAt,
-        fee: responseFeeStructure,
+        feeCurrency: targetFeeFiatCurrency,
         from: quote.from,
         id: quote.id,
         inputAmount: trimTrailingZeros(quote.inputAmount),
         inputCurrency: quote.inputCurrency,
+        networkFeeFiat: "0",
+        networkFeeUsd: "0",
         outputAmount: trimTrailingZeros(finalGrossOutputAmountDecimal.toFixed(6, 0)),
         outputCurrency: quote.outputCurrency,
+        partnerFeeFiat: "0",
+        partnerFeeUsd: "0",
+        paymentMethod: quote.paymentMethod,
+        processingFeeFiat: "0",
+        processingFeeUsd: "0",
         rampType: quote.rampType,
-        to: quote.to
+        to: quote.to,
+        totalFeeFiat: "0",
+        totalFeeUsd: "0",
+        vortexFeeFiat: "0",
+        vortexFeeUsd: "0"
       };
     }
 
@@ -482,11 +517,14 @@ export class QuoteService extends BaseRampService {
     const offrampAmountBeforeAnchorFees =
       request.rampType === RampDirection.SELL ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
+    const paymentMethod = getPaymentMethodFromDestinations(from, to);
+
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
+      countryCode: request.countryCode || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       fee: feeToStore,
-      from: request.from,
+      from,
       id: uuidv4(),
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
@@ -497,35 +535,44 @@ export class QuoteService extends BaseRampService {
         subsidy: discountSubsidyInfo,
         usdFeeStructure
       } as QuoteTicketMetadata,
+      network: request.network,
       outputAmount: finalNetOutputAmountStr,
       outputCurrency: request.outputCurrency,
       partnerId: partner?.id || null,
-      rampType: request.rampType, // 10 minutes from now
+      paymentMethod,
+      rampType: request.rampType,
       status: "pending",
-      to: request.to
+      to
     });
 
-    // Format and return the response
-    const responseFeeStructure: QuoteFeeStructure = {
-      anchor: trimTrailingZeros(anchorFeeFiat),
-      currency: targetFeeFiatCurrency,
-      network: trimTrailingZeros(networkFeeFiatForTotal),
-      partnerMarkup: trimTrailingZeros(partnerMarkupFeeFiat),
-      total: trimTrailingZeros(totalFeeFiat),
-      vortex: trimTrailingZeros(vortexFeeFiat)
-    };
+    // Calculate processing fees
+    const processingFeeFiat = new Big(anchorFeeFiat).plus(vortexFeeFiat).toFixed();
+    const processingFeeUsd = new Big(anchorFeeUsd).plus(vortexFeeUsd).toFixed();
 
     return {
+      anchorFeeFiat: trimTrailingZeros(anchorFeeFiat),
+      anchorFeeUsd: trimTrailingZeros(anchorFeeUsd),
       expiresAt: quote.expiresAt,
-      fee: responseFeeStructure,
+      feeCurrency: targetFeeFiatCurrency,
       from: quote.from,
       id: quote.id,
       inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
+      networkFeeFiat: trimTrailingZeros(networkFeeFiatForTotal),
+      networkFeeUsd: trimTrailingZeros(totalNetworkFeeUsd),
       outputAmount: trimTrailingZeros(finalNetOutputAmountStr),
       outputCurrency: quote.outputCurrency,
+      partnerFeeFiat: trimTrailingZeros(partnerMarkupFeeFiat),
+      partnerFeeUsd: trimTrailingZeros(partnerMarkupFeeUsd),
+      paymentMethod: quote.paymentMethod,
+      processingFeeFiat: trimTrailingZeros(processingFeeFiat),
+      processingFeeUsd: trimTrailingZeros(processingFeeUsd),
       rampType: quote.rampType,
-      to: quote.to
+      to: quote.to,
+      totalFeeFiat: trimTrailingZeros(totalFeeFiat),
+      totalFeeUsd: trimTrailingZeros(totalFeeUsd),
+      vortexFeeFiat: trimTrailingZeros(vortexFeeFiat),
+      vortexFeeUsd: trimTrailingZeros(vortexFeeUsd)
     };
   }
 
@@ -536,26 +583,36 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
-    const responseFeeStructure: QuoteFeeStructure = {
-      anchor: trimTrailingZeros(quote.fee.anchor),
-      currency: quote.fee.currency,
-      network: trimTrailingZeros(quote.fee.network),
-      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
-      total: trimTrailingZeros(quote.fee.total),
-      vortex: trimTrailingZeros(quote.fee.vortex)
-    };
+    // Calculate processing fees
+    const processingFeeFiat = new Big(quote.fee.anchor).plus(quote.fee.vortex).toFixed();
+    const processingFeeUsd = new Big(quote.metadata.usdFeeStructure.anchor)
+      .plus(quote.metadata.usdFeeStructure.vortex)
+      .toFixed();
 
     return {
+      anchorFeeFiat: trimTrailingZeros(quote.fee.anchor),
+      anchorFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.anchor),
       expiresAt: quote.expiresAt,
-      fee: responseFeeStructure,
+      feeCurrency: quote.fee.currency,
       from: quote.from,
       id: quote.id,
       inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
+      networkFeeFiat: trimTrailingZeros(quote.fee.network),
+      networkFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.network),
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
+      partnerFeeFiat: trimTrailingZeros(quote.fee.partnerMarkup),
+      partnerFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.partnerMarkup),
+      paymentMethod: quote.paymentMethod,
+      processingFeeFiat: trimTrailingZeros(processingFeeFiat),
+      processingFeeUsd: trimTrailingZeros(processingFeeUsd),
       rampType: quote.rampType,
-      to: quote.to
+      to: quote.to,
+      totalFeeFiat: trimTrailingZeros(quote.fee.total),
+      totalFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.total),
+      vortexFeeFiat: trimTrailingZeros(quote.fee.vortex),
+      vortexFeeUsd: trimTrailingZeros(quote.metadata.usdFeeStructure.vortex)
     };
   }
 }

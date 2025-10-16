@@ -1,4 +1,12 @@
-import { CreateQuoteRequest, GetQuoteRequest, Networks, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
+import {
+  CreateQuoteRequest,
+  GetQuoteRequest,
+  getNetworkFromDestination,
+  Networks,
+  QuoteError,
+  QuoteResponse,
+  RampDirection
+} from "@packages/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -19,11 +27,21 @@ export const createQuote = async (
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
 
+    const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
+
+    if (!network) {
+      throw new APIError({
+        message: `Unable to determine network from ${rampType === RampDirection.BUY ? "to" : "from"} destination`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     // Create quote
     const quote = await quoteService.createQuote({
       from,
       inputAmount,
       inputCurrency,
+      network,
       outputCurrency,
       partnerId,
       rampType,

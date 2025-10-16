@@ -57,7 +57,7 @@
     "aveniaSwapField": {
       "cpfOrCnpj": "CPF o CNPJ",
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "disclaimerOnramp": "O CPF e o endereço da carteira devem pertencer a <1>você</1>.",
       "pixKey": "Chave Pix",
       "placeholder": "Digite seu {{label}}",
       "walletAddress": "Endereço da Carteira"
@@ -169,6 +169,9 @@
         "rejected": "Verificação KYC rejeitada",
         "success": "Verificação bem-sucedida"
       }
+    },
+    "copyButton": {
+      "ariaLabel": "Copiar para a área de transferência"
     },
     "detailsDescription": {
       "connectWallet": "Conecte sua carteira para continuar o processo",
@@ -288,6 +291,14 @@
       "buy": "Comprar",
       "sell": "Vender"
     },
+    "quoteSummary": {
+      "exchangeDetails": "Detalhes da Troca",
+      "fullTransactionId": "ID Completo da Transação",
+      "hideExchangeDetails": "Ocultar detalhes da troca",
+      "showExchangeDetails": "Mostrar detalhes da troca",
+      "youReceive": "Você Recebe",
+      "youSend": "Você Envia"
+    },
     "RampFollowUpRedirectStep": {
       "afterLink": ".",
       "beforeLink": "Você será redirecionado em {{countdown}}s. Se você não for redirecionado automaticamente, por favor clique ",
@@ -381,6 +392,11 @@
         "taxId": {
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
+        },
+        "walletAddress": {
+          "formatEvm": "Endereço de carteira EVM inválido",
+          "formatSubstrate": "Endereço de carteira Polkadot inválido",
+          "required": "Endereço de carteira é obrigatório"
         }
       }
     },

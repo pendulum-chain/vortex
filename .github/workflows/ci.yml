@@ -25,6 +25,12 @@ jobs:
       - name: 🧩 Install dependencies
         run: bun install
 
+      - name: Check versions
+        run: |
+          bun --version
+          node --version
+          bunx tsc -v
+
       - name: ✏️ Typecheck
         run: bun run typecheck
 

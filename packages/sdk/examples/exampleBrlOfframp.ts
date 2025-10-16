@@ -41,6 +41,7 @@ async function runBrlOfframpExample() {
       from: Networks.Polygon,
       inputAmount: "1",
       inputCurrency: EvmToken.USDC,
+      network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
       rampType: RampDirection.SELL,
       to: "pix" as const
@@ -51,7 +52,7 @@ async function runBrlOfframpExample() {
     console.log(`   Quote ID: ${quote.id}`);
     console.log(`   Input: ${quote.inputAmount} ${quote.inputCurrency}`);
     console.log(`   Output: ${quote.outputAmount} ${quote.outputCurrency}`);
-    console.log(`   Fee: ${quote.fee}`);
+    console.log(`   Total Fee: ${quote.totalFeeFiat} ${quote.feeCurrency}`);
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {

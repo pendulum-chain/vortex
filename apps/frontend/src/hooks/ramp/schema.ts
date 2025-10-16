@@ -1,6 +1,9 @@
-import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, OnChainToken, RampDirection } from "@packages/shared";
+import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, Networks, RampDirection } from "@packages/shared";
+import { decodeAddress, encodeAddress } from "@polkadot/keyring";
+import { hexToU8a, isHex } from "@polkadot/util";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
+import { useQuote } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 export type RampFormValues = {
@@ -17,7 +20,27 @@ export const RANDOM_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 // Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
 const pixKeyRegex = [CPF_REGEX, CNPJ_REGEX, PHONE_REGEX, EMAIL_REGEX, RANDOM_REGEX];
 
-export const createRampFormSchema = (t: (key: string) => string, rampDirection: RampDirection) => {
+const isValidPolkadotAddress = (address: string) => {
+  try {
+    const result = encodeAddress(isHex(address) ? hexToU8a(address) : decodeAddress(address));
+
+    console.log("Valid address:", address, "->", result);
+    return true;
+  } catch (_error) {
+    console.error("Invalid address:", address, _error);
+    return false;
+  }
+};
+
+const isValidEvmAddress = (address: string) => {
+  return /^(0x)?[0-9a-f]{40}$/i.test(address);
+};
+
+export const createRampFormSchema = (
+  t: (key: string) => string,
+  rampDirection: RampDirection,
+  requiresWalletAddress: "substrate" | "evm" | false
+) => {
   return Yup.object<RampFormValues>().shape({
     pixId: Yup.string().when("fiatToken", {
       is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.SELL,
@@ -42,12 +65,25 @@ export const createRampFormSchema = (t: (key: string) => string, rampDirection: 
           })
     }),
     walletAddress: Yup.string()
+      .test("is-valid-evm-address", t("components.swap.validation.walletAddress.formatEvm"), value => {
+        if (!requiresWalletAddress || requiresWalletAddress === "substrate") return true;
+        if (!value) return false;
+        if (requiresWalletAddress === "evm") return isValidEvmAddress(value);
+      })
+      .test("is-valid-substrate-address", t("components.swap.validation.walletAddress.formatSubstrate"), value => {
+        if (!requiresWalletAddress || requiresWalletAddress === "evm") return true;
+        if (!value) return false;
+        if (requiresWalletAddress === "substrate") return isValidPolkadotAddress(value);
+      })
   });
 };
 
 export const useSchema = () => {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
+  const quote = useQuote();
+  const requiresWalletAddress =
+    quote?.rampType === RampDirection.BUY ? (quote?.to === Networks.AssetHub ? "substrate" : "evm") : false;
 
-  return createRampFormSchema(t, rampDirection);
+  return createRampFormSchema(t, rampDirection, requiresWalletAddress);
 };
