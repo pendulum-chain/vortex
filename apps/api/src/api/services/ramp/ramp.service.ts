@@ -295,17 +295,6 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Validate sessionId if both quote and request have it
-      const requestSessionId = additionalData?.sessionId;
-      const quoteSessionId = quote.metadata.sessionId;
-
-      if (requestSessionId && quoteSessionId && requestSessionId !== quoteSessionId) {
-        throw new APIError({
-          message: `SessionId mismatch. Quote has sessionId '${quoteSessionId}' but request provided '${requestSessionId}'`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
@@ -353,10 +342,12 @@ export class RampService extends BaseRampService {
         id: rampState.id,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
+        walletAddress: rampState.state.walletAddress
       };
 
       console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
@@ -442,10 +433,12 @@ export class RampService extends BaseRampService {
         id: rampState.id,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
+        sessionId: rampState.state.sessionId,
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        walletAddress: rampState.state.walletAddress
       };
 
       return response;

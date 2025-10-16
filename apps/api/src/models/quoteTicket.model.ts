@@ -37,7 +37,6 @@ export interface QuoteTicketMetadata {
     discount: string;
     subsidyAmountInOutputToken: string;
   };
-  sessionId?: string;
 }
 
 // Define the attributes that can be set during creation

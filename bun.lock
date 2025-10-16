@@ -11,6 +11,7 @@
       "devDependencies": {
         "@biomejs/biome": "2.0.0",
         "concurrently": "^9.1.2",
+        "typescript": "catalog:",
       },
     },
     "apps/api": {

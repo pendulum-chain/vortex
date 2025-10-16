@@ -8,6 +8,7 @@ import {
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
+  AveniaSwapTicket,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -15,6 +16,7 @@ import {
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
+  OnchainSwapTicketPayload,
   PixInputTicketOutput,
   PixInputTicketPayload,
   PixKeyData,
@@ -110,12 +112,14 @@ export interface EndpointMapping {
   };
   [Endpoint.Tickets]: {
     POST: {
-      body: PixInputTicketPayload | PixOutputTicketPayload;
+      body: PixInputTicketPayload | PixOutputTicketPayload | OnchainSwapTicketPayload;
       response: PixInputTicketOutput | PixOutputTicketOutput;
     };
     GET: {
       body: undefined;
-      response: { ticket: AveniaPayoutTicket | AveniaPayinTicket } | { tickets: AveniaPayoutTicket[] | AveniaPayinTicket[] };
+      response:
+        | { ticket: AveniaPayoutTicket | AveniaPayinTicket | AveniaSwapTicket }
+        | { tickets: AveniaPayoutTicket[] | AveniaPayinTicket[] | AveniaSwapTicket[] };
     };
     PATCH: {
       body: undefined;
