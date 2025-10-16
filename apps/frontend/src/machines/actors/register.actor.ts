@@ -94,7 +94,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
-  const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
+  const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx => {
     if (!address) {
       return true;
     }

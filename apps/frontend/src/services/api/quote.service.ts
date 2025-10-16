@@ -1,4 +1,12 @@
-import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse, RampDirection } from "@packages/shared";
+import {
+  CreateQuoteRequest,
+  DestinationType,
+  FiatToken,
+  getNetworkFromDestination,
+  OnChainToken,
+  QuoteResponse,
+  RampDirection
+} from "@packages/shared";
 import { apiRequest } from "./api-client";
 
 /**
@@ -27,10 +35,17 @@ export class QuoteService {
     outputCurrency: OnChainToken | FiatToken,
     partnerId?: string
   ): Promise<QuoteResponse> {
+    const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
+
+    if (!network) {
+      throw new Error(`Unable to determine network from ${rampType === RampDirection.BUY ? "to" : "from"} destination`);
+    }
+
     const request: CreateQuoteRequest = {
       from,
       inputAmount,
       inputCurrency,
+      network,
       outputCurrency,
       rampType,
       to

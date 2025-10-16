@@ -214,14 +214,7 @@ export const rampMachine = setup({
           assign({
             externalSessionId: ({ event }) => event.externalSessionId
           })
-        ],
-        // Assumed to be a new session, so we reset everything and reload the page.
-        // This will reload the new parameters and fetch a new quote.
-        guard: ({ context, event }) =>
-          event.externalSessionId !== undefined &&
-          context.externalSessionId !== undefined &&
-          event.externalSessionId !== context.externalSessionId,
-        target: ".Idle"
+        ]
       }
     ],
     SET_GET_MESSAGE_SIGNATURE: {

@@ -2,6 +2,8 @@ import { FC } from "react";
 import { TransactionStatus } from "../menus/HistoryMenu/types";
 
 export const StatusBadge: FC<{ status: TransactionStatus }> = ({ status }) => {
+  const normalizedStatus = status.toLowerCase() as keyof typeof colors;
+
   const colors = {
     failed: "bg-red-100 text-red-800",
     pending: "bg-yellow-100 text-yellow-800",
@@ -9,8 +11,8 @@ export const StatusBadge: FC<{ status: TransactionStatus }> = ({ status }) => {
   };
 
   return (
-    <span className={`rounded-full px-2 py-1 font-medium text-xs ${colors[status]}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+    <span className={`rounded-full px-2 py-1 font-medium text-xs ${colors[normalizedStatus]}`}>
+      {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
     </span>
   );
 };

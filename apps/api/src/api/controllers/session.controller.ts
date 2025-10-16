@@ -1,4 +1,10 @@
-import { GetWidgetUrlLocked, GetWidgetUrlRefresh, GetWidgetUrlResponse, RampDirection } from "@packages/shared";
+import {
+  GetWidgetUrlLocked,
+  GetWidgetUrlRefresh,
+  GetWidgetUrlResponse,
+  getNetworkFromDestination,
+  RampDirection
+} from "@packages/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
@@ -69,11 +75,21 @@ export const create = async (
       const url = buildLockedUrl(body);
       res.status(httpStatus.OK).json({ url });
     } else {
+      const network = getNetworkFromDestination(body.rampType === RampDirection.BUY ? body.to : body.from);
+
+      if (!network) {
+        throw new APIError({
+          message: `Unable to determine network from ${body.rampType === RampDirection.BUY ? "to" : "from"} destination`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Create a quote to verify the desired parameters are valid. The quote itself is not used.
       await quoteService.createQuote({
         from: body.from,
         inputAmount: body.inputAmount,
         inputCurrency: body.inputCurrency,
+        network,
         outputCurrency: body.outputCurrency,
         rampType: body.rampType,
         to: body.to

@@ -169,6 +169,9 @@
         "success": "Verification successful"
       }
     },
+    "copyButton": {
+      "ariaLabel": "Copy to clipboard"
+    },
     "detailsDescription": {
       "connectWallet": "Connect your wallet to continue the process",
       "signToConfirm": "Verify you are the owner of the wallet"
@@ -286,6 +289,14 @@
     "quoteSubmitButton": {
       "buy": "Buy",
       "sell": "Sell"
+    },
+    "quoteSummary": {
+      "exchangeDetails": "Exchange Details",
+      "fullTransactionId": "Full Transaction ID",
+      "hideExchangeDetails": "Hide exchange details",
+      "showExchangeDetails": "Show exchange details",
+      "youReceive": "You Receive",
+      "youSend": "You Send"
     },
     "RampFollowUpRedirectStep": {
       "afterLink": ".",

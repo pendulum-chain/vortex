@@ -147,7 +147,14 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         destinationAddress={destinationAddress}
         direction={rampDirection}
         exchangeRate={Big(quote.outputAmount).div(quote.inputAmount).toFixed(4)}
-        feesCost={quote.fee}
+        feesCost={{
+          anchor: quote.anchorFeeFiat,
+          currency: quote.feeCurrency,
+          network: quote.networkFeeFiat,
+          partnerMarkup: quote.partnerFeeFiat,
+          total: quote.totalFeeFiat,
+          vortex: quote.vortexFeeFiat
+        }}
         fromToken={fromToken}
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
