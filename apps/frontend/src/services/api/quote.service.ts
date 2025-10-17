@@ -4,6 +4,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   OnChainToken,
+  PaymentMethod,
   QuoteResponse,
   RampDirection
 } from "@packages/shared";
@@ -24,6 +25,8 @@ export class QuoteService {
    * @param inputCurrency The input currency
    * @param outputCurrency The output currency
    * @param partnerId Optional partner ID for fee markup
+   * @param paymentMethod Optional payment method
+   * @param countryCode Optional country code
    * @returns The created quote
    */
   static async createQuote(
@@ -33,7 +36,9 @@ export class QuoteService {
     inputAmount: string,
     inputCurrency: OnChainToken | FiatToken,
     outputCurrency: OnChainToken | FiatToken,
-    partnerId?: string
+    partnerId?: string,
+    paymentMethod?: PaymentMethod,
+    countryCode?: string
   ): Promise<QuoteResponse> {
     const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
@@ -42,11 +47,13 @@ export class QuoteService {
     }
 
     const request: CreateQuoteRequest = {
+      countryCode,
       from,
       inputAmount,
       inputCurrency,
       network,
       outputCurrency,
+      paymentMethod,
       rampType,
       to
     };

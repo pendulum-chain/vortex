@@ -212,9 +212,30 @@ export const rampMachine = setup({
       {
         actions: [
           assign({
+            ...initialRampContext,
             externalSessionId: ({ event }) => event.externalSessionId
-          })
-        ]
+          }),
+          () => window.location.reload()
+        ],
+        // Assumed to be a new session, so we reset everything and reload the page.
+        // This will reload the new parameters and fetch a new quote.
+        guard: ({ context, event }) =>
+          event.externalSessionId !== undefined &&
+          context.externalSessionId !== undefined &&
+          event.externalSessionId !== context.externalSessionId,
+        target: ".Idle"
+      },
+      {
+        actions: [
+          assign({
+            ...initialRampContext,
+            externalSessionId: ({ event }) => event.externalSessionId
+          }),
+          () => window.location.reload()
+        ],
+        // If a sessionId is passed yet none is set in the context, we assume it's a new session and reload.
+        guard: ({ context, event }) => event.externalSessionId !== undefined && context.externalSessionId === undefined,
+        target: ".Idle"
       }
     ],
     SET_GET_MESSAGE_SIGNATURE: {
@@ -229,13 +250,6 @@ export const rampMachine = setup({
     SET_INITIALIZE_FAILED_MESSAGE: {
       actions: assign({
         initializeFailedMessage: ({ event }) => event.message
-      })
-    },
-    SET_QUOTE_PARAMS: {
-      actions: assign({
-        callbackUrl: ({ event }) => event.callbackUrl,
-        partnerId: ({ event }) => event.partnerId,
-        walletLocked: ({ event }) => event.walletLocked
       })
     },
     SET_SUBSTRATE_WALLET_ACCOUNT: {
@@ -271,6 +285,13 @@ export const rampMachine = setup({
             quoteLocked: ({ event }) => event.lock
           }),
           target: "LoadingQuote"
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            callbackUrl: ({ event }) => event.callbackUrl,
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
         }
       }
     },
@@ -380,7 +401,7 @@ export const rampMachine = setup({
           {
             // If Avenia (BRL) flow and user is valid, we can simply go to the summary card.
             guard: ({ context, event }) => !event.output.kycNeeded && context.executionInput?.fiatToken === FiatToken.BRL,
-            target: "RegisterRamp"
+            target: "KycComplete"
           }
         ],
         onError: "Idle",

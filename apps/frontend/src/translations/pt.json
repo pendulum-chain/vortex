@@ -332,6 +332,7 @@
         "bic": "BIC",
         "footer": "Por favor, garanta que o valor seja exato.",
         "iban": "IBAN",
+        "receiver": "Nome do Beneficiário",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
       },
       "headerText": {
