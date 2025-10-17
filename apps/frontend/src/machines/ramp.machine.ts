@@ -252,13 +252,6 @@ export const rampMachine = setup({
         initializeFailedMessage: ({ event }) => event.message
       })
     },
-    SET_QUOTE_PARAMS: {
-      actions: assign({
-        callbackUrl: ({ event }) => event.callbackUrl,
-        partnerId: ({ event }) => event.partnerId,
-        walletLocked: ({ event }) => event.walletLocked
-      })
-    },
     SET_SUBSTRATE_WALLET_ACCOUNT: {
       actions: assign({
         substrateWalletAccount: ({ event }) => event.walletAccount
@@ -292,6 +285,13 @@ export const rampMachine = setup({
             quoteLocked: ({ event }) => event.lock
           }),
           target: "LoadingQuote"
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            callbackUrl: ({ event }) => event.callbackUrl,
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
         }
       }
     },
