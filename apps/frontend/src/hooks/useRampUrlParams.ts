@@ -5,6 +5,7 @@ import {
   FiatToken,
   Networks,
   OnChainToken,
+  PaymentMethod,
   QuoteResponse,
   RampDirection
 } from "@packages/shared";
@@ -28,8 +29,9 @@ interface RampUrlParams {
   providedQuoteId?: string;
   moneriumCode?: string;
   fiat?: FiatToken;
+  countryCode?: string;
   cryptoLocked?: OnChainToken;
-  payment?: string;
+  paymentMethod?: PaymentMethod;
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
@@ -160,10 +162,11 @@ export const useRampUrlParams = (): RampUrlParams => {
     const providedQuoteId = params.get("quoteId")?.toLowerCase();
     const fiatParam = params.get("fiat")?.toUpperCase();
     const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
-    const paymentParam = params.get("payment");
+    const paymentMethodParam = params.get("paymentMethod") as PaymentMethod | undefined;
     const walletLockedParam = params.get("walletLocked");
     const callbackUrlParam = params.get("callbackUrl");
     const externalSessionIdParam = params.get("externalSessionId");
+    const countryCodeParam = params.get("countryCode")?.toUpperCase();
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -176,6 +179,7 @@ export const useRampUrlParams = (): RampUrlParams => {
 
     return {
       callbackUrl: callbackUrlParam || undefined,
+      countryCode: countryCodeParam || undefined,
       cryptoLocked,
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
@@ -183,7 +187,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       moneriumCode,
       network,
       partnerId: partnerIdParam || undefined,
-      payment: paymentParam || undefined,
+      paymentMethod: paymentMethodParam || undefined,
       providedQuoteId,
       rampDirection,
       walletLocked: walletLockedParam || undefined
@@ -202,6 +206,8 @@ export const useSetRampUrlParams = () => {
     network,
     fiat,
     cryptoLocked,
+    countryCode,
+    paymentMethod,
     walletLocked,
     callbackUrl,
     externalSessionId
@@ -276,7 +282,9 @@ export const useSetRampUrlParams = () => {
           quotePayload.inputAmount,
           quotePayload.inputCurrency,
           quotePayload.outputCurrency,
-          partnerId
+          partnerId,
+          paymentMethod,
+          countryCode
         )
           .then((newQuote: QuoteResponse) => {
             if (newQuote) {
