@@ -38,12 +38,6 @@ function buildRefreshUrl(body: GetWidgetUrlRefresh): string {
   if (body.cryptoLocked) {
     params.append("cryptoLocked", body.cryptoLocked);
   }
-  if (body.externalCustomerId) {
-    params.append("externalCustomerId", body.externalCustomerId);
-  }
-  if (body.externalTransactionId) {
-    params.append("externalTransactionId", body.externalTransactionId);
-  }
   if (body.fiat) {
     params.append("fiat", body.fiat);
   }

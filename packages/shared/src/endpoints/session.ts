@@ -4,8 +4,6 @@ export interface GetWidgetUrlLocked {
   quoteId: string;
   callbackUrl?: string;
   externalSessionId: string;
-  externalTransactionId?: string;
-  externalCustomerId?: string;
   walletAddressLocked?: string;
 }
 
@@ -14,9 +12,7 @@ export interface GetWidgetUrlRefresh {
   countryCode?: string;
   crypto?: OnChainToken;
   cryptoLocked?: OnChainToken;
-  externalCustomerId?: string;
   externalSessionId: string;
-  externalTransactionId?: string;
   fiat?: FiatToken;
   inputAmount: string;
   network: Networks;
