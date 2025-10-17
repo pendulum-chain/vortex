@@ -403,7 +403,7 @@ export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidg
 
   const { network, fiat, inputAmount, cryptoLocked, rampType, externalSessionId } = req.body as GetWidgetUrlRefresh;
 
-  if (!network || !fiat || !inputAmount || cryptoLocked || !rampType || !externalSessionId) {
+  if (!network || !fiat || !inputAmount || !cryptoLocked || !rampType || !externalSessionId) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Missing required fields for GetWidgetUrlRefresh" });
     return;
   }
