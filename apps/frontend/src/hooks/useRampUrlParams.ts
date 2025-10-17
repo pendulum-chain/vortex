@@ -163,7 +163,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const fiatParam = params.get("fiat")?.toUpperCase();
     const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
     const paymentMethodParam = params.get("paymentMethod") as PaymentMethod | undefined;
-    const walletLockedParam = params.get("walletLocked");
+    const walletLockedParam = params.get("walletAddressLocked");
     const callbackUrlParam = params.get("callbackUrl");
     const externalSessionIdParam = params.get("externalSessionId");
     const countryCodeParam = params.get("countryCode")?.toUpperCase();

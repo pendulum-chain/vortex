@@ -12,7 +12,7 @@ function buildLockedUrl(body: GetWidgetUrlLocked): string {
     quoteId: body.quoteId
   });
   if (body.walletAddressLocked) {
-    params.append("walletLocked", body.walletAddressLocked);
+    params.append("walletAddressLocked", body.walletAddressLocked);
   }
 
   return `${BASE_WIDGET_URL}?${params.toString()}`;
