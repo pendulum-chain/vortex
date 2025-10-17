@@ -45,7 +45,7 @@ function buildRefreshUrl(body: GetWidgetUrlRefresh): string {
     params.append("paymentMethod", body.paymentMethod);
   }
   if (body.walletAddressLocked) {
-    params.append("walletLocked", body.walletAddressLocked);
+    params.append("walletAddressLocked", body.walletAddressLocked);
   }
 
   return `${BASE_WIDGET_URL}?${params.toString()}`;
