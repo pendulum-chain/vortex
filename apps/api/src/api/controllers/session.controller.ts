@@ -93,8 +93,8 @@ export const create = async (
         });
       }
 
-      const inputCurrency = rampType === RampDirection.BUY ? cryptoLocked : fiat;
-      const outputCurrency = rampType === RampDirection.BUY ? fiat : cryptoLocked;
+      const inputCurrency = rampType === RampDirection.BUY ? fiat : cryptoLocked;
+      const outputCurrency = rampType === RampDirection.BUY ? cryptoLocked : fiat;
 
       if (!inputCurrency || !outputCurrency) {
         throw new APIError({
