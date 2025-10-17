@@ -80,6 +80,7 @@ export interface PaymentData {
 }
 
 export interface IbanPaymentData {
+  receiverName: string;
   iban: string;
   bic: string;
 }

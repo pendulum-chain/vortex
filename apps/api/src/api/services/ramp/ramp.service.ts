@@ -191,7 +191,8 @@ export class RampService extends BaseRampService {
 
       const ibanPaymentData = {
         bic: ibanData.bic,
-        iban: ibanData.iban
+        iban: ibanData.iban,
+        receiverName: userProfile.name
       };
 
       const ibanCode = createEpcQrCodeData({
