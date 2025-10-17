@@ -50,7 +50,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
 
     if (
       walletLocked &&
-      isOfframp &&
+      (isOfframp || quote?.from === "sepa") &&
       accountAddress &&
       getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
     ) {
@@ -205,7 +205,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const submitButtonDisabled = useMemo(() => {
     if (
       walletLocked &&
-      isOfframp &&
+      (isOfframp || quote?.from === "sepa") &&
       accountAddress &&
       getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
     ) {
@@ -248,7 +248,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     machineState,
     moneriumKycActor,
     walletLocked,
-    accountAddress
+    accountAddress,
+    quote?.from
   ]);
 
   const buttonContent = useButtonContent({
