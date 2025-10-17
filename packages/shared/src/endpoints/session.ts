@@ -10,7 +10,6 @@ export interface GetWidgetUrlLocked {
 export interface GetWidgetUrlRefresh {
   callbackUrl?: string;
   countryCode?: string;
-  crypto?: OnChainToken;
   cryptoLocked?: OnChainToken;
   externalSessionId: string;
   fiat?: FiatToken;

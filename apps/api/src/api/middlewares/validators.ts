@@ -18,7 +18,7 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@packages/shared";
-import { Request, RequestHandler } from "express";
+import { RequestHandler } from "express";
 import httpStatus from "http-status";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
@@ -401,7 +401,14 @@ export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidg
     return next();
   }
 
-  return validateCreateQuoteInput(req as Request<unknown, unknown, CreateQuoteRequest>, res, next);
+  const { network, fiat, inputAmount, cryptoLocked, rampType, externalSessionId } = req.body as GetWidgetUrlRefresh;
+
+  if (!network || !fiat || !inputAmount || cryptoLocked || !rampType || !externalSessionId) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing required fields for GetWidgetUrlRefresh" });
+    return;
+  }
+
+  next();
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {

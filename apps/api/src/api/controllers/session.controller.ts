@@ -32,9 +32,6 @@ function buildRefreshUrl(body: GetWidgetUrlRefresh): string {
   if (body.countryCode) {
     params.append("countryCode", body.countryCode);
   }
-  if (body.crypto) {
-    params.append("crypto", body.crypto);
-  }
   if (body.cryptoLocked) {
     params.append("cryptoLocked", body.cryptoLocked);
   }
@@ -84,7 +81,7 @@ export const create = async (
       const url = buildLockedUrl(body);
       res.status(httpStatus.OK).json({ url });
     } else {
-      const { network, fiat, inputAmount, crypto, paymentMethod, cryptoLocked, rampType } = body;
+      const { network, fiat, inputAmount, paymentMethod, cryptoLocked, rampType } = body;
 
       const from = rampType === RampDirection.BUY ? paymentMethod : network;
       const to = rampType === RampDirection.BUY ? network : paymentMethod;
@@ -96,8 +93,8 @@ export const create = async (
         });
       }
 
-      const inputCurrency = rampType === RampDirection.BUY ? cryptoLocked || crypto : fiat;
-      const outputCurrency = rampType === RampDirection.BUY ? fiat : cryptoLocked || crypto;
+      const inputCurrency = rampType === RampDirection.BUY ? cryptoLocked : fiat;
+      const outputCurrency = rampType === RampDirection.BUY ? fiat : cryptoLocked;
 
       if (!inputCurrency || !outputCurrency) {
         throw new APIError({
