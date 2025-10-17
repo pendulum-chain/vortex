@@ -185,7 +185,7 @@ const FormWizardDemo = () => {
             <h3 className="font-semibold text-lg">Payment Method</h3>
             <select
               className="w-full rounded border p-2"
-              onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+              onChange={e => setFormData({ ...formData, payment: e.target.value })}
               value={formData.payment}
             >
               <option value="">Select Payment Method</option>
