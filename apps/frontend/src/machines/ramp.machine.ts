@@ -401,7 +401,7 @@ export const rampMachine = setup({
           {
             // If Avenia (BRL) flow and user is valid, we can simply go to the summary card.
             guard: ({ context, event }) => !event.output.kycNeeded && context.executionInput?.fiatToken === FiatToken.BRL,
-            target: "RegisterRamp"
+            target: "KycComplete"
           }
         ],
         onError: "Idle",
