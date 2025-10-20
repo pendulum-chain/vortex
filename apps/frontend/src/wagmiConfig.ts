@@ -1,4 +1,4 @@
-import { arbitrum, avalanche, base, bsc, mainnet, polygon } from "@reown/appkit/networks";
+import { arbitrum, avalanche, base, bsc, mainnet, polygon, polygonAmoy } from "@reown/appkit/networks";
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { http } from "wagmi";
@@ -13,7 +13,8 @@ const transports = config.alchemyApiKey
       [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
       [bsc.id]: http(`https://bnb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
       [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`)
+      [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [polygonAmoy.id]: http("")
     }
   : {
       [arbitrum.id]: http(""),
@@ -21,7 +22,8 @@ const transports = config.alchemyApiKey
       [base.id]: http(""),
       [bsc.id]: http(""),
       [mainnet.id]: http(""),
-      [polygon.id]: http("")
+      [polygon.id]: http(""),
+      [polygonAmoy.id]: http("")
     };
 
 const metadata = {

@@ -178,10 +178,10 @@ export class RampService extends BaseRampService {
         quote.to as EvmNetworks // Fixme: assethub network type issue.
       );
 
-      const userProfile = await getMoneriumUserProfile({
-        authToken: additionalData.moneriumAuthToken,
-        profileId: ibanData.profile
-      });
+      // const userProfile = await getMoneriumUserProfile({
+      //   authToken: additionalData.moneriumAuthToken,
+      //   profileId: ibanData.profile
+      // });
 
       const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
         destinationAddress: additionalData.destinationAddress,
@@ -192,14 +192,14 @@ export class RampService extends BaseRampService {
       const ibanPaymentData = {
         bic: ibanData.bic,
         iban: ibanData.iban,
-        receiverName: userProfile.name
+        receiverName: "Sandbox User" //userProfile.name
       };
 
       const ibanCode = createEpcQrCodeData({
         amount: quote.inputAmount,
         bic: ibanData.bic,
         iban: ibanData.iban,
-        name: userProfile.name
+        name: "Sandbox User" //userProfile.name
       });
       return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
     } catch (error) {

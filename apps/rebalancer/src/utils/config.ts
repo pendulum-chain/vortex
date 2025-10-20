@@ -9,7 +9,7 @@ export function getConfig() {
 
   return {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
-    brlaBaseUrl: process.env.BRLA_BASE_URL || "https://api.avenia.io:8443",
+    brlaBaseUrl: process.env.BRLA_BASE_URL || "https://api.sandbox.avenia.io:10952",
 
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
 

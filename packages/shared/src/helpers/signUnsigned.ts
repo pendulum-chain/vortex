@@ -254,7 +254,7 @@ export async function signUnsignedTransactions(
   // Create EVM wallet clients once at the beginning if needed
   let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
-  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
+  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon" || tx.network === "polygonAmoy");
 
   if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
     evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);

@@ -98,7 +98,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: Networks.PolygonAmoy,
     nonce: 0,
     phase: "moneriumOnrampSelfTransfer",
     signer: destinationAddress,
@@ -121,7 +121,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.Polygon,
+        network: Networks.PolygonAmoy,
         nonce: polygonAccountNonce++,
         phase: "moneriumOnrampSelfTransfer",
         signer: account.address,
@@ -142,7 +142,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.Polygon,
+        network: Networks.PolygonAmoy,
         nonce: polygonAccountNonce++,
         phase: "squidRouterApprove",
         signer: account.address,
@@ -151,7 +151,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.Polygon,
+        network: Networks.PolygonAmoy,
         nonce: polygonAccountNonce++,
         phase: "squidRouterSwap",
         signer: account.address,
@@ -170,7 +170,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+  const polygonClient = evmClientManager.getClient(Networks.PolygonAmoy);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -198,7 +198,7 @@ async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+  const polygonClient = evmClientManager.getClient(Networks.PolygonAmoy);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
