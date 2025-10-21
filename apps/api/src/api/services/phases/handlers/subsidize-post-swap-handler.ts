@@ -51,8 +51,9 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       }
 
       // Add the (potential) subsidy amount to the expected swap output to get the target balance
-      const expectedSwapOutputAmountRaw =
-        quote.metadata.nablaSwap.outputAmountRaw + quote.metadata.subsidy.subsidyAmountInOutputTokenRaw;
+      const expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
+        quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
+      );
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
