@@ -14,7 +14,7 @@ export interface DetailsStepActionsProps {
 
 export const DetailsStepActions = ({ signingState, className, requiresConnection, forceNetwork }: DetailsStepActionsProps) => {
   const { shouldDisplay: signingBoxVisible, signatureState, confirmations } = signingState;
-  const { isConnected } = useVortexAccount();
+  const { isConnected } = useVortexAccount(forceNetwork);
 
   if (signingBoxVisible) {
     return (

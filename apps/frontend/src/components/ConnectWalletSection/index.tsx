@@ -9,7 +9,7 @@ export interface ConnectWalletSectionProps {
 }
 
 export const ConnectWalletSection = ({ className, forceNetwork }: ConnectWalletSectionProps) => {
-  const { isConnected } = useVortexAccount();
+  const { isConnected } = useVortexAccount(forceNetwork);
   return (
     <div className={cn("mb-4 w-full", isConnected && "mb-2", className)}>
       {isConnected ? (

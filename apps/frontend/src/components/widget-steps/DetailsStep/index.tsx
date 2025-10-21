@@ -65,12 +65,15 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   useEffect(() => {
     form.setValue("moneriumWalletAddress", evmAddress);
-    if (walletLockedFromState) {
+
+    if (isMoneriumToAssethubRamp && substrateAddress) {
+      form.setValue("walletAddress", substrateAddress);
+    } else if (walletLockedFromState) {
       form.setValue("walletAddress", walletLockedFromState);
-    } else if (address) {
+    } else if (!isMoneriumToAssethubRamp && address) {
       form.setValue("walletAddress", address);
     }
-  }, [walletForm, form, evmAddress]);
+  }, [form, evmAddress, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress]);
 
   const { onRampConfirm } = useRampSubmission();
 
