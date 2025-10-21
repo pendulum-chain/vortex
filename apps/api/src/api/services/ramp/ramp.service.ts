@@ -154,18 +154,6 @@ export class RampService extends BaseRampService {
         walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
 
-      console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
-      webhookDeliveryService
-        .triggerTransactionCreated(
-          rampState.quoteId,
-          (rampState.state?.sessionId as string) || null,
-          rampState.id,
-          quote.rampType
-        )
-        .catch(error => {
-          logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
-        });
-
       return response;
     });
   }
@@ -266,6 +254,15 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
+
+      if (!quote) {
+        throw new APIError({
+          message: QuoteError.QuoteNotFound,
+          status: httpStatus.NOT_FOUND
+        });
+      }
+
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
         throw new APIError({
@@ -289,6 +286,18 @@ export class RampService extends BaseRampService {
           status: httpStatus.BAD_REQUEST
         });
       }
+
+      console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
+      webhookDeliveryService
+        .triggerTransactionCreated(
+          rampState.quoteId,
+          (rampState.state?.sessionId as string) || null,
+          rampState.id,
+          quote.rampType
+        )
+        .catch(error => {
+          logger.error(`Error triggering TRANSACTION_CREATED webhook for ${rampState.id}:`, error);
+        });
 
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
