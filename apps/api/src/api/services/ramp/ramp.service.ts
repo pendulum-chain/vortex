@@ -11,7 +11,6 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
-  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -27,6 +26,7 @@ import {
   UpdateRampResponse,
   validateMaskedNumber
 } from "@packages/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
@@ -339,30 +339,37 @@ export class RampService extends BaseRampService {
       });
     }
 
+    const usdFees = quote.metadata.fees?.usd;
+    const fiatFees = quote.metadata.fees?.displayFiat;
+    if (!usdFees || !fiatFees) {
+      throw new APIError({
+        message: "Quote fee structure is incomplete",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
     // Calculate processing fees
-    const processingFeeFiat = new Big(quote.fee.anchor).plus(quote.fee.vortex).toFixed();
-    const processingFeeUsd = new Big(quote.metadata.usdFeeStructure.anchor)
-      .plus(quote.metadata.usdFeeStructure.vortex)
-      .toFixed();
+    const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
+    const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
     const response: GetRampStatusResponse = {
-      anchorFeeFiat: quote.fee.anchor,
-      anchorFeeUsd: quote.metadata.usdFeeStructure.anchor,
+      anchorFeeFiat: fiatFees.anchor,
+      anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase: rampState.currentPhase,
       depositQrCode: rampState.state.depositQrCode,
-      feeCurrency: quote.fee.currency,
+      feeCurrency: fiatFees.currency,
       from: rampState.from,
       ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
       inputAmount: quote.inputAmount,
       network: quote.network,
-      networkFeeFiat: quote.fee.network,
-      networkFeeUsd: quote.metadata.usdFeeStructure.network,
+      networkFeeFiat: fiatFees.network,
+      networkFeeUsd: usdFees.network,
       outputAmount: quote.outputAmount,
-      partnerFeeFiat: quote.fee.partnerMarkup,
-      partnerFeeUsd: quote.metadata.usdFeeStructure.partnerMarkup,
+      partnerFeeFiat: fiatFees.partnerMarkup,
+      partnerFeeUsd: usdFees.partnerMarkup,
       paymentMethod: rampState.paymentMethod,
       processingFeeFiat,
       processingFeeUsd,
@@ -370,12 +377,12 @@ export class RampService extends BaseRampService {
       sessionId: rampState.state.sessionId,
       status: this.mapPhaseToStatus(rampState.currentPhase),
       to: rampState.to,
-      totalFeeFiat: quote.fee.total,
-      totalFeeUsd: quote.metadata.usdFeeStructure.total,
+      totalFeeFiat: fiatFees.total,
+      totalFeeUsd: usdFees.total,
       type: rampState.type,
       updatedAt: rampState.updatedAt.toISOString(),
-      vortexFeeFiat: quote.fee.vortex,
-      vortexFeeUsd: quote.metadata.usdFeeStructure.vortex,
+      vortexFeeFiat: fiatFees.vortex,
+      vortexFeeUsd: usdFees.vortex,
       walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
       ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
     };

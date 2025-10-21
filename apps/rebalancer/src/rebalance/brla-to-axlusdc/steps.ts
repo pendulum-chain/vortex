@@ -1,5 +1,6 @@
 import {
   ApiManager,
+  AveniaFeeType,
   AveniaPaymentMethod,
   AveniaSwapTicket,
   AveniaTicketStatus,
@@ -10,11 +11,11 @@ import {
   createOfframpSquidrouterTransactions,
   createPendulumToMoonbeamTransfer,
   decodeSubmittableExtrinsic,
+  EphemeralAccountType,
   EvmToken,
   EvmTokenDetails,
   encodePayload,
   evmTokenConfig,
-  FeeType,
   getOnChainTokenDetails,
   getStatusAxelarScan,
   getTokenOutAmount,
@@ -28,7 +29,6 @@ import {
 } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
-import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
@@ -115,7 +115,7 @@ export async function swapAxlusdcToBrla(amount: string): Promise<Big> {
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
     amountRaw,
-    { address: callerAddress, type: Networks.Pendulum },
+    { address: callerAddress, type: EphemeralAccountType.Substrate },
     usdcTokenDetails,
     brlaFiatTokenDetails.pendulumRepresentative,
     minOutputRaw
@@ -303,7 +303,7 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
   //Double check: Wait for USDC to appear on Polygon.
   const usdcAmountRaw = multiplyByPowerOfTen(paidAmount, 6).toFixed(0, 0);
   await waitForUSDCOnPolygon(paidAmount, usdcAmountRaw);
-  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === FeeType.CONVERSION) ?? "0";
+  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === AveniaFeeType.CONVERSION) ?? "0";
 
   return {
     amountUsd: paidAmount.toFixed(6),

@@ -11,6 +11,7 @@ import {
   EphemeralAccountType,
   EvmToken,
   FiatToken,
+  Networks,
   RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions,

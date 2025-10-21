@@ -1,12 +1,13 @@
-import { CreateQuoteRequest, QuoteError, QuoteFeeStructure, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, QuoteError, QuoteResponse } from "@packages/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
-import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./core/helpers";
+import { getTargetFiatCurrency, validateChainSupport } from "./core/helpers";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
+import { buildQuoteResponse } from "./engines/finalize";
 import { RouteResolver } from "./routes/route-resolver";
 
 export class QuoteService extends BaseRampService {
@@ -65,27 +66,7 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
-    const responseFeeStructure: QuoteFeeStructure = {
-      anchor: trimTrailingZeros(quote.fee.anchor),
-      currency: quote.fee.currency,
-      network: trimTrailingZeros(quote.fee.network),
-      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
-      total: trimTrailingZeros(quote.fee.total),
-      vortex: trimTrailingZeros(quote.fee.vortex)
-    };
-
-    return {
-      expiresAt: quote.expiresAt,
-      fee: responseFeeStructure,
-      from: quote.from,
-      id: quote.id,
-      inputAmount: trimTrailingZeros(quote.inputAmount),
-      inputCurrency: quote.inputCurrency,
-      outputAmount: trimTrailingZeros(quote.outputAmount),
-      outputCurrency: quote.outputCurrency,
-      rampType: quote.rampType,
-      to: quote.to
-    };
+    return buildQuoteResponse(quote);
   }
 }
 
