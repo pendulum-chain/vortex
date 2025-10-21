@@ -19,7 +19,7 @@ export const config = {
     deadlineMinutes: 60 * 24 * 7 // 1 week
   },
   test: {
-    mockSep24: sandboxEnabled,
+    mockSep24: false,
     overwriteMinimumTransferAmount: false
   },
   walletConnect: {

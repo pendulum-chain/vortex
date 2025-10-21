@@ -22,6 +22,7 @@ export async function sep24First(
     ...(usesMemo && { account: ANCLAP_sep10Account })
   };
 
+  console.log("Initiating SEP-24 with params:", params);
   const response = await fetch(`${sep24Url}/transactions/withdraw/interactive`, {
     body: JSON.stringify(params),
     headers: {
@@ -31,6 +32,7 @@ export async function sep24First(
     method: "POST"
   });
 
+  console.log("SEP-24 first response status:", response.status);
   if (response.status !== 200) {
     console.log(await response.json(), params.toString());
     throw new Error(`Failed to initiate SEP-24: ${response.statusText}`);

@@ -20,8 +20,6 @@ import logger from "../logger";
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
 
-const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
-
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
     return primaryTx;
@@ -280,7 +278,8 @@ export async function signUnsignedTransactions(
           throw new Error("Invalid Stellar transaction data format");
         }
 
-        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, NETWORK_PASSPHRASE);
+        const networkPassphrase = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
         signedTxs.push(txWithMeta);
       }
     }

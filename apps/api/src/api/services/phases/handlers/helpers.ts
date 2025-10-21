@@ -6,11 +6,13 @@ import logger from "../../../../config/logger";
 import {
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
+  SANDBOX_ENABLED
 } from "../../../../constants/constants";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
+export const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
 
 export async function isStellarEphemeralFunded(accountId: string, stellarTokenDetails: StellarTokenDetails): Promise<boolean> {
   try {

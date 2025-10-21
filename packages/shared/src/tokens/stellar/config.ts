@@ -2,7 +2,7 @@
  * Stellar token configuration
  */
 
-import { TOML_FILE_URL_MYKOBO } from "../tokenConfig";
+import { getTomlFileUrl } from "../tokenConfig";
 import { FiatToken, TokenType } from "../types/base";
 import { StellarTokenDetails } from "../types/stellar";
 
@@ -46,7 +46,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       }
     },
     supportsClientDomain: true,
-    tomlFileUrl: TOML_FILE_URL_MYKOBO,
+    tomlFileUrl: getTomlFileUrl("EURC"),
     type: TokenType.Stellar,
     usesMemo: false,
     vaultAccountId: "6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh"
@@ -91,7 +91,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       }
     }, // 11 ARS
     supportsClientDomain: true, // 500000 ARS
-    tomlFileUrl: "https://api.anclap.com/.well-known/stellar.toml", // 2%
+    tomlFileUrl: getTomlFileUrl("ARS"), // 2%
     type: TokenType.Stellar, // 10 ARS
     usesMemo: true,
     vaultAccountId: "6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs"

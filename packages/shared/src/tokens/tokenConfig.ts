@@ -1,6 +1,6 @@
 // TODO we may now de-duplicate this and use StellarTokenDetails from token configs.
 
-import { SANDBOX_ENABLED } from "src/constants";
+import { getEnvVar } from "../helpers/environment";
 
 export interface StellarTokenConfig {
   assetCode: string;
@@ -58,16 +58,11 @@ export type TokenConfig = {
   "USDC.AXL": XCMTokenConfig;
 };
 
-const HOME_DOMAIN_EURC = SANDBOX_ENABLED ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
-export const TOML_FILE_URL_MYKOBO = SANDBOX_ENABLED
-  ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
-  : "https://mykobo.co/.well-known/stellar.toml";
-
 const EURC: StellarTokenConfig = {
   assetCode: "EURC",
   assetIssuer: "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
   clientDomainEnabled: true,
-  homeDomain: HOME_DOMAIN_EURC,
+  homeDomain: getHomeDomain("EURC"),
   maximumSubsidyAmountRaw: "15000000000000",
   memoEnabled: false, // 15 units
   minWithdrawalAmount: "10000000000000",
@@ -79,7 +74,7 @@ const EURC: StellarTokenConfig = {
       }
     }
   },
-  tomlFileUrl: TOML_FILE_URL_MYKOBO,
+  tomlFileUrl: getTomlFileUrl("EURC"),
   vaultAccountId: "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm"
 };
 
@@ -143,4 +138,28 @@ export function getTokenConfigByAssetCode(
 
 export function getPaddedAssetCode(assetCode: string): string {
   return assetCode.padEnd(4, "\0");
+}
+
+export function getHomeDomain(assetCode: string): string {
+  switch (assetCode) {
+    case "EURC":
+      return getEnvVar("SANDBOX_ENABLED") ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
+    case "ARS":
+      return "api.anclap.com";
+    default:
+      throw new Error(`Home domain not configured for asset: ${assetCode}`);
+  }
+}
+
+export function getTomlFileUrl(assetCode: string): string {
+  switch (assetCode) {
+    case "EURC":
+      return getEnvVar("SANDBOX_ENABLED")
+        ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
+        : "https://mykobo.co/.well-known/stellar.toml";
+    case "ARS":
+      return "https://api.anclap.com/.well-known/stellar.toml";
+    default:
+      throw new Error(`TOML file URL not configured for asset: ${assetCode}`);
+  }
 }
