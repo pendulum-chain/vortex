@@ -61,13 +61,13 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   }
 
   const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.outputAmountRaw).toFixed(0, 0);
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, moneriumWalletAddress);
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, evmEphemeralEntry.address);
 
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
     nonce: 0,
-    phase: "moneriumOnrampSelfTransfer",
+    phase: "moneriumOnrampMint",
     signer: moneriumWalletAddress,
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });

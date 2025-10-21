@@ -94,7 +94,7 @@ export const signTransactionsActor = async ({
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
         assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
-      } else if (tx.phase === "moneriumOnrampSelfTransfer") {
+      } else if (tx.phase === "moneriumOnrampMint") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
         moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });

@@ -45,13 +45,13 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     walletAddress: destinationAddress
   };
 
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, moneriumWalletAddress);
+  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, evmEphemeralEntry.address);
 
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
     nonce: 0,
-    phase: "moneriumOnrampSelfTransfer",
+    phase: "moneriumOnrampMint",
     signer: moneriumWalletAddress,
     txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
   });
