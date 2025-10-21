@@ -1,11 +1,12 @@
 import { Memo, MemoType, Networks, Operation, Transaction } from "stellar-sdk";
+import { config } from "../../../config";
 
 interface Sep10Challenge {
   transaction: string;
   network_passphrase: string;
 }
 
-const EXPECTED_NETWORK_PASSPHRASE = import.meta.env.VITE_SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+const EXPECTED_NETWORK_PASSPHRASE = config.isSandbox ? Networks.TESTNET : Networks.PUBLIC;
 
 async function validateChallenge(
   transaction: Transaction<Memo<MemoType>, Operation[]>,

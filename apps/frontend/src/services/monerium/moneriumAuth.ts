@@ -1,5 +1,6 @@
 import { siweMessage } from "@monerium/sdk";
 import CryptoJS from "crypto-js";
+import { config } from "../../config";
 import { MoneriumKycActorRef } from "../../machines/types";
 
 export enum MoneriumAuthErrorType {
@@ -14,13 +15,12 @@ export class MoneriumAuthError extends Error {
   }
 }
 
-export const MONERIUM_MINT_NETWORK = import.meta.env.VITE_SANDBOX_ENABLED ? "amoy" : "polygon";
-const MONERIUM_MINT_NETWORK_CHAIN_ID = import.meta.env.VITE_SANDBOX_ENABLED ? 80002 : 137;
+export const MONERIUM_MINT_NETWORK = config.isSandbox ? "amoy" : "polygon";
+const MONERIUM_MINT_NETWORK_CHAIN_ID = config.isSandbox ? 80002 : 137;
 const VORTEX_APP_CLIENT_ID = import.meta.env.VITE_MONERIUM_CLIENT_ID || "8a7a2092-4610-11f0-ab69-cab7165906f7";
 // Use custom API URL if provided, otherwise use default sandbox/dev endpoints
 const MONERIUM_API_URL =
-  import.meta.env.VITE_MONERIUM_API_URL ||
-  (import.meta.env.VITE_SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app");
+  import.meta.env.VITE_MONERIUM_API_URL || (config.isSandbox ? "https://api.monerium.dev" : "https://api.monerium.app");
 const LINK_MESSAGE = "I hereby declare that I am the address owner.";
 const MONERIUM_APP_NAME = "Vortest";
 
