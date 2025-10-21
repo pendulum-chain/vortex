@@ -2,11 +2,9 @@ import { ApiManager, EvmClientManager, encodePayload, Networks, RampPhase, waitU
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
-
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { moonbeam } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -121,7 +119,15 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
     }
 
-    return this.transitionToNextPhase(state, "distributeFees");
+    return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
+  }
+
+  private nextPhaseSelector(state: RampState): RampPhase {
+    if (state.type === "BUY") {
+      return "subsidizePreSwap";
+    } else {
+      return "distributeFees";
+    }
   }
 }
 

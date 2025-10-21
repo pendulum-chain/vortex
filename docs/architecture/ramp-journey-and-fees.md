@@ -193,7 +193,7 @@ graph TD
 
         subgraph Pendulum_Swap [Pendulum Swap & Subsidize]
             direction LR
-            PS_Start[distributeFees] --> PS_pre[subsidizePreSwap] --> PS_app[nablaApprove] --> PS_swap[nablaSwap] --> PS_post[subsidizePostSwap];
+            PS_Start[subsidizePreSwap] --> PS_app[nablaApprove] --> PS_swap[nablaSwap] --> PS_dist[distributeFees] --> PS_post[subsidizePostSwap];
         end
 
         %% --- Main Entry Flows ---

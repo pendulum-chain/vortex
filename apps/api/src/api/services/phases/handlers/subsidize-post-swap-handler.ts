@@ -1,12 +1,4 @@
-import {
-  ApiManager,
-  AssetHubToken,
-  FiatToken,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  RampDirection,
-  RampPhase
-} from "@packages/shared";
+import { ApiManager, AssetHubToken, FiatToken, RampDirection, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -38,14 +30,8 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
-    const toNetwork = getNetworkFromDestination(quote.to);
-    if (!toNetwork) {
-      throw new Error(`Invalid network for destination ${quote.to}`);
-    }
-    const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
-
-    if (!quote.metadata.nablaSwap?.outputAmountRaw) {
-      throw new Error("Missing output amount before final step in quote metadata");
+    if (!quote.metadata.nablaSwap) {
+      throw new Error("Missing nablaSwap in quote metadata");
     }
 
     if (!quote.metadata.subsidy) {
@@ -55,7 +41,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         substrateEphemeralAddress,
-        outputTokenPendulumDetails.currencyId
+        quote.metadata.nablaSwap.outputCurrencyId
       );
 
       // @ts-ignore
@@ -76,11 +62,11 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         );
         const fundingAccountKeypair = getFundingAccount();
         const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, outputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
+          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.outputCurrencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, outputTokenPendulumDetails.decimals).toNumber();
-        const subsidyToken = outputTokenPendulumDetails.assetSymbol as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
+        const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
       }

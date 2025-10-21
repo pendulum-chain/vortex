@@ -1,4 +1,4 @@
-import { ApiManager, getNetworkFromDestination, getPendulumDetails, RampPhase } from "@packages/shared";
+import { ApiManager, RampPhase } from "@packages/shared";
 import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -31,20 +31,14 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("SubsidizePreSwapPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
-    const fromNetwork = getNetworkFromDestination(quote.from);
-    if (!fromNetwork) {
-      throw new Error(`Invalid network for source ${quote.from}`);
-    }
-    const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
-
-    if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
-      throw new Error("Missing input amount before swap in quote metadata");
+    if (!quote.metadata.nablaSwap) {
+      throw new Error("Missing nablaSwap in quote metadata");
     }
 
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         substrateEphemeralAddress,
-        inputTokenPendulumDetails.currencyId
+        quote.metadata.nablaSwap.inputCurrencyId
       );
 
       // @ts-ignore
@@ -65,11 +59,11 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
         // TODO this and other calls, add to executeApiCall to avoid low priority errors.
         const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, inputTokenPendulumDetails.currencyId, requiredAmount.toFixed(0, 0))
+          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.inputCurrencyId, requiredAmount.toFixed(0, 0))
           .signAndSend(fundingAccountKeypair);
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, inputTokenPendulumDetails.decimals).toNumber();
-        const subsidyToken = inputTokenPendulumDetails.assetSymbol as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.inputDecimals).toNumber();
+        const subsidyToken = quote.metadata.nablaSwap.inputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
       }

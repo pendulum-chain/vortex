@@ -289,7 +289,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Always Polygon for Monerium onramp, Moonbeam for BRL
       const fromChain = quote.inputCurrency === FiatToken.EURC ? Networks.Polygon : Networks.Moonbeam;
       const fromChainId = getNetworkId(fromChain)?.toString();
-      const toChainId = getNetworkId(state.to)?.toString();
+      const toChain = quote.to === Networks.AssetHub ? Networks.Moonbeam : quote.to;
+      const toChainId = getNetworkId(toChain)?.toString();
 
       if (!fromChainId || !toChainId) {
         throw new Error("SquidRouterPayPhaseHandler: Invalid from or to network for Squidrouter status check");

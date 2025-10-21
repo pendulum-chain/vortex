@@ -50,8 +50,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
-    // Pendulum ephemeral address is required for all cases except when the input currency is EURC.
-    if (isOnramp(state) && inputCurrency === FiatToken.EURC) {
+    // Pendulum ephemeral address is required for all cases except when doing a Monerium to EVM onramp
+    if (isOnramp(state) && inputCurrency === FiatToken.EURC && state.to !== Networks.AssetHub) {
       return false;
     }
     return true;
@@ -116,7 +116,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (isOnramp(state) && !isMoonbeamFunded) {
-        logger.info(`Funding moonbeam ephemeral accout ${evmEphemeralAddress}`);
+        logger.info(`Funding moonbeam ephemeral account ${evmEphemeralAddress}`);
 
         const destinationNetwork = getNetworkFromDestination(state.to);
         // For onramp case, "to" is always a network.
@@ -128,7 +128,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (isOnramp(state) && !isPolygonFunded) {
-        logger.info(`Funding polygon ephemeral accout ${evmEphemeralAddress}`);
+        logger.info(`Funding polygon ephemeral account ${evmEphemeralAddress}`);
         await this.fundPolygonEphemeralAccount(state);
       } else {
         logger.info("Polygon ephemeral address already funded.");

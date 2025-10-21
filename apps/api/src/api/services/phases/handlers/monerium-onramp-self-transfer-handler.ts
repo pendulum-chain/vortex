@@ -46,7 +46,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       return state;
     }
 
-    const quote = await QuoteTicket.findByPk(state.id);
+    const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
