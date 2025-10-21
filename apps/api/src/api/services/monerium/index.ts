@@ -15,10 +15,10 @@ import {
   Networks
 } from "@packages/shared";
 import logger from "../../../config/logger";
-import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
+import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
 
-const MONERIUM_API_URL = "https://api.monerium.dev";
-
+const MONERIUM_API_URL = SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app";
+const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };
 
@@ -139,7 +139,7 @@ export const getIbanForAddress = async (walletAddress: string, authToken: string
   // Check if the wallet address is in the list of approved addresses
   // and that it matches the amoy network.
   const ibanData = approvedAddresses.find(
-    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === "amoy"
+    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === MONERIUM_MINT_CHAIN
   );
 
   if (!ibanData) {

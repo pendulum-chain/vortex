@@ -30,7 +30,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
@@ -178,10 +178,13 @@ export class RampService extends BaseRampService {
         quote.to as EvmNetworks // Fixme: assethub network type issue.
       );
 
-      // const userProfile = await getMoneriumUserProfile({
-      //   authToken: additionalData.moneriumAuthToken,
-      //   profileId: ibanData.profile
-      // });
+      // Does not work on sandbox mode (Monerium)
+      const userProfile = SANDBOX_ENABLED
+        ? null
+        : await getMoneriumUserProfile({
+            authToken: additionalData.moneriumAuthToken,
+            profileId: ibanData.profile
+          });
 
       const { unsignedTxs, stateMeta } = await prepareMoneriumEvmOnrampTransactions({
         destinationAddress: additionalData.destinationAddress,
@@ -189,17 +192,19 @@ export class RampService extends BaseRampService {
         signingAccounts: normalizedSigningAccounts
       });
 
+      const receiverName = SANDBOX_ENABLED ? "Sandbox User" : userProfile?.name || "User";
+
       const ibanPaymentData = {
         bic: ibanData.bic,
         iban: ibanData.iban,
-        receiverName: "Sandbox User" //userProfile.name
+        receiverName
       };
 
       const ibanCode = createEpcQrCodeData({
         amount: quote.inputAmount,
         bic: ibanData.bic,
         iban: ibanData.iban,
-        name: "Sandbox User" //userProfile.name
+        name: receiverName
       });
       return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
     } catch (error) {
