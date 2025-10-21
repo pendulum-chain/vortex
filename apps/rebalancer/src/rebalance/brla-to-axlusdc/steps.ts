@@ -386,7 +386,7 @@ export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
       }
     } catch (error) {
       lastError = error;
-      console.log(`Polling for balance failed with error. Retrying...`, lastError);
+      console.log("Polling for balance failed with error. Retrying...", lastError);
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
