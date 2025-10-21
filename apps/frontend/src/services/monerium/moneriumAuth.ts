@@ -17,8 +17,8 @@ export class MoneriumAuthError extends Error {
 export const MONERIUM_MINT_NETWORK = "amoy";
 const MONERIUM_MINT_NETWORK_CHAIN_ID = 80002;
 const MONERIUM_APP_NAME = "Vortest";
-const VORTEX_APP_CLIENT_ID = process.env.REACT_APP_MONERIUM_CLIENT_ID || "8a7a2092-4610-11f0-ab69-cab7165906f7";
-const MONERIUM_API_URL = process.env.REACT_APP_MONERIUM_API_URL || "https://api.monerium.dev";
+const VORTEX_APP_CLIENT_ID = import.meta.env.VITE_MONERIUM_CLIENT_ID || "8a7a2092-4610-11f0-ab69-cab7165906f7";
+const MONERIUM_API_URL = import.meta.env.VITE_MONERIUM_API_URL || "https://api.monerium.dev";
 const LINK_MESSAGE = "I hereby declare that I am the address owner.";
 
 export const initiateMoneriumAuth = async (

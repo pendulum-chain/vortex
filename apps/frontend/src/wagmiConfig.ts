@@ -33,7 +33,7 @@ const metadata = {
   url: "https://app.vortexfinance.co"
 };
 
-const networks = [mainnet, polygon, arbitrum, base, avalanche, bsc];
+const networks = [mainnet, polygon, arbitrum, base, avalanche, bsc, polygonAmoy];
 
 const projectId = "495a5f574d57e27fd65caa26d9ea4f10";
 const wagmiAdapter = new WagmiAdapter({
