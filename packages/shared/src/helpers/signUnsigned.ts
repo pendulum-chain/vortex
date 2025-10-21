@@ -2,7 +2,7 @@ import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
-import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
+import { Keypair, Networks, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
@@ -12,12 +12,15 @@ import {
   isEvmTransactionData,
   MOONBEAM_WSS,
   PresignedTx,
+  SANDBOX_ENABLED,
   UnsignedTx
 } from "../index";
 import logger from "../logger";
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
+
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
@@ -270,7 +273,6 @@ export async function signUnsignedTransactions(
         throw new Error("Missing Stellar ephemeral account");
       }
 
-      const networkPassphrase = StellarNetworks.PUBLIC;
       const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
 
       for (const tx of stellarTxs) {
@@ -278,7 +280,7 @@ export async function signUnsignedTransactions(
           throw new Error("Invalid Stellar transaction data format");
         }
 
-        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
+        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, NETWORK_PASSPHRASE);
         signedTxs.push(txWithMeta);
       }
     }

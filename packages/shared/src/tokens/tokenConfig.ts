@@ -1,5 +1,7 @@
 // TODO we may now de-duplicate this and use StellarTokenDetails from token configs.
 
+import { SANDBOX_ENABLED } from "src/constants";
+
 export interface StellarTokenConfig {
   assetCode: string;
   assetIssuer: string;
@@ -56,11 +58,16 @@ export type TokenConfig = {
   "USDC.AXL": XCMTokenConfig;
 };
 
+const HOME_DOMAIN_EURC = SANDBOX_ENABLED ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
+export const TOML_FILE_URL_MYKOBO = SANDBOX_ENABLED
+  ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
+  : "https://mykobo.co/.well-known/stellar.toml";
+
 const EURC: StellarTokenConfig = {
   assetCode: "EURC",
   assetIssuer: "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
   clientDomainEnabled: true,
-  homeDomain: "stellar.mykobo.co",
+  homeDomain: HOME_DOMAIN_EURC,
   maximumSubsidyAmountRaw: "15000000000000",
   memoEnabled: false, // 15 units
   minWithdrawalAmount: "10000000000000",
@@ -72,7 +79,7 @@ const EURC: StellarTokenConfig = {
       }
     }
   },
-  tomlFileUrl: "https://stellar.mykobo.co/.well-known/stellar.toml",
+  tomlFileUrl: TOML_FILE_URL_MYKOBO,
   vaultAccountId: "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm"
 };
 

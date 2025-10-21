@@ -1,10 +1,10 @@
 import { FiatToken, TOKEN_CONFIG } from "@packages/shared";
 import { Keypair, Networks, Transaction, TransactionBuilder } from "stellar-sdk";
-import { CLIENT_DOMAIN_SECRET, SEP10_MASTER_SECRET } from "../../../constants/constants";
+import { CLIENT_DOMAIN_SECRET, SANDBOX_ENABLED, SEP10_MASTER_SECRET } from "../../../constants/constants";
 import { fetchTomlValues } from "../../helpers/anchors";
 import { getOutToken, validateFirstOperation, validateRemainingOperations, validateTransaction } from "./helpers";
 
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
 
 interface TomlValues {
   signingKey: string;

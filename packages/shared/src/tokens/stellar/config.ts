@@ -2,6 +2,7 @@
  * Stellar token configuration
  */
 
+import { TOML_FILE_URL_MYKOBO } from "../tokenConfig";
 import { FiatToken, TokenType } from "../types/base";
 import { StellarTokenDetails } from "../types/stellar";
 
@@ -45,7 +46,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       }
     },
     supportsClientDomain: true,
-    tomlFileUrl: "https://stellar.mykobo.co/.well-known/stellar.toml",
+    tomlFileUrl: TOML_FILE_URL_MYKOBO,
     type: TokenType.Stellar,
     usesMemo: false,
     vaultAccountId: "6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh"

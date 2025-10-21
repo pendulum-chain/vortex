@@ -1,6 +1,6 @@
 import { getTokenConfigByAssetCode, StellarTokenConfig, TOKEN_CONFIG } from "@packages/shared";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
-import { HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
+import { HORIZON_URL, SANDBOX_ENABLED, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
 
 interface CreationTxResult {
   signature: string;
@@ -9,7 +9,7 @@ interface CreationTxResult {
 
 // Constants
 export const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
 
 async function buildCreationStellarTx(
   fundingSecret: string,

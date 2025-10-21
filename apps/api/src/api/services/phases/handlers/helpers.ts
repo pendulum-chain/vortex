@@ -11,7 +11,6 @@ import {
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
-export const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 export async function isStellarEphemeralFunded(accountId: string, stellarTokenDetails: StellarTokenDetails): Promise<boolean> {
   try {
