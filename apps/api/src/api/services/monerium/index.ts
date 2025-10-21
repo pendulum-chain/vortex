@@ -18,7 +18,7 @@ import logger from "../../../config/logger";
 import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
 
 const MONERIUM_API_URL = SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app";
-const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
+export const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };
 

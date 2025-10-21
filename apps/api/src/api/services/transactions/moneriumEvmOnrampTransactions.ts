@@ -18,12 +18,14 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
+import { SANDBOX_ENABLED } from "../../../constants/constants";
 import erc20ABI from "../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { StateMetadata } from "../phases/meta-state-types";
 import { encodeEvmTransactionData } from "./index";
 
+const MONERIUM_MINT_NETWORK = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
 export interface MoneriumOnrampTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];
@@ -98,7 +100,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.PolygonAmoy,
+    network: MONERIUM_MINT_NETWORK,
     nonce: 0,
     phase: "moneriumOnrampSelfTransfer",
     signer: destinationAddress,
@@ -121,7 +123,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.PolygonAmoy,
+        network: MONERIUM_MINT_NETWORK,
         nonce: polygonAccountNonce++,
         phase: "moneriumOnrampSelfTransfer",
         signer: account.address,
@@ -142,7 +144,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.PolygonAmoy,
+        network: MONERIUM_MINT_NETWORK,
         nonce: polygonAccountNonce++,
         phase: "squidRouterApprove",
         signer: account.address,
@@ -151,7 +153,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
       unsignedTxs.push({
         meta: {},
-        network: Networks.PolygonAmoy,
+        network: MONERIUM_MINT_NETWORK,
         nonce: polygonAccountNonce++,
         phase: "squidRouterSwap",
         signer: account.address,
@@ -170,7 +172,7 @@ export async function prepareMoneriumEvmOnrampTransactions({
 
 async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.PolygonAmoy);
+  const polygonClient = evmClientManager.getClient(MONERIUM_MINT_NETWORK);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -198,7 +200,7 @@ async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.PolygonAmoy);
+  const polygonClient = evmClientManager.getClient(MONERIUM_MINT_NETWORK);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
