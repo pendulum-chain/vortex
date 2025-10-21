@@ -22,7 +22,7 @@ export const EUROnrampDetails: FC = () => {
   if (signingPhase !== "finished") return null; // Only show details if the ramp is finished
   if (isQuoteExpired) return null;
 
-  const { iban, bic } = rampState.ramp.ibanPaymentData;
+  const { iban, bic, receiverName } = rampState.ramp.ibanPaymentData;
   const amount = rampState.quote.inputAmount;
 
   return (
@@ -33,6 +33,12 @@ export const EUROnrampDetails: FC = () => {
         <div className="flex items-center justify-between">
           <span>{t("components.SummaryPage.EUROnrampDetails.amount")}</span>
           <strong>{amount} EUR</strong>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span>{t("components.SummaryPage.EUROnrampDetails.receiver")}</span>
+          <div className="flex items-center">
+            <CopyButton text={receiverName} />
+          </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span>{t("components.SummaryPage.EUROnrampDetails.iban")}</span>

@@ -1,6 +1,7 @@
 import {
   CleanupPhase,
   DestinationType,
+  PaymentMethod,
   PresignedTx,
   RampDirection,
   RampErrorLog,
@@ -45,6 +46,7 @@ export interface RampStateAttributes {
   from: DestinationType;
   to: DestinationType;
   state: StateMetadata; // JSONB
+  paymentMethod: PaymentMethod;
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: PhaseHistoryEntry[]; // JSONB array
   errorLogs: RampErrorLog[]; // JSONB array
@@ -74,6 +76,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   declare to: DestinationType;
 
   declare state: StateMetadata;
+
+  declare paymentMethod: PaymentMethod;
 
   declare quoteId: string;
 
@@ -119,6 +123,11 @@ RampState.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       type: DataTypes.UUID
+    },
+    paymentMethod: {
+      allowNull: false,
+      field: "payment_method",
+      type: DataTypes.STRING(20)
     },
     phaseHistory: {
       allowNull: false,

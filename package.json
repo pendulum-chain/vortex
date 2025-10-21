@@ -87,7 +87,7 @@
     "prepare": "husky",
     "serve:backend": "bun run --cwd apps/api serve",
     "serve:frontend": "bun run --cwd apps/frontend preview",
-    "typecheck": "bun x --bun tsc",
+    "typecheck": "bunx tsc",
     "verify": "biome check --no-errors-on-unmatched"
   },
   "workspaces": [

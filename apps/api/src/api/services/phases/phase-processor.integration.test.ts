@@ -227,6 +227,7 @@ describe("PhaseProcessor Integration Test", () => {
         from: QUOTE_FROM as DestinationType,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
+        network: Networks.Ethereum, // Offramp from EVM network
         outputCurrency: TEST_OUTPUT_CURRENCY,
         rampType: RampDirection.SELL,
         to: QUOTE_TO
@@ -234,7 +235,7 @@ describe("PhaseProcessor Integration Test", () => {
 
       const additionalData: RegisterRampRequest["additionalData"] = {
         paymentData: {
-          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.fee.total)).toString(),
+          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.totalFeeFiat)).toString(),
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
           memo: "1204asjfnaksf10982e4",
           memoType: "text" as const
@@ -258,7 +259,7 @@ describe("PhaseProcessor Integration Test", () => {
       const hydrationNode = await getHydrationNode();
 
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp?.unsignedTxs,
+        registeredRamp?.unsignedTxs || [],
         {
           evmEphemeral: testSigningAccounts.EVM,
           substrateEphemeral: testSigningAccounts.Substrate,

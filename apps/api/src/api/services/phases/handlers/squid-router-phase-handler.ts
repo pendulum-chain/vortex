@@ -56,11 +56,10 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error("Missing presigned transactions for squidRouter phase");
       }
 
-      const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
-
       let approveHash = state.state.squidRouterApproveHash;
       // Check if the approve transaction has already been sent
       if (!approveHash) {
+        const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
         if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
           logger.warn(
             `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`

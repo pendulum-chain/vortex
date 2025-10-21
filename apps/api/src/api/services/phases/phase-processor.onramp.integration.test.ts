@@ -187,6 +187,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
         from: QUOTE_FROM,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
+        network: Networks.AssetHub, // Onramp to AssetHub network
         outputCurrency: TEST_OUTPUT_CURRENCY,
         rampType: RampDirection.BUY,
         to: Networks.AssetHub
@@ -215,7 +216,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
       const hydrationNode = await getHydrationNode();
 
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp?.unsignedTxs,
+        registeredRamp?.unsignedTxs || [],
         {
           evmEphemeral: testSigningAccounts.moonbeam,
           substrateEphemeral: testSigningAccounts.pendulum,

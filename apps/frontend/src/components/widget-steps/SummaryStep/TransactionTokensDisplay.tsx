@@ -41,7 +41,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const { selectedNetwork } = useNetwork();
   const { apiComponents } = useAssetHubNode();
-  const { address, chainId } = useVortexAccount();
+  const { chainId } = useVortexAccount();
 
   const [timeLeft, setTimeLeft] = useState({
     minutes: QUOTE_EXPIRY_TIME,
@@ -49,7 +49,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
-  const { isQuoteExpired, rampState, quote, quoteLocked } = useSelector(rampActor, state => ({
+  const { address, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
+    address: state.context.address,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
     quoteLocked: state.context.quoteLocked,
@@ -147,7 +148,14 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         destinationAddress={destinationAddress}
         direction={rampDirection}
         exchangeRate={Big(quote.outputAmount).div(quote.inputAmount).toFixed(4)}
-        feesCost={quote.fee}
+        feesCost={{
+          anchor: quote.anchorFeeFiat,
+          currency: quote.feeCurrency,
+          network: quote.networkFeeFiat,
+          partnerMarkup: quote.partnerFeeFiat,
+          total: quote.totalFeeFiat,
+          vortex: quote.vortexFeeFiat
+        }}
         fromToken={fromToken}
         partnerUrl={getPartnerUrl()}
         toToken={toToken}

@@ -68,18 +68,21 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   if (quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       destinationAddress: address,
+      sessionId: input.externalSessionId,
       taxId: executionInput.taxId
     };
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: address,
       moneriumAuthToken: authToken,
-      moneriumWalletAddress: executionInput.moneriumWalletAddress
+      moneriumWalletAddress: executionInput.moneriumWalletAddress,
+      sessionId: input.externalSessionId
     };
   } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,
+      sessionId: input.externalSessionId,
       taxId: executionInput.taxId,
       walletAddress: address
     };
@@ -89,13 +92,14 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       // moneriumAuthToken: authToken,
       // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
+      sessionId: input.externalSessionId,
       walletAddress: address
     };
   }
 
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
-  const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
+  const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx => {
     if (!address) {
       return true;
     }

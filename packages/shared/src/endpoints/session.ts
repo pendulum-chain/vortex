@@ -1,18 +1,24 @@
-import { CreateQuoteRequest } from "./quote.endpoints";
+import { FiatToken, Networks, OnChainToken, PaymentMethod, RampDirection } from "@packages/shared";
 
 export interface GetWidgetUrlLocked {
   quoteId: string;
+  callbackUrl?: string;
   externalSessionId: string;
   walletAddressLocked?: string;
-  externalTransactionId?: string;
-  externalCustomerId?: string;
 }
 
-export interface GetWidgetUrlRefresh extends CreateQuoteRequest {
+export interface GetWidgetUrlRefresh {
+  callbackUrl?: string;
+  countryCode?: string;
+  cryptoLocked?: OnChainToken;
   externalSessionId: string;
+  fiat?: FiatToken;
+  inputAmount: string;
+  network: Networks;
+  partnerId?: string;
+  paymentMethod?: PaymentMethod;
+  rampType: RampDirection;
   walletAddressLocked?: string;
-  externalTransactionId?: string;
-  externalCustomerId?: string;
 }
 
 export interface GetWidgetUrlResponse {

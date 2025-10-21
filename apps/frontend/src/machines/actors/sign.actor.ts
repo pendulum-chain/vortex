@@ -30,7 +30,7 @@ export const signTransactionsActor = async ({
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
-  const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
+  const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
     // If a monerium wallet address is provided in the execution input, we use that as the signer address.
     const signerAddress = executionInput?.moneriumWalletAddress || address;
     if (!signerAddress) {

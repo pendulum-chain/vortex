@@ -12,28 +12,40 @@ function buildLockedUrl(body: GetWidgetUrlLocked): string {
     quoteId: body.quoteId
   });
   if (body.walletAddressLocked) {
-    params.append("walletLocked", body.walletAddressLocked);
+    params.append("walletAddressLocked", body.walletAddressLocked);
   }
 
   return `${BASE_WIDGET_URL}?${params.toString()}`;
 }
 
 function buildRefreshUrl(body: GetWidgetUrlRefresh): string {
-  const network = body.rampType === RampDirection.BUY ? body.to : body.from;
-  const crypto = body.rampType === RampDirection.BUY ? body.outputCurrency : body.inputCurrency;
-  const fiat = body.rampType === RampDirection.BUY ? body.inputCurrency : body.outputCurrency;
-
   const params = new URLSearchParams({
-    cryptoLocked: crypto,
     externalSessionId: body.externalSessionId,
-    fiat: fiat,
     inputAmount: body.inputAmount,
-    network: network,
+    network: body.network,
     rampType: body.rampType
   });
 
+  if (body.callbackUrl) {
+    params.append("callbackUrl", body.callbackUrl);
+  }
+  if (body.countryCode) {
+    params.append("countryCode", body.countryCode);
+  }
+  if (body.cryptoLocked) {
+    params.append("cryptoLocked", body.cryptoLocked);
+  }
+  if (body.fiat) {
+    params.append("fiat", body.fiat);
+  }
+  if (body.partnerId) {
+    params.append("partnerId", body.partnerId);
+  }
+  if (body.paymentMethod) {
+    params.append("paymentMethod", body.paymentMethod);
+  }
   if (body.walletAddressLocked) {
-    params.append("walletLocked", body.walletAddressLocked);
+    params.append("walletAddressLocked", body.walletAddressLocked);
   }
 
   return `${BASE_WIDGET_URL}?${params.toString()}`;
@@ -69,14 +81,37 @@ export const create = async (
       const url = buildLockedUrl(body);
       res.status(httpStatus.OK).json({ url });
     } else {
+      const { network, fiat, inputAmount, paymentMethod, cryptoLocked, rampType } = body;
+
+      const from = rampType === RampDirection.BUY ? paymentMethod : network;
+      const to = rampType === RampDirection.BUY ? network : paymentMethod;
+
+      if (!from || !to) {
+        throw new APIError({
+          message: "Invalid parameters: from and to cannot be determined from the provided rampType and other parameters",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const inputCurrency = rampType === RampDirection.BUY ? fiat : cryptoLocked;
+      const outputCurrency = rampType === RampDirection.BUY ? cryptoLocked : fiat;
+
+      if (!inputCurrency || !outputCurrency) {
+        throw new APIError({
+          message: "Invalid parameters: inputCurrency and outputCurrency cannot be determined from the provided parameters",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Create a quote to verify the desired parameters are valid. The quote itself is not used.
       await quoteService.createQuote({
-        from: body.from,
-        inputAmount: body.inputAmount,
-        inputCurrency: body.inputCurrency,
-        outputCurrency: body.outputCurrency,
-        rampType: body.rampType,
-        to: body.to
+        from,
+        inputAmount,
+        inputCurrency,
+        network,
+        outputCurrency,
+        rampType,
+        to
       });
       const url = buildRefreshUrl(body);
       res.status(httpStatus.CREATED).json({ url });

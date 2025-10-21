@@ -5,6 +5,7 @@ import {
   FiatToken,
   Networks,
   OnChainToken,
+  PaymentMethod,
   QuoteResponse,
   RampDirection
 } from "@packages/shared";
@@ -28,8 +29,9 @@ interface RampUrlParams {
   providedQuoteId?: string;
   moneriumCode?: string;
   fiat?: FiatToken;
+  countryCode?: string;
   cryptoLocked?: OnChainToken;
-  payment?: string;
+  paymentMethod?: PaymentMethod;
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
@@ -160,10 +162,11 @@ export const useRampUrlParams = (): RampUrlParams => {
     const providedQuoteId = params.get("quoteId")?.toLowerCase();
     const fiatParam = params.get("fiat")?.toUpperCase();
     const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
-    const paymentParam = params.get("payment");
-    const walletLockedParam = params.get("walletLocked");
+    const paymentMethodParam = params.get("paymentMethod") as PaymentMethod | undefined;
+    const walletLockedParam = params.get("walletAddressLocked");
     const callbackUrlParam = params.get("callbackUrl");
     const externalSessionIdParam = params.get("externalSessionId");
+    const countryCodeParam = params.get("countryCode")?.toUpperCase();
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -176,6 +179,7 @@ export const useRampUrlParams = (): RampUrlParams => {
 
     return {
       callbackUrl: callbackUrlParam || undefined,
+      countryCode: countryCodeParam || undefined,
       cryptoLocked,
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
@@ -183,7 +187,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       moneriumCode,
       network,
       partnerId: partnerIdParam || undefined,
-      payment: paymentParam || undefined,
+      paymentMethod: paymentMethodParam || undefined,
       providedQuoteId,
       rampDirection,
       walletLocked: walletLockedParam || undefined
@@ -202,6 +206,8 @@ export const useSetRampUrlParams = () => {
     network,
     fiat,
     cryptoLocked,
+    countryCode,
+    paymentMethod,
     walletLocked,
     callbackUrl,
     externalSessionId
@@ -237,12 +243,15 @@ export const useSetRampUrlParams = () => {
     if (!isWidget) return;
     if (hasInitialized.current) return;
 
-    if (externalSessionId) {
-      rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
-    }
     // Modify the ramp state machine accordingly
     if (providedQuoteId) {
       const quote = rampActor.getSnapshot()?.context.quote;
+
+      if (externalSessionId) {
+        console.log("setting external session id2", externalSessionId);
+        rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+      }
+
       if (quote?.id !== providedQuoteId) {
         rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
         rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
@@ -250,6 +259,10 @@ export const useSetRampUrlParams = () => {
     } else {
       // We set these parameters even if the quote fetch fails. Useful for error handling.
       rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+      if (externalSessionId) {
+        console.log("setting external session id1", externalSessionId);
+        rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+      }
 
       if (inputAmount && cryptoLocked && fiat && network && rampDirection) {
         const quoteParams = {
@@ -269,7 +282,9 @@ export const useSetRampUrlParams = () => {
           quotePayload.inputAmount,
           quotePayload.inputCurrency,
           quotePayload.outputCurrency,
-          partnerId
+          partnerId,
+          paymentMethod,
+          countryCode
         )
           .then((newQuote: QuoteResponse) => {
             if (newQuote) {
@@ -348,14 +363,14 @@ export const useSetRampUrlParams = () => {
   }, [
     cryptoLocked,
     fiat,
-    handleFiatToken,
     inputAmount,
-    onToggle,
     partnerId,
     rampDirection,
     resetRampForm,
     setInputAmount,
     setOnChainToken,
-    setPartnerIdFn
+    setPartnerIdFn,
+    onToggle,
+    handleFiatToken
   ]);
 };

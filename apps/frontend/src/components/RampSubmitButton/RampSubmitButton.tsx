@@ -44,15 +44,21 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   );
 
   return useMemo(() => {
-    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)) {
+    const isOnramp = quote?.rampType === RampDirection.BUY;
+    const isOfframp = quote?.rampType === RampDirection.SELL;
+    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
+
+    if (
+      walletLocked &&
+      (isOfframp || quote?.from === "sepa") &&
+      accountAddress &&
+      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
+    ) {
       return {
         icon: null,
         text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
       };
     }
-    const isOnramp = quote?.rampType === RampDirection.BUY;
-    const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
 
     // BRL offramp has no redirect, it is the only with type moonbeam
     const isAnchorWithoutRedirect = toToken.type === "moonbeam";
@@ -197,7 +203,12 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
-    if (walletLocked && accountAddress && getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)) {
+    if (
+      walletLocked &&
+      (isOfframp || quote?.from === "sepa") &&
+      accountAddress &&
+      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
+    ) {
       return true;
     }
     if (machineState === "QuoteReady" || machineState === "KycComplete") {
@@ -237,7 +248,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     machineState,
     moneriumKycActor,
     walletLocked,
-    accountAddress
+    accountAddress,
+    quote?.from
   ]);
 
   const buttonContent = useButtonContent({

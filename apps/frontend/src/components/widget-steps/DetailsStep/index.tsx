@@ -65,7 +65,11 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   useEffect(() => {
     form.setValue("moneriumWalletAddress", evmAddress);
-    form.setValue("walletAddress", walletForm);
+    if (walletLockedFromState) {
+      form.setValue("walletAddress", walletLockedFromState);
+    } else if (address) {
+      form.setValue("walletAddress", address);
+    }
   }, [walletForm, form, evmAddress]);
 
   const { onRampConfirm } = useRampSubmission();
@@ -78,9 +82,14 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   };
 
   const isBrazilLanding = quote?.from === "pix" || quote?.to === "pix";
-  const canSkipConnection = quote?.from === "pix" && walletLockedFromState;
+  const canSkipConnection = quote?.from === "pix";
 
   const handleFormSubmit = (data: FormData) => {
+    rampActor.send({
+      address: data.walletAddress,
+      type: "SET_ADDRESS"
+    });
+
     onRampConfirm(data);
   };
 

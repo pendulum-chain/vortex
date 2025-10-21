@@ -1,4 +1,5 @@
-import { CSSProperties, JSX } from "react";
+import { CSSProperties, JSX, useState } from "react";
+import { AnimatedCopyIcon } from "../../AnimatedCopyIcon";
 import { FormatPublicKeyVariant, PublicKey } from "..";
 
 export interface ClickablePublicKeyProps {
@@ -12,19 +13,29 @@ export interface ClickablePublicKeyProps {
   wrap?: boolean;
 }
 
-export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
-  <button
-    className={`btn btn-ghost m-0 h-1 rounded p-1 ${props.className || ""}`}
-    onClick={props.onClick}
-    style={props.inline ? { height: "inherit", minHeight: "0", padding: 0 } : {}}
-    type="button"
-  >
-    <PublicKey {...props} />
-    {props.icon ? (
-      <>
-        {props.icon}
-        &nbsp;
-      </>
-    ) : null}
-  </button>
-);
+export const ClickablePublicKey = (props: ClickablePublicKeyProps) => {
+  const [triggerAnimation, setTriggerAnimation] = useState(false);
+
+  const handleClick = () => {
+    if (props.onClick) {
+      props.onClick();
+    }
+    setTriggerAnimation(true);
+  };
+
+  const handleAnimationComplete = () => {
+    setTriggerAnimation(false);
+  };
+
+  return (
+    <button
+      className={`btn btn-ghost m-0 h-1 rounded p-1 ${props.className || ""}`}
+      onClick={handleClick}
+      style={props.inline ? { height: "inherit", minHeight: "0", padding: 0 } : {}}
+      type="button"
+    >
+      <PublicKey {...props} />
+      <AnimatedCopyIcon className="h-4 w-4" onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
+    </button>
+  );
+};

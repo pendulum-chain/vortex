@@ -44,5 +44,7 @@ export interface StateMetadata {
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
   ibanPaymentData: IbanPaymentData;
+  // Used for webhook notifications
+  sessionId?: string;
   squidRouterQuoteId: string;
 }

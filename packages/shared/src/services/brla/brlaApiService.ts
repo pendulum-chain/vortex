@@ -13,6 +13,8 @@ import {
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
+  AveniaSwapTicket,
+  AveniaTicketStatus,
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
@@ -20,6 +22,8 @@ import {
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
+  OnchainSwapQuoteParams,
+  OnchainSwapTicketPayload,
   PayInQuoteParams,
   PayOutQuoteParams,
   PixInputTicketOutput,
@@ -174,7 +178,7 @@ export class BrlaApiService {
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
       inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
-      outputAmount: quoteParams.outputAmount, // Fixed to FIAT out
+      outputAmount: quoteParams.outputAmount,
       outputCurrency: BrlaCurrency.BRL,
       outputPaymentMethod: AveniaPaymentMethod.PIX,
       outputThirdParty: String(quoteParams.outputThirdParty)
@@ -185,6 +189,20 @@ export class BrlaApiService {
     }
 
     const query = urlSearchParams.toString();
+    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+  }
+
+  public async createOnchainSwapQuote(quoteParams: OnchainSwapQuoteParams): Promise<AveniaQuoteResponse> {
+    const query = new URLSearchParams({
+      blockchainSendMethod: BlockchainSendMethod.PERMIT,
+      inputAmount: quoteParams.inputAmount,
+      inputCurrency: quoteParams.inputCurrency, // Subtract from main account
+      inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Fixed. We know it comes from the our balance
+      inputThirdParty: String(false),
+      outputCurrency: quoteParams.outputCurrency,
+      outputPaymentMethod: AveniaPaymentMethod.POLYGON,
+      outputThirdParty: String(false) // Fixed. We know it goes to our Moonbeam account.
+    }).toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
@@ -203,11 +221,19 @@ export class BrlaApiService {
   public async createPixOutputTicket(payload: PixOutputTicketPayload, subAccountId: string): Promise<{ id: string }> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
-    // TODO not sure what the return object is, we need to check if our current assumption is correct
+
     if ("brlPixInputInfo" in response) {
       throw new Error("Invalid response from Avenia API for createPixOutputTicket");
     }
     return response;
+  }
+
+  public async createOnchainSwapTicket(payload: OnchainSwapTicketPayload): Promise<{ id: string }> {
+    const response = await this.sendRequest(Endpoint.Tickets, "POST", undefined, payload);
+    if ("id" in response) {
+      return response;
+    }
+    throw new Error("Invalid response from Avenia API for createOnchainSwapTicket");
   }
 
   public async subaccountInfo(subaccountId: string): Promise<AveniaAccountInfoResponse | undefined> {
@@ -249,6 +275,10 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Balances, "GET", query);
   }
 
+  public async getMainAccountBalance(): Promise<AveniaAccountBalanceResponse> {
+    return await this.sendRequest(Endpoint.Balances, "GET");
+  }
+
   public async getAveniaPayoutTicket(ticketId: string, subAccountId: string): Promise<AveniaPayoutTicket> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
@@ -267,5 +297,14 @@ export class BrlaApiService {
       return aveniaTicketsQueryResponse.tickets.filter((ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket);
     }
     throw new Error("Invalid response from Avenia API for getAveniaPayinTickets");
+  }
+
+  public async getAveniaSwapTicket(ticketId: string): Promise<AveniaSwapTicket> {
+    const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", undefined, undefined, ticketId);
+    if ("ticket" in aveniaTicketsQueryResponse) {
+      return aveniaTicketsQueryResponse.ticket as AveniaSwapTicket;
+    }
+
+    throw new Error("Invalid response from Avenia API for getAveniaSwapTicket");
   }
 }

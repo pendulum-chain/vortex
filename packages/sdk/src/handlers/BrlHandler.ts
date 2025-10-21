@@ -77,7 +77,7 @@ export class BrlHandler implements RampHandler {
 
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
+    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
       stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate
@@ -118,7 +118,7 @@ export class BrlHandler implements RampHandler {
 
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs, {
+    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
       stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate

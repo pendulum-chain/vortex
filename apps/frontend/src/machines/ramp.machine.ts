@@ -212,8 +212,10 @@ export const rampMachine = setup({
       {
         actions: [
           assign({
+            ...initialRampContext,
             externalSessionId: ({ event }) => event.externalSessionId
-          })
+          }),
+          () => window.location.reload()
         ],
         // Assumed to be a new session, so we reset everything and reload the page.
         // This will reload the new parameters and fetch a new quote.
@@ -226,8 +228,10 @@ export const rampMachine = setup({
       {
         actions: [
           assign({
+            ...initialRampContext,
             externalSessionId: ({ event }) => event.externalSessionId
-          })
+          }),
+          () => window.location.reload()
         ],
         // If a sessionId is passed yet none is set in the context, we assume it's a new session and reload.
         guard: ({ context, event }) => event.externalSessionId !== undefined && context.externalSessionId === undefined,
@@ -397,7 +401,7 @@ export const rampMachine = setup({
           {
             // If Avenia (BRL) flow and user is valid, we can simply go to the summary card.
             guard: ({ context, event }) => !event.output.kycNeeded && context.executionInput?.fiatToken === FiatToken.BRL,
-            target: "RegisterRamp"
+            target: "KycComplete"
           }
         ],
         onError: "Idle",

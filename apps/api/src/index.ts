@@ -1,7 +1,13 @@
-import { ApiManager, EvmClientManager, setLogger } from "@packages/shared";
 import dotenv from "dotenv";
 import path from "path";
+
+dotenv.config({
+  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
+});
+
+import { ApiManager, EvmClientManager, setLogger } from "@packages/shared";
 import { config, testDatabaseConnection } from "./config";
+import cryptoService from "./config/crypto";
 import app from "./config/express";
 import logger from "./config/logger";
 import {
@@ -16,10 +22,6 @@ import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
-
-dotenv.config({
-  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
-});
 
 const { port, env } = config;
 
@@ -47,6 +49,9 @@ const initializeApp = async () => {
   try {
     // Validate environment variables before starting the server
     validateRequiredEnvVars();
+
+    // Initialize RSA keys for webhook signing
+    cryptoService.initializeKeys();
 
     // Test database connection
     await testDatabaseConnection();

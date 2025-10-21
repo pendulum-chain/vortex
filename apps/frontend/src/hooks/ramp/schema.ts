@@ -33,10 +33,14 @@ const isValidPolkadotAddress = (address: string) => {
   }
 };
 
+const isValidEvmAddress = (address: string) => {
+  return /^(0x)?[0-9a-f]{40}$/i.test(address);
+};
+
 export const createRampFormSchema = (
   t: (key: string) => string,
   rampDirection: RampDirection,
-  requiresSubstrateWalletAddress: boolean
+  requiresWalletAddress: "substrate" | "evm" | false
 ) => {
   return Yup.object<RampFormValues>().shape({
     pixId: Yup.string().when("fiatToken", {
@@ -61,11 +65,17 @@ export const createRampFormSchema = (
             return isValidCnpj(value) || isValidCpf(value);
           })
     }),
-    walletAddress: Yup.string().test("is-valid", t("components.swap.validation.walletAddress.format"), value => {
-      if (!requiresSubstrateWalletAddress) return true;
-      if (!value) return false;
-      return isValidPolkadotAddress(value);
-    })
+    walletAddress: Yup.string()
+      .test("is-valid-evm-address", t("components.swap.validation.walletAddress.formatEvm"), value => {
+        if (!requiresWalletAddress || requiresWalletAddress === "substrate") return true;
+        if (!value) return false;
+        if (requiresWalletAddress === "evm") return isValidEvmAddress(value);
+      })
+      .test("is-valid-substrate-address", t("components.swap.validation.walletAddress.formatSubstrate"), value => {
+        if (!requiresWalletAddress || requiresWalletAddress === "evm") return true;
+        if (!value) return false;
+        if (requiresWalletAddress === "substrate") return isValidPolkadotAddress(value);
+      })
   });
 };
 
@@ -73,7 +83,8 @@ export const useSchema = () => {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
   const quote = useQuote();
-  const requiresSubstrateWalletAddress = quote?.to === Networks.AssetHub && quote?.rampType === RampDirection.BUY;
+  const requiresWalletAddress =
+    quote?.rampType === RampDirection.BUY ? (quote?.to === Networks.AssetHub ? "substrate" : "evm") : false;
 
-  return createRampFormSchema(t, rampDirection, requiresSubstrateWalletAddress);
+  return createRampFormSchema(t, rampDirection, requiresWalletAddress);
 };
