@@ -3,6 +3,7 @@ import {
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
+  Networks,
   OnChainToken,
   RampDirection,
   RampPhase
@@ -42,7 +43,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     t("pages.progress.squidRouterSwap", {
       assetSymbol: outputAssetSymbol,
       fromNetwork: quote.inputCurrency === FiatToken.EURC ? "Polygon" : "Moonbeam",
-      toNetwork: toNetwork
+      toNetwork: quote.to === Networks.AssetHub ? "Moonbeam" : toNetwork
     });
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");
