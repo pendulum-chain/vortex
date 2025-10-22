@@ -42,7 +42,7 @@ export function Menu({ isOpen, onClose, title, children, animationDirection }: M
           className="absolute top-0 right-0 bottom-0 left-0 z-40 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
           exit={animationProps.exit}
           initial={animationProps.initial}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3 }}
         >
           <PageHeader onClose={onClose} title={title} />
           <hr />
