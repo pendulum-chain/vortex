@@ -36,7 +36,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(substrateEphemeralAddress));
     const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
 
-    const didInputTokenArrivedOnPendulum = async () => {
+    const didInputTokenArriveOnPendulum = async () => {
       if (!quote.metadata.nablaSwap) {
         throw new Error("MoonbeamToPendulumXcmPhaseHandler: Missing nablaSwap info in quote metadata");
       }
@@ -67,7 +67,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     try {
-      if (!(await didInputTokenArrivedOnPendulum())) {
+      if (!(await didInputTokenArriveOnPendulum())) {
         await waitUntilTrue(isHashRegisteredInSplitReceiver);
         console.log(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
       }
@@ -78,7 +78,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
 
     let obtainedHash: `0x${string}` | undefined = moonbeamXcmTransactionHash;
     try {
-      if (!(await didInputTokenArrivedOnPendulum())) {
+      if (!(await didInputTokenArriveOnPendulum())) {
         if (moonbeamXcmTransactionHash === undefined) {
           const data = encodeFunctionData({
             abi: splitReceiverABI,
@@ -126,7 +126,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
+      await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
       console.error("Error while waiting for transaction receipt:", e);
       throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
