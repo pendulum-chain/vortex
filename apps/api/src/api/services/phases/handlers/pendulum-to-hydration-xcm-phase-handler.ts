@@ -1,4 +1,14 @@
-import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXTokens } from "@packages/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  getAddressForFormat,
+  RampPhase,
+  submitXTokens,
+  waitUntilTrue
+} from "@packages/shared";
+import Big from "big.js";
+import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -9,15 +19,35 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     const apiManager = ApiManager.getInstance();
-    const networkName = "pendulum";
-    const pendulumNode = await apiManager.getApi(networkName);
+    const pendulumNode = await apiManager.getApi("pendulum");
+    const hydrationNode = await apiManager.getApi("hydration");
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
     if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
     }
+
+    const didInputTokenArriveOnHydration = async () => {
+      if (!quote.metadata.hydrationSwap) {
+        throw new Error("MoonbeamToPendulumXcmPhaseHandler: Missing hydrationSwap info in quote metadata");
+      }
+
+      const balanceResponse = await hydrationNode.api.query.tokens.accounts(
+        substrateEphemeralAddress,
+        quote.metadata.hydrationSwap.inputAsset
+      );
+
+      // @ts-ignore
+      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      return currentBalance.gt(Big(0));
+    };
 
     try {
       const { txData: pendulumToHydrationTransaction } = this.getPresignedTransaction(state, "pendulumToHydrationXcm");
@@ -33,6 +63,9 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
         pendulumToHydrationXcmHash: hash
       };
       await state.update({ state: state.state });
+
+      logger.info("Waiting for assets to arrive on Hydration");
+      await waitUntilTrue(didInputTokenArriveOnHydration, 60000);
 
       return this.transitionToNextPhase(state, "hydrationSwap");
     } catch (e) {

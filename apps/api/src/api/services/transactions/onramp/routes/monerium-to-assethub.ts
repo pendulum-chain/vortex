@@ -199,7 +199,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     const transferAmountRaw = quote.metadata.pendulumToHydrationXcm.inputAmountRaw;
 
     const pendulumToHydrationXcmTransaction = await createPendulumToHydrationTransfer(
-      destinationAddress,
+      substrateEphemeralEntry.address,
       outputTokenDetails.pendulumRepresentative.currencyId,
       transferAmountRaw
     );
@@ -218,7 +218,8 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
       throw new Error("Missing hydration swap details for Hydration finalization");
     }
 
-    let hydrationNonce = 0;
+    // Keep the hydration nonce at 0. It doesn't increase on the network for some reason
+    const hydrationNonce = 0;
     const { inputAsset, outputAsset, inputAmountDecimal, outputAmountRaw } = quote.metadata.hydrationSwap;
     const hydrationSwap = await buildHydrationSwapTransaction(
       inputAsset,
@@ -236,7 +237,6 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
       signer: substrateEphemeralEntry.address,
       txData: encodeSubmittableExtrinsic(hydrationSwap)
     });
-    hydrationNonce++;
 
     // Transfer from Hydration to AssetHub
     if (!isAssetHubTokenDetails(outputTokenDetails)) {

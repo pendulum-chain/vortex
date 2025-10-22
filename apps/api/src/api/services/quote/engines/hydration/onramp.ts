@@ -38,14 +38,14 @@ export class OnRampHydrationEngine implements Stage {
 
     const trade = await HydrationRouter.getBestSellPriceFor(assetIn, assetOut, amountIn);
 
-    const amountInRaw = trade.amountIn.toString();
-    const amountOutRaw = trade.amountOut.toString();
+    const amountInRaw = trade.amountIn.toFixed(0, 0);
+    const amountOutRaw = trade.amountOut.toFixed(0, 0);
     const assetOutDecimals = trade.swaps[trade.swaps.length - 1].assetOutDecimals;
     const amountOut = multiplyByPowerOfTen(amountOutRaw, -assetOutDecimals).toFixed(assetOutDecimals);
 
     const slippagePercent = 0.1; // We hardcode slippage to 0.1 for now
-    const amountOutMin = new Big(amountOut).mul(new Big(1).minus(slippagePercent / 100)).toString();
-    const amountOutMinRaw = multiplyByPowerOfTen(amountOutMin, assetOutDecimals).toString();
+    const amountOutMin = new Big(amountOut).mul(new Big(1).minus(slippagePercent / 100)).toFixed(assetOutDecimals);
+    const amountOutMinRaw = multiplyByPowerOfTen(amountOutMin, assetOutDecimals).toFixed(0, 0);
 
     const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
     const { fees: xcmFees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);

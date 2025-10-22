@@ -52,13 +52,12 @@ export const signAndSubmitXcm = async (
           inBlockHash = status.asInBlock.toString();
         }
 
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           resolve({ hash });
         }
@@ -135,15 +134,24 @@ export const submitXcm = async (
   new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
-        const { status, events, dispatchError } = submissionResult;
+        const { status, events, internalError, dispatchError } = submissionResult;
+        logger.current.info("Submission status of XCM transaction", status.toString());
+
+        if (status.isInvalid) {
+          logger.current.error(`XCM transfer failed with status: ${status.type}`);
+          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+        }
+
+        if (internalError) {
+          reject(`Internal error: ${internalError}`);
+        }
+
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
 
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
@@ -224,13 +232,12 @@ export const submitXTokens = async (
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           // Try to find 'xTokens.TransferredMultiAssets' events
           const xTokenEvents = events.filter(
@@ -267,21 +274,21 @@ export const submitExtrinsic = async (
       .send((submissionResult: ISubmittableResult) => {
         const { status, dispatchError } = submissionResult;
 
+        if (dispatchError) {
+          if (dispatchError.isModule && api) {
+            // for module errors, we have the section indexed, lookup
+            const decoded = api.registry.findMetaError(dispatchError.asModule);
+            const { docs, name, section } = decoded;
+
+            reject(`Extrinsic submission failed: ${section}.${name}: ${docs.join(" ")}`);
+          } else {
+            // Other, CannotLookup, BadOrigin, no extra info
+            reject(`Extrinsic submission failed: ${dispatchError.toString()}`);
+          }
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          if (dispatchError) {
-            if (dispatchError.isModule && api) {
-              // for module errors, we have the section indexed, lookup
-              const decoded = api.registry.findMetaError(dispatchError.asModule);
-              const { docs, name, section } = decoded;
-
-              reject(`Extrinsic submission failed: ${section}.${name}: ${docs.join(" ")}`);
-            } else {
-              // Other, CannotLookup, BadOrigin, no extra info
-              reject(`Extrinsic submission failed: ${dispatchError.toString()}`);
-            }
-          }
 
           resolve({ hash });
         }

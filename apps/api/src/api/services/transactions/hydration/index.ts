@@ -15,7 +15,6 @@ export async function buildHydrationSwapTransaction(
 ) {
   const { api } = await ApiManager.getInstance().getApi("hydration");
 
-  await hydrationRouter.ready();
   const trade = await hydrationRouter.getBestSellPriceFor(assetIn, assetOut, amountIn);
   const swapTx = await hydrationRouter.createTransactionForTrade(trade, beneficiaryAddress, slippagePercent);
 
