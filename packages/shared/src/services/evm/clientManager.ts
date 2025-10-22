@@ -309,7 +309,7 @@ export class EvmClientManager {
     },
     maxRetries = 3,
     initialDelayMs = 1000
-  ): Promise<string> {
+  ): Promise<`0x${string}`> {
     return this.executeWithRetry(
       networkName,
       async rpcUrl => {

@@ -3,7 +3,7 @@ import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitRecei
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
@@ -69,13 +69,14 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
         await waitUntilTrue(isHashRegisteredInSplitReceiver);
+        console.log(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
       }
     } catch (e) {
       logger.error(e);
       throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.");
     }
 
-    let obtainedHash: string | undefined = moonbeamXcmTransactionHash;
+    let obtainedHash: `0x${string}` | undefined = moonbeamXcmTransactionHash;
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
         if (moonbeamXcmTransactionHash === undefined) {
@@ -87,14 +88,26 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
 
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-          // blind retry for transaction submission
-          obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
-            data,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
-            value: 0n
-          });
+          let receipt: TransactionReceipt | undefined = undefined;
+          let attempt = 0;
+          while (attempt < 5 && (!receipt || receipt.status !== "success")) {
+            // blind retry for transaction submission
+            obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
+              data,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+              value: 0n
+            });
+
+            receipt = await publicClient.waitForTransactionReceipt({ hash: obtainedHash });
+            if (!receipt || receipt.status !== "success") {
+              logger.error(`MoonbeamToPendulumPhaseHandler: Transaction ${obtainedHash} failed or was not found`);
+              attempt++;
+              // Wait for 20 seconds to allow the network to settle the squidrouter transaction
+              await new Promise(resolve => setTimeout(resolve, 20000));
+            }
+          }
 
           // We want to store the `moonbeamXcmTransactionHash` immediately in the local storage
           // and not just after this function call here would usually end (i.e. after the

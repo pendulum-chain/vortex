@@ -34,7 +34,7 @@ export interface StateMetadata {
   pendulumToAssethubXcmHash?: string;
   pendulumToHydrationXcmHash?: string;
   pendulumToMoonbeamXcmHash?: string;
-  moonbeamXcmTransactionHash: string;
+  moonbeamXcmTransactionHash: `0x${string}`;
   hydrationSwapHash?: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
