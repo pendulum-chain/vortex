@@ -1,6 +1,6 @@
 import { ALCHEMY_API_KEY, EvmNetworks, MOONBEAM_WSS, Networks } from "@packages/shared";
 import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy, sepolia } from "viem/chains";
+import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import logger from "../../logger";
 
 export interface EvmNetworkConfig {
@@ -21,11 +21,6 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
       chain: polygonAmoy,
       name: Networks.PolygonAmoy,
       rpcUrls: [""]
-    },
-    {
-      chain: sepolia,
-      name: Networks.Sepolia,
-      rpcUrls: apiKey ? [""] : [""]
     },
     {
       chain: moonbeam,
