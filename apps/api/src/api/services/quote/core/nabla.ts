@@ -1,5 +1,4 @@
-import { ApiManager, getTokenOutAmount, PendulumTokenDetails, QuoteError, RampDirection, TokenOutData } from "@packages/shared";
-import { ApiPromise } from "@polkadot/api";
+import { ApiManager, getTokenOutAmount, PendulumTokenDetails, QuoteError, RampDirection } from "@packages/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
@@ -18,23 +17,6 @@ export interface NablaSwapResult {
   effectiveExchangeRate?: string;
 }
 
-async function getNablaSwapOutAmount(
-  apiInstance: { api: ApiPromise },
-  fromAmountString: string,
-  inputTokenPendulumDetails: PendulumTokenDetails,
-  outputTokenPendulumDetails: PendulumTokenDetails
-): Promise<TokenOutData> {
-  return await getTokenOutAmount({
-    api: apiInstance.api,
-    fromAmountString,
-    inputTokenPendulumDetails,
-    outputTokenPendulumDetails
-  });
-}
-
-/**
- * Performs the initial Nabla swap on Pendulum
- */
 export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promise<NablaSwapResult> {
   const { inputAmountForSwap, inputTokenPendulumDetails, outputTokenPendulumDetails } = request;
   // Validate input amount
@@ -57,12 +39,12 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
       });
     }
     // Perform the Nabla swap
-    const swapResult = await getNablaSwapOutAmount(
-      pendulumApi,
-      inputAmountForSwap,
+    const swapResult = await getTokenOutAmount({
+      api: pendulumApi.api,
+      fromAmountString: inputAmountForSwap,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails
-    );
+    });
 
     return {
       effectiveExchangeRate: swapResult.effectiveExchangeRate,

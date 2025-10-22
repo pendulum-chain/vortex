@@ -1,8 +1,7 @@
-import { FiatToken, PendulumTokenDetails, RampDirection } from "@packages/shared";
+import { PendulumTokenDetails, RampDirection } from "@packages/shared";
 import { Big } from "big.js";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
-import { validateAmountLimits } from "../../core/validation-helpers";
 
 export interface NablaSwapConfig {
   direction: RampDirection;
@@ -44,8 +43,6 @@ export abstract class BaseNablaSwapEngine implements Stage {
       rampType: request.rampType
     });
 
-    this.validateLimits(ctx, result);
-
     this.assignNablaSwapContext(
       ctx,
       result,
@@ -72,17 +69,6 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
   private calculateInputAmountForSwapRaw(inputAmountForSwap: string, inputToken: PendulumTokenDetails): string {
     return new Big(inputAmountForSwap).times(new Big(10).pow(inputToken.decimals)).toFixed(0);
-  }
-
-  private validateLimits(ctx: QuoteContext, result: { nablaOutputAmountDecimal: Big }): void {
-    if (ctx.request.rampType === RampDirection.SELL) {
-      validateAmountLimits(
-        result.nablaOutputAmountDecimal,
-        ctx.request.outputCurrency as FiatToken,
-        "max",
-        ctx.request.rampType
-      );
-    }
   }
 
   private assignNablaSwapContext(

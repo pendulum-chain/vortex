@@ -43,7 +43,6 @@ export function createQuoteContext(args: {
     partner: args.partner,
 
     // Provide a default object to keep stage logic simple; optional by interface.
-    preNabla: {},
     request: args.request,
     targetFeeFiatCurrency: args.targetFeeFiatCurrency,
     get to() {
