@@ -16,8 +16,9 @@ export const SelectionDropdownMotion = ({ isOpen, children, className }: Selecti
             height: "auto",
             transition: {
               damping: 50,
-              delay: 0.25,
-              duration: 0.5,
+              delay: 0.15,
+              duration: 0.15,
+              ease: "easeOut",
               stiffness: 600,
               type: "spring"
             }
@@ -28,7 +29,8 @@ export const SelectionDropdownMotion = ({ isOpen, children, className }: Selecti
             transition: {
               damping: 50,
               delay: 0,
-              duration: 0.3,
+              duration: 0.15,
+              ease: "easeOut",
               stiffness: 600,
               type: "spring"
             }
