@@ -2,7 +2,7 @@ import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
-import { Keypair, Networks, Networks as StellarNetworks, Transaction } from "stellar-sdk";
+import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
@@ -11,6 +11,7 @@ import {
   EphemeralAccount,
   isEvmTransactionData,
   MOONBEAM_WSS,
+  Networks,
   PresignedTx,
   SANDBOX_ENABLED,
   UnsignedTx
@@ -255,7 +256,7 @@ export async function signUnsignedTransactions(
   // Create EVM wallet clients once at the beginning if needed
   let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
-  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon" || tx.network === "polygonAmoy");
+  const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
 
   if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
     evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);
@@ -278,7 +279,7 @@ export async function signUnsignedTransactions(
           throw new Error("Invalid Stellar transaction data format");
         }
 
-        const networkPassphrase = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+        const networkPassphrase = SANDBOX_ENABLED ? StellarNetworks.TESTNET : StellarNetworks.PUBLIC;
         const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
         signedTxs.push(txWithMeta);
       }
