@@ -135,7 +135,7 @@ export const submitXcm = async (
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, internalError, dispatchError } = submissionResult;
-        logger.current.info("Submission status of XCM transaction", status.toString());
+        logger.current.info(`Submission status of XCM transaction: ${status.toString()}`);
 
         if (status.isInvalid) {
           logger.current.error(`XCM transfer failed with status: ${status.type}`);
