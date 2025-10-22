@@ -1,6 +1,6 @@
 // TODO we may now de-duplicate this and use StellarTokenDetails from token configs.
 
-import { getEnvVar } from "../helpers/environment";
+import { isSandboxEnabled } from "../helpers/environment";
 
 export interface StellarTokenConfig {
   assetCode: string;
@@ -143,7 +143,7 @@ export function getPaddedAssetCode(assetCode: string): string {
 export function getHomeDomain(assetCode: string): string {
   switch (assetCode) {
     case "EURC":
-      return getEnvVar("SANDBOX_ENABLED") ? "dev.stellar.mykobo.co" : "dev.stellar.mykobo.co";
+      return isSandboxEnabled() ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
     case "ARS":
       return "api.anclap.com";
     default:
@@ -154,9 +154,9 @@ export function getHomeDomain(assetCode: string): string {
 export function getTomlFileUrl(assetCode: string): string {
   switch (assetCode) {
     case "EURC":
-      return getEnvVar("SANDBOX_ENABLED")
+      return isSandboxEnabled()
         ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
-        : "https://dev.stellar.mykobo.co/.well-known/stellar.toml";
+        : "https://stellar.mykobo.co/.well-known/stellar.toml";
     case "ARS":
       return "https://api.anclap.com/.well-known/stellar.toml";
     default:
