@@ -94,7 +94,7 @@ const ARS: StellarTokenConfig = {
       }
     }
   },
-  tomlFileUrl: "https://api.anclap.com/.well-known/stellar.toml",
+  tomlFileUrl: getTomlFileUrl("ARS"),
   vaultAccountId: "6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs"
 };
 
@@ -143,7 +143,7 @@ export function getPaddedAssetCode(assetCode: string): string {
 export function getHomeDomain(assetCode: string): string {
   switch (assetCode) {
     case "EURC":
-      return getEnvVar("SANDBOX_ENABLED") ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
+      return getEnvVar("SANDBOX_ENABLED") ? "dev.stellar.mykobo.co" : "dev.stellar.mykobo.co";
     case "ARS":
       return "api.anclap.com";
     default:
@@ -156,7 +156,7 @@ export function getTomlFileUrl(assetCode: string): string {
     case "EURC":
       return getEnvVar("SANDBOX_ENABLED")
         ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
-        : "https://mykobo.co/.well-known/stellar.toml";
+        : "https://dev.stellar.mykobo.co/.well-known/stellar.toml";
     case "ARS":
       return "https://api.anclap.com/.well-known/stellar.toml";
     default:
