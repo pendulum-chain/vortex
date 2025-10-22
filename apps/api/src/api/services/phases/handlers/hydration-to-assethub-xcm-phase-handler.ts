@@ -1,4 +1,5 @@
 import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXcm } from "@packages/shared";
+import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -20,7 +21,15 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const { txData: hydrationToAssethub } = this.getPresignedTransaction(state, "pendulumToHydrationXcm");
+      const { txData: hydrationToAssethub, nonce } = this.getPresignedTransaction(state, "hydrationToAssethubXcm");
+
+      const accountData = await hydrationNode.api.query.system.account(substrateEphemeralAddress);
+      const currentEphemeralAccountNonce = accountData.nonce.toNumber();
+      if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > nonce) {
+        logger.warn(
+          `Nonce mismatch: Hydration Account ${substrateEphemeralAddress} has nonce ${currentEphemeralAccountNonce}, expected nonce for TX: ${nonce}`
+        );
+      }
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(hydrationToAssethub as string, hydrationNode.api);
       const { hash } = await submitXcm(getAddressForFormat(substrateEphemeralAddress, hydrationNode.ss58Format), xcmExtrinsic);
