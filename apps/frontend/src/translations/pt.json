@@ -19,20 +19,26 @@
         "back": "Voltar",
         "cancel": "Cancelar",
         "done": "Concluído",
+        "iHaveVerified": "Eu verifiquei",
         "next": "Próximo"
       },
       "companyData": "Informações da Empresa",
       "description": "Conclua estas etapas rápidas de verificação de negócios. Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
-      "instructions": "Por favor, clique no botão abaixo para verificar as informações da sua empresa. Você precisará fornecer os detalhes e documentos de registro da sua empresa.",
+      "instructions": "Por favor, comece a verificação com nosso parceiro confiável. Você precisará fornecer informações de registro da empresa e fazer upload dos documentos necessários.",
       "representativeData": "Informações do Representante Autorizado",
-      "title": "Verificação de Negócios",
+      "title": {
+        "company": "Verificação da Empresa",
+        "default": "Verificação de Negócios",
+        "representative": "Verificação do Representante"
+      },
+      "tryAgain": "Se o processo de verificação foi interrompido, clique <1>aqui</1> para tentar novamente.",
       "verification": {
         "approved": "A verificação da sua empresa foi aprovada!",
         "pending": "Verificação em andamento. Este processo pode levar até 2 dias.",
         "rejected": "A verificação da sua empresa foi rejeitada. Por favor, tente novamente."
       },
-      "verifyCompany": "Verificar Empresa",
-      "verifyCompanyRepresentative": "Verificar Representante da Empresa"
+      "verifyCompany": "Verificar",
+      "verifyCompanyRepresentative": "Verificar"
     },
     "aveniaKYC": {
       "buttons": {
