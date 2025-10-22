@@ -23,16 +23,24 @@ export const signTransactionsActor = async ({
 }: {
   input: { parent: RampMachineActor; context: RampContext };
 }): Promise<RampState> => {
-  const { rampState, rampDirection, quote, address, chainId, executionInput, substrateWalletAccount, getMessageSignature } =
-    input.context;
+  const {
+    rampState,
+    rampDirection,
+    quote,
+    connectedWalletAddress,
+    chainId,
+    executionInput,
+    substrateWalletAccount,
+    getMessageSignature
+  } = input.context;
 
-  if (!rampState || !address || chainId === undefined) {
+  if (!rampState || !connectedWalletAddress || chainId === undefined) {
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
     // If a monerium wallet address is provided in the execution input, we use that as the signer address.
-    const signerAddress = executionInput?.moneriumWalletAddress || address;
+    const signerAddress = executionInput?.moneriumWalletAddress || connectedWalletAddress;
     if (!signerAddress) {
       return false;
     }

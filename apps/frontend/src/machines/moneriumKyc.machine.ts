@@ -27,7 +27,7 @@ export class MoneriumKycMachineError extends Error {
 export const moneriumKycMachine = setup({
   actors: {
     checkUserStatus: fromPromise(async ({ input }: { input: MoneriumKycContext }) => {
-      const address = input.executionInput?.moneriumWalletAddress || input.address;
+      const address = input.executionInput?.moneriumWalletAddress || input.connectedWalletAddress;
       if (!address) {
         throw new Error("Address is required");
       }
@@ -45,7 +45,7 @@ export const moneriumKycMachine = setup({
       }: {
         input: { context: MoneriumKycContext; parent: AnyActorRef };
       }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        const address = input.context.executionInput?.moneriumWalletAddress || input.context.address;
+        const address = input.context.executionInput?.moneriumWalletAddress || input.context.connectedWalletAddress;
         if (!address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }
@@ -63,7 +63,7 @@ export const moneriumKycMachine = setup({
       }: {
         input: { context: MoneriumKycContext; parent: AnyActorRef };
       }): Promise<{ authUrl: string; codeVerifier: string }> => {
-        const address = input.context.executionInput?.moneriumWalletAddress || input.context.address;
+        const address = input.context.executionInput?.moneriumWalletAddress || input.context.connectedWalletAddress;
         if (!address || !input.context.getMessageSignature) {
           throw new Error("Address and getMessageSignature are required");
         }

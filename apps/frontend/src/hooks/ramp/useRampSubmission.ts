@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkId, Networks, RampDirection } from "@packages/shared";
+import { FiatToken, getNetworkId, Networks } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -33,8 +33,8 @@ export const useRampSubmission = () => {
 
   const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
-  const { address, quote } = useSelector(rampActor, state => ({
-    address: state.context.address,
+  const { connectedWalletAddress, quote } = useSelector(rampActor, state => ({
+    connectedWalletAddress: state.context.connectedWalletAddress,
     quote: state.context.quote
   }));
 
@@ -50,7 +50,7 @@ export const useRampSubmission = () => {
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(
     (data: { taxId?: string }) => {
-      if (!address) {
+      if (!connectedWalletAddress) {
         throw new Error("No wallet address found. Please connect your wallet.");
       }
       if (!quote) {
@@ -65,7 +65,7 @@ export const useRampSubmission = () => {
         }
       }
     },
-    [address, quote, inputAmount, fiatToken]
+    [connectedWalletAddress, quote, inputAmount, fiatToken]
   );
 
   const prepareExecutionInput = useCallback(
@@ -76,7 +76,7 @@ export const useRampSubmission = () => {
       }
 
       // We prioritize the wallet address from the form field.
-      const userWalletAddress = rampDirection === RampDirection.BUY && data.walletAddress ? data.walletAddress : address;
+      const userWalletAddress = data.walletAddress ? data.walletAddress : connectedWalletAddress;
 
       if (!userWalletAddress) {
         throw new Error("No address found. Please connect your wallet or provide a destination address.");
@@ -94,12 +94,12 @@ export const useRampSubmission = () => {
         setInitializeFailed: message => {
           console.error("Initialization failed:", message);
         },
-        taxId: data.taxId,
-        userWalletAddress
+        sourceOrDestinationAddress: userWalletAddress,
+        taxId: data.taxId
       };
       return executionInput;
     },
-    [validateSubmissionData, quote, onChainToken, fiatToken, address, network, rampDirection]
+    [validateSubmissionData, quote, onChainToken, fiatToken, connectedWalletAddress, network]
   );
 
   const handleSubmissionError = useCallback(

@@ -27,14 +27,14 @@ export class RegisterRampError extends Error {
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, address, authToken, paymentData, quote } = input;
+  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote } = input;
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
     throw new RegisterRampError("Execution input and quote are required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
-  if (!address) {
+  if (!connectedWalletAddress) {
     throw new RegisterRampError("Wallet address is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
@@ -67,13 +67,13 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   if (quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
-      destinationAddress: address,
+      destinationAddress: executionInput.sourceOrDestinationAddress,
       sessionId: input.externalSessionId,
       taxId: executionInput.taxId
     };
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
-      destinationAddress: address,
+      destinationAddress: executionInput.sourceOrDestinationAddress,
       moneriumAuthToken: authToken,
       moneriumWalletAddress: executionInput.moneriumWalletAddress,
       sessionId: input.externalSessionId
@@ -84,7 +84,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       receiverTaxId: executionInput.taxId,
       sessionId: input.externalSessionId,
       taxId: executionInput.taxId,
-      walletAddress: address
+      walletAddress: connectedWalletAddress
     };
   } else {
     additionalData = {
@@ -93,21 +93,21 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
       sessionId: input.externalSessionId,
-      walletAddress: address
+      walletAddress: connectedWalletAddress
     };
   }
 
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
   const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx => {
-    if (!address) {
+    if (!connectedWalletAddress) {
       return true;
     }
 
     return chainId < 0 &&
       (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub || tx.network === Networks.Hydration)
-      ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
-      : tx.signer.toLowerCase() !== address.toLowerCase();
+      ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(connectedWalletAddress, 0)
+      : tx.signer.toLowerCase() !== connectedWalletAddress.toLowerCase();
   });
 
   const signedTransactions = await signUnsignedTransactions(
