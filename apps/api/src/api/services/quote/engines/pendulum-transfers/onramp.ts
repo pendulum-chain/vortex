@@ -1,4 +1,4 @@
-import { AssetHubToken, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, multiplyByPowerOfTen, Networks, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, XcmMeta } from "../../core/types";
@@ -20,6 +20,10 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
     if (!ctx.subsidy) {
       throw new Error("OnRampPendulumTransferEngine: Missing subsidy in context - ensure subsidy calculation ran successfully");
     }
+
+    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
+      throw new Error("OnRampPendulumTransferEngine: Missing fees in context - ensure fee calculation ran successfully");
+    }
   }
 
   protected async compute(ctx: QuoteContext): Promise<PendulumTransferComputation> {
@@ -34,8 +38,8 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
     };
 
     const assethubDestinationFee = {
-      amount: "0.10",
-      amountRaw: "100000",
+      amount: "0.018",
+      amountRaw: "18000",
       currency: "USDC"
     };
 
@@ -48,7 +52,7 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
     // We currently can't really estimate XCM fees on Pendulum because we don't have the dry-run API available.
     const xcmFees = {
       destination:
-        req.to === "assethub"
+        req.to === Networks.AssetHub
           ? req.outputCurrency !== AssetHubToken.USDC
             ? hydrationDestinationFee
             : assethubDestinationFee
@@ -71,11 +75,26 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
       req.outputCurrency
     );
 
-    // FIXME only the Hydration transfer needs to deduct the fees like this.
-    // For the other transfers, the fee is either paid in GLMR or DOT
-    const outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal))
-      .minus(originFeeInTargetCurrency)
-      .minus(destinationFeeInTargetCurrency);
+    let outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    if (req.to === Networks.AssetHub) {
+      // Only the Hydration and Assethub transfer needs to deduct the fees like this.
+      // For Moonbeam, the fee is either paid in GLMR
+      outputAmountDecimal = outputAmountDecimal.minus(originFeeInTargetCurrency).minus(destinationFeeInTargetCurrency);
+
+      // Adjust network fee in ctx
+      const extraFeeUsd = Big(xcmFees.origin.amount).plus(xcmFees.destination.amount);
+      const extraFeeFiat = Big(originFeeInTargetCurrency).plus(destinationFeeInTargetCurrency);
+
+      // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+      const usdFees = ctx.fees!.usd!;
+      usdFees.network = Big(usdFees.network).plus(extraFeeUsd).toString();
+      usdFees.total = Big(usdFees.total).plus(extraFeeUsd).toFixed(2);
+
+      // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+      const fiatFees = ctx.fees!.displayFiat!;
+      fiatFees.network = Big(fiatFees.network).plus(extraFeeFiat).toString();
+      fiatFees.total = Big(fiatFees.total).plus(extraFeeFiat).toFixed(2);
+    }
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toString();
 
     const xcmMeta: XcmMeta = {
