@@ -79,21 +79,13 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
     if (req.to === Networks.AssetHub) {
       // Only the Hydration and Assethub transfer needs to deduct the fees like this.
       // For Moonbeam, the fee is either paid in GLMR
-      outputAmountDecimal = outputAmountDecimal.minus(originFeeInTargetCurrency).minus(destinationFeeInTargetCurrency);
-
-      // Adjust network fee in ctx
-      const extraFeeUsd = Big(xcmFees.origin.amount).plus(xcmFees.destination.amount);
-      const extraFeeFiat = Big(originFeeInTargetCurrency).plus(destinationFeeInTargetCurrency);
-
-      // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-      const usdFees = ctx.fees!.usd!;
-      usdFees.network = Big(usdFees.network).plus(extraFeeUsd).toString();
-      usdFees.total = Big(usdFees.total).plus(extraFeeUsd).toFixed(2);
-
-      // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-      const fiatFees = ctx.fees!.displayFiat!;
-      fiatFees.network = Big(fiatFees.network).plus(extraFeeFiat).toString();
-      fiatFees.total = Big(fiatFees.total).plus(extraFeeFiat).toFixed(2);
+      outputAmountDecimal = await this.adjustFeesForAssetHub(
+        ctx,
+        outputAmountDecimal,
+        new Big(originFeeInTargetCurrency),
+        new Big(destinationFeeInTargetCurrency),
+        xcmFees
+      );
     }
     const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toString();
 
@@ -129,5 +121,42 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
       // Transfer from Pendulum to Moonbeam
       ctx.pendulumToMoonbeamXcm = xcmMeta;
     }
+  }
+
+  private async adjustFeesForAssetHub(
+    ctx: QuoteContext,
+    outputAmountDecimal: Big,
+    originFeeInTargetCurrency: Big,
+    destinationFeeInTargetCurrency: Big,
+    xcmFees: { origin: { amount: string; currency: string }; destination: { amount: string; currency: string } }
+  ): Promise<Big> {
+    outputAmountDecimal = outputAmountDecimal.minus(originFeeInTargetCurrency).minus(destinationFeeInTargetCurrency);
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const fiatFees = ctx.fees!.displayFiat!;
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const usdFees = ctx.fees!.usd!;
+
+    // Adjust network fee in ctx
+    const originFeeDisplayFiat = await this.price.convertCurrency(
+      xcmFees.origin.amount,
+      xcmFees.origin.currency as RampCurrency,
+      fiatFees.currency as RampCurrency
+    );
+    const destinationFeeDisplayFiat = await this.price.convertCurrency(
+      xcmFees.destination.amount,
+      xcmFees.destination.currency as RampCurrency,
+      fiatFees.currency as RampCurrency
+    );
+
+    const extraFeeUsd = Big(xcmFees.origin.amount).plus(xcmFees.destination.amount);
+    const extraFeeFiat = Big(originFeeDisplayFiat).plus(destinationFeeDisplayFiat);
+
+    usdFees.network = Big(usdFees.network).plus(extraFeeUsd).toString();
+    usdFees.total = Big(usdFees.total).plus(extraFeeUsd).toFixed(2);
+
+    fiatFees.network = Big(fiatFees.network).plus(extraFeeFiat).toString();
+    fiatFees.total = Big(fiatFees.total).plus(extraFeeFiat).toFixed(2);
+
+    return outputAmountDecimal;
   }
 }
