@@ -43,7 +43,7 @@ export class OnRampHydrationEngine implements Stage {
     const assetOutDecimals = trade.swaps[trade.swaps.length - 1].assetOutDecimals;
     const amountOut = multiplyByPowerOfTen(amountOutRaw, -assetOutDecimals).toFixed(assetOutDecimals);
 
-    const slippagePercent = 0.1; // We hardcode slippage to 0.1 for now
+    const slippagePercent = 0.05; // We hardcode slippage to 0.05 for now
     const amountOutMin = new Big(amountOut).mul(new Big(1).minus(slippagePercent / 100)).toFixed(assetOutDecimals);
     const amountOutMinRaw = multiplyByPowerOfTen(amountOutMin, assetOutDecimals).toFixed(0, 0);
 
