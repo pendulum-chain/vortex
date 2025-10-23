@@ -1,11 +1,4 @@
-import {
-  AssetHubToken,
-  assethubTokenConfig,
-  createHydrationToAssethubTransfer,
-  multiplyByPowerOfTen,
-  RampCurrency,
-  RampDirection
-} from "@packages/shared";
+import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
 import Big from "big.js";
 import HydrationRouter from "../../../hydration/swap";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -47,8 +40,7 @@ export class OnRampHydrationEngine implements Stage {
     const amountOutMin = new Big(amountOut).mul(new Big(1).minus(slippagePercent / 100)).toFixed(assetOutDecimals);
     const amountOutMinRaw = multiplyByPowerOfTen(amountOutMin, assetOutDecimals).toFixed(0, 0);
 
-    const dummyDestination = "5DqTNJsGp6UayR5iHAZvH4zquY6ni6j35ZXLtJA6bXwsfixg";
-    const { fees: xcmFees } = await createHydrationToAssethubTransfer(dummyDestination, amountOutRaw, assetOut);
+    const xcmFees = await HydrationRouter.getXcmTransactionFeeToAssethub(assetOut);
 
     ctx.hydrationSwap = {
       inputAmountDecimal: amountIn,
