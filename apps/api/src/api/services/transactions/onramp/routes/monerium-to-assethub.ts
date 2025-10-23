@@ -220,7 +220,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
     // Keep the hydration nonce at 0. It doesn't increase on the network for some reason
     const hydrationNonce = 0;
-    const { inputAsset, outputAsset, inputAmountDecimal, outputAmountRaw } = quote.metadata.hydrationSwap;
+    const { inputAsset, outputAsset, inputAmountDecimal, minOutputAmountRaw } = quote.metadata.hydrationSwap;
     const hydrationSwap = await buildHydrationSwapTransaction(
       inputAsset,
       outputAsset,
@@ -250,7 +250,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
     const hydrationToAssethubTransfer = await buildHydrationToAssetHubTransfer(
       destinationAddress,
-      outputAmountRaw,
+      minOutputAmountRaw,
       hydrationAssetId,
       assethubAssetId
     );
