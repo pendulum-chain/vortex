@@ -1,17 +1,27 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock } from "bun:test";
+import {describe, expect, it, mock} from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { AccountMeta, EphemeralAccount, EvmToken, FiatToken, Networks, RampDirection, signUnsignedTransactions } from "@packages/shared";
-import { Keyring } from "@polkadot/api";
-import { mnemonicGenerate } from "@polkadot/util-crypto";
-import { Keypair } from "stellar-sdk";
+import {
+  AccountMeta,
+  API,
+  ApiManager,
+  EphemeralAccount,
+  EphemeralAccountType,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RampDirection,
+  signUnsignedTransactions
+} from "@packages/shared";
+import {Keyring} from "@polkadot/api";
+import {mnemonicGenerate} from "@polkadot/util-crypto";
+import {Keypair} from "stellar-sdk";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import { API, ApiManager } from "@packages/shared";
-import { QuoteService } from "../ramp/quote.service";
-import { RampService } from "../ramp/ramp.service";
-import { PhaseProcessor } from "./phase-processor";
+import {QuoteService} from "../quote";
+import {RampService} from "../ramp/ramp.service";
+import {PhaseProcessor} from "./phase-processor";
 import registerPhaseHandlers from "./register-handlers";
 
 const TAX_ID = process.env.TAX_ID;
@@ -38,6 +48,12 @@ async function getPendulumNode(): Promise<API> {
 async function getMoonbeamNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
   const networkName = "moonbeam";
+  return await apiManager.getApi(networkName);
+}
+
+async function getHydrationNode(): Promise<API> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = "hydration";
   return await apiManager.getApi(networkName);
 }
 
@@ -79,8 +95,8 @@ const testSigningAccounts = {
 // convert into AccountMeta
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map(networkKey => {
   const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
-  const network = networkKey as Networks;
-  return { address, network };
+  const network = networkKey as EphemeralAccountType;
+  return { address, type: network };
 });
 
 console.log("Test Signing Accounts:", testSigningAccountsMeta);
@@ -197,15 +213,18 @@ describe("Onramp PhaseProcessor Integration Test", () => {
 
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
+      const hydrationNode = await getHydrationNode();
+
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp?.unsignedTxs || [],
         {
-          moonbeamEphemeral: testSigningAccounts.moonbeam,
-          pendulumEphemeral: testSigningAccounts.pendulum,
+          evmEphemeral: testSigningAccounts.moonbeam,
+          substrateEphemeral: testSigningAccounts.pendulum,
           stellarEphemeral: testSigningAccounts.stellar
         },
         pendulumNode.api,
-        moonbeamNode.api
+        moonbeamNode.api,
+        hydrationNode.api,
       );
 
       await rampService.updateRamp({

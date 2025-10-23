@@ -6,7 +6,7 @@ export const POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW = "10000000000000000"; // 0.
 
 interface ConfigBase {
   toChainId: string;
-  axlUSDC_MOONBEAM: string;
+  axlUSDC_MOONBEAM: `0x${string}`;
   integratorId: string;
   receivingContractAddress: `0x${string}`;
 }

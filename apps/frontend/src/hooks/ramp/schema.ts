@@ -10,6 +10,7 @@ export type RampFormValues = {
   taxId?: string;
   pixId?: string;
   walletAddress?: string;
+  moneriumWalletAddress?: string;
 };
 
 export const PHONE_REGEX = /^\+[1-9][0-9]\d{1,14}$/;

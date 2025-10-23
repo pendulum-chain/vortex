@@ -1,21 +1,9 @@
-import { ExtrinsicOptions, IbanPaymentData, PendulumTokenDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@packages/shared";
 
 export interface StateMetadata {
-  inputAmount: string;
-  outputAmount: string;
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
   nablaSoftMinimumOutputRaw: string;
-  pendulumEphemeralAddress: string;
-  inputTokenPendulumDetails: PendulumTokenDetails;
-  outputTokenPendulumDetails: PendulumTokenDetails;
-  outputTokenType: RampCurrency;
-  inputAmountBeforeSwapRaw: string;
-  // The final step for onramp is the squidRouterSwap or XCM transfer, for offramps it's the anchor payout
-  outputAmountBeforeFinalStep: { units: string; raw: string };
   // Only used in offramp
   squidRouterReceiverId: string;
-  moonbeamXcmTransactionHash: string;
   squidRouterReceiverHash: string;
   // Only used in offramp - eurc & ars route
   stellarEphemeralAccountId: string;
@@ -26,30 +14,35 @@ export interface StateMetadata {
   executeSpacewalkNonce: number;
   // Only used in onramp - brla
   aveniaTicketId: string;
-  inputAmountUnits: string;
-  inputAmountBeforeSwapUnits: string;
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
+  moneriumWalletAddress: string | undefined;
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
-  moonbeamEphemeralAddress: string;
-  pendulumToAssethubXcmHash?: string;
+  evmEphemeralAddress: string;
+  substrateEphemeralAddress: string;
+  moonbeamEphemeralAccount: { secret: string; address: string };
+  finalUserAddress: string;
   nabla: {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };
-  assetHubToPendulumHash: string;
+  assethubToPendulumHash: string;
+  hydrationToAssethubXcmHash?: string;
+  pendulumToAssethubXcmHash?: string;
+  pendulumToHydrationXcmHash?: string;
+  pendulumToMoonbeamXcmHash?: string;
+  moonbeamXcmTransactionHash: `0x${string}`;
+  hydrationSwapHash?: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
-  pendulumToMoonbeamXcmHash?: string;
   depositQrCode: string | undefined;
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
-  polygonEphemeralAddress: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

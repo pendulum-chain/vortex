@@ -1,4 +1,4 @@
-import { AllPricesResponse, BundledPriceResult, Currency } from "@packages/shared";
+import { AllPricesResponse, Currency } from "@packages/shared";
 import { UseQueryOptions, useQuery } from "@tanstack/react-query";
 import Big from "big.js";
 import { useMemo } from "react";

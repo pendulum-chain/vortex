@@ -1,8 +1,8 @@
 import { ApiManager, CleanupPhase, decodeSubmittableExtrinsic } from "@packages/shared";
 import { submitExtrinsic } from "@pendulum-chain/api-solang";
 import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { StateMetadata } from "../meta-state-types";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 /**
@@ -33,14 +33,17 @@ export class PendulumPostProcessHandler extends BasePostProcessHandler {
    * and error is null if successful or an Error if it failed
    */
   public async process(state: RampState): Promise<[boolean, Error | null]> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      return [false, this.createErrorObject("Quote not found for the given state")];
+    }
+
     const apiManager = ApiManager.getInstance();
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { outputTokenType } = state.state as StateMetadata;
-
-    if (!outputTokenType) {
-      return [false, this.createErrorObject("Output token type is not defined in the state. This is a bug.")];
+    if (!quote.outputCurrency) {
+      return [false, this.createErrorObject("Output token type is not defined in the quote. This is a bug.")];
     }
 
     try {

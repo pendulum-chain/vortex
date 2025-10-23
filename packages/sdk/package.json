@@ -19,9 +19,9 @@
   "module": "./dist/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
-    "@polkadot/api": "^16.4.1",
-    "stellar-sdk": "^13.3.0",
-    "viem": "^2.31.7"
+    "@polkadot/api": "catalog:",
+    "stellar-sdk": "catalog:",
+    "viem": "^catalog:"
   },
   "repository": {
     "directory": "packages/sdk",

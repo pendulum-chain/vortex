@@ -1,14 +1,16 @@
-import type {
+import {
   AccountMeta,
   CreateQuoteRequest,
   EphemeralAccount,
+  EphemeralAccountType,
   QuoteResponse,
+  RampDirection,
   RampProcess,
+  signUnsignedTransactions,
   UnsignedTx
 } from "@packages/shared";
-import { Networks, RampDirection, signUnsignedTransactions } from "@packages/shared";
 import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from "./ephemeralHelpers";
-import { EphemeralGenerationError, TransactionSigningError } from "./errors";
+import { TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
@@ -43,10 +45,6 @@ export class VortexSdk {
     );
 
     this.initializationPromise = this.networkManager.waitForInitialization();
-  }
-
-  private async ensureInitialized(): Promise<void> {
-    await this.initializationPromise;
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
@@ -134,16 +132,19 @@ export class VortexSdk {
     return this.brlHandler.startBrlRamp(rampId);
   }
 
-  public async storeEphemerals(ephemerals: { [key in Networks]?: EphemeralAccount }, rampId: string): Promise<void> {
+  public async storeEphemerals(
+    ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount },
+    rampId: string
+  ): Promise<void> {
     if (!this.storeEphemeralKeys) {
       return;
     }
 
-    for (const network of Object.keys(ephemerals) as Networks[]) {
-      const ephemeral = ephemerals[network];
+    for (const type of Object.keys(ephemerals) as EphemeralAccountType[]) {
+      const ephemeral = ephemerals[type];
       if (ephemeral) {
         const { address, secret } = ephemeral;
-        const key = `${network}_ephemeral_key`;
+        const key = `${type}_ephemeral_key`;
         const newKey = { address, rampId, secret };
 
         try {
@@ -151,49 +152,39 @@ export class VortexSdk {
           existingKeys.push(newKey);
           await storeEphemeralKeys(key, existingKeys);
         } catch (error) {
-          console.error(`Error storing ephemeral key for ${network}:`, error);
+          console.error(`Error storing ephemeral key for ${type}:`, error);
         }
       }
     }
   }
 
-  private async generateEphemerals(networks: Networks[]): Promise<{
-    ephemerals: { [key in Networks]?: EphemeralAccount };
+  private async ensureInitialized(): Promise<void> {
+    await this.initializationPromise;
+  }
+
+  private async generateEphemerals(): Promise<{
+    ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
     accountMetas: AccountMeta[];
   }> {
-    const ephemerals: { [key in Networks]?: EphemeralAccount } = {};
+    const ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount } = {};
     const accountMetas: AccountMeta[] = [];
 
-    for (const network of networks) {
-      try {
-        let ephemeral: EphemeralAccount | undefined;
-        switch (network) {
-          case Networks.Stellar:
-            ephemeral = createStellarEphemeral();
-            ephemerals[Networks.Stellar] = ephemeral;
-            break;
-          case Networks.Pendulum:
-            ephemeral = createPendulumEphemeral();
-            ephemerals[Networks.Pendulum] = ephemeral;
-            break;
-          case Networks.Moonbeam:
-            ephemeral = createMoonbeamEphemeral();
-            ephemerals[Networks.Moonbeam] = ephemeral;
-            break;
-          default:
-            console.warn(`Ephemeral generation not implemented for network: ${network}`);
-        }
+    const stellarEphemeral = createStellarEphemeral();
+    const substrateEphemeral = createPendulumEphemeral();
+    const evmEphemeral = createMoonbeamEphemeral();
 
-        if (ephemeral) {
-          accountMetas.push({
-            address: ephemeral.address,
-            network
-          });
-        }
-      } catch (error) {
-        throw new EphemeralGenerationError(network, error as Error);
-      }
-    }
+    accountMetas.push({
+      address: stellarEphemeral.address,
+      type: EphemeralAccountType.Stellar
+    });
+    accountMetas.push({
+      address: substrateEphemeral.address,
+      type: EphemeralAccountType.Substrate
+    });
+    accountMetas.push({
+      address: evmEphemeral.address,
+      type: EphemeralAccountType.EVM
+    });
 
     return { accountMetas, ephemerals };
   }
@@ -202,8 +193,8 @@ export class VortexSdk {
     unsignedTxs: UnsignedTx[],
     ephemerals: {
       stellarEphemeral?: EphemeralAccount;
-      pendulumEphemeral?: EphemeralAccount;
-      moonbeamEphemeral?: EphemeralAccount;
+      substrateEphemeral?: EphemeralAccount;
+      evmEphemeral?: EphemeralAccount;
     }
   ): Promise<any[]> {
     await this.ensureInitialized();
@@ -214,6 +205,7 @@ export class VortexSdk {
         ephemerals,
         this.networkManager.getPendulumApi() as any, // TODO fix typing
         this.networkManager.getMoonbeamApi() as any,
+        this.networkManager.getHydrationApi() as any,
         this.networkManager.getAlchemyApiKey()
       );
 

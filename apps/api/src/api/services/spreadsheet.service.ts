@@ -48,9 +48,7 @@ export const getOrCreateSheet = async (doc: GoogleSpreadsheet, headerValues: str
         if (doHeadersMatch(sheet.headerValues, headerValues)) {
           return sheet;
         }
-      } catch {
-        continue;
-      }
+      } catch {}
     }
 
     // Create new sheet if no match found

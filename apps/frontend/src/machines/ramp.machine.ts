@@ -20,10 +20,10 @@ const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
 const initialRampContext: RampContext = {
-  address: undefined,
   authToken: undefined,
   callbackUrl: undefined,
   chainId: undefined,
+  connectedWalletAddress: undefined,
   executionInput: undefined,
   externalSessionId: undefined,
   getMessageSignature: undefined,
@@ -124,7 +124,7 @@ export const rampMachine = setup({
     },
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
-      address: context.address,
+      connectedWalletAddress: context.connectedWalletAddress,
       initializeFailedMessage: context.initializeFailedMessage
     })),
     setFailedMessage: assign({
@@ -205,7 +205,7 @@ export const rampMachine = setup({
     },
     SET_ADDRESS: {
       actions: assign({
-        address: ({ event }) => event.address
+        connectedWalletAddress: ({ event }) => event.address
       })
     },
     SET_EXTERNAL_ID: [
@@ -266,7 +266,7 @@ export const rampMachine = setup({
       // TODO We also need to display the "final" error message in the UI.
       entry: assign(({ context }) => ({
         ...initialRampContext,
-        address: context.address
+        connectedWalletAddress: context.connectedWalletAddress
       })),
       on: {
         FINISH_OFFRAMPING: {

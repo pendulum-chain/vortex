@@ -49,8 +49,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
-  const { address, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
-    address: state.context.address,
+  const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
+    connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
     quoteLocked: state.context.quoteLocked,
@@ -120,10 +120,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   };
 
   const destinationAddress = isOnramp
-    ? chainId && chainId > 0
-      ? trimAddress(address || "")
-      : trimAddress(getAddressForFormat(address || "", apiComponents ? apiComponents.ss58Format : 42))
-    : undefined;
+    ? trimAddress(executionInput.sourceOrDestinationAddress || "")
+    : chainId && chainId > 0
+      ? trimAddress(connectedWalletAddress || "")
+      : trimAddress(getAddressForFormat(connectedWalletAddress || "", apiComponents ? apiComponents.ss58Format : 42));
 
   if (!quote) {
     return null;

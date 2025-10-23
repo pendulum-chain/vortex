@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { CleanupPhase } from "@packages/shared";
-import RampState, { RampStateAttributes } from "../../models/rampState.model";
+import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {CleanupPhase} from "@packages/shared";
+import RampState, {RampStateAttributes} from "../../models/rampState.model";
 import CleanupWorker from "./cleanup.worker";
 
 class TestCleanupWorker extends CleanupWorker {

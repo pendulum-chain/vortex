@@ -1,5 +1,6 @@
 import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
 import { DataTypes, Model, Optional } from "sequelize";
+import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
@@ -22,21 +23,6 @@ export interface QuoteTicketAttributes {
   network: Networks;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface QuoteTicketMetadata {
-  // The input amount to be used for the nabla swap transaction.
-  inputAmountForNablaSwapDecimal: string;
-  onrampOutputAmountMoonbeamRaw: string;
-  offrampAmountBeforeAnchorFees?: string;
-  // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
-  // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
-  usdFeeStructure: QuoteFeeStructure;
-  subsidy?: {
-    partnerId: string;
-    discount: string;
-    subsidyAmountInOutputToken: string;
-  };
 }
 
 // Define the attributes that can be set during creation

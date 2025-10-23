@@ -1,4 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
+import { FiatToken, Networks } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
@@ -29,6 +30,7 @@ export interface SigningState {
 export interface FormData {
   pixId?: string;
   taxId?: string;
+  moneriumWalletAddress?: string;
   walletAddress?: string;
 }
 
@@ -42,24 +44,36 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     walletLockedFromState: state.context.walletLocked
   }));
 
-  const { address } = useVortexAccount();
   const taxId = useTaxId();
   const pixId = usePixId();
   const quote = useQuote();
 
+  // When onramping from EUR -> Assethub, we need to show the wallet address field
+  const isMoneriumToAssethubRamp = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
+  const forceNetwork = isMoneriumToAssethubRamp ? Networks.Polygon : undefined;
+
+  const { address, evmAddress, substrateAddress } = useVortexAccount(forceNetwork);
+
+  const walletForm = walletLockedFromState || address || undefined;
+
   const { form } = useRampForm({
+    moneriumWalletAddress: evmAddress,
     pixId,
     taxId,
-    walletAddress: walletLockedFromState || address || undefined
+    walletAddress: isMoneriumToAssethubRamp ? substrateAddress : walletForm
   });
 
   useEffect(() => {
-    if (walletLockedFromState) {
+    form.setValue("moneriumWalletAddress", evmAddress);
+
+    if (isMoneriumToAssethubRamp && substrateAddress) {
+      form.setValue("walletAddress", substrateAddress);
+    } else if (walletLockedFromState) {
       form.setValue("walletAddress", walletLockedFromState);
-    } else if (address) {
+    } else if (!isMoneriumToAssethubRamp && address) {
       form.setValue("walletAddress", address);
     }
-  }, [address, form, walletLockedFromState]);
+  }, [form, evmAddress, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -89,6 +103,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
         <DetailsStepForm
           isBrazilLanding={isBrazilLanding}
           isWalletAddressDisabled={!!walletLockedFromState}
+          showWalletAddressField={isMoneriumToAssethubRamp}
           signingState={signingState}
         />
         {isSep24Redo && (
@@ -99,7 +114,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
             </div>
           </div>
         )}
-        <DetailsStepActions requiresConnection={!canSkipConnection} signingState={signingState} />
+        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>

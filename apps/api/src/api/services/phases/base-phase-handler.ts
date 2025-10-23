@@ -68,6 +68,11 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     }
   }
 
+  /**
+   * Get the phase name
+   */
+  public abstract getPhaseName(): RampPhase;
+
   protected createRecoverableError(message: string): RecoverablePhaseError {
     return new RecoverablePhaseError(message);
   }
@@ -76,32 +81,12 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     return new UnrecoverablePhaseError(message);
   }
 
-  private async logError(state: RampState, error: unknown): Promise<void> {
-    const isPhaseError = error instanceof PhaseError;
-    const isRecoverable = isPhaseError && error.isRecoverable === true;
-
-    const errorLog: RampErrorLog = {
-      details: error instanceof Error ? error.stack : "",
-      error: error instanceof Error ? error.message : "Unknown error",
-      phase: this.getPhaseName(),
-      recoverable: isRecoverable, // TODO: verify if this is ok
-      timestamp: new Date().toISOString()
-    };
-
-    await rampService.appendErrorLog(state.id, errorLog);
-  }
-
   /**
    * Execute the phase implementation
    * @param state The current ramp state
    * @returns The updated ramp state
    */
   protected abstract executePhase(state: RampState): Promise<RampState>;
-
-  /**
-   * Get the phase name
-   */
-  public abstract getPhaseName(): RampPhase;
 
   /**
    * Transition to the next phase
@@ -183,5 +168,20 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       logger.error(`Error creating subsidy for ramp ${state.id}:`, error);
       // We do not want to throw an error here, as it should not block the phase execution.
     }
+  }
+
+  private async logError(state: RampState, error: unknown): Promise<void> {
+    const isPhaseError = error instanceof PhaseError;
+    const isRecoverable = isPhaseError && error.isRecoverable === true;
+
+    const errorLog: RampErrorLog = {
+      details: error instanceof Error ? error.stack : "",
+      error: error instanceof Error ? error.message : "Unknown error",
+      phase: this.getPhaseName(),
+      recoverable: isRecoverable, // TODO: verify if this is ok
+      timestamp: new Date().toISOString()
+    };
+
+    await rampService.appendErrorLog(state.id, errorLog);
   }
 }

@@ -1,5 +1,4 @@
 import { Router } from "express";
-import * as quoteController from "../../controllers/quote.controller";
 import * as rampController from "../../controllers/ramp.controller";
 
 const router = Router();
@@ -42,7 +41,7 @@ router.post("/register", rampController.registerRamp);
  *
  * @apiParam  {String}  rampId        Ramp ID (URL parameter)
  * @apiParam  {Array}   presignedTxs   Presigned transactions
- * @apiParam  {Object}  [additionalData] Additional data (squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash, etc.)
+ * @apiParam  {Object}  [additionalData] Additional data (squidRouterApproveHash, squidRouterSwapHash, assethubToPendulumHash, etc.)
  *
  * @apiSuccess (OK 200) {String}  id           Ramp ID
  * @apiSuccess (OK 200) {String}  type         Ramp type

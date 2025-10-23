@@ -25,7 +25,7 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
         tomlValues,
         stellarEphemeralSecret,
         executionInput.fiatToken,
-        executionInput.userWalletAddress
+        executionInput.sourceOrDestinationAddress
       );
 
       const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.anchorFeeFiat);

@@ -1,3 +1,4 @@
+import { Networks } from "@packages/shared";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
 import { WalletButtonVariant } from "../ConnectWalletButton";
 import { PolkadotConnectWallet } from "./PolkadotConnectWallet";
@@ -11,6 +12,7 @@ export function PolkadotWalletButton({
   customStyles?: string;
   hideIcon?: boolean;
   variant?: WalletButtonVariant;
+  forceNetwork?: Networks;
 }) {
   const { walletAccount } = usePolkadotWalletState();
 

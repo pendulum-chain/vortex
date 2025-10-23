@@ -368,7 +368,7 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
 
   if (!accountType || !isValidAveniaAccountType(accountType)) {
     res.status(httpStatus.BAD_REQUEST).json({
-      error: `Invalid accountType.`
+      error: "Invalid accountType."
     });
     return;
   }

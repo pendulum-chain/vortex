@@ -2,7 +2,7 @@ import { GetWidgetUrlLocked, GetWidgetUrlRefresh, GetWidgetUrlResponse, RampDire
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
-import quoteService from "../services/ramp/quote.service";
+import quoteService from "../services/quote";
 
 const BASE_WIDGET_URL = process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget";
 
