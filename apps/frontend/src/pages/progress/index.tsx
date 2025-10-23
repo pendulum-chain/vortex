@@ -64,7 +64,8 @@ export const PHASE_FLOWS = {
   evm_offramp_through_stellar: [
     "initial",
     "fundEphemeral",
-    "moonbeamToPendulum",
+    "moonbeamToPendulum", // or "assethubToPendulum",
+    "distributeFees",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
@@ -72,7 +73,6 @@ export const PHASE_FLOWS = {
     "assethubToPendulum",
     "spacewalkRedeem",
     "stellarPayment",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
@@ -80,14 +80,13 @@ export const PHASE_FLOWS = {
     "initial",
     "fundEphemeral",
     "moonbeamToPendulum", // or "assethubToPendulum",
+    "distributeFees",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
     "subsidizePostSwap",
-    "spacewalkRedeem",
-    "stellarPayment",
+    "pendulumToMoonbeamXcm",
     "brlaPayoutOnMoonbeam",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
@@ -99,20 +98,61 @@ export const PHASE_FLOWS = {
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
+    "distributeFees",
     "subsidizePostSwap",
+    "pendulumToMoonbeamXcm",
     "squidRouterApprove",
     "squidRouterPay",
     "squidRouterSwap",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
-  onramp_eur: [
+  onramp_eur_assethub: [
     "initial",
     "moneriumOnrampMint",
+    "fundEphemeral",
     "moneriumOnrampSelfTransfer",
     "squidRouterApprove",
     "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_assethub_via_hydration: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToHydrationXcm",
+    "hydrationSwap",
+    "hydrationToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_evm: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
     "distributeFees",
     "complete"
   ] as RampPhase[]
@@ -127,23 +167,19 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
   const currentPhase = rampState.ramp.currentPhase;
 
   if (type === RampDirection.BUY) {
-    if (
-      currentPhase === "brlaOnrampMint" ||
-      rampState.quote?.outputCurrency === FiatToken.BRL ||
-      rampState.quote?.inputCurrency === FiatToken.BRL
-    ) {
+    if (rampState.quote?.inputCurrency === FiatToken.BRL) {
       return "onramp_brl";
     }
 
-    if (
-      currentPhase === "moneriumOnrampMint" ||
-      currentPhase === "moneriumOnrampSelfTransfer" ||
-      rampState.quote?.inputCurrency === FiatToken.EURC
-    ) {
-      return "onramp_eur";
+    if (rampState.quote?.inputCurrency === FiatToken.EURC && rampState.quote?.to === Networks.AssetHub) {
+      if (rampState.quote?.outputCurrency === "USDC") {
+        return "onramp_eur_assethub";
+      } else {
+        return "onramp_eur_assethub_via_hydration";
+      }
     }
 
-    return "onramp_eur";
+    return "onramp_eur_evm";
   }
 
   if (currentPhase === "brlaPayoutOnMoonbeam" || rampState.quote?.outputCurrency === FiatToken.BRL) {
@@ -395,7 +431,7 @@ export const ProgressPage = () => {
       const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
       const timeDiff = Math.abs(currentTime.getTime() - createdAt.getTime());
-      return timeDiff > 10 * 60 * 1000; // 10 minutes
+      return timeDiff > 20 * 60 * 1000; // 20 minutes
     }
     return false;
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);

@@ -63,7 +63,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       outputAssetSymbol: outputAssetSymbol
     }),
     hydrationToAssethubXcm: t("pages.progress.hydrationToAssethubXcm", {
-      outputAssetSymbol
+      assetSymbol: outputAssetSymbol
     }),
     initial: t("pages.progress.initial"),
     moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
@@ -76,7 +76,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     pendulumToHydrationXcm: t("pages.progress.pendulumToHydrationXcm", {
-      assetSymbol: outputAssetSymbol
+      assetSymbol: "USDC" // Always USDC because of the logic of our flow
     }),
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
