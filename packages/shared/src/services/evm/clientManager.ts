@@ -20,7 +20,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: polygonAmoy,
       name: Networks.PolygonAmoy,
-      rpcUrls: [""]
+      rpcUrls: ["https://polygon-amoy.api.onfinality.io/public", ""]
     },
     {
       chain: moonbeam,
