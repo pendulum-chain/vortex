@@ -13,10 +13,16 @@ export interface SupportedCountry {
 
 export interface GetSupportedCountriesRequest {
   fiatCurrency?: FiatToken;
+  countryCode?: string;
+  name?: string;
 }
 
 export interface GetSupportedCountriesResponse {
   countries: SupportedCountry[];
+}
+
+export interface GetSupportedCountryResponse {
+  country: SupportedCountry;
 }
 
 /**
