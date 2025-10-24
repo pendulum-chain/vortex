@@ -1,4 +1,5 @@
 import { QuoteResponse } from "@packages/shared";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
@@ -73,16 +74,28 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
 };
 
 export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleToggle = (isExpanded: boolean) => {
+    if (isExpanded && cardRef.current) {
+      // Wait for the animation to complete (300ms) before scrolling
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "end"
+        });
+      }, 300);
+    }
+  };
+
   return (
-    <section className="max-w-[336px]">
-      <CollapsibleCard>
-        <CollapsibleSummary>
-          <QuoteSummaryCore quote={quote} />
-        </CollapsibleSummary>
-        <CollapsibleDetails>
-          <QuoteSummaryDetails quote={quote} />
-        </CollapsibleDetails>
-      </CollapsibleCard>
-    </section>
+    <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
+      <CollapsibleSummary>
+        <QuoteSummaryCore quote={quote} />
+      </CollapsibleSummary>
+      <CollapsibleDetails>
+        <QuoteSummaryDetails quote={quote} />
+      </CollapsibleDetails>
+    </CollapsibleCard>
   );
 };

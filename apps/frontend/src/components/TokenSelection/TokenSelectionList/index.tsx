@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTokenSelectionActions } from "../../../stores/tokenSelectionStore";
 import { PageHeader } from "../../PageHeader";
 import { SelectionTokenList } from "./components/SelectionTokenList";
@@ -5,6 +6,7 @@ import { TokenSelectionControls } from "./components/TokenSelectionControls";
 
 export function TokenSelectionList() {
   const { closeTokenSelectModal } = useTokenSelectionActions();
+  const { t } = useTranslation();
 
   const handleClose = () => {
     closeTokenSelectModal();
@@ -12,7 +14,7 @@ export function TokenSelectionList() {
 
   return (
     <section className="absolute top-0 right-0 bottom-0 left-0 z-50 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg">
-      <PageHeader onClose={handleClose} title="Select a token" />
+      <PageHeader onClose={handleClose} title={t("components.dialogs.selectionModal.title")} />
       <TokenSelectionControls />
       <SelectionTokenList />
     </section>
