@@ -39,7 +39,17 @@ export const AveniaKYBVerifyStep = ({
 
           <img alt="Business Check" className="mx-auto mt-16 w-[170px] transition-all duration-300" src={imageSrc} />
 
-          {!isVerificationStarted && <p className="mx-1 mt-6 mb-4 text-center">{t(instructionsKey)}</p>}
+          {!isVerificationStarted && (
+            <p className="mx-1 mt-6 mb-4 text-center">
+              <Trans i18nKey={instructionsKey}>
+                Please provide our trusted partner
+                <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                  Avenia
+                </a>
+                with your company registration information and the required documents.
+              </Trans>
+            </p>
+          )}
 
           {isVerificationStarted && (
             <div className="mx-1 mt-6 text-center">
