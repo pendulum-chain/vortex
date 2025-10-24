@@ -11,7 +11,9 @@ import {
   EphemeralAccount,
   isEvmTransactionData,
   MOONBEAM_WSS,
+  Networks,
   PresignedTx,
+  SANDBOX_ENABLED,
   UnsignedTx
 } from "../index";
 import logger from "../logger";
@@ -254,7 +256,7 @@ export async function signUnsignedTransactions(
   // Create EVM wallet clients once at the beginning if needed
   let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === "moonbeam");
-  const polygonTxs = unsignedTxs.filter(tx => tx.network === "polygon");
+  const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
 
   if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.moonbeamEphemeral) {
     evmClients = createEvmWalletClients(ephemerals.moonbeamEphemeral, alchemyApiKey);
@@ -270,7 +272,6 @@ export async function signUnsignedTransactions(
         throw new Error("Missing Stellar ephemeral account");
       }
 
-      const networkPassphrase = StellarNetworks.PUBLIC;
       const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
 
       for (const tx of stellarTxs) {
@@ -278,6 +279,7 @@ export async function signUnsignedTransactions(
           throw new Error("Invalid Stellar transaction data format");
         }
 
+        const networkPassphrase = SANDBOX_ENABLED ? StellarNetworks.TESTNET : StellarNetworks.PUBLIC;
         const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
         signedTxs.push(txWithMeta);
       }

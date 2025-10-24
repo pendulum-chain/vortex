@@ -72,6 +72,18 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       type: TokenType.Evm
     }
   },
+  [Networks.PolygonAmoy]: {
+    [EvmToken.USDC]: {
+      assetSymbol: "USDC",
+      decimals: 6, // Testnet USDC on Polygon Amoy
+      erc20AddressSourceChain: "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582",
+      isNative: false,
+      network: Networks.PolygonAmoy,
+      networkAssetIcon: "polygonUSDT",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    }
+  },
   [Networks.BSC]: {
     [EvmToken.USDC]: {
       assetSymbol: "USDC",

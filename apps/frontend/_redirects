@@ -1,3 +1,4 @@
 /api/production/*  https://api.vortexfinance.co/:splat  200
 /api/staging/*  https://api-staging.vortexfinance.co/:splat 200
+/api/sandbox/*  https://api-sandbox.vortexfinance.co/:splat 200
 /* /index.html 200

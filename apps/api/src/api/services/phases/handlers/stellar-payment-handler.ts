@@ -1,12 +1,14 @@
 import { HORIZON_URL, RampPhase } from "@packages/shared";
 import { Horizon, NetworkError, Networks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
+import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { verifyStellarPaymentSuccess } from "../helpers/stellar-payment-verifier";
 import { isStellarNetworkError } from "./fund-ephemeral-handler";
 
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+
 const horizonServer = new Horizon.Server(HORIZON_URL);
 
 export class StellarPaymentPhaseHandler extends BasePhaseHandler {

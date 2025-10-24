@@ -4,6 +4,7 @@ import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, Transactio
 import logger from "../../../../config/logger";
 import {
   FUNDING_SECRET,
+  SANDBOX_ENABLED,
   SEQUENCE_TIME_WINDOW_IN_SECONDS,
   SEQUENCE_TIME_WINDOWS,
   STELLAR_BASE_FEE
@@ -13,7 +14,8 @@ import {
 type HorizonServer = Horizon.Server;
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+
 const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7;
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);

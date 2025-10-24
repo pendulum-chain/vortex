@@ -10,7 +10,9 @@ export const getEnvVar = (key: string, fallback = ""): string => {
   if (isServer()) {
     return process.env[key] || fallback;
   }
-  return fallback;
+  // In browser (Vite), check import.meta.env
+  // @ts-ignore - import.meta.env may not be defined in non-Vite environments
+  return (import.meta.env && (import.meta.env[key] || import.meta.env[`VITE_${key}`])) || fallback;
 };
 
 export const isProduction = (): boolean => {
@@ -23,4 +25,8 @@ export const isDevelopment = (): boolean => {
 
 export const isTest = (): boolean => {
   return getEnvVar("NODE_ENV") === "test";
+};
+
+export const isSandboxEnabled = (): boolean => {
+  return getEnvVar("SANDBOX_ENABLED") === "true" || getEnvVar("VITE_SANDBOX_ENABLED") === "true";
 };

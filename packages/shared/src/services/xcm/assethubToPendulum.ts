@@ -1,4 +1,4 @@
-import { ApiManager } from "@packages/shared";
+import { ApiManager, SANDBOX_ENABLED } from "@packages/shared";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { u8aToHex } from "@polkadot/util";
@@ -16,7 +16,7 @@ export async function createAssethubToPendulumXCM(
   rawAmount: string
 ): Promise<SubmittableExtrinsic<"promise", ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();
-  const networkName = "assethub";
+  const networkName = SANDBOX_ENABLED ? "paseo" : "assethub";
   const assethubNode = await apiManager.getApi(networkName);
 
   const { api: assethubApi } = assethubNode;
@@ -40,4 +40,20 @@ export async function createAssethubToPendulumXCM(
   const weightLimit = "Unlimited";
 
   return assethubApi.tx.polkadotXcm.limitedReserveTransferAssets(destination, beneficiary, assets, feeAssetItem, weightLimit);
+}
+
+export async function createPaseoToPendulumXCM(
+  destinationAddress: string,
+  assetKey: AssethubAssetKey,
+  rawAmount: string
+): Promise<SubmittableExtrinsic<"promise", ISubmittableResult>> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = "paseo";
+  const assethubNode = await apiManager.getApi(networkName);
+
+  const { api: assethubApi } = assethubNode;
+
+  const receiverId = u8aToHex(decodeAddress(destinationAddress));
+
+  return assethubApi.tx.balances.transferAllowDeath(receiverId, "10000");
 }

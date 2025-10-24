@@ -1,5 +1,7 @@
 // TODO we may now de-duplicate this and use StellarTokenDetails from token configs.
 
+import { isSandboxEnabled } from "../helpers/environment";
+
 export interface StellarTokenConfig {
   assetCode: string;
   assetIssuer: string;
@@ -60,7 +62,7 @@ const EURC: StellarTokenConfig = {
   assetCode: "EURC",
   assetIssuer: "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
   clientDomainEnabled: true,
-  homeDomain: "stellar.mykobo.co",
+  homeDomain: getHomeDomain("EURC"),
   maximumSubsidyAmountRaw: "15000000000000",
   memoEnabled: false, // 15 units
   minWithdrawalAmount: "10000000000000",
@@ -72,7 +74,7 @@ const EURC: StellarTokenConfig = {
       }
     }
   },
-  tomlFileUrl: "https://stellar.mykobo.co/.well-known/stellar.toml",
+  tomlFileUrl: getTomlFileUrl("EURC"),
   vaultAccountId: "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm"
 };
 
@@ -92,7 +94,7 @@ const ARS: StellarTokenConfig = {
       }
     }
   },
-  tomlFileUrl: "https://api.anclap.com/.well-known/stellar.toml",
+  tomlFileUrl: getTomlFileUrl("ARS"),
   vaultAccountId: "6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs"
 };
 
@@ -136,4 +138,28 @@ export function getTokenConfigByAssetCode(
 
 export function getPaddedAssetCode(assetCode: string): string {
   return assetCode.padEnd(4, "\0");
+}
+
+export function getHomeDomain(assetCode: string): string {
+  switch (assetCode) {
+    case "EURC":
+      return isSandboxEnabled() ? "dev.stellar.mykobo.co" : "stellar.mykobo.co";
+    case "ARS":
+      return "api.anclap.com";
+    default:
+      throw new Error(`Home domain not configured for asset: ${assetCode}`);
+  }
+}
+
+export function getTomlFileUrl(assetCode: string): string {
+  switch (assetCode) {
+    case "EURC":
+      return isSandboxEnabled()
+        ? "https://dev.stellar.mykobo.co/.well-known/stellar.toml"
+        : "https://stellar.mykobo.co/.well-known/stellar.toml";
+    case "ARS":
+      return "https://api.anclap.com/.well-known/stellar.toml";
+    default:
+      throw new Error(`TOML file URL not configured for asset: ${assetCode}`);
+  }
 }

@@ -7,6 +7,7 @@ import {
   createAssethubToPendulumXCM,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
+  createPaseoToPendulumXCM,
   createPendulumToMoonbeamTransfer,
   EvmTokenDetails,
   EvmTransactionData,
@@ -31,7 +32,10 @@ import {
 } from "@packages/shared";
 import Big from "big.js";
 import { Keypair } from "stellar-sdk";
+import { encodeFunctionData } from "viem";
 import logger from "../../../config/logger";
+import { SANDBOX_ENABLED } from "../../../constants/constants";
+import erc20ABI from "../../../contracts/ERC20";
 import Partner from "../../../models/partner.model";
 import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
@@ -124,7 +128,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 }
 
 /**
- * Creates transactions for EVM source networks using Squidrouter
+ * Creates transactions for EVM source networks using Squidrouter or mock transactions in sandbox
  * @param params Transaction parameters
  * @param unsignedTxs Array to add transactions to
  * @param stateMeta State metadata to update
@@ -142,18 +146,27 @@ async function createEvmSourceTransactions(
 ): Promise<Partial<StateMetadata>> {
   const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, inputTokenDetails } = params;
 
-  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } =
-    await createOfframpSquidrouterTransactions({
-      fromAddress: userAddress,
-      fromNetwork,
-      inputTokenDetails,
-      pendulumAddressDestination: pendulumEphemeralAddress,
-      rawAmount: inputAmountRaw
-    });
+  const squidResult = await createOfframpSquidrouterTransactions({
+    fromAddress: userAddress,
+    fromNetwork,
+    inputTokenDetails,
+    pendulumAddressDestination: pendulumEphemeralAddress,
+    rawAmount: inputAmountRaw
+  });
+
+  let { approveData, swapData } = squidResult;
+  const { squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } = squidResult;
+
+  // Override approveData and swapData in sandbox mode
+  if (SANDBOX_ENABLED) {
+    const sandboxTransactions = createSandboxEvmTransactions(inputAmountRaw, inputTokenDetails);
+    approveData = sandboxTransactions.approveData;
+    swapData = sandboxTransactions.swapData;
+  }
 
   unsignedTxs.push({
     meta: {},
-    network: fromNetwork,
+    network: SANDBOX_ENABLED ? Networks.PolygonAmoy : fromNetwork,
     nonce: 0,
     phase: "squidRouterApprove",
     signer: userAddress,
@@ -162,7 +175,7 @@ async function createEvmSourceTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: fromNetwork,
+    network: SANDBOX_ENABLED ? Networks.PolygonAmoy : fromNetwork,
     nonce: 0,
     phase: "squidRouterSwap",
     signer: userAddress,
@@ -193,14 +206,14 @@ async function createAssetHubSourceTransactions(
   const { userAddress, pendulumEphemeralAddress, inputAmountRaw } = params;
 
   // Create Assethub to Pendulum transaction
-  const assethubToPendulumTransaction = await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
-
-  logger.info("assethub to pendulum txs done");
-  logger.info("assethub to pendulum txs done");
+  const assethubToPendulumTransaction = SANDBOX_ENABLED
+    ? await createPaseoToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw)
+    : await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
+  const originNetwork = SANDBOX_ENABLED ? Networks.Paseo : fromNetwork;
 
   unsignedTxs.push({
     meta: {},
-    network: fromNetwork,
+    network: originNetwork,
     nonce: 0,
     phase: "assethubToPendulum",
     signer: userAddress,
@@ -784,4 +797,46 @@ export async function prepareOfframpTransactions({
   }
 
   return { stateMeta, unsignedTxs }; // Return the unsigned transactions and state meta
+}
+
+/**
+ * Creates mock approve and swap transactions for sandbox mode
+ * @param inputAmountRaw The raw input amount to approve
+ * @param inputTokenDetails The input token details
+ * @returns Mock approve and swap transaction data
+ */
+function createSandboxEvmTransactions(
+  inputAmountRaw: string,
+  inputTokenDetails: EvmTokenDetails
+): { approveData: EvmTransactionData; swapData: EvmTransactionData } {
+  const USDC_POLYGON_AMOY = "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582" as `0x${string}`;
+  const MOCK_SQUIDROUTER_RECEIVER = "0x1234567890123456789012345678901234567890" as `0x${string}`;
+  const approveTransactionData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [MOCK_SQUIDROUTER_RECEIVER, inputAmountRaw],
+    functionName: "approve"
+  });
+
+  const approveData: EvmTransactionData = {
+    data: approveTransactionData as `0x${string}`,
+    gas: "150000",
+    maxFeePerGas: "1000000000",
+    maxPriorityFeePerGas: "1000000000",
+    to: USDC_POLYGON_AMOY,
+    value: "0"
+  };
+
+  // Swap transaction: simply a native transfer to mock squidrouter swap.
+  const transferValue = "100000000000000";
+
+  const swapData: EvmTransactionData = {
+    data: "0x" as `0x${string}`,
+    gas: "21000",
+    maxFeePerGas: "1000000000",
+    maxPriorityFeePerGas: "1000000000",
+    to: MOCK_SQUIDROUTER_RECEIVER,
+    value: transferValue
+  };
+
+  return { approveData, swapData };
 }

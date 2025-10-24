@@ -1,5 +1,6 @@
 import { FiatToken, RampDirection, RampPhase } from "@packages/shared";
 import logger from "../../../../config/logger";
+import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 
@@ -21,6 +22,11 @@ export class InitialPhaseHandler extends BasePhaseHandler {
    */
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing initial phase for ramp ${state.id}`);
+
+    if (SANDBOX_ENABLED) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      return this.transitionToNextPhase(state, "complete");
+    }
 
     // Check if signed_transactions are present for offramps. If they are not, return early.
     if (state.type === RampDirection.SELL) {

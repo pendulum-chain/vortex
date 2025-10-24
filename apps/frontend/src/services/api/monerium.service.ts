@@ -1,4 +1,5 @@
 import axios from "axios";
+import { MONERIUM_MINT_NETWORK } from "../monerium/moneriumAuth";
 import { apiClient } from "./api-client";
 
 export interface MoneriumUserStatus {
@@ -13,7 +14,7 @@ export const MoneriumService = {
     try {
       console.log("Checking Monerium user status for address:", address);
       await apiClient.get("/monerium/address-exists", {
-        params: { address, network: "polygon" }
+        params: { address, network: MONERIUM_MINT_NETWORK }
       });
       return {
         isNewUser: false
