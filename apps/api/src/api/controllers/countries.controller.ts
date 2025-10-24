@@ -1,4 +1,9 @@
-import { GetSupportedCountriesRequest, GetSupportedCountriesResponse, SUPPORTED_COUNTRIES } from "@packages/shared";
+import {
+  GetSupportedCountriesRequest,
+  GetSupportedCountriesResponse,
+  GetSupportedCountryResponse,
+  SUPPORTED_COUNTRIES
+} from "@packages/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 
@@ -10,12 +15,43 @@ import httpStatus from "http-status";
  */
 export const getSupportedCountriesHandler = async (
   req: Request<unknown, unknown, unknown, GetSupportedCountriesRequest>,
-  res: Response<GetSupportedCountriesResponse | { error: string }>,
+  res: Response<GetSupportedCountriesResponse | GetSupportedCountryResponse | { error: string }>,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { fiatCurrency } = req.query;
+    const { countryCode, name, fiatCurrency } = req.query;
 
+    // Priority 1: Lookup by country code
+    if (countryCode) {
+      const country = SUPPORTED_COUNTRIES.find(c => c.countryCode.toLowerCase() === countryCode.toLowerCase());
+
+      if (!country) {
+        res.status(httpStatus.NOT_FOUND).json({
+          error: `Country with code '${countryCode}' not found`
+        });
+        return;
+      }
+
+      res.status(httpStatus.OK).json({ country });
+      return;
+    }
+
+    // Priority 2: Lookup by country name
+    if (name) {
+      const country = SUPPORTED_COUNTRIES.find(c => c.name.toLowerCase() === name.toLowerCase());
+
+      if (!country) {
+        res.status(httpStatus.NOT_FOUND).json({
+          error: `Country with name '${name}' not found`
+        });
+        return;
+      }
+
+      res.status(httpStatus.OK).json({ country });
+      return;
+    }
+
+    // Priority 3: Filter by fiat currency
     let countries = SUPPORTED_COUNTRIES;
 
     if (fiatCurrency) {
