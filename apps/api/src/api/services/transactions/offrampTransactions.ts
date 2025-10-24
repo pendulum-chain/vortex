@@ -7,6 +7,7 @@ import {
   createAssethubToPendulumXCM,
   createNablaTransactionsForOfframp,
   createOfframpSquidrouterTransactions,
+  createPaseoToPendulumXCM,
   createPendulumToMoonbeamTransfer,
   EvmTokenDetails,
   EvmTransactionData,
@@ -205,14 +206,14 @@ async function createAssetHubSourceTransactions(
   const { userAddress, pendulumEphemeralAddress, inputAmountRaw } = params;
 
   // Create Assethub to Pendulum transaction
-  const assethubToPendulumTransaction = await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
-
-  logger.info("assethub to pendulum txs done");
-  logger.info("assethub to pendulum txs done");
+  const assethubToPendulumTransaction = SANDBOX_ENABLED
+    ? await createPaseoToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw)
+    : await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
+  const originNetwork = SANDBOX_ENABLED ? Networks.Paseo : fromNetwork;
 
   unsignedTxs.push({
     meta: {},
-    network: fromNetwork,
+    network: originNetwork,
     nonce: 0,
     phase: "assethubToPendulum",
     signer: userAddress,

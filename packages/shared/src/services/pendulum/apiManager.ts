@@ -4,7 +4,7 @@ import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../logger";
 
-export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam";
+export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam" | "paseo";
 
 export interface NetworkConfig {
   name: SubstrateApiNetwork;
@@ -23,6 +23,10 @@ const NETWORKS: NetworkConfig[] = [
   {
     name: "moonbeam",
     wsUrl: "wss://moonbeam.unitedbloc.com"
+  },
+  {
+    name: "paseo",
+    wsUrl: "wss://asset-hub-paseo-rpc.n.dwellir.com"
   }
 ];
 

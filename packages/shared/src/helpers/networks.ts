@@ -5,6 +5,7 @@ export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
   AssetHub = "assethub",
+  Paseo = "paseo",
   Arbitrum = "arbitrum",
   Avalanche = "avalanche",
   Base = "base",
@@ -60,6 +61,12 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     isEVM: false,
     supportsRamp: true
   },
+  [Networks.Paseo]: {
+    displayName: "Paseo",
+    id: ASSETHUB_CHAIN_ID,
+    isEVM: false,
+    supportsRamp: false
+  },
   [Networks.Polygon]: {
     displayName: "Polygon",
     id: polygon.id,
@@ -70,7 +77,7 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     displayName: "Polygon Amoy",
     id: polygonAmoy.id,
     isEVM: true,
-    supportsRamp: true
+    supportsRamp: false
   },
   [Networks.Ethereum]: {
     displayName: "Ethereum",
