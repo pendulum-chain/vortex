@@ -13,7 +13,7 @@
     },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
-        "instructions": "Em seguida, você precisa fornecer informações como pessoa legalmente autorizada a representar sua empresa."
+        "instructions": "Como indivíduo legalmente autorizado a agir em nome da empresa, forneça suas informações pessoais e os documentos necessários."
       },
       "buttons": {
         "back": "Voltar",

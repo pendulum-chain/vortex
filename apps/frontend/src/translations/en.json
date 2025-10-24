@@ -13,7 +13,7 @@
     },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
-        "instructions": "Next, you need to provide information as a person legally authorized to represent your company."
+        "instructions": "As the individual legally authorized to act on behalf of the company, please provide your personal information and required documents."
       },
       "buttons": {
         "back": "Back",
@@ -24,7 +24,7 @@
       },
       "companyData": "Company Information",
       "description": "Complete these quick business verification steps. Data is processed securely by <a>Avenia</a> using bank-grade encryption for transaction security.",
-      "instructions": "Please provide our trusted partner <1> Avenia</1> with your company registration information and the required documents.",
+      "instructions": "Please provide our trusted partner <1>Avenia</1> with your company registration information and the required documents.",
       "representativeData": "Authorized Representative Information",
       "title": {
         "company": "Business Verification",
