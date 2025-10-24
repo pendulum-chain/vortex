@@ -56,9 +56,9 @@ async function runBrlOfframpExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {
-      pixDestination: "123.456.789-00",
-      receiverTaxId: "123.456.789-00",
-      taxId: "123.456.789-00",
+      pixDestination: "157.492.981-08",
+      receiverTaxId: "157.492.981-08",
+      taxId: "157.492.981-08",
       walletAddress: "0x1234567890123456789012345678901234567890"
     };
 
