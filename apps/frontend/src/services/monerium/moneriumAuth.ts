@@ -22,7 +22,7 @@ const VORTEX_APP_CLIENT_ID = import.meta.env.VITE_MONERIUM_CLIENT_ID || "8a7a209
 const MONERIUM_API_URL =
   import.meta.env.VITE_MONERIUM_API_URL || (config.isSandbox ? "https://api.monerium.dev" : "https://api.monerium.app");
 const LINK_MESSAGE = "I hereby declare that I am the address owner.";
-const MONERIUM_APP_NAME = config.isSandbox ? "Vortest" : "Vortex";
+const MONERIUM_APP_NAME = "Vortex";
 
 export const initiateMoneriumAuth = async (
   address: string,
