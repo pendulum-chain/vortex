@@ -29,8 +29,10 @@ export class OffRampToStellarPendulumTransferEngine extends BasePendulumTransfer
     const nablaSwap = ctx.nablaSwap!;
 
     const fee = new Big(0); // The fee is not paid in the token being transferred
-    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
-    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+
+    // Trim the amounts to 2 decimals as higher precision is irrelevant for the fiat anchors
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal)).round(2, Big.roundDown);
+    const inputAmountRaw = inputAmountDecimal.mul(new Big(10).pow(nablaSwap.outputDecimals)).toFixed(0, 0);
 
     const stellarData: StellarMeta = {
       currency: nablaSwap.outputCurrency,
