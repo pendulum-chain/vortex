@@ -177,45 +177,56 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   const { apiComponents: assethubNode } = useAssetHubNode();
 
   useEffect(() => {
-    // If there are no tokens to process, return early
+    // Only process non-native asset tokens here — native token handled by useAssetHubNativeBalance
     if (tokens.length === 0) return;
+
+    const assetTokens = tokens.filter(t => !t.isNative);
+    if (assetTokens.length === 0) {
+      setBalances([]);
+      return;
+    }
 
     // If substrate wallet is not connected or node is not available,
     // still show the tokens with zero balances
     if (!substrateAddress || !assethubNode) {
-      const tokensWithZeroBalances = tokens.map(token => ({
-        ...token,
-        balance: "0.00"
-      }));
-      setBalances(tokensWithZeroBalances);
+      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00" })));
       return;
     }
 
     const getBalances = async () => {
       const { api } = assethubNode;
 
-      const assetIds = tokens.map(token => token.foreignAssetId).filter(Boolean);
+      // Use unique list of assetIds and preserve mapping
+      const assetIds = Array.from(new Set(assetTokens.map(t => t.foreignAssetId).filter(id => id != null)));
       const assetInfos = await api.query.assets.asset.multi(assetIds);
-
       const accountQueries = assetIds.map(assetId => [assetId, substrateAddress]);
       const accountInfos = await api.query.assets.account.multi(accountQueries);
 
-      const tokensWithBalances = tokens.map((token, index) => {
-        const assetInfo = assetInfos[index];
-        const accountInfo = accountInfos[index];
+      // Build maps by assetId
+      const assetInfoMap = new Map<any, any>();
+      assetIds.forEach((id, i) => assetInfoMap.set(id, assetInfos[i]));
 
-        const rawMinBalance = assetInfo
-          ? (
-              assetInfo.toJSON() as {
-                minBalance: number;
-              }
-            ).minBalance
-          : 0;
+      const accountInfoMap = new Map<any, any>();
+      assetIds.forEach((id, i) => accountInfoMap.set(id, accountInfos[i]));
 
-        const rawBalance = accountInfo ? (assetInfo.toJSON() as { balance: number }).balance : 0;
-        const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
-        const formattedBalance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
-        return { ...token, balance: formattedBalance };
+      const tokensWithBalances = assetTokens.map(token => {
+        const assetId = token.foreignAssetId;
+        let balance: string;
+
+        // assetId should exist for asset tokens; if missing, fallback to zero
+        if (assetId == null) {
+          balance = "0.00";
+        } else {
+          const assetInfo = assetInfoMap.get(assetId);
+          const accountInfo = accountInfoMap.get(assetId);
+
+          const rawMinBalance = assetInfo ? ((assetInfo.toJSON() as any).minBalance ?? 0) : 0;
+          const rawBalance = accountInfo ? ((accountInfo.toJSON() as any).balance ?? 0) : 0;
+          const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
+          balance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
+        }
+
+        return { ...token, balance };
       });
 
       setBalances(tokensWithBalances);
@@ -240,11 +251,13 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
     // Combine all token balances
     const allTokens = [...evmBalances, ...substrateBalances, assethubNativeBalance, evmNativeBalance].filter(Boolean);
 
-    // Deduplicate tokens by network-symbol pair
+    // Deduplicate tokens by network-symbol and type (native vs asset)
     const uniqueTokens = new Map();
     allTokens.forEach(token => {
       if (token) {
-        const key = `${token.network}-${token.assetSymbol}`;
+        const isNative = "isNative" in token ? token.isNative : false;
+        const assetId = "foreignAssetId" in token ? token.foreignAssetId : null;
+        const key = `${token.network}-${token.assetSymbol}-${isNative}-${assetId}`;
         if (!uniqueTokens.has(key)) {
           uniqueTokens.set(key, token);
         }
