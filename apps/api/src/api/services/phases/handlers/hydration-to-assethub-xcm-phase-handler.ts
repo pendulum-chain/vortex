@@ -1,4 +1,4 @@
-import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXcm } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitExtrinsic } from "@packages/shared";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -32,7 +32,8 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
       }
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(hydrationToAssethub as string, hydrationNode.api);
-      const { hash } = await submitXcm(getAddressForFormat(substrateEphemeralAddress, hydrationNode.ss58Format), xcmExtrinsic);
+      // Don't wait for finalization because it somehow doesn't work on Hydration
+      const { hash } = await submitExtrinsic(xcmExtrinsic, hydrationNode.api, false);
 
       state.state = {
         ...state.state,

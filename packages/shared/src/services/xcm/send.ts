@@ -267,7 +267,8 @@ export const submitXTokens = async (
 
 export const submitExtrinsic = async (
   extrinsic: SubmittableExtrinsic<"promise">,
-  api?: ApiPromise
+  api?: ApiPromise,
+  waitForFinalization = true
 ): Promise<{ hash: string | undefined }> =>
   new Promise((resolve, reject) => {
     return extrinsic
@@ -287,9 +288,13 @@ export const submitExtrinsic = async (
           }
         }
 
-        if (status.isFinalized) {
-          const hash = status.asFinalized.toString();
+        if (status.isInBlock && !waitForFinalization) {
+          const hash = status.asInBlock.toString();
+          resolve({ hash });
+        }
 
+        if (status.isFinalized && waitForFinalization) {
+          const hash = status.asFinalized.toString();
           resolve({ hash });
         }
       })
