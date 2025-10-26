@@ -1,4 +1,10 @@
-import { encodeSubmittableExtrinsic, getPendulumDetails, Networks, UnsignedTx } from "@packages/shared";
+import {
+  encodeSubmittableExtrinsic,
+  getPendulumDetails,
+  isStellarOutputTokenDetails,
+  Networks,
+  UnsignedTx
+} from "@packages/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -7,7 +13,8 @@ import {
   addFeeDistributionTransaction,
   createAssetHubSourceTransactions,
   createNablaSwapTransactions,
-  createSpacewalkTransactions
+  createSpacewalkTransactions,
+  createStellarPaymentTransactions
 } from "../common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateOfframpQuote, validateStellarOfframp, validateStellarOfframpMetadata } from "../common/validation";
@@ -130,6 +137,26 @@ export async function prepareAssethubToStellarOfframpTransactions({
     ...stateMeta,
     ...stellarResult.stateMeta
   };
+
+  if (!isStellarOutputTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
+  }
+
+  if (!stellarPaymentData) {
+    throw new Error("Stellar payment data must be provided for offramp");
+  }
+
+  await createStellarPaymentTransactions(
+    {
+      ephemeralAddress: stellarEphemeralEntry.address,
+      outputAmountUnits: offrampAmountBeforeAnchorFeesUnits,
+      outputTokenDetails,
+      stellarPaymentData
+    },
+    unsignedTxs
+  );
+
+  return { stateMeta, unsignedTxs };
 
   return { stateMeta, unsignedTxs };
 }

@@ -422,19 +422,19 @@ export async function createSpacewalkTransactions(
  */
 export async function createStellarPaymentTransactions(
   params: {
-    account: AccountMeta;
+    ephemeralAddress: string;
     outputAmountUnits: Big;
     outputTokenDetails: StellarTokenDetails;
     stellarPaymentData: PaymentData;
   },
   unsignedTxs: UnsignedTx[]
 ): Promise<void> {
-  const { account, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
+  const { ephemeralAddress, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
 
   const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumbers } =
     await buildPaymentAndMergeTx({
       amountToAnchorUnits: outputAmountUnits.toFixed(),
-      ephemeralAccountId: account.address,
+      ephemeralAccountId: ephemeralAddress,
       paymentData: stellarPaymentData,
       tokenConfigStellar: outputTokenDetails
     });
@@ -446,7 +446,7 @@ export async function createStellarPaymentTransactions(
     network: Networks.Stellar,
     nonce: 0,
     phase: "stellarCreateAccount",
-    signer: account.address,
+    signer: ephemeralAddress,
     txData: createAccountTransactions[0].tx
   };
 
@@ -457,7 +457,7 @@ export async function createStellarPaymentTransactions(
     network: Networks.Stellar,
     nonce: 1,
     phase: "stellarPayment",
-    signer: account.address,
+    signer: ephemeralAddress,
     txData: paymentTransactions[0].tx
   };
 
@@ -468,7 +468,7 @@ export async function createStellarPaymentTransactions(
     network: Networks.Stellar,
     nonce: 2,
     phase: "stellarCleanup",
-    signer: account.address,
+    signer: ephemeralAddress,
     txData: mergeAccountTransactions[0].tx
   };
 
