@@ -12,7 +12,7 @@ import { stellarKycMachine } from "./stellarKyc.machine";
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 export interface RampContext {
-  address: string | undefined;
+  connectedWalletAddress: string | undefined; // The address of the connected wallet (EVM or Substrate)
   authToken?: string;
   chainId: number | undefined;
   executionInput: RampExecutionInput | undefined;

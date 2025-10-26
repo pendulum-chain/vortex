@@ -56,7 +56,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
       </div>
       {destinationAddress && (
         <div className="mb-2 flex justify-between">
-          <p>{t("components.SummaryPage.destination")}</p>
+          <p>{isOfframp ? t("components.SummaryPage.source") : t("components.SummaryPage.destination")}</p>
           {destinationAddress}
         </div>
       )}

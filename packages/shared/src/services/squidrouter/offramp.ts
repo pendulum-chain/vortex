@@ -1,16 +1,22 @@
-import { EvmTokenDetails, EvmTransactionData, Networks, SquidrouterRoute } from "@packages/shared";
+import { EvmTransactionData, Networks, SquidrouterRoute } from "@packages/shared";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { createRandomString, createSquidRouterHash } from "../../helpers/squidrouter";
 import { EvmClientManager } from "../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import { encodePayload } from "./payload";
-import { createGenericRouteParams, createOfframpRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
+import {
+  createGenericRouteParams,
+  createRouteParamsWithMoonbeamPostHook,
+  createTransactionDataFromRoute,
+  getRoute
+} from "./route";
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
   rawAmount: string;
-  inputTokenDetails: EvmTokenDetails;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
   fromNetwork: Networks;
   pendulumAddressDestination: string;
 }
@@ -18,8 +24,8 @@ export interface OfframpSquidrouterParams {
 export interface OfframpSquidrouterParamsToEvm {
   fromAddress: string;
   rawAmount: string;
-  inputTokenDetails: EvmTokenDetails;
-  outputTokenDetails: EvmTokenDetails;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
   fromNetwork: Networks;
   toNetwork: Networks;
   destinationAddress: string;
@@ -54,20 +60,20 @@ export async function createOfframpSquidrouterTransactions(params: OfframpSquidr
   const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
   const { receivingContractAddress } = getSquidRouterConfig(params.fromNetwork);
 
-  const routeParams = createOfframpRouteParams(
-    params.fromAddress,
-    params.rawAmount,
-    params.inputTokenDetails,
-    params.fromNetwork,
+  const routeParams = createRouteParamsWithMoonbeamPostHook({
+    amount: params.rawAmount,
+    fromAddress: params.fromAddress,
+    fromNetwork: params.fromNetwork,
+    fromToken: params.fromToken,
     receivingContractAddress,
     squidRouterReceiverHash
-  );
+  });
 
   const routeResult = await getRoute(routeParams);
   const { route } = routeResult.data;
 
   const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-    inputTokenErc20Address: params.inputTokenDetails.erc20AddressSourceChain,
+    inputTokenErc20Address: params.fromToken,
     publicClient: moonbeamClient,
     rawAmount: params.rawAmount,
     route
@@ -93,21 +99,13 @@ export async function createOfframpSquidrouterTransactionsToEvm(
   const evmClientManager = EvmClientManager.getInstance();
   const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
 
-  const routeParams = createGenericRouteParams(
-    params.fromAddress,
-    params.rawAmount,
-    params.inputTokenDetails,
-    params.outputTokenDetails,
-    params.fromNetwork,
-    params.toNetwork,
-    params.destinationAddress
-  );
+  const routeParams = createGenericRouteParams({ amount: params.rawAmount, ...params });
 
   const routeResult = await getRoute(routeParams);
   const { route } = routeResult.data;
 
   return createTransactionDataFromRoute({
-    inputTokenErc20Address: params.inputTokenDetails.erc20AddressSourceChain,
+    inputTokenErc20Address: params.fromToken,
     publicClient: moonbeamClient,
     rawAmount: params.rawAmount,
     route

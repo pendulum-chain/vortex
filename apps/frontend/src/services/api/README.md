@@ -7,18 +7,18 @@ corresponds to a specific domain of the API and provides methods for making requ
 
 - `api-client.ts`: Base API client with error handling and request/response interceptors
 - Service files for each domain:
-  - `brla.service.ts`: BRLA-related endpoints
-  - `email.service.ts`: Email storage endpoints
-  - `moonbeam.service.ts`: Moonbeam-related endpoints
-  - `pendulum.service.ts`: Pendulum-related endpoints
-  - `price.service.ts`: Price-related endpoints
-  - `quote.service.ts`: Quote-related endpoints
-  - `ramp.service.ts`: Ramp-related endpoints
-  - `rating.service.ts`: Rating storage endpoints
-  - `siwe.service.ts`: Sign-In with Ethereum endpoints
-  - `stellar.service.ts`: Stellar-related endpoints
-  - `storage.service.ts`: Storage-related endpoints
-  - `subsidize.service.ts`: Subsidize-related endpoints
+    - `brla.service.ts`: BRLA-related endpoints
+    - `email.service.ts`: Email storage endpoints
+    - `moonbeam.service.ts`: Moonbeam-related endpoints
+    - `pendulum.service.ts`: Pendulum-related endpoints
+    - `price.service.ts`: Price-related endpoints
+    - `quote.service.ts`: Quote-related endpoints
+    - `ramp.service.ts`: Ramp-related endpoints
+    - `rating.service.ts`: Rating storage endpoints
+    - `siwe.service.ts`: Sign-In with Ethereum endpoints
+    - `stellar.service.ts`: Stellar-related endpoints
+    - `storage.service.ts`: Storage-related endpoints
+    - `subsidize.service.ts`: Subsidize-related endpoints
 
 ## Usage
 

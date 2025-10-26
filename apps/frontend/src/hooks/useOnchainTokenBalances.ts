@@ -1,7 +1,7 @@
 import {
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
-  assetHubTokenConfig,
+  assethubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   evmTokenConfig,
@@ -58,11 +58,11 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
 export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | null => {
   const [nativeBalance, setNativeBalance] = useState<AssetHubTokenDetailsWithBalance | null>(null);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assetHubNode } = useAssetHubNode();
+  const { apiComponents: assethubNode } = useAssetHubNode();
   const { selectedNetwork } = useNetwork();
 
   const nativeToken = useMemo(() => {
-    const assethubTokens = Object.values(assetHubTokenConfig);
+    const assethubTokens = Object.values(assethubTokenConfig);
     return assethubTokens.find(token => token.isNative);
   }, []);
 
@@ -74,7 +74,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
     // If substrate wallet is not connected or node is not available,
     // still show the token with zero balance
-    if (!substrateAddress || !assetHubNode) {
+    if (!substrateAddress || !assethubNode) {
       setNativeBalance({
         ...nativeToken,
         balance: "0.0000"
@@ -84,7 +84,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
     const getNativeBalance = async () => {
       try {
-        const { api } = assetHubNode;
+        const { api } = assethubNode;
         const accountInfo = await api.query.system.account(substrateAddress);
         const accountData = accountInfo.toJSON() as {
           data: {
@@ -95,7 +95,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
         };
 
         const freeBalance = accountData.data.free || 0;
-        const formattedBalance = nativeToDecimal(freeBalance, -nativeToken.decimals).toFixed(4, 0).toString();
+        const formattedBalance = nativeToDecimal(freeBalance, nativeToken.decimals).toFixed(4, 0).toString();
 
         setNativeBalance({
           ...nativeToken,
@@ -108,7 +108,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     };
 
     getNativeBalance();
-  }, [assetHubNode, substrateAddress, selectedNetwork, nativeToken]);
+  }, [assethubNode, substrateAddress, selectedNetwork, nativeToken]);
 
   return nativeBalance;
 };
@@ -174,52 +174,66 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
   const [balances, setBalances] = useState<Array<AssetHubTokenDetailsWithBalance>>([]);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assetHubNode } = useAssetHubNode();
+  const { apiComponents: assethubNode } = useAssetHubNode();
 
   useEffect(() => {
-    // If there are no tokens to process, return early
+    // Only process non-native asset tokens here — native token handled by useAssetHubNativeBalance
     if (tokens.length === 0) return;
+
+    const assetTokens = tokens.filter(t => !t.isNative);
+    if (assetTokens.length === 0) {
+      setBalances([]);
+      return;
+    }
 
     // If substrate wallet is not connected or node is not available,
     // still show the tokens with zero balances
-    if (!substrateAddress || !assetHubNode) {
-      const tokensWithZeroBalances = tokens.map(token => ({
-        ...token,
-        balance: "0.00"
-      }));
-      setBalances(tokensWithZeroBalances);
+    if (!substrateAddress || !assethubNode) {
+      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00" })));
       return;
     }
 
     const getBalances = async () => {
-      const { api } = assetHubNode;
+      const { api } = assethubNode;
 
-      const assetIds = tokens.map(token => token.foreignAssetId).filter(Boolean);
+      // Use unique list of assetIds and preserve mapping
+      const assetIds = Array.from(new Set(assetTokens.map(t => t.foreignAssetId).filter(id => id != null)));
       const assetInfos = await api.query.assets.asset.multi(assetIds);
-
       const accountQueries = assetIds.map(assetId => [assetId, substrateAddress]);
       const accountInfos = await api.query.assets.account.multi(accountQueries);
 
-      const tokensWithBalances = tokens.map((token, index) => {
-        const assetInfo = assetInfos[index];
-        const accountInfo = accountInfos[index];
+      // Build maps by assetId
+      const assetInfoMap = new Map<any, any>();
+      assetIds.forEach((id, i) => assetInfoMap.set(id, assetInfos[i]));
 
-        const { minBalance: rawMinBalance } = assetInfo.toJSON() as {
-          minBalance: number;
-        };
+      const accountInfoMap = new Map<any, any>();
+      assetIds.forEach((id, i) => accountInfoMap.set(id, accountInfos[i]));
 
-        const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
-        const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
-        const formattedBalance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
+      const tokensWithBalances = assetTokens.map(token => {
+        const assetId = token.foreignAssetId;
+        let balance: string;
 
-        return { ...token, balance: formattedBalance };
+        // assetId should exist for asset tokens; if missing, fallback to zero
+        if (assetId == null) {
+          balance = "0.00";
+        } else {
+          const assetInfo = assetInfoMap.get(assetId);
+          const accountInfo = accountInfoMap.get(assetId);
+
+          const rawMinBalance = assetInfo ? ((assetInfo.toJSON() as any).minBalance ?? 0) : 0;
+          const rawBalance = accountInfo ? ((accountInfo.toJSON() as any).balance ?? 0) : 0;
+          const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
+          balance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
+        }
+
+        return { ...token, balance };
       });
 
       setBalances(tokensWithBalances);
     };
 
     getBalances();
-  }, [assetHubNode, tokens, substrateAddress]);
+  }, [assethubNode, tokens, substrateAddress]);
 
   return balances;
 };
@@ -231,17 +245,19 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
   const evmBalances = useEvmBalances(evmTokens);
   const substrateBalances = useAssetHubBalances(substrateTokens);
   const evmNativeBalance = useEvmNativeBalance();
-  const assetHubNativeBalance = useAssetHubNativeBalance();
+  const assethubNativeBalance = useAssetHubNativeBalance();
 
   return useMemo(() => {
     // Combine all token balances
-    const allTokens = [...evmBalances, ...substrateBalances, assetHubNativeBalance, evmNativeBalance].filter(Boolean);
+    const allTokens = [...evmBalances, ...substrateBalances, assethubNativeBalance, evmNativeBalance].filter(Boolean);
 
-    // Deduplicate tokens by network-symbol pair
+    // Deduplicate tokens by network-symbol and type (native vs asset)
     const uniqueTokens = new Map();
     allTokens.forEach(token => {
       if (token) {
-        const key = `${token.network}-${token.assetSymbol}`;
+        const isNative = "isNative" in token ? token.isNative : false;
+        const assetId = "foreignAssetId" in token ? token.foreignAssetId : null;
+        const key = `${token.network}-${token.assetSymbol}-${isNative}-${assetId}`;
         if (!uniqueTokens.has(key)) {
           uniqueTokens.set(key, token);
         }
@@ -249,5 +265,5 @@ export const useOnchainTokenBalances = (tokens: OnChainTokenDetails[]): OnChainT
     });
 
     return Array.from(uniqueTokens.values()) as OnChainTokenDetailsWithBalance[];
-  }, [assetHubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
+  }, [assethubNativeBalance, evmBalances, substrateBalances, evmNativeBalance]);
 };

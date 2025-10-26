@@ -1,5 +1,4 @@
 import {
-  SubsidizeErrorResponse,
   SubsidizePostSwapRequest,
   SubsidizePostSwapResponse,
   SubsidizePreSwapRequest,

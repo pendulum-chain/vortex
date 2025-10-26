@@ -275,6 +275,15 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumFormStep": {
+      "description": {
+        "1": "Please enter the address where you want to receive the assets on AssetHub.",
+        "2": "Then, authenticate with our stablecoin partner <a>Monerium</a> by connecting your EVM wallet."
+      },
+      "field": {
+        "label": "AssetHub Wallet Address"
+      }
+    },
     "moneriumRedirect": {
       "cancel": "Cancel",
       "description": "You have been redirected to our partner...",
@@ -352,6 +361,7 @@
       "processing": "Processing",
       "quote": "Quote",
       "quoteExpired": "Quote expired. Go back and try again.",
+      "source": "Source Account",
       "tryAgain": "Try again",
       "verifyWallet": "Verify Wallet"
     },
@@ -380,7 +390,7 @@
       "secondInputLabel": "You receive",
       "sellButton": "Sell",
       "validation": {
-        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub.",
+        "assethubNotSupported": "Please select a different network. Buy is currently not available on AssetHub.",
         "calculatingQuote": "Calculating quote...",
         "fiatToken": {
           "required": "Fiat token is required"
@@ -491,12 +501,15 @@
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "fundEphemeral": "Funding ephemeral accounts",
+      "hydrationSwap": "Swapping {{inputAssetSymbol}} to {{outputAssetSymbol}} on Hydration DEX",
+      "hydrationToAssethubXcm": "Transferring {{assetSymbol}} from Hydration --> AssetHub",
       "initial": "Starting process",
       "moneriumOnrampMint": "Waiting to receive payment",
       "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
-      "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
-      "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
+      "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
+      "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
       "squidRouterSwap": "Transferring {{assetSymbol}} from {{fromNetwork}} to {{toNetwork}}",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
       "success": "Transaction completed successfully!",

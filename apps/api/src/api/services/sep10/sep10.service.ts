@@ -1,4 +1,4 @@
-import { FiatToken, TOKEN_CONFIG } from "@packages/shared";
+import { FiatToken } from "@packages/shared";
 import { Keypair, Networks, Transaction, TransactionBuilder } from "stellar-sdk";
 import { CLIENT_DOMAIN_SECRET, SEP10_MASTER_SECRET } from "../../../constants/constants";
 import { fetchTomlValues } from "../../helpers/anchors";

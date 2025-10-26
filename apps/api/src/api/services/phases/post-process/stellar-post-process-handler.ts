@@ -2,9 +2,9 @@ import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@packages/s
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
+import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { isStellarNetworkError } from "../handlers/fund-ephemeral-handler";
-import { StateMetadata } from "../meta-state-types";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const NETWORK_PASSPHRASE = StellarNetworks.PUBLIC;
@@ -22,7 +22,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    if (state.type !== RampDirection.SELL || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
+    if (state.type !== RampDirection.SELL) {
       return false;
     }
 
@@ -42,6 +42,15 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
    * and error is null if successful or an Error if it failed
    */
   public async process(state: RampState): Promise<[boolean, Error | null]> {
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      return [false, this.createErrorObject("Quote not found for the given state")];
+    }
+
+    if (quote.outputCurrency === FiatToken.BRL) {
+      return [false, this.createErrorObject("Stellar cleanup not needed for BRL offramps")];
+    }
+
     try {
       const expectedLedgerTimeMs = state.createdAt.getTime() + SEQUENCE_TIME_WINDOWS.FIRST_TX * 1.1 * 1000; // Add some safety margin in case ledger production was slower.
       if (expectedLedgerTimeMs > Date.now()) {

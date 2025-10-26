@@ -6,6 +6,7 @@ import {
   KycAttemptStatus
 } from "../../src/services";
 import { RampDirection } from "../types/rampDirection";
+
 export enum KycFailureReason {
   FACE = "face",
   NAME = "name",

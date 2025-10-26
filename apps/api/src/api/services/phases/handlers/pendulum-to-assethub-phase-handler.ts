@@ -5,7 +5,7 @@ import { StateMetadata } from "../meta-state-types";
 
 export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "pendulumToAssethub";
+    return "pendulumToAssethubXcm";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -13,18 +13,18 @@ export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress) {
+    if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
     }
 
     try {
-      const { txData: pendulumToAssethubTransaction } = this.getPresignedTransaction(state, "pendulumToAssethub");
+      const { txData: pendulumToAssethubTransaction } = this.getPresignedTransaction(state, "pendulumToAssethubXcm");
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToAssethubTransaction as string, pendulumNode.api);
       const { hash } = await submitXTokens(
-        getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format),
+        getAddressForFormat(substrateEphemeralAddress, pendulumNode.ss58Format),
         xcmExtrinsic
       );
 

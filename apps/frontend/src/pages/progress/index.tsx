@@ -22,6 +22,8 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   distributeFees: 24,
   failed: 0,
   fundEphemeral: 20,
+  hydrationSwap: 30,
+  hydrationToAssethubXcm: 30,
   initial: 0,
   moneriumOnrampMint: 60,
   moneriumOnrampSelfTransfer: 20,
@@ -29,8 +31,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
   nablaSwap: 24,
-  pendulumToAssethub: 30,
-  pendulumToMoonbeam: 40,
+  pendulumToAssethubXcm: 30,
+  pendulumToHydrationXcm: 30,
+  pendulumToMoonbeamXcm: 40,
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
   squidRouterPay: 60,
@@ -61,7 +64,8 @@ export const PHASE_FLOWS = {
   evm_offramp_through_stellar: [
     "initial",
     "fundEphemeral",
-    "moonbeamToPendulum",
+    "moonbeamToPendulum", // or "assethubToPendulum",
+    "distributeFees",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
@@ -69,7 +73,6 @@ export const PHASE_FLOWS = {
     "assethubToPendulum",
     "spacewalkRedeem",
     "stellarPayment",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
@@ -77,14 +80,13 @@ export const PHASE_FLOWS = {
     "initial",
     "fundEphemeral",
     "moonbeamToPendulum", // or "assethubToPendulum",
+    "distributeFees",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
     "subsidizePostSwap",
-    "spacewalkRedeem",
-    "stellarPayment",
+    "pendulumToMoonbeamXcm",
     "brlaPayoutOnMoonbeam",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
@@ -96,20 +98,61 @@ export const PHASE_FLOWS = {
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
+    "distributeFees",
     "subsidizePostSwap",
+    "pendulumToMoonbeamXcm",
     "squidRouterApprove",
     "squidRouterPay",
     "squidRouterSwap",
-    "distributeFees",
     "complete"
   ] as RampPhase[],
 
-  onramp_eur: [
+  onramp_eur_assethub: [
     "initial",
     "moneriumOnrampMint",
+    "fundEphemeral",
     "moneriumOnrampSelfTransfer",
     "squidRouterApprove",
     "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_assethub_via_hydration: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToHydrationXcm",
+    "hydrationSwap",
+    "hydrationToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_evm: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
     "distributeFees",
     "complete"
   ] as RampPhase[]
@@ -124,23 +167,19 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
   const currentPhase = rampState.ramp.currentPhase;
 
   if (type === RampDirection.BUY) {
-    if (
-      currentPhase === "brlaOnrampMint" ||
-      rampState.quote?.outputCurrency === FiatToken.BRL ||
-      rampState.quote?.inputCurrency === FiatToken.BRL
-    ) {
+    if (rampState.quote?.inputCurrency === FiatToken.BRL) {
       return "onramp_brl";
     }
 
-    if (
-      currentPhase === "moneriumOnrampMint" ||
-      currentPhase === "moneriumOnrampSelfTransfer" ||
-      rampState.quote?.inputCurrency === FiatToken.EURC
-    ) {
-      return "onramp_eur";
+    if (rampState.quote?.inputCurrency === FiatToken.EURC && rampState.quote?.to === Networks.AssetHub) {
+      if (rampState.quote?.outputCurrency === "USDC") {
+        return "onramp_eur_assethub";
+      } else {
+        return "onramp_eur_assethub_via_hydration";
+      }
     }
 
-    return "onramp_eur";
+    return "onramp_eur_evm";
   }
 
   if (currentPhase === "brlaPayoutOnMoonbeam" || rampState.quote?.outputCurrency === FiatToken.BRL) {
@@ -392,7 +431,7 @@ export const ProgressPage = () => {
       const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
       const timeDiff = Math.abs(currentTime.getTime() - createdAt.getTime());
-      return timeDiff > 10 * 60 * 1000; // 10 minutes
+      return timeDiff > 20 * 60 * 1000; // 20 minutes
     }
     return false;
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
@@ -436,7 +475,7 @@ export const ProgressPage = () => {
     fetchRampState();
     const intervalId = setInterval(fetchRampState, 5000);
     intervalRef.current = intervalId;
-  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType]);
+  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType, rampActor.send]);
 
   return (
     <main>
