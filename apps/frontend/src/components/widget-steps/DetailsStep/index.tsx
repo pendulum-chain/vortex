@@ -49,7 +49,8 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const quote = useQuote();
 
   // When onramping from EUR -> Assethub, we need to show the wallet address field
-  const isMoneriumToAssethubRamp = quote?.inputCurrency === FiatToken.EURC && quote?.to === Networks.AssetHub;
+  const isMoneriumRamp = quote?.rampType === "BUY" && quote?.inputCurrency === FiatToken.EURC;
+  const isMoneriumToAssethubRamp = isMoneriumRamp && quote?.to === Networks.AssetHub;
   const forceNetwork = isMoneriumToAssethubRamp ? Networks.Polygon : undefined;
 
   const { address, evmAddress, substrateAddress } = useVortexAccount(forceNetwork);
@@ -64,7 +65,10 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   });
 
   useEffect(() => {
-    form.setValue("moneriumWalletAddress", evmAddress);
+    // If a Monerium wallet needs to be connected for the ramp, set it in the form
+    if (isMoneriumRamp) {
+      form.setValue("moneriumWalletAddress", evmAddress);
+    }
 
     if (isMoneriumToAssethubRamp && substrateAddress) {
       form.setValue("walletAddress", substrateAddress);
@@ -73,7 +77,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     } else if (!isMoneriumToAssethubRamp && address) {
       form.setValue("walletAddress", address);
     }
-  }, [form, evmAddress, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress]);
+  }, [form, evmAddress, isMoneriumRamp, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress]);
 
   const { onRampConfirm } = useRampSubmission();
 

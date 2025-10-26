@@ -355,6 +355,7 @@
       "processing": "Processando",
       "quote": "Cotação",
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
+      "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
       "verifyWallet": "Verificar carteira"
     },

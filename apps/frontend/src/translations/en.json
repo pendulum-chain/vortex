@@ -355,6 +355,7 @@
       "processing": "Processing",
       "quote": "Quote",
       "quoteExpired": "Quote expired. Go back and try again.",
+      "source": "Source Account",
       "tryAgain": "Try again",
       "verifyWallet": "Verify Wallet"
     },
