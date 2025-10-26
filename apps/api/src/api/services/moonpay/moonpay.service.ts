@@ -5,8 +5,6 @@ import { createQuoteRequest } from "./request-creator";
 import { processMoonpayResponse } from "./response-handler";
 import { getCryptoCode, getFiatCode } from "./utils";
 
-const { priceProviders } = config;
-
 export interface MoonpayResponse {
   baseCurrencyAmount: number;
   baseCurrencyPrice: number;
@@ -64,7 +62,7 @@ async function priceQuery(
   extraFeePercentage: number,
   direction: RampDirection
 ): Promise<MoonpayPriceResponse> {
-  const { baseUrl, apiKey } = priceProviders.moonpay;
+  const { baseUrl, apiKey } = config.priceProviders.moonpay;
   if (!apiKey) throw new Error("Moonpay API key not configured");
 
   const { requestPath: quoteRequestPath, params: quoteRequestParams } = createQuoteRequest(

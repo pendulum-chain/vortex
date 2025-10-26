@@ -1,8 +1,6 @@
 import { FiatToken, RampDirection } from "@packages/shared";
 import { config } from "../../../config";
 
-const { priceProviders } = config;
-
 const PAYMENT_METHODS = {
   ACH: "ach_bank_transfer",
   CREDIT_CARD: "credit_debit_card",
@@ -22,7 +20,7 @@ function createBuyQuoteRequest(
 
   return {
     params: new URLSearchParams({
-      apiKey: priceProviders.moonpay.apiKey || "",
+      apiKey: config.priceProviders.moonpay.apiKey || "",
       baseCurrencyAmount: fiatAmount,
       baseCurrencyCode: fiatCurrencyCode,
       paymentMethod
@@ -43,7 +41,7 @@ function createSellQuoteRequest(
 
   return {
     params: new URLSearchParams({
-      apiKey: priceProviders.moonpay.apiKey || "",
+      apiKey: config.priceProviders.moonpay.apiKey || "",
       baseCurrencyAmount: cryptoAmount,
       extraFeePercentage: extraFeePercentage.toString(),
       payoutMethod,
