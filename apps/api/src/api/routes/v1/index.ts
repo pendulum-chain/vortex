@@ -3,8 +3,10 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
 import brlaRoutes from "./brla.route";
+import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
+import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import moneriumRoutes from "./monerium.route";
 import moonbeamRoutes from "./moonbeam.route";
@@ -126,6 +128,16 @@ router.use("/supported-payment-methods", paymentMethodsRoutes);
  * GET v1/supported-cryptocurrencies
  */
 router.use("/supported-cryptocurrencies", cryptocurrenciesRoutes);
+
+/**
+ * GET v1/supported-countries
+ */
+router.use("/supported-countries", countriesRoutes);
+
+/**
+ * GET v1/supported-fiat-currencies
+ */
+router.use("/supported-fiat-currencies", fiatRoutes);
 
 /**
  * GET v1/maintenance

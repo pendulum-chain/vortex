@@ -1,4 +1,4 @@
-import { CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { AveniaDocumentType } from "@packages/shared";
 import { motion } from "motion/react";
 import React, { useState } from "react";
@@ -18,7 +18,6 @@ interface DocumentUploadProps {
 
 async function uploadFileAsBuffer(file: File, url: string) {
   const arrayBuffer = await file.arrayBuffer();
-  const _uint8 = new Uint8Array(arrayBuffer);
 
   const res = await fetch(url, {
     body: arrayBuffer,
@@ -39,11 +38,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
   const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
-  const [_selfie, _setSelfie] = useState<File | null>(null);
+
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
 
-  const [_selfieValid, _setSelfieValid] = useState(false);
   const [frontValid, setFrontValid] = useState(false);
   const [backValid, setBackValid] = useState(false);
 
@@ -125,7 +123,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
 
         uploads.push(
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
-          uploadFileAsBuffer(back, response.idUpload.uploadURLBack!) // TODO.. why not returning uploadURLBack?
+          uploadFileAsBuffer(back, response.idUpload.uploadURLBack || "")
         );
       } else {
         if (!front) {
@@ -146,7 +144,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       await Promise.all(uploads);
       aveniaKycActor.send({
         documentsId: {
-          livenessUrl: response.selfieUpload.livenessUrl!,
+          livenessUrl: response.selfieUpload.livenessUrl || "",
           uploadedDocumentId: response.idUpload.id,
           uploadedSelfieId: response.selfieUpload.id
         },
@@ -176,7 +174,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 px-4 pt-6 pb-8 md:mx-auto"
+      className="mx-4 mt-8 mb-4 min-h-[506px] px-4 pt-6 pb-8 md:mx-auto"
       initial={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
     >

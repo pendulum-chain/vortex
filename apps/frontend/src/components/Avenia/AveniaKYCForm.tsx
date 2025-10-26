@@ -7,7 +7,7 @@ import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
-import { DocumentUpload } from "./KYCLevel2Form";
+import { DocumentUpload } from "./DocumentUpload";
 import { VerificationStatus } from "./VerificationStatus";
 
 export const AveniaKYCForm = () => {

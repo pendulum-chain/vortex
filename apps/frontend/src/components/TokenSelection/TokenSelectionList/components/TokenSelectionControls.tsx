@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../../../helpers/cn";
 import { useIsNetworkDropdownOpen, useTokenSelectionActions } from "../../../../stores/tokenSelectionStore";
@@ -14,14 +15,19 @@ const TokenSelectionSearchInput = () => {
   };
 
   return (
-    <div
-      className={cn(
-        "transition-all duration-150 ease-in-out",
-        isNetworkDropdownOpen ? "w-0 opacity-0" : "flex-grow opacity-100"
-      )}
-      style={{
+    <motion.div
+      animate={{
         flexBasis: isNetworkDropdownOpen ? "0%" : "auto",
-        transitionDelay: isNetworkDropdownOpen ? "0ms" : "250ms"
+        opacity: isNetworkDropdownOpen ? 0 : 1,
+        position: isNetworkDropdownOpen ? "absolute" : "relative",
+        visibility: isNetworkDropdownOpen ? "hidden" : "visible",
+        width: isNetworkDropdownOpen ? 0 : "auto"
+      }}
+      className="flex-grow"
+      transition={{
+        delay: isNetworkDropdownOpen ? 0 : 0.3,
+        duration: isNetworkDropdownOpen ? 0 : 0.15,
+        ease: "linear"
       }}
     >
       <SearchInput
@@ -29,7 +35,7 @@ const TokenSelectionSearchInput = () => {
         placeholder={t("components.dialogs.selectionModal.searchPlaceholder")}
         set={handleSearchChange}
       />
-    </div>
+    </motion.div>
   );
 };
 
