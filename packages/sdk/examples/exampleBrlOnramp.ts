@@ -14,7 +14,7 @@ async function runBrlOnrampExample() {
       moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',
       pendulumWsUrl: undefined, // default is `true`
       // Optional: store ephemeral keys for later use
-      storeEphemeralKeys: false // default is `false`
+      storeEphemeralKeys: true // default is `true`
     };
 
     const sdk = new VortexSdk(config);
@@ -25,7 +25,7 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 2: Creating quote for BRL onramp...");
     const quoteRequest: CreateQuoteRequest = {
       from: "pix" as const,
-      inputAmount: "3",
+      inputAmount: "100",
       inputCurrency: FiatToken.BRL,
       network: Networks.Polygon,
       outputCurrency: EvmToken.USDC,
@@ -44,7 +44,7 @@ async function runBrlOnrampExample() {
 
     const brlOnrampData = {
       destinationAddress: "0x1234567890123456789012345678901234567890",
-      taxId: "157.492.981-08"
+      taxId: "123.456.789-00"
     };
 
     const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);

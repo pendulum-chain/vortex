@@ -11,7 +11,7 @@ import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { encodeAddress } from "@polkadot/util-crypto";
+import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -32,9 +32,11 @@ export class TransactionTemporarilyBannedError extends Error {
 }
 
 /// Compare two substrate addresses with arbitrary ss58 format
-function substrateAddressEqual(a: string, b: string): boolean {
+export function substrateAddressEqual(a: string, b: string): boolean {
+  if (a === b) return true;
   // Convert both addresses to same ss58 format before comparing
-  return encodeAddress(a, 0) === encodeAddress(b, 0);
+  if (a.length === 40 && b.length === 40) return evmToAddress(a, 0) === evmToAddress(b, 0);
+  else return encodeAddress(a, 0) === encodeAddress(b, 0);
 }
 
 export const signAndSubmitXcm = async (

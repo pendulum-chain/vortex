@@ -38,10 +38,10 @@ import { APIError } from "../../errors/api-error";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
-import { validatePresignedTxs } from "../transactions";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
+import { areAllSignedTxsInUnsignedTxs, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
@@ -184,7 +184,14 @@ export class RampService extends BaseRampService {
 
       // Validate presigned transactions, if some were supplied
       if (presignedTxs && presignedTxs.length > 0) {
-        validatePresignedTxs(presignedTxs);
+        await validatePresignedTxs(presignedTxs);
+      }
+
+      if (!areAllSignedTxsInUnsignedTxs(rampState.unsignedTxs, presignedTxs)) {
+        throw new APIError({
+          message: "Some presigned transactions do not match any unsigned transaction",
+          status: httpStatus.BAD_REQUEST
+        });
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
@@ -272,7 +279,7 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions
-      validatePresignedTxs(rampState.presignedTxs);
+      await validatePresignedTxs(rampState.presignedTxs);
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();

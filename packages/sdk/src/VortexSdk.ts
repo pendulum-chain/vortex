@@ -14,7 +14,7 @@ import { TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
-import { retrieveEphemeralKeys, storeEphemeralKeys } from "./storage";
+import { storeEphemeralKeys } from "./storage";
 import type {
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
@@ -35,7 +35,7 @@ export class VortexSdk {
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
-    this.storeEphemeralKeys = config.storeEphemeralKeys ?? false;
+    this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -140,21 +140,20 @@ export class VortexSdk {
       return;
     }
 
+    const ephemeralItems = [];
     for (const type of Object.keys(ephemerals) as EphemeralAccountType[]) {
       const ephemeral = ephemerals[type];
       if (ephemeral) {
         const { address, secret } = ephemeral;
-        const key = `${type}_ephemeral_key`;
-        const newKey = { address, rampId, secret };
-
-        try {
-          const existingKeys = (await retrieveEphemeralKeys(key)) || [];
-          existingKeys.push(newKey);
-          await storeEphemeralKeys(key, existingKeys);
-        } catch (error) {
-          console.error(`Error storing ephemeral key for ${type}:`, error);
-        }
+        ephemeralItems.push({ address, rampId, secret, type });
       }
+    }
+
+    const fileName = `ephemerals_${rampId}.json`;
+    try {
+      await storeEphemeralKeys(fileName, ephemeralItems);
+    } catch (error) {
+      console.error(`Error storing ephemeral key for ${rampId}:`, error);
     }
   }
 
@@ -177,14 +176,19 @@ export class VortexSdk {
       address: stellarEphemeral.address,
       type: EphemeralAccountType.Stellar
     });
+    ephemerals[EphemeralAccountType.Stellar] = stellarEphemeral;
+
     accountMetas.push({
       address: substrateEphemeral.address,
       type: EphemeralAccountType.Substrate
     });
+    ephemerals[EphemeralAccountType.Substrate] = substrateEphemeral;
+
     accountMetas.push({
       address: evmEphemeral.address,
       type: EphemeralAccountType.EVM
     });
+    ephemerals[EphemeralAccountType.EVM] = evmEphemeral;
 
     return { accountMetas, ephemerals };
   }
