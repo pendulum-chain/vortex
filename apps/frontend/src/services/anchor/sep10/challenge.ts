@@ -1,9 +1,12 @@
 import { Memo, MemoType, Networks, Operation, Transaction } from "stellar-sdk";
+import { config } from "../../../config";
 
 interface Sep10Challenge {
   transaction: string;
   network_passphrase: string;
 }
+
+const EXPECTED_NETWORK_PASSPHRASE = config.isSandbox ? Networks.TESTNET : Networks.PUBLIC;
 
 async function validateChallenge(
   transaction: Transaction<Memo<MemoType>, Operation[]>,
@@ -16,7 +19,7 @@ async function validateChallenge(
   if (transaction.sequence !== "0") {
     throw new Error(`sep10: Invalid sequence number: ${transaction.sequence}`);
   }
-  if (networkPassphrase !== Networks.PUBLIC) {
+  if (networkPassphrase !== EXPECTED_NETWORK_PASSPHRASE) {
     throw new Error(`sep10: Invalid network passphrase: ${networkPassphrase}`);
   }
 }
@@ -32,7 +35,7 @@ export async function fetchAndValidateChallenge(
   }
 
   const { transaction, network_passphrase } = (await challenge.json()) as Sep10Challenge;
-  const transactionSigned = new Transaction(transaction, Networks.PUBLIC);
+  const transactionSigned = new Transaction(transaction, EXPECTED_NETWORK_PASSPHRASE);
   await validateChallenge(transactionSigned, signingKey, network_passphrase);
 
   return transactionSigned;

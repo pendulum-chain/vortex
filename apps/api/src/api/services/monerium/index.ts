@@ -15,10 +15,10 @@ import {
   Networks
 } from "@packages/shared";
 import logger from "../../../config/logger";
-import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } from "../../../constants/constants";
+import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
 
-const MONERIUM_API_URL = "https://api.monerium.app";
-
+const MONERIUM_API_URL = SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app";
+export const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };
 
@@ -73,7 +73,7 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
 };
 
 export const getFirstMoneriumLinkedAddress = async (token: string): Promise<string | null> => {
-  const url = "https://api.monerium.app/addresses";
+  const url = `${MONERIUM_API_URL}/addresses`;
   const headers = {
     ...HEADER_ACCEPT_V2,
     Authorization: `Bearer ${token}`
@@ -137,9 +137,9 @@ export const getIbanForAddress = async (walletAddress: string, authToken: string
   const approvedAddresses = await getMoneriumLinkedIbans(authToken);
 
   // Check if the wallet address is in the list of approved addresses
-  // and that it matches the polygon network.
+  // and that it matches polygon/amoy network.
   const ibanData = approvedAddresses.find(
-    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === "polygon"
+    item => item.address.toLowerCase() === walletAddress.toLowerCase() && item.chain === MONERIUM_MINT_CHAIN
   );
 
   if (!ibanData) {
@@ -201,7 +201,6 @@ export const getMoneriumLinkedIbans = async (authToken: string): Promise<IbanDat
       headers: headers,
       method: "GET"
     });
-
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
     }

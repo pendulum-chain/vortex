@@ -44,7 +44,7 @@ async function runBrlOnrampExample() {
 
     const brlOnrampData = {
       destinationAddress: "0x1234567890123456789012345678901234567890",
-      taxId: "157.492.981-08"
+      taxId: "123.456.789-00"
     };
 
     const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);

@@ -1,6 +1,6 @@
 import { siweMessage } from "@monerium/sdk";
 import CryptoJS from "crypto-js";
-import { polygon } from "viem/chains";
+import { config } from "../../config";
 import { MoneriumKycActorRef } from "../../machines/types";
 
 export enum MoneriumAuthErrorType {
@@ -15,9 +15,16 @@ export class MoneriumAuthError extends Error {
   }
 }
 
-const VORTEX_APP_CLIENT_ID = process.env.REACT_APP_MONERIUM_CLIENT_ID || "eac7a71a-414d-11f0-bea7-ce527adad61b";
-const MONERIUM_API_URL = process.env.REACT_APP_MONERIUM_API_URL || "https://api.monerium.app";
+export const MONERIUM_MINT_NETWORK = config.isSandbox ? "amoy" : "polygon";
+const MONERIUM_MINT_NETWORK_CHAIN_ID = config.isSandbox ? 80002 : 137;
+const VORTEX_APP_CLIENT_ID =
+  import.meta.env.VITE_MONERIUM_CLIENT_ID ||
+  (config.isSandbox ? "e7b56f39-b0ff-11f0-a4ad-fabb3106d2e3" : "eac7a71a-414d-11f0-bea7-ce527adad61b");
+// Use custom API URL if provided, otherwise use default sandbox/dev endpoints
+const MONERIUM_API_URL =
+  import.meta.env.VITE_MONERIUM_API_URL || (config.isSandbox ? "https://api.monerium.dev" : "https://api.monerium.app");
 const LINK_MESSAGE = "I hereby declare that I am the address owner.";
+const MONERIUM_APP_NAME = "Vortex";
 
 export const initiateMoneriumAuth = async (
   address: string,
@@ -38,7 +45,7 @@ export const initiateMoneriumAuth = async (
 
     const params = new URLSearchParams({
       address: address,
-      chain: polygon.name.toString().toLowerCase(),
+      chain: MONERIUM_MINT_NETWORK,
       client_id: VORTEX_APP_CLIENT_ID,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
@@ -63,8 +70,8 @@ export const createMoneriumSiweMessage = (address: string) => {
 
   return siweMessage({
     address: address,
-    appName: "Vortex",
-    chainId: 137,
+    appName: MONERIUM_APP_NAME,
+    chainId: MONERIUM_MINT_NETWORK_CHAIN_ID,
     domain: domain,
     privacyPolicyUrl: "https://example.com/privacy-policy",
     redirectUri,
@@ -100,7 +107,6 @@ export const handleMoneriumSiweAuth = async (
     });
 
     const authUrl = `${MONERIUM_API_URL}/auth?${params}`;
-    console.log("Monerium auth URL:", authUrl);
     return { authUrl, codeVerifier };
   } catch (error) {
     if (error instanceof Error && error.message.includes("User rejected the request")) {
@@ -114,7 +120,7 @@ export const handleMoneriumSiweAuth = async (
 export const exchangeMoneriumCode = async (code: string, codeVerifier: string): Promise<{ authToken: string }> => {
   console.log("Exchanging Monerium code:", code, "with verifier:", codeVerifier);
   const redirectUri = window.location.origin + "/widget";
-  const response = await fetch("https://api.monerium.app/auth/token", {
+  const response = await fetch(`${MONERIUM_API_URL}/auth/token`, {
     body: new URLSearchParams({
       client_id: VORTEX_APP_CLIENT_ID,
       code,

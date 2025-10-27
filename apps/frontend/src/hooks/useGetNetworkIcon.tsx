@@ -18,6 +18,8 @@ export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.Moonbeam]: "",
   [Networks.Pendulum]: "",
   [Networks.Stellar]: "",
+  [Networks.PolygonAmoy]: POLYGON,
+  [Networks.Paseo]: "",
   [Networks.Hydration]: ""
 };
 

@@ -1,13 +1,14 @@
 import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@packages/shared";
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
-import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
+import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { isStellarNetworkError } from "../handlers/fund-ephemeral-handler";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
-const NETWORK_PASSPHRASE = StellarNetworks.PUBLIC;
+const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? StellarNetworks.TESTNET : StellarNetworks.PUBLIC;
+
 const horizonServer = new Horizon.Server(HORIZON_URL);
 
 /**

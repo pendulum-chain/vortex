@@ -14,6 +14,7 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
+import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
 import { encodeEvmTransactionData } from "../../index";
@@ -79,10 +80,11 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     moneriumWalletAddress,
     evmEphemeralEntry.address
   );
+  const moneriumMintNetwork = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "moneriumOnrampSelfTransfer",
     signer: evmEphemeralEntry.address,
@@ -100,7 +102,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "squidRouterApprove",
     signer: evmEphemeralEntry.address,
@@ -109,7 +111,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
