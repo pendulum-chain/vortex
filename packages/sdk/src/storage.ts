@@ -1,12 +1,12 @@
 const isNode = typeof window === "undefined";
 
-async function storeEphemeralKeys(key: string, data: any): Promise<void> {
+async function storeEphemeralKeys(fileName: string, data: any): Promise<void> {
   const content = JSON.stringify(data, null, 2);
   if (isNode) {
     const { writeFile } = await import("fs/promises");
-    await writeFile(`${key}.json`, content, "utf-8");
+    await writeFile(fileName, content, "utf-8");
   } else {
-    localStorage.setItem(key, content);
+    localStorage.setItem(fileName, content);
   }
 }
 
