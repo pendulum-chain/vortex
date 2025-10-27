@@ -177,14 +177,19 @@ export class VortexSdk {
       address: stellarEphemeral.address,
       type: EphemeralAccountType.Stellar
     });
+    ephemerals[EphemeralAccountType.Stellar] = stellarEphemeral;
+
     accountMetas.push({
       address: substrateEphemeral.address,
       type: EphemeralAccountType.Substrate
     });
+    ephemerals[EphemeralAccountType.Substrate] = substrateEphemeral;
+
     accountMetas.push({
       address: evmEphemeral.address,
       type: EphemeralAccountType.EVM
     });
+    ephemerals[EphemeralAccountType.EVM] = evmEphemeral;
 
     return { accountMetas, ephemerals };
   }
