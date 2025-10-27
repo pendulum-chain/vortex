@@ -1,10 +1,11 @@
-import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from "viem/chains";
+import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { PaymentMethod } from "../endpoints/payment-methods.endpoints";
 
 export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
   AssetHub = "assethub",
+  Paseo = "paseo",
   Arbitrum = "arbitrum",
   Avalanche = "avalanche",
   Base = "base",
@@ -14,7 +15,8 @@ export enum Networks {
   Polygon = "polygon",
   Moonbeam = "moonbeam",
   Pendulum = "pendulum",
-  Stellar = "stellar"
+  Stellar = "stellar",
+  PolygonAmoy = "polygonAmoy"
 }
 
 // This type is used to represent all networks that can be used as a source or destination in the system.
@@ -25,7 +27,8 @@ export type EvmNetworks =
   | Networks.BSC
   | Networks.Ethereum
   | Networks.Moonbeam
-  | Networks.Polygon;
+  | Networks.Polygon
+  | Networks.PolygonAmoy;
 
 /**
  * Checks if a destination is a network and returns the network if it is.
@@ -60,6 +63,12 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     isEVM: false,
     supportsRamp: true
   },
+  [Networks.Paseo]: {
+    displayName: "Paseo",
+    id: ASSETHUB_CHAIN_ID,
+    isEVM: false,
+    supportsRamp: false
+  },
   [Networks.Hydration]: {
     displayName: "Hydration",
     id: HYDRATION_CHAIN_ID,
@@ -71,6 +80,12 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     id: polygon.id,
     isEVM: true,
     supportsRamp: true
+  },
+  [Networks.PolygonAmoy]: {
+    displayName: "Polygon Amoy",
+    id: polygonAmoy.id,
+    isEVM: true,
+    supportsRamp: false
   },
   [Networks.Ethereum]: {
     displayName: "Ethereum",

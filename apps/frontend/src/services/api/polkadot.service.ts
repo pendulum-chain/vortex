@@ -1,6 +1,6 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from "../../constants/constants";
-
+import { config } from "../../config";
+import { ASSETHUB_WSS, MOONBEAM_WSS, PASEO_WSS, PENDULUM_WSS } from "../../constants/constants";
 export interface ApiComponents {
   api: ApiPromise;
   ss58Format: number;
@@ -48,13 +48,15 @@ async function createApiComponents(socketUrl: string, autoReconnect = true): Pro
 enum NodeName {
   AssetHub = "assethub",
   Pendulum = "pendulum",
-  Moonbeam = "moonbeam"
+  Moonbeam = "moonbeam",
+  Paseo = "paseo"
 }
 
 const nodeUrls = {
   [NodeName.AssetHub]: ASSETHUB_WSS,
   [NodeName.Pendulum]: PENDULUM_WSS,
-  [NodeName.Moonbeam]: MOONBEAM_WSS
+  [NodeName.Moonbeam]: MOONBEAM_WSS,
+  [NodeName.Paseo]: PASEO_WSS
 };
 
 class PolkadotApiService {
@@ -71,6 +73,9 @@ class PolkadotApiService {
   }
 
   public getApi(nodeName: NodeName): Promise<ApiComponents> {
+    if (!config.isSandbox && nodeName === NodeName.Paseo) {
+      throw new Error("Paseo only available in sandbox mode");
+    }
     if (!this.apiComponents.has(nodeName)) {
       const promise = createApiComponents(nodeUrls[nodeName]);
       this.apiComponents.set(nodeName, promise);

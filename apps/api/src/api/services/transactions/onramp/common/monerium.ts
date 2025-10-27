@@ -1,10 +1,12 @@
 import { ERC20_EURE_POLYGON, EvmClientManager, EvmTransactionData, Networks } from "@packages/shared";
 import { encodeFunctionData } from "viem";
+import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import erc20ABI from "../../../../../contracts/ERC20";
 
 export async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+  const network = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
+  const polygonClient = evmClientManager.getClient(network);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
@@ -32,7 +34,8 @@ export async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
+  const network = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
+  const polygonClient = evmClientManager.getClient(network);
 
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,

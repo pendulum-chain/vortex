@@ -1,7 +1,6 @@
 import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@packages/shared";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
-import { PolkadotNodeName, polkadotApiService } from "../../services/api/polkadot.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
 import { RampContext, RampMachineActor, RampState } from "../types";
 
@@ -95,12 +94,8 @@ export const signTransactionsActor = async ({
         if (!substrateWalletAccount) {
           throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
         }
-        const assethubApiComponents = await polkadotApiService.getApi(PolkadotNodeName.AssetHub);
-        if (!assethubApiComponents?.api) {
-          throw new Error("Missing assethubApiComponents. Assethub API is not available.");
-        }
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-        assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, assethubApiComponents.api, substrateWalletAccount);
+        assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, substrateWalletAccount);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "moneriumOnrampMint") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
