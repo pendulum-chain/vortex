@@ -1,5 +1,5 @@
 import { getTokenConfigByAssetCode, StellarTokenConfig, TOKEN_CONFIG } from "@packages/shared";
-import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
+import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from "stellar-sdk";
 import { HORIZON_URL, SANDBOX_ENABLED, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
 
 interface CreationTxResult {

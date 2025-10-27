@@ -40,6 +40,7 @@ export interface AveniaQuoteResponse {
   inputPaymentMethod: string;
   inputAmount: string;
   outputAmount: string;
+  appliedFees: AveniaOperationFee[];
   basePrice?: string;
 }
 
@@ -76,7 +77,7 @@ export interface PayInQuoteParams {
   outputPaymentMethod: AveniaPaymentMethod;
   inputThirdParty: boolean;
   outputThirdParty: boolean;
-  subAccountId: string;
+  subAccountId?: string;
 }
 
 export enum BlockchainSendMethod {
@@ -87,7 +88,7 @@ export enum BlockchainSendMethod {
 export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
-  subAccountId: string;
+  subAccountId?: string;
 }
 
 export interface OnchainSwapQuoteParams {
@@ -122,13 +123,13 @@ export interface BaseTicket {
 }
 
 export interface AveniaOperationFee {
-  type: FeeType;
+  type: AveniaFeeType;
   amount: string;
   currency: BrlaCurrency;
   rebatable: boolean;
 }
 
-export enum FeeType {
+export enum AveniaFeeType {
   MARKUP = "Markup Fee",
   GAS = "Gas Fee",
   CONVERSION = "Conversion Fee",

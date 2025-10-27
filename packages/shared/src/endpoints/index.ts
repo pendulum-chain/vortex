@@ -14,5 +14,7 @@ export * from "./siwe.endpoints";
 export * from "./stellar.endpoints";
 export * from "./storage.endpoints";
 export * from "./subsidize.endpoints";
+export * from "./supported-countries.endpoints";
 export * from "./supported-cryptocurrencies.endpoints";
+export * from "./supported-fiat-currencies.endpoints";
 export * from "./webhook.endpoints";

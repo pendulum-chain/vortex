@@ -11,6 +11,7 @@ export enum Networks {
   Base = "base",
   BSC = "bsc",
   Ethereum = "ethereum",
+  Hydration = "hydration",
   Polygon = "polygon",
   Moonbeam = "moonbeam",
   Pendulum = "pendulum",
@@ -45,6 +46,7 @@ export function getNetworkFromDestination(destination: DestinationType): Network
 // but we just use it to differentiate between the EVM and Polkadot/Stellar accounts.
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
+export const HYDRATION_CHAIN_ID = -3;
 export const STELLAR_CHAIN_ID = -99;
 
 interface NetworkMetadata {
@@ -64,6 +66,12 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.Paseo]: {
     displayName: "Paseo",
     id: ASSETHUB_CHAIN_ID,
+    isEVM: false,
+    supportsRamp: false
+  },
+  [Networks.Hydration]: {
+    displayName: "Hydration",
+    id: HYDRATION_CHAIN_ID,
     isEVM: false,
     supportsRamp: false
   },

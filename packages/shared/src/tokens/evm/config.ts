@@ -3,7 +3,7 @@
  */
 
 import { EvmNetworks, Networks } from "../../helpers";
-import { PENDULUM_USDC_AXL } from "../constants/pendulum";
+import { PENDULUM_USDC_AXL } from "../pendulum/config";
 import { TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 
@@ -223,6 +223,16 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
     }
   },
   [Networks.Moonbeam]: {
+    [EvmToken.AXLUSDC]: {
+      assetSymbol: "axlUSDC",
+      decimals: 6,
+      erc20AddressSourceChain: "0xca01a1d0993565291051daff390892518acfad3a",
+      isNative: false,
+      network: Networks.Moonbeam,
+      networkAssetIcon: "moonbeamAxlUSDC",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
     [EvmToken.USDC]: {
       assetSymbol: "USDC",
       decimals: 6, // USDC on Moonbeam

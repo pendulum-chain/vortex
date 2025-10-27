@@ -1,3 +1,4 @@
+import { isNetworkEVM, Networks } from "@packages/shared";
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
 import { useTranslation } from "react-i18next";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
@@ -8,18 +9,22 @@ import { BaseWalletButton } from "../ConnectWalletButton/BaseWalletButton";
 export function EVMWalletButton({
   customStyles,
   hideIcon,
-  variant = WalletButtonVariant.Standard
+  variant = WalletButtonVariant.Standard,
+  forceNetwork
 }: {
   customStyles?: string;
   hideIcon?: boolean;
   variant?: WalletButtonVariant;
+  forceNetwork?: Networks;
 }) {
-  const { address, chainId: walletChainId } = useVortexAccount();
+  const { address, chainId: walletChainId } = useVortexAccount(forceNetwork);
   const { isConnected } = useAppKitAccount();
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
   const { t } = useTranslation();
-  const isOnSupportedNetwork = wagmiConfig.chains.find(chain => chain.id === walletChainId) !== undefined;
+
+  const isOnSupportedNetwork =
+    (forceNetwork && isNetworkEVM(forceNetwork)) || wagmiConfig.chains.find(chain => chain.id === walletChainId) !== undefined;
 
   if (!isConnected) {
     return (

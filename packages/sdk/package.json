@@ -19,9 +19,9 @@
   "module": "./dist/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
-    "@polkadot/api": "^16.4.1",
-    "stellar-sdk": "^13.3.0",
-    "viem": "^2.31.7"
+    "@polkadot/api": "catalog:",
+    "stellar-sdk": "catalog:",
+    "viem": "^catalog:"
   },
   "repository": {
     "directory": "packages/sdk",
@@ -31,16 +31,16 @@
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
-    "build": "rm -rf ./dist && tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
+    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --external=\"@polkadot/api\" --external=\"stellar-sdk\"",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "bun run build",
-    "test": "bun test",
+    "test": "bun run build && node -e \"require('./dist/index.js')\"",
     "typecheck": "bun x --bun tsc"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.2.5"
+  "version": "0.3.2"
 }

@@ -1,3 +1,4 @@
+import { Networks } from "@packages/shared";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { ConnectWalletSection } from "../../ConnectWalletSection";
 import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
@@ -8,11 +9,12 @@ export interface DetailsStepActionsProps {
   signingState: SigningState;
   requiresConnection: boolean;
   className?: string;
+  forceNetwork?: Networks;
 }
 
-export const DetailsStepActions = ({ signingState, className, requiresConnection }: DetailsStepActionsProps) => {
+export const DetailsStepActions = ({ signingState, className, requiresConnection, forceNetwork }: DetailsStepActionsProps) => {
   const { shouldDisplay: signingBoxVisible, signatureState, confirmations } = signingState;
-  const { isConnected } = useVortexAccount();
+  const { isConnected } = useVortexAccount(forceNetwork);
 
   if (signingBoxVisible) {
     return (
@@ -25,7 +27,7 @@ export const DetailsStepActions = ({ signingState, className, requiresConnection
 
   return (
     <div className={className}>
-      {requiresConnection && <ConnectWalletSection />}
+      {requiresConnection && <ConnectWalletSection forceNetwork={forceNetwork} />}
       {displayRampSubmitButton && <RampSubmitButton className="mb-4" />}
     </div>
   );

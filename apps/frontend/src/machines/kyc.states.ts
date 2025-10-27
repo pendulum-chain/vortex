@@ -79,7 +79,7 @@ export const kycStateNode = {
         id: "aveniaKyc",
         input: ({ context }: { context: RampContext }): AveniaKycContext => ({
           ...context,
-          taxId: context.executionInput!.taxId!
+          taxId: context.executionInput?.taxId!
         }),
         onDone: [
           {

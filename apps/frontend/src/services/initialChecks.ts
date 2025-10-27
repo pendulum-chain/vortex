@@ -1,5 +1,4 @@
 import { FiatToken, RampDirection } from "@packages/shared";
-import Big from "big.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useToastMessage } from "../helpers/notifications";

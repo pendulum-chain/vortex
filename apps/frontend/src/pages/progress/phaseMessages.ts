@@ -3,6 +3,7 @@ import {
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
+  Networks,
   OnChainToken,
   RampDirection,
   RampPhase
@@ -42,7 +43,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     t("pages.progress.squidRouterSwap", {
       assetSymbol: outputAssetSymbol,
       fromNetwork: quote.inputCurrency === FiatToken.EURC ? "Polygon" : "Moonbeam",
-      toNetwork: toNetwork
+      toNetwork: quote.to === Networks.AssetHub ? "Moonbeam" : toNetwork
     });
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");
@@ -57,6 +58,13 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     distributeFees: getSwappingMessage(),
     failed: "",
     fundEphemeral: t("pages.progress.fundEphemeral"),
+    hydrationSwap: t("pages.progress.hydrationSwap", {
+      inputAssetSymbol: "USDC",
+      outputAssetSymbol: outputAssetSymbol
+    }),
+    hydrationToAssethubXcm: t("pages.progress.hydrationToAssethubXcm", {
+      assetSymbol: outputAssetSymbol
+    }),
     initial: t("pages.progress.initial"),
     moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
     moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
@@ -64,10 +72,13 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
-    pendulumToAssethub: t("pages.progress.pendulumToAssethub", {
+    pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),
-    pendulumToMoonbeam: t("pages.progress.pendulumToMoonbeam", {
+    pendulumToHydrationXcm: t("pages.progress.pendulumToHydrationXcm", {
+      assetSymbol: "USDC" // Always USDC because of the logic of our flow
+    }),
+    pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
     }),
     spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {

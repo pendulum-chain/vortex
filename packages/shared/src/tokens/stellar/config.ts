@@ -18,7 +18,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     },
     maxBuyAmountRaw: "10000000000000000",
     maxSellAmountRaw: "10000000000000000",
-    minBuyAmountRaw: "10000000000000",
+    minBuyAmountRaw: "1000000000000",
     minSellAmountRaw: "10000000000000",
     pendulumRepresentative: {
       assetSymbol: "EURC",

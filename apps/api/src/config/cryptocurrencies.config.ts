@@ -1,6 +1,6 @@
 import {
   AssetHubToken,
-  assetHubTokenConfig,
+  assethubTokenConfig,
   EvmNetworks,
   EvmToken,
   evmTokenConfig,
@@ -38,7 +38,7 @@ const mapEvmTokenToDetails = (network: EvmNetworks, token: EvmToken): SupportedC
 };
 
 const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrencyDetails => {
-  const details = assetHubTokenConfig[token];
+  const details = assethubTokenConfig[token];
   return {
     assetDecimals: details.decimals,
     assetForeignAssetId: details.foreignAssetId,

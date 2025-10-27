@@ -5,12 +5,11 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager, EvmClientManager } from "@packages/shared";
+import { ApiManager, EvmClientManager, setLogger } from "@packages/shared";
+import { config, testDatabaseConnection } from "./config";
 import cryptoService from "./config/crypto";
-import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
-import { config } from "./config/vars";
 import {
   CLIENT_DOMAIN_SECRET,
   FUNDING_SECRET,
@@ -19,7 +18,6 @@ import {
 } from "./constants/constants";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
-import { setLogger } from "@packages/shared";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";

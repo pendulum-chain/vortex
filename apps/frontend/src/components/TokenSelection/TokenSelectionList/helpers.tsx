@@ -1,5 +1,5 @@
 import {
-  assetHubTokenConfig,
+  assethubTokenConfig,
   doesNetworkSupportRamp,
   EvmNetworks,
   evmTokenConfig,
@@ -60,7 +60,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
   if (selectedNetwork === Networks.AssetHub) {
-    return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
+    return Object.entries(assethubTokenConfig).map(([key, value]) => ({
       assetIcon: value.networkAssetIcon,
       assetSymbol: value.assetSymbol,
       details: value as OnChainTokenDetails,
