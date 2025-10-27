@@ -41,7 +41,7 @@ import phaseProcessor from "../phases/phase-processor";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
-import { validatePresignedTxs } from "../transactions/validation";
+import { areAllSignedTxsInUnsignedTxs, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
@@ -185,6 +185,13 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions, if some were supplied
       if (presignedTxs && presignedTxs.length > 0) {
         await validatePresignedTxs(presignedTxs);
+      }
+
+      if (!areAllSignedTxsInUnsignedTxs(rampState.unsignedTxs, presignedTxs)) {
+        throw new APIError({
+          message: "Some presigned transactions do not match any unsigned transaction",
+          status: httpStatus.BAD_REQUEST
+        });
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
