@@ -1,6 +1,17 @@
-import { CleanupPhase, getNetworkId, PresignedTx, RampPhase } from "@packages/shared";
+import {
+  ApiManager,
+  CleanupPhase,
+  getNetworkId,
+  PresignedTx,
+  RampPhase,
+  SubstrateApiNetwork,
+  substrateAddressEqual
+} from "@packages/shared";
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { Transaction } from "ethers";
 import httpStatus from "http-status";
+import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
 function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "substrate" | "stellar" {
@@ -33,7 +44,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "s
   }
 }
 
-export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
+export async function validatePresignedTxs(presignedTxs: PresignedTx[]): Promise<void> {
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
       message: "presignedTxs must be an array with 1-100 elements",
@@ -51,13 +62,12 @@ export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (txType === "evm") validateEvmTransaction(tx);
+    if (txType === "substrate") await validateSubstrateTransaction(tx);
   }
 }
 
 function validateEvmTransaction(tx: PresignedTx) {
   const { txData, signer } = tx;
-
-  console.log("Processing EVM transaction for validation:", tx.phase);
 
   if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
     throw new APIError({
@@ -84,6 +94,38 @@ function validateEvmTransaction(tx: PresignedTx) {
   if (Number(transactionMeta.chainId) !== getNetworkId(tx.network)) {
     throw new APIError({
       message: `EVM transaction chainId ${transactionMeta.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+async function validateSubstrateTransaction(tx: PresignedTx) {
+  const { txData, signer, network } = tx;
+
+  let api: ApiPromise;
+  try {
+    api = (await ApiManager.getInstance().getApi(network as SubstrateApiNetwork)).api;
+  } catch (error) {
+    logger.error(`Failed to get Substrate API for network ${network}: ${(error as Error).message}`);
+    throw new APIError({
+      message: `Invalid Substrate network: ${network}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  let extrinsic: SubmittableExtrinsic<"promise">;
+  try {
+    extrinsic = api.tx(txData as string);
+  } catch (error) {
+    throw new APIError({
+      message: `Invalid Substrate transaction data: ${(error as Error).message}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (!substrateAddressEqual(extrinsic.signer.toString(), signer)) {
+    throw new APIError({
+      message: `Substrate transaction signer ${extrinsic.signer.toString()} does not match the expected signer ${signer}`,
       status: httpStatus.BAD_REQUEST
     });
   }

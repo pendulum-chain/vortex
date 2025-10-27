@@ -106,10 +106,18 @@ describe("Presigned Transaction validation", () => {
     expect(() => validatePresignedTxs(singleTx)).not.toThrow();
   })
 
-  it("should throw for transaction with mismatch of expected signer", () => {
-    const invalidTxs: PresignedTx[] = INVALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP
+  it("should throw for transaction with mismatch of expected signer for Substrate tx", () => {
+    // Deep copy to avoid mutating the original
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(INVALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP))
+    invalidTxs[0].signer = "5CoKLhtjijsxVneDXeV3QhcdD4byxDK7cSmNCuWEfQ8NjebM"
+    expect(() => validatePresignedTxs(invalidTxs)).toThrow("Substrate transaction signer 14cu3zSGx6EAruNh6CvLsMKFBAinK3kN2QxbLQeKmCVMt3Se does not match the expected signer 5CoKLhtjijsxVneDXeV3QhcdD4byxDK7cSmNCuWEfQ8NjebM");
+  }, 10000)
+
+  it("should throw for transaction with mismatch of expected signer for EVM tx", () => {
+    // Deep copy to avoid mutating the original
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(INVALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP))
     expect(() => validatePresignedTxs(invalidTxs)).toThrow("EVM transaction 'from' address 0x7eD252D89aeA59A3EE3a7Cbc408C143a5a736850 does not match the signer address 0x1983259996E1908f24b56f426F08703C9Db8028B");
-  })
+  }, 10000)
 
   it("should throw error for invalid presigned transactions array", () => {
     const invalidTxs: any = "invalid data";

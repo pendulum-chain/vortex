@@ -184,7 +184,7 @@ export class RampService extends BaseRampService {
 
       // Validate presigned transactions, if some were supplied
       if (presignedTxs && presignedTxs.length > 0) {
-        validatePresignedTxs(presignedTxs);
+        await validatePresignedTxs(presignedTxs);
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
@@ -272,7 +272,7 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions
-      validatePresignedTxs(rampState.presignedTxs);
+      await validatePresignedTxs(rampState.presignedTxs);
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
