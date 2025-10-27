@@ -1,6 +1,6 @@
-import { ALCHEMY_API_KEY, EvmNetworks, MOONBEAM_WSS, Networks } from "@packages/shared";
+import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "@packages/shared";
 import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon } from "viem/chains";
+import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import logger from "../../logger";
 
 export interface EvmNetworkConfig {
@@ -16,6 +16,11 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
       chain: polygon,
       name: Networks.Polygon,
       rpcUrls: apiKey ? [`https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""]
+    },
+    {
+      chain: polygonAmoy,
+      name: Networks.PolygonAmoy,
+      rpcUrls: ["https://polygon-amoy.api.onfinality.io/public", ""]
     },
     {
       chain: moonbeam,
@@ -65,7 +70,7 @@ export class EvmClientManager {
    */
   private createRpcSelector(rpcUrls: string[]) {
     let pool = [...rpcUrls];
-    let usedInCurrentCycle = new Set<string>();
+    const usedInCurrentCycle = new Set<string>();
 
     const shuffleArray = <T>(array: T[]): T[] => {
       const shuffled = [...array];
@@ -108,8 +113,8 @@ export class EvmClientManager {
     networkName: EvmNetworks,
     operation: (rpcUrl: string) => Promise<T>,
     operationName: string,
-    maxRetries: number = 3,
-    initialDelayMs: number = 1000
+    maxRetries = 3,
+    initialDelayMs = 1000
   ): Promise<T> {
     const network = this.getNetworkConfig(networkName);
     const rpcUrls = network.rpcUrls;
@@ -265,8 +270,8 @@ export class EvmClientManager {
       functionName: string;
       args?: any[];
     },
-    maxRetries: number = 3,
-    initialDelayMs: number = 1000
+    maxRetries = 3,
+    initialDelayMs = 1000
   ): Promise<T> {
     return this.executeWithRetry(
       networkName,
@@ -307,9 +312,9 @@ export class EvmClientManager {
       gas?: bigint;
       nonce?: number;
     },
-    maxRetries: number = 3,
-    initialDelayMs: number = 1000
-  ): Promise<string> {
+    maxRetries = 3,
+    initialDelayMs = 1000
+  ): Promise<`0x${string}`> {
     return this.executeWithRetry(
       networkName,
       async rpcUrl => {
@@ -336,8 +341,8 @@ export class EvmClientManager {
   public async sendRawTransactionWithRetry(
     networkName: EvmNetworks,
     serializedTransaction: `0x${string}`,
-    maxRetries: number = 3,
-    initialDelayMs: number = 1000
+    maxRetries = 3,
+    initialDelayMs = 1000
   ): Promise<string> {
     return this.executeWithRetry(
       networkName,

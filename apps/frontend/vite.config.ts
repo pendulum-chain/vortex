@@ -9,6 +9,9 @@ export default defineConfig({
     sourcemap: true,
     target: "esnext"
   },
+  define: {
+    "process.env": {}
+  },
   esbuild: {
     logOverride: { "this-is-undefined-in-esm": "silent" }
   },

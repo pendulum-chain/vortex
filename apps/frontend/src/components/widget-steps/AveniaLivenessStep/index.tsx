@@ -41,7 +41,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center px-4 py-4 md:mx-auto"
+      className="mx-4 mt-8 mb-4 flex min-h-[506px] flex-col items-center justify-center px-4 py-4 md:mx-auto"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >

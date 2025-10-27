@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { createContext, ReactNode, useContext, useId, useState } from "react";
+import { createContext, forwardRef, ReactNode, useContext, useId, useState } from "react";
 
 interface CollapsibleCardProps {
   children: ReactNode;
@@ -34,24 +34,31 @@ const useCollapsibleCard = () => {
   return context;
 };
 
-const CollapsibleCard = ({ children, className = "", defaultExpanded = false, onToggle }: CollapsibleCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const detailsId = useId();
+const CollapsibleCard = forwardRef<HTMLDivElement, CollapsibleCardProps>(
+  ({ children, className = "", defaultExpanded = false, onToggle }, ref) => {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const detailsId = useId();
 
-  const toggle = () => {
-    const newState = !isExpanded;
-    setIsExpanded(newState);
-    onToggle?.(newState);
-  };
+    const toggle = () => {
+      const newState = !isExpanded;
+      setIsExpanded(newState);
+      onToggle?.(newState);
+    };
 
-  return (
-    <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
-      <div className={`rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}>
-        {children}
-      </div>
-    </CollapsibleCardContext.Provider>
-  );
-};
+    return (
+      <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
+        <div
+          className={`rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}
+          ref={ref}
+        >
+          {children}
+        </div>
+      </CollapsibleCardContext.Provider>
+    );
+  }
+);
+
+CollapsibleCard.displayName = "CollapsibleCard";
 
 const CollapsibleSummary = ({ children, className = "" }: CollapsibleSummaryProps) => {
   return <div className={`flex items-center justify-between ${className}`}>{children}</div>;

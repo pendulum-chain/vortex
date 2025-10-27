@@ -3,8 +3,10 @@ import { ApiPromise } from "@polkadot/api";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { getAccount, sendTransaction, switchChain } from "@wagmi/core";
+import { config } from "../../config";
 import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
 import { wagmiConfig } from "../../wagmiConfig";
+import { PolkadotNodeName, polkadotApiService } from "../api/polkadot.service";
 
 // Sign the transaction with the user's connected wallet.
 // If the transaction network differs from the currently connected network,
@@ -86,18 +88,20 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
 }
 
 /// Sign the transaction with the user's connected wallet. The api needs to be for the correct network.
-export async function signAndSubmitSubstrateTransaction(
-  unsignedTx: UnsignedTx,
-  api: ApiPromise,
-  walletAccount: WalletAccount
-): Promise<string> {
+export async function signAndSubmitSubstrateTransaction(unsignedTx: UnsignedTx, walletAccount: WalletAccount): Promise<string> {
   const { txData } = unsignedTx;
 
   if (isEvmTransactionData(txData)) {
     throw new Error("Invalid Substrate transaction data format for signing transaction");
   }
 
-  const extrinsic = decodeSubmittableExtrinsic(txData, api);
+  const node = config.isSandbox ? PolkadotNodeName.Paseo : PolkadotNodeName.AssetHub;
+  const apiComponents = await polkadotApiService.getApi(node);
+  if (!apiComponents?.api) {
+    throw new Error("Missing api components for substrate transaction.");
+  }
+
+  const extrinsic = decodeSubmittableExtrinsic(txData, apiComponents.api);
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
 

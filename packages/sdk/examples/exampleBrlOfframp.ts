@@ -29,7 +29,7 @@ async function runBrlOfframpExample() {
       moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',
       pendulumWsUrl: undefined, // default is `true`
       // Optional: store ephemeral keys for debug
-      storeEphemeralKeys: false // default is `false`
+      storeEphemeralKeys: true // default is `true`
     };
 
     const sdk = new VortexSdk(config);
@@ -39,7 +39,7 @@ async function runBrlOfframpExample() {
     console.log("📝 Step 2: Creating quote for BRL offramp...");
     const quoteRequest = {
       from: Networks.Polygon,
-      inputAmount: "1",
+      inputAmount: "100",
       inputCurrency: EvmToken.USDC,
       network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
@@ -56,9 +56,9 @@ async function runBrlOfframpExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {
-      pixDestination: "123.456.789-00",
-      receiverTaxId: "123.456.789-00",
-      taxId: "123.456.789-00",
+      pixDestination: "157.492.981-08",
+      receiverTaxId: "157.492.981-08",
+      taxId: "157.492.981-08",
       walletAddress: "0x1234567890123456789012345678901234567890"
     };
 

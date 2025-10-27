@@ -1,19 +1,22 @@
-import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from "viem/chains";
+import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { PaymentMethod } from "../endpoints/payment-methods.endpoints";
 
 export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
   AssetHub = "assethub",
+  Paseo = "paseo",
   Arbitrum = "arbitrum",
   Avalanche = "avalanche",
   Base = "base",
   BSC = "bsc",
   Ethereum = "ethereum",
+  Hydration = "hydration",
   Polygon = "polygon",
   Moonbeam = "moonbeam",
   Pendulum = "pendulum",
-  Stellar = "stellar"
+  Stellar = "stellar",
+  PolygonAmoy = "polygonAmoy"
 }
 
 // This type is used to represent all networks that can be used as a source or destination in the system.
@@ -24,7 +27,8 @@ export type EvmNetworks =
   | Networks.BSC
   | Networks.Ethereum
   | Networks.Moonbeam
-  | Networks.Polygon;
+  | Networks.Polygon
+  | Networks.PolygonAmoy;
 
 /**
  * Checks if a destination is a network and returns the network if it is.
@@ -42,6 +46,7 @@ export function getNetworkFromDestination(destination: DestinationType): Network
 // but we just use it to differentiate between the EVM and Polkadot/Stellar accounts.
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
+export const HYDRATION_CHAIN_ID = -3;
 export const STELLAR_CHAIN_ID = -99;
 
 interface NetworkMetadata {
@@ -58,11 +63,29 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     isEVM: false,
     supportsRamp: true
   },
+  [Networks.Paseo]: {
+    displayName: "Paseo",
+    id: ASSETHUB_CHAIN_ID,
+    isEVM: false,
+    supportsRamp: false
+  },
+  [Networks.Hydration]: {
+    displayName: "Hydration",
+    id: HYDRATION_CHAIN_ID,
+    isEVM: false,
+    supportsRamp: false
+  },
   [Networks.Polygon]: {
     displayName: "Polygon",
     id: polygon.id,
     isEVM: true,
     supportsRamp: true
+  },
+  [Networks.PolygonAmoy]: {
+    displayName: "Polygon Amoy",
+    id: polygonAmoy.id,
+    isEVM: true,
+    supportsRamp: false
   },
   [Networks.Ethereum]: {
     displayName: "Ethereum",

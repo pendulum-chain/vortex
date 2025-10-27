@@ -3,8 +3,6 @@ import type { Request, Response } from "express";
 import { config } from "../../config";
 import { storeDataInGoogleSpreadsheet } from "./googleSpreadSheet.controller";
 
-const { spreadsheet } = config;
-
 enum EmailSheetHeaders {
   Timestamp = "timestamp",
   Email = "email",
@@ -16,8 +14,8 @@ const EMAIL_SHEET_HEADER_VALUES = [EmailSheetHeaders.Timestamp, EmailSheetHeader
 export { EMAIL_SHEET_HEADER_VALUES };
 
 export const storeEmail = async (req: Request, res: Response<StoreEmailResponse | StoreEmailErrorResponse>): Promise<void> => {
-  if (!spreadsheet.emailSheetId) {
+  if (!config.spreadsheet.emailSheetId) {
     throw new Error("Email sheet ID is not configured");
   }
-  await storeDataInGoogleSpreadsheet(req, res, spreadsheet.emailSheetId, EMAIL_SHEET_HEADER_VALUES);
+  await storeDataInGoogleSpreadsheet(req, res, config.spreadsheet.emailSheetId, EMAIL_SHEET_HEADER_VALUES);
 };

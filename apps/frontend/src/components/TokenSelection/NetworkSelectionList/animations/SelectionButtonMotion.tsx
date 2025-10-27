@@ -12,13 +12,14 @@ export const SelectionButtonMotion = ({ isExpanded, children, onClick, className
   return (
     <motion.button
       animate={{
-        width: isExpanded ? "100%" : "auto"
+        width: isExpanded ? "100%" : "10%"
       }}
       className={className}
       onClick={onClick}
       transition={{
         delay: isExpanded ? 0 : 0.25,
-        duration: 0.25
+        duration: 0.15,
+        ease: "easeOut"
       }}
       whileHover={{ scale: 1.01 }}
     >

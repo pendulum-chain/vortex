@@ -1,7 +1,5 @@
 import { Networks, RampDirection } from "@packages/shared";
-import { config } from "../../../config/vars";
-
-const { priceProviders } = config;
+import { config } from "../../../config";
 
 /**
  * Payment method constants for Transak API
@@ -40,7 +38,7 @@ function createBuyQuoteRequest(
     fiatCurrency: fiatCurrencyCode,
     isBuyOrSell: "BUY",
     network: network.toLowerCase(),
-    partnerApiKey: priceProviders.transak.partnerApiKey || "",
+    partnerApiKey: config.priceProviders.transak.partnerApiKey || "",
     paymentMethod: PAYMENT_METHODS.CREDIT_CARD
   };
 
@@ -72,7 +70,7 @@ function createSellQuoteRequest(
     fiatCurrency: fiatCurrencyCode,
     isBuyOrSell: "SELL",
     network: network.toLowerCase(),
-    partnerApiKey: priceProviders.transak.partnerApiKey || ""
+    partnerApiKey: config.priceProviders.transak.partnerApiKey || ""
   };
 
   return {

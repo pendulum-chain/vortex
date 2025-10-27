@@ -3,7 +3,7 @@
  */
 
 import { EvmNetworks, Networks } from "../../helpers";
-import { PENDULUM_USDC_AXL } from "../constants/pendulum";
+import { PENDULUM_USDC_AXL } from "../pendulum/config";
 import { TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 
@@ -67,6 +67,18 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       erc20AddressSourceChain: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
       isNative: false,
       network: Networks.Polygon,
+      networkAssetIcon: "polygonUSDT",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    }
+  },
+  [Networks.PolygonAmoy]: {
+    [EvmToken.USDC]: {
+      assetSymbol: "USDC",
+      decimals: 6, // Testnet USDC on Polygon Amoy
+      erc20AddressSourceChain: "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582",
+      isNative: false,
+      network: Networks.PolygonAmoy,
       networkAssetIcon: "polygonUSDT",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
@@ -211,6 +223,16 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
     }
   },
   [Networks.Moonbeam]: {
+    [EvmToken.AXLUSDC]: {
+      assetSymbol: "axlUSDC",
+      decimals: 6,
+      erc20AddressSourceChain: "0xca01a1d0993565291051daff390892518acfad3a",
+      isNative: false,
+      network: Networks.Moonbeam,
+      networkAssetIcon: "moonbeamAxlUSDC",
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
     [EvmToken.USDC]: {
       assetSymbol: "USDC",
       decimals: 6, // USDC on Moonbeam

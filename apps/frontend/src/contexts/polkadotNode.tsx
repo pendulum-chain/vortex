@@ -17,7 +17,7 @@ export interface ApiComponents {
 }
 
 interface NetworkState {
-  assetHub?: ApiComponents;
+  assethub?: ApiComponents;
   pendulum?: ApiComponents;
   moonbeam?: ApiComponents;
 }
@@ -35,7 +35,8 @@ const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
 });
 
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
-  const provider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
+  // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
+  const provider = new WsProvider(socketUrl, autoReconnect ? 2_500 : undefined, {}, 60_000, 102400, 10 * 60_000);
   const api = await ApiPromise.create({ provider });
 
   await api.isReady;
@@ -75,7 +76,7 @@ const usePolkadotNodes = () => {
 };
 
 enum NodeName {
-  AssetHub = "assetHub",
+  AssetHub = "assethub",
   Pendulum = "pendulum",
   Moonbeam = "moonbeam"
 }
@@ -101,14 +102,14 @@ const useMoonbeamNode = () => {
 
 const initializeNetworks = async (): Promise<NetworkState> => {
   try {
-    const [assetHub, pendulum, moonbeam] = await Promise.all([
+    const [assethub, pendulum, moonbeam] = await Promise.all([
       createApiComponents(ASSETHUB_WSS),
       createApiComponents(PENDULUM_WSS),
       createApiComponents(MOONBEAM_WSS)
     ]);
 
     return {
-      [NodeName.AssetHub]: assetHub,
+      [NodeName.AssetHub]: assethub,
       [NodeName.Pendulum]: pendulum,
       moonbeam
     };

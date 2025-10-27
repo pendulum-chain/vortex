@@ -33,7 +33,7 @@ import TaxId from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
-const lastInteractionMap = new Map<string, number>();
+const _lastInteractionMap = new Map<string, number>();
 
 // Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {

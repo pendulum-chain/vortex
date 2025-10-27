@@ -1,5 +1,6 @@
 import {
   ApiManager,
+  AveniaFeeType,
   AveniaPaymentMethod,
   AveniaSwapTicket,
   AveniaTicketStatus,
@@ -10,11 +11,11 @@ import {
   createOfframpSquidrouterTransactions,
   createPendulumToMoonbeamTransfer,
   decodeSubmittableExtrinsic,
+  EphemeralAccountType,
   EvmToken,
   EvmTokenDetails,
   encodePayload,
   evmTokenConfig,
-  FeeType,
   getOnChainTokenDetails,
   getStatusAxelarScan,
   getTokenOutAmount,
@@ -28,7 +29,6 @@ import {
 } from "@packages/shared";
 import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
-import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import Big from "big.js";
@@ -115,7 +115,7 @@ export async function swapAxlusdcToBrla(amount: string): Promise<Big> {
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
     amountRaw,
-    { address: callerAddress, network: Networks.Pendulum },
+    { address: callerAddress, type: EphemeralAccountType.Substrate },
     usdcTokenDetails,
     brlaFiatTokenDetails.pendulumRepresentative,
     minOutputRaw
@@ -205,13 +205,15 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
   const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
+  const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXLUSDC) as EvmTokenDetails;
 
   const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
     fromAddress: polygonWalletClient.account.address,
     fromNetwork: Networks.Polygon,
-    inputTokenDetails: usdcTokenDetails,
+    fromToken: usdcTokenDetails.erc20AddressSourceChain,
     pendulumAddressDestination: pendulumAddress,
-    rawAmount: usdcAmountRaw
+    rawAmount: usdcAmountRaw,
+    toToken: toTokenDetails.erc20AddressSourceChain
   });
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
@@ -301,7 +303,7 @@ export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAd
   //Double check: Wait for USDC to appear on Polygon.
   const usdcAmountRaw = multiplyByPowerOfTen(paidAmount, 6).toFixed(0, 0);
   await waitForUSDCOnPolygon(paidAmount, usdcAmountRaw);
-  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === FeeType.CONVERSION) ?? "0";
+  const conversionFee = paidTicket.quote.appliedFees.find(fee => fee.type === AveniaFeeType.CONVERSION) ?? "0";
 
   return {
     amountUsd: paidAmount.toFixed(6),
@@ -384,7 +386,7 @@ export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
       }
     } catch (error) {
       lastError = error;
-      console.log(`Polling for balance failed with error. Retrying...`, lastError);
+      console.log("Polling for balance failed with error. Retrying...", lastError);
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }

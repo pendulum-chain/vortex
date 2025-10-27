@@ -3,8 +3,6 @@ import { RampDirection } from "@packages/shared";
 import { config } from "../../../config/vars";
 import { getJsonBody, getPath } from "./helpers";
 
-const { priceProviders } = config;
-
 /**
  * Generate API signature for AlchemyPay
  * @param timestamp The timestamp
@@ -149,7 +147,7 @@ export function createQuoteRequest(
   amount: string,
   network: string
 ): RequestConfig {
-  const { secretKey, baseUrl, appId } = priceProviders.alchemyPay;
+  const { secretKey, baseUrl, appId } = config.priceProviders.alchemyPay;
   if (!secretKey || !appId) throw new Error("AlchemyPay configuration missing");
 
   return direction === RampDirection.BUY

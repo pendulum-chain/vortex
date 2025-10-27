@@ -1,12 +1,5 @@
 import * as forge from "node-forge";
-import {
-  BRLA_API_KEY,
-  BRLA_BASE_URL,
-  BRLA_PRIVATE_KEY,
-  CreateAveniaSubaccountRequest,
-  DocumentUploadRequest,
-  DocumentUploadResponse
-} from "../..";
+import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
@@ -162,21 +155,25 @@ export class BrlaApiService {
   }
 
   public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {
-    const query = new URLSearchParams({
+    const urlSearchParams = new URLSearchParams({
       inputAmount: quoteParams.inputAmount,
       inputCurrency: quoteParams.inputCurrency,
       inputPaymentMethod: quoteParams.inputPaymentMethod,
       inputThirdParty: String(quoteParams.inputThirdParty),
       outputCurrency: quoteParams.outputCurrency,
       outputPaymentMethod: quoteParams.outputPaymentMethod,
-      outputThirdParty: String(quoteParams.outputThirdParty),
-      subAccountId: quoteParams.subAccountId
-    }).toString();
+      outputThirdParty: String(quoteParams.outputThirdParty)
+    });
+
+    if (quoteParams.subAccountId) {
+      urlSearchParams.append("subAccountId", quoteParams.subAccountId);
+    }
+    const query = urlSearchParams.toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 
   public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<AveniaQuoteResponse> {
-    const query = new URLSearchParams({
+    const urlSearchParams = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
@@ -184,9 +181,14 @@ export class BrlaApiService {
       outputAmount: quoteParams.outputAmount,
       outputCurrency: BrlaCurrency.BRL,
       outputPaymentMethod: AveniaPaymentMethod.PIX,
-      outputThirdParty: String(quoteParams.outputThirdParty),
-      subAccountId: quoteParams.subAccountId
-    }).toString();
+      outputThirdParty: String(quoteParams.outputThirdParty)
+    });
+
+    if (quoteParams.subAccountId) {
+      urlSearchParams.append("subAccountId", quoteParams.subAccountId);
+    }
+
+    const query = urlSearchParams.toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
 

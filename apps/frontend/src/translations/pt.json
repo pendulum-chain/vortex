@@ -13,26 +13,32 @@
     },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
-        "instructions": "Agora, verifique as informações do representante autorizado. Esta pessoa deve estar legalmente autorizada a representar sua empresa."
+        "instructions": "Como indivíduo legalmente autorizado a agir em nome da empresa, forneça suas informações pessoais e os documentos necessários."
       },
       "buttons": {
         "back": "Voltar",
         "cancel": "Cancelar",
         "done": "Concluído",
+        "iHaveVerified": "Eu verifiquei",
         "next": "Próximo"
       },
       "companyData": "Informações da Empresa",
       "description": "Conclua estas etapas rápidas de verificação de negócios. Os dados são processados com segurança pela <a>Avenia</a> usando criptografia de nível bancário para segurança da transação.",
-      "instructions": "Por favor, clique no botão abaixo para verificar as informações da sua empresa. Você precisará fornecer os detalhes e documentos de registro da sua empresa.",
+      "instructions": "Forneça ao nosso parceiro de confiança <1>Avenia</1> as informações de registro da sua empresa e os documentos necessários.",
       "representativeData": "Informações do Representante Autorizado",
-      "title": "Verificação de Negócios",
+      "title": {
+        "company": "Verificação da Empresa",
+        "default": "Verificação de Negócios",
+        "representative": "Verificação do Representante"
+      },
+      "tryAgain": "Se o processo de verificação foi interrompido, clique <1>aqui</1> para tentar novamente.",
       "verification": {
         "approved": "A verificação da sua empresa foi aprovada!",
         "pending": "Verificação em andamento. Este processo pode levar até 2 dias.",
         "rejected": "A verificação da sua empresa foi rejeitada. Por favor, tente novamente."
       },
-      "verifyCompany": "Verificar Empresa",
-      "verifyCompanyRepresentative": "Verificar Representante da Empresa"
+      "verifyCompany": "Verificar",
+      "verifyCompanyRepresentative": "Verificar"
     },
     "aveniaKYC": {
       "buttons": {
@@ -270,6 +276,15 @@
       },
       "button": "Modo de Manutenção"
     },
+    "moneriumFormStep": {
+      "description": {
+        "1": "Por favor, insira o endereço onde deseja receber os ativos no AssetHub.",
+        "2": "Em seguida, autentique-se com nosso parceiro de stablecoin <a>Monerium</a> conectando sua carteira EVM."
+      },
+      "field": {
+        "label": "Endereço da Carteira AssetHub"
+      }
+    },
     "moneriumRedirect": {
       "cancel": "Cancelar",
       "description": "Você foi redirecionado para nosso parceiro...",
@@ -346,6 +361,7 @@
       "processing": "Processando",
       "quote": "Cotação",
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
+      "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
       "verifyWallet": "Verificar carteira"
     },
@@ -374,7 +390,7 @@
       "secondInputLabel": "Você recebe",
       "sellButton": "Vender",
       "validation": {
-        "assetHubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub.",
+        "assethubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub.",
         "calculatingQuote": "Calculando cotação...",
         "fiatToken": {
           "required": "Token fiat é obrigatório"
@@ -485,12 +501,15 @@
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "fundEphemeral": "Financiando contas efêmeras",
+      "hydrationSwap": "Trocando {{inputAssetSymbol}} por {{outputAssetSymbol}} no Hydration DEX",
+      "hydrationToAssethubXcm": "Transferindo {{assetSymbol}} de Hydration --> AssetHub",
       "initial": "Iniciando processo",
       "moneriumOnrampMint": "Aguardando pagamento",
       "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
-      "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
-      "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
+      "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
+      "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
       "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",

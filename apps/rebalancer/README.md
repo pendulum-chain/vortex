@@ -2,7 +2,8 @@
 
 ## Environment Variables
 
-Before running the application, you need to create a `.env` file in the root directory and provide the required environment variables. You can use the `.env.example` file as a template:
+Before running the application, you need to create a `.env` file in the root directory and provide the required
+environment variables. You can use the `.env.example` file as a template:
 
 ```bash
 cp .env.example .env

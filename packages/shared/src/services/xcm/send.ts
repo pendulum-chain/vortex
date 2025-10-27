@@ -11,7 +11,7 @@ import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { encodeAddress } from "@polkadot/util-crypto";
+import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -32,9 +32,11 @@ export class TransactionTemporarilyBannedError extends Error {
 }
 
 /// Compare two substrate addresses with arbitrary ss58 format
-function substrateAddressEqual(a: string, b: string): boolean {
+export function substrateAddressEqual(a: string, b: string): boolean {
+  if (a === b) return true;
   // Convert both addresses to same ss58 format before comparing
-  return encodeAddress(a, 0) === encodeAddress(b, 0);
+  if (a.length === 40 && b.length === 40) return evmToAddress(a, 0) === evmToAddress(b, 0);
+  else return encodeAddress(a, 0) === encodeAddress(b, 0);
 }
 
 export const signAndSubmitXcm = async (
@@ -52,13 +54,12 @@ export const signAndSubmitXcm = async (
           inBlockHash = status.asInBlock.toString();
         }
 
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           resolve({ hash });
         }
@@ -135,15 +136,24 @@ export const submitXcm = async (
   new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
-        const { status, events, dispatchError } = submissionResult;
+        const { status, events, internalError, dispatchError } = submissionResult;
+        logger.current.info(`Submission status of XCM transaction: ${status.toString()}`);
+
+        if (status.isInvalid) {
+          logger.current.error(`XCM transfer failed with status: ${status.type}`);
+          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+        }
+
+        if (internalError) {
+          reject(`Internal error: ${internalError}`);
+        }
+
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
 
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
@@ -224,13 +234,12 @@ export const submitXTokens = async (
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
+        if (dispatchError) {
+          reject("Xcm transaction failed");
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject("Xcm transaction failed");
-          }
 
           // Try to find 'xTokens.TransferredMultiAssets' events
           const xTokenEvents = events.filter(
@@ -247,6 +256,48 @@ export const submitXTokens = async (
             reject(new Error(`No XcmSent event found for account ${address}`));
           }
           resolve({ event: event[0], hash });
+        }
+      })
+      .catch(error => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes("1012:")) {
+          reject(new TransactionTemporarilyBannedError("Transaction for xtokens transfer is temporarily banned."));
+        }
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
+      });
+  });
+
+export const submitExtrinsic = async (
+  extrinsic: SubmittableExtrinsic<"promise">,
+  api?: ApiPromise,
+  waitForFinalization = true
+): Promise<{ hash: string | undefined }> =>
+  new Promise((resolve, reject) => {
+    return extrinsic
+      .send((submissionResult: ISubmittableResult) => {
+        const { status, dispatchError } = submissionResult;
+
+        if (dispatchError) {
+          if (dispatchError.isModule && api) {
+            // for module errors, we have the section indexed, lookup
+            const decoded = api.registry.findMetaError(dispatchError.asModule);
+            const { docs, name, section } = decoded;
+
+            reject(`Extrinsic submission failed: ${section}.${name}: ${docs.join(" ")}`);
+          } else {
+            // Other, CannotLookup, BadOrigin, no extra info
+            reject(`Extrinsic submission failed: ${dispatchError.toString()}`);
+          }
+        }
+
+        if (status.isInBlock && !waitForFinalization) {
+          const hash = status.asInBlock.toString();
+          resolve({ hash });
+        }
+
+        if (status.isFinalized && waitForFinalization) {
+          const hash = status.asFinalized.toString();
+          resolve({ hash });
         }
       })
       .catch(error => {
