@@ -35,7 +35,7 @@ export class VortexSdk {
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
-    this.storeEphemeralKeys = config.storeEphemeralKeys ?? false;
+    this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
