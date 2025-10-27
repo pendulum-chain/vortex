@@ -7,6 +7,7 @@ import {
   UnsignedTx
 } from "@packages/shared";
 import Big from "big.js";
+import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
@@ -46,10 +47,11 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   };
 
   const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, evmEphemeralEntry.address);
+  const moneriumMintNetwork = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: 0,
     phase: "moneriumOnrampMint",
     signer: moneriumWalletAddress,
@@ -66,7 +68,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "moneriumOnrampSelfTransfer",
     signer: evmEphemeralEntry.address,
@@ -85,7 +87,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "squidRouterApprove",
     signer: evmEphemeralEntry.address,
@@ -94,7 +96,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: moneriumMintNetwork,
     nonce: polygonAccountNonce++,
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,

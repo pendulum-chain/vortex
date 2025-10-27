@@ -9,7 +9,6 @@ import {
   createOfframpSquidrouterTransactions,
   createPaseoToPendulumXCM,
   createPendulumToMoonbeamTransfer,
-  EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkFromDestination,
@@ -25,10 +24,10 @@ import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";
 import logger from "../../../../../config/logger";
+import { SANDBOX_ENABLED } from "../../../../../constants/constants";
+import erc20ABI from "../../../../../contracts/ERC20";
 import Partner from "../../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
-import erc20ABI from "../../../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
@@ -148,7 +147,7 @@ export async function createEvmSourceTransactions(
 
   // Override approveData and swapData in sandbox mode
   if (SANDBOX_ENABLED) {
-    const sandboxTransactions = createSandboxEvmTransactions(inputAmountRaw, inputTokenDetails);
+    const sandboxTransactions = createSandboxEvmTransactions(inputAmountRaw);
     approveData = sandboxTransactions.approveData;
     swapData = sandboxTransactions.swapData;
   }
@@ -527,13 +526,12 @@ export async function createStellarPaymentTransactions(
 /**
  * Creates mock approve and swap transactions for sandbox mode
  * @param inputAmountRaw The raw input amount to approve
- * @param inputTokenDetails The input token details
  * @returns Mock approve and swap transaction data
  */
-function createSandboxEvmTransactions(
-  inputAmountRaw: string,
-  inputTokenDetails: EvmTokenDetails
-): { approveData: EvmTransactionData; swapData: EvmTransactionData } {
+function createSandboxEvmTransactions(inputAmountRaw: string): {
+  approveData: EvmTransactionData;
+  swapData: EvmTransactionData;
+} {
   const USDC_POLYGON_AMOY = "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582" as `0x${string}`;
   const MOCK_SQUIDROUTER_RECEIVER = "0x1234567890123456789012345678901234567890" as `0x${string}`;
   const approveTransactionData = encodeFunctionData({
