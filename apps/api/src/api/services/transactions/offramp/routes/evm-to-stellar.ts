@@ -56,6 +56,7 @@ export async function prepareEvmToStellarOfframpTransactions({
 
   // Initialize state metadata
   stateMeta = {
+    stellarEphemeralAccountId: stellarEphemeralEntry.address,
     substrateEphemeralAddress: substrateEphemeralEntry.address
   };
 
