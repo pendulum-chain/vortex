@@ -5,6 +5,7 @@ import { FC, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
+import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useMaintenanceAwareButton } from "../../hooks/useMaintenanceAware";
 import { useInputAmount } from "../../stores/quote/useQuoteFormStore";
@@ -58,6 +59,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   const { t } = useTranslation();
   const { getCurrentErrorMessage } = useRampValidation();
   const rampDirection = useRampDirection(); // XSTATE: maybe move into state.
+  const rampActor = useRampActor();
 
   const currentErrorMessage = getCurrentErrorMessage();
 
@@ -82,7 +84,11 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   const onClick = () => {
     // Pass the quote ID to the widget page
     const quoteId = quote?.id;
+
     if (quoteId) {
+      // Reset the ramp state to make sure that no pending state is loaded on the widget page
+      rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
+
       window.location.href = `/widget?quoteId=${quoteId}`;
     }
   };

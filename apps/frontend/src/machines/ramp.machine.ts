@@ -95,7 +95,7 @@ export type RampMachineEvents =
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "RESET_RAMP" }
+  | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }
   | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
@@ -197,9 +197,16 @@ export const rampMachine = setup({
         isQuoteExpired: true
       })
     },
-    RESET_RAMP: {
-      target: ".Resetting"
-    },
+    RESET_RAMP: [
+      {
+        actions: [{ type: "resetRamp" }],
+        guard: ({ event }) => event.skipUrlCleaner === true,
+        target: ".Idle"
+      },
+      {
+        target: ".Resetting"
+      }
+    ],
     RESET_RAMP_CALLBACK: {
       actions: [{ type: "resetRamp" }, { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }]
     },
