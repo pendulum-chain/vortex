@@ -1,5 +1,6 @@
 import { EphemeralAccount } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
+import { u8aToHex } from "@polkadot/util";
 import { hdEthereum, mnemonicGenerate, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
 
@@ -17,7 +18,7 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
 
   return {
     address: ephemeralAccountKeypair.address,
-    secret: `0x${privateKey.toHex()}`
+    secret: u8aToHex(privateKey)
   };
 }
 

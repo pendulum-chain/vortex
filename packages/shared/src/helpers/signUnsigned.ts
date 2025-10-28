@@ -17,7 +17,6 @@ import {
   UnsignedTx
 } from "../index";
 import logger from "../logger";
-import { deriveEvmPrivateKeyFromMnemonic } from "./ephemerals";
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
