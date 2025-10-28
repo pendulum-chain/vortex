@@ -1,5 +1,5 @@
 import {describe, expect, it} from "bun:test";
-import {Networks, PresignedTx} from "@packages/shared";
+import {EphemeralAccountType, Networks, PresignedTx} from "@packages/shared";
 import {validatePresignedTxs} from "./validation";
 
 // @ts-ignore
@@ -166,19 +166,35 @@ const VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP: PresignedTx[] =
     }
 ];
 
-
 describe("Presigned Transaction validation", () => {
   it("should pass validation for valid presigned EVM transactions", () => {
-    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP)).not.toThrow();
+
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: "0x441D7df1551e3750AD2B5629A5DB2c316e7e0f89",
+      Stellar: ""
+    }
+    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP, ephemerals)).not.toThrow();
   });
 
   it("should pass validation for single valid presigned transaction", () => {
     const singleTx: PresignedTx[] = [VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]];
-    expect(() => validatePresignedTxs(singleTx)).not.toThrow();
+
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: "0x441D7df1551e3750AD2B5629A5DB2c316e7e0f89",
+      Stellar: ""
+    }
+    expect(() => validatePresignedTxs(singleTx, ephemerals)).not.toThrow();
   })
 
   it ("should pass validation for valid presigned mixed transactions", () => {
-    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP)).not.toThrow();
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP, ephemerals)).not.toThrow();
   })
 
   it("should throw for transaction with mismatch of expected signer for Substrate tx", () => {
@@ -186,7 +202,12 @@ describe("Presigned Transaction validation", () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP))
     const invalidSigner = "5CoKLhtjijsxVneDXeV3QhcdD4byxDK7cSmNCuWEfQ8NjebM";
     invalidTxs[0].signer = invalidSigner
-    expect(() => validatePresignedTxs(invalidTxs)).toThrow(`Substrate transaction signer 14teBxWGeJZzg8NKxYYbqPJZm2JfP5Q3LKCnEQ6eCgrhnoiv does not match the expected signer ${invalidSigner}`);
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`Substrate transaction signer ${invalidSigner} does not match the expected signer 5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz for phase nablaApprove`);
   }, 10000)
 
   it("should throw for transaction with mismatch of expected signer for EVM tx", () => {
@@ -194,7 +215,12 @@ describe("Presigned Transaction validation", () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP))
     const invalidSigner = "0x1983259996E1908f24b56f426F08703C9Db8028B";
     invalidTxs[8].signer = invalidSigner
-    expect(() => validatePresignedTxs(invalidTxs)).toThrow(`EVM transaction 'from' address 0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa does not match the signer address ${invalidSigner}`);
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`EVM transaction signer ${invalidSigner} does not match the expected signer 0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa`);
   }, 10000)
 
   it("should throw for transaction with mismatch of expected signer for Stellar tx", () => {
@@ -202,17 +228,32 @@ describe("Presigned Transaction validation", () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP))
     const invalidSigner = "GCFX5YV7Y5LF2XK3S5Y4L5XW4D5Z6A7B8C9D0E1F2G3H4I5J6K7L8M9N0O1P2Q3R4S5T6U7V8W9X0Y1Z2";
     invalidTxs[0].signer = invalidSigner
-    expect(() => validatePresignedTxs(invalidTxs)).toThrow(`Stellar Create Account operation destination GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ does not match the signer ${invalidSigner}`);
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`Stellar transaction signer ${invalidSigner} does not match the expected signer GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ for phase stellarCreateAccount.`);
   }, 10000)
 
   it("should throw error for invalid presigned transactions array", () => {
     const invalidTxs: any = "invalid data";
-    expect(() => validatePresignedTxs(invalidTxs)).toThrow("presignedTxs must be an array with 1-100 elements");
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
   })
 
   it("should throw error for too many transactions", () => {
     const invalidTxs: PresignedTx[] = new Array(101).fill(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]);
-    expect(() => validatePresignedTxs(invalidTxs)).toThrow("presignedTxs must be an array with 1-100 elements");
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    }
+    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
   })
 });
 
