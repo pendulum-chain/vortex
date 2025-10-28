@@ -9,8 +9,7 @@ export const useRampNavigation = (
   formComponent: ReactNode
 ) => {
   const rampActor = useRampActor();
-  const { rampState, rampMachineState, callbackUrl } = useSelector(rampActor, state => ({
-    callbackUrl: state.context.callbackUrl,
+  const { rampState, rampMachineState } = useSelector(rampActor, state => ({
     rampMachineState: state,
     rampState: state.context.rampState
   }));
