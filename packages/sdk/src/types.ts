@@ -12,7 +12,7 @@ import {
   RampDirection,
   RampPhase,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 
 export type { PaymentMethod };
 export { EvmToken, FiatToken, Networks, RampDirection };

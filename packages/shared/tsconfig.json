@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
+    "declaration": true,
+    "declarationDir": "dist",
+    "emitDeclarationOnly": true,
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "Node",
-    "noEmit": true,
+    "outDir": "dist",
     "paths": {
       "@packages/*": ["../../packages/*/src"]
     },

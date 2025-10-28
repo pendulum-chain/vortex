@@ -1,7 +1,5 @@
 {
-  "dependencies": {
-    "@packages/shared": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.0.0"
@@ -44,5 +42,5 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.3.5"
+  "version": "0.3.6"
 }
