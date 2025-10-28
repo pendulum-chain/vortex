@@ -896,7 +896,8 @@ export class RampService extends BaseRampService {
     const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
     const newStatus = this.mapPhaseToWebhookStatus(newPhase);
 
-    if (oldStatus !== newStatus) {
+    // Only notify if status has changed and new status is not FAILED
+    if (oldStatus !== newStatus && newStatus !== TransactionStatus.FAILED) {
       webhookDeliveryService
         .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, rampState.id, newPhase, rampState.type)
         .catch(error => {
