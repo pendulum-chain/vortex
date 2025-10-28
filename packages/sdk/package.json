@@ -1,5 +1,7 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "@packages/shared": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.0.0"
@@ -19,9 +21,9 @@
   "module": "./dist/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
-    "@polkadot/api": "catalog:",
-    "stellar-sdk": "catalog:",
-    "viem": "^catalog:"
+    "@polkadot/api": "^16.4.6",
+    "stellar-sdk": "^13.1.0",
+    "viem": "^2.37.9"
   },
   "repository": {
     "directory": "packages/sdk",
@@ -42,5 +44,5 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.3.2"
+  "version": "0.3.5"
 }

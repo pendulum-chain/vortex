@@ -1,7 +1,7 @@
 import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
 import { u8aToHex } from "@polkadot/util";
-import { cryptoWaitReady, hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
+import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -17,6 +17,7 @@ import {
   UnsignedTx
 } from "../index";
 import logger from "../logger";
+import { deriveEvmPrivateKeyFromMnemonic } from "./ephemerals";
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
@@ -126,9 +127,7 @@ function createEvmWalletClients(
   moonbeamEphemeral: EphemeralAccount,
   alchemyApiKey?: string
 ): { moonbeamClient: WalletClient; polygonClient: WalletClient } {
-  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-
-  const privateKey = u8aToHex(hdEthereum(mnemonicToLegacySeed(moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey);
+  const privateKey = u8aToHex(deriveEvmPrivateKeyFromMnemonic(moonbeamEphemeral.secret));
   const evmAccount = privateKeyToAccount(privateKey);
   const moonbeamClient = createWalletClient({
     account: evmAccount,
@@ -347,8 +346,6 @@ export async function signUnsignedTransactions(
         throw new Error("EVM clients not initialized");
       }
 
-      const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-
       if (isEvmTransactionData(tx.txData)) {
         const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.moonbeamClient, tx.nonce);
 
@@ -359,7 +356,9 @@ export async function signUnsignedTransactions(
         signedTxs.push(txWithMeta);
       } else {
         const keyring = new Keyring({ type: "ethereum" });
-        const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
+
+        const privateKey = deriveEvmPrivateKeyFromMnemonic(ephemerals.evmEphemeral.secret);
+        const keypair = keyring.addFromSeed(privateKey);
 
         const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, moonbeamApi, tx.nonce);
 

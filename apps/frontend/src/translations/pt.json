@@ -432,7 +432,7 @@
     },
     "transactionStatusBanner": {
       "afterUrl": " para assistência. Estamos monitorando ativamente sua transação.",
-      "beforeUrl": "Sua transação ainda está sendo processada, mas está demorando mais do que o esperado. Se não for concluída em 30 minutos, entre em contato com nossa ",
+      "beforeUrl": "Sua transação ainda está sendo processada, mas está demorando mais do que o esperado. Se não for concluída em 24 horas, entre em contato com nossa ",
       "title": "Status da Transação",
       "transactionId": "ID da transação",
       "url": "equipe de suporte"

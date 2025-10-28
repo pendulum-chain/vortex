@@ -1,6 +1,7 @@
 import {
   ApiManager,
   CleanupPhase,
+  EphemeralAccountType,
   getNetworkId,
   PresignedTx,
   RampPhase,
@@ -15,16 +16,17 @@ import { Networks as StellarNetworks, Transaction as StellarTransaction, Transac
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
-/// Checks if all of the signed transactions exist in the unsigned transactions list.
-export function areAllSignedTxsInUnsignedTxs(unsignedTxs: PresignedTx[], signedTxs: PresignedTx[]): boolean {
-  for (const signedTx of signedTxs) {
-    const match = unsignedTxs.find(
-      unsignedTx =>
-        unsignedTx.phase === signedTx.phase &&
-        unsignedTx.network === signedTx.network &&
-        unsignedTx.nonce === signedTx.nonce &&
-        unsignedTx.signer === signedTx.signer
+/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
+export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
+  for (const subsetTx of subset) {
+    const match = set.find(
+      setTx =>
+        setTx.phase === subsetTx.phase &&
+        setTx.network === subsetTx.network &&
+        setTx.nonce === subsetTx.nonce &&
+        setTx.signer === subsetTx.signer
     );
+
     if (!match) {
       return false;
     }
@@ -33,7 +35,7 @@ export function areAllSignedTxsInUnsignedTxs(unsignedTxs: PresignedTx[], signedT
   return true;
 }
 
-function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "substrate" | "stellar" {
+function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralAccountType {
   switch (phase) {
     case "hydrationToAssethubXcm":
     case "moonbeamToPendulumXcm":
@@ -50,20 +52,23 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "s
     case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
-      return "substrate";
+      return EphemeralAccountType.Substrate;
     case "stellarCreateAccount":
     case "stellarPayment":
     case "stellarCleanup":
-      return "stellar";
+      return EphemeralAccountType.Stellar;
     case "squidRouterApprove":
     case "squidRouterSwap":
-      return "evm";
+      return EphemeralAccountType.EVM;
     default:
-      return "evm";
+      return EphemeralAccountType.EVM;
   }
 }
 
-export async function validatePresignedTxs(presignedTxs: PresignedTx[]): Promise<void> {
+export async function validatePresignedTxs(
+  presignedTxs: PresignedTx[],
+  ephemerals: { [key in EphemeralAccountType]: string }
+): Promise<void> {
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
       message: "presignedTxs must be an array with 1-100 elements",
@@ -80,14 +85,29 @@ export async function validatePresignedTxs(presignedTxs: PresignedTx[]): Promise
     }
 
     const txType = getTransactionTypeForPhase(tx.phase);
-    if (txType === "evm") validateEvmTransaction(tx);
-    if (txType === "substrate") await validateSubstrateTransaction(tx);
-    if (txType === "stellar") await validateStellarTransaction(tx);
+    if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
+    if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
+    if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
+    if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
   }
 }
 
-function validateEvmTransaction(tx: PresignedTx) {
+function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
+
+  if (!expectedSigner) {
+    throw new APIError({
+      message: "Expected signer for EVM transaction is not provided",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `EVM transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
     throw new APIError({
@@ -119,8 +139,30 @@ function validateEvmTransaction(tx: PresignedTx) {
   }
 }
 
-async function validateSubstrateTransaction(tx: PresignedTx) {
+async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
   const { txData, signer, network } = tx;
+
+  if (!expectedSignerSubstrate && !expectedSignerEvm) {
+    throw new APIError({
+      message: `Expected signer for Substrate transaction is not provided for phase ${tx.phase}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (tx.phase === "moonbeamToPendulumXcm" || tx.phase === "moonbeamCleanup") {
+    // Moonbeam uses EVM addresses but the transactions are Substrate-based
+    if (signer.toLowerCase() !== expectedSignerEvm.toLowerCase()) {
+      throw new APIError({
+        message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSignerEvm} for phase ${tx.phase}.`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  } else if (signer.toLowerCase() !== expectedSignerSubstrate.toLowerCase()) {
+    throw new APIError({
+      message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSignerSubstrate} for phase ${tx.phase}.`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   let api: ApiPromise;
   try {
@@ -145,16 +187,28 @@ async function validateSubstrateTransaction(tx: PresignedTx) {
 
   if (!substrateAddressEqual(extrinsic.signer.toString(), signer)) {
     throw new APIError({
-      message: `Substrate transaction signer ${extrinsic.signer.toString()} does not match the expected signer ${signer}`,
+      message: `Substrate transaction signer ${extrinsic.signer.toString()} does not match the expected signer ${signer} for phase ${tx.phase}.`,
       status: httpStatus.BAD_REQUEST
     });
   }
 }
 
-async function validateStellarTransaction(tx: PresignedTx) {
+async function validateStellarTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer, phase } = tx;
 
-  console.log("Validating Stellar transaction for phase:", phase);
+  if (!expectedSigner) {
+    throw new APIError({
+      message: "Expected signer for Stellar transaction is not provided",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `Stellar transaction signer ${signer} does not match the expected signer ${expectedSigner} for phase ${phase}.`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   let transaction: StellarTransaction;
   try {

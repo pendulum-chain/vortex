@@ -41,20 +41,24 @@ export type RampMachineEvents =
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
-  | { type: "SubmitLevel1"; formData: KYCFormData }
+  | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "RESET_RAMP" }
+  | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }
+  | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_PARTNER_ID"; partnerId?: string }
+  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
+  | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
+  | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
-  | { type: "EXPIRE_QUOTE" };
+  | { type: "EXPIRE_QUOTE" }
+  | { type: "REFRESH_FAILED" };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

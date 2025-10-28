@@ -41,13 +41,15 @@ import phaseProcessor from "../phases/phase-processor";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
-import { areAllSignedTxsInUnsignedTxs, validatePresignedTxs } from "../transactions/validation";
+import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
-export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
-  const normalizedAccounts: AccountMeta[] = [];
+export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
+  const normalizedSigningAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
+
+  const ephemerals: { [key in EphemeralAccountType]?: string } = {};
 
   accounts.forEach(account => {
     if (!allowedNetworks.has(account.type.toLowerCase())) {
@@ -59,13 +61,15 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): Ac
       throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
     }
 
-    normalizedAccounts.push({
+    normalizedSigningAccounts.push({
       address: account.address,
       type: type
     });
+
+    ephemerals[type] = account.address;
   });
 
-  return normalizedAccounts;
+  return { ephemerals, normalizedSigningAccounts };
 }
 
 export class RampService extends BaseRampService {
@@ -102,7 +106,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
+      const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
@@ -127,7 +131,10 @@ export class RampService extends BaseRampService {
         state: {
           aveniaTicketId,
           depositQrCode,
+          evmEphemeralAddress: ephemerals.EVM,
           ibanPaymentData,
+          stellarEphemeralAccountId: ephemerals.Stellar,
+          substrateEphemeralAddress: ephemerals.Substrate,
           ...request.additionalData,
           ...stateMeta
         } as StateMetadata,
@@ -183,11 +190,16 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions, if some were supplied
+      const ephemerals: { [key in EphemeralAccountType]: string } = {
+        EVM: rampState.state.evmEphemeralAddress,
+        Stellar: rampState.state.stellarEphemeralAccountId,
+        Substrate: rampState.state.substrateEphemeralAddress
+      };
       if (presignedTxs && presignedTxs.length > 0) {
-        await validatePresignedTxs(presignedTxs);
+        await validatePresignedTxs(presignedTxs, ephemerals);
       }
 
-      if (!areAllSignedTxsInUnsignedTxs(rampState.unsignedTxs, presignedTxs)) {
+      if (!areAllTxsIncluded(presignedTxs, rampState.unsignedTxs)) {
         throw new APIError({
           message: "Some presigned transactions do not match any unsigned transaction",
           status: httpStatus.BAD_REQUEST
@@ -279,7 +291,27 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions
-      await validatePresignedTxs(rampState.presignedTxs);
+      const ephemerals: { [key in EphemeralAccountType]: string } = {
+        EVM: rampState.state.evmEphemeralAddress,
+        Stellar: rampState.state.stellarEphemeralAccountId,
+        Substrate: rampState.state.substrateEphemeralAddress
+      };
+      await validatePresignedTxs(rampState.presignedTxs, ephemerals);
+
+      // Find ephemeral transactions in unsigned transactions
+      const ephemeralTransactions = rampState.unsignedTxs.filter(
+        tx =>
+          tx.signer === rampState.state.substrateEphemeralAddress ||
+          tx.signer === rampState.state.evmEphemeralAddress ||
+          tx.signer === rampState.state.stellarEphemeralAccountId
+      );
+      // Ensure all unsigned transactions have a corresponding presigned transaction
+      if (!areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs)) {
+        throw new APIError({
+          message: "Not all unsigned transactions have a corresponding presigned transaction.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
@@ -368,12 +400,21 @@ export class RampService extends BaseRampService {
     const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+    // Never return 'failed' as current phase, instead return last known phase
+    const currentPhase =
+      rampState.currentPhase !== "failed"
+        ? rampState.currentPhase
+        : // Find last entry in phase history or show 'initial' if not available
+          rampState.phaseHistory && rampState.phaseHistory.length > 0
+          ? rampState.phaseHistory[rampState.phaseHistory.length - 1].phase
+          : "initial";
+
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
       anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
-      currentPhase: rampState.currentPhase,
+      currentPhase,
       depositQrCode: rampState.state.depositQrCode,
       feeCurrency: fiatFees.currency,
       from: rampState.from,
@@ -855,7 +896,8 @@ export class RampService extends BaseRampService {
     const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
     const newStatus = this.mapPhaseToWebhookStatus(newPhase);
 
-    if (oldStatus !== newStatus) {
+    // Only notify if status has changed and new status is not FAILED
+    if (oldStatus !== newStatus && newStatus !== TransactionStatus.FAILED) {
       webhookDeliveryService
         .triggerStatusChange(rampState.quoteId, rampState.state.sessionId || null, rampState.id, newPhase, rampState.type)
         .catch(error => {

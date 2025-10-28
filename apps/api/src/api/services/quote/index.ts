@@ -49,8 +49,6 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    console.log("Quote context", ctx);
-
     if (ctx.builtResponse) {
       return ctx.builtResponse;
     }

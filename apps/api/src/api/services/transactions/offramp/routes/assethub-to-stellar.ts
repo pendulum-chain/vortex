@@ -55,6 +55,7 @@ export async function prepareAssethubToStellarOfframpTransactions({
 
   // Initialize state metadata
   stateMeta = {
+    stellarEphemeralAccountId: stellarEphemeralEntry.address,
     substrateEphemeralAddress: substrateEphemeralEntry.address
   };
 
@@ -155,8 +156,6 @@ export async function prepareAssethubToStellarOfframpTransactions({
     },
     unsignedTxs
   );
-
-  return { stateMeta, unsignedTxs };
 
   return { stateMeta, unsignedTxs };
 }

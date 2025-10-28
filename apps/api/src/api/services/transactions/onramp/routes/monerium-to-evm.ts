@@ -42,6 +42,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   // Setup state metadata
   stateMeta = {
     destinationAddress,
+    evmEphemeralAddress: evmEphemeralEntry.address,
     moneriumWalletAddress,
     walletAddress: destinationAddress
   };
