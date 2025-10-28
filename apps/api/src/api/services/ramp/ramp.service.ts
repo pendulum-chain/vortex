@@ -368,12 +368,21 @@ export class RampService extends BaseRampService {
     const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+    // Never return 'failed' as current phase, instead return last known phase
+    const currentPhase =
+      rampState.currentPhase !== "failed"
+        ? rampState.currentPhase
+        : // Find last entry in phase history or show 'initial' if not available
+          rampState.phaseHistory && rampState.phaseHistory.length > 0
+          ? rampState.phaseHistory[rampState.phaseHistory.length - 1].phase
+          : "initial";
+
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
       anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
-      currentPhase: rampState.currentPhase,
+      currentPhase,
       depositQrCode: rampState.state.depositQrCode,
       feeCurrency: fiatFees.currency,
       from: rampState.from,
