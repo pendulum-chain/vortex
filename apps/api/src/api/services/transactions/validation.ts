@@ -1,6 +1,7 @@
 import {
   ApiManager,
   CleanupPhase,
+  EphemeralAccountType,
   getNetworkId,
   PresignedTx,
   RampPhase,
@@ -34,7 +35,7 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
   return true;
 }
 
-function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "substrate" | "stellar" {
+function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralAccountType {
   switch (phase) {
     case "hydrationToAssethubXcm":
     case "moonbeamToPendulumXcm":
@@ -51,20 +52,23 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): "evm" | "s
     case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
-      return "substrate";
+      return EphemeralAccountType.Substrate;
     case "stellarCreateAccount":
     case "stellarPayment":
     case "stellarCleanup":
-      return "stellar";
+      return EphemeralAccountType.Stellar;
     case "squidRouterApprove":
     case "squidRouterSwap":
-      return "evm";
+      return EphemeralAccountType.EVM;
     default:
-      return "evm";
+      return EphemeralAccountType.EVM;
   }
 }
 
-export async function validatePresignedTxs(presignedTxs: PresignedTx[]): Promise<void> {
+export async function validatePresignedTxs(
+  presignedTxs: PresignedTx[],
+  ephemerals: { [key in EphemeralAccountType]: string }
+): Promise<void> {
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
       message: "presignedTxs must be an array with 1-100 elements",
@@ -81,14 +85,28 @@ export async function validatePresignedTxs(presignedTxs: PresignedTx[]): Promise
     }
 
     const txType = getTransactionTypeForPhase(tx.phase);
-    if (txType === "evm") validateEvmTransaction(tx);
-    if (txType === "substrate") await validateSubstrateTransaction(tx);
-    if (txType === "stellar") await validateStellarTransaction(tx);
+    if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
+    if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate);
+    if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
   }
 }
 
-function validateEvmTransaction(tx: PresignedTx) {
+function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
+
+  if (!expectedSigner) {
+    throw new APIError({
+      message: "Expected signer for EVM transaction is not provided",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `EVM transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
     throw new APIError({
@@ -120,8 +138,22 @@ function validateEvmTransaction(tx: PresignedTx) {
   }
 }
 
-async function validateSubstrateTransaction(tx: PresignedTx) {
+async function validateSubstrateTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer, network } = tx;
+
+  if (!expectedSigner) {
+    throw new APIError({
+      message: "Expected signer for Substrate transaction is not provided",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   let api: ApiPromise;
   try {
@@ -152,10 +184,22 @@ async function validateSubstrateTransaction(tx: PresignedTx) {
   }
 }
 
-async function validateStellarTransaction(tx: PresignedTx) {
+async function validateStellarTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer, phase } = tx;
 
-  console.log("Validating Stellar transaction for phase:", phase);
+  if (!expectedSigner) {
+    throw new APIError({
+      message: "Expected signer for Stellar transaction is not provided",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `Stellar transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   let transaction: StellarTransaction;
   try {

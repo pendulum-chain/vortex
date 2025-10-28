@@ -190,8 +190,13 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions, if some were supplied
+      const ephemerals: { [key in EphemeralAccountType]: string } = {
+        EVM: rampState.state.evmEphemeralAddress,
+        Stellar: rampState.state.stellarEphemeralAccountId,
+        Substrate: rampState.state.substrateEphemeralAddress
+      };
       if (presignedTxs && presignedTxs.length > 0) {
-        await validatePresignedTxs(presignedTxs);
+        await validatePresignedTxs(presignedTxs, ephemerals);
       }
 
       if (!areAllTxsIncluded(presignedTxs, rampState.unsignedTxs)) {
@@ -286,7 +291,12 @@ export class RampService extends BaseRampService {
       }
 
       // Validate presigned transactions
-      await validatePresignedTxs(rampState.presignedTxs);
+      const ephemerals: { [key in EphemeralAccountType]: string } = {
+        EVM: rampState.state.evmEphemeralAddress,
+        Stellar: rampState.state.stellarEphemeralAccountId,
+        Substrate: rampState.state.substrateEphemeralAddress
+      };
+      await validatePresignedTxs(rampState.presignedTxs, ephemerals);
 
       // Find ephemeral transactions in unsigned transactions
       const ephemeralTransactions = rampState.unsignedTxs.filter(
