@@ -1,5 +1,7 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "@packages/shared": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.0.0"

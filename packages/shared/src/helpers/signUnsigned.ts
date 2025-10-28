@@ -1,7 +1,7 @@
 import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
 import { u8aToHex } from "@polkadot/util";
-import { cryptoWaitReady, hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
+import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -17,14 +17,10 @@ import {
   UnsignedTx
 } from "../index";
 import logger from "../logger";
+import { deriveEvmPrivateKeyFromMnemonic } from "./ephemerals";
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
-
-export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
-  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-  return hdEthereum(mnemonicToLegacySeed(mnemonic, "", false, 64), ethDerPath).secretKey;
-}
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {

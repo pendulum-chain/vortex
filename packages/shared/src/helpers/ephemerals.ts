@@ -1,11 +1,7 @@
+import { EphemeralAccount } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { hdEthereum, mnemonicGenerate, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
-
-export interface EphemeralAccount {
-  secret: string;
-  address: string;
-}
 
 export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
   const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
