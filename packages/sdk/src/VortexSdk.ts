@@ -11,7 +11,7 @@ import {
   RampProcess,
   signUnsignedTransactions,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
