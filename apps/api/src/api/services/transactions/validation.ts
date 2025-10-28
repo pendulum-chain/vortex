@@ -15,16 +15,17 @@ import { Networks as StellarNetworks, Transaction as StellarTransaction, Transac
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
-/// Checks if all of the signed transactions exist in the unsigned transactions list.
-export function areAllSignedTxsInUnsignedTxs(unsignedTxs: PresignedTx[], signedTxs: PresignedTx[]): boolean {
-  for (const signedTx of signedTxs) {
-    const match = unsignedTxs.find(
-      unsignedTx =>
-        unsignedTx.phase === signedTx.phase &&
-        unsignedTx.network === signedTx.network &&
-        unsignedTx.nonce === signedTx.nonce &&
-        unsignedTx.signer === signedTx.signer
+/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
+export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
+  for (const subsetTx of subset) {
+    const match = set.find(
+      setTx =>
+        setTx.phase === subsetTx.phase &&
+        setTx.network === subsetTx.network &&
+        setTx.nonce === subsetTx.nonce &&
+        setTx.signer === subsetTx.signer
     );
+
     if (!match) {
       return false;
     }
