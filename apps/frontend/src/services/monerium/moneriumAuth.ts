@@ -73,9 +73,9 @@ export const createMoneriumSiweMessage = (address: string) => {
     appName: MONERIUM_APP_NAME,
     chainId: MONERIUM_MINT_NETWORK_CHAIN_ID,
     domain: domain,
-    privacyPolicyUrl: "https://example.com/privacy-policy",
+    privacyPolicyUrl: "https://shorturl.at/QuMx8",
     redirectUri,
-    termsOfServiceUrl: "https://example.com/terms-of-service"
+    termsOfServiceUrl: "https://shorturl.at/5tSgv"
   });
 };
 
