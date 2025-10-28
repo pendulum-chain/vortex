@@ -86,7 +86,7 @@ export async function validatePresignedTxs(
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
-    if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate);
+    if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
   }
 }
@@ -138,19 +138,27 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   }
 }
 
-async function validateSubstrateTransaction(tx: PresignedTx, expectedSigner: string) {
+async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
   const { txData, signer, network } = tx;
 
-  if (!expectedSigner) {
+  if (!expectedSignerSubstrate && !expectedSignerEvm) {
     throw new APIError({
-      message: "Expected signer for Substrate transaction is not provided",
+      message: `Expected signer for Substrate transaction is not provided for phase ${tx.phase}`,
       status: httpStatus.BAD_REQUEST
     });
   }
 
-  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+  if (tx.phase === "moonbeamToPendulumXcm" || tx.phase === "moonbeamCleanup") {
+    // Moonbeam uses EVM addresses but the transactions are Substrate-based
+    if (signer.toLowerCase() !== expectedSignerEvm.toLowerCase()) {
+      throw new APIError({
+        message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSignerEvm} for phase ${tx.phase}.`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  } else if (signer.toLowerCase() !== expectedSignerSubstrate.toLowerCase()) {
     throw new APIError({
-      message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSignerSubstrate} for phase ${tx.phase}.`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -178,7 +186,7 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSigner: str
 
   if (!substrateAddressEqual(extrinsic.signer.toString(), signer)) {
     throw new APIError({
-      message: `Substrate transaction signer ${extrinsic.signer.toString()} does not match the expected signer ${signer}`,
+      message: `Substrate transaction signer ${extrinsic.signer.toString()} does not match the expected signer ${signer} for phase ${tx.phase}.`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -196,7 +204,7 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
 
   if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
     throw new APIError({
-      message: `Stellar transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
+      message: `Stellar transaction signer ${signer} does not match the expected signer ${expectedSigner} for phase ${phase}.`,
       status: httpStatus.BAD_REQUEST
     });
   }
