@@ -1,13 +1,19 @@
 import { EphemeralAccount } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
-import { mnemonicGenerate } from "@polkadot/util-crypto";
+import { hdEthereum, mnemonicGenerate, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 import { Keypair } from "stellar-sdk";
+
+export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
+  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+  return hdEthereum(mnemonicToLegacySeed(mnemonic, "", false, 64), ethDerPath).secretKey;
+}
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
   const keyring = new Keyring({ type: "ethereum" });
 
-  const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
+  const privateKey = deriveEvmPrivateKeyFromMnemonic(seedPhrase);
+  const ephemeralAccountKeypair = keyring.addFromSeed(privateKey);
 
   return {
     address: ephemeralAccountKeypair.address,

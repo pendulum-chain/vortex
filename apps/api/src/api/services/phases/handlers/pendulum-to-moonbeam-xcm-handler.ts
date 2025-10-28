@@ -127,7 +127,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {
       console.error("Error in PendulumToMoonbeamPhase:", e);
-      throw e;
+      throw this.createRecoverableError("Error in PendulumToMoonbeamPhase");
     }
   }
 

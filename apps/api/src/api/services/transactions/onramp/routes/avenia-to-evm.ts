@@ -100,13 +100,13 @@ export async function prepareAveniaToEvmOnrampTransactions({
     outputTokenPendulumDetails
   });
 
-  if (!quote.metadata.moonbeamToEvm?.outputAmountRaw) {
+  if (!quote.metadata.pendulumToMoonbeamXcm?.inputAmountRaw || !quote.metadata.moonbeamToEvm?.outputAmountRaw) {
     throw new Error("Missing bridge output amount for Moonbeam");
   }
 
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     evmEphemeralEntry.address,
-    quote.metadata.moonbeamToEvm.outputAmountRaw,
+    quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw,
     outputTokenDetails.pendulumRepresentative.currencyId
   );
 

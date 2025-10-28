@@ -49,7 +49,8 @@ export async function buildPaymentAndMergeTx({
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
   const { memo, memoType, anchorTargetAccount } = paymentData;
-  const transactionMemo = memoType === "text" ? Memo.text(memo) : Memo.hash(Buffer.from(memo, "base64"));
+  const transactionMemo =
+    memoType === "text" ? Memo.text(memo) : memoType === "id" ? Memo.id(memo) : Memo.hash(Buffer.from(memo, "base64"));
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
 
