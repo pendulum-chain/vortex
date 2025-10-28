@@ -83,7 +83,7 @@ export interface RampErrorLog {
 export interface PaymentData {
   amount: string;
   memo: string;
-  memoType: "text" | "hash";
+  memoType: "text" | "hash" | "id";
   anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
