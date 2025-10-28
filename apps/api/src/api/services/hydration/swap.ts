@@ -23,7 +23,7 @@ export class HydrationRouter {
 
     // Refresh transaction fees every hour
     void this.refreshCachedXcmTransactionFeeToAssethub();
-    setInterval(this.refreshCachedXcmTransactionFeeToAssethub, 60 * 60 * 1000);
+    setInterval(() => this.refreshCachedXcmTransactionFeeToAssethub, 60 * 60 * 1000);
   }
 
   async getBestSellPriceFor(assetIn: string, assetOut: string, amountIn: string): Promise<Trade> {
