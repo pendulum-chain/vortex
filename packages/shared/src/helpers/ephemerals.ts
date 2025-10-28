@@ -17,7 +17,7 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
 
   return {
     address: ephemeralAccountKeypair.address,
-    secret: seedPhrase
+    secret: `0x${privateKey.toHex()}`
   };
 }
 

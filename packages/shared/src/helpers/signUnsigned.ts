@@ -1,6 +1,6 @@
 import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
-import { u8aToHex } from "@polkadot/util";
+import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, http, WalletClient, webSocket } from "viem";
@@ -127,7 +127,7 @@ function createEvmWalletClients(
   moonbeamEphemeral: EphemeralAccount,
   alchemyApiKey?: string
 ): { moonbeamClient: WalletClient; polygonClient: WalletClient } {
-  const privateKey = u8aToHex(deriveEvmPrivateKeyFromMnemonic(moonbeamEphemeral.secret));
+  const privateKey = moonbeamEphemeral.secret as `0x${string}`;
   const evmAccount = privateKeyToAccount(privateKey);
   const moonbeamClient = createWalletClient({
     account: evmAccount,
@@ -357,8 +357,8 @@ export async function signUnsignedTransactions(
       } else {
         const keyring = new Keyring({ type: "ethereum" });
 
-        const privateKey = deriveEvmPrivateKeyFromMnemonic(ephemerals.evmEphemeral.secret);
-        const keypair = keyring.addFromSeed(privateKey);
+        const privateKey = ephemerals.evmEphemeral.secret as `0x${string}`;
+        const keypair = keyring.addFromSeed(hexToU8a(privateKey));
 
         const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, moonbeamApi, tx.nonce);
 
