@@ -21,6 +21,11 @@ import logger from "../logger";
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 5;
 
+export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
+  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+  return hdEthereum(mnemonicToLegacySeed(mnemonic, "", false, 64), ethDerPath).secretKey;
+}
+
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
     return primaryTx;
@@ -126,9 +131,7 @@ function createEvmWalletClients(
   moonbeamEphemeral: EphemeralAccount,
   alchemyApiKey?: string
 ): { moonbeamClient: WalletClient; polygonClient: WalletClient } {
-  const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-
-  const privateKey = u8aToHex(hdEthereum(mnemonicToLegacySeed(moonbeamEphemeral.secret, "", false, 64), ethDerPath).secretKey);
+  const privateKey = u8aToHex(deriveEvmPrivateKeyFromMnemonic(moonbeamEphemeral.secret));
   const evmAccount = privateKeyToAccount(privateKey);
   const moonbeamClient = createWalletClient({
     account: evmAccount,
@@ -347,8 +350,6 @@ export async function signUnsignedTransactions(
         throw new Error("EVM clients not initialized");
       }
 
-      const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-
       if (isEvmTransactionData(tx.txData)) {
         const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.moonbeamClient, tx.nonce);
 
@@ -359,7 +360,9 @@ export async function signUnsignedTransactions(
         signedTxs.push(txWithMeta);
       } else {
         const keyring = new Keyring({ type: "ethereum" });
-        const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
+
+        const privateKey = deriveEvmPrivateKeyFromMnemonic(ephemerals.evmEphemeral.secret);
+        const keypair = keyring.addFromSeed(privateKey);
 
         const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, moonbeamApi, tx.nonce);
 
