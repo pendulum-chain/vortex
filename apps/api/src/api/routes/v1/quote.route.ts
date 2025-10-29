@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { createQuote, getQuote } from "../../controllers/quote.controller";
+import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
 import { validateCreateQuoteInput } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
@@ -18,6 +19,9 @@ const router: Router = Router({ mergeParams: true });
  * @apiParam  {String}  inputAmount    Input amount
  * @apiParam  {String}  inputCurrency  Input currency
  * @apiParam  {String}  outputCurrency Output currency
+ * @apiParam  {String}  [partnerId]    Partner ID (requires authentication)
+ *
+ * @apiHeader {String} [X-API-Key] API key for partner authentication (required if partnerId is provided)
  *
  * @apiSuccess (Created 201) {String}  id             Quote ID
  * @apiSuccess (Created 201) {String}  rampType       Ramp type
@@ -30,8 +34,16 @@ const router: Router = Router({ mergeParams: true });
  * @apiSuccess (Created 201) {Date}    expiresAt      Expiration date
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
+ * @apiError (Unauthorized 401) InvalidApiKey The provided API key is invalid or expired
+ * @apiError (Forbidden 403) AuthenticationRequired Authentication is required when partnerId is specified
+ * @apiError (Forbidden 403) PartnerMismatch The authenticated partner does not match the partnerId
  */
-router.route("/").post(validateCreateQuoteInput, createQuote);
+router.route("/").post(
+  validateCreateQuoteInput,
+  apiKeyAuth({ required: false }), // Optional auth
+  enforcePartnerAuth(), // Enforce if partnerId present
+  createQuote
+);
 
 /**
  * @api {get} v1/quotes/:id Get quote

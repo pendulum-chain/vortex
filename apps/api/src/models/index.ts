@@ -1,5 +1,6 @@
 import sequelize from "../config/database";
 import Anchor from "./anchor.model";
+import ApiKey from "./apiKey.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import Partner from "./partner.model";
 import QuoteTicket from "./quoteTicket.model";
@@ -16,9 +17,14 @@ Partner.hasMany(QuoteTicket, { as: "quotes", foreignKey: "partnerId" });
 RampState.hasMany(Subsidy, { as: "subsidies", foreignKey: "rampId" });
 Subsidy.belongsTo(RampState, { as: "rampState", foreignKey: "rampId" });
 
+// API Key associations
+Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
+ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
 // Initialize models
 const models = {
   Anchor,
+  ApiKey,
   MaintenanceSchedule,
   Partner,
   QuoteTicket,

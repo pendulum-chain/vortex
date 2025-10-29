@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
+import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import brlaRoutes from "./brla.route";
 import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
@@ -159,6 +160,14 @@ router.use("/webhook", webhookRoutes);
  * GET v1/public-key
  */
 router.use("/public-key", publicKeyRoutes);
+
+/**
+ * Admin routes for partner API key management
+ * POST /v1/admin/partners/:partnerId/api-keys
+ * GET /v1/admin/partners/:partnerId/api-keys
+ * DELETE /v1/admin/partners/:partnerId/api-keys/:keyId
+ */
+router.use("/admin/partners/:partnerId/api-keys", partnerApiKeysRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
