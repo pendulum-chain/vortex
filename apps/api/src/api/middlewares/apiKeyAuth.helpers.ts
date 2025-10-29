@@ -25,7 +25,7 @@ export function isValidApiKeyFormat(key: string): boolean {
  */
 export function generateApiKey(environment: "live" | "test" = "live"): string {
   const randomPart = crypto
-    .randomBytes(24)
+    .randomBytes(32)
     .toString("base64")
     .replace(/\+/g, "")
     .replace(/\//g, "")
