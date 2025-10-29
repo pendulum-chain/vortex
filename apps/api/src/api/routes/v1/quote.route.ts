@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createQuote, getQuote } from "../../controllers/quote.controller";
-import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
+import { apiKeyAuth } from "../../middlewares/apiKeyAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { validateCreateQuoteInput } from "../../middlewares/validators";
 
@@ -44,7 +44,7 @@ router.route("/").post(
   validateCreateQuoteInput,
   validatePublicKey(), // Validate public key if provided (optional)
   apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
-  enforcePartnerAuth(), // Enforce secret key auth if partnerId present
+  // enforcePartnerAuth(), // Enforce secret key auth if partnerId present // We don't enforce this for now and allow passing a partnerId without secret key
   createQuote
 );
 
