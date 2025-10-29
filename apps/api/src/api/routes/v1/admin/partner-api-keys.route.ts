@@ -1,11 +1,17 @@
 import { Router } from "express";
 import { createApiKey, listApiKeys, revokeApiKey } from "../../../controllers/admin/partnerApiKeys.controller";
+import { adminAuth } from "../../../middlewares/adminAuth";
 
 const router: Router = Router({ mergeParams: true });
+
+// Apply admin authentication to all routes
+router.use(adminAuth);
 
 /**
  * POST /v1/admin/partners/:partnerId/api-keys
  * Create a new API key for a partner
+ *
+ * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  *
  * Request body:
  * {
@@ -18,12 +24,16 @@ router.post("/", createApiKey);
 /**
  * GET /v1/admin/partners/:partnerId/api-keys
  * List all API keys for a partner
+ *
+ * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  */
 router.get("/", listApiKeys);
 
 /**
  * DELETE /v1/admin/partners/:partnerId/api-keys/:keyId
  * Revoke (soft delete) an API key
+ *
+ * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  */
 router.delete("/:keyId", revokeApiKey);
 
