@@ -45,15 +45,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: true,
       type: DataTypes.STRING(100)
     },
-    partnerId: {
+    partnerName: {
       allowNull: false,
-      field: "partner_id",
-      onDelete: "CASCADE",
-      references: {
-        key: "id",
-        model: "partners"
-      },
-      type: DataTypes.UUID
+      field: "partner_name",
+      type: DataTypes.STRING(100)
     },
     updatedAt: {
       allowNull: false,
@@ -64,8 +59,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Add indexes for performance
-  await queryInterface.addIndex("api_keys", ["partner_id"], {
-    name: "idx_api_keys_partner_id"
+  await queryInterface.addIndex("api_keys", ["partner_name"], {
+    name: "idx_api_keys_partner_name"
   });
 
   await queryInterface.addIndex("api_keys", ["key_prefix"], {
@@ -88,7 +83,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.removeIndex("api_keys", "idx_api_keys_active_prefix");
   await queryInterface.removeIndex("api_keys", "idx_api_keys_active");
   await queryInterface.removeIndex("api_keys", "idx_api_keys_key_prefix");
-  await queryInterface.removeIndex("api_keys", "idx_api_keys_partner_id");
+  await queryInterface.removeIndex("api_keys", "idx_api_keys_partner_name");
 
   // Drop the api_keys table
   await queryInterface.dropTable("api_keys");
