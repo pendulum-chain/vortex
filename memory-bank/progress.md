@@ -145,3 +145,24 @@
   - Single API key now works for all partner records with same name (BUY & SELL)
   - Response includes partnerCount showing affected records
   - Simplified key management for multi-configuration partners
+
+[2025-10-29 10:08:00] - Fixed middleware to validate partner names instead of IDs:
+  - Updated apiKeyAuth middleware to lookup partner by ID and compare names
+  - Updated enforcePartnerAuth middleware to use name comparison
+  - Both middlewares now async to perform partner lookup
+  - Validation: partnerId (UUID) → lookup Partner → compare name with API key's partner name
+  - Error messages now show partner names instead of IDs for clarity
+  - Added PARTNER_NOT_FOUND error when partnerId doesn't exist
+
+[2025-10-29 16:12:00] - Implemented dual-key architecture (public/secret keys):
+  - Refactored from single vrtx_* keys to dual pk_*/sk_* system
+  - Public keys (pk_live_*, pk_test_*): Plaintext storage, client-side safe, tracking only
+  - Secret keys (sk_live_*, sk_test_*): Bcrypt hashed, server-only, authentication
+  - Updated database schema with key_type, key_value fields
+  - Added api_key field to quote_tickets for tracking
+  - Admin creates both keys as a pair
+  - Public key middleware validates existence and stores on quotes
+  - Secret key middleware authenticates and applies discounts
+  - Supports flexible usage: public only, secret only, or both together
+  - Enables widget/iframe integrations with public keys
+  - Maintains security for partner discounts with secret keys

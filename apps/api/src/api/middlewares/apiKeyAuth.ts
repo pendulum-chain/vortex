@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import Partner from "../../models/partner.model";
-import { AuthenticatedPartner, isValidApiKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
+import { AuthenticatedPartner, getKeyType, isValidSecretKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
 
 // Extend Express Request type to include authenticatedPartner
 declare global {
@@ -43,12 +43,24 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
         return next();
       }
 
-      // Validate API key format
-      if (!isValidApiKeyFormat(apiKey)) {
+      // Validate that it's a secret key format (sk_*)
+      const keyType = getKeyType(apiKey);
+      if (keyType !== "secret") {
         return res.status(401).json({
           error: {
-            code: "INVALID_API_KEY_FORMAT",
-            message: "Invalid API key format",
+            code: "INVALID_SECRET_KEY",
+            message:
+              "X-API-Key header must contain a secret key (sk_live_* or sk_test_*). Use public keys (pk_*) in request body for tracking.",
+            status: 401
+          }
+        });
+      }
+
+      if (!isValidSecretKeyFormat(apiKey)) {
+        return res.status(401).json({
+          error: {
+            code: "INVALID_SECRET_KEY_FORMAT",
+            message: "Invalid secret key format. Expected sk_live_* or sk_test_* format.",
             status: 401
           }
         });

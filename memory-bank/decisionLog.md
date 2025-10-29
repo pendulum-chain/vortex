@@ -384,3 +384,140 @@ X-API-Key: vrtx_live_abc123...
 - Existing systems must regenerate API keys after migration
 - Keys created before this change will not work
 - Partner names must remain stable (don't change names)
+
+## 2025-10-29: Public/Secret Key Architecture (Dual-Key System)
+
+### Decision
+Refactored the API key system from a single-key model to a dual-key architecture with public keys (pk_*) for tracking and secret keys (sk_*) for authentication. Public keys can be exposed client-side while secret keys remain server-only.
+
+### Rationale
+The single API key approach had limitations:
+1. Keys needed to be kept secret, limiting client-side usage
+2. No way to track quote origins without exposing secrets
+3. Couldn't be used in URLs/widgets safely
+4. Following industry standard (Stripe, PayPal) two-key pattern provides better security and flexibility
+
+### Implementation Details
+
+**Key Formats:**
+- **Public Keys:** `pk_live_*` or `pk_test_*` (plaintext storage, can be exposed)
+- **Secret Keys:** `sk_live_*` or `sk_test_*` (bcrypt hashed, server-only)
+
+**Database Schema Changes:**
+- Added `key_type` ENUM('public', 'secret') field
+- Added `key_value` VARCHAR(255) for plaintext public keys
+- Made `key_hash` nullable (only for secret keys)
+- Updated indexes to include key_type
+- Added `api_key` field to quote_tickets for tracking
+
+**Models Updated:**
+- `ApiKey`: Added keyType, keyValue fields
+- `QuoteTicket`: Added apiKey field
+- Both support the new dual-key structure
+
+**Key Generation:**
+- Admin creates both keys as a pair simultaneously
+- Public key: Stored in plaintext (`keyValue`)
+- Secret key: Bcrypt hashed and stored (`keyHash`)
+- Environment-based prefixes (test/live)
+
+**Usage Patterns:**
+
+1. **Public Key (pk_*):**
+   - Can be in request body or query params
+   - Used for tracking which partner created quotes
+   - Validates existence only
+   - Stored on quote records
+   - Applies partner discounts if valid
+   - Can be exposed in JavaScript, URLs, widgets
+
+2. **Secret Key (sk_*):**
+   - Must be in X-API-Key header
+   - Used for server-to-server authentication
+   - Bcrypt validation
+   - Required for high-risk operations
+   - Never exposed client-side
+
+**Middleware Architecture:**
+- `validatePublicKey()`: Validates public keys (optional)
+- `apiKeyAuth()`: Validates secret keys (optional, required for partnerId)
+- `enforcePartnerAuth()`: Ensures secret key matches partnerId
+- Both work together in quote flow
+
+**Quote Flow:**
+```typescript
+POST /v1/quotes
+{
+  "apiKey": "pk_live_abc123...",  // Public key for tracking
+  "partnerId": "PartnerName",     // Requires secret key in header
+  ...
+}
+Headers:
+  X-API-Key: sk_live_xyz789...    // Secret key for authentication
+```
+
+**Admin Endpoints:**
+```typescript
+POST /v1/admin/partners/:partnerName/api-keys
+Response: {
+  publicKey: { id, key: "pk_live_...", ... },
+  secretKey: { id, key: "sk_live_...", ... }  // Shown only once!
+}
+
+GET /v1/admin/partners/:partnerName/api-keys
+Response: {
+  apiKeys: [
+    { type: "public", key: "pk_live_...", ... },  // Full key shown
+    { type: "secret", keyPrefix: "sk_live_", ... }  // Only prefix shown
+  ]
+}
+```
+
+**Security Model:**
+- Public keys: Plaintext, indexed, can leak without security impact
+- Secret keys: Bcrypt hashed, never retrievable, validated with constant-time comparison
+- Both support expiration and soft deletion
+- Both track last_used_at
+
+**Migration Files:**
+- `017-create-api-keys-table.ts`: Main api_keys table with dual-key support
+- `018-add-api-key-to-quote-tickets.ts`: Adds tracking field to quotes
+
+### Benefits
+1. **Client-Side Safe:** Public keys can be used in JavaScript/URLs
+2. **Quote Tracking:** Every quote can be attributed to a partner
+3. **Widget Support:** Public keys enable iframe/widget integrations
+4. **Analytics:** Track which integrations generate most quotes
+5. **Security:** Secret keys protect high-value operations
+6. **Industry Standard:** Follows Stripe/PayPal pattern
+7. **Flexible:** Can use public key alone, or both together
+8. **Backward Compatible:** Existing flows still work
+
+### Use Cases
+**Public Key Only:**
+- Widget embeds
+- Client-side quote generation
+- Public integrations
+- Tracking and analytics
+
+**Secret Key Only:**
+- Server-to-server with partnerId
+- High-security operations
+- Backend integrations
+
+**Both Keys Together:**
+- Full partner integration
+- Quote tracking + authentication
+- Discount application with audit trail
+
+### Trade-offs
+- More complex to manage (2 keys instead of 1)
+- Public key exposure acceptable (by design)
+- Need to educate partners on proper usage
+- Both keys must be managed separately
+
+### Security Guarantees
+- Public key exposure: No security risk (expected behavior)
+- Secret key exposure: Complete security breach (must protect)
+- Secret keys never appear in logs, responses, or storage (except hash)
+- Public keys fully auditable and trackable

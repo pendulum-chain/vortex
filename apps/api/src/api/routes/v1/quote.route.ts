@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
+import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { validateCreateQuoteInput } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
@@ -19,9 +20,10 @@ const router: Router = Router({ mergeParams: true });
  * @apiParam  {String}  inputAmount    Input amount
  * @apiParam  {String}  inputCurrency  Input currency
  * @apiParam  {String}  outputCurrency Output currency
- * @apiParam  {String}  [partnerId]    Partner ID (requires authentication)
+ * @apiParam  {String}  [partnerId]    Partner ID (requires secret key authentication)
+ * @apiParam  {String}  [apiKey]       Public API key (pk_*) for tracking and discounts
  *
- * @apiHeader {String} [X-API-Key] API key for partner authentication (required if partnerId is provided)
+ * @apiHeader {String} [X-API-Key] Secret API key (sk_*) for partner authentication (required if partnerId is provided)
  *
  * @apiSuccess (Created 201) {String}  id             Quote ID
  * @apiSuccess (Created 201) {String}  rampType       Ramp type
@@ -40,8 +42,9 @@ const router: Router = Router({ mergeParams: true });
  */
 router.route("/").post(
   validateCreateQuoteInput,
-  apiKeyAuth({ required: false }), // Optional auth
-  enforcePartnerAuth(), // Enforce if partnerId present
+  validatePublicKey(), // Validate public key if provided (optional)
+  apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
+  enforcePartnerAuth(), // Enforce secret key auth if partnerId present
   createQuote
 );
 

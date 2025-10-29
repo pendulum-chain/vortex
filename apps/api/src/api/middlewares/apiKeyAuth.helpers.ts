@@ -20,6 +20,13 @@ export function isValidApiKeyFormat(key: string): boolean {
 }
 
 /**
+ * Validate secret key format specifically
+ */
+export function isValidSecretKeyFormat(key: string): boolean {
+  return /^sk_(live|test)_[a-zA-Z0-9]{32}$/.test(key);
+}
+
+/**
  * Detect if a key is public or secret based on prefix
  */
 export function getKeyType(key: string): "public" | "secret" | null {
