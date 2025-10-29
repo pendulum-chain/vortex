@@ -70,7 +70,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
 }
 
 export async function validatePresignedTxs(
-  quote: QuoteTicket,
+  direction: RampDirection,
   presignedTxs: PresignedTx[],
   ephemerals: { [key in EphemeralAccountType]: string }
 ): Promise<void> {
@@ -91,8 +91,7 @@ export async function validatePresignedTxs(
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
-    if (quote.rampType === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"))
-      continue; // Skip validation for this as it's from the user's wallet
+    if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
