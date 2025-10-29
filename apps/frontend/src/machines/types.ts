@@ -20,6 +20,7 @@ export interface RampContext {
   initializeFailedMessage: string | undefined;
   isQuoteExpired: boolean;
   paymentData?: PaymentData;
+  apiKey?: string;
   partnerId?: string;
   quote: QuoteResponse | undefined;
   quoteId: string | undefined;

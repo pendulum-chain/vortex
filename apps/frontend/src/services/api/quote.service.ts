@@ -27,6 +27,7 @@ export class QuoteService {
    * @param partnerId Optional partner ID for fee markup
    * @param paymentMethod Optional payment method
    * @param countryCode Optional country code
+   * @param apiKey Optional public API key for tracking and discounts
    * @returns The created quote
    */
   static async createQuote(
@@ -36,6 +37,7 @@ export class QuoteService {
     inputAmount: string,
     inputCurrency: OnChainToken | FiatToken,
     outputCurrency: OnChainToken | FiatToken,
+    apiKey?: string,
     partnerId?: string,
     paymentMethod?: PaymentMethod,
     countryCode?: string
@@ -61,6 +63,9 @@ export class QuoteService {
     // Only add partnerId if it's provided and not empty
     if (partnerId) {
       request.partnerId = partnerId;
+    }
+    if (apiKey) {
+      request.apiKey = apiKey;
     }
 
     return apiRequest<QuoteResponse>("post", this.BASE_PATH, request);

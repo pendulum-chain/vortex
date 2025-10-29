@@ -3,7 +3,7 @@ import Big from "big.js";
 import { useCallback } from "react";
 import { useNetwork } from "../../../contexts/network";
 import { useRampActor } from "../../../contexts/rampState";
-import { usePartnerId } from "../../../stores/partnerStore";
+import { useApiKey, usePartnerId } from "../../../stores/partnerStore";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote, useQuoteStore } from "../../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
@@ -22,6 +22,7 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
   const fiatToken = useFiatToken();
   const { selectedNetwork } = useNetwork();
   const rampType = useRampDirection();
+  const apiKey = useApiKey();
   const partnerId = usePartnerId();
   const {
     actions: { fetchQuote }
@@ -40,6 +41,7 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
 
     try {
       await fetchQuote({
+        apiKey: apiKey === null ? undefined : apiKey,
         fiatToken,
         inputAmount: Big(inputAmount),
         onChainToken,
@@ -50,7 +52,7 @@ export const useQuoteRefreshData = (): UseQuoteRefreshDataReturn => {
     } catch (error) {
       console.error("Failed to refresh quote:", error);
     }
-  }, [hasValidQuote, inputAmount, onChainToken, fiatToken, selectedNetwork, rampType, partnerId, fetchQuote]);
+  }, [apiKey, hasValidQuote, inputAmount, onChainToken, fiatToken, selectedNetwork, rampType, partnerId, fetchQuote]);
 
   return {
     hasValidQuote,

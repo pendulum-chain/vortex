@@ -20,6 +20,7 @@ const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
 const initialRampContext: RampContext = {
+  apiKey: undefined,
   authToken: undefined,
   callbackUrl: undefined,
   chainId: undefined,
@@ -45,6 +46,7 @@ const initialRampContext: RampContext = {
 
 const refetchQuote = async (
   quote: QuoteResponse,
+  apiKey: string | undefined,
   partnerId: string | undefined,
   sendBack: (event: RampMachineEvents) => void
 ) => {
@@ -61,6 +63,7 @@ const refetchQuote = async (
         quote.inputAmount,
         quote.inputCurrency,
         quote.outputCurrency,
+        apiKey,
         partnerId
       );
       sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
@@ -102,7 +105,7 @@ export type RampMachineEvents =
   | { type: "PROCEED_TO_REGISTRATION" }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
+  | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
   | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
@@ -112,12 +115,12 @@ export type RampMachineEvents =
 export const rampMachine = setup({
   actions: {
     refreshQuoteActionWithDelay: async ({ context, self }) => {
-      const { quote, quoteLocked, partnerId } = context;
+      const { quote, quoteLocked, apiKey, partnerId } = context;
       if (quoteLocked || !quote) {
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 30000));
-      await refetchQuote(quote, partnerId, event => self.send(event));
+      await refetchQuote(quote, apiKey, partnerId, event => self.send(event));
     },
     reloadKeepingParams: () => {
       window.location.reload();
@@ -150,13 +153,13 @@ export const rampMachine = setup({
     }),
     moneriumKyc: moneriumKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
-      const { quote, quoteLocked, partnerId } = input.context;
+      const { quote, quoteLocked, apiKey, partnerId } = input.context;
       // Quote will exist at this stage, but to be type safe we check again.
       if (quoteLocked || !quote) {
         return;
       }
 
-      const doRefetch = () => refetchQuote(quote, partnerId, sendBack);
+      const doRefetch = () => refetchQuote(quote, apiKey, partnerId, sendBack);
 
       doRefetch();
       const timer = setInterval(doRefetch, 5000);
@@ -295,6 +298,7 @@ export const rampMachine = setup({
         },
         SET_QUOTE_PARAMS: {
           actions: assign({
+            apiKey: ({ event }) => event.apiKey,
             callbackUrl: ({ event }) => event.callbackUrl,
             partnerId: ({ event }) => event.partnerId,
             walletLocked: ({ event }) => event.walletLocked

@@ -3,7 +3,7 @@ import Big from "big.js";
 import { useCallback, useEffect } from "react";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
-import { usePartnerId } from "../../stores/partnerStore";
+import { useApiKey, usePartnerId } from "../../stores/partnerStore";
 import { useQuoteConstraintsValid } from "../../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -18,6 +18,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const { selectedNetwork } = useNetwork();
   const rampType = useRampDirection();
   const partnerId = usePartnerId();
+  const apiKey = useApiKey();
   const quoteConstraintsValid = useQuoteConstraintsValid();
 
   const {
@@ -29,13 +30,15 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
     // Wait for constraints to be valid before fetching
     if (!quoteConstraintsValid || !inputAmount) return;
 
-    if (partnerId === undefined) {
+    console.log("Get quotes", partnerId, apiKey);
+    if (partnerId === undefined || apiKey === undefined) {
       // If partnerId is undefined, it's not set yet, so we don't fetch a quote
       return;
     }
 
     try {
       await fetchQuote({
+        apiKey: apiKey === null ? undefined : apiKey, // Handle null case
         fiatToken,
         inputAmount: Big(inputAmount),
         onChainToken,
@@ -50,6 +53,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
       });
     }
   }, [
+    apiKey,
     quoteConstraintsValid,
     inputAmount,
     fetchQuote,
