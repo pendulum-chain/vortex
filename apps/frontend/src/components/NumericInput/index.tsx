@@ -50,7 +50,6 @@ export const NumericInput = ({
       }
     }
     prevMaxDecimals.current = maxDecimals;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxDecimals, inputValue, setValue, fieldName, register]);
 
   return (
