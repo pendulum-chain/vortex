@@ -56,7 +56,6 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
 
       // TODO edge case, if the Stellar actor is closed before this interval is returned, then nothing stops this interval on exit.
       await fetchAndUpdateSep24Url();
-      console.log("setting interval");
       intervalId = setInterval(fetchAndUpdateSep24Url, 20000);
       sendBack({ intervalId, type: "INTERVAL_STARTED" });
     } catch (error) {

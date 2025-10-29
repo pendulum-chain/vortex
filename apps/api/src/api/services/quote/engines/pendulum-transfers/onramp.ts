@@ -64,18 +64,20 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
       }
     };
 
-    let outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+    let outputAmountDecimal = inputAmountDecimal;
     if (req.to === Networks.AssetHub) {
       // Only the Hydration and Assethub transfer needs to deduct the fees like this.
       // For Moonbeam, the fee is either paid in GLMR
       outputAmountDecimal = await this.adjustFeesForAssetHub(ctx, outputAmountDecimal, xcmFees);
     }
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toString();
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const xcmMeta: XcmMeta = {
       fromToken: nablaSwap.outputCurrency,
-      inputAmountDecimal: nablaSwap.outputAmountDecimal,
-      inputAmountRaw: nablaSwap.outputAmountRaw,
+      inputAmountDecimal,
+      inputAmountRaw,
       outputAmountDecimal,
       outputAmountRaw,
       toToken: nablaSwap.outputCurrency,

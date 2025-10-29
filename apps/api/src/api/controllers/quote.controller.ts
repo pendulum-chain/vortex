@@ -25,7 +25,7 @@ export const createQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey } = req.body;
 
     const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
@@ -36,14 +36,20 @@ export const createQuote = async (
       });
     }
 
-    // Create quote
+    // Get apiKey from body or from validated public key middleware
+    const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
+    const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+
+    // Create quote with public key and partner name for discount application
     const quote = await quoteService.createQuote({
+      apiKey: publicApiKey,
       from,
       inputAmount,
       inputCurrency,
       network,
       outputCurrency,
       partnerId,
+      partnerName: publicKeyPartnerName,
       rampType,
       to
     });

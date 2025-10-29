@@ -15,6 +15,7 @@ export interface QuoteTicketAttributes {
   outputCurrency: RampCurrency;
   fee: QuoteFeeStructure;
   partnerId: string | null;
+  apiKey: string | null;
   expiresAt: Date;
   status: "pending" | "consumed" | "expired";
   metadata: QuoteTicketMetadata;
@@ -50,6 +51,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare partnerId: string | null;
 
+  declare apiKey: string | null;
+
   declare expiresAt: Date;
 
   declare status: "pending" | "consumed" | "expired";
@@ -70,6 +73,11 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 // Initialize the model
 QuoteTicket.init(
   {
+    apiKey: {
+      allowNull: true,
+      field: "api_key",
+      type: DataTypes.STRING(255)
+    },
     countryCode: {
       allowNull: true,
       field: "country_code",

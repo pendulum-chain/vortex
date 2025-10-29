@@ -5,8 +5,9 @@
 1. **Database Integration**
 
    - ✅ PostgreSQL connection configuration
-   - ✅ Database models (QuoteTicket, RampState, IdempotencyKey)
+   - ✅ Database models (QuoteTicket, RampState, IdempotencyKey, Partner, ApiKey)
    - ✅ Database migrations
+   - ✅ Model associations (Partner ↔ ApiKey)
 
 2. **API Endpoints**
 
@@ -14,6 +15,7 @@
    - ✅ Ramping process initiation
    - ✅ Status polling
    - ✅ Phase and state updates
+   - ✅ Admin API key management endpoints
 
 3. **Service Layer**
 
@@ -25,6 +27,16 @@
 4. **Background Processing**
    - ✅ Cleanup worker for expired quotes
    - ✅ Cleanup worker for expired idempotency keys
+
+5. **Authentication & Security**
+   - ✅ API key authentication system
+   - ✅ Partner discount protection
+   - ✅ Bcrypt-based key hashing
+   - ✅ Optional authentication middleware
+   - ✅ Partner-payload validation
+   - ✅ Backward compatibility maintained
+   - ✅ Admin endpoint protection (Bearer token)
+   - ✅ Constant-time comparison for security
 
 ## What's Left to Build
 
@@ -73,8 +85,8 @@
    - We may need to add indexes for frequently accessed fields
 
 5. **Security**
-   - We need to add rate limiting for the API endpoints
-   - The authentication and authorization mechanisms need to be implemented
+   - ✅ API key authentication implemented for partner discounts
+   - ❌ Rate limiting for API endpoints still needed
 
 
 ## Frontend Progress (Vortex - Based on Codebase Analysis)
@@ -105,3 +117,52 @@
 - ⏳ Potential refinement of state management interactions between Zustand and Context
 
 [2025-04-04 16:49:09] - Added frontend progress summary based on codebase analysis.
+
+[2025-10-29 09:03:00] - Implemented API key authentication system (Phases 1-4):
+  - Created api_keys database table and migration
+  - Implemented ApiKey model with Partner associations
+  - Built authentication middleware (apiKeyAuth, enforcePartnerAuth)
+  - Created admin endpoints for API key management
+  - Integrated authentication into quote routes
+  - Added bcrypt dependency for secure key hashing
+  - System maintains backward compatibility while securing partner discounts
+
+[2025-10-29 09:17:00] - Enhanced API key system with environment-based prefixes:
+  - Added admin authentication with Bearer token (ADMIN_SECRET)
+  - Implemented constant-time comparison for security
+  - Added environment-based key generation (test vs live prefixes)
+  - Keys automatically use 'vrtx_test_' prefix in sandbox (SANDBOX_ENABLED=true)
+  - Keys automatically use 'vrtx_live_' prefix in production (SANDBOX_ENABLED=false)
+  - Updated .env.example with documentation
+
+[2025-10-29 09:50:00] - Changed API key association from partner ID to partner name:
+  - Modified database schema: partner_id (UUID) → partner_name (VARCHAR)
+  - Removed foreign key constraint (now manual lookup)
+  - Updated ApiKey model to use partnerName field
+  - Changed admin routes from :partnerId to :partnerName
+  - Modified controllers to find all partners by name
+  - Updated authentication helper to lookup partners by name
+  - Single API key now works for all partner records with same name (BUY & SELL)
+  - Response includes partnerCount showing affected records
+  - Simplified key management for multi-configuration partners
+
+[2025-10-29 10:08:00] - Fixed middleware to validate partner names instead of IDs:
+  - Updated apiKeyAuth middleware to lookup partner by ID and compare names
+  - Updated enforcePartnerAuth middleware to use name comparison
+  - Both middlewares now async to perform partner lookup
+  - Validation: partnerId (UUID) → lookup Partner → compare name with API key's partner name
+  - Error messages now show partner names instead of IDs for clarity
+  - Added PARTNER_NOT_FOUND error when partnerId doesn't exist
+
+[2025-10-29 16:12:00] - Implemented dual-key architecture (public/secret keys):
+  - Refactored from single vrtx_* keys to dual pk_*/sk_* system
+  - Public keys (pk_live_*, pk_test_*): Plaintext storage, client-side safe, tracking only
+  - Secret keys (sk_live_*, sk_test_*): Bcrypt hashed, server-only, authentication
+  - Updated database schema with key_type, key_value fields
+  - Added api_key field to quote_tickets for tracking
+  - Admin creates both keys as a pair
+  - Public key middleware validates existence and stores on quotes
+  - Secret key middleware authenticates and applies discounts
+  - Supports flexible usage: public only, secret only, or both together
+  - Enables widget/iframe integrations with public keys
+  - Maintains security for partner discounts with secret keys
