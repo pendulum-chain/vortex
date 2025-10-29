@@ -10,6 +10,7 @@ interface QuoteParams {
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
+  apiKey?: string;
   partnerId?: string;
 }
 
@@ -139,7 +140,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
       ...DEFAULT_QUOTE_STORE_VALUES,
       actions: {
         fetchQuote: async (params: QuoteParams) => {
-          const { inputAmount, partnerId } = params;
+          const { inputAmount, partnerId, apiKey } = params;
 
           if (!inputAmount || inputAmount.eq(0)) {
             set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
@@ -158,6 +159,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
               quotePayload.inputAmount,
               quotePayload.inputCurrency,
               quotePayload.outputCurrency,
+              apiKey,
               partnerId
             );
 

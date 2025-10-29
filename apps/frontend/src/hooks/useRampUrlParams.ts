@@ -16,7 +16,7 @@ import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { QuoteService } from "../services/api";
-import { useSetPartnerId } from "../stores/partnerStore";
+import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
@@ -25,6 +25,7 @@ interface RampUrlParams {
   rampDirection: RampDirection;
   network?: Networks;
   inputAmount?: string;
+  apiKey?: string;
   partnerId?: string;
   providedQuoteId?: string;
   moneriumCode?: string;
@@ -109,7 +110,6 @@ interface QuoteParams {
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
-  partnerId?: string;
 }
 
 interface QuotePayload {
@@ -158,6 +158,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const networkParam = params.get("network")?.toLowerCase();
     const inputAmountParam = params.get("inputAmount");
     const partnerIdParam = params.get("partnerId");
+    const apiKeyParam = params.get("apiKey");
     const moneriumCode = params.get("code")?.toLowerCase();
     const providedQuoteId = params.get("quoteId")?.toLowerCase();
     const fiatParam = params.get("fiat")?.toUpperCase();
@@ -178,6 +179,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork);
 
     return {
+      apiKey: apiKeyParam || undefined,
       callbackUrl: callbackUrlParam || undefined,
       countryCode: countryCodeParam || undefined,
       cryptoLocked,
@@ -201,6 +203,7 @@ export const useSetRampUrlParams = () => {
   const {
     rampDirection,
     inputAmount,
+    apiKey,
     partnerId,
     providedQuoteId,
     network,
@@ -215,6 +218,8 @@ export const useSetRampUrlParams = () => {
 
   const onToggle = useRampDirectionToggle();
   const setPartnerIdFn = useSetPartnerId();
+  const setApiKeyFn = useSetApiKey();
+
   const {
     actions: { forceSetQuote }
   } = useQuoteStore();
@@ -248,19 +253,17 @@ export const useSetRampUrlParams = () => {
       const quote = rampActor.getSnapshot()?.context.quote;
 
       if (externalSessionId) {
-        console.log("setting external session id2", externalSessionId);
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }
 
       if (quote?.id !== providedQuoteId) {
-        rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+        rampActor.send({ apiKey, callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
         rampActor.send({ lock: true, quoteId: providedQuoteId, type: "SET_QUOTE" });
       }
     } else {
       // We set these parameters even if the quote fetch fails. Useful for error handling.
-      rampActor.send({ callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
+      rampActor.send({ apiKey, callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
       if (externalSessionId) {
-        console.log("setting external session id1", externalSessionId);
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }
 
@@ -269,7 +272,6 @@ export const useSetRampUrlParams = () => {
           fiatToken: fiat,
           inputAmount: new Big(inputAmount),
           onChainToken: cryptoLocked,
-          partnerId,
           rampType: rampDirection,
           selectedNetwork: network
         };
@@ -282,6 +284,7 @@ export const useSetRampUrlParams = () => {
           quotePayload.inputAmount,
           quotePayload.inputCurrency,
           quotePayload.outputCurrency,
+          apiKey,
           partnerId,
           paymentMethod,
           countryCode
@@ -303,6 +306,12 @@ export const useSetRampUrlParams = () => {
       setPartnerIdFn(partnerId);
     } else {
       setPartnerIdFn(null);
+    }
+
+    if (apiKey) {
+      setApiKeyFn(apiKey);
+    } else {
+      setApiKeyFn(null);
     }
 
     onToggle(rampDirection);
@@ -335,6 +344,12 @@ export const useSetRampUrlParams = () => {
       setPartnerIdFn(null);
     }
 
+    if (apiKey) {
+      setApiKeyFn(apiKey);
+    } else {
+      setApiKeyFn(null);
+    }
+
     const params = new URLSearchParams(window.location.search);
     const persistState = params.get("code") !== null;
 
@@ -361,6 +376,7 @@ export const useSetRampUrlParams = () => {
 
     hasInitialized.current = true;
   }, [
+    apiKey,
     cryptoLocked,
     fiat,
     inputAmount,
@@ -369,6 +385,7 @@ export const useSetRampUrlParams = () => {
     resetRampForm,
     setInputAmount,
     setOnChainToken,
+    setApiKeyFn,
     setPartnerIdFn,
     onToggle,
     handleFiatToken
