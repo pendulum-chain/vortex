@@ -134,3 +134,14 @@
   - Keys automatically use 'vrtx_test_' prefix in sandbox (SANDBOX_ENABLED=true)
   - Keys automatically use 'vrtx_live_' prefix in production (SANDBOX_ENABLED=false)
   - Updated .env.example with documentation
+
+[2025-10-29 09:50:00] - Changed API key association from partner ID to partner name:
+  - Modified database schema: partner_id (UUID) → partner_name (VARCHAR)
+  - Removed foreign key constraint (now manual lookup)
+  - Updated ApiKey model to use partnerName field
+  - Changed admin routes from :partnerId to :partnerName
+  - Modified controllers to find all partners by name
+  - Updated authentication helper to lookup partners by name
+  - Single API key now works for all partner records with same name (BUY & SELL)
+  - Response includes partnerCount showing affected records
+  - Simplified key management for multi-configuration partners

@@ -281,3 +281,106 @@ const apiKey = generateApiKey(environment);
 - Same security measures apply to both prefixes
 - Validation accepts both formats in any environment
 - Prevents test keys from being used in production workflows (if additional validation is added later)
+
+## 2025-10-29: Partner Name-Based API Key Association
+
+### Decision
+Changed API key association from partner ID (one-to-one) to partner name (one-to-many). API keys are now created and validated based on the partner's `name` field, allowing a single key to work for all partner records with the same name (e.g., both BUY and SELL configurations).
+
+### Rationale
+Partners can have multiple records in the database - one for each ramp type (BUY/SELL). Previously, each record would need its own API key, which was cumbersome. By associating keys with the partner name instead of the specific record ID, a single API key works across all configurations for that partner.
+
+### Implementation Details
+
+**Database Schema Changes:**
+- **Old:** `partner_id UUID` with foreign key to `partners(id)`
+- **New:** `partner_name VARCHAR(100)` with no foreign key
+
+**Migration:** `017-create-api-keys-table.ts`
+- Removed `partnerId` field and foreign key constraint
+- Added `partnerName` field (VARCHAR 100)
+- Changed index from `idx_api_keys_partner_id` to `idx_api_keys_partner_name`
+
+**Model Changes:** `apps/api/src/models/apiKey.model.ts`
+- Changed `partnerId: string` to `partnerName: string`
+- Removed Partner association (no foreign key)
+- Added comment about manual matching
+
+**Model Associations:** `apps/api/src/models/index.ts`
+- Removed `Partner.hasMany(ApiKey)` and `ApiKey.belongsTo(Partner)`
+- Added comment about manual matching via `partnerName`
+
+**Controller Changes:** `apps/api/src/api/controllers/admin/partnerApiKeys.controller.ts`
+- Routes now use `:partnerName` instead of `:partnerId`
+- `createApiKey()`: Finds all partners with the given name, creates single key
+- `listApiKeys()`: Returns keys for a partner name
+- `revokeApiKey()`: Revokes key by name and ID
+- Response includes `partnerCount` showing how many records share the key
+
+**Authentication Helper:** `apps/api/src/api/middlewares/apiKeyAuth.helpers.ts`
+- `validateApiKey()` now:
+  1. Finds ApiKey by prefix
+  2. Validates bcrypt hash
+  3. Looks up Partner by `partnerName` field
+  4. Returns first active partner found (any with that name)
+
+**Route Changes:**
+- Admin endpoints: `/v1/admin/partners/:partnerName/api-keys` (was `:partnerId`)
+- Documentation updated to clarify name-based behavior
+
+### Example Scenario
+
+**Before (Partner ID-based):**
+```
+Partners Table:
+- ID: uuid-1, name: "TestPartner", rampType: "BUY"
+- ID: uuid-2, name: "TestPartner", rampType: "SELL"
+
+API Keys Needed: 2 (one for each ID)
+```
+
+**After (Partner Name-based):**
+```
+Partners Table:
+- ID: uuid-1, name: "TestPartner", rampType: "BUY"
+- ID: uuid-2, name: "TestPartner", rampType: "SELL"
+
+API Keys Needed: 1 (works for both records)
+```
+
+### API Usage
+
+**Create Key:**
+```bash
+POST /v1/admin/partners/TestPartner/api-keys
+# Creates one key that works for all "TestPartner" records
+```
+
+**Use Key:**
+```bash
+POST /v1/quotes
+X-API-Key: vrtx_live_abc123...
+{
+  "partnerId": "uuid-1",  # Can be either BUY or SELL record
+  ...
+}
+# System validates key matches partner name, not specific ID
+```
+
+### Benefits
+- Simpler key management for partners with multiple configurations
+- Single key for both BUY and SELL flows
+- Cleaner admin interface (use names instead of UUIDs)
+- Reduces number of keys needed
+- More intuitive for partners
+
+### Trade-offs
+- No database-level referential integrity (no foreign key)
+- Manual lookup required to find partners by name
+- Slightly more complex validation logic
+- Partner name changes would break API key association
+
+### Migration Considerations
+- Existing systems must regenerate API keys after migration
+- Keys created before this change will not work
+- Partner names must remain stable (don't change names)
