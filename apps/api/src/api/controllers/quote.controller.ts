@@ -52,7 +52,7 @@ export const createQuote = async (
       partnerName: publicKeyPartnerName,
       rampType,
       to
-    } as any); // Type assertion needed due to extended params
+    });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
     if (rampType === RampDirection.BUY && to === Networks.AssetHub) {

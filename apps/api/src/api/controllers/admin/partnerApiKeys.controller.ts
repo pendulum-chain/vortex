@@ -65,7 +65,7 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
       expiresAt: expirationDate,
       isActive: true,
       keyHash: secretKeyHash, // Don't store plaintext for secret keys
-      keyPrefix: secretKeyPrefix, // Store hash for secret keys
+      keyPrefix: secretKeyPrefix,
       keyType: "secret",
       keyValue: null,
       name: name ? `${name} (Secret)` : "Secret Key",
