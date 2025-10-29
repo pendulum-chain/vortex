@@ -5,8 +5,9 @@
 1. **Database Integration**
 
    - ✅ PostgreSQL connection configuration
-   - ✅ Database models (QuoteTicket, RampState, IdempotencyKey)
+   - ✅ Database models (QuoteTicket, RampState, IdempotencyKey, Partner, ApiKey)
    - ✅ Database migrations
+   - ✅ Model associations (Partner ↔ ApiKey)
 
 2. **API Endpoints**
 
@@ -14,6 +15,7 @@
    - ✅ Ramping process initiation
    - ✅ Status polling
    - ✅ Phase and state updates
+   - ✅ Admin API key management endpoints
 
 3. **Service Layer**
 
@@ -25,6 +27,16 @@
 4. **Background Processing**
    - ✅ Cleanup worker for expired quotes
    - ✅ Cleanup worker for expired idempotency keys
+
+5. **Authentication & Security**
+   - ✅ API key authentication system
+   - ✅ Partner discount protection
+   - ✅ Bcrypt-based key hashing
+   - ✅ Optional authentication middleware
+   - ✅ Partner-payload validation
+   - ✅ Backward compatibility maintained
+   - ✅ Admin endpoint protection (Bearer token)
+   - ✅ Constant-time comparison for security
 
 ## What's Left to Build
 
@@ -73,8 +85,8 @@
    - We may need to add indexes for frequently accessed fields
 
 5. **Security**
-   - We need to add rate limiting for the API endpoints
-   - The authentication and authorization mechanisms need to be implemented
+   - ✅ API key authentication implemented for partner discounts
+   - ❌ Rate limiting for API endpoints still needed
 
 
 ## Frontend Progress (Vortex - Based on Codebase Analysis)
@@ -105,3 +117,20 @@
 - ⏳ Potential refinement of state management interactions between Zustand and Context
 
 [2025-04-04 16:49:09] - Added frontend progress summary based on codebase analysis.
+
+[2025-10-29 09:03:00] - Implemented API key authentication system (Phases 1-4):
+  - Created api_keys database table and migration
+  - Implemented ApiKey model with Partner associations
+  - Built authentication middleware (apiKeyAuth, enforcePartnerAuth)
+  - Created admin endpoints for API key management
+  - Integrated authentication into quote routes
+  - Added bcrypt dependency for secure key hashing
+  - System maintains backward compatibility while securing partner discounts
+
+[2025-10-29 09:17:00] - Enhanced API key system with environment-based prefixes:
+  - Added admin authentication with Bearer token (ADMIN_SECRET)
+  - Implemented constant-time comparison for security
+  - Added environment-based key generation (test vs live prefixes)
+  - Keys automatically use 'vrtx_test_' prefix in sandbox (SANDBOX_ENABLED=true)
+  - Keys automatically use 'vrtx_live_' prefix in production (SANDBOX_ENABLED=false)
+  - Updated .env.example with documentation

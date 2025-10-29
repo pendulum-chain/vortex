@@ -92,3 +92,192 @@ To provide a mechanism for informing users when the application is undergoing sc
 - **Database Table:** `maintenance_schedules` as defined in `docs/architecture/maintenance-feature-design.md`.
 - **API Endpoint:** `GET /api/v1/maintenance/status` as defined in `docs/architecture/maintenance-feature-design.md`.
 - Administrator interaction will be handled via direct database manipulation, as per user confirmation.
+
+## 2025-10-29: API Key Authentication System Implementation
+
+### Decision
+Implemented a comprehensive API key authentication system for partner discount protection. The system uses bcrypt-hashed API keys stored in a new `api_keys` table, with optional middleware-based authentication and strict partner-payload validation.
+
+### Rationale
+Previously, anyone could use any `partnerId` in quote requests without authentication, creating a security vulnerability where unauthorized parties could claim partner discounts. The API key system ensures only authenticated partners can access their discounts while maintaining backward compatibility for non-partner requests.
+
+### Implementation Details
+
+**Phase 1 - Foundation:**
+- Created `api_keys` table with migration `017-create-api-keys-table.ts`
+- Fields: `id`, `partner_id`, `key_hash`, `key_prefix`, `name`, `last_used_at`, `expires_at`, `is_active`
+- Indexes on `partner_id`, `key_prefix`, `is_active`, and composite `(is_active, key_prefix)`
+- Created `ApiKey` model with Sequelize ORM
+- Established Partner ↔ ApiKey associations (one-to-many)
+- Added `bcrypt` and `@types/bcrypt` dependencies
+
+**Phase 2 - Authentication Layer:**
+- Implemented `apiKeyAuth.helpers.ts` with core functions:
+  - `generateApiKey()`: Creates keys in format `vrtx_(live|test)_[32_chars]`
+  - `hashApiKey()`: Bcrypt hashing with 10 salt rounds
+  - `validateApiKey()`: Prefix-based lookup + bcrypt comparison
+  - `isValidApiKeyFormat()`: Regex validation
+  - `getKeyPrefix()`: Extracts first 8 characters for display/lookup
+- Implemented `apiKeyAuth.ts` middleware:
+  - `apiKeyAuth({ required, validatePartnerMatch })`: Main auth middleware
+  - `enforcePartnerAuth()`: Validates partnerId match when present in payload
+- Extended Express Request type with `authenticatedPartner` property
+
+**Phase 3 - Admin Interface:**
+- Created admin controller `admin/partnerApiKeys.controller.ts`:
+  - `createApiKey()`: Generate and return new API key (shown only once)
+  - `listApiKeys()`: List all keys for a partner (without raw keys)
+  - `revokeApiKey()`: Soft delete by setting `isActive = false`
+- Created admin routes `admin/partner-api-keys.route.ts`:
+  - `POST /v1/admin/partners/:partnerId/api-keys`
+  - `GET /v1/admin/partners/:partnerId/api-keys`
+  - `DELETE /v1/admin/partners/:partnerId/api-keys/:keyId`
+- Registered routes in main v1 router
+
+**Phase 4 - Quote Integration:**
+- Updated quote routes to include authentication middleware:
+  - `apiKeyAuth({ required: false })`: Optional authentication
+  - `enforcePartnerAuth()`: Required when `partnerId` in payload
+- Authentication flow:
+  - No API key + no partnerId → Continues normally (backward compatible)
+  - No API key + partnerId → 403 Forbidden (auth required)
+  - Valid API key + matching partnerId → Success with discount
+  - Valid API key + mismatched partnerId → 403 Forbidden (partner mismatch)
+
+### Security Features
+- Bcrypt hashing (10 rounds) for API key storage
+- Never store or retrieve raw API keys (shown once on creation)
+- Prefix-based indexing reduces bcrypt operations
+- Automatic `last_used_at` tracking
+- Optional expiration dates
+- Soft deletion (preserves audit trail)
+- Constant-time comparison via bcrypt
+- Environment separation (live/test keys)
+
+### Key Format
+- Pattern: `vrtx_(live|test)_[32_alphanumeric_chars]`
+- Example: `vrtx_live_a7f3b2c9d1e4f5g6h7i8j9k0l1m2n3o4`
+- 32 characters provide ~191 bits of entropy
+
+### Authentication Header
+- Uses `X-API-Key` header (not `Authorization`)
+- Clearly distinguishes from future OAuth/JWT tokens
+
+### Backward Compatibility
+- All existing quote endpoints work without API keys
+- Authentication only required when `partnerId` is specified
+- No breaking changes to existing API consumers
+
+### Error Responses
+- `401 INVALID_API_KEY`: Invalid/expired/missing required key
+- `403 AUTHENTICATION_REQUIRED`: partnerId without authentication
+- `403 PARTNER_MISMATCH`: Authenticated partner ≠ payload partnerId
+
+### Benefits
+- Secures partner discount system
+- Prevents unauthorized use of partner IDs
+- Maintains backward compatibility
+- Supports multiple keys per partner (rotation)
+- Comprehensive audit trail
+- Scalable architecture for future enhancements
+
+## 2025-10-29: Admin Endpoint Protection
+
+### Decision
+Implemented Bearer token authentication for admin endpoints using an environment-based secret. The system uses constant-time comparison to prevent timing attacks and provides clear error messages for authentication failures.
+
+### Rationale
+Admin endpoints for API key management need protection to prevent unauthorized access. Using a simple Bearer token approach with an environment variable provides a secure, easy-to-manage solution suitable for internal team use.
+
+### Implementation Details
+
+**Files Created:**
+- `apps/api/src/api/middlewares/adminAuth.ts` - Admin authentication middleware
+
+**Files Modified:**
+- `apps/api/src/config/vars.ts` - Added `adminSecret` configuration
+- `apps/api/src/api/routes/v1/admin/partner-api-keys.route.ts` - Applied `adminAuth` middleware
+- `apps/api/.env.example` - Documented `ADMIN_SECRET` environment variable
+
+**Authentication Flow:**
+1. Client sends request with `Authorization: Bearer <ADMIN_SECRET>` header
+2. Middleware extracts and validates Bearer token format
+3. Performs constant-time comparison against configured secret
+4. Returns 401/403 on failure, proceeds on success
+
+**Security Features:**
+- Constant-time string comparison prevents timing attacks
+- Clear separation between missing auth (401) and invalid token (403)
+- Environment-based secret configuration
+- No hardcoded credentials
+- Detailed error messages for debugging
+
+**Error Responses:**
+- `401 ADMIN_AUTH_REQUIRED`: No Authorization header provided
+- `401 INVALID_AUTH_FORMAT`: Malformed Authorization header
+- `403 INVALID_ADMIN_TOKEN`: Token doesn't match configured secret
+- `500 ADMIN_AUTH_NOT_CONFIGURED`: ADMIN_SECRET not set in environment
+
+**Usage:**
+```bash
+# Generate a secure secret
+openssl rand -base64 32
+
+# Set in environment
+export ADMIN_SECRET="your-generated-secret"
+
+# Use in API calls
+curl -H "Authorization: Bearer your-generated-secret" \
+  https://api.example.com/v1/admin/partners/:partnerId/api-keys
+```
+
+### Benefits
+- Protects sensitive admin operations
+- Simple to configure and use
+- Suitable for internal team access
+- No additional authentication infrastructure needed
+- Constant-time comparison enhances security
+- Clear error messages aid debugging
+
+## 2025-10-29: Environment-Based API Key Prefixes
+
+### Decision
+Updated API key generation to automatically use environment-appropriate prefixes based on the `SANDBOX_ENABLED` environment variable. Sandbox environments generate `vrtx_test_*` keys while production generates `vrtx_live_*` keys.
+
+### Rationale
+Distinguishing between sandbox and production API keys prevents accidental use of test keys in production and vice versa. The prefix provides immediate visual identification of the key's intended environment.
+
+### Implementation Details
+
+**Files Modified:**
+- `apps/api/src/api/controllers/admin/partnerApiKeys.controller.ts` - Added environment detection
+- `apps/api/.env.example` - Documented `SANDBOX_ENABLED` variable
+
+**Key Generation Logic:**
+```typescript
+const environment = SANDBOX_ENABLED === "true" ? "test" : "live";
+const apiKey = generateApiKey(environment);
+```
+
+**Key Formats:**
+- **Production:** `vrtx_live_[32_random_chars]`
+  - Example: `vrtx_live_a7f3b2c9d1e4f5g6h7i8j9k0l1m2n3o4`
+- **Sandbox:** `vrtx_test_[32_random_chars]`
+  - Example: `vrtx_test_a7f3b2c9d1e4f5g6h7i8j9k0l1m2n3o4`
+
+**Environment Configuration:**
+- `SANDBOX_ENABLED="true"` → Generates test keys
+- `SANDBOX_ENABLED="false"` or unset → Generates live keys
+
+### Benefits
+- Clear visual distinction between environments
+- Prevents accidental cross-environment key usage
+- Aligns with existing sandbox configuration pattern
+- No code changes needed to switch environments
+- Follows industry best practices (e.g., Stripe's key format)
+
+### Security Implications
+- Both key types are validated identically
+- Same security measures apply to both prefixes
+- Validation accepts both formats in any environment
+- Prevents test keys from being used in production workflows (if additional validation is added later)
