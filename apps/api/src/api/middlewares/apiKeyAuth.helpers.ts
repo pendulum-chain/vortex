@@ -46,12 +46,12 @@ export async function hashApiKey(key: string): Promise<string> {
 }
 
 /**
- * Get key prefix (first 8 characters) for display and lookup
+ * Get key prefix (first 9 characters) for display and lookup
  * @param key - The API key
- * @returns First 8 characters of the key
+ * @returns First 9 characters of the key
  */
 export function getKeyPrefix(key: string): string {
-  return key.substring(0, 8);
+  return key.substring(0, 9);
 }
 
 /**
