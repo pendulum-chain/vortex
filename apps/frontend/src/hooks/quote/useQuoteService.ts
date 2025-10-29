@@ -30,7 +30,6 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
     // Wait for constraints to be valid before fetching
     if (!quoteConstraintsValid || !inputAmount) return;
 
-    console.log("Get quotes", partnerId, apiKey);
     if (partnerId === undefined || apiKey === undefined) {
       // If partnerId is undefined, it's not set yet, so we don't fetch a quote
       return;

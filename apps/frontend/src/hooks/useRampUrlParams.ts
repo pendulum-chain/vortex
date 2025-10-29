@@ -253,7 +253,6 @@ export const useSetRampUrlParams = () => {
       const quote = rampActor.getSnapshot()?.context.quote;
 
       if (externalSessionId) {
-        console.log("setting external session id2", externalSessionId);
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }
 
@@ -265,7 +264,6 @@ export const useSetRampUrlParams = () => {
       // We set these parameters even if the quote fetch fails. Useful for error handling.
       rampActor.send({ apiKey, callbackUrl, partnerId, type: "SET_QUOTE_PARAMS", walletLocked });
       if (externalSessionId) {
-        console.log("setting external session id1", externalSessionId);
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }
 
@@ -305,18 +303,14 @@ export const useSetRampUrlParams = () => {
     }
 
     if (partnerId) {
-      console.log("Setting partner id from url params:", partnerId);
       setPartnerIdFn(partnerId);
     } else {
-      console.log("Clearing partner id from url params");
       setPartnerIdFn(null);
     }
 
     if (apiKey) {
-      console.log("Setting api key from url params:", apiKey);
       setApiKeyFn(apiKey);
     } else {
-      console.log("Clearing api key from url params");
       setApiKeyFn(null);
     }
 
@@ -351,10 +345,8 @@ export const useSetRampUrlParams = () => {
     }
 
     if (apiKey) {
-      console.log("Setting api key from url params:", apiKey);
       setApiKeyFn(apiKey);
     } else {
-      console.log("Clearing api key from url params");
       setApiKeyFn(null);
     }
 
