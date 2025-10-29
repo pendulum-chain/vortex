@@ -173,7 +173,6 @@ export class RampService extends BaseRampService {
       const { rampId, presignedTxs, additionalData } = request;
 
       const rampState = await RampState.findByPk(rampId, { transaction });
-
       if (!rampState) {
         throw new APIError({
           message: "Ramp not found",
@@ -196,7 +195,7 @@ export class RampService extends BaseRampService {
         Substrate: rampState.state.substrateEphemeralAddress
       };
       if (presignedTxs && presignedTxs.length > 0) {
-        await validatePresignedTxs(presignedTxs, ephemerals);
+        await validatePresignedTxs(rampState.type, presignedTxs, ephemerals);
       }
 
       if (!areAllTxsIncluded(presignedTxs, rampState.unsignedTxs)) {
@@ -296,7 +295,7 @@ export class RampService extends BaseRampService {
         Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
-      await validatePresignedTxs(rampState.presignedTxs, ephemerals);
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals);
 
       // Find ephemeral transactions in unsigned transactions
       const ephemeralTransactions = rampState.unsignedTxs.filter(

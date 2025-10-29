@@ -1,6 +1,7 @@
 import {describe, expect, it} from "bun:test";
-import {EphemeralAccountType, Networks, PresignedTx} from "@packages/shared";
+import {EphemeralAccountType, Networks, PresignedTx, RampDirection} from "@packages/shared";
 import {validatePresignedTxs} from "./validation";
+import QuoteTicket from "../../../models/quoteTicket.model";
 
 // @ts-ignore
 const VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP: PresignedTx[] = [
@@ -174,7 +175,8 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x441D7df1551e3750AD2B5629A5DB2c316e7e0f89",
       Stellar: ""
     }
-    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP, ephemerals)).not.toThrow();
+
+    expect(() => validatePresignedTxs(RampDirection.BUY, VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP, ephemerals)).not.toThrow();
   });
 
   it("should pass validation for single valid presigned transaction", () => {
@@ -185,7 +187,8 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x441D7df1551e3750AD2B5629A5DB2c316e7e0f89",
       Stellar: ""
     }
-    expect(() => validatePresignedTxs(singleTx, ephemerals)).not.toThrow();
+
+    expect(() => validatePresignedTxs(RampDirection.BUY, singleTx, ephemerals)).not.toThrow();
   })
 
   it ("should pass validation for valid presigned mixed transactions", () => {
@@ -194,7 +197,8 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP, ephemerals)).not.toThrow();
+
+    expect(() => validatePresignedTxs(RampDirection.SELL, VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP, ephemerals)).not.toThrow();
   })
 
   it("should throw for transaction with mismatch of expected signer for Substrate tx", () => {
@@ -207,7 +211,7 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`Substrate transaction signer ${invalidSigner} does not match the expected signer 5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz for phase nablaApprove`);
+    expect(() => validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).toThrow(`Substrate transaction signer ${invalidSigner} does not match the expected signer 5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz for phase nablaApprove`);
   }, 10000)
 
   it("should throw for transaction with mismatch of expected signer for EVM tx", () => {
@@ -220,7 +224,7 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`EVM transaction signer ${invalidSigner} does not match the expected signer 0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa`);
+    expect(() => validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).toThrow(`EVM transaction signer ${invalidSigner} does not match the expected signer 0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa`);
   }, 10000)
 
   it("should throw for transaction with mismatch of expected signer for Stellar tx", () => {
@@ -233,7 +237,7 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow(`Stellar transaction signer ${invalidSigner} does not match the expected signer GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ for phase stellarCreateAccount.`);
+    expect(() => validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals)).toThrow(`Stellar transaction signer ${invalidSigner} does not match the expected signer GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ for phase stellarCreateAccount.`);
   }, 10000)
 
   it("should throw error for invalid presigned transactions array", () => {
@@ -243,7 +247,7 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
+    expect(() => validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
   })
 
   it("should throw error for too many transactions", () => {
@@ -253,7 +257,7 @@ describe("Presigned Transaction validation", () => {
       EVM: "0x876452cC7a2280560d39e7E8aEBc9d1bAAbd4fEa",
       Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
     }
-    expect(() => validatePresignedTxs(invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
+    expect(() => validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
   })
 });
 
