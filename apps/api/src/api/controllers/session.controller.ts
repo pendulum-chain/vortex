@@ -26,6 +26,9 @@ function buildRefreshUrl(body: GetWidgetUrlRefresh): string {
     rampType: body.rampType
   });
 
+  if (body.apiKey) {
+    params.append("apiKey", body.apiKey);
+  }
   if (body.callbackUrl) {
     params.append("callbackUrl", body.callbackUrl);
   }
@@ -81,7 +84,7 @@ export const create = async (
       const url = buildLockedUrl(body);
       res.status(httpStatus.OK).json({ url });
     } else {
-      const { network, fiat, inputAmount, paymentMethod, cryptoLocked, rampType } = body;
+      const { apiKey, network, fiat, inputAmount, paymentMethod, cryptoLocked, rampType } = body;
 
       const from = rampType === RampDirection.BUY ? paymentMethod : network;
       const to = rampType === RampDirection.BUY ? network : paymentMethod;
@@ -105,6 +108,7 @@ export const create = async (
 
       // Create a quote to verify the desired parameters are valid. The quote itself is not used.
       await quoteService.createQuote({
+        apiKey,
         from,
         inputAmount,
         inputCurrency,
