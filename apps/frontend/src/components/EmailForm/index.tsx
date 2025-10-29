@@ -1,9 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-
 import { useEventsContext } from "../../contexts/events";
+import { cn } from "../../helpers/cn";
 import { EmailService } from "../../services/api";
+import { LoadingProgressBar } from "../LoadingProgressBar";
+import { Spinner } from "../Spinner";
 import { TextInput } from "../TextInput";
 
 interface EmailFormProps {
@@ -39,34 +42,27 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   });
 
   const FormButtonSection = () => {
-    if (isSuccess) {
-      return (
-        <div className="mt-2 flex items-center rounded bg-green-600 px-4 py-2 font-medium text-white md:px-8">
-          {t("components.emailForm.success")}
-        </div>
-      );
-    }
-
-    if (isPending) {
-      return (
-        <div className="mt-2 flex items-center rounded bg-blue-600 px-4 py-2 font-medium text-white md:px-8">
-          {t("components.emailForm.loading")}
-        </div>
-      );
-    }
-
     return (
       <>
         <div className="mt-2 flex items-center">
-          <div className="mr-3 grow">
-            <TextInput placeholder="example@mail.com" register={register("email")} type="email" />
+          <div className={cn("grow", !isPending && !isSuccess && "mr-3")}>
+            <AnimatePresence mode="wait">
+              {isPending || isSuccess ? (
+                <LoadingProgressBar isSuccess={isSuccess} key="loading" successMessage={t("components.emailForm.success")} />
+              ) : (
+                <TextInput additionalStyle="h-12!" placeholder="example@mail.com" register={register("email")} type="email" />
+              )}
+            </AnimatePresence>
           </div>
-          <button
-            className="rounded bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
-            type="submit"
-          >
-            {t("components.emailForm.submit")}
-          </button>
+          {!isPending && !isSuccess && (
+            <button
+              className="h-12! min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center font-medium text-white transition-all duration-200 hover:bg-blue-700 active:scale-95"
+              disabled={isPending}
+              type="submit"
+            >
+              {isPending ? <Spinner /> : t("components.emailForm.submit")}
+            </button>
+          )}
         </div>
         {isError && (
           <p className="mt-2 px-4 text-red-600 text-sm md:px-8" id="request-error-message">
