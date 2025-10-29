@@ -80,12 +80,9 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   return (
     <form aria-errormessage={isError ? "request-error-message" : undefined} className="w-full" onSubmit={onSubmit}>
       <div className="mb-4">
-        <p className="mb-2 font-bold text-gray-700">{t("components.emailForm.title")}</p>{" "}
-        {/* Changed text-blue-700 to text-gray-700 */}
-        <p className="mb-1 font-light text-gray-700 leading-relaxed">{t("components.emailForm.description")}</p>{" "}
-        {/* Changed text-blue-700 to text-gray-700 */}
-        <p className="font-light text-gray-700 text-sm leading-relaxed">{t("components.emailForm.noNewslettersNoSpam")}</p>{" "}
-        {/* Changed text-blue-700 to text-gray-700 */}
+        <p className="mb-2 font-bold text-gray-700">{t("components.emailForm.title")}</p>
+        <p className="mb-1 font-light text-gray-700 leading-relaxed">{t("components.emailForm.description")}</p>
+        <p className="font-light text-gray-700 text-sm leading-relaxed">{t("components.emailForm.noNewslettersNoSpam")}</p>
       </div>
       <FormButtonSection />
     </form>
