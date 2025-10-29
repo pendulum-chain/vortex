@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
+import Partner from "../../models/partner.model";
 import { AuthenticatedPartner, isValidApiKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
 
 // Extend Express Request type to include authenticatedPartner
@@ -71,15 +72,29 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
       // If validatePartnerMatch enabled, check payload partnerId
       if (options.validatePartnerMatch && req.body?.partnerId) {
-        if (req.body.partnerId !== partner.id) {
+        // Look up the partner by the provided partnerId
+        const requestedPartner = await Partner.findByPk(req.body.partnerId);
+
+        if (!requestedPartner) {
+          return res.status(404).json({
+            error: {
+              code: "PARTNER_NOT_FOUND",
+              message: "The requested partner was not found",
+              status: 404
+            }
+          });
+        }
+
+        // Compare partner names (not IDs) since one API key works for all partners with same name
+        if (requestedPartner.name !== partner.name) {
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
               details: {
-                authenticatedPartnerId: partner.id,
-                requestedPartnerId: req.body.partnerId
+                authenticatedPartnerName: partner.name,
+                requestedPartnerName: requestedPartner.name
               },
-              message: "The authenticated partner does not match the partnerId in the request",
+              message: "The authenticated partner name does not match the requested partner's name",
               status: 403
             }
           });
@@ -97,10 +112,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 /**
  * Middleware to enforce partner authentication when partnerId is in payload
  * This ensures that if a partnerId is specified, the request must be authenticated
- * and the authenticated partner must match the partnerId in the payload.
+ * and the authenticated partner name must match the requested partner's name.
  */
 export function enforcePartnerAuth() {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     // If partnerId is in the payload
     if (req.body?.partnerId) {
       // Partner must be authenticated
@@ -114,16 +129,29 @@ export function enforcePartnerAuth() {
         });
       }
 
-      // Authenticated partner must match payload partnerId
-      if (req.authenticatedPartner.id !== req.body.partnerId) {
+      // Look up the partner by the provided partnerId
+      const requestedPartner = await Partner.findByPk(req.body.partnerId);
+
+      if (!requestedPartner) {
+        return res.status(404).json({
+          error: {
+            code: "PARTNER_NOT_FOUND",
+            message: "The requested partner was not found",
+            status: 404
+          }
+        });
+      }
+
+      // Compare partner names (not IDs) since one API key works for all partners with same name
+      if (requestedPartner.name !== req.authenticatedPartner.name) {
         return res.status(403).json({
           error: {
             code: "PARTNER_MISMATCH",
             details: {
-              authenticatedPartnerId: req.authenticatedPartner.id,
-              requestedPartnerId: req.body.partnerId
+              authenticatedPartnerName: req.authenticatedPartner.name,
+              requestedPartnerName: requestedPartner.name
             },
-            message: "The authenticated partner does not match the partnerId in the request",
+            message: "The authenticated partner name does not match the requested partner's name",
             status: 403
           }
         });
