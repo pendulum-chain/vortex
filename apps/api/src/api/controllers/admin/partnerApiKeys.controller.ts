@@ -7,27 +7,27 @@ import Partner from "../../../models/partner.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
 
 /**
- * Create a new API key for a partner
- * POST /v1/admin/partners/:partnerId/api-keys
+ * Create a new API key for a partner (by name)
+ * POST /v1/admin/partners/:partnerName/api-keys
  */
 export async function createApiKey(req: Request, res: Response): Promise<void> {
   try {
-    const { partnerId } = req.params;
+    const { partnerName } = req.params;
     const { name, expiresAt } = req.body;
 
-    // Verify partner exists and is active
-    const partner = await Partner.findOne({
+    // Verify at least one partner with this name exists and is active
+    const partners = await Partner.findAll({
       where: {
-        id: partnerId,
-        isActive: true
+        isActive: true,
+        name: partnerName
       }
     });
 
-    if (!partner) {
+    if (partners.length === 0) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
-          message: "Partner not found or inactive",
+          message: `No active partners found with name: ${partnerName}`,
           status: httpStatus.NOT_FOUND
         }
       });
@@ -41,26 +41,27 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
     const keyHash = await hashApiKey(apiKey);
     const keyPrefix = getKeyPrefix(apiKey);
 
-    // Create API key record
+    // Create API key record linked to partner name (applies to all partners with this name)
     const apiKeyRecord = await ApiKey.create({
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       isActive: true,
       keyHash,
       keyPrefix,
       name: name || null,
-      partnerId
+      partnerName
     });
 
     // Return the API key (only time it's ever shown!)
     res.status(httpStatus.CREATED).json({
       apiKey,
       createdAt: apiKeyRecord.createdAt,
-      expiresAt: apiKeyRecord.expiresAt, // Full key shown only once!
-      id: apiKeyRecord.id,
+      expiresAt: apiKeyRecord.expiresAt, // How many partner records this key applies to
+      id: apiKeyRecord.id, // Full key shown only once!
       isActive: apiKeyRecord.isActive,
       keyPrefix: apiKeyRecord.keyPrefix,
       name: apiKeyRecord.name,
-      partnerId: apiKeyRecord.partnerId
+      partnerCount: partners.length,
+      partnerName: apiKeyRecord.partnerName
     });
   } catch (error) {
     logger.error("Error creating API key:", error);
@@ -75,32 +76,34 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * List all API keys for a partner
- * GET /v1/admin/partners/:partnerId/api-keys
+ * List all API keys for a partner (by name)
+ * GET /v1/admin/partners/:partnerName/api-keys
  */
 export async function listApiKeys(req: Request, res: Response): Promise<void> {
   try {
-    const { partnerId } = req.params;
+    const { partnerName } = req.params;
 
     // Verify partner exists
-    const partner = await Partner.findByPk(partnerId);
+    const partners = await Partner.findAll({
+      where: { name: partnerName }
+    });
 
-    if (!partner) {
+    if (partners.length === 0) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
-          message: "Partner not found",
+          message: `No partners found with name: ${partnerName}`,
           status: httpStatus.NOT_FOUND
         }
       });
       return;
     }
 
-    // Get all API keys for this partner
+    // Get all API keys for this partner name
     const apiKeys = await ApiKey.findAll({
       attributes: ["id", "keyPrefix", "name", "lastUsedAt", "expiresAt", "isActive", "createdAt", "updatedAt"],
       order: [["createdAt", "DESC"]],
-      where: { partnerId }
+      where: { partnerName }
     });
 
     res.status(httpStatus.OK).json({
@@ -113,7 +116,9 @@ export async function listApiKeys(req: Request, res: Response): Promise<void> {
         lastUsedAt: key.lastUsedAt,
         name: key.name,
         updatedAt: key.updatedAt
-      }))
+      })),
+      partnerCount: partners.length,
+      partnerName
     });
   } catch (error) {
     logger.error("Error listing API keys:", error);
@@ -129,17 +134,17 @@ export async function listApiKeys(req: Request, res: Response): Promise<void> {
 
 /**
  * Revoke (soft delete) an API key
- * DELETE /v1/admin/partners/:partnerId/api-keys/:keyId
+ * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
 export async function revokeApiKey(req: Request, res: Response): Promise<void> {
   try {
-    const { partnerId, keyId } = req.params;
+    const { partnerName, keyId } = req.params;
 
     // Find the API key
     const apiKey = await ApiKey.findOne({
       where: {
         id: keyId,
-        partnerId
+        partnerName
       }
     });
 

@@ -4,7 +4,7 @@ import sequelize from "../config/database";
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
   id: string;
-  partnerId: string;
+  partnerName: string;
   keyHash: string;
   keyPrefix: string;
   name: string | null;
@@ -25,7 +25,7 @@ type ApiKeyCreationAttributes = Optional<
 class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implements ApiKeyAttributes {
   declare id: string;
 
-  declare partnerId: string;
+  declare partnerName: string;
 
   declare keyHash: string;
 
@@ -43,8 +43,8 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
 
   declare updatedAt: Date;
 
-  // Association helper
-  declare partner?: any;
+  // Association helper - partners with this name
+  declare partners?: any[];
 }
 
 // Initialize the model
@@ -92,15 +92,10 @@ ApiKey.init(
       allowNull: true,
       type: DataTypes.STRING(100)
     },
-    partnerId: {
+    partnerName: {
       allowNull: false,
-      field: "partner_id",
-      onDelete: "CASCADE",
-      references: {
-        key: "id",
-        model: "partners"
-      },
-      type: DataTypes.UUID
+      field: "partner_name",
+      type: DataTypes.STRING(100)
     },
     updatedAt: {
       allowNull: false,
@@ -112,8 +107,8 @@ ApiKey.init(
   {
     indexes: [
       {
-        fields: ["partner_id"],
-        name: "idx_api_keys_partner_id"
+        fields: ["partner_name"],
+        name: "idx_api_keys_partner_name"
       },
       {
         fields: ["key_prefix"],

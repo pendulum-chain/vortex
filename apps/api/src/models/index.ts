@@ -17,10 +17,6 @@ Partner.hasMany(QuoteTicket, { as: "quotes", foreignKey: "partnerId" });
 RampState.hasMany(Subsidy, { as: "subsidies", foreignKey: "rampId" });
 Subsidy.belongsTo(RampState, { as: "rampState", foreignKey: "rampId" });
 
-// API Key associations
-Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
-ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
-
 // Initialize models
 const models = {
   Anchor,

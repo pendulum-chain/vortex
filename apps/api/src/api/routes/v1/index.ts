@@ -163,11 +163,12 @@ router.use("/public-key", publicKeyRoutes);
 
 /**
  * Admin routes for partner API key management
- * POST /v1/admin/partners/:partnerId/api-keys
- * GET /v1/admin/partners/:partnerId/api-keys
- * DELETE /v1/admin/partners/:partnerId/api-keys/:keyId
+ * Uses partner name (not ID) to manage keys for all partner configurations
+ * POST /v1/admin/partners/:partnerName/api-keys
+ * GET /v1/admin/partners/:partnerName/api-keys
+ * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
-router.use("/admin/partners/:partnerId/api-keys", partnerApiKeysRoutes);
+router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

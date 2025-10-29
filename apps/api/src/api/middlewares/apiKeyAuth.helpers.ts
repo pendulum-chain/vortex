@@ -56,6 +56,9 @@ export function getKeyPrefix(key: string): string {
 
 /**
  * Validate API key and return associated partner information
+ * Note: Returns info for the first active partner found with the matching name
+ * (all partners with the same name share the API key)
+ *
  * @param apiKey - The API key to validate
  * @returns Promise resolving to authenticated partner or null if invalid
  */
@@ -66,13 +69,6 @@ export async function validateApiKey(apiKey: string): Promise<AuthenticatedPartn
 
     // Find all active keys with this prefix
     const apiKeys = await ApiKey.findAll({
-      include: [
-        {
-          as: "partner",
-          model: Partner,
-          where: { isActive: true }
-        }
-      ],
       where: {
         isActive: true,
         keyPrefix: prefix
@@ -89,16 +85,28 @@ export async function validateApiKey(apiKey: string): Promise<AuthenticatedPartn
           continue; // Key expired, try next
         }
 
+        // Find any active partner with this name
+        const partner = await Partner.findOne({
+          where: {
+            isActive: true,
+            name: keyRecord.partnerName
+          }
+        });
+
+        if (!partner) {
+          continue; // No active partner with this name
+        }
+
         // Update last used timestamp (async, don't wait)
         keyRecord.update({ lastUsedAt: new Date() }).catch(err => {
           logger.error("Failed to update lastUsedAt:", err);
         });
 
-        // Return partner info
+        // Return partner info (from any partner with this name)
         return {
-          discount: keyRecord.partner.discount,
-          id: keyRecord.partner.id,
-          name: keyRecord.partner.name
+          discount: partner.discount,
+          id: partner.id,
+          name: partner.name
         };
       }
     }
