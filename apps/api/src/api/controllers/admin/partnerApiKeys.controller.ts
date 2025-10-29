@@ -7,7 +7,7 @@ import Partner from "../../../models/partner.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
 
 /**
- * Create a new API key for a partner (by name)
+ * Create a new API key pair (public + secret) for a partner
  * POST /v1/admin/partners/:partnerName/api-keys
  */
 export async function createApiKey(req: Request, res: Response): Promise<void> {
@@ -34,41 +34,72 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Generate new API key with environment-appropriate prefix
-    // 'test' prefix for sandbox, 'live' prefix for production
+    // Determine environment
     const environment = SANDBOX_ENABLED === "true" ? "test" : "live";
-    const apiKey = generateApiKey(environment);
-    const keyHash = await hashApiKey(apiKey);
-    const keyPrefix = getKeyPrefix(apiKey);
 
-    // Create API key record linked to partner name (applies to all partners with this name)
-    const apiKeyRecord = await ApiKey.create({
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    // Generate public key (pk_live_* or pk_test_*)
+    const publicKey = generateApiKey("public", environment);
+    const publicKeyPrefix = getKeyPrefix(publicKey);
+
+    // Generate secret key (sk_live_* or sk_test_*)
+    const secretKey = generateApiKey("secret", environment);
+    const secretKeyHash = await hashApiKey(secretKey);
+    const secretKeyPrefix = getKeyPrefix(secretKey);
+
+    const expirationDate = expiresAt ? new Date(expiresAt) : null;
+
+    // Create public key record
+    const publicKeyRecord = await ApiKey.create({
+      expiresAt: expirationDate,
       isActive: true,
-      keyHash,
-      keyPrefix,
-      name: name || null,
+      keyHash: null, // Store plaintext for public keys
+      keyPrefix: publicKeyPrefix,
+      keyType: "public",
+      keyValue: publicKey,
+      name: name ? `${name} (Public)` : "Public Key",
       partnerName
     });
 
-    // Return the API key (only time it's ever shown!)
+    // Create secret key record
+    const secretKeyRecord = await ApiKey.create({
+      expiresAt: expirationDate,
+      isActive: true,
+      keyHash: secretKeyHash, // Don't store plaintext for secret keys
+      keyPrefix: secretKeyPrefix, // Store hash for secret keys
+      keyType: "secret",
+      keyValue: null,
+      name: name ? `${name} (Secret)` : "Secret Key",
+      partnerName
+    });
+
+    // Return both keys (secret shown only once!)
     res.status(httpStatus.CREATED).json({
-      apiKey,
-      createdAt: apiKeyRecord.createdAt,
-      expiresAt: apiKeyRecord.expiresAt, // How many partner records this key applies to
-      id: apiKeyRecord.id, // Full key shown only once!
-      isActive: apiKeyRecord.isActive,
-      keyPrefix: apiKeyRecord.keyPrefix,
-      name: apiKeyRecord.name,
+      createdAt: publicKeyRecord.createdAt,
+      expiresAt: expirationDate,
+      isActive: true,
       partnerCount: partners.length,
-      partnerName: apiKeyRecord.partnerName
+      partnerName: partnerName,
+      publicKey: {
+        id: publicKeyRecord.id,
+        key: publicKey, // Can be shown anytime (it's public)
+        keyPrefix: publicKeyRecord.keyPrefix,
+        name: publicKeyRecord.name,
+        type: "public"
+      },
+      secretKey: {
+        id: secretKeyRecord.id,
+        key: secretKey, // Shown only once!
+        keyPrefix: secretKeyRecord.keyPrefix,
+        name: secretKeyRecord.name,
+        type: "secret"
+      }
     });
   } catch (error) {
-    logger.error("Error creating API key:", error);
+    logger.error("Error creating API keys:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: {
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create API key",
+        message: "Failed to create API keys",
         status: httpStatus.INTERNAL_SERVER_ERROR
       }
     });
@@ -101,7 +132,18 @@ export async function listApiKeys(req: Request, res: Response): Promise<void> {
 
     // Get all API keys for this partner name
     const apiKeys = await ApiKey.findAll({
-      attributes: ["id", "keyPrefix", "name", "lastUsedAt", "expiresAt", "isActive", "createdAt", "updatedAt"],
+      attributes: [
+        "id",
+        "keyType",
+        "keyPrefix",
+        "keyValue", // Include for public keys
+        "name",
+        "lastUsedAt",
+        "expiresAt",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ],
       order: [["createdAt", "DESC"]],
       where: { partnerName }
     });
@@ -111,10 +153,12 @@ export async function listApiKeys(req: Request, res: Response): Promise<void> {
         createdAt: key.createdAt,
         expiresAt: key.expiresAt,
         id: key.id,
-        isActive: key.isActive,
+        isActive: key.isActive, // Show full public key
+        key: key.keyType === "public" ? key.keyValue : undefined,
         keyPrefix: key.keyPrefix,
         lastUsedAt: key.lastUsedAt,
         name: key.name,
+        type: key.keyType,
         updatedAt: key.updatedAt
       })),
       partnerCount: partners.length,

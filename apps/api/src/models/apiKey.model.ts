@@ -5,7 +5,9 @@ import sequelize from "../config/database";
 export interface ApiKeyAttributes {
   id: string;
   partnerName: string;
-  keyHash: string;
+  keyType: "public" | "secret";
+  keyHash: string | null;
+  keyValue: string | null;
   keyPrefix: string;
   name: string | null;
   lastUsedAt: Date | null;
@@ -18,7 +20,7 @@ export interface ApiKeyAttributes {
 // Define the attributes that can be set during creation
 type ApiKeyCreationAttributes = Optional<
   ApiKeyAttributes,
-  "id" | "name" | "lastUsedAt" | "expiresAt" | "createdAt" | "updatedAt"
+  "id" | "keyType" | "name" | "lastUsedAt" | "expiresAt" | "createdAt" | "updatedAt"
 >;
 
 // Define the ApiKey model
@@ -27,7 +29,11 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
 
   declare partnerName: string;
 
-  declare keyHash: string;
+  declare keyType: "public" | "secret";
+
+  declare keyHash: string | null;
+
+  declare keyValue: string | null;
 
   declare keyPrefix: string;
 
@@ -73,7 +79,7 @@ ApiKey.init(
       type: DataTypes.BOOLEAN
     },
     keyHash: {
-      allowNull: false,
+      allowNull: true,
       field: "key_hash",
       type: DataTypes.STRING(255),
       unique: true
@@ -82,6 +88,18 @@ ApiKey.init(
       allowNull: false,
       field: "key_prefix",
       type: DataTypes.STRING(16)
+    },
+    keyType: {
+      allowNull: false,
+      defaultValue: "secret",
+      field: "key_type",
+      type: DataTypes.ENUM("public", "secret")
+    },
+    keyValue: {
+      allowNull: true,
+      field: "key_value",
+      type: DataTypes.STRING(255),
+      unique: true
     },
     lastUsedAt: {
       allowNull: true,
@@ -111,16 +129,24 @@ ApiKey.init(
         name: "idx_api_keys_partner_name"
       },
       {
+        fields: ["key_type"],
+        name: "idx_api_keys_key_type"
+      },
+      {
         fields: ["key_prefix"],
         name: "idx_api_keys_key_prefix"
+      },
+      {
+        fields: ["key_value"],
+        name: "idx_api_keys_key_value"
       },
       {
         fields: ["is_active"],
         name: "idx_api_keys_active"
       },
       {
-        fields: ["is_active", "key_prefix"],
-        name: "idx_api_keys_active_prefix",
+        fields: ["is_active", "key_prefix", "key_type"],
+        name: "idx_api_keys_active_prefix_type",
         where: { isActive: true }
       }
     ],

@@ -26,15 +26,30 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.BOOLEAN
     },
     keyHash: {
-      allowNull: false,
+      allowNull: true,
+      comment: "Bcrypt hash for secret keys only (NULL for public keys)",
       field: "key_hash",
       type: DataTypes.STRING(255),
       unique: true
     },
     keyPrefix: {
       allowNull: false,
+      comment: "First 8-10 chars for quick lookup (pk_live, sk_live, etc)",
       field: "key_prefix",
       type: DataTypes.STRING(16)
+    },
+    keyType: {
+      allowNull: false,
+      defaultValue: "secret",
+      field: "key_type",
+      type: DataTypes.ENUM("public", "secret")
+    },
+    keyValue: {
+      allowNull: true,
+      comment: "Plaintext value for public keys only (NULL for secret keys)",
+      field: "key_value",
+      type: DataTypes.STRING(255),
+      unique: true
     },
     lastUsedAt: {
       allowNull: true,
@@ -63,8 +78,16 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: "idx_api_keys_partner_name"
   });
 
+  await queryInterface.addIndex("api_keys", ["key_type"], {
+    name: "idx_api_keys_key_type"
+  });
+
   await queryInterface.addIndex("api_keys", ["key_prefix"], {
     name: "idx_api_keys_key_prefix"
+  });
+
+  await queryInterface.addIndex("api_keys", ["key_value"], {
+    name: "idx_api_keys_key_value"
   });
 
   await queryInterface.addIndex("api_keys", ["is_active"], {
@@ -72,17 +95,19 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Composite index for active key lookups
-  await queryInterface.addIndex("api_keys", ["is_active", "key_prefix"], {
-    name: "idx_api_keys_active_prefix",
+  await queryInterface.addIndex("api_keys", ["is_active", "key_prefix", "key_type"], {
+    name: "idx_api_keys_active_prefix_type",
     where: { is_active: true }
   });
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Remove indexes
-  await queryInterface.removeIndex("api_keys", "idx_api_keys_active_prefix");
+  await queryInterface.removeIndex("api_keys", "idx_api_keys_active_prefix_type");
   await queryInterface.removeIndex("api_keys", "idx_api_keys_active");
+  await queryInterface.removeIndex("api_keys", "idx_api_keys_key_value");
   await queryInterface.removeIndex("api_keys", "idx_api_keys_key_prefix");
+  await queryInterface.removeIndex("api_keys", "idx_api_keys_key_type");
   await queryInterface.removeIndex("api_keys", "idx_api_keys_partner_name");
 
   // Drop the api_keys table
