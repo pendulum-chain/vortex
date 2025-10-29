@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import { SANDBOX_ENABLED } from "../../../constants/constants";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
@@ -33,8 +34,10 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Generate new API key
-    const apiKey = generateApiKey("live");
+    // Generate new API key with environment-appropriate prefix
+    // 'test' prefix for sandbox, 'live' prefix for production
+    const environment = SANDBOX_ENABLED === "true" ? "test" : "live";
+    const apiKey = generateApiKey(environment);
     const keyHash = await hashApiKey(apiKey);
     const keyPrefix = getKeyPrefix(apiKey);
 
