@@ -72,27 +72,41 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
       // If validatePartnerMatch enabled, check payload partnerId
       if (options.validatePartnerMatch && req.body?.partnerId) {
-        // Look up the partner by the provided partnerId
-        const requestedPartner = await Partner.findByPk(req.body.partnerId);
+        const partnerIdOrName = req.body.partnerId;
 
-        if (!requestedPartner) {
-          return res.status(404).json({
-            error: {
-              code: "PARTNER_NOT_FOUND",
-              message: "The requested partner was not found",
-              status: 404
-            }
-          });
+        // Detect if partnerId is a UUID or a name
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
+
+        let requestedPartnerName: string;
+
+        if (isUUID) {
+          // Look up the partner by UUID
+          const requestedPartner = await Partner.findByPk(partnerIdOrName);
+
+          if (!requestedPartner) {
+            return res.status(404).json({
+              error: {
+                code: "PARTNER_NOT_FOUND",
+                message: "The requested partner was not found",
+                status: 404
+              }
+            });
+          }
+
+          requestedPartnerName = requestedPartner.name;
+        } else {
+          // Treat as partner name
+          requestedPartnerName = partnerIdOrName;
         }
 
-        // Compare partner names (not IDs) since one API key works for all partners with same name
-        if (requestedPartner.name !== partner.name) {
+        // Compare partner names since one API key works for all partners with same name
+        if (requestedPartnerName !== partner.name) {
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
               details: {
                 authenticatedPartnerName: partner.name,
-                requestedPartnerName: requestedPartner.name
+                requestedPartnerName: requestedPartnerName
               },
               message: "The authenticated partner name does not match the requested partner's name",
               status: 403
@@ -113,6 +127,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
  * Middleware to enforce partner authentication when partnerId is in payload
  * This ensures that if a partnerId is specified, the request must be authenticated
  * and the authenticated partner name must match the requested partner's name.
+ *
+ * Supports both UUID (partner ID) and string (partner name) formats.
  */
 export function enforcePartnerAuth() {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -129,27 +145,41 @@ export function enforcePartnerAuth() {
         });
       }
 
-      // Look up the partner by the provided partnerId
-      const requestedPartner = await Partner.findByPk(req.body.partnerId);
+      const partnerIdOrName = req.body.partnerId;
 
-      if (!requestedPartner) {
-        return res.status(404).json({
-          error: {
-            code: "PARTNER_NOT_FOUND",
-            message: "The requested partner was not found",
-            status: 404
-          }
-        });
+      // Detect if partnerId is a UUID or a name
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
+
+      let requestedPartnerName: string;
+
+      if (isUUID) {
+        // Look up the partner by UUID
+        const requestedPartner = await Partner.findByPk(partnerIdOrName);
+
+        if (!requestedPartner) {
+          return res.status(404).json({
+            error: {
+              code: "PARTNER_NOT_FOUND",
+              message: "The requested partner was not found",
+              status: 404
+            }
+          });
+        }
+
+        requestedPartnerName = requestedPartner.name;
+      } else {
+        // Treat as partner name
+        requestedPartnerName = partnerIdOrName;
       }
 
       // Compare partner names (not IDs) since one API key works for all partners with same name
-      if (requestedPartner.name !== req.authenticatedPartner.name) {
+      if (requestedPartnerName !== req.authenticatedPartner.name) {
         return res.status(403).json({
           error: {
             code: "PARTNER_MISMATCH",
             details: {
               authenticatedPartnerName: req.authenticatedPartner.name,
-              requestedPartnerName: requestedPartner.name
+              requestedPartnerName: requestedPartnerName
             },
             message: "The authenticated partner name does not match the requested partner's name",
             status: 403
