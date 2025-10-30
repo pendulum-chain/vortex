@@ -10,6 +10,7 @@ import {
 } from "@packages/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
+import { useFormState, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
@@ -23,9 +24,10 @@ import { Spinner } from "../Spinner";
 interface UseButtonContentProps {
   toToken: FiatTokenDetails;
   submitButtonDisabled: boolean;
+  isBrlFormInvalid: boolean;
 }
 
-const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
+const useButtonContent = ({ toToken, submitButtonDisabled, isBrlFormInvalid }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
@@ -107,6 +109,13 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     //   };
     // }
 
+    if (submitButtonDisabled && isBrlFormInvalid) {
+      return {
+        icon: null,
+        text: t("components.SummaryPage.confirm")
+      };
+    }
+
     if (submitButtonDisabled) {
       return {
         icon: <Spinner />,
@@ -161,6 +170,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     };
   }, [
     submitButtonDisabled,
+    isBrlFormInvalid,
     isQuoteExpired,
     rampState,
     machineState,
@@ -182,6 +192,14 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
+  // Access form validation state - will be undefined if not inside FormProvider
+  const { isValid } = useFormState();
+
+  // Watch Avenia form fields
+  const taxId = useWatch({ name: "taxId" });
+  const pixId = useWatch({ name: "pixId" });
+  const walletAddressField = useWatch({ name: "walletAddress" });
+
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
@@ -202,7 +220,40 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
+  // Check if BRL form has validation errors or required fields are empty
+  const isBrazilTransaction = quote?.from === "pix" || quote?.to === "pix";
+  const isBrlFormInvalid = useMemo(() => {
+    if (!isBrazilTransaction) return false;
+
+    // Check for validation errors - isValid will be false if Yup validation fails
+    if (!isValid) {
+      return true;
+    }
+
+    // Check if required Avenia fields are empty
+    // taxId is always required for BRL transactions
+    if (!taxId) {
+      return true;
+    }
+
+    // For offramps, pixId is required
+    if (isOfframp && !pixId) {
+      return true;
+    }
+
+    // For onramps, walletAddress is required
+    if (isOnramp && !walletAddressField) {
+      return true;
+    }
+
+    return false;
+  }, [isBrazilTransaction, isValid, taxId, isOfframp, pixId, isOnramp, walletAddressField]);
+
   const submitButtonDisabled = useMemo(() => {
+    if (isBrlFormInvalid) {
+      return true;
+    }
+
     if (
       walletLocked &&
       (isOfframp || quote?.from === "sepa") &&
@@ -249,10 +300,12 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     moneriumKycActor,
     walletLocked,
     accountAddress,
+    isBrlFormInvalid,
     quote?.from
   ]);
 
   const buttonContent = useButtonContent({
+    isBrlFormInvalid,
     submitButtonDisabled,
     toToken: toToken as FiatTokenDetails
   });
