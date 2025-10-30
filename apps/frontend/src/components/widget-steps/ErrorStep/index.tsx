@@ -7,6 +7,22 @@ interface ErrorStepProps {
   className?: string;
 }
 
+function convertCommonErrorToMessage(error: string): string {
+  if (error.includes("Network Error")) {
+    return "A network error occurred. Please check your internet connection.";
+  } else if (error.includes("Invalid transaction parameters")) {
+    return "The transaction parameters provided are invalid. Please verify your inputs.";
+  } else if (error.includes("Server error")) {
+    return "A server error occurred while processing your request. Please try again later.";
+  } else if (error.includes("Quote has expired")) {
+    return "Your quote has expired. Please refresh and request a new quote.";
+  } else if (error.includes("Insufficient funds")) {
+    return "You have insufficient funds to complete this transaction. Please check your balance and try again.";
+  } else {
+    return error; // Return the original error message if no common patterns matched
+  }
+}
+
 export function ErrorStep({ className }: ErrorStepProps) {
   const { t } = useTranslation();
   const rampActor = useRampActor();
@@ -47,7 +63,9 @@ export function ErrorStep({ className }: ErrorStepProps) {
         </div>
 
         <div className="rounded-lg bg-red-50 p-4">
-          <p className="text-center text-red-800 text-sm">{errorMessage || t("components.errorStep.defaultMessage")}</p>
+          <p className="text-center text-red-800 text-sm">
+            {errorMessage ? convertCommonErrorToMessage(errorMessage) : t("components.errorStep.defaultMessage")}
+          </p>
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-4">
