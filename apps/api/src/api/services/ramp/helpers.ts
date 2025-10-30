@@ -3,25 +3,32 @@ import { SANDBOX_ENABLED } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 
-type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
-type TransactionHashKey = "hydrationToAssethubXcmHash" | "pendulumToAssethubXcmHash" | "squidRouterSwapHash";
+enum TransactionHashKey {
+  HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
+  PendulumToAssethubXcmHash = "pendulumToAssethubXcmHash",
+  SquidRouterSwapHash = "squidRouterSwapHash"
+}
 
-const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
-  "hydrationToAssethubXcmHash",
-  "pendulumToAssethubXcmHash",
-  "squidRouterSwapHash"
-] as const;
+type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
 
 const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = {
-  hydrationToAssethubXcmHash: hash => `https://hydration.subscan.io/block/${hash}`,
-  pendulumToAssethubXcmHash: hash => `https://pendulum.subscan.io/block/${hash}`,
-  squidRouterSwapHash: (hash, rampState, quote) => {
+  [TransactionHashKey.HydrationToAssethubXcmHash]: hash => `https://hydration.subscan.io/block/${hash}`,
+
+  [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
+
+  [TransactionHashKey.SquidRouterSwapHash]: (hash, rampState, quote) => {
     const isMoneriumPolygonOnramp =
       rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
 
     return isMoneriumPolygonOnramp ? `https://polygonscan.com/tx/${hash}` : `https://axelarscan.io/gmp/${hash}`;
   }
 };
+
+const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
+  TransactionHashKey.HydrationToAssethubXcmHash,
+  TransactionHashKey.PendulumToAssethubXcmHash,
+  TransactionHashKey.SquidRouterSwapHash
+] as const;
 
 /// Generate a sandbox transaction hash for testing purposes. It's derived from the id of the ramp state to ensure uniqueness.
 /// The form is 0x + first 64 hex characters of the UUID (without dashes) + padded with zeros to reach 64 characters.

@@ -47,33 +47,6 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
 
-enum TransactionHashKey {
-  HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
-  PendulumToAssethubXcmHash = "pendulumToAssethubXcmHash",
-  SquidRouterSwapHash = "squidRouterSwapHash"
-}
-
-type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
-
-const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = {
-  [TransactionHashKey.HydrationToAssethubXcmHash]: hash => `https://hydration.subscan.io/block/${hash}`,
-
-  [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
-
-  [TransactionHashKey.SquidRouterSwapHash]: (hash, rampState, quote) => {
-    const isMoneriumPolygonOnramp =
-      rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
-
-    return isMoneriumPolygonOnramp ? `https://polygonscan.com/tx/${hash}` : `https://axelarscan.io/gmp/${hash}`;
-  }
-};
-
-const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
-  TransactionHashKey.HydrationToAssethubXcmHash,
-  TransactionHashKey.PendulumToAssethubXcmHash,
-  TransactionHashKey.SquidRouterSwapHash
-] as const;
-
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
@@ -500,28 +473,6 @@ export class RampService extends BaseRampService {
     };
 
     return response;
-  }
-
-  /// Finds the transaction hash of the transaction that finalized the ramping process.
-  /// For now, this will be the hash of the last transaction on the second-last network, ie. the outgoing transfer
-  /// and not the incoming one.
-  /// Only works for ramping processes that have reached the "complete" phase.
-  private getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
-    if (rampState.currentPhase !== "complete" || rampState.type !== RampDirection.BUY) {
-      return { transactionExplorerLink: undefined, transactionHash: undefined };
-    }
-
-    for (const hashKey of TRANSACTION_HASH_PRIORITY) {
-      const hash = rampState.state[hashKey];
-      if (hash) {
-        return {
-          transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
-          transactionHash: hash
-        };
-      }
-    }
-
-    return { transactionExplorerLink: undefined, transactionHash: undefined };
   }
 
   /**
