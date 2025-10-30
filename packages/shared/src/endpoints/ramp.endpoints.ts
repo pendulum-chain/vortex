@@ -134,25 +134,29 @@ export interface UpdateRampRequest {
 export type StartRampResponse = RampProcess;
 
 export interface RampProcess {
-  id: string;
-  quoteId: string;
-  type: RampDirection;
-  currentPhase: RampPhase;
-  status?: TransactionStatus;
-  from: DestinationType;
-  to: DestinationType;
-  createdAt: string;
-  updatedAt: string;
-  unsignedTxs?: UnsignedTx[];
-  depositQrCode?: string;
-  ibanPaymentData?: IbanPaymentData;
-  paymentMethod: PaymentMethod;
-  network?: Networks;
   countryCode?: string;
+  createdAt: string;
+  currentPhase: RampPhase;
+  depositQrCode?: string;
+  from: DestinationType;
+  ibanPaymentData?: IbanPaymentData;
+  id: string;
+  inputAmount: string;
+  inputCurrency: string;
+  network?: Networks;
+  outputAmount: string;
+  outputCurrency: string;
+  paymentMethod: PaymentMethod;
+  quoteId: string;
   sessionId?: string;
+  status?: TransactionStatus;
+  to: DestinationType;
+  transactionExplorerLink?: string;
+  transactionHash?: string;
+  type: RampDirection;
+  unsignedTxs?: UnsignedTx[];
+  updatedAt: string;
   walletAddress?: string;
-  inputAmount?: string;
-  outputAmount?: string;
 }
 
 export interface GetRampStatusRequest {
