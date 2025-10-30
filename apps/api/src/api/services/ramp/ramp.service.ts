@@ -11,6 +11,7 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
+  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -150,6 +151,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -176,6 +181,15 @@ export class RampService extends BaseRampService {
       if (!rampState) {
         throw new APIError({
           message: "Ramp not found",
+          status: httpStatus.NOT_FOUND
+        });
+      }
+
+      const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
+
+      if (!quote) {
+        throw new APIError({
+          message: QuoteError.QuoteNotFound,
           status: httpStatus.NOT_FOUND
         });
       }
@@ -241,6 +255,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -351,6 +369,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -403,10 +425,12 @@ export class RampService extends BaseRampService {
     const currentPhase =
       rampState.currentPhase !== "failed"
         ? rampState.currentPhase
-        : // Find last entry in phase history or show 'initial' if not available
-          rampState.phaseHistory && rampState.phaseHistory.length > 0
-          ? rampState.phaseHistory[rampState.phaseHistory.length - 1].phase
+        : // Find second-last entry in phase history or show 'initial' if not available
+          rampState.phaseHistory && rampState.phaseHistory.length > 1
+          ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
+
+    const { transactionExplorerLink, transactionHash } = this.getFinalTransactionHashForRamp(rampState, quote);
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
@@ -420,10 +444,12 @@ export class RampService extends BaseRampService {
       ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
       inputAmount: quote.inputAmount,
+      inputCurrency: quote.inputCurrency,
       network: quote.network,
       networkFeeFiat: fiatFees.network,
       networkFeeUsd: usdFees.network,
       outputAmount: quote.outputAmount,
+      outputCurrency: quote.outputCurrency,
       partnerFeeFiat: fiatFees.partnerMarkup,
       partnerFeeUsd: usdFees.partnerMarkup,
       paymentMethod: rampState.paymentMethod,
@@ -435,6 +461,8 @@ export class RampService extends BaseRampService {
       to: rampState.to,
       totalFeeFiat: fiatFees.total,
       totalFeeUsd: usdFees.total,
+      transactionExplorerLink,
+      transactionHash,
       type: rampState.type,
       updatedAt: rampState.updatedAt.toISOString(),
       vortexFeeFiat: fiatFees.vortex,
@@ -444,6 +472,43 @@ export class RampService extends BaseRampService {
     };
 
     return response;
+  }
+
+  /// Finds the transaction hash of the transaction that finalized the ramping process.
+  /// For now, this will be the hash of the last transaction on teh second-last network, ie. the outgoing transfer
+  /// and not the incoming one.
+  /// Only works for ramping processes that have reached the "complete" phase.
+  private getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
+    let transactionHash: string | undefined = undefined;
+    let transactionExplorerLink: string | undefined = undefined;
+
+    if (rampState.currentPhase !== "complete") {
+      return { transactionExplorerLink, transactionHash };
+    }
+
+    // Only return transaction hash for onramps
+    if (rampState.type === RampDirection.BUY) {
+      if (rampState.state.hydrationToAssethubXcmHash) {
+        // Evm -> Pendulum -> Hydration -> Assethub
+        transactionHash = rampState.state.hydrationToAssethubXcmHash;
+        transactionExplorerLink = `https://hydration.subscan.io/block/${transactionHash}`;
+      } else if (rampState.state.pendulumToAssethubXcmHash) {
+        // Evm -> Pendulum -> Assethub
+        transactionHash = rampState.state.pendulumToAssethubXcmHash;
+        transactionExplorerLink = `https://pendulum.subscan.io/block/${transactionHash}`;
+      } else if (rampState.state.squidRouterSwapHash) {
+        transactionHash = rampState.state.squidRouterSwapHash;
+        // Check if last transfer was Polygon -> Polygon (e.g. Monerium onramp -> EVM)
+        if (rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon) {
+          transactionExplorerLink = `https://polygonscan.com/tx/${transactionHash}`;
+        } else {
+          // Otherwise, show on axelarscan
+          transactionExplorerLink = `https://axelarscan.io/gmp/${transactionHash}`;
+        }
+      }
+    }
+
+    return { transactionExplorerLink, transactionHash };
   }
 
   /**
