@@ -35,13 +35,11 @@ export function InitialQuoteFailedStep({ className }: InitialQuoteFailedStepProp
       <div className="flex flex-grow items-center justify-center text-center">
         <p>{t("components.initialQuoteFailed.invalidParametersGeneric")}</p>
       </div>
-      {!partnerId && !apiKey && (
-        <div className="mt-2 mb-4 grid grid-cols-1 gap-4">
-          <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleTryAgain}>
-            {t("components.initialQuoteFailed.tryAgain")}
-          </button>
-        </div>
-      )}
+      <div className="mt-2 mb-4 grid grid-cols-1 gap-4">
+        <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleTryAgain}>
+          {t("components.initialQuoteFailed.tryAgain")}
+        </button>
+      </div>
     </div>
   );
 }
