@@ -240,6 +240,13 @@
     "errorStep": {
       "backToPartner": "Please go back to your partner and try again.",
       "defaultMessage": "An unexpected error occurred.",
+      "errors": {
+        "insufficientFunds": "You have insufficient funds to complete this transaction. Please check your balance and try again.",
+        "invalidTransactionParameters": "The transaction parameters provided are invalid. Please verify your inputs.",
+        "networkError": "A network error occurred. Please check your internet connection.",
+        "quoteExpired": "Your quote has expired. Please refresh and request a new quote.",
+        "serverError": "A server error occurred while processing your request. Please try again later."
+      },
       "retryButton": "Try Again",
       "title": "Something Went Wrong"
     },

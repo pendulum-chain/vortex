@@ -7,17 +7,17 @@ interface ErrorStepProps {
   className?: string;
 }
 
-function convertCommonErrorToMessage(error: string): string {
+function convertCommonErrorToMessage(error: string, t: (key: string) => string): string {
   if (error.includes("Network Error")) {
-    return "A network error occurred. Please check your internet connection.";
+    return t("components.errorStep.errors.networkError");
   } else if (error.includes("Invalid transaction parameters")) {
-    return "The transaction parameters provided are invalid. Please verify your inputs.";
+    return t("components.errorStep.errors.invalidTransactionParameters");
   } else if (error.includes("Server error")) {
-    return "A server error occurred while processing your request. Please try again later.";
+    return t("components.errorStep.errors.serverError");
   } else if (error.includes("Quote has expired")) {
-    return "Your quote has expired. Please refresh and request a new quote.";
+    return t("components.errorStep.errors.quoteExpired");
   } else if (error.includes("Insufficient funds")) {
-    return "You have insufficient funds to complete this transaction. Please check your balance and try again.";
+    return t("components.errorStep.errors.insufficientFunds");
   } else {
     return error; // Return the original error message if no common patterns matched
   }
@@ -64,7 +64,7 @@ export function ErrorStep({ className }: ErrorStepProps) {
 
         <div className="rounded-lg bg-red-50 p-4">
           <p className="text-center text-red-800 text-sm">
-            {errorMessage ? convertCommonErrorToMessage(errorMessage) : t("components.errorStep.defaultMessage")}
+            {errorMessage ? convertCommonErrorToMessage(errorMessage, t) : t("components.errorStep.defaultMessage")}
           </p>
         </div>
 
