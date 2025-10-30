@@ -45,7 +45,7 @@ const meta: Meta<typeof InitialQuoteFailedStep> = {
       const snapshot = createSnapshot(context.parameters.snapshotParams || {});
 
       return (
-        <RampStateContext.Provider options={{ snapshot: snapshot as any }}>
+        <RampStateContext.Provider options={{ snapshot: snapshot }}>
           <div className="mx-auto w-96 rounded-lg border bg-white p-6 shadow-custom">
             <Story />
           </div>

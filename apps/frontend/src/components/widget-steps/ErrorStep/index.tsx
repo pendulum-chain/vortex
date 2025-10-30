@@ -11,7 +11,8 @@ export function ErrorStep({ className }: ErrorStepProps) {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { errorMessage } = useSelector(rampActor, state => ({
+  const { apiKey, errorMessage } = useSelector(rampActor, state => ({
+    apiKey: state.context.apiKey,
     errorMessage: state.context.errorMessage
   }));
 
@@ -50,9 +51,13 @@ export function ErrorStep({ className }: ErrorStepProps) {
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-4">
-          <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleRetry}>
-            {t("components.errorStep.retryButton")}
-          </button>
+          {apiKey ? (
+            <div className={cn("w-full text-center", className)}>{t("components.errorStep.backToPartner")}</div>
+          ) : (
+            <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleRetry}>
+              {t("components.errorStep.retryButton")}
+            </button>
+          )}
         </div>
       </div>
     </div>

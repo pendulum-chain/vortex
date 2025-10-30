@@ -239,7 +239,8 @@
       "title": "Obrigado por usar nosso novo produto!"
     },
     "errorStep": {
-      "defaultMessage": "Ocorreu um erro inesperado. Por favor, tente novamente.",
+      "backToPartner": "Por favor, volte para seu parceiro e tente novamente.",
+      "defaultMessage": "Ocorreu um erro inesperado.",
       "retryButton": "Tentar Novamente",
       "title": "Algo deu errado"
     },

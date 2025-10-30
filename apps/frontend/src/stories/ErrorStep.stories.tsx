@@ -1,17 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ErrorStep } from "../components/widget-steps/ErrorStep";
-import { RampStateContext } from "../contexts/rampState";
+import { RampStateContext } from "../contexts/rampState"; // Helper to create a complete snapshot with error state
 
 // Helper to create a complete snapshot with error state
-const createErrorSnapshot = (errorMessage?: string) => ({
+const createErrorSnapshot = (params: { apiKey?: string; errorMessage?: string }) => ({
   children: {},
   context: {
-    apiKey: undefined,
+    apiKey: params.apiKey,
     authToken: undefined,
     callbackUrl: undefined,
     chainId: undefined,
     connectedWalletAddress: undefined,
-    errorMessage: errorMessage,
+    errorMessage: params.errorMessage,
     executionInput: undefined,
     externalSessionId: undefined,
     getMessageSignature: undefined,
@@ -42,8 +42,7 @@ const meta: Meta<typeof ErrorStep> = {
   component: ErrorStep,
   decorators: [
     (Story, context) => {
-      const errorMessage = context.parameters.errorMessage as string | undefined;
-      const snapshot = createErrorSnapshot(errorMessage);
+      const snapshot = createErrorSnapshot(context.parameters.snapshotParams || {});
 
       return (
         <RampStateContext.Provider options={{ snapshot }}>
@@ -81,6 +80,20 @@ export const DefaultError: Story = {
   }
 };
 
+export const DefaultErrorWithApiKey: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story: "Shows the error step with the default error message but without try again button."
+      }
+    },
+    snapshotParams: {
+      apiKey: "demo-api-key",
+      errorMessage: undefined
+    }
+  }
+};
+
 export const NetworkError: Story = {
   parameters: {
     docs: {
@@ -88,7 +101,9 @@ export const NetworkError: Story = {
         story: "Displays a network connection error message."
       }
     },
-    errorMessage: "Network connection failed. Please check your internet connection and try again."
+    snapshotParams: {
+      errorMessage: "Network connection failed. Please check your internet connection and try again."
+    }
   }
 };
 
@@ -99,7 +114,9 @@ export const ValidationError: Story = {
         story: "Shows an error when transaction parameters are invalid."
       }
     },
-    errorMessage: "Invalid transaction parameters. Please verify your input and try again."
+    snapShotParams: {
+      errorMessage: "Invalid transaction parameters. Please verify your input and try again."
+    }
   }
 };
 
@@ -110,7 +127,9 @@ export const ServerError: Story = {
         story: "Displays a server error message."
       }
     },
-    errorMessage: "Server error occurred while processing your request. Please try again later."
+    snapShotParams: {
+      errorMessage: "Server error occurred while processing your request. Please try again later."
+    }
   }
 };
 
@@ -121,7 +140,9 @@ export const QuoteExpiredError: Story = {
         story: "Shows an error when the quote has expired."
       }
     },
-    errorMessage: "Your quote has expired. Please refresh and request a new quote."
+    snapShotParams: {
+      errorMessage: "Your quote has expired. Please refresh and request a new quote."
+    }
   }
 };
 
@@ -132,7 +153,9 @@ export const InsufficientFundsError: Story = {
         story: "Displays an insufficient funds error."
       }
     },
-    errorMessage: "Insufficient funds to complete this transaction."
+    snapShotParams: {
+      errorMessage: "Insufficient funds to complete this transaction."
+    }
   }
 };
 
@@ -143,7 +166,9 @@ export const LongErrorMessage: Story = {
         story: "Demonstrates how the component handles a very long error message with automatic text wrapping."
       }
     },
-    errorMessage:
-      "An unexpected error occurred while processing your transaction. The system encountered a critical failure during the validation phase of your request. This could be due to network connectivity issues, server maintenance, or invalid transaction parameters. Please verify all your inputs are correct and try again. If the problem persists, please contact our support team with the transaction ID for further assistance."
+    snapShotParams: {
+      errorMessage:
+        "An unexpected error occurred while processing your transaction. The system encountered a critical failure during the validation phase of your request. This could be due to network connectivity issues, server maintenance, or invalid transaction parameters. Please verify all your inputs are correct and try again. If the problem persists, please contact our support team with the transaction ID for further assistance."
+    }
   }
 };

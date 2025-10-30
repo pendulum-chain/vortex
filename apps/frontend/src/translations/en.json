@@ -238,7 +238,8 @@
       "title": "Thank you for using our new product!"
     },
     "errorStep": {
-      "defaultMessage": "An unexpected error occurred. Please try again.",
+      "backToPartner": "Please go back to your partner and try again.",
+      "defaultMessage": "An unexpected error occurred.",
       "retryButton": "Try Again",
       "title": "Something Went Wrong"
     },
