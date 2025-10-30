@@ -11,7 +11,6 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
-  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -45,6 +44,7 @@ import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "
 import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
+import { getFinalTransactionHashForRamp } from "./helpers";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
@@ -430,7 +430,7 @@ export class RampService extends BaseRampService {
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    const { transactionExplorerLink, transactionHash } = this.getFinalTransactionHashForRamp(rampState, quote);
+    const { transactionExplorerLink, transactionHash } = getFinalTransactionHashForRamp(rampState, quote);
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
@@ -472,43 +472,6 @@ export class RampService extends BaseRampService {
     };
 
     return response;
-  }
-
-  /// Finds the transaction hash of the transaction that finalized the ramping process.
-  /// For now, this will be the hash of the last transaction on the second-last network, ie. the outgoing transfer
-  /// and not the incoming one.
-  /// Only works for ramping processes that have reached the "complete" phase.
-  private getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
-    let transactionHash: string | undefined = undefined;
-    let transactionExplorerLink: string | undefined = undefined;
-
-    if (rampState.currentPhase !== "complete") {
-      return { transactionExplorerLink, transactionHash };
-    }
-
-    // Only return transaction hash for onramps
-    if (rampState.type === RampDirection.BUY) {
-      if (rampState.state.hydrationToAssethubXcmHash) {
-        // Evm -> Pendulum -> Hydration -> Assethub
-        transactionHash = rampState.state.hydrationToAssethubXcmHash;
-        transactionExplorerLink = `https://hydration.subscan.io/block/${transactionHash}`;
-      } else if (rampState.state.pendulumToAssethubXcmHash) {
-        // Evm -> Pendulum -> Assethub
-        transactionHash = rampState.state.pendulumToAssethubXcmHash;
-        transactionExplorerLink = `https://pendulum.subscan.io/block/${transactionHash}`;
-      } else if (rampState.state.squidRouterSwapHash) {
-        transactionHash = rampState.state.squidRouterSwapHash;
-        // Check if last transfer was Polygon -> Polygon (e.g. Monerium onramp -> EVM)
-        if (rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon) {
-          transactionExplorerLink = `https://polygonscan.com/tx/${transactionHash}`;
-        } else {
-          // Otherwise, show on axelarscan
-          transactionExplorerLink = `https://axelarscan.io/gmp/${transactionHash}`;
-        }
-      }
-    }
-
-    return { transactionExplorerLink, transactionHash };
   }
 
   /**
