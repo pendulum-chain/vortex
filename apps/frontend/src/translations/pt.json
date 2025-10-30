@@ -238,6 +238,11 @@
       "success": "Salvo com sucesso!",
       "title": "Obrigado por usar nosso novo produto!"
     },
+    "errorStep": {
+      "defaultMessage": "Ocorreu um erro inesperado. Por favor, tente novamente.",
+      "retryButton": "Tentar Novamente",
+      "title": "Algo deu errado"
+    },
     "feeCollapse": {
       "details": "Detalhes",
       "finalAmount": "Valor final",

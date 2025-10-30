@@ -237,6 +237,11 @@
       "success": "Successfully saved!",
       "title": "Thank you for using our new product!"
     },
+    "errorStep": {
+      "defaultMessage": "An unexpected error occurred. Please try again.",
+      "retryButton": "Try Again",
+      "title": "Something Went Wrong"
+    },
     "feeCollapse": {
       "details": "Details",
       "finalAmount": "Final Amount",
