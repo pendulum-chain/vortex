@@ -1,56 +1,56 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { createActorContext } from "@xstate/react";
-import { assign, setup } from "xstate";
 import { ErrorStep } from "../components/widget-steps/ErrorStep";
-import { RampContext } from "../machines/types";
+import { RampStateContext } from "../contexts/rampState";
 
-// Create a minimal mock machine that mimics the ramp machine's Error state
-const createMockRampMachine = (errorMessage?: string) => {
-  return setup({
-    types: {
-      context: {} as Partial<RampContext>,
-      events: {} as { type: "RESET_RAMP" }
-    }
-  }).createMachine({
-    context: {
-      errorMessage: errorMessage
-    },
-    id: "mockRamp",
-    initial: "Error",
-    on: {
-      RESET_RAMP: {
-        actions: [
-          assign({
-            errorMessage: undefined
-          }),
-          () => console.log("Mock: RESET_RAMP event sent")
-        ]
-      }
-    },
-    states: {
-      Error: {}
-    }
-  });
-};
-
-// Create a mock context provider
-const createMockContext = (errorMessage?: string) => {
-  return createActorContext(createMockRampMachine(errorMessage));
-};
+// Helper to create a complete snapshot with error state
+const createErrorSnapshot = (errorMessage?: string) => ({
+  children: {},
+  context: {
+    apiKey: undefined,
+    authToken: undefined,
+    callbackUrl: undefined,
+    chainId: undefined,
+    connectedWalletAddress: undefined,
+    errorMessage: errorMessage,
+    executionInput: undefined,
+    externalSessionId: undefined,
+    getMessageSignature: undefined,
+    initializeFailedMessage: undefined,
+    isQuoteExpired: false,
+    isSep24Redo: false,
+    partnerId: undefined,
+    paymentData: undefined,
+    quote: undefined,
+    quoteId: undefined,
+    quoteLocked: undefined,
+    rampDirection: undefined,
+    rampPaymentConfirmed: false,
+    rampSigningPhase: undefined,
+    rampState: undefined,
+    substrateWalletAccount: undefined,
+    walletLocked: undefined
+  },
+  error: undefined,
+  historyValue: undefined,
+  output: undefined,
+  status: "active" as const,
+  tags: new Set(),
+  value: "Error"
+});
 
 const meta: Meta<typeof ErrorStep> = {
   component: ErrorStep,
   decorators: [
     (Story, context) => {
       const errorMessage = context.parameters.errorMessage as string | undefined;
-      const MockContext = createMockContext(errorMessage);
+      const snapshot = createErrorSnapshot(errorMessage);
 
       return (
-        <MockContext.Provider>
+        <RampStateContext.Provider options={{ snapshot }}>
           <div className="mx-auto w-96 rounded-lg border bg-white p-6 shadow-custom">
             <Story />
           </div>
-        </MockContext.Provider>
+        </RampStateContext.Provider>
       );
     }
   ],
