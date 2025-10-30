@@ -46,6 +46,33 @@ import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validat
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 
+enum TransactionHashKey {
+  HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
+  PendulumToAssethubXcmHash = "pendulumToAssethubXcmHash",
+  SquidRouterSwapHash = "squidRouterSwapHash"
+}
+
+type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
+
+const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = {
+  [TransactionHashKey.HydrationToAssethubXcmHash]: hash => `https://hydration.subscan.io/block/${hash}`,
+
+  [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
+
+  [TransactionHashKey.SquidRouterSwapHash]: (hash, rampState, quote) => {
+    const isMoneriumPolygonOnramp =
+      rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
+
+    return isMoneriumPolygonOnramp ? `https://polygonscan.com/tx/${hash}` : `https://axelarscan.io/gmp/${hash}`;
+  }
+};
+
+const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
+  TransactionHashKey.HydrationToAssethubXcmHash,
+  TransactionHashKey.PendulumToAssethubXcmHash,
+  TransactionHashKey.SquidRouterSwapHash
+] as const;
+
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
@@ -479,36 +506,21 @@ export class RampService extends BaseRampService {
   /// and not the incoming one.
   /// Only works for ramping processes that have reached the "complete" phase.
   private getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
-    let transactionHash: string | undefined = undefined;
-    let transactionExplorerLink: string | undefined = undefined;
-
-    if (rampState.currentPhase !== "complete") {
-      return { transactionExplorerLink, transactionHash };
+    if (rampState.currentPhase !== "complete" || rampState.type !== RampDirection.BUY) {
+      return { transactionExplorerLink: undefined, transactionHash: undefined };
     }
 
-    // Only return transaction hash for onramps
-    if (rampState.type === RampDirection.BUY) {
-      if (rampState.state.hydrationToAssethubXcmHash) {
-        // Evm -> Pendulum -> Hydration -> Assethub
-        transactionHash = rampState.state.hydrationToAssethubXcmHash;
-        transactionExplorerLink = `https://hydration.subscan.io/block/${transactionHash}`;
-      } else if (rampState.state.pendulumToAssethubXcmHash) {
-        // Evm -> Pendulum -> Assethub
-        transactionHash = rampState.state.pendulumToAssethubXcmHash;
-        transactionExplorerLink = `https://pendulum.subscan.io/block/${transactionHash}`;
-      } else if (rampState.state.squidRouterSwapHash) {
-        transactionHash = rampState.state.squidRouterSwapHash;
-        // Check if last transfer was Polygon -> Polygon (e.g. Monerium onramp -> EVM)
-        if (rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon) {
-          transactionExplorerLink = `https://polygonscan.com/tx/${transactionHash}`;
-        } else {
-          // Otherwise, show on axelarscan
-          transactionExplorerLink = `https://axelarscan.io/gmp/${transactionHash}`;
-        }
+    for (const hashKey of TRANSACTION_HASH_PRIORITY) {
+      const hash = rampState.state[hashKey];
+      if (hash) {
+        return {
+          transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
+          transactionHash: hash
+        };
       }
     }
 
-    return { transactionExplorerLink, transactionHash };
+    return { transactionExplorerLink: undefined, transactionHash: undefined };
   }
 
   /**
