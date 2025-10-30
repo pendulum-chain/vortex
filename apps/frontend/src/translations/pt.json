@@ -266,7 +266,7 @@
       "poweredBy": "Desenvolvido por"
     },
     "initialQuoteFailed": {
-      "invalidParameters": "Os parâmetros passados são inválidos. Você será redirecionado em breve.",
+      "invalidParameters": "Os parâmetros passados são inválidos.",
       "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
       "tryAgain": "Tente novamente"
     },

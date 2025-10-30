@@ -69,25 +69,11 @@ const meta: Meta<typeof InitialQuoteFailedStep> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const WithCallbackUrl: Story = {
+export const WithoutPartnerIdOrApiKey: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Shows the component when a callback URL is present. User will be redirected automatically after 5 seconds."
-      }
-    },
-    snapshotParams: {
-      callbackUrl: "https://example.com/callback"
-    }
-  }
-};
-
-export const WithoutCallbackUrl: Story = {
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "Shows the component without a callback URL. Displays a 'Try Again' button since no API key or partner ID is present."
+        story: "Shows the component when neither API key nor partner ID is present, displaying the 'Try Again' button."
       }
     },
     snapshotParams: {}

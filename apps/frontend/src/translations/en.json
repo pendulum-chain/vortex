@@ -265,7 +265,7 @@
       "poweredBy": "Powered by"
     },
     "initialQuoteFailed": {
-      "invalidParameters": "The passed parameters are invalid. You will be redirected shortly.",
+      "invalidParameters": "The passed parameters are invalid.",
       "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
       "tryAgain": "Try Again"
     },
