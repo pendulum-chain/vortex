@@ -11,6 +11,7 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
+  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -44,6 +45,7 @@ import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "
 import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
+import { getFinalTransactionHashForRamp } from "./helpers";
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
@@ -150,6 +152,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -176,6 +182,15 @@ export class RampService extends BaseRampService {
       if (!rampState) {
         throw new APIError({
           message: "Ramp not found",
+          status: httpStatus.NOT_FOUND
+        });
+      }
+
+      const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
+
+      if (!quote) {
+        throw new APIError({
+          message: QuoteError.QuoteNotFound,
           status: httpStatus.NOT_FOUND
         });
       }
@@ -241,6 +256,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -351,6 +370,10 @@ export class RampService extends BaseRampService {
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
+        inputAmount: quote.inputAmount,
+        inputCurrency: quote.inputCurrency,
+        outputAmount: quote.outputAmount,
+        outputCurrency: quote.outputCurrency,
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
@@ -403,10 +426,12 @@ export class RampService extends BaseRampService {
     const currentPhase =
       rampState.currentPhase !== "failed"
         ? rampState.currentPhase
-        : // Find last entry in phase history or show 'initial' if not available
-          rampState.phaseHistory && rampState.phaseHistory.length > 0
-          ? rampState.phaseHistory[rampState.phaseHistory.length - 1].phase
+        : // Find second-last entry in phase history or show 'initial' if not available
+          rampState.phaseHistory && rampState.phaseHistory.length > 1
+          ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
+
+    const { transactionExplorerLink, transactionHash } = getFinalTransactionHashForRamp(rampState, quote);
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
@@ -420,10 +445,12 @@ export class RampService extends BaseRampService {
       ibanPaymentData: rampState.state.ibanPaymentData,
       id: rampState.id,
       inputAmount: quote.inputAmount,
+      inputCurrency: quote.inputCurrency,
       network: quote.network,
       networkFeeFiat: fiatFees.network,
       networkFeeUsd: usdFees.network,
       outputAmount: quote.outputAmount,
+      outputCurrency: quote.outputCurrency,
       partnerFeeFiat: fiatFees.partnerMarkup,
       partnerFeeUsd: usdFees.partnerMarkup,
       paymentMethod: rampState.paymentMethod,
@@ -435,6 +462,8 @@ export class RampService extends BaseRampService {
       to: rampState.to,
       totalFeeFiat: fiatFees.total,
       totalFeeUsd: usdFees.total,
+      transactionExplorerLink,
+      transactionHash,
       type: rampState.type,
       updatedAt: rampState.updatedAt.toISOString(),
       vortexFeeFiat: fiatFees.vortex,
