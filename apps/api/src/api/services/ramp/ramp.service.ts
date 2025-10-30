@@ -45,6 +45,7 @@ import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "
 import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
+import { getFinalTransactionHashForRamp } from "./helpers";
 
 enum TransactionHashKey {
   HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
@@ -457,7 +458,7 @@ export class RampService extends BaseRampService {
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    const { transactionExplorerLink, transactionHash } = this.getFinalTransactionHashForRamp(rampState, quote);
+    const { transactionExplorerLink, transactionHash } = getFinalTransactionHashForRamp(rampState, quote);
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
