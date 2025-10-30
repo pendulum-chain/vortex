@@ -475,7 +475,7 @@ export class RampService extends BaseRampService {
   }
 
   /// Finds the transaction hash of the transaction that finalized the ramping process.
-  /// For now, this will be the hash of the last transaction on teh second-last network, ie. the outgoing transfer
+  /// For now, this will be the hash of the last transaction on the second-last network, ie. the outgoing transfer
   /// and not the incoming one.
   /// Only works for ramping processes that have reached the "complete" phase.
   private getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
