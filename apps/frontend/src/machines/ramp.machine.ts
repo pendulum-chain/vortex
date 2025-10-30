@@ -136,7 +136,7 @@ export const rampMachine = setup({
         if (event.error?.message) {
           return event.error.message;
         }
-        return "An unexpected error occurred. Please try again.";
+        return "An unexpected error occurred.";
       }
     }),
     setFailedMessage: assign({
