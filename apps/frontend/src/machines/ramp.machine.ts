@@ -139,9 +139,6 @@ export const rampMachine = setup({
         return "An unexpected error occurred.";
       }
     }),
-    setFailedMessage: assign({
-      initializeFailedMessage: () => "Ramp failed, please retry"
-    }),
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
     urlCleanerWithCallbackAction: ({ context }) => {
       handleCallbackUrlRedirect(context.callbackUrl);
