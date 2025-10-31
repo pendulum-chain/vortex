@@ -74,12 +74,12 @@ export class OnRampHydrationEngine implements Stage {
     const outputAmountDecimal = new Big(xcmInputAmountDecimal)
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toString();
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toFixed(0, 0);
 
     ctx.hydrationToAssethubXcm = {
       fromToken: outputTokenDetails.assetSymbol,
       inputAmountDecimal: xcmInputAmountDecimal,
-      inputAmountRaw: xcmInputAmountRaw.toString(),
+      inputAmountRaw: xcmInputAmountRaw.toFixed(0, 0),
       outputAmountDecimal,
       outputAmountRaw,
       toToken: outputTokenDetails.assetSymbol,

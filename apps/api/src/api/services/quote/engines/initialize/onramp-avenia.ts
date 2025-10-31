@@ -22,7 +22,7 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
 
     const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
     const inputAmountDecimal = new Big(req.inputAmount);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, brlaTokenDetails.decimals).toString();
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, brlaTokenDetails.decimals).toFixed(0, 0);
 
     const brlaApiService = BrlaApiService.getInstance();
     const aveniaQuote = await brlaApiService.createPayInQuote({
