@@ -43,5 +43,5 @@
     "prepublishOnly": "bun run build"
   },
   "types": "./dist/index.d.ts",
-  "version": "0.0.3"
+  "version": "0.0.4"
 }

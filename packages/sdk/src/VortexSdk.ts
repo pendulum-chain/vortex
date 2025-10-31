@@ -171,7 +171,7 @@ export class VortexSdk {
     const accountMetas: AccountMeta[] = [];
 
     const stellarEphemeral = createStellarEphemeral();
-    const substrateEphemeral = createPendulumEphemeral();
+    const substrateEphemeral = await createPendulumEphemeral();
     const evmEphemeral = createMoonbeamEphemeral();
 
     accountMetas.push({
