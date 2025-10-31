@@ -34,6 +34,7 @@ export interface RampContext {
   callbackUrl?: string;
   externalSessionId?: string;
   isSep24Redo?: boolean;
+  errorMessage?: string;
 }
 
 export type RampMachineEvents =
