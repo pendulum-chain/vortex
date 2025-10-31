@@ -26,6 +26,7 @@
     "@vortexfi/shared": "workspaces:*",
     "@wagmi/core": "^2.21.2",
     "axios": "1.9.0",
+    "bcrypt": "5.1.1",
     "big.js": "^7.0.1",
     "prettier": "^2.8.4",
     "stellar-sdk": "^13.1.0",

@@ -14,7 +14,7 @@
     "@vortexfi/shared": "workspace:*",
     "@wagmi/core": "catalog:",
     "axios": "^1.9.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "catalog:",
     "big.js": "catalog:",
     "body-parser": "^1.17.0",
     "compression": "^1.6.2",
