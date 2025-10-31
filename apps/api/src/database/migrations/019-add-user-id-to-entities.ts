@@ -17,6 +17,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.changeColumn("kyc_level_2", "user_id", {
     allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "users"
+    },
     type: DataTypes.UUID
   });
 
@@ -34,6 +40,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.changeColumn("quote_tickets", "user_id", {
     allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "users"
+    },
     type: DataTypes.UUID
   });
 
@@ -51,6 +63,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.changeColumn("ramp_states", "user_id", {
     allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "users"
+    },
     type: DataTypes.UUID
   });
 
@@ -68,6 +86,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.changeColumn("tax_ids", "user_id", {
     allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "users"
+    },
     type: DataTypes.UUID
   });
 

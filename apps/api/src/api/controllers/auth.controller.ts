@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import User from "../../models/user.model";
 import { SupabaseAuthService } from "../services/auth";
 
 export class AuthController {
@@ -73,6 +74,12 @@ export class AuthController {
       }
 
       const result = await SupabaseAuthService.verifyOTP(email, token);
+
+      // Sync user to local database (upsert)
+      await User.upsert({
+        email: email,
+        id: result.user_id
+      });
 
       return res.json({
         access_token: result.access_token,

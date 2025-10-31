@@ -65,6 +65,12 @@ TaxId.init(
     userId: {
       allowNull: false,
       field: "user_id",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "users"
+      },
       type: DataTypes.UUID
     }
   },
