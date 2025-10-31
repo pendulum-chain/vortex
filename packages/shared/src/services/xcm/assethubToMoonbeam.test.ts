@@ -1,5 +1,5 @@
 import {test} from "bun:test";
-import {dryRunExtrinsic,} from "@vortexfi/shared";
+import {dryRunExtrinsic,} from "../../index";
 import {createAssethubToMoonbeamTransferWithSwapOnHydration} from "./assethubToMoonbeam";
 
 test("dry-run assethub to moonbeam with swap on hydration", async () => {

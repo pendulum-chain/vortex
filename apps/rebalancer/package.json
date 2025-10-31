@@ -3,6 +3,8 @@
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "catalog:",
+    "@polkadot/util": "catalog:",
+    "@polkadot/util-crypto": "catalog:",
     "@types/big.js": "catalog:",
     "@vortexfi/shared": "workspace:*",
     "big.js": "catalog:",

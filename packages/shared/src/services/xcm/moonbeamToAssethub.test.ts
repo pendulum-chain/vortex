@@ -1,5 +1,5 @@
 import {test} from "bun:test";
-import {createMoonbeamToAssethubTransferWithSwapOnHydration, dryRunExtrinsic,} from "@vortexfi/shared";
+import {createMoonbeamToAssethubTransferWithSwapOnHydration, dryRunExtrinsic,} from "../../index"
 
 test("dry-run moonbeam to assethub with swap on hydration", async () => {
   // Hardcoded values for testing purposes
