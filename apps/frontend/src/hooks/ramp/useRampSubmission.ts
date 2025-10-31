@@ -5,7 +5,7 @@ import {
   FiatToken,
   getNetworkId,
   Networks
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";

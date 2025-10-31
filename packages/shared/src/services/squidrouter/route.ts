@@ -1,8 +1,8 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "@packages/shared";
 import axios, { AxiosError } from "axios";
 import { encodeFunctionData, PublicClient } from "viem";
 import erc20ABI from "../../contracts/ERC20";
 import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "../../index";
 import logger from "../../logger";
 import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
 

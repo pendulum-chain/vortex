@@ -1,9 +1,9 @@
-import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { createExecuteMessageExtrinsic, Extrinsic } from "@pendulum-chain/api-solang";
 import { ApiPromise } from "@polkadot/api";
 import { Abi } from "@polkadot/api-contract";
 import { routerAbi } from "../../../contracts/Router";
 import { createWriteOptions, defaultWriteLimits } from "../../../helpers/contracts";
+import { NABLA_ROUTER, PendulumTokenDetails } from "../../../index";
 import logger from "../../../logger";
 import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";

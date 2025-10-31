@@ -1,4 +1,4 @@
-import { EvmToken } from "@packages/shared";
+import { EvmToken } from "@vortexfi/shared";
 
 const NETWORK_MAP: Record<string, string> = {
   ARBITRUM: "ARBITRUM",

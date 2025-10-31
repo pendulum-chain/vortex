@@ -6,7 +6,7 @@ import {
   Networks,
   RampDirection,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";

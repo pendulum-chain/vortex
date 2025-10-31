@@ -1,4 +1,4 @@
-import { FiatToken, PaymentData } from "@packages/shared";
+import { FiatToken, PaymentData } from "@vortexfi/shared";
 import { assign, emit, sendParent, setup } from "xstate";
 import { RampSigningPhase } from "../types/phases";
 import { sep24SecondActor } from "./actors/stellar/sep24Second.actor";

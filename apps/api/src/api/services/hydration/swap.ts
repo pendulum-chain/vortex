@@ -1,6 +1,6 @@
 import { createSdkContext, PoolType, SdkCtx, SubstrateTransaction, Trade } from "@galacticcouncil/sdk";
-import { ApiManager, assethubTokenConfig, multiplyByPowerOfTen, XcmFees } from "@packages/shared";
 import { Builder } from "@paraspell/sdk-pjs";
+import { ApiManager, assethubTokenConfig, multiplyByPowerOfTen, XcmFees } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 
 /// The IDs of the Hydration assets for which the XCM fees are cached

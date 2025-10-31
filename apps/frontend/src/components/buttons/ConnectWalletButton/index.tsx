@@ -1,4 +1,4 @@
-import { isNetworkEVM, Networks } from "@packages/shared";
+import { isNetworkEVM, Networks } from "@vortexfi/shared";
 import { useNetwork } from "../../../contexts/network";
 import { EVMWalletButton } from "../EVMWalletButton";
 import { PolkadotWalletButton } from "../PolkadotWalletButton";

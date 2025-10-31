@@ -26,7 +26,7 @@ import {
   UpdateRampRequest,
   UpdateRampResponse,
   validateMaskedNumber
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { Op } from "sequelize";

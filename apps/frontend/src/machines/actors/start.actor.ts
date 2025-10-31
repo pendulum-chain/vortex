@@ -1,4 +1,4 @@
-import { RampProcess } from "@packages/shared";
+import { RampProcess } from "@vortexfi/shared";
 import { RampService } from "../../services/api";
 import { RampContext } from "../types";
 

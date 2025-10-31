@@ -8,7 +8,7 @@ import {
   PENDULUM_USDC_AXL,
   RampCurrency,
   UsdLikeEvmToken
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
 import { SlackNotifier } from "./slack.service";

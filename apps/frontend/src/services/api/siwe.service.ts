@@ -1,4 +1,4 @@
-import { CreateSiweRequest, CreateSiweResponse, ValidateSiweRequest, ValidateSiweResponse } from "@packages/shared";
+import { CreateSiweRequest, CreateSiweResponse, ValidateSiweRequest, ValidateSiweResponse } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

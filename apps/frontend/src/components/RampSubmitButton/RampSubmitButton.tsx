@@ -7,7 +7,7 @@ import {
   getOnChainTokenDetailsOrDefault,
   RampDirection,
   TokenType
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

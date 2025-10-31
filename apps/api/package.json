@@ -3,7 +3,6 @@
   "dependencies": {
     "@galacticcouncil/api-augment": "^0.8.1",
     "@galacticcouncil/sdk": "^9.16.0",
-    "@packages/shared": "workspace:*",
     "@paraspell/sdk-pjs": "^11.8.4",
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
@@ -12,6 +11,7 @@
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
     "@scure/bip39": "^1.5.4",
+    "@vortexfi/shared": "workspace:*",
     "@wagmi/core": "catalog:",
     "axios": "^1.9.0",
     "bcrypt": "^5.1.1",

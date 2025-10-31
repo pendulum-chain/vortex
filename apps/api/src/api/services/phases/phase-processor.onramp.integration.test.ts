@@ -13,7 +13,7 @@ import {
   Networks,
   RampDirection,
   signUnsignedTransactions
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import {Keyring} from "@polkadot/api";
 import {mnemonicGenerate} from "@polkadot/util-crypto";
 import {Keypair} from "stellar-sdk";

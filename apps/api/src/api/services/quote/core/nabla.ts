@@ -1,4 +1,4 @@
-import { ApiManager, getTokenOutAmount, PendulumTokenDetails, QuoteError, RampDirection } from "@packages/shared";
+import { ApiManager, getTokenOutAmount, PendulumTokenDetails, QuoteError, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";

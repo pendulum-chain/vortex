@@ -7,7 +7,7 @@ import {
   RampCurrency,
   RampDirection,
   XcmFees
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";

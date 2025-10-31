@@ -1,14 +1,14 @@
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
+import { ISubmittableResult } from "@polkadot/types/types";
 import {
   ApiManager,
   decodeSubmittableExtrinsic,
   RampDirection,
   RampPhase,
   TransactionTemporarilyBannedError
-} from "@packages/shared";
-import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
-import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
-import { ISubmittableResult } from "@polkadot/types/types";
+} from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

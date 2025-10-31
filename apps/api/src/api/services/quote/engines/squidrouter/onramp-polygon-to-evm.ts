@@ -5,7 +5,7 @@ import {
   Networks,
   OnChainToken,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";

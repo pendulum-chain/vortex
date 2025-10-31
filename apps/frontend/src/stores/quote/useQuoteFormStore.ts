@@ -6,7 +6,7 @@ import {
   Networks,
   OnChainToken,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getRampDirectionFromPath } from "../../helpers/path";

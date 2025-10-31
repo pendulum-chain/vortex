@@ -9,7 +9,7 @@ import {
   OnrampHandlerType,
   StoreDataRequest,
   StoreDataResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

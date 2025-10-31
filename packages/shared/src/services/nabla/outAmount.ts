@@ -1,4 +1,3 @@
-import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import Big from "big.js";
 import BigNumber from "big.js";
@@ -9,6 +8,7 @@ import {
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals
 } from "../../helpers/contracts";
+import { NABLA_ROUTER, PendulumTokenDetails } from "../../index";
 import { contractRead } from "./contractRead";
 
 export interface TokenOutData {

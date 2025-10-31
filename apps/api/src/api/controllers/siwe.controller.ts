@@ -4,7 +4,7 @@ import {
   SiweErrorResponse,
   ValidateSiweRequest,
   ValidateSiweResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";

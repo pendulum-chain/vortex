@@ -1,5 +1,5 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { isValidCnpj, isValidCpf } from "@packages/shared";
+import { isValidCnpj, isValidCpf } from "@vortexfi/shared";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";

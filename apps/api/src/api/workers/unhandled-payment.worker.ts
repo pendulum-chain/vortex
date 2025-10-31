@@ -1,4 +1,4 @@
-import { BrlaApiService, generateReferenceLabel } from "@packages/shared";
+import { BrlaApiService, generateReferenceLabel } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";

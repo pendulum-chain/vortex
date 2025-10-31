@@ -1,5 +1,5 @@
-import { PresignedTx, RampErrorLog, RampPhase } from "@packages/shared";
 import { ReadMessageResult } from "@pendulum-chain/api-solang";
+import { PresignedTx, RampErrorLog, RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";

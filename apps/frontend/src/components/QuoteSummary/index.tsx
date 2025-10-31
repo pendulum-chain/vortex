@@ -1,4 +1,4 @@
-import { QuoteResponse } from "@packages/shared";
+import { QuoteResponse } from "@vortexfi/shared";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";

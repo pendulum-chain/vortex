@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { useCallback } from "react";
 import { useEventsContext } from "../contexts/events";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/quote/useQuoteFormStore";
