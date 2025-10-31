@@ -35,6 +35,14 @@ export interface RampContext {
   externalSessionId?: string;
   isSep24Redo?: boolean;
   errorMessage?: string;
+  // Auth-related fields
+  userEmail?: string;
+  userId?: string;
+  isAuthenticated: boolean;
+  authTokens?: {
+    access_token: string;
+    refresh_token: string;
+  };
 }
 
 export type RampMachineEvents =
@@ -60,7 +68,14 @@ export type RampMachineEvents =
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" };
+  | { type: "REFRESH_FAILED" }
+  // Auth events
+  | { type: "ENTER_EMAIL"; email: string }
+  | { type: "EMAIL_VERIFIED" }
+  | { type: "OTP_SENT" }
+  | { type: "VERIFY_OTP"; code: string }
+  | { type: "AUTH_SUCCESS"; tokens: { access_token: string; refresh_token: string; user_id: string } }
+  | { type: "AUTH_ERROR"; error: string };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

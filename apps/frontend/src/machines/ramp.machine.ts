@@ -5,6 +5,7 @@ import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
+import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
@@ -22,6 +23,7 @@ export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 const initialRampContext: RampContext = {
   apiKey: undefined,
   authToken: undefined,
+  authTokens: undefined,
   callbackUrl: undefined,
   chainId: undefined,
   connectedWalletAddress: undefined,
@@ -30,6 +32,7 @@ const initialRampContext: RampContext = {
   externalSessionId: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
+  isAuthenticated: false,
   isQuoteExpired: false,
   isSep24Redo: false,
   partnerId: undefined,
@@ -42,6 +45,9 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   substrateWalletAccount: undefined,
+  // Auth fields
+  userEmail: undefined,
+  userId: undefined,
   walletLocked: undefined
 };
 
@@ -111,7 +117,14 @@ export type RampMachineEvents =
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" };
+  | { type: "REFRESH_FAILED" }
+  // Auth events
+  | { type: "ENTER_EMAIL"; email: string }
+  | { type: "EMAIL_VERIFIED" }
+  | { type: "OTP_SENT" }
+  | { type: "VERIFY_OTP"; code: string }
+  | { type: "AUTH_SUCCESS"; tokens: { access_token: string; refresh_token: string; user_id: string } }
+  | { type: "AUTH_ERROR"; error: string };
 
 export const rampMachine = setup({
   actions: {
@@ -146,6 +159,7 @@ export const rampMachine = setup({
   },
   actors: {
     aveniaKyc: aveniaKycMachine,
+    checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
       if (!input.quoteId) {
         throw new Error("Quote ID is required to load quote.");
@@ -173,6 +187,7 @@ export const rampMachine = setup({
       return () => clearInterval(timer);
     }),
     registerRamp: fromPromise(registerRampActor),
+    requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
     stellarKyc: stellarKycMachine,
@@ -188,7 +203,8 @@ export const rampMachine = setup({
           }, 1);
         })
     ),
-    validateKyc: fromPromise(validateKycActor)
+    validateKyc: fromPromise(validateKycActor),
+    verifyOTP: fromPromise(verifyOTPActor)
   },
   types: {
     context: {} as RampContext,
@@ -278,6 +294,56 @@ export const rampMachine = setup({
     }
   },
   states: {
+    CheckAuth: {
+      always: [
+        {
+          guard: ({ context }) => context.isAuthenticated,
+          target: "RampRequested"
+        },
+        {
+          target: "EnterEmail"
+        }
+      ]
+    },
+    CheckingEmail: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        onDone: {
+          target: "RequestingOTP"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Failed to check email. Please try again."
+          }),
+          target: "EnterEmail"
+        },
+        src: "checkEmail"
+      }
+    },
+    EnterEmail: {
+      on: {
+        ENTER_EMAIL: {
+          actions: assign({
+            userEmail: ({ event }) => event.email
+          }),
+          target: "CheckingEmail"
+        }
+      }
+    },
+    EnterOTP: {
+      on: {
+        ENTER_EMAIL: {
+          actions: assign({
+            errorMessage: undefined,
+            userEmail: ({ event }) => event.email
+          }),
+          target: "CheckingEmail"
+        },
+        VERIFY_OTP: {
+          target: "VerifyingOTP"
+        }
+      }
+    },
     Error: {
       entry: assign(({ context }) => ({
         ...context,
@@ -400,7 +466,7 @@ export const rampMachine = setup({
             initializeFailedMessage: undefined,
             rampDirection: ({ event }) => event.input.rampDirection
           }),
-          target: "RampRequested"
+          target: "CheckAuth"
         }
       }
     },
@@ -466,6 +532,21 @@ export const rampMachine = setup({
           target: "Error"
         },
         src: "registerRamp"
+      }
+    },
+    RequestingOTP: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        onDone: {
+          target: "EnterOTP"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Failed to send OTP. Please try again."
+          }),
+          target: "EnterEmail"
+        },
+        src: "requestOTP"
       }
     },
     Resetting: {
@@ -537,6 +618,33 @@ export const rampMachine = setup({
           }),
           target: "StartRamp"
         }
+      }
+    },
+    VerifyingOTP: {
+      invoke: {
+        input: ({ context, event }) => ({
+          code: (event as any).code,
+          email: context.userEmail!
+        }),
+        onDone: {
+          actions: assign({
+            authTokens: ({ event }) => ({
+              access_token: event.output.access_token,
+              refresh_token: event.output.refresh_token
+            }),
+            errorMessage: undefined,
+            isAuthenticated: true,
+            userId: ({ event }) => event.output.user_id
+          }),
+          target: "RampRequested"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Invalid OTP code. Please try again."
+          }),
+          target: "EnterOTP"
+        },
+        src: "verifyOTP"
       }
     }
   }
