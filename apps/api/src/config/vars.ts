@@ -31,6 +31,11 @@ interface Config {
   rateLimitNumberOfProxies: string | number;
   logs: string;
   adminSecret: string;
+  supabase: {
+    url: string;
+    anonKey: string;
+    serviceRoleKey: string;
+  };
   priceProviders: {
     alchemyPay: PriceProvider;
     transak: PriceProvider;
@@ -93,6 +98,11 @@ export const config: Config = {
     },
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
+  },
+  supabase: {
+    anonKey: process.env.SUPABASE_ANON_KEY || "",
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    url: process.env.SUPABASE_URL || ""
   },
   swap: {
     deadlineMinutes: 60 * 24 * 7 // 1 week

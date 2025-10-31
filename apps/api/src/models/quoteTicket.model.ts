@@ -6,6 +6,7 @@ import sequelize from "../config/database";
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
+  userId: string; // UUID reference to Supabase Auth user
   rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
@@ -32,6 +33,8 @@ export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id"
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
+
+  declare userId: string;
 
   declare rampType: RampDirection;
 
@@ -171,6 +174,11 @@ QuoteTicket.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    userId: {
+      allowNull: false,
+      field: "user_id",
+      type: DataTypes.UUID
     }
   },
   {
