@@ -46,7 +46,7 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
 
     // We received minted BRLA on the ephemeral account
     const mintedBrlaDecimal = new Big(aveniaQuote.outputAmount).minus(gasFeeBuffer);
-    const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrlaDecimal, brlaTokenDetails.decimals).toString();
+    const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrlaDecimal, brlaTokenDetails.decimals).toFixed(0, 0);
     const fee = inputAmountDecimal.minus(mintedBrlaDecimal);
 
     ctx.aveniaMint = {
