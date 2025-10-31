@@ -3,6 +3,7 @@ import { Footer } from "../components/Footer";
 import { MaintenanceBanner } from "../components/MaintenanceBanner";
 import { Navbar } from "../components/Navbar";
 import Stepper from "../components/Stepper";
+import { useRampUrlParams } from "../hooks/useRampUrlParams";
 import { useStepper } from "../hooks/useStepper";
 import { useWidgetMode } from "../hooks/useWidgetMode";
 import { useFetchMaintenanceStatus } from "../stores/maintenanceStore";
@@ -16,6 +17,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
   const isWidgetMode = useWidgetMode();
   const fetchMaintenanceStatus = useFetchMaintenanceStatus();
   const { steps } = useStepper();
+  const { providedQuoteId } = useRampUrlParams();
 
   // Fetch maintenance status when the app loads
   useEffect(() => {
@@ -37,7 +39,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
       {modals}
       <Navbar />
       <MaintenanceBanner />
-      {isWidgetMode && (
+      {isWidgetMode && providedQuoteId && (
         <div className="container mx-auto px-4 pt-6 md:w-120">
           <Stepper className="mb-6" steps={steps} />
         </div>

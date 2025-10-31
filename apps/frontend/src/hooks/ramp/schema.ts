@@ -3,6 +3,7 @@ import { decodeAddress, encodeAddress } from "@polkadot/keyring";
 import { hexToU8a, isHex } from "@polkadot/util";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
+import { useFiatToken } from "../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
@@ -40,31 +41,28 @@ const isValidEvmAddress = (address: string) => {
 export const createRampFormSchema = (
   t: (key: string) => string,
   rampDirection: RampDirection,
-  requiresWalletAddress: "substrate" | "evm" | false
+  requiresWalletAddress: "substrate" | "evm" | false,
+  fiatToken: FiatToken
 ) => {
   return Yup.object<RampFormValues>().shape({
-    pixId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.SELL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.pixId.required"))
-          .test("matches-one", t("components.swap.validation.pixId.format"), value => {
-            if (!value) return false;
-            return pixKeyRegex.some(regex => regex.test(value));
-          })
-    }),
-    taxId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.taxId.required"))
-          .test("matches-one", t("components.swap.validation.taxId.format"), value => {
-            if (!value) return false;
-            return isValidCnpj(value) || isValidCpf(value);
-          })
-    }),
+    pixId:
+      fiatToken === FiatToken.BRL && rampDirection === RampDirection.SELL
+        ? Yup.string()
+            .required(t("components.swap.validation.pixId.required"))
+            .test("matches-one", t("components.swap.validation.pixId.format"), value => {
+              if (!value) return false;
+              return pixKeyRegex.some(regex => regex.test(value));
+            })
+        : Yup.string().optional(),
+    taxId:
+      fiatToken === FiatToken.BRL
+        ? Yup.string()
+            .required(t("components.swap.validation.taxId.required"))
+            .test("matches-one", t("components.swap.validation.taxId.format"), value => {
+              if (!value) return false;
+              return isValidCnpj(value) || isValidCpf(value);
+            })
+        : Yup.string().optional(),
     walletAddress: Yup.string()
       .test("is-valid-evm-address", t("components.swap.validation.walletAddress.formatEvm"), value => {
         if (!requiresWalletAddress || requiresWalletAddress === "substrate") return true;
@@ -82,9 +80,10 @@ export const createRampFormSchema = (
 export const useSchema = () => {
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
+  const fiatToken = useFiatToken();
   const quote = useQuote();
   const requiresWalletAddress =
     quote?.rampType === RampDirection.BUY ? (quote?.to === Networks.AssetHub ? "substrate" : "evm") : false;
 
-  return createRampFormSchema(t, rampDirection, requiresWalletAddress);
+  return createRampFormSchema(t, rampDirection, requiresWalletAddress, fiatToken);
 };

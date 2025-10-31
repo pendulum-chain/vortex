@@ -33,22 +33,15 @@ export enum ExtendedAveniaFieldOptions {
 
 export type AveniaFieldOptions = StandardAveniaFieldOptions | ExtendedAveniaFieldOptions;
 
-export type AveniaFieldValidationPattern = {
-  message: string;
-  validate: (value: string) => boolean | string;
-  value: RegExp;
-};
-
 export interface AveniaFieldProps extends FieldProps {
   id: AveniaFieldOptions;
   label: string;
   index: number;
   placeholder?: string;
-  validationPattern?: AveniaFieldValidationPattern;
   options?: string[];
 }
 
-export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {
+export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, className, ...rest }) => {
   // It required to be inside a FormProvider (react-hook-form)
   const { register } = useFormContext();
   const { errors } = useFormState();
@@ -71,21 +64,7 @@ export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validation
       <label className="mb-1 block" htmlFor={id}>
         {label}
       </label>
-      <Field
-        className={cn("w-full p-2", errors[id] && "border border-red-500")}
-        id={id}
-        register={register(id, {
-          pattern: validationPattern
-            ? {
-                message: validationPattern.message,
-                value: validationPattern.value
-              }
-            : undefined,
-          required: true,
-          validate: validationPattern?.validate
-        })}
-        {...rest}
-      />
+      <Field className={cn("w-full p-2", errors[id] && "border border-red-500")} id={id} register={register(id)} {...rest} />
       {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
     </motion.div>
   );
