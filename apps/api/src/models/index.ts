@@ -1,5 +1,6 @@
 import sequelize from "../config/database";
 import Anchor from "./anchor.model";
+import ApiKey from "./apiKey.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import Partner from "./partner.model";
 import QuoteTicket from "./quoteTicket.model";
@@ -19,6 +20,7 @@ Subsidy.belongsTo(RampState, { as: "rampState", foreignKey: "rampId" });
 // Initialize models
 const models = {
   Anchor,
+  ApiKey,
   MaintenanceSchedule,
   Partner,
   QuoteTicket,

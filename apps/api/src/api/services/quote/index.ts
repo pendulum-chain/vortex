@@ -11,22 +11,27 @@ import { buildQuoteResponse } from "./engines/finalize";
 import { RouteResolver } from "./routes/route-resolver";
 
 export class QuoteService extends BaseRampService {
-  public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
+  public async createQuote(
+    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
+  ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
     let partner = null;
-    if (request.partnerId) {
+    let partnerNameToUse = request.partnerId || request.partnerName;
+
+    // Try to find partner by name (from partnerId field or from apiKey lookup)
+    if (partnerNameToUse) {
       partner = await Partner.findOne({
         where: {
           isActive: true,
-          name: request.partnerId,
+          name: partnerNameToUse,
           rampType: request.rampType
         }
       });
 
-      // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
+      // If partner name was provided but not found or not active, log a warning and proceed without a partner
       if (!partner) {
-        logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
+        logger.warn(`Partner with name '${partnerNameToUse}' not found or not active. Proceeding with default fees.`);
       }
     }
 
@@ -35,7 +40,7 @@ export class QuoteService extends BaseRampService {
 
     const ctx = createQuoteContext({
       partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
-      request,
+      request: { ...request, apiKey: request.apiKey || undefined },
       targetFeeFiatCurrency
     });
 

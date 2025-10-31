@@ -40,7 +40,7 @@ export const TextInput = ({
       autoCorrect="off"
       autoFocus={autoFocus}
       className={cn(
-        "input input-lg w-full py-2 pl-2 font-outfit text-accent-content focus:text-accent-content focus:outline-none disabled:text-gray-200",
+        "input-vortex-primary input input-lg w-full py-2 pl-2 font-outfit text-accent-content disabled:text-gray-200",
         additionalStyle
       )}
       disabled={disabled}

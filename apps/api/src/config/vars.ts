@@ -30,6 +30,7 @@ interface Config {
   rateLimitWindowMinutes: string | number;
   rateLimitNumberOfProxies: string | number;
   logs: string;
+  adminSecret: string;
   priceProviders: {
     alchemyPay: PriceProvider;
     transak: PriceProvider;
@@ -51,6 +52,7 @@ interface Config {
 }
 
 export const config: Config = {
+  adminSecret: process.env.ADMIN_SECRET || "",
   amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
   database: {
     database: process.env.DB_NAME || "vortex",

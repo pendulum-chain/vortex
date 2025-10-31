@@ -8,6 +8,7 @@ export interface GetWidgetUrlLocked {
 }
 
 export interface GetWidgetUrlRefresh {
+  apiKey?: string;
   callbackUrl?: string;
   countryCode?: string;
   cryptoLocked?: OnChainToken;

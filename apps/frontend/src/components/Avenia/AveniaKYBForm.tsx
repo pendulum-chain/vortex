@@ -21,7 +21,6 @@ export const AveniaKYBForm = () => {
   useEffect(() => {
     if (aveniaState?.context.taxId) {
       kycForm.setValue(ExtendedAveniaFieldOptions.TAX_ID, aveniaState.context.taxId);
-      console.log("Setting TAX_ID in form:", aveniaState.context.taxId);
     }
   }, [aveniaState?.context.taxId, kycForm]);
   const { t } = useTranslation();
