@@ -52,7 +52,6 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
       toNetwork,
       toToken
     });
-    console.log("OnRampAveniaToEvmFeeEngine: bridge and network fee result", bridgeResult);
 
     return {
       anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
