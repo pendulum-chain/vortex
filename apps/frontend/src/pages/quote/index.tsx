@@ -8,9 +8,6 @@ import { RampToggle } from "../../components/RampToggle";
 import { useRampDirection, useRampDirectionToggle } from "../../stores/rampDirectionStore";
 
 export const Quote = () => {
-  const activeSwapDirection = useRampDirection();
-  const onSwapDirectionToggle = useRampDirectionToggle();
-
   return (
     <main>
       <motion.div
@@ -19,12 +16,23 @@ export const Quote = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.3 }}
       >
-        <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
-        {activeSwapDirection === RampDirection.BUY ? <Onramp /> : <Offramp />}
-        <div className="mb-16" />
-        <PoweredBy />
-        <TokenSelectionMenu />
+        <QuoteContent />
       </motion.div>
     </main>
+  );
+};
+
+export const QuoteContent = () => {
+  const activeSwapDirection = useRampDirection();
+  const onSwapDirectionToggle = useRampDirectionToggle();
+
+  return (
+    <>
+      <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
+      {activeSwapDirection === RampDirection.BUY ? <Onramp /> : <Offramp />}
+      <div className="mb-16" />
+      <PoweredBy />
+      <TokenSelectionMenu />
+    </>
   );
 };
