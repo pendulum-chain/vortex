@@ -1,6 +1,8 @@
 import {
   AXL_USDC_MOONBEAM,
+  AXL_USDC_MOONBEAM_DETAILS,
   getNetworkFromDestination,
+  multiplyByPowerOfTen,
   Networks,
   OnChainToken,
   RampCurrency,
@@ -37,8 +39,12 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
 
     const toToken = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
+    // For simplicity, we just use the input amount and convert it to the raw amount here
+    // It's not the actual amount that will be bridged but it doesn't matter for the network fee calculation
+    const amountRaw = multiplyByPowerOfTen(request.inputAmount, AXL_USDC_MOONBEAM_DETAILS.decimals).toFixed(0, 0);
+
     const bridgeResult = await calculateEvmBridgeAndNetworkFee({
-      amountRaw: request.inputAmount,
+      amountRaw,
       fromNetwork: Networks.Moonbeam,
       fromToken: AXL_USDC_MOONBEAM,
       originalInputAmountForRateCalc: request.inputAmount,
@@ -46,6 +52,7 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
       toNetwork,
       toToken
     });
+    console.log("OnRampAveniaToEvmFeeEngine: bridge and network fee result", bridgeResult);
 
     return {
       anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
