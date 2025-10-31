@@ -1,4 +1,4 @@
-import { FiatToken, getNetworkId, isNetworkEVM, PriceProvider } from "@packages/shared";
+import { FiatToken, getNetworkId, isNetworkEVM, PriceProvider } from "@vortexfi/shared";
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useRef } from "react";
 import { LocalStorageKeys } from "../hooks/useLocalStorage";
 import { useVortexAccount } from "../hooks/useVortexAccount";

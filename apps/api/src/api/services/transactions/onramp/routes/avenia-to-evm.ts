@@ -9,7 +9,7 @@ import {
   isEvmTokenDetails,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import {

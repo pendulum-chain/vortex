@@ -5,7 +5,7 @@ import {
   Networks,
   OnChainToken,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 
 /**
  * Determines source and target asset symbols based on ramp direction

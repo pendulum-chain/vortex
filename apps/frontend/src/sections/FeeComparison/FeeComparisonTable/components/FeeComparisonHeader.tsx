@@ -1,4 +1,4 @@
-import { getNetworkDisplayName, isNetworkEVM } from "@packages/shared";
+import { getNetworkDisplayName, isNetworkEVM } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../../../contexts/network";
 

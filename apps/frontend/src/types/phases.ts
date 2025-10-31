@@ -8,7 +8,7 @@ import {
   QuoteResponse,
   RampProcess,
   UpdateRampRequest
-} from "@packages/shared";
+} from "@vortexfi/shared";
 
 export type RampSigningPhase = "login" | "started" | "approved" | "signed" | "finished";
 

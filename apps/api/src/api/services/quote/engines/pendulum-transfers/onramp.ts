@@ -1,4 +1,4 @@
-import { AssetHubToken, EvmToken, multiplyByPowerOfTen, Networks, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, EvmToken, multiplyByPowerOfTen, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext, XcmMeta } from "../../core/types";

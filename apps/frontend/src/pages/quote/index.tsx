@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { TokenSelectionMenu } from "../../components/menus/TokenSelectionMenu";
 import { PoweredBy } from "../../components/PoweredBy";

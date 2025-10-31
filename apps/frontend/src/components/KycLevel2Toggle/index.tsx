@@ -1,4 +1,4 @@
-import { AveniaDocumentType } from "@packages/shared";
+import { AveniaDocumentType } from "@vortexfi/shared";
 import { motion } from "motion/react";
 
 interface KycLevel2ToggleProps {

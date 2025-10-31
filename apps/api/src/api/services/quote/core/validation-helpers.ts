@@ -1,4 +1,4 @@
-import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@packages/shared";
+import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";

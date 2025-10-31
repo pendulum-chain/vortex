@@ -1,4 +1,4 @@
-import { getNetworkDisplayName, Networks } from "@packages/shared";
+import { getNetworkDisplayName, Networks } from "@vortexfi/shared";
 import { FC, HTMLAttributes } from "react";
 import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
 

@@ -1,6 +1,6 @@
-import { EvmAddress, EvmNetworks } from "@packages/shared";
 import Big from "big.js";
 import erc20ABI from "../../contracts/ERC20";
+import { EvmAddress, EvmNetworks } from "../../index";
 import { EvmClientManager } from "../evm/clientManager";
 
 export enum BalanceCheckErrorType {

@@ -1,4 +1,4 @@
-import { ApiManager } from "@packages/shared";
+import { ApiManager } from "@vortexfi/shared";
 import hydrationRouter from "../../hydration/swap";
 import "@galacticcouncil/api-augment/hydradx";
 import { u8aToHex } from "@polkadot/util";

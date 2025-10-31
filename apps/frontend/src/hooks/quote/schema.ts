@@ -1,4 +1,4 @@
-import { FiatToken, OnChainToken, RampDirection } from "@packages/shared";
+import { FiatToken, OnChainToken, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 import { useRampDirection } from "../../stores/rampDirectionStore";

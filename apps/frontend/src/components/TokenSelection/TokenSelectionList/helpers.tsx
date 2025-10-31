@@ -14,7 +14,7 @@ import {
   OnChainTokenDetails,
   RampDirection,
   stellarTokenConfig
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { useMemo } from "react";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";

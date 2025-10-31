@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext, StellarMeta } from "../../core/types";
 import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig } from "./index";

@@ -1,5 +1,5 @@
-import { Networks } from "@packages/shared";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { Networks } from "@vortexfi/shared";
 import { APINotInitializedError } from "../errors";
 import type { NetworkConfig, VortexSdkConfig } from "../types";
 

@@ -1,4 +1,4 @@
-import { AveniaAccountType } from "@packages/shared/src/services";
+import { AveniaAccountType } from "@vortexfi/shared/src/services";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 

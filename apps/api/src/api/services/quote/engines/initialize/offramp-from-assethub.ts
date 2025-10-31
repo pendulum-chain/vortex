@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { assignAssethubToPendulumXcm, assignPreNablaContext, BaseInitializeEngine, buildXcmMeta } from "./index";
 

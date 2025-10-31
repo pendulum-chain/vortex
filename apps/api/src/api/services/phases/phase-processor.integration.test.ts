@@ -15,7 +15,7 @@ import {
   RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions,
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import {Keyring} from "@polkadot/api";
 import {mnemonicGenerate} from "@polkadot/util-crypto";
 import Big from "big.js";

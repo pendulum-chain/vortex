@@ -15,7 +15,7 @@ import {
   RouteParams,
   SquidrouterRoute,
   stringifyBigWithSignificantDecimals
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";

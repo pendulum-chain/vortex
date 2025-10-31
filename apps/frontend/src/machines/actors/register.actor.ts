@@ -8,7 +8,7 @@ import {
   RampDirection,
   RegisterRampRequest,
   signUnsignedTransactions
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { config } from "../../config";
 import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";

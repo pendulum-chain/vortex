@@ -7,7 +7,7 @@ import {
   RampErrorLog,
   RampPhase,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import { StateMetadata } from "../api/services/phases/meta-state-types";
 import sequelize from "../config/database";

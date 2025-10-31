@@ -1,4 +1,4 @@
-import { StellarTokenDetails } from "@packages/shared";
+import { StellarTokenDetails } from "@vortexfi/shared";
 
 export interface TomlValues {
   signingKey?: string;

@@ -1,4 +1,4 @@
-import { multiplyByPowerOfTen, RampDirection } from "@packages/shared";
+import { multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext, XcmMeta } from "../../core/types";
 import { BasePendulumTransferEngine, PendulumTransferComputation, PendulumTransferConfig } from "./index";

@@ -6,7 +6,7 @@ import {
   getAnyFiatTokenDetailsMoonbeam,
   multiplyByPowerOfTen,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { assignMoonbeamToPendulumXcm, BaseInitializeEngine, buildXcmMeta } from "./index";

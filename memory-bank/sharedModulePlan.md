@@ -39,7 +39,7 @@
    cd ../frontend && yarn dev
    
    # Test Bun resolution
-   cd ../signer-service && bun run -c "import { parseCurrency } from '@packages/shared'"
+   cd ../signer-service && bun run -c "import { parseCurrency } from '@vortexfi/shared'"
 
 
 # Resolved Items

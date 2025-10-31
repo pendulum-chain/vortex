@@ -1,5 +1,5 @@
-import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "@packages/shared";
 import * as readline from "readline";
+import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 

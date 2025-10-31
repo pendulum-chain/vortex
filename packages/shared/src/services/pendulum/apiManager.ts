@@ -1,5 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api/types";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../logger";

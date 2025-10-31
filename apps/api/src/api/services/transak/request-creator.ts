@@ -1,4 +1,4 @@
-import { Networks, RampDirection } from "@packages/shared";
+import { Networks, RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config";
 
 /**

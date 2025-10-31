@@ -1,4 +1,4 @@
-import { multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
+import { multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";

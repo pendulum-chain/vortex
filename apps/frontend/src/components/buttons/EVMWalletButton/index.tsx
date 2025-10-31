@@ -1,5 +1,5 @@
-import { isNetworkEVM, Networks } from "@packages/shared";
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { isNetworkEVM, Networks } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { wagmiConfig } from "../../../wagmiConfig";

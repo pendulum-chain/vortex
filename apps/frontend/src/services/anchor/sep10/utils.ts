@@ -1,5 +1,5 @@
-import { EvmAddress } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
+import { EvmAddress } from "@vortexfi/shared";
 import { keccak256 } from "viem/utils";
 import { config } from "../../../config";
 import { SIGNING_SERVICE_URL } from "../../../constants/constants";

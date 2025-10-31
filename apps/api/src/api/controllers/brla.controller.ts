@@ -25,8 +25,8 @@ import {
   KycLevel1Payload,
   KycLevel1Response,
   RampDirection
-} from "@packages/shared";
-import { AveniaAccountType, isValidCnpj } from "@packages/shared/src/services";
+} from "@vortexfi/shared";
+import { AveniaAccountType, isValidCnpj } from "@vortexfi/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import TaxId from "../../models/taxId.model";

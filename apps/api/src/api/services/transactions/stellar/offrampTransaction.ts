@@ -1,4 +1,4 @@
-import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@packages/shared";
+import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@vortexfi/shared";
 import Big from "big.js";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
 import logger from "../../../../config/logger";

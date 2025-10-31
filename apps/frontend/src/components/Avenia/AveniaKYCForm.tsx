@@ -1,4 +1,4 @@
-import { isValidCnpj } from "@packages/shared";
+import { isValidCnpj } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";

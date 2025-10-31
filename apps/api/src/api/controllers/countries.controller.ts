@@ -3,7 +3,7 @@ import {
   GetSupportedCountriesResponse,
   GetSupportedCountryResponse,
   SUPPORTED_COUNTRIES
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 

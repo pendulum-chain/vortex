@@ -6,7 +6,7 @@ import {
   RegisterRampRequest,
   UnsignedTx,
   UpdateRampRequest
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { BrlKycStatusError } from "../errors";
 import type { ApiService } from "../services/ApiService";
 import type {

@@ -6,7 +6,7 @@ import {
   StellarTokenConfig,
   TOKEN_CONFIG,
   XCMTokenConfig
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";

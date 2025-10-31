@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, mock} from 'bun:test';
 import {WebhookDeliveryService} from '../webhook-delivery.service';
-import {RampDirection, WebhookEventType} from '@packages/shared';
+import {RampDirection, WebhookEventType} from '@vortexfi/shared';
 
 // Mock factory functions
 const createMockWebhook = (overrides: Partial<any> = {}) => ({

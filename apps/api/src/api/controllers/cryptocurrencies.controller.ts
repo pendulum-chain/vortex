@@ -2,7 +2,7 @@ import {
   GetSupportedCryptocurrenciesRequest,
   GetSupportedCryptocurrenciesResponse,
   SupportedCryptocurrencyDetails
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { getSupportedCryptocurrencies } from "../../config/cryptocurrencies.config";

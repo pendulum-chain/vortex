@@ -1,4 +1,4 @@
-import { AveniaTicketStatus, BrlaApiService, isFiatTokenEnum, PixOutputTicketPayload, RampPhase } from "@packages/shared";
+import { AveniaTicketStatus, BrlaApiService, isFiatTokenEnum, PixOutputTicketPayload, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";

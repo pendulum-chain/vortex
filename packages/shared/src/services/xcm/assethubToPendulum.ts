@@ -1,8 +1,8 @@
-import { ApiManager, SANDBOX_ENABLED } from "@packages/shared";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
+import { ApiManager, SANDBOX_ENABLED } from "../../index";
 
 type AssethubAssetKey = keyof typeof AssethubAsset;
 // This is a mapping of assethub asset keys to their respective indices used on the assethub network.

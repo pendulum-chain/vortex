@@ -1,4 +1,4 @@
-import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, RampDirection } from "@packages/shared";
+import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, RampDirection } from "@vortexfi/shared";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { InterbankExchangeRate } from "../../InterbankExchangeRate";

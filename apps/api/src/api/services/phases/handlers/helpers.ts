@@ -1,4 +1,4 @@
-import { API, EvmClientManager, HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@packages/shared";
+import { API, EvmClientManager, HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { polygon } from "viem/chains";

@@ -7,7 +7,7 @@ import {
   OnChainToken,
   RampCurrency,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";

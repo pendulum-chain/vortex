@@ -5,7 +5,7 @@ import {
   isAssetHubTokenDetails,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";

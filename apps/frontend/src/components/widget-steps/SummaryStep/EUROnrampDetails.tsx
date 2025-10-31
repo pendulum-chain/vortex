@@ -1,5 +1,5 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { EvmToken } from "@packages/shared";
+import { EvmToken } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";

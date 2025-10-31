@@ -1,4 +1,4 @@
-import { getNetworkDisplayName, Networks } from "@packages/shared";
+import { getNetworkDisplayName, Networks } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

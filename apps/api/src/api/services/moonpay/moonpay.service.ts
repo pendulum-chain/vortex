@@ -1,4 +1,4 @@
-import { MoonpayPriceResponse, RampDirection } from "@packages/shared";
+import { MoonpayPriceResponse, RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";

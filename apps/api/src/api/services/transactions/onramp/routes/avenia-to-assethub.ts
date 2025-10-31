@@ -7,7 +7,7 @@ import {
   isAssetHubTokenDetails,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
 import {

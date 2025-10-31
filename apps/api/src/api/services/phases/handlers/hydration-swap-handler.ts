@@ -1,4 +1,4 @@
-import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitExtrinsic } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitExtrinsic } from "@vortexfi/shared";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";

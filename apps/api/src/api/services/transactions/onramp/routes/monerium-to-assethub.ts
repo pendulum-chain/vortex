@@ -12,7 +12,7 @@ import {
   Networks,
   PENDULUM_USDC_AXL,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";

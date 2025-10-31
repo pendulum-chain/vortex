@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { BaseDiscountEngine } from ".";
 
 export class OnRampDiscountEngine extends BaseDiscountEngine {

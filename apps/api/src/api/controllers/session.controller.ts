@@ -1,4 +1,4 @@
-import { GetWidgetUrlLocked, GetWidgetUrlRefresh, GetWidgetUrlResponse, RampDirection } from "@packages/shared";
+import { GetWidgetUrlLocked, GetWidgetUrlRefresh, GetWidgetUrlResponse, RampDirection } from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";

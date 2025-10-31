@@ -1,5 +1,5 @@
-import { AssetHubToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@packages/shared";
 import type { Meta, StoryObj } from "@storybook/react";
+import { AssetHubToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { QuoteSummary } from "../components/QuoteSummary";
 
 const meta: Meta<typeof QuoteSummary> = {

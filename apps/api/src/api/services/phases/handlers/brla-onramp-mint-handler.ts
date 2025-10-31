@@ -6,7 +6,7 @@ import {
   getAnyFiatTokenDetailsMoonbeam,
   Networks,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

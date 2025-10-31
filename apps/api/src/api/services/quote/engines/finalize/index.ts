@@ -1,4 +1,4 @@
-import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@packages/shared";
+import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../models/quoteTicket.model";

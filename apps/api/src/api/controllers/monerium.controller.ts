@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { checkAddressExists } from "../services/monerium";

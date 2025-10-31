@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { getNetworkDisplayName, getNetworkId, Networks } from "@packages/shared";
+import { getNetworkDisplayName, getNetworkId, Networks } from "@vortexfi/shared";
 import { AnimatePresence, motion } from "motion/react";
 import { RefObject, useEffect, useRef, useState } from "react";
 import { useNetwork } from "../../contexts/network";

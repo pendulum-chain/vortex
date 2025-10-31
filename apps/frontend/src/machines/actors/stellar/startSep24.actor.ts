@@ -1,4 +1,4 @@
-import { getTokenDetailsSpacewalk } from "@packages/shared";
+import { getTokenDetailsSpacewalk } from "@vortexfi/shared";
 import Big from "big.js";
 import { fromCallback } from "xstate";
 import { sep10 } from "../../../services/anchor/sep10";

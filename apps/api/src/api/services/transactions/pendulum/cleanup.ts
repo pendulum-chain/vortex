@@ -1,6 +1,6 @@
-import { ApiManager, getAddressForFormat, PendulumCurrencyId } from "@packages/shared";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
+import { ApiManager, getAddressForFormat, PendulumCurrencyId } from "@vortexfi/shared";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 
 export async function preparePendulumCleanupTransaction(

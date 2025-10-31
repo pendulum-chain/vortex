@@ -4,7 +4,7 @@ import {
   isStellarOutputTokenDetails,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";

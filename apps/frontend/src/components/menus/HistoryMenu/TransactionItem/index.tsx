@@ -1,5 +1,5 @@
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
-import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@packages/shared";
+import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC } from "react";
 import { useGetAssetIcon } from "../../../../hooks/useGetAssetIcon";

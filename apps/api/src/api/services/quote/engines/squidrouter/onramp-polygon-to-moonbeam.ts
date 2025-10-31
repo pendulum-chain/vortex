@@ -1,4 +1,4 @@
-import { AXL_USDC_MOONBEAM, ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, Networks, RampDirection } from "@packages/shared";
+import { AXL_USDC_MOONBEAM, ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, Networks, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 

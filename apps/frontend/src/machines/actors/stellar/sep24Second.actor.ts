@@ -1,4 +1,4 @@
-import { getTokenDetailsSpacewalk, PaymentData } from "@packages/shared";
+import { getTokenDetailsSpacewalk, PaymentData } from "@vortexfi/shared";
 import Big from "big.js";
 import { fromPromise } from "xstate";
 import { sep24Second } from "../../../services/anchor/sep24/second";

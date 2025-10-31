@@ -1,4 +1,4 @@
-import { QuoteError } from "@packages/shared";
+import { QuoteError } from "@vortexfi/shared";
 
 export interface APIErrorResponse {
   message: string;

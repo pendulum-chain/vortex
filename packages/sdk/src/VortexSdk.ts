@@ -11,7 +11,7 @@ import {
   RampProcess,
   signUnsignedTransactions,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
@@ -171,7 +171,7 @@ export class VortexSdk {
     const accountMetas: AccountMeta[] = [];
 
     const stellarEphemeral = createStellarEphemeral();
-    const substrateEphemeral = createPendulumEphemeral();
+    const substrateEphemeral = await createPendulumEphemeral();
     const evmEphemeral = createMoonbeamEphemeral();
 
     accountMetas.push({

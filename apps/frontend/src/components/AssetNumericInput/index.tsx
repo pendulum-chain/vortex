@@ -1,4 +1,4 @@
-import { EvmToken } from "@packages/shared";
+import { EvmToken } from "@vortexfi/shared";
 import type { ChangeEvent, FC } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { cn } from "../../helpers/cn";

@@ -1,8 +1,8 @@
-import { API, getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from "@packages/shared";
 import { SpacewalkPrimitivesVaultId } from "@pendulum-chain/types/interfaces";
 import { SubmittableExtrinsic } from "@polkadot/api-base/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
+import { API, getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { getVaultsForCurrency } from "./getVaults";
 

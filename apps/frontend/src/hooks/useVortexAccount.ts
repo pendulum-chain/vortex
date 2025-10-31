@@ -1,5 +1,5 @@
-import { ASSETHUB_CHAIN_ID, isNetworkEVM, Networks } from "@packages/shared";
 import * as Sentry from "@sentry/react";
+import { ASSETHUB_CHAIN_ID, isNetworkEVM, Networks } from "@vortexfi/shared";
 import { useCallback, useEffect, useMemo } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { useNetwork } from "../contexts/network";

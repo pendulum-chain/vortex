@@ -1,4 +1,4 @@
-import { FiatToken, Networks } from "@packages/shared";
+import { FiatToken, Networks } from "@vortexfi/shared";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "./common/types";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactions } from "./routes/avenia-to-evm";

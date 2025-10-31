@@ -1,5 +1,5 @@
-import { PaymentData, QuoteResponse, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
+import { PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";

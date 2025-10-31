@@ -1,4 +1,4 @@
-import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@packages/shared";
+import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@vortexfi/shared";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";

@@ -1,4 +1,4 @@
-import { roundDownToSignificantDecimals } from "@packages/shared";
+import { roundDownToSignificantDecimals } from "@vortexfi/shared";
 import { FC } from "react";
 
 interface InterbankExchangeRateProps {

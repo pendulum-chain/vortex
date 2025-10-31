@@ -4,7 +4,7 @@ import {
   getOnChainTokenDetails,
   isEvmTokenDetails,
   OnChainToken
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/types";
 import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
 import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";

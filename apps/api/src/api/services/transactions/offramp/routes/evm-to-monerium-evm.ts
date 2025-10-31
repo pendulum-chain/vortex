@@ -9,7 +9,7 @@ import {
   isOnChainToken,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { getFirstMoneriumLinkedAddress } from "../../../monerium";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";

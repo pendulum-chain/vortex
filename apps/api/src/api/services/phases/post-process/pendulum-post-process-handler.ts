@@ -1,5 +1,5 @@
-import { ApiManager, CleanupPhase, decodeSubmittableExtrinsic } from "@packages/shared";
 import { submitExtrinsic } from "@pendulum-chain/api-solang";
+import { ApiManager, CleanupPhase, decodeSubmittableExtrinsic } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

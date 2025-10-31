@@ -1,4 +1,4 @@
-import { FiatToken, KycFailureReason, RampDirection } from "@packages/shared";
+import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
 import { assign, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";

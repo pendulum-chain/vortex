@@ -1,4 +1,4 @@
-import { AveniaAccountType, BrlaGetKycStatusResponse, isValidCnpj, KycAttemptStatus } from "@packages/shared";
+import { AveniaAccountType, BrlaGetKycStatusResponse, isValidCnpj, KycAttemptStatus } from "@vortexfi/shared";
 import { fromPromise } from "xstate";
 import { BrlaService, KybLevel1Response } from "../../../services/api";
 import { createSubaccount, fetchKycStatus } from "../../../services/signingService";

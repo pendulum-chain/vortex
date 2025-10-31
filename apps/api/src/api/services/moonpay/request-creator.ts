@@ -1,4 +1,4 @@
-import { FiatToken, RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config";
 
 const PAYMENT_METHODS = {

@@ -1,4 +1,4 @@
-import { Networks, RampDirection, TransakPriceResponse } from "@packages/shared";
+import { Networks, RampDirection, TransakPriceResponse } from "@vortexfi/shared";
 import { config } from "../../../config/vars";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";

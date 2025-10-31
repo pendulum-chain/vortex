@@ -1,4 +1,4 @@
-import { Networks, RampDirection } from "@packages/shared";
+import { Networks, RampDirection } from "@vortexfi/shared";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionActions, useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { SelectionNetworkButton } from "./components/SelectionNetworkButton";

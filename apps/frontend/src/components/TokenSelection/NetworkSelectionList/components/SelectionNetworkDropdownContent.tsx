@@ -1,4 +1,4 @@
-import { getNetworkDisplayName, Networks } from "@packages/shared";
+import { getNetworkDisplayName, Networks } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import ALL_NETWORKS_ICON from "../../../../assets/chains/all-networks.svg";
 import { useIsNetworkDropdownOpen, useSearchFilter, useSelectedNetworkFilter } from "../../../../stores/tokenSelectionStore";

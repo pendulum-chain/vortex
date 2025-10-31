@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 // Import the mocked function to check calls
-import {getTokenOutAmount as getTokenOutAmountMock} from "@packages/shared";
+import {getTokenOutAmount as getTokenOutAmountMock} from "@vortexfi/shared";
 import {PriceFeedService, priceFeedService} from "./priceFeed.service";
 
 // Mock all external dependencies

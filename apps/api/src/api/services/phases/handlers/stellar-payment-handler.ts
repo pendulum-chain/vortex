@@ -1,4 +1,4 @@
-import { HORIZON_URL, RampPhase } from "@packages/shared";
+import { HORIZON_URL, RampPhase } from "@vortexfi/shared";
 import { Horizon, NetworkError, Networks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../../constants/constants";

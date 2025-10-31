@@ -1,4 +1,4 @@
-import { FiatTokenDetails } from "@packages/shared";
+import { FiatTokenDetails } from "@vortexfi/shared";
 import { FC, HTMLAttributes } from "react";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 

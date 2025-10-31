@@ -1,4 +1,4 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, Networks } from "@packages/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, Networks } from "@vortexfi/shared";
 import { createTransactionEvent, useEventsContext } from "../../../contexts/events";
 import { RampExecutionInput, RampState } from "../../../types/phases";
 

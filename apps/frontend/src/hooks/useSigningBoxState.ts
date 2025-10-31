@@ -1,4 +1,4 @@
-import { isNetworkEVM } from "@packages/shared";
+import { isNetworkEVM } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect, useState } from "react";
 import { useNetwork } from "../contexts/network";

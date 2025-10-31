@@ -1,4 +1,4 @@
-import { DestinationType, QuoteError, RampCurrency, RampDirection } from "@packages/shared";
+import { DestinationType, QuoteError, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
