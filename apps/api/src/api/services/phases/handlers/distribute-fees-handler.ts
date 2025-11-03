@@ -1,5 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import {
@@ -74,7 +74,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * @param api The API instance
    * @returns The transaction hash
    */
-  private async submitTransaction(tx: SubmittableExtrinsic<"promise">, api: ApiPromise): Promise<void> {
+  private async submitTransaction(tx: SubmittableExtrinsic, api: ApiPromise): Promise<void> {
     logger.debug(`Submitting transaction to Pendulum for ${this.getPhaseName()} phase`);
     return await new Promise((resolve, reject) =>
       tx

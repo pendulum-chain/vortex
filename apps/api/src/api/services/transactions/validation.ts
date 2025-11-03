@@ -1,5 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import {
   ApiManager,
   CleanupPhase,
@@ -181,7 +181,7 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
     });
   }
 
-  let extrinsic: SubmittableExtrinsic<"promise">;
+  let extrinsic: SubmittableExtrinsic;
   try {
     extrinsic = api.tx(txData as string);
   } catch (error) {

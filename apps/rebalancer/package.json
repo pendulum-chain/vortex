@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@graphql-typed-document-node/core": "catalog:",
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "catalog:",

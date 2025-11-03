@@ -1,5 +1,5 @@
 import { SpacewalkPrimitivesVaultId } from "@pendulum-chain/types/interfaces";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { API, getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from "@vortexfi/shared";
@@ -34,7 +34,7 @@ export class VaultService {
     return this.apiComponents.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId);
   }
 
-  async submitRedeem(senderAddress: string, extrinsic: SubmittableExtrinsic<"promise">): Promise<SpacewalkRedeemRequestEvent> {
+  async submitRedeem(senderAddress: string, extrinsic: SubmittableExtrinsic): Promise<SpacewalkRedeemRequestEvent> {
     return new Promise((resolve, reject) => {
       extrinsic
         .send((submissionResult: ISubmittableResult) => {
