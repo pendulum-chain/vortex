@@ -32,7 +32,7 @@ setup(
     packages=find_packages(where="src"),
     python_requires=">=3.9",
     install_requires=[
-        "pythonmonkey>=0.6.0",
+        # No Python dependencies - uses Node.js subprocess
     ],
     extras_require={
         "dev": [

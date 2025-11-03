@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@vortexfi/sdk": "^0.3.9"
+    "@vortexfi/sdk": "0.4.2"
   },
   "description": "Node.js dependencies for Vortex SDK Python wrapper",
   "devDependencies": {},
