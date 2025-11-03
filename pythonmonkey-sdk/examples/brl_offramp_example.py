@@ -10,7 +10,7 @@ from vortex_sdk import VortexSDK, FiatToken, EvmToken, Networks
 def main():
     # Initialize the SDK
     config = {
-        "apiBaseUrl": "https://api.vortex.pendulumchain.tech"
+        "apiBaseUrl": "https://api.vortexfinance.co"
     }
     
     sdk = VortexSDK(config)

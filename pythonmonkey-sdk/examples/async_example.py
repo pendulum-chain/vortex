@@ -13,7 +13,7 @@ async def create_and_monitor_ramp():
     
     # Initialize the SDK
     config = {
-        "apiBaseUrl": "https://api.vortex.pendulumchain.tech"
+        "apiBaseUrl": "https://api.vortexfinance.co"
     }
     
     sdk = VortexSDK(config)
