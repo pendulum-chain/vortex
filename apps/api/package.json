@@ -11,7 +11,7 @@
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
     "@scure/bip39": "^1.5.4",
-    "@vortexfi/shared": "workspace:*",
+    "@vortexfi/shared": "catalog:",
     "@wagmi/core": "catalog:",
     "axios": "catalog:",
     "bcrypt": "catalog:",
