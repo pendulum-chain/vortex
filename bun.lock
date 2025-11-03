@@ -223,7 +223,7 @@
       "name": "@vortexfi/sdk",
       "version": "0.3.14",
       "dependencies": {
-        "@vortexfi/shared": "latest",
+        "@vortexfi/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.1",
@@ -4158,8 +4158,6 @@
 
     "@vitest/mocker/estree-walker": ["estree-walker@3.0.3", "", { "dependencies": { "@types/estree": "^1.0.0" } }, "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g=="],
 
-    "@vortexfi/sdk/@vortexfi/shared": ["@vortexfi/shared@0.0.6", "", { "dependencies": { "@paraspell/sdk-pjs": "^11.8.5", "@pendulum-chain/api-solang": "^0.7.2", "@pendulum-chain/types": "^1.1.1", "@polkadot/api": "^16.4.9", "@polkadot/api-contract": "^16.4.6", "@polkadot/keyring": "^13.5.6", "@polkadot/types": "^16.4.6", "@polkadot/types-codec": "^16.4.6", "@polkadot/util": "^13.5.6", "@polkadot/util-crypto": "^13.5.6", "@scure/bip39": "2.0.1", "@types/node-forge": "^1.3.14", "@wagmi/core": "^2.22.1", "axios": "1.9.0", "big.js": "^7.0.1", "node-forge": "^1.3.1", "stellar-sdk": "^13.1.0", "web3": "4.16.0", "winston": "3.18.3" }, "peerDependencies": { "viem": "^2.37.9" } }, "sha512-YynUbUVYm8Cgte5BwuiByv92tM34aYVpn/hOqqsSmxl1P9Ok597inMInwD6L/C/GLti4gs2pK9e+Kl+WgUnsig=="],
-
     "@vortexfi/shared/big.js": ["big.js@7.0.1", "", {}, "sha512-iFgV784tD8kq4ccF1xtNMZnXeZzVuXWWM+ERFzKQjv+A5G9HC8CY3DuV45vgzFFcW+u2tIvmF95+AzWgs6BjCg=="],
 
     "@wagmi/core/zustand": ["zustand@5.0.0", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-LE+VcmbartOPM+auOjCCLQOsQ05zUTp8RkgwRzefUk+2jISdMMFnxvyTjA4YNWr5ZGXYbVsEMZosttuxUBkojQ=="],
@@ -4743,8 +4741,6 @@
     "@storybook/csf-plugin/unplugin/webpack-virtual-modules": ["webpack-virtual-modules@0.6.2", "", {}, "sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ=="],
 
     "@typescript-eslint/utils/eslint-scope/estraverse": ["estraverse@4.3.0", "", {}, "sha512-39nnKffWz8xN1BU/2c79n9nB9HDzo0niYUqx6xyqUnyoAnQyyWpOTdZEeiCch8BBu515t4wp9ZmgVfVhn9EBpw=="],
-
-    "@vortexfi/sdk/@vortexfi/shared/big.js": ["big.js@7.0.1", "", {}, "sha512-iFgV784tD8kq4ccF1xtNMZnXeZzVuXWWM+ERFzKQjv+A5G9HC8CY3DuV45vgzFFcW+u2tIvmF95+AzWgs6BjCg=="],
 
     "@walletconnect/ethereum-provider/@reown/appkit/@reown/appkit-common": ["@reown/appkit-common@1.7.8", "", { "dependencies": { "big.js": "6.2.2", "dayjs": "1.11.13", "viem": ">=2.29.0" } }, "sha512-ridIhc/x6JOp7KbDdwGKY4zwf8/iK8EYBl+HtWrruutSLwZyVi5P8WaZa+8iajL6LcDcDF7LoyLwMTym7SRuwQ=="],
 

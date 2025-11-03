@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@vortexfi/shared": "latest"
+    "@vortexfi/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.1",

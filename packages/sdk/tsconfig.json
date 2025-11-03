@@ -18,9 +18,9 @@
     "outDir": "./dist/types",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "target": "ES2021"
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts", "../../node_modules"],
   "include": ["./src/**/*.ts"]
 }
