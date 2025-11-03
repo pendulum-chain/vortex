@@ -10,6 +10,8 @@ export type QuoteFormValues = {
   fiatToken: FiatToken;
   slippage?: number;
   deadline?: number;
+  pixId?: string;
+  taxId?: string;
 };
 
 const transformNumber = (value: unknown, originalValue: unknown) => {
@@ -38,8 +40,11 @@ const pixKeyRegex = [
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ // Random
 ];
 
-export const createQuoteFormSchema = (t: (key: string) => string, rampDirection: RampDirection) => {
-  return Yup.object<QuoteFormValues>().shape({
+export const createQuoteFormSchema = (
+  t: (key: string) => string,
+  rampDirection: RampDirection
+): Yup.ObjectSchema<QuoteFormValues> => {
+  return Yup.object().shape({
     deadline: Yup.number().transform(transformNumber),
     fiatToken: Yup.mixed<FiatToken>().required(t("components.swap.validation.fiatToken.required")),
     inputAmount: Yup.string().required(t("components.swap.validation.inputAmount.required")),
