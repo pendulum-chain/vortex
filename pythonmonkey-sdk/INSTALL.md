@@ -22,7 +22,7 @@ Before installing the Vortex SDK Python wrapper, ensure you have:
 
 ### 1. Install the Vortex SDK via npm
 
-The Python wrapper requires the Vortex SDK to be installed as an npm package:
+The Python wrapper requires the Vortex SDK. Version 0.4.0+ includes both ESM and CommonJS formats.
 
 ```bash
 # Navigate to the pythonmonkey-sdk directory
@@ -32,7 +32,7 @@ cd pythonmonkey-sdk
 npm install
 ```
 
-This will install the Vortex SDK from npm into `node_modules/@vortexfi/sdk`.
+This will install the Vortex SDK from npm. PythonMonkey will automatically use the CommonJS version.
 
 ### 2. Install Python Dependencies
 
@@ -81,18 +81,18 @@ python -c "from vortex_sdk import VortexSDK; print('✓ Vortex SDK imported succ
 ### Method 1: Standard Installation (Recommended)
 
 ```bash
-# Clone or download the pythonmonkey-sdk
+# Clone the repository
 git clone https://github.com/pendulum-chain/vortex.git
 cd vortex/pythonmonkey-sdk
 
-# Install the Vortex SDK from npm
+# Install Vortex SDK from npm
 npm install
 
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 
-# Install Python package
+# Install Python wrapper
 pip install -e .
 ```
 
@@ -104,7 +104,7 @@ cd pythonmonkey-sdk
 # Install npm dependencies
 npm install
 
-# Install Python package with dev tools
+# Install Python wrapper with dev tools
 python -m venv venv
 source venv/bin/activate
 pip install -e ".[dev]"

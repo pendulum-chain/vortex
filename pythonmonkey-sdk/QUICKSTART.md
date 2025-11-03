@@ -13,6 +13,8 @@ npm install
 pip install -e .
 ```
 
+**Note**: The SDK v0.4.0+ includes both ESM and CommonJS. PythonMonkey uses the CommonJS version automatically.
+
 ## Your First Onramp
 
 Create a simple BRL to USDC onramp:

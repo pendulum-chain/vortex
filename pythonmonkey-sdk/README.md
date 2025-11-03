@@ -21,12 +21,14 @@ This package wraps the TypeScript/JavaScript Vortex SDK using PythonMonkey, allo
 git clone https://github.com/pendulum-chain/vortex.git
 cd vortex/pythonmonkey-sdk
 
-# Install the Vortex SDK from npm
+# Install the Vortex SDK from npm (dual build: ESM + CommonJS)
 npm install
 
 # Install the Python wrapper
 pip install -e .
 ```
+
+**Note**: The SDK v0.4.0+ includes both ESM and CommonJS formats. PythonMonkey automatically uses the CommonJS version.
 
 ### Install from PyPI (when published)
 
@@ -34,8 +36,8 @@ pip install -e .
 # Install Python package
 pip install vortex-sdk-python
 
-# Install the Vortex SDK
-npm install -g @vortexfi/sdk
+# Install the JS SDK from npm
+npm install @vortexfi/sdk
 ```
 
 ## Quick Start

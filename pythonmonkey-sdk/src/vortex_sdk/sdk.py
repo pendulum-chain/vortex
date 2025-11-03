@@ -47,51 +47,43 @@ class VortexSDK:
             # Determine the path to the compiled SDK
             sdk_path = self._find_sdk_path()
             
-            # The SDK might be ES6 modules or CommonJS depending on the build
-            # Try dynamic import for ES6 modules first, then fall back to require
-            
-            # Store the SDK path - use a function that accepts the path as parameter
-            set_path = pm.eval("(function(path) { globalThis.__vortexSdkPath = path; })")
-            set_path(sdk_path)
-            
-            try:
-                # Try ES6 dynamic import (for npm package)
-                import_func = pm.eval("""
-                    (async function() {
-                        const module = await import(globalThis.__vortexSdkPath);
-                        return module;
-                    })
-                """)
-                module = import_func()
-                
-                # Wait for the promise to resolve
-                if hasattr(pm, 'wait'):
-                    module = pm.wait(module)
-            except:
-                # Fall back to CommonJS require (for local builds)
+            #  Use PythonMonkey's require() which handles CommonJS
+            # The npm package needs to be built as CommonJS for PythonMonkey compatibility
+            if hasattr(pm, 'require'):
                 try:
-                    if hasattr(pm, 'require'):
-                        module = pm.require(sdk_path)
-                    else:
-                        require_func = pm.eval("""
-                            (function() {
-                                const Module = require('module');
-                                const path = require('path');
-                                const createRequire = Module.createRequire || Module.createRequireFromPath;
-                                const requireFunc = createRequire(path.join(process.cwd(), 'dummy.js'));
-                                return requireFunc(globalThis.__vortexSdkPath);
-                            })
-                        """)
-                        module = require_func()
-                except Exception as inner_e:
-                    raise Exception(f"Failed to load SDK with both import() and require(): {inner_e}")
+                    module = pm.require(sdk_path)
+                except Exception as e:
+                    raise VortexSDKError(
+                        f"Failed to load Vortex SDK from {sdk_path}.\n"
+                        f"Error: {str(e)}\n\n"
+                        "The npm-published @vortexfi/sdk uses ES6 modules which are not "
+                        "compatible with PythonMonkey.\n"
+                        "Please build the SDK locally:\n"
+                        "  cd ../packages/sdk\n"
+                        "  bun install && bun run build\n"
+                        "  cd ../../pythonmonkey-sdk\n\n"
+                        "Or set VORTEX_SDK_PATH to point to a CommonJS build."
+                    ) from e
+            else:
+                raise VortexSDKError(
+                    "PythonMonkey require() not available. "
+                    "Please update pythonmonkey: pip install --upgrade pythonmonkey"
+                )
             
             # The SDK exports VortexSdk as a named export
+            if not hasattr(module, 'VortexSdk'):
+                raise VortexSDKError(
+                    f"VortexSdk class not found in module. "
+                    f"Available exports: {dir(module)}"
+                )
+            
             VortexSdkClass = module.VortexSdk
             
             # Create an instance of the SDK
             self._sdk = VortexSdkClass(config)
             
+        except VortexSDKError:
+            raise
         except Exception as e:
             raise VortexSDKError(f"Failed to initialize Vortex SDK: {str(e)}") from e
 
@@ -105,11 +97,12 @@ class VortexSDK:
         Raises:
             VortexSDKError: If SDK cannot be found
         """
-        # Priority 1: Try npm-installed package in pythonmonkey-sdk/node_modules
+        # Priority 1: Try npm-installed package CommonJS in pythonmonkey-sdk/node_modules
         try:
             current_dir = Path(__file__).parent
             project_root = current_dir.parent.parent
-            node_modules_path = project_root / "node_modules" / "@vortexfi" / "sdk" / "dist" / "index.js"
+            # Use the CommonJS version from the dual build
+            node_modules_path = project_root / "node_modules" / "@vortexfi" / "sdk" / "dist" / "cjs" / "index.js"
             
             if node_modules_path.exists():
                 return str(node_modules_path.absolute())
@@ -131,10 +124,10 @@ class VortexSDK:
         if sdk_path and Path(sdk_path).exists():
             return sdk_path
         
-        # Priority 4: Try local repo build (for development)
+        # Priority 4: Try local repo build CommonJS (for development)
         try:
             repo_root = Path(__file__).parent.parent.parent.parent
-            sdk_dist = repo_root / "packages" / "sdk" / "dist" / "index.js"
+            sdk_dist = repo_root / "packages" / "sdk" / "dist" / "cjs" / "index.js"
             
             if sdk_dist.exists():
                 return str(sdk_dist.absolute())
@@ -146,6 +139,7 @@ class VortexSDK:
             "1. Run: npm install (in pythonmonkey-sdk/), or\n"
             "2. Run: npm install -g @vortexfi/sdk, or\n"
             "3. Set VORTEX_SDK_PATH environment variable\n\n"
+            "The SDK should be version 0.4.0+ with dual build (ESM + CommonJS).\n"
             "See INSTALL.md for detailed instructions."
         )
 
