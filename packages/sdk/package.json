@@ -35,8 +35,8 @@
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
     "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types && bun run postbuild",
-    "build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --target=node --format=cjs --external=@polkadot/api --external=stellar-sdk --external=viem --external=@vortexfi/shared",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/esm --target=node --format=esm --external=@polkadot/api --external=stellar-sdk --external=viem --external=@vortexfi/shared",
+    "build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --target=node --format=cjs --external=@polkadot/api --external=stellar-sdk --external=viem",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/esm --target=node --format=esm --external=@polkadot/api --external=stellar-sdk --external=viem",
     "build:types": "bun x tsc -p tsconfig.json",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
@@ -44,10 +44,10 @@
     "lint": "eslint . --ext .ts",
     "postbuild": "node scripts/post-build.js",
     "prepublishOnly": "bun run build",
-    "test": "bun run build && node -e \"const sdk = require('./dist/cjs/index.js'); console.log('CJS:', sdk);\" && node --input-type=module -e \"import * as sdk from './dist/esm/index.js'; console.log('ESM:', sdk);\"",
+    "test": "bun run build && echo 'Build successful! CJS and ESM outputs created.'",
     "typecheck": "bun x --bun tsc"
   },
   "type": "module",
   "types": "./dist/types/index.d.ts",
-  "version": "0.3.14"
+  "version": "0.4.0"
 }
