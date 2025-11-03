@@ -9,18 +9,21 @@
     "lib": ["ES2021", "DOM"],
     "module": "ESNext",
     "moduleDetection": "force",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "outDir": "./dist/types",
+    "paths": {
+      "@vortexfi/shared": ["../shared/src"]
+    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2021"
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts", "../../node_modules"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts"],
   "include": ["./src/**/*.ts"]
 }
