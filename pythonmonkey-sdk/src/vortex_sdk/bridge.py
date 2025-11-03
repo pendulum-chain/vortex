@@ -56,15 +56,23 @@ class NodeBridge:
         script = f"""
         (async () => {{
             try {{
+                // Redirect console.log to stderr to keep stdout clean for JSON only
+                const originalLog = console.log;
+                console.log = (...args) => console.error(...args);
+                
                 const {{ VortexSdk }} = require('@vortexfi/sdk');
                 
                 const config = {json.dumps(self.sdk_config)};
                 const sdk = new VortexSdk(config);
                 
-                const args = {json.dumps(args)};
+                const methodArgs = {json.dumps(args)};
                 
-                const result = await sdk.{method}(...args);
+                const result = await sdk.{method}(...methodArgs);
+                
+                // Restore console.log and output JSON to stdout
+                console.log = originalLog;
                 console.log(JSON.stringify({{ success: true, result }}));
+                process.exit(0);
             }} catch (error) {{
                 console.error(JSON.stringify({{
                     success: false,
@@ -82,16 +90,21 @@ class NodeBridge:
                 capture_output=True,
                 text=True,
                 check=False,
-                cwd=str(Path(__file__).parent.parent.parent)
+                cwd=str(Path(__file__).parent.parent.parent),
+                timeout=60  # 60 second timeout for network init
             )
             
-            # Check stderr for error output
-            if result.stderr and result.returncode != 0:
+            # Debug output
+            if result.stderr:
+                # Try to parse as JSON error
                 try:
                     error_data = json.loads(result.stderr)
-                    raise VortexSDKError(f"SDK error: {error_data.get('error', 'Unknown error')}")
+                    if not error_data.get('success', True):
+                        raise VortexSDKError(f"SDK error: {error_data.get('error', 'Unknown error')}")
                 except json.JSONDecodeError:
-                    raise VortexSDKError(f"Node.js error: {result.stderr}")
+                    # Not JSON, likely debug output - ignore unless error
+                    if result.returncode != 0:
+                        raise VortexSDKError(f"Node.js error: {result.stderr}")
             
             if not result.stdout:
                 raise VortexSDKError(
@@ -106,11 +119,17 @@ class NodeBridge:
             
             return response['result']
             
+        except subprocess.TimeoutExpired:
+            raise VortexSDKError(
+                f"SDK call timed out after 60s. "
+                "This may be due to network initialization. "
+                "Check your network connectivity and RPC URLs."
+            )
         except json.JSONDecodeError as e:
             raise VortexSDKError(
                 f"Failed to parse response. "
-                f"stdout: {result.stdout[:200]}, "
-                f"stderr: {result.stderr[:200]}"
+                f"stdout: {result.stdout[:500] if result.stdout else '(empty)'}, "
+                f"stderr: {result.stderr[:500] if result.stderr else '(empty)'}"
             )
         except Exception as e:
             if isinstance(e, VortexSDKError):
