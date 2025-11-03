@@ -1,5 +1,4 @@
-import { QuoteError } from "@vortexfi/shared";
-import { MoneriumErrors } from "@vortexfi/shared/src/endpoints/monerium";
+import { MoneriumErrors, QuoteError } from "@vortexfi/shared";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 

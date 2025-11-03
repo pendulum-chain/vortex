@@ -29,6 +29,14 @@
     "tsup": "catalog:",
     "typescript": "catalog:"
   },
+  "exports": {
+    ".": {
+      "browser": "./dist/browser/index.js",
+      "default": "./dist/node/index.js",
+      "node": "./dist/node/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "main": "./dist/index.js",
   "name": "@vortexfi/shared",
   "peerDependencies": {
@@ -38,7 +46,7 @@
     "viem": "catalog:"
   },
   "scripts": {
-    "build": "rm -rf ./dist && tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node",
+    "build": "rm -rf ./dist && tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist/node --target=node && bun build ./src/index.ts --outdir ./dist/browser --target=browser",
     "format": "prettier . --write",
     "prepublishOnly": "bun run build"
   },
