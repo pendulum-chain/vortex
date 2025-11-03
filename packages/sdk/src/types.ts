@@ -140,6 +140,7 @@ export interface NetworkConfig {
 
 export interface VortexSdkConfig {
   apiBaseUrl: string;
+  apiKey?: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
