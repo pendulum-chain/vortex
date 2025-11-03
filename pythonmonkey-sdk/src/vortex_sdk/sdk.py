@@ -47,12 +47,24 @@ class VortexSDK:
             # Determine the path to the compiled SDK
             sdk_path = self._find_sdk_path()
             
-            # Load the compiled Vortex SDK using PythonMonkey
-            # Use CommonJS require syntax
-            pm.eval(f"globalThis.VortexSdkModule = require('{sdk_path}');")
-            
-            # Get the module and extract VortexSdk class
-            module = pm.eval("globalThis.VortexSdkModule")
+            # Use PythonMonkey's require functionality
+            # First, get or create the require function from the Node.js module system
+            if hasattr(pm, 'require'):
+                # PythonMonkey has a direct require function
+                module = pm.require(sdk_path)
+            else:
+                # Fallback: Use eval with Node's global require
+                # Store the path in a global variable to avoid quote escaping issues
+                pm.eval("globalThis.__sdkPath = arguments[0];")(sdk_path)
+                module = pm.eval("""
+                    (function() {
+                        const Module = require('module');
+                        const path = require('path');
+                        const createRequire = Module.createRequire || Module.createRequireFromPath;
+                        const requireFunc = createRequire(path.join(process.cwd(), 'dummy.js'));
+                        return requireFunc(globalThis.__sdkPath);
+                    })()
+                """)
             
             # The SDK exports VortexSdk as a named export
             VortexSdkClass = module.VortexSdk
