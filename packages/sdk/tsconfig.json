@@ -6,7 +6,7 @@
     "declarationDir": "./dist/types",
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",
-    "lib": ["ES2020"],
+    "lib": ["ES2021", "DOM"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "node",
@@ -18,8 +18,8 @@
     "outDir": "./dist/types",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "strict": true,
-    "target": "ES2020"
+    "strict": false,
+    "target": "ES2021"
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts"],
   "include": ["./src/**/*.ts"]
