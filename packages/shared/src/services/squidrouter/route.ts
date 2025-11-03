@@ -8,6 +8,8 @@ import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
 
+export { splitReceiverABI };
+
 export interface RouteParams {
   fromAddress: string;
   fromChain: string;

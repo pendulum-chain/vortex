@@ -28,9 +28,9 @@ import {
   OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
+  splitReceiverABI,
   waitUntilTrue
 } from "@vortexfi/shared";
-import splitReceiverABI from "@vortexfi/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
