@@ -10,7 +10,7 @@ from vortex_sdk import VortexSDK, FiatToken, EvmToken, Networks
 def main():
     # Initialize the SDK
     config = {
-        "apiBaseUrl": "https://api.vortex.pendulumchain.tech"
+        "apiBaseUrl": "https://api-staging.vortexfinance.co"
     }
     
     sdk = VortexSDK(config)
@@ -19,11 +19,11 @@ def main():
     print("Creating quote for BRL to USDC...")
     quote_request = {
         "from": "pix",
-        "inputAmount": "100000",  # 1000.00 BRL (in cents)
-        "inputCurrency": FiatToken.BRL,
-        "outputCurrency": EvmToken.USDC,
-        "rampType": "on",
-        "to": Networks.Polygon
+        "inputAmount": "1000",
+        "inputCurrency": "BRL",
+        "outputCurrency": "USDC",
+        "rampType": "BUY",
+        "to": "polygon"
     }
     
     quote = sdk.create_quote(quote_request)

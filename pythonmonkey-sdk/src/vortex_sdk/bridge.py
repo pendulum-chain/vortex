@@ -54,26 +54,26 @@ class NodeBridge:
     def call_method(self, method: str, *args) -> Any:
         """Call a SDK method via Node.js."""
         script = f"""
-        const {{ VortexSdk }} = require('@vortexfi/sdk');
-        
-        const config = {json.dumps(self.sdk_config)};
-        const sdk = new VortexSdk(config);
-        
-        const args = {json.dumps(args)};
-        
-        sdk.{method}(...args)
-            .then(result => {{
+        (async () => {{
+            try {{
+                const {{ VortexSdk }} = require('@vortexfi/sdk');
+                
+                const config = {json.dumps(self.sdk_config)};
+                const sdk = new VortexSdk(config);
+                
+                const args = {json.dumps(args)};
+                
+                const result = await sdk.{method}(...args);
                 console.log(JSON.stringify({{ success: true, result }}));
-                process.exit(0);
-            }})
-            .catch(error => {{
-                console.log(JSON.stringify({{ 
-                    success: false, 
+            }} catch (error) {{
+                console.error(JSON.stringify({{
+                    success: false,
                     error: error.message,
-                    stack: error.stack 
+                    stack: error.stack
                 }}));
                 process.exit(1);
-            }});
+            }}
+        }})();
         """
         
         try:
@@ -85,12 +85,20 @@ class NodeBridge:
                 cwd=str(Path(__file__).parent.parent.parent)
             )
             
-            if result.returncode != 0:
+            # Check stderr for error output
+            if result.stderr and result.returncode != 0:
                 try:
-                    error_data = json.loads(result.stdout)
+                    error_data = json.loads(result.stderr)
                     raise VortexSDKError(f"SDK error: {error_data.get('error', 'Unknown error')}")
                 except json.JSONDecodeError:
                     raise VortexSDKError(f"Node.js error: {result.stderr}")
+            
+            if not result.stdout:
+                raise VortexSDKError(
+                    f"No output from Node.js. "
+                    f"stderr: {result.stderr or '(empty)'}, "
+                    f"return code: {result.returncode}"
+                )
             
             response = json.loads(result.stdout)
             if not response.get('success'):
@@ -99,7 +107,11 @@ class NodeBridge:
             return response['result']
             
         except json.JSONDecodeError as e:
-            raise VortexSDKError(f"Failed to parse Node.js response: {e}")
+            raise VortexSDKError(
+                f"Failed to parse response. "
+                f"stdout: {result.stdout[:200]}, "
+                f"stderr: {result.stderr[:200]}"
+            )
         except Exception as e:
             if isinstance(e, VortexSDKError):
                 raise
