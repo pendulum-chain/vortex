@@ -10,7 +10,8 @@ from vortex_sdk import VortexSDK, FiatToken, EvmToken, Networks
 def main():
     # Initialize the SDK
     config = {
-        "apiBaseUrl": "https://api-staging.vortexfinance.co"
+        "apiBaseUrl": "https://api-staging.vortexfinance.co",
+        "moonbeamWsUrl": "wss://moonbeam.ibp.network"
     }
     
     sdk = VortexSDK(config)

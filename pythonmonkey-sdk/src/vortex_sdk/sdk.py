@@ -115,7 +115,8 @@ class VortexSDK:
         Raises:
             APIError: If the API request fails
         """
-        return self._bridge.call_method("registerRamp", quote, additional_data)
+        # registerRamp needs more time for blockchain operations (signing, network init)
+        return self._bridge.call_method("registerRamp", quote, additional_data, timeout=180)
 
     def update_ramp(
         self,
@@ -155,7 +156,8 @@ class VortexSDK:
         Raises:
             APIError: If the API request fails
         """
-        return self._bridge.call_method("startRamp", ramp_id)
+        # startRamp may need time for blockchain operations
+        return self._bridge.call_method("startRamp", ramp_id, timeout=120)
 
     def get_user_transactions(
         self,

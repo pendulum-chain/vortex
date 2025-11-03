@@ -51,8 +51,14 @@ class NodeBridge:
                 "@vortexfi/sdk not found. Run: npm install"
             )
     
-    def call_method(self, method: str, *args) -> Any:
-        """Call a SDK method via Node.js."""
+    def call_method(self, method: str, *args, timeout: int = 60) -> Any:
+        """Call a SDK method via Node.js.
+        
+        Args:
+            method: SDK method name
+            *args: Method arguments
+            timeout: Timeout in seconds (default 60, use higher for registerRamp)
+        """
         script = f"""
         (async () => {{
             try {{
@@ -91,7 +97,7 @@ class NodeBridge:
                 text=True,
                 check=False,
                 cwd=str(Path(__file__).parent.parent.parent),
-                timeout=60  # 60 second timeout for network init
+                timeout=timeout
             )
             
             # Debug output
@@ -121,8 +127,8 @@ class NodeBridge:
             
         except subprocess.TimeoutExpired:
             raise VortexSDKError(
-                f"SDK call timed out after 60s. "
-                "This may be due to network initialization. "
+                f"SDK call '{method}' timed out after {timeout}s. "
+                "This may be due to network initialization or blockchain operations. "
                 "Check your network connectivity and RPC URLs."
             )
         except json.JSONDecodeError as e:
