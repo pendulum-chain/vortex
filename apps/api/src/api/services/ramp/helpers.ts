@@ -1,4 +1,5 @@
 import { FiatToken, Networks } from "@packages/shared";
+import logger from "../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
@@ -10,6 +11,30 @@ enum TransactionHashKey {
 }
 
 type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
+
+async function getAxelarScanExecutionLink(hash: string): Promise<string> {
+  const url = "https://axelarscan.io/gmp/searchGMP";
+  const response = await fetch(url, {
+    body: JSON.stringify({ txHash: hash }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    logger.error(`Failed to fetch AxelarScan link for hash ${hash}: ${response.statusText}`);
+    return `https://axelarscan.io/gmp/${hash}`; // Fallback link
+  }
+  try {
+    const data = await response.json();
+    const executionHash = data[0]?.expressExecuted?.transactionHash || data[0]?.executed?.transactionHash;
+    return executionHash;
+  } catch (error) {
+    logger.error(`Failed to parse AxelarScan response for hash ${hash}: ${error}`);
+    return `https://axelarscan.io/gmp/${hash}`; // Fallback link
+  }
+}
 
 const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = {
   [TransactionHashKey.HydrationToAssethubXcmHash]: hash => `https://hydration.subscan.io/block/${hash}`,
@@ -56,7 +81,23 @@ export function getFinalTransactionHashForRamp(rampState: RampState, quote: Quot
 
   for (const hashKey of TRANSACTION_HASH_PRIORITY) {
     const hash = rampState.state[hashKey];
+
     if (hash) {
+      if (hashKey === TransactionHashKey.SquidRouterSwapHash) {
+        try {
+          // Try to get the execution hash from AxelarScan
+          return getAxelarScanExecutionLink(hash).then(executionHash => ({
+            transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](executionHash, rampState, quote),
+            transactionHash: executionHash
+          }));
+        } catch (error) {
+          logger.error(`Error fetching AxelarScan link for hash ${hash}: ${error}`);
+          return {
+            transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
+            transactionHash: hash
+          };
+        }
+      }
       return {
         transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
         transactionHash: hash
