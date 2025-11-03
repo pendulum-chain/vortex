@@ -47,24 +47,41 @@ class VortexSDK:
             # Determine the path to the compiled SDK
             sdk_path = self._find_sdk_path()
             
-            # Use PythonMonkey's require functionality
-            # First, get or create the require function from the Node.js module system
-            if hasattr(pm, 'require'):
-                # PythonMonkey has a direct require function
-                module = pm.require(sdk_path)
-            else:
-                # Fallback: Use eval with Node's global require
-                # Store the path in a global variable to avoid quote escaping issues
-                pm.eval("globalThis.__sdkPath = arguments[0];")(sdk_path)
+            # The SDK might be ES6 modules or CommonJS depending on the build
+            # Try dynamic import for ES6 modules first, then fall back to require
+            
+            # Store the SDK path in global context
+            pm.eval("globalThis.__vortexSdkPath = null")
+            pm.eval("globalThis.__vortexSdkPath = arguments[0]")(sdk_path)
+            
+            try:
+                # Try ES6 dynamic import (for npm package)
                 module = pm.eval("""
-                    (function() {
-                        const Module = require('module');
-                        const path = require('path');
-                        const createRequire = Module.createRequire || Module.createRequireFromPath;
-                        const requireFunc = createRequire(path.join(process.cwd(), 'dummy.js'));
-                        return requireFunc(globalThis.__sdkPath);
+                    (async function() {
+                        const module = await import(globalThis.__vortexSdkPath);
+                        return module;
                     })()
                 """)
+                # Wait for the promise to resolve
+                if hasattr(pm, 'wait'):
+                    module = pm.wait(module)
+            except:
+                # Fall back to CommonJS require (for local builds)
+                try:
+                    if hasattr(pm, 'require'):
+                        module = pm.require(sdk_path)
+                    else:
+                        module = pm.eval("""
+                            (function() {
+                                const Module = require('module');
+                                const path = require('path');
+                                const createRequire = Module.createRequire || Module.createRequireFromPath;
+                                const requireFunc = createRequire(path.join(process.cwd(), 'dummy.js'));
+                                return requireFunc(globalThis.__vortexSdkPath);
+                            })()
+                        """)
+                except Exception as inner_e:
+                    raise Exception(f"Failed to load SDK with both import() and require(): {inner_e}")
             
             # The SDK exports VortexSdk as a named export
             VortexSdkClass = module.VortexSdk
