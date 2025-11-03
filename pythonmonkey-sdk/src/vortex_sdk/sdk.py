@@ -50,18 +50,20 @@ class VortexSDK:
             # The SDK might be ES6 modules or CommonJS depending on the build
             # Try dynamic import for ES6 modules first, then fall back to require
             
-            # Store the SDK path in global context
-            pm.eval("globalThis.__vortexSdkPath = null")
-            pm.eval("globalThis.__vortexSdkPath = arguments[0]")(sdk_path)
+            # Store the SDK path - use a function that accepts the path as parameter
+            set_path = pm.eval("(function(path) { globalThis.__vortexSdkPath = path; })")
+            set_path(sdk_path)
             
             try:
                 # Try ES6 dynamic import (for npm package)
-                module = pm.eval("""
+                import_func = pm.eval("""
                     (async function() {
                         const module = await import(globalThis.__vortexSdkPath);
                         return module;
-                    })()
+                    })
                 """)
+                module = import_func()
+                
                 # Wait for the promise to resolve
                 if hasattr(pm, 'wait'):
                     module = pm.wait(module)
@@ -71,15 +73,16 @@ class VortexSDK:
                     if hasattr(pm, 'require'):
                         module = pm.require(sdk_path)
                     else:
-                        module = pm.eval("""
+                        require_func = pm.eval("""
                             (function() {
                                 const Module = require('module');
                                 const path = require('path');
                                 const createRequire = Module.createRequire || Module.createRequireFromPath;
                                 const requireFunc = createRequire(path.join(process.cwd(), 'dummy.js'));
                                 return requireFunc(globalThis.__vortexSdkPath);
-                            })()
+                            })
                         """)
+                        module = require_func()
                 except Exception as inner_e:
                     raise Exception(f"Failed to load SDK with both import() and require(): {inner_e}")
             
