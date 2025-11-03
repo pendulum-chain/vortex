@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include INSTALL.md
+include requirements.txt
+recursive-include vortex_sdk *.py
+recursive-include examples *.py
+global-exclude __pycache__
+global-exclude *.py[co]
