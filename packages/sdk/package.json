@@ -33,7 +33,7 @@
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
     "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types && bun run postbuild",
-    "build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --target=node --format=cjs --external=@polkadot/api --external=stellar-sdk --external=viem",
+    "build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --target=node --format=cjs --external=@polkadot/api --external=stellar-sdk --external=viem --define 'import.meta.env=process.env'",
     "build:esm": "bun build ./src/index.ts --outdir ./dist/esm --target=node --format=esm --external=@polkadot/api --external=stellar-sdk --external=viem",
     "build:types": "bun x tsc -p tsconfig.json",
     "clean": "rm -rf ./dist",
@@ -47,5 +47,5 @@
   },
   "type": "module",
   "types": "./dist/types/index.d.ts",
-  "version": "0.4.1"
+  "version": "0.4.2"
 }
