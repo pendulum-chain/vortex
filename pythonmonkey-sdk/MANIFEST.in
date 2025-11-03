@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+recursive-include src/vortex_sdk *.py
+recursive-include examples *.py
+include src/vortex_sdk/py.typed
