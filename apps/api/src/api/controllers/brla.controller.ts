@@ -1,4 +1,5 @@
 import {
+  AveniaAccountType,
   AveniaDocumentType,
   AveniaKYCDataUpload,
   AveniaKYCDataUploadRequest,
@@ -17,6 +18,7 @@ import {
   BrlaGetUserResponse,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
+  isValidCnpj,
   KybAttemptStatusResponse,
   KybLevel1Response,
   KycAttemptResult,
@@ -26,7 +28,6 @@ import {
   KycLevel1Response,
   RampDirection
 } from "@vortexfi/shared";
-import { AveniaAccountType, isValidCnpj } from "@vortexfi/shared/src/services";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import TaxId from "../../models/taxId.model";

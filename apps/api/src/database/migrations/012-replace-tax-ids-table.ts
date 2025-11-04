@@ -1,4 +1,4 @@
-import { AveniaAccountType } from "@vortexfi/shared/src/services";
+import { AveniaAccountType } from "@vortexfi/shared";
 import { DataTypes, QueryInterface } from "sequelize";
 
 export async function down(queryInterface: QueryInterface): Promise<void> {

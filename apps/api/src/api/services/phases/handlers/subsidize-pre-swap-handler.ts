@@ -1,5 +1,4 @@
-import { ApiManager, RampPhase } from "@vortexfi/shared";
-import { nativeToDecimal } from "@vortexfi/shared/src/helpers/parseNumbers";
+import { ApiManager, nativeToDecimal, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";

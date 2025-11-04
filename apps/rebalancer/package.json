@@ -7,7 +7,7 @@
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
     "@types/big.js": "catalog:",
-    "@vortexfi/shared": "latest",
+    "@vortexfi/shared": "workspace:*",
     "big.js": "catalog:",
     "graphql": "~16.9.0",
     "graphql-request": "~6.1.0",

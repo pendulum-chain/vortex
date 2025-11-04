@@ -3,27 +3,24 @@
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "declaration": true,
-    "declarationDir": "./dist/types",
+    "declarationDir": "./dist",
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",
-    "lib": ["ES2021", "DOM"],
+    "lib": ["esnext", "dom"],
     "module": "ESNext",
     "moduleDetection": "force",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "outDir": "./dist/types",
-    "paths": {
-      "@vortexfi/shared": ["../shared/src"]
-    },
+    "outDir": "./dist",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2021"
+    "target": "ESNext"
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "include": ["./src/**/*.ts"]
 }

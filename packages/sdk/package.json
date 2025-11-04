@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@vortexfi/shared": "^0.0.7"
+    "@vortexfi/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.1",
@@ -8,9 +8,8 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
     "./package.json": "./package.json"
   },
@@ -18,8 +17,8 @@
     "dist",
     "README.md"
   ],
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "name": "@vortexfi/sdk",
   "peerDependencies": {
     "@polkadot/api": "^16.4.6",
@@ -34,20 +33,16 @@
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
-    "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types && bun run postbuild",
-    "build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --target=node --format=cjs --external=@polkadot/api --external=stellar-sdk --external=viem --define 'import.meta.env=process.env'",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/esm --target=node --format=esm --external=@polkadot/api --external=stellar-sdk --external=viem",
-    "build:types": "bun x tsc -p tsconfig.json",
+    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --external=\"@polkadot/api\" --external=\"stellar-sdk\" --external=\"viem\"",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
-    "postbuild": "node scripts/post-build.js",
     "prepublishOnly": "bun run build",
-    "test": "bun run build && echo 'Build successful! CJS and ESM outputs created.'",
+    "test": "bun run build && node -e \"require('./dist/index.js')\"",
     "typecheck": "bun x --bun tsc"
   },
   "type": "module",
-  "types": "./dist/types/index.d.ts",
-  "version": "0.4.3"
+  "types": "./dist/index.d.ts",
+  "version": "0.4.7"
 }
