@@ -30,6 +30,9 @@ jobs:
           bun --version
           node --version
           bunx tsc -v
+        
+      - name: Build 
+        run: bun run build
 
       - name: ✏️ Typecheck
         run: bun run typecheck
