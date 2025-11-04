@@ -2,7 +2,7 @@
   "catalog": {
     "@graphql-typed-document-node/core": "^3.2.0",
     "@pendulum-chain/api": "^1.1.1",
-    "@pendulum-chain/api-solang": "^0.7.2",
+    "@pendulum-chain/api-solang": "^0.7.3",
     "@pendulum-chain/types": "^1.1.1",
     "@polkadot/api": "^16.4.6",
     "@polkadot/api-augment": "^16.4.6",

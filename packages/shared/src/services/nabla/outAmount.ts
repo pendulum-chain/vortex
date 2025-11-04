@@ -67,6 +67,9 @@ export async function getTokenOutAmount(params: {
     },
     parseSuccessOutput: (data: bigint[]) => {
       const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[0]);
+      if (!preciseQuotedAmountOut) {
+        throw new Error("Failed to parse quoted amount out");
+      }
       const swapFee = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[1]);
       return {
         effectiveExchangeRate: stringifyBigWithSignificantDecimals(preciseQuotedAmountOut.preciseBigDecimal.div(amountBig), 4),

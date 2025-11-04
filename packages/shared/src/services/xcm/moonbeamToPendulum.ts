@@ -35,6 +35,10 @@ export async function createMoonbeamToPendulumXCM(
   const feeAssetItem = 0;
   const weightLimit = "Unlimited";
 
+  if (!moonbeamNode.api.tx.polkadotXcm?.transferAssets) {
+    throw new Error("createMoonbeamToPendulumXCM: transferAssets is not available");
+  }
+
   const xcm = moonbeamNode.api.tx.polkadotXcm.transferAssets(destination, beneficiary, assets, feeAssetItem, weightLimit);
 
   return xcm;

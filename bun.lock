@@ -221,7 +221,7 @@
     },
     "packages/sdk": {
       "name": "@vortexfi/sdk",
-      "version": "0.4.3",
+      "version": "0.4.7",
       "dependencies": {
         "@vortexfi/shared": "workspace:*",
       },
@@ -237,7 +237,7 @@
     },
     "packages/shared": {
       "name": "@vortexfi/shared",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@paraspell/sdk-pjs": "^11.8.5",
         "@pendulum-chain/api-solang": "catalog:",
@@ -279,7 +279,7 @@
   "catalog": {
     "@graphql-typed-document-node/core": "^3.2.0",
     "@pendulum-chain/api": "^1.1.1",
-    "@pendulum-chain/api-solang": "^0.7.2",
+    "@pendulum-chain/api-solang": "^0.7.3",
     "@pendulum-chain/types": "^1.1.1",
     "@polkadot/api": "^16.4.6",
     "@polkadot/api-augment": "^16.4.6",
@@ -996,7 +996,7 @@
 
     "@pendulum-chain/api-derive": ["@pendulum-chain/api-derive@1.1.1", "", { "dependencies": { "@babel/runtime": "^7.10.2", "@open-web3/orml-types": "^1.1.4", "@pendulum-chain/types": "1.1.1", "@polkadot/api-derive": "^13.2.1" } }, "sha512-aCUZdN2KSMZhrCyDG1GYrSBSHo6FCuVc7kmEidxcQxIF0xSuNSV3LAZDn4JVyTBANNNZAJvXmPa5GNXyKlnx8A=="],
 
-    "@pendulum-chain/api-solang": ["@pendulum-chain/api-solang@0.7.2", "", { "peerDependencies": { "@polkadot/api": "^13.2", "@polkadot/api-contract": "^13.2", "@polkadot/keyring": "*", "@polkadot/types": "^13.2", "@polkadot/types-codec": "^13.2", "@polkadot/util": "*", "@polkadot/util-crypto": "*" } }, "sha512-mFJnprihEvW9ZfZGobAmxIFKiTq6PnkhUyrUQszoxzZ5tOxZTnSxsPB4RDlgKsrHe3kPiN5UrP9HZlPCVo46pQ=="],
+    "@pendulum-chain/api-solang": ["@pendulum-chain/api-solang@0.7.3", "", { "peerDependencies": { "@polkadot/api": "^16.4.6", "@polkadot/api-contract": "^16.4.6", "@polkadot/keyring": "*", "@polkadot/types": "^16.4.6", "@polkadot/types-codec": "^16.4.6", "@polkadot/util": "*", "@polkadot/util-crypto": "*" } }, "sha512-qFfao0sKFCEKuwGVVwHzadW978KJNH4k6rpMRZswARQG9XAvQPmNERDHDcpCQmWQV0sr1BnEQ+1BD+tG18r9/A=="],
 
     "@pendulum-chain/type-definitions": ["@pendulum-chain/type-definitions@1.1.1", "", { "dependencies": { "@babel/runtime": "^7.10.2", "@open-web3/orml-type-definitions": "^1.1.4" } }, "sha512-+d99CFUHpIzeJtOeQTVn/4+HXYfIJQ1KLKrh5E9pR7HzWvpEJP8cOV/1X5sUgGOketpWROeob64X4bRxghzVdQ=="],
 
@@ -4048,12 +4048,6 @@
 
     "@pendulum-chain/api-derive/@polkadot/api-derive": ["@polkadot/api-derive@13.2.1", "", { "dependencies": { "@polkadot/api": "13.2.1", "@polkadot/api-augment": "13.2.1", "@polkadot/api-base": "13.2.1", "@polkadot/rpc-core": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-npxvS0kYcSFqmYv2G8QKWAJwFhIv/MBuGU0bV7cGP9K1A3j2Do3yYjvN1dTtY20jBavWNwmWFdXBV6/TRRsgmg=="],
 
-    "@pendulum-chain/api-solang/@polkadot/api": ["@polkadot/api@13.2.1", "", { "dependencies": { "@polkadot/api-augment": "13.2.1", "@polkadot/api-base": "13.2.1", "@polkadot/api-derive": "13.2.1", "@polkadot/keyring": "^13.1.1", "@polkadot/rpc-augment": "13.2.1", "@polkadot/rpc-core": "13.2.1", "@polkadot/rpc-provider": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-augment": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/types-create": "13.2.1", "@polkadot/types-known": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "eventemitter3": "^5.0.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-QvgKD3/q6KIU3ZuNYFJUNc6B8bGBoqeMF+iaPxJn3Twhh4iVD5XIymD5fVszSqiL1uPXMhzcWecjwE8rDidBoQ=="],
-
-    "@pendulum-chain/api-solang/@polkadot/types": ["@polkadot/types@13.2.1", "", { "dependencies": { "@polkadot/keyring": "^13.1.1", "@polkadot/types-augment": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/types-create": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-5yQ0mHMNvwgXeHQ1RZOuHaeak3utAdcBqCpHoagnYrAnGHqtO7kg7YLtT4LkFw2nwL85axu8tOQMv6/3kpFy9w=="],
-
-    "@pendulum-chain/api-solang/@polkadot/types-codec": ["@polkadot/types-codec@13.2.1", "", { "dependencies": { "@polkadot/util": "^13.1.1", "@polkadot/x-bigint": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-tFAzzS8sMYItoD5a91sFMD+rskWyv4WjSmUZaj0Y4OfLtDAiQvgO0KncdGJIB6D+zZ/T7khpgsv/CZbN3YnezA=="],
-
     "@polkadot/extension-inject/@polkadot/api": ["@polkadot/api@13.2.1", "", { "dependencies": { "@polkadot/api-augment": "13.2.1", "@polkadot/api-base": "13.2.1", "@polkadot/api-derive": "13.2.1", "@polkadot/keyring": "^13.1.1", "@polkadot/rpc-augment": "13.2.1", "@polkadot/rpc-core": "13.2.1", "@polkadot/rpc-provider": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-augment": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/types-create": "13.2.1", "@polkadot/types-known": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "eventemitter3": "^5.0.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-QvgKD3/q6KIU3ZuNYFJUNc6B8bGBoqeMF+iaPxJn3Twhh4iVD5XIymD5fVszSqiL1uPXMhzcWecjwE8rDidBoQ=="],
 
     "@polkadot/extension-inject/@polkadot/rpc-provider": ["@polkadot/rpc-provider@13.2.1", "", { "dependencies": { "@polkadot/keyring": "^13.1.1", "@polkadot/types": "13.2.1", "@polkadot/types-support": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "@polkadot/x-fetch": "^13.1.1", "@polkadot/x-global": "^13.1.1", "@polkadot/x-ws": "^13.1.1", "eventemitter3": "^5.0.1", "mock-socket": "^9.3.1", "nock": "^13.5.4", "tslib": "^2.7.0" }, "optionalDependencies": { "@substrate/connect": "0.8.11" } }, "sha512-bbMVYHTNFUa89aY3UQ1hFYD+dP+v+0vhjsnHYYlv37rSUTqOGqW91rkHd63xYCpLAimFt7KRw8xR+SMSYiuDjw=="],
@@ -4592,28 +4586,6 @@
 
     "@pendulum-chain/api-derive/@polkadot/api-derive/@polkadot/types-codec": ["@polkadot/types-codec@13.2.1", "", { "dependencies": { "@polkadot/util": "^13.1.1", "@polkadot/x-bigint": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-tFAzzS8sMYItoD5a91sFMD+rskWyv4WjSmUZaj0Y4OfLtDAiQvgO0KncdGJIB6D+zZ/T7khpgsv/CZbN3YnezA=="],
 
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/api-augment": ["@polkadot/api-augment@13.2.1", "", { "dependencies": { "@polkadot/api-base": "13.2.1", "@polkadot/rpc-augment": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-augment": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-NTkI+/Hm48eWc/4Ojh/5elxnjnow5ptXK97IZdkWAe7mWi9hJR05Uq5lGt/T/57E9LSRWEuYje8cIDS3jbbAAw=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/api-base": ["@polkadot/api-base@13.2.1", "", { "dependencies": { "@polkadot/rpc-core": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/util": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-00twdIjTjzdYNdU19i2YKLoWBmf2Yr6b3qrvqIVScHipUkKMbfFBgoPRB5FtcviBbEvLurgfyzHklwnrbWo8GQ=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/api-derive": ["@polkadot/api-derive@13.2.1", "", { "dependencies": { "@polkadot/api": "13.2.1", "@polkadot/api-augment": "13.2.1", "@polkadot/api-base": "13.2.1", "@polkadot/rpc-core": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-npxvS0kYcSFqmYv2G8QKWAJwFhIv/MBuGU0bV7cGP9K1A3j2Do3yYjvN1dTtY20jBavWNwmWFdXBV6/TRRsgmg=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/rpc-augment": ["@polkadot/rpc-augment@13.2.1", "", { "dependencies": { "@polkadot/rpc-core": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-HkndaAJPR1fi2xrzvP3q4g48WUCb26btGTeg1AKG9FGx9P2dgtpaPRmbMitmgVSzzRurrkxf3Meip8nC7BwDeg=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/rpc-core": ["@polkadot/rpc-core@13.2.1", "", { "dependencies": { "@polkadot/rpc-augment": "13.2.1", "@polkadot/rpc-provider": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/util": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-hy0GksUlb/TfQ38m3ysIWj3qD+rIsyCdxx8Ug5rIx1u0odv86NZ7nTqtH066Ct2riVaPBgBkObFnlpDWTJ6auA=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/rpc-provider": ["@polkadot/rpc-provider@13.2.1", "", { "dependencies": { "@polkadot/keyring": "^13.1.1", "@polkadot/types": "13.2.1", "@polkadot/types-support": "13.2.1", "@polkadot/util": "^13.1.1", "@polkadot/util-crypto": "^13.1.1", "@polkadot/x-fetch": "^13.1.1", "@polkadot/x-global": "^13.1.1", "@polkadot/x-ws": "^13.1.1", "eventemitter3": "^5.0.1", "mock-socket": "^9.3.1", "nock": "^13.5.4", "tslib": "^2.7.0" }, "optionalDependencies": { "@substrate/connect": "0.8.11" } }, "sha512-bbMVYHTNFUa89aY3UQ1hFYD+dP+v+0vhjsnHYYlv37rSUTqOGqW91rkHd63xYCpLAimFt7KRw8xR+SMSYiuDjw=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/types-augment": ["@polkadot/types-augment@13.2.1", "", { "dependencies": { "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-FpV7/2kIJmmswRmwUbp41lixdNX15olueUjHnSweFk0xEn2Ur43oC0Y3eU3Ab7Y5gPJpceMCfwYz+PjCUGedDA=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/types-create": ["@polkadot/types-create@13.2.1", "", { "dependencies": { "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-O/WKdsrNuMaZLf+XRCdum2xJYs5OKC6N3EMPF5Uhg10b80Y/hQCbzA/iWd3/aMNDLUA5XWhixwzJdrZWIMVIzg=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/types-known": ["@polkadot/types-known@13.2.1", "", { "dependencies": { "@polkadot/networks": "^13.1.1", "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/types-create": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-uz3c4/IvspLpgN8q15A+QH8KWFauzcrV3RfLFlMP2BkkF5qpOwNeP7c4U8j0CZGQySqBsJRCGWmgBXrXg669KA=="],
-
-    "@pendulum-chain/api-solang/@polkadot/types/@polkadot/types-augment": ["@polkadot/types-augment@13.2.1", "", { "dependencies": { "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-FpV7/2kIJmmswRmwUbp41lixdNX15olueUjHnSweFk0xEn2Ur43oC0Y3eU3Ab7Y5gPJpceMCfwYz+PjCUGedDA=="],
-
-    "@pendulum-chain/api-solang/@polkadot/types/@polkadot/types-create": ["@polkadot/types-create@13.2.1", "", { "dependencies": { "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-O/WKdsrNuMaZLf+XRCdum2xJYs5OKC6N3EMPF5Uhg10b80Y/hQCbzA/iWd3/aMNDLUA5XWhixwzJdrZWIMVIzg=="],
-
     "@pendulum-chain/api/@polkadot/api/@polkadot/api-augment": ["@polkadot/api-augment@13.2.1", "", { "dependencies": { "@polkadot/api-base": "13.2.1", "@polkadot/rpc-augment": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/types-augment": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-NTkI+/Hm48eWc/4Ojh/5elxnjnow5ptXK97IZdkWAe7mWi9hJR05Uq5lGt/T/57E9LSRWEuYje8cIDS3jbbAAw=="],
 
     "@pendulum-chain/api/@polkadot/api/@polkadot/api-base": ["@polkadot/api-base@13.2.1", "", { "dependencies": { "@polkadot/rpc-core": "13.2.1", "@polkadot/types": "13.2.1", "@polkadot/util": "^13.1.1", "rxjs": "^7.8.1", "tslib": "^2.7.0" } }, "sha512-00twdIjTjzdYNdU19i2YKLoWBmf2Yr6b3qrvqIVScHipUkKMbfFBgoPRB5FtcviBbEvLurgfyzHklwnrbWo8GQ=="],
@@ -4979,8 +4951,6 @@
     "@pendulum-chain/api-derive/@polkadot/api-derive/@polkadot/types/@polkadot/types-augment": ["@polkadot/types-augment@13.2.1", "", { "dependencies": { "@polkadot/types": "13.2.1", "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-FpV7/2kIJmmswRmwUbp41lixdNX15olueUjHnSweFk0xEn2Ur43oC0Y3eU3Ab7Y5gPJpceMCfwYz+PjCUGedDA=="],
 
     "@pendulum-chain/api-derive/@polkadot/api-derive/@polkadot/types/@polkadot/types-create": ["@polkadot/types-create@13.2.1", "", { "dependencies": { "@polkadot/types-codec": "13.2.1", "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-O/WKdsrNuMaZLf+XRCdum2xJYs5OKC6N3EMPF5Uhg10b80Y/hQCbzA/iWd3/aMNDLUA5XWhixwzJdrZWIMVIzg=="],
-
-    "@pendulum-chain/api-solang/@polkadot/api/@polkadot/rpc-provider/@polkadot/types-support": ["@polkadot/types-support@13.2.1", "", { "dependencies": { "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-jSbbUTXU+yZJQPRAWmxaDoe4NRO6SjpZPzBIbpuiadx1slON8XB80fVYIGBXuM2xRVrNrB6fCjyCTG7Razj6Hg=="],
 
     "@pendulum-chain/api/@polkadot/api/@polkadot/rpc-provider/@polkadot/types-support": ["@polkadot/types-support@13.2.1", "", { "dependencies": { "@polkadot/util": "^13.1.1", "tslib": "^2.7.0" } }, "sha512-jSbbUTXU+yZJQPRAWmxaDoe4NRO6SjpZPzBIbpuiadx1slON8XB80fVYIGBXuM2xRVrNrB6fCjyCTG7Razj6Hg=="],
 
