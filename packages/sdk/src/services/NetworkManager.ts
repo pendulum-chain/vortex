@@ -14,7 +14,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.public.blastapi.io"
+    wsUrl: "wss://wss.api.moonbeam.network"
   },
   {
     name: "hydration",

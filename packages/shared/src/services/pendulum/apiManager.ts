@@ -22,7 +22,7 @@ const NETWORKS: NetworkConfig[] = [
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.unitedbloc.com"
+    wsUrl: "wss://wss.api.moonbeam.network"
   },
   {
     name: "pendulum",
