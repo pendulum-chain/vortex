@@ -238,6 +238,19 @@
       "success": "Salvo com sucesso!",
       "title": "Obrigado por usar nosso novo produto!"
     },
+    "errorStep": {
+      "backToPartner": "Por favor, volte para seu parceiro e tente novamente.",
+      "defaultMessage": "Ocorreu um erro inesperado.",
+      "errors": {
+        "insufficientFunds": "Você tem fundos insuficientes para concluir esta transação. Verifique seu saldo e tente novamente.",
+        "invalidTransactionParameters": "Os parâmetros da transação fornecidos são inválidos. Verifique suas entradas.",
+        "networkError": "Ocorreu um erro de rede. Verifique sua conexão com a internet.",
+        "quoteExpired": "Sua cotação expirou. Atualize e solicite uma nova cotação.",
+        "serverError": "Ocorreu um erro no servidor ao processar sua solicitação. Tente novamente mais tarde."
+      },
+      "retryButton": "Tentar Novamente",
+      "title": "Algo deu errado"
+    },
     "feeCollapse": {
       "details": "Detalhes",
       "finalAmount": "Valor final",
@@ -261,7 +274,7 @@
       "poweredBy": "Desenvolvido por"
     },
     "initialQuoteFailed": {
-      "invalidParameters": "Os parâmetros passados são inválidos. Você será redirecionado em breve.",
+      "invalidParameters": "Os parâmetros passados são inválidos.",
       "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
       "tryAgain": "Tente novamente"
     },
