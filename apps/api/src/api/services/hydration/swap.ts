@@ -61,7 +61,7 @@ export class HydrationRouter {
         .address(placeholderReceiverAddress)
         .senderAddress(placeholderSenderAddress)
         .currency({
-          amount: "10000000",
+          amount: "100000000",
           id: assetId
         });
 
