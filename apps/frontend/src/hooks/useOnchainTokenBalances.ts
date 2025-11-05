@@ -13,7 +13,7 @@ import {
   nativeToDecimal,
   OnChainTokenDetails,
   OnChainTokenDetailsWithBalance
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
 import { Abi } from "viem";

@@ -1,5 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api/types";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../logger";
@@ -14,7 +14,7 @@ export interface NetworkConfig {
 const NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
-    wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
+    wsUrl: "wss://polkadot-asset-hub-rpc.polkadot.io"
   },
   {
     name: "hydration",
@@ -22,7 +22,7 @@ const NETWORKS: NetworkConfig[] = [
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.unitedbloc.com"
+    wsUrl: "wss://wss.api.moonbeam.network"
   },
   {
     name: "pendulum",

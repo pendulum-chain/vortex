@@ -1,4 +1,4 @@
-import { BundledPriceResult, FiatToken, RampDirection } from "@packages/shared";
+import { BundledPriceResult, FiatToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";

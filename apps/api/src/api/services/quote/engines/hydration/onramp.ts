@@ -1,4 +1,4 @@
-import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import HydrationRouter from "../../../hydration/swap";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -74,12 +74,12 @@ export class OnRampHydrationEngine implements Stage {
     const outputAmountDecimal = new Big(xcmInputAmountDecimal)
       .minus(originFeeInTargetCurrency)
       .minus(destinationFeeInTargetCurrency);
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toString();
+    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, outputTokenDetails.decimals).toFixed(0, 0);
 
     ctx.hydrationToAssethubXcm = {
       fromToken: outputTokenDetails.assetSymbol,
       inputAmountDecimal: xcmInputAmountDecimal,
-      inputAmountRaw: xcmInputAmountRaw.toString(),
+      inputAmountRaw: xcmInputAmountRaw.toFixed(0, 0),
       outputAmountDecimal,
       outputAmountRaw,
       toToken: outputTokenDetails.assetSymbol,

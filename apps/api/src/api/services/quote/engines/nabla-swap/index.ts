@@ -1,4 +1,4 @@
-import { PendulumTokenDetails, RampDirection } from "@packages/shared";
+import { PendulumTokenDetails, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";

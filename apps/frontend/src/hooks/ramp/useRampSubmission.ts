@@ -5,7 +5,7 @@ import {
   FiatToken,
   getNetworkId,
   Networks
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -20,11 +20,11 @@ interface SubmissionError extends Error {
   message: string;
 }
 
-const createEphemerals = () => {
+const createEphemerals = async () => {
   return {
     evmEphemeral: createMoonbeamEphemeral(),
     stellarEphemeral: createStellarEphemeral(),
-    substrateEphemeral: createPendulumEphemeral()
+    substrateEphemeral: await createPendulumEphemeral()
   };
 };
 
@@ -71,7 +71,7 @@ export const useRampSubmission = () => {
   );
 
   const prepareExecutionInput = useCallback(
-    (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
+    async (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
       validateSubmissionData(data);
       if (!quote) {
         throw new Error("No quote available. Please try again.");
@@ -84,7 +84,7 @@ export const useRampSubmission = () => {
         throw new Error("No address found. Please connect your wallet or provide a destination address.");
       }
 
-      const ephemerals = createEphemerals();
+      const ephemerals = await createEphemerals();
       const executionInput: RampExecutionInput = {
         ephemerals,
         fiatToken,
@@ -130,7 +130,7 @@ export const useRampSubmission = () => {
           throw new Error("Invalid ramp data.");
         }
         console.log("DEBUG: Ramp Submission Data: ", data);
-        const executionInput = prepareExecutionInput(data);
+        const executionInput = await prepareExecutionInput(data);
 
         // This callback is generic and used for any ramp type.
         // The submission logic must ensure these fields are set if BRL

@@ -1,4 +1,4 @@
-import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@vortexfi/shared";
 import Big from "big.js";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
@@ -56,7 +56,6 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           );
         }
 
-        // TODO verify this works on Moonbeam also. It does not.
         await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
     } catch (e) {

@@ -1,10 +1,13 @@
 {
   "dependencies": {
-    "@packages/shared": "workspace:*",
+    "@graphql-typed-document-node/core": "catalog:",
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "catalog:",
+    "@polkadot/util": "catalog:",
+    "@polkadot/util-crypto": "catalog:",
     "@types/big.js": "catalog:",
+    "@vortexfi/shared": "workspace:*",
     "big.js": "catalog:",
     "graphql": "~16.9.0",
     "graphql-request": "~6.1.0",
@@ -13,7 +16,7 @@
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/client-preset": "^4.2.6",
-    "@types/bun": "catalog:",
+    "@types/bun": "^1.3.1",
     "typescript": "catalog:"
   },
   "module": "index.ts",

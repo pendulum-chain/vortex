@@ -1,4 +1,4 @@
-import { FiatToken, FiatTokenDetails, Networks, OnChainToken, OnChainTokenDetails, RampDirection } from "@packages/shared";
+import { FiatToken, FiatTokenDetails, Networks, OnChainToken, OnChainTokenDetails, RampDirection } from "@vortexfi/shared";
 import { isFiatTokenDisabled } from "../../../../config/tokenAvailability";
 import { useNetwork } from "../../../../contexts/network";
 import { useFiatToken, useOnChainToken, useQuoteFormStoreActions } from "../../../../stores/quote/useQuoteFormStore";

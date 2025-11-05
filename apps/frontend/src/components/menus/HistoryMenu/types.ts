@@ -1,4 +1,4 @@
-import { Networks, PaymentMethod } from "@packages/shared";
+import { Networks, PaymentMethod } from "@vortexfi/shared";
 
 export type TransactionStatus = "success" | "pending" | "failed";
 

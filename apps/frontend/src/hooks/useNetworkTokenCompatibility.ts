@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import { useNetwork } from "../contexts/network";
 import { useQuoteFormStore } from "../stores/quote/useQuoteFormStore";
 

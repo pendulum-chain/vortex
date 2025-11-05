@@ -1,4 +1,4 @@
-import { StoreRatingRequest, StoreRatingResponse } from "@packages/shared";
+import { StoreRatingRequest, StoreRatingResponse } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

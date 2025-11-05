@@ -1,4 +1,4 @@
-import { FiatToken, RampDirection, RampPhase } from "@packages/shared";
+import { FiatToken, RampDirection, RampPhase } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";

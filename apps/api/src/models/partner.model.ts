@@ -1,4 +1,4 @@
-import { RampCurrency, RampDirection } from "@packages/shared";
+import { RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 

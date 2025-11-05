@@ -7,7 +7,7 @@ import {
   PriceProvider,
   RampDirection,
   TransakPriceResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
 

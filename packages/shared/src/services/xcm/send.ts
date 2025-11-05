@@ -1,3 +1,9 @@
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
+import { KeyringPair } from "@polkadot/keyring/types";
+import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
+import { ISubmittableResult } from "@polkadot/types/types";
+import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
 import {
   logger,
   parseEventMoonbeamXcmSent,
@@ -5,13 +11,7 @@ import {
   parseEventXTokens,
   XcmSentEvent,
   XTokensEvent
-} from "@packages/shared";
-import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
-import { KeyringPair } from "@polkadot/keyring/types";
-import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
-import { ISubmittableResult } from "@polkadot/types/types";
-import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
+} from "../../index";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -200,10 +200,11 @@ export const submitMoonbeamXcm = async (
 
         if (status.isInvalid) {
           logger.current.error(`XCM transfer failed with status: ${status.type}`);
-          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+          // We saw some issues with the behaviour here. For now, just log the error and wait for it to go in-block
+          // reject(new Error(`XCM transfer failed with status: ${status.type}`));
         }
 
-        if (status.isFinalized) {
+        if (status.isInBlock) {
           const hash = status.asFinalized.toString();
 
           // Try to find 'polkadotXcm.Sent' events

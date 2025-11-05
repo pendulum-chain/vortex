@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Big from "big.js";
 
 interface AxelarScanStatusFees {

@@ -1,3 +1,5 @@
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
 import {
   AXL_USDC_MOONBEAM,
   createRandomString,
@@ -10,9 +12,7 @@ import {
   getSquidRouterConfig,
   Networks,
   SquidrouterRoute
-} from "@packages/shared";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from "@polkadot/util-crypto";
+} from "../../index";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 

@@ -1,4 +1,4 @@
-import { BrlaErrorResponse, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
+import { BrlaErrorResponse, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
 
 import { BrlaService } from "../../services/api";
 import { RampContext } from "../types";

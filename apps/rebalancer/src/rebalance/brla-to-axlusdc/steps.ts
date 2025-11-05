@@ -1,3 +1,6 @@
+import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
 import {
   ApiManager,
   AveniaFeeType,
@@ -25,12 +28,9 @@ import {
   OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
+  splitReceiverABI,
   waitUntilTrue
-} from "@packages/shared";
-import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
-import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from "@polkadot/util-crypto";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";

@@ -10,7 +10,7 @@ import {
   RampCurrency,
   RampDirection,
   XcmFees
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { Big } from "big.js";
 
 // Stage identifiers in the pipeline

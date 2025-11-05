@@ -1,4 +1,4 @@
-import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@packages/shared";
+import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";

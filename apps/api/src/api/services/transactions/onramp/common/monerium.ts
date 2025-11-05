@@ -1,4 +1,4 @@
-import { ERC20_EURE_POLYGON, EvmClientManager, EvmTransactionData, Networks } from "@packages/shared";
+import { ERC20_EURE_POLYGON, EvmClientManager, EvmTransactionData, Networks } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import erc20ABI from "../../../../../contracts/ERC20";

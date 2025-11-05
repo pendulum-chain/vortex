@@ -1,4 +1,4 @@
-import { FiatToken } from "@packages/shared";
+import { FiatToken } from "@vortexfi/shared";
 import { DEFAULT_FIAT_TOKEN } from "../stores/quote/useQuoteFormStore";
 
 export interface TokenAvailabilityConfig {

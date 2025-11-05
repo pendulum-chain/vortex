@@ -6,7 +6,7 @@ import {
   QuoteError,
   QuoteResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";

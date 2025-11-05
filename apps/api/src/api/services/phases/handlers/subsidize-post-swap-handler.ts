@@ -1,5 +1,4 @@
-import { ApiManager, AssetHubToken, FiatToken, RampDirection, RampPhase } from "@packages/shared";
-import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
+import { ApiManager, AssetHubToken, FiatToken, nativeToDecimal, RampDirection, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";

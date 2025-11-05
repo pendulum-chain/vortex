@@ -6,11 +6,11 @@ import {
   getStatus,
   getStatusAxelarScan,
   Networks,
+  nativeToDecimal,
   RampDirection,
   RampPhase,
   SquidRouterPayResponse
-} from "@packages/shared";
-import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
