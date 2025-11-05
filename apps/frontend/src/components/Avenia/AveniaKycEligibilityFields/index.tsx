@@ -1,9 +1,9 @@
-import { CNPJ_REGEX, CPF_REGEX, isValidCnpj, isValidCpf, RampDirection } from "@packages/shared";
+import { RampDirection } from "@packages/shared";
 import { AnimatePresence, type MotionProps, motion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
-import { AveniaField, AveniaFieldValidationPattern, StandardAveniaFieldOptions } from "../AveniaField";
+import { AveniaField, StandardAveniaFieldOptions } from "../AveniaField";
 
 const containerAnimation: MotionProps = {
   animate: { height: "auto", opacity: 1 },
@@ -21,18 +21,6 @@ const ONRAMP_FIELDS = [
   { id: StandardAveniaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
   { id: StandardAveniaFieldOptions.WALLET_ADDRESS, index: 1, label: "walletAddress" }
 ];
-
-const StandardBrlaFieldOptionsValidationPatterns: Partial<Record<StandardAveniaFieldOptions, AveniaFieldValidationPattern>> = {
-  [StandardAveniaFieldOptions.TAX_ID]: {
-    message: "components.swap.validation.taxId.format",
-    validate: (value: string) => isValidCpf(value) || isValidCnpj(value) || "components.swap.validation.taxId.format",
-    value: new RegExp(`${CPF_REGEX.source}|${CNPJ_REGEX.source}`)
-  }
-};
-
-function getValidationPattern(fieldId: StandardAveniaFieldOptions) {
-  return StandardBrlaFieldOptionsValidationPatterns[fieldId] || undefined;
-}
 
 /**
  * AveniaKycEligibilityFields
@@ -63,7 +51,6 @@ export const AveniaKycEligibilityFields: FC<{ isWalletAddressDisabled?: boolean 
             placeholder={t("components.aveniaSwapField.placeholder", {
               label: t(`components.aveniaSwapField.${field.label}`)
             })}
-            validationPattern={getValidationPattern(field.id)}
           />
         ))}
         <div className="mt-2">
