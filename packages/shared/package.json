@@ -31,7 +31,7 @@
   },
   "exports": {
     ".": {
-      "browser": "./dist/browser/index.js",
+      "browser": "./src/index.ts",
       "default": "./dist/browser/index.js",
       "import": "./dist/browser/index.js",
       "node": "./dist/node/index.js",

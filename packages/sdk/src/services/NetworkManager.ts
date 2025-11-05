@@ -6,7 +6,7 @@ import type { NetworkConfig, VortexSdkConfig } from "../types";
 const DEFAULT_NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
-    wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
+    wsUrl: "wss://polkadot-asset-hub-rpc.polkadot.io"
   },
   {
     name: "pendulum",
