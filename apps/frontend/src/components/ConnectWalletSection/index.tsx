@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import { cn } from "../../helpers/cn";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { ConnectWalletButton, WalletButtonVariant } from "../buttons/ConnectWalletButton";

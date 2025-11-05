@@ -1,4 +1,4 @@
-import { RampPhase } from "@packages/shared";
+import { RampPhase } from "@vortexfi/shared";
 import { Op, Transaction } from "sequelize";
 import { v4 as uuidv4 } from "uuid";
 import sequelize from "../../../config/database";

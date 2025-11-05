@@ -1,4 +1,4 @@
-import { EvmToken, RampCurrency, RampDirection } from "@packages/shared";
+import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";

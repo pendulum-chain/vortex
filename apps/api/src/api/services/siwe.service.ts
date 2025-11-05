@@ -1,5 +1,5 @@
-import { EvmClientManager, Networks } from "@packages/shared";
 import { signatureVerify } from "@polkadot/util-crypto";
+import { EvmClientManager, Networks } from "@vortexfi/shared";
 import { generateNonce } from "siwe";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
 import { deriveMemoFromAddress } from "../helpers/memoDerivation";

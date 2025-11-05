@@ -17,7 +17,7 @@ import {
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";

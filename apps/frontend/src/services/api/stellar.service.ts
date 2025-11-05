@@ -5,7 +5,7 @@ import {
   GetSep10MasterPKResponse,
   SignSep10ChallengeRequest,
   SignSep10ChallengeResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

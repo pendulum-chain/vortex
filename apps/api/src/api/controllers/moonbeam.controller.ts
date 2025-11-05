@@ -1,5 +1,10 @@
-import { EvmClientManager, MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse, Networks } from "@packages/shared";
-import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
+import {
+  EvmClientManager,
+  MoonbeamExecuteXcmRequest,
+  MoonbeamExecuteXcmResponse,
+  Networks,
+  splitReceiverABI
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";

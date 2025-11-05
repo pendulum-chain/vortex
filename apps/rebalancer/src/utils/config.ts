@@ -1,5 +1,5 @@
-import { BRLA_BASE_URL, EvmClientManager, Networks } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
+import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
 import { mnemonicToAccount } from "viem/accounts";
 
 export function getConfig() {

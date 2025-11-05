@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { getLanguageFromPath, Language } from "../../translations/helpers";
 
 const DEFAULT_RAMP_DIRECTION = RampDirection.BUY;

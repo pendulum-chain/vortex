@@ -1,3 +1,5 @@
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import {
   ApiManager,
   CleanupPhase,
@@ -9,9 +11,7 @@ import {
   RampPhase,
   SubstrateApiNetwork,
   substrateAddressEqual
-} from "@packages/shared";
-import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+} from "@vortexfi/shared";
 import { Transaction as EvmTransaction } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
@@ -181,7 +181,7 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
     });
   }
 
-  let extrinsic: SubmittableExtrinsic<"promise">;
+  let extrinsic: SubmittableExtrinsic;
   try {
     extrinsic = api.tx(txData as string);
   } catch (error) {

@@ -1,4 +1,4 @@
-import { FiatToken, Networks } from "@packages/shared";
+import { FiatToken, Networks } from "@vortexfi/shared";
 import { SANDBOX_ENABLED } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";

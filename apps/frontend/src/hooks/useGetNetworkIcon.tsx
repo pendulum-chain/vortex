@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import ARBITRUM from "../assets/chains/arbitrum.svg";
 import ASSET_HUB from "../assets/chains/assethub.svg";
 import AVALANCHE from "../assets/chains/avalanche.svg";

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config/vars";
 import { getJsonBody, getPath } from "./helpers";
 

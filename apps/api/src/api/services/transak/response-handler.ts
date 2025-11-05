@@ -1,4 +1,4 @@
-import { RampDirection, TransakPriceResponse } from "@packages/shared";
+import { RampDirection, TransakPriceResponse } from "@vortexfi/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,

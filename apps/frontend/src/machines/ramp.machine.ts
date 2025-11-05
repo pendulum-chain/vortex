@@ -1,5 +1,5 @@
-import { FiatToken, QuoteResponse, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
+import { FiatToken, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";

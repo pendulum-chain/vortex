@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 

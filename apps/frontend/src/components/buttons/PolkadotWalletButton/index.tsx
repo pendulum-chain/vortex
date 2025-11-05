@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
 import { WalletButtonVariant } from "../ConnectWalletButton";
 import { PolkadotConnectWallet } from "./PolkadotConnectWallet";

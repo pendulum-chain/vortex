@@ -1,5 +1,5 @@
-import { AllPricesResponse, Currency } from "@packages/shared";
 import { UseQueryOptions, useQuery } from "@tanstack/react-query";
+import { AllPricesResponse, Currency } from "@vortexfi/shared";
 import Big from "big.js";
 import { useMemo } from "react";
 

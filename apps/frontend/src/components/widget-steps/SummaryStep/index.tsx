@@ -1,6 +1,5 @@
 import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
-import { FiatToken, RampDirection } from "@packages/shared";
-import { MoneriumErrors } from "@packages/shared/src/endpoints/monerium";
+import { FiatToken, MoneriumErrors, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";

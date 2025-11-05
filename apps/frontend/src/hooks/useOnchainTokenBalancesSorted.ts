@@ -1,4 +1,4 @@
-import { OnChainTokenDetails, OnChainTokenDetailsWithBalance } from "@packages/shared";
+import { OnChainTokenDetails, OnChainTokenDetailsWithBalance } from "@vortexfi/shared";
 import { useMemo } from "react";
 import { useOnchainTokenBalances } from "./useOnchainTokenBalances";
 

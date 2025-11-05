@@ -8,7 +8,7 @@ import {
   PaymentMethod,
   QuoteResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";

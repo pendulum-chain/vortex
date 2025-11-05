@@ -10,7 +10,7 @@ import {
   StartRampResponse,
   UpdateRampRequest,
   UpdateRampResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";

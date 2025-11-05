@@ -1,5 +1,5 @@
-import { BrlaGetKycStatusResponse, CreateAveniaSubaccountRequest, FiatToken, KycLevel1Payload } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
+import { BrlaGetKycStatusResponse, CreateAveniaSubaccountRequest, FiatToken, KycLevel1Payload } from "@vortexfi/shared";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 interface AccountStatusResponse {

@@ -1,3 +1,7 @@
+import { createExecuteMessageExtrinsic, Extrinsic, ReadMessageResult, readMessage } from "@pendulum-chain/api-solang";
+import { ApiPromise } from "@polkadot/api";
+import { Abi } from "@polkadot/api-contract";
+import { erc20WrapperAbi } from "../../../contracts/ERC20Wrapper";
 import {
   createWriteOptions,
   defaultReadLimits,
@@ -5,11 +9,7 @@ import {
   NABLA_ROUTER,
   PendulumTokenDetails,
   parseContractBalanceResponse
-} from "@packages/shared";
-import { createExecuteMessageExtrinsic, Extrinsic, ReadMessageResult, readMessage } from "@pendulum-chain/api-solang";
-import { ApiPromise } from "@polkadot/api";
-import { Abi } from "@polkadot/api-contract";
-import { erc20WrapperAbi } from "../../../contracts/ERC20Wrapper";
+} from "../../../index";
 import logger from "../../../logger";
 import { API } from "../../pendulum/apiManager";
 import { ExtrinsicOptions } from "./index";

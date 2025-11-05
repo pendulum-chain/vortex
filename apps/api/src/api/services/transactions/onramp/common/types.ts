@@ -1,4 +1,4 @@
-import { AccountMeta, UnsignedTx } from "@packages/shared";
+import { AccountMeta, UnsignedTx } from "@vortexfi/shared";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 
 export interface OnrampTransactionParams {

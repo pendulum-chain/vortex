@@ -7,7 +7,7 @@ import {
   OnChainToken,
   RampDirection,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { TFunction } from "i18next";
 import { RampState } from "../../types/phases";
 

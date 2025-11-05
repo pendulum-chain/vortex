@@ -7,7 +7,7 @@ import {
   PaymentMethod,
   QuoteResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

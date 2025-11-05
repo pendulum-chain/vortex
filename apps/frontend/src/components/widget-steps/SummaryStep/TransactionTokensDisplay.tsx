@@ -9,7 +9,7 @@ import {
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import Big from "big.js";
 import { FC, useEffect, useState } from "react";

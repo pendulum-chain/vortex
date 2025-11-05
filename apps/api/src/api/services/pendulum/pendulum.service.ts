@@ -1,6 +1,6 @@
-import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { KeyringPair } from "@polkadot/keyring/types";
+import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG } from "@vortexfi/shared";
 import Big from "big.js";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
 import { multiplyByPowerOfTen } from "./helpers";

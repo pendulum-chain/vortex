@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse, RampDirection } from "@packages/shared";
+import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

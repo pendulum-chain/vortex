@@ -1,4 +1,4 @@
-import { AssetHubToken, FiatToken, getPendulumDetails, Networks, PENDULUM_USDC_AXL, RampDirection } from "@packages/shared";
+import { AssetHubToken, FiatToken, getPendulumDetails, Networks, PENDULUM_USDC_AXL, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseNablaSwapEngine, NablaSwapComputation } from "./index";

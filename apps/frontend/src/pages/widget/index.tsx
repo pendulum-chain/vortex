@@ -1,4 +1,4 @@
-import { isValidCnpj } from "@packages/shared";
+import { isValidCnpj } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";

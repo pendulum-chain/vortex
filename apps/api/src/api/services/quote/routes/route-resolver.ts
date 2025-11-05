@@ -1,7 +1,7 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { AssetHubToken, FiatToken, Networks, RampDirection } from "@packages/shared";
+import { AssetHubToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";

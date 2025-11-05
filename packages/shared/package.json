@@ -1,40 +1,56 @@
 {
   "dependencies": {
     "@paraspell/sdk-pjs": "^11.8.5",
+    "@pendulum-chain/api-solang": "catalog:",
     "@pendulum-chain/types": "catalog:",
     "@polkadot/api": "catalog:",
+    "@polkadot/api-contract": "catalog:",
+    "@polkadot/keyring": "catalog:",
     "@polkadot/types": "catalog:",
     "@polkadot/types-codec": "catalog:",
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
+    "@scure/bip39": "catalog:",
     "@types/node-forge": "^1.3.14",
     "@wagmi/core": "catalog:",
+    "axios": "catalog:",
     "big.js": "catalog:",
     "node-forge": "^1.3.1",
-    "stellar-sdk": "catalog:"
+    "stellar-sdk": "catalog:",
+    "web3": "catalog:",
+    "winston": "catalog:"
   },
   "devDependencies": {
     "@types/big.js": "catalog:",
+    "@types/bun": "^1.3.1",
     "@types/node": "catalog:",
     "lint-staged": ">=10",
     "prettier": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:"
   },
-  "main": "src/index.ts",
-  "name": "@packages/shared",
+  "exports": {
+    ".": {
+      "browser": "./dist/browser/index.js",
+      "default": "./dist/browser/index.js",
+      "import": "./dist/browser/index.js",
+      "node": "./dist/node/index.js",
+      "require": "./dist/node/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "name": "@vortexfi/shared",
   "peerDependencies": {
     "@polkadot/api": "catalog:",
     "@polkadot/types": "catalog:",
     "big.js": "catalog:",
     "viem": "catalog:"
   },
-  "private": true,
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "build": "rm -rf ./dist && bun build ./src/index.ts --outdir ./dist/node --target=node && bun build ./src/index.ts --outdir ./dist/browser --target=browser && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist",
     "format": "prettier . --write",
-    "prepublishOnly": "yarn build"
+    "prepublishOnly": "bun run build"
   },
-  "types": "src/index.ts",
-  "version": "1.0.0"
+  "types": "./dist/index.d.ts",
+  "version": "0.0.11"
 }

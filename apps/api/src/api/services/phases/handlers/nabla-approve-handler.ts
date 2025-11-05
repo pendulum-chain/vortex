@@ -1,6 +1,6 @@
-import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@packages/shared";
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
+import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
