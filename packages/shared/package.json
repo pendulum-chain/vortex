@@ -31,7 +31,7 @@
   },
   "exports": {
     ".": {
-      "browser": "./dist/browser/index.js",
+      "browser": "./src/index.ts",
       "default": "./dist/browser/index.js",
       "import": "./dist/browser/index.js",
       "node": "./dist/node/index.js",
@@ -48,6 +48,7 @@
   },
   "scripts": {
     "build": "rm -rf ./dist && bun build ./src/index.ts --outdir ./dist/node --target=node && bun build ./src/index.ts --outdir ./dist/browser --target=browser && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist",
+    "dev": "bun build ./src/index.ts --outdir ./dist/node --target=node --watch & bun build ./src/index.ts --outdir ./dist/browser --target=browser --watch",
     "format": "prettier . --write",
     "prepublishOnly": "bun run build"
   },

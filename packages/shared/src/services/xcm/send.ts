@@ -200,10 +200,11 @@ export const submitMoonbeamXcm = async (
 
         if (status.isInvalid) {
           logger.current.error(`XCM transfer failed with status: ${status.type}`);
-          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+          // We saw some issues with the behaviour here. For now, just log the error and wait for it to go in-block
+          // reject(new Error(`XCM transfer failed with status: ${status.type}`));
         }
 
-        if (status.isFinalized) {
+        if (status.isInBlock) {
           const hash = status.asFinalized.toString();
 
           // Try to find 'polkadotXcm.Sent' events

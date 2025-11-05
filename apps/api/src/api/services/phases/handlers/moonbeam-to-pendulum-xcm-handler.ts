@@ -56,7 +56,6 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           );
         }
 
-        // TODO verify this works on Moonbeam also. It does not.
         await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
     } catch (e) {
