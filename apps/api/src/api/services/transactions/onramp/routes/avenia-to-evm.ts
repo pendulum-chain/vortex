@@ -100,7 +100,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     outputTokenPendulumDetails
   });
 
-  if (!quote.metadata.pendulumToMoonbeamXcm?.inputAmountRaw || !quote.metadata.moonbeamToEvm?.outputAmountRaw) {
+  if (!quote.metadata.pendulumToMoonbeamXcm?.inputAmountRaw || !quote.metadata.moonbeamToEvm?.inputAmountRaw) {
     throw new Error("Missing bridge output amount for Moonbeam");
   }
 
@@ -136,7 +136,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain,
     moonbeamEphemeralStartingNonce: moonbeamNonce,
-    rawAmount: quote.metadata.moonbeamToEvm.outputAmountRaw,
+    rawAmount: quote.metadata.moonbeamToEvm.inputAmountRaw,
     toNetwork: outputTokenDetails.network,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });
