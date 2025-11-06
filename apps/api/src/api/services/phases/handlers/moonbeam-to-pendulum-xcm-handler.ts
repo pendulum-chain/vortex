@@ -2,6 +2,7 @@ import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbe
 import Big from "big.js";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -58,8 +59,15 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
 
         await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
-    } catch (e) {
-      console.error("Error while executing moonbeam-to-pendulum xcm:", e);
+    } catch (error) {
+      if (error && error instanceof Error) {
+        if (error.message.includes("IsInvalid")) {
+          throw new RecoverablePhaseError(
+            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid but we assume it can be fixed with resubmission."
+          );
+        }
+      }
+      console.error("Error while executing moonbeam-to-pendulum xcm:", error);
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction");
     }
 
