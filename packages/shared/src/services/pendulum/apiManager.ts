@@ -14,7 +14,7 @@ export interface NetworkConfig {
 const NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
-    wsUrl: "wss://polkadot-asset-hub-rpc.polkadot.io"
+    wsUrl: "wss://dot-rpc.stakeworld.io/assethub"
   },
   {
     name: "hydration",
