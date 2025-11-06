@@ -11,7 +11,6 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
-  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -533,7 +532,8 @@ export class RampService extends BaseRampService {
    */
   private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
     if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    // Don't return 'failed' as status, instead return 'pending' to avoid confusion
+    // if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
     return TransactionStatus.PENDING;
   }
 
