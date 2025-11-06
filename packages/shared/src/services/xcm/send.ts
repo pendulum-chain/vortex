@@ -205,7 +205,7 @@ export const submitMoonbeamXcm = async (
         }
 
         if (status.isInBlock) {
-          const hash = status.asFinalized.toString();
+          const hash = status.asInBlock.toString();
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
