@@ -204,7 +204,7 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
-  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
+  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC) as EvmTokenDetails;
   const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXLUSDC) as EvmTokenDetails;
 
   const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
@@ -246,11 +246,11 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
     value: BigInt(swapData.value)
   };
 
-  console.log("Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...");
+  console.log("Swapping BRLA to USDC.axl on Polygon via Squidrouter...");
   const swapHash = await polygonWalletClient.sendTransaction(swapDataExtended);
-  console.log(`BRLA swap to USDC.axl on Moonbeam sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
+  console.log(`BRLA swap to USDC.axl on Polygon sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
   await waitForTransactionConfirmation(swapHash, polygonPublicClient);
-  console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
+  console.log("BRLA swapped to USDC.axl on Polygon via Squidrouter. Transaction hash:", swapHash);
 
   // Wait until the swap is executed on Axelar
   let isExecuted = false;
