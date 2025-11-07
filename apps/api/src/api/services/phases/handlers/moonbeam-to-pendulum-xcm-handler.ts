@@ -18,7 +18,15 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     const apiManager = ApiManager.getInstance();
-    const moonbeamNode = await apiManager.getApiWithShuffling("moonbeam");
+
+    // Check if there's a previous error for this phase to determine if we should use RPC shuffling
+    const hasPreviousError = state.errorLogs.some(log => log.phase === "moonbeamToPendulumXcm");
+
+    // Use shuffling on (a potential) retry when there's a previous error, otherwise use the default RPC
+    const moonbeamNode = hasPreviousError
+      ? await apiManager.getApiWithShuffling("moonbeam")
+      : await apiManager.getApi("moonbeam");
+
     const pendulumNode = await apiManager.getApi("pendulum");
 
     const { substrateEphemeralAddress, evmEphemeralAddress } = state.state as StateMetadata;
