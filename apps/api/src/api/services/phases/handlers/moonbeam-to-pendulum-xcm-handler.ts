@@ -18,7 +18,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     const apiManager = ApiManager.getInstance();
-    const moonbeamNode = await apiManager.getApi("moonbeam");
+    const moonbeamNode = await apiManager.getApiWithShuffling("moonbeam");
     const pendulumNode = await apiManager.getApi("pendulum");
 
     const { substrateEphemeralAddress, evmEphemeralAddress } = state.state as StateMetadata;
