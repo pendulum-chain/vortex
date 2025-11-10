@@ -1,8 +1,5 @@
+import { getConfig } from "../../utils/config.ts";
 import { fetchLatestBlockFromIndexer, fetchNablaInstance } from "./graphql.ts";
-
-const INDEXER_FRESHNESS_THRESHOLD_MINUTES = process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES
-  ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
-  : 5;
 
 /// This function retrieves all swap pools from the Nabla instance and checks their coverage ratios.
 /// If the coverage ratio of a pool is below the specified threshold, it adds that pool to the list of non-sufficient pools.
@@ -14,11 +11,13 @@ export async function getSwapPoolsWithCoverageRatio() {
     throw Error("Failed to fetch latest block or timestamp is missing");
   }
 
+  const config = getConfig();
+
   const currentTime = Date.now();
   const blockTime = new Date(latestBlock.timestamp).getTime();
-  if (currentTime - blockTime > INDEXER_FRESHNESS_THRESHOLD_MINUTES * 60 * 1000) {
+  if (currentTime - blockTime > config.indexerFreshnessThresholdMinutes * 60 * 1000) {
     throw Error(
-      `Latest block returned from indexer is older than ${INDEXER_FRESHNESS_THRESHOLD_MINUTES} minutes, data may not be fresh`
+      `Latest block returned from indexer is older than ${config.indexerFreshnessThresholdMinutes} minutes, data may not be fresh`
     );
   }
 
