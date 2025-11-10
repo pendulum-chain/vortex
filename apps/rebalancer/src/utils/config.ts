@@ -26,7 +26,9 @@ export function getConfig() {
     /// The amount in USD to rebalance from the USD pool to the BRL pool on Pendulum during each execution.
     rebalancingUsdToBrlAmount: process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
     /// The minimum balance in USD that the rebalancer account on Pendulum must have to allow rebalancing to occur.
-    rebalancingUsdToBrlMinBalance: process.env.REBALANCING_USD_TO_BRL_MIN_BALANCE || undefined
+    rebalancingUsdToBrlMinBalance: process.env.REBALANCING_USD_TO_BRL_MIN_BALANCE || undefined,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    supabaseUrl: process.env.SUPABASE_URL
   };
 }
 
