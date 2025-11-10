@@ -216,6 +216,8 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
     toToken: toTokenDetails.erc20AddressSourceChain
   });
 
+  console.log("Created SquidRouter transactions for USDC transfer to Moonbeam with receiver ID:", squidRouterReceiverId);
+
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
   const approveDataExtended = {
