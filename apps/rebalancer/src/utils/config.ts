@@ -13,11 +13,20 @@ export function getConfig() {
 
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
 
+    indexerFreshnessThresholdMinutes: process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES
+      ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
+      : 5,
+
     moonbeamAccountSecret: process.env.MOONBEAM_ACCOUNT_SECRET,
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
     polygonAccountSecret: process.env.POLYGON_ACCOUNT_SECRET,
+
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
-    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25 // Default to 0.25 if not set
+    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25,
+    /// The amount in USD to rebalance from the USD pool to the BRL pool on Pendulum during each execution.
+    rebalancingUsdToBrlAmount: process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
+    /// The minimum balance in USD that the rebalancer account on Pendulum must have to allow rebalancing to occur.
+    rebalancingUsdToBrlMinBalance: process.env.REBALANCING_USD_TO_BRL_MIN_BALANCE || undefined
   };
 }
 
