@@ -191,34 +191,34 @@ export class PhaseProcessor {
       if (isRecoverable) {
         const currentRetries = this.retriesMap.get(state.id) || 0;
 
+        // Add error to the state
+        const errorLogs = [
+          ...state.errorLogs,
+          {
+            details: error.stack || "",
+            error: error.message || "Unknown error",
+            isPhaseError,
+            phase: state.currentPhase,
+            recoverable: isRecoverable,
+            timestamp: new Date().toISOString()
+          }
+        ];
+
+        const errorUpdatedState = await state.update({ errorLogs });
+
         if (currentRetries < this.MAX_RETRIES) {
           const nextRetry = currentRetries + 1;
-          this.retriesMap.set(state.id, nextRetry);
+          this.retriesMap.set(errorUpdatedState.id, nextRetry);
           const delayMs = Math.pow(2, currentRetries) * 1000;
 
-          logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${state.id} in ${delayMs}ms`);
+          logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${errorUpdatedState.id} in ${delayMs}ms`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
-          return this.processPhase(state);
+          return this.processPhase(errorUpdatedState);
         }
 
-        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${state.id}`);
-        this.retriesMap.delete(state.id);
+        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${errorUpdatedState.id}`);
+        this.retriesMap.delete(errorUpdatedState.id);
       }
-
-      // Add error to the state
-      const errorLogs = [
-        ...state.errorLogs,
-        {
-          details: error.stack || "",
-          error: error.message || "Unknown error",
-          isPhaseError,
-          phase: state.currentPhase,
-          recoverable: isRecoverable,
-          timestamp: new Date().toISOString()
-        }
-      ];
-
-      await state.update({ errorLogs });
 
       if (isPhaseError && !isRecoverable) {
         logger.error(`Ramp ${state.id} failed unrecoverably in phase ${state.currentPhase}, transitioning to failed state`);

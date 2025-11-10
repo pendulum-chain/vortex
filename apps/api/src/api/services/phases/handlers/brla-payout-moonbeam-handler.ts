@@ -61,7 +61,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         try {
           const balanceResponse = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
           if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
-            if (new Big(balanceResponse.balances.BRLA).gte(amountForPayout)) {
+            if (new Big(balanceResponse.balances.BRLA).gte(amountForPayout.round(2, 0))) {
+              // compare with rounded down amount.
               logger.info(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
               return balanceResponse;
             }

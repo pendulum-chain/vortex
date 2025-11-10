@@ -1,6 +1,7 @@
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
+import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
 import { getSwapPoolsWithCoverageRatio } from "./services/indexer";
-import { getConfig } from "./utils/config.ts";
+import { getConfig, getPendulumAccount } from "./utils/config.ts";
 
 async function checkForRebalancing() {
   const swapPoolsWithCoverage = await getSwapPoolsWithCoverageRatio();
@@ -24,7 +25,16 @@ async function checkForRebalancing() {
   ) {
     console.log("Coverage ratios of BRLA and USDC.axl require rebalancing.");
     // Proceed with rebalancing
-    const amountAxlUsdc = process.env.REBALANCING_AMOUNT_USD_TO_BRL || "1";
+    const amountAxlUsdc = config.rebalancingUsdToBrlAmount;
+
+    const pendulumAccount = getPendulumAccount();
+    const rebalancerAccountBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
+    if (config.rebalancingUsdToBrlMinBalance && rebalancerAccountBalance.lt(config.rebalancingUsdToBrlMinBalance)) {
+      throw new Error(
+        `Rebalancer account balance ${rebalancerAccountBalance} is below the minimum required balance of ${config.rebalancingUsdToBrlMinBalance} to perform rebalancing.`
+      );
+    }
+
     await rebalanceBrlaToUsdcAxl(amountAxlUsdc);
   }
 }
