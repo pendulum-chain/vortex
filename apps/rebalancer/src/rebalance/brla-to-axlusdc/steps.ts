@@ -207,14 +207,19 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
   const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC) as EvmTokenDetails;
   const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXLUSDC) as EvmTokenDetails;
 
-  const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
-    fromAddress: polygonWalletClient.account.address,
-    fromNetwork: Networks.Polygon,
-    fromToken: usdcTokenDetails.erc20AddressSourceChain,
-    pendulumAddressDestination: pendulumAddress,
-    rawAmount: usdcAmountRaw,
-    toToken: toTokenDetails.erc20AddressSourceChain
-  });
+  const { approveData, swapData, squidRouterReceiverId, squidRouterQuoteId, squidRouterReceiverHash, route } =
+    await createOfframpSquidrouterTransactions({
+      fromAddress: polygonWalletClient.account.address,
+      fromNetwork: Networks.Polygon,
+      fromToken: usdcTokenDetails.erc20AddressSourceChain,
+      pendulumAddressDestination: pendulumAddress,
+      rawAmount: usdcAmountRaw,
+      toToken: toTokenDetails.erc20AddressSourceChain
+    });
+
+  console.log(
+    `Created SquidRouter transactions for USDC transfer to Moonbeam with receiver ID ${squidRouterReceiverId}, receiver hash ${squidRouterReceiverHash} and quote ID ${squidRouterQuoteId}`
+  );
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
