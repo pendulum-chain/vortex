@@ -6,7 +6,6 @@
     "@polkadot/api-contract": "catalog:",
     "@polkadot/util": "catalog:",
     "@polkadot/util-crypto": "catalog:",
-    "@supabase/supabase-js": "^2.80.0",
     "@types/big.js": "catalog:",
     "@vortexfi/shared": "workspace:*",
     "big.js": "catalog:",
