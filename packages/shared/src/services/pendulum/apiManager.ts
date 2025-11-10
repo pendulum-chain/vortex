@@ -43,11 +43,8 @@ export type API = {
 export class ApiManager {
   private static instance: ApiManager;
 
-  // Primary, default API instance
+  // API instances keyed by "networkName-rpcIndex".
   private apiInstances: Map<string, API> = new Map();
-
-  // All API instances keyed by "networkName-rpcIndex".
-  private allApiInstances: Map<string, API> = new Map();
 
   private previousSpecVersions: Map<string, number> = new Map();
 
@@ -76,10 +73,12 @@ export class ApiManager {
 
   public async populateApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    const wsUrl = wsUrlIndex !== undefined ? network.wsUrls[wsUrlIndex] : network.wsUrls[0];
+    const index = wsUrlIndex ?? 0;
+    const wsUrl = network.wsUrls[index];
     logger.current.info(`Connecting to node ${wsUrl}...`);
-    const newApi = await this.connectApi(networkName, wsUrlIndex);
-    this.apiInstances.set(networkName, newApi);
+    const newApi = await this.connectApi(networkName, index);
+    const instanceKey = this.generateInstanceKey(networkName, index);
+    this.apiInstances.set(instanceKey, newApi);
     logger.current.info(`Connected to node ${wsUrl}`);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
@@ -96,7 +95,8 @@ export class ApiManager {
   }
 
   public async getApi(networkName: SubstrateApiNetwork, forceRefresh = false): Promise<API> {
-    const apiInstance = this.apiInstances.get(networkName);
+    const instanceKey = this.generateInstanceKey(networkName, 0);
+    const apiInstance = this.apiInstances.get(instanceKey);
 
     if (!apiInstance || forceRefresh) {
       return await this.populateApi(networkName);
@@ -124,7 +124,7 @@ export class ApiManager {
     const randomIndex = Math.floor(Math.random() * network.wsUrls.length);
     const instanceKey = this.generateInstanceKey(networkName, randomIndex);
 
-    let apiInstance = this.allApiInstances.get(instanceKey);
+    let apiInstance = this.apiInstances.get(instanceKey);
 
     if (apiInstance) {
       logger.current.info(`Using cached API connection to ${networkName} (RPC index: ${randomIndex})`);
@@ -133,7 +133,7 @@ export class ApiManager {
 
     logger.current.info(`Creating new API connection to ${networkName} (RPC index: ${randomIndex})`);
     apiInstance = await this.connectApi(networkName, randomIndex);
-    this.allApiInstances.set(instanceKey, apiInstance);
+    this.apiInstances.set(instanceKey, apiInstance);
 
     return apiInstance;
   }
