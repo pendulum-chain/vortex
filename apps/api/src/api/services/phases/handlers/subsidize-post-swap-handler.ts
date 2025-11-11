@@ -114,7 +114,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap:", e);
-      throw new Error("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
+      throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
     }
   }
 

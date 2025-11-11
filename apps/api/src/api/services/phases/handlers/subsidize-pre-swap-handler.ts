@@ -1,4 +1,4 @@
-import { ApiManager, nativeToDecimal, RampPhase } from "@vortexfi/shared";
+import { ApiManager, nativeToDecimal, RampPhase, waitUntilTrue } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -8,9 +8,20 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const SUBSIDY_TIMEOUT_MS = 180000; // 3 minutes
+
 export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePreSwap";
+  }
+
+  private async waitUntilTrueWithTimeout(test: () => Promise<boolean>, periodMs: number, timeoutMs: number): Promise<void> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout waiting for condition after ${timeoutMs} ms`)), timeoutMs);
+    });
+
+    const waitPromise = waitUntilTrue(test, periodMs);
+    await Promise.race([waitPromise, timeoutPromise]);
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -49,6 +60,17 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       const expectedInputAmountForSwapRaw = quote.metadata.nablaSwap.inputAmountForSwapRaw;
 
       const requiredAmount = Big(expectedInputAmountForSwapRaw).sub(currentBalance);
+
+      const didBalanceReachExpected = async () => {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          quote.metadata.nablaSwap!.inputCurrencyId
+        );
+
+        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        return currentBalance.gte(Big(expectedInputAmountForSwapRaw));
+      };
+
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
@@ -71,12 +93,14 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         const subsidyToken = quote.metadata.nablaSwap!.inputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        await this.waitUntilTrueWithTimeout(didBalanceReachExpected, 5000, SUBSIDY_TIMEOUT_MS);
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");
     } catch (e) {
       console.error("Error in subsidizePreSwap:", e);
-      throw new Error("SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.");
+      throw this.createRecoverableError("SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.");
     }
   }
 }
