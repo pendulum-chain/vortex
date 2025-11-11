@@ -5,7 +5,7 @@ import {
   nativeToDecimal,
   RampDirection,
   RampPhase,
-  waitUntilTrue
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
@@ -16,20 +16,9 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
-const SUBSIDY_TIMEOUT_MS = 180000; // 3 minutes
-
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePostSwap";
-  }
-
-  private async waitUntilTrueWithTimeout(test: () => Promise<boolean>, periodMs: number, timeoutMs: number): Promise<void> {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timeout waiting for condition after ${timeoutMs} ms`)), timeoutMs);
-    });
-
-    const waitPromise = waitUntilTrue(test, periodMs);
-    await Promise.race([waitPromise, timeoutPromise]);
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -75,10 +64,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
 
-      const didInputTokenArriveOnPendulum = async () => {
+      const didBalanceReachExpected = async () => {
         const balanceResponse = await pendulumNode.api.query.tokens.accounts(
           substrateEphemeralAddress,
-          quote.metadata.nablaSwap!.inputCurrencyId
+          quote.metadata.nablaSwap?.inputCurrencyId
         );
 
         const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
@@ -96,7 +85,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           api =>
             api.tx.tokens.transfer(
               substrateEphemeralAddress,
-              quote.metadata.nablaSwap!.outputCurrencyId,
+              quote.metadata.nablaSwap?.outputCurrencyId,
               requiredAmount.toFixed(0, 0)
             ),
           fundingAccountKeypair,
@@ -108,7 +97,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
-        await this.waitUntilTrueWithTimeout(didInputTokenArriveOnPendulum, 5000, SUBSIDY_TIMEOUT_MS);
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
