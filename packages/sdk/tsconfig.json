@@ -3,10 +3,10 @@
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "declaration": true,
-    "declarationDir": "./dist/types",
+    "declarationDir": "./dist",
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",
-    "lib": ["ES2020"],
+    "lib": ["esnext", "dom"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "node",
@@ -15,12 +15,12 @@
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "outDir": "./dist/types",
+    "outDir": "./dist",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2020"
+    "target": "ESNext"
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "scripts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "include": ["./src/**/*.ts"]
 }
