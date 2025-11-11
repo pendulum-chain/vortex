@@ -74,6 +74,6 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
     text:
       `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}\n` +
       `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${brlaToUsdcSwapQuote.amountUsd} USDC.axl\n` +
-      `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${rebalancingCost.div(initialBalance).mul(10000).toFixed(2, 0)} bps`
+      `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${rebalancingCost.div(amountAxlUsdc).mul(10000).toFixed(2, 0)} bps`
   });
 }
