@@ -66,7 +66,10 @@ function deriveSandboxTransactionHash(rampState: RampState): string {
 /// For now, this will be the hash of the last transaction on the second-last network, ie. the outgoing transfer
 /// and not the incoming one.
 /// Only works for ramping processes that have reached the "complete" phase.
-export function getFinalTransactionHashForRamp(rampState: RampState, quote: QuoteTicket) {
+export async function getFinalTransactionHashForRamp(
+  rampState: RampState,
+  quote: QuoteTicket
+): Promise<{ transactionExplorerLink: string | undefined; transactionHash: string | undefined }> {
   if (rampState.currentPhase !== "complete") {
     return { transactionExplorerLink: undefined, transactionHash: undefined };
   }
@@ -83,21 +86,33 @@ export function getFinalTransactionHashForRamp(rampState: RampState, quote: Quot
     const hash = rampState.state[hashKey];
 
     if (hash) {
+      // For SquidRouter swaps, query the execution hash from AxelarScan
       if (hashKey === TransactionHashKey.SquidRouterSwapHash) {
         try {
-          // Try to get the execution hash from AxelarScan
-          return getAxelarScanExecutionLink(hash).then(executionHash => ({
-            transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](executionHash, rampState, quote),
+          const isMoneriumPolygonOnramp =
+            rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
+
+          const executionHash = isMoneriumPolygonOnramp ? hash : await getAxelarScanExecutionLink(hash);
+
+          const explorerLink = isMoneriumPolygonOnramp
+            ? `https://polygonscan.com/tx/${executionHash}`
+            : `https://axelarscan.io/gmp/${executionHash}`;
+
+          return {
+            transactionExplorerLink: explorerLink,
             transactionHash: executionHash
-          }));
+          };
         } catch (error) {
-          logger.error(`Error fetching AxelarScan link for hash ${hash}: ${error}`);
+          logger.error(`Error fetching AxelarScan execution hash for ${hash}: ${error}`);
+          // Fallback to original hash if fetching fails
           return {
             transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
             transactionHash: hash
           };
         }
       }
+
+      // For other hash types, use them directly
       return {
         transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
         transactionHash: hash

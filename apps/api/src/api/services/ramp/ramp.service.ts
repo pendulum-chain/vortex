@@ -430,7 +430,27 @@ export class RampService extends BaseRampService {
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    const { transactionExplorerLink, transactionHash } = getFinalTransactionHashForRamp(rampState, quote);
+    // Get or compute final transaction hash and explorer link
+    let transactionHash = rampState.state.finalTransactionHash;
+    let transactionExplorerLink = rampState.state.finalTransactionExplorerLink;
+
+    // If not stored yet and ramp is complete, compute and store them
+    if (rampState.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+      const result = await getFinalTransactionHashForRamp(rampState, quote);
+      transactionHash = result.transactionHash;
+      transactionExplorerLink = result.transactionExplorerLink;
+
+      // Store the computed values in the state for future use
+      if (transactionHash && transactionExplorerLink) {
+        await rampState.update({
+          state: {
+            ...rampState.state,
+            finalTransactionExplorerLink: transactionExplorerLink,
+            finalTransactionHash: transactionHash
+          }
+        });
+      }
+    }
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
