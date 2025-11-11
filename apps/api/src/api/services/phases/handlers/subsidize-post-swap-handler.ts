@@ -1,4 +1,12 @@
-import { ApiManager, AssetHubToken, FiatToken, nativeToDecimal, RampDirection, RampPhase } from "@vortexfi/shared";
+import {
+  ApiManager,
+  AssetHubToken,
+  FiatToken,
+  nativeToDecimal,
+  RampDirection,
+  RampPhase,
+  waitUntilTrueWithTimeout
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -55,26 +63,47 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       );
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+
+      const didBalanceReachExpected = async () => {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          quote.metadata.nablaSwap?.inputCurrencyId
+        );
+
+        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+        return requiredAmount.lte(Big(0));
+      };
+
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
-        const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.outputCurrencyId, requiredAmount.toFixed(0, 0))
-          .signAndSend(fundingAccountKeypair);
+        const result = await apiManager.executeApiCall(
+          api =>
+            api.tx.tokens.transfer(
+              substrateEphemeralAddress,
+              quote.metadata.nablaSwap?.outputCurrencyId,
+              requiredAmount.toFixed(0, 0)
+            ),
+          fundingAccountKeypair,
+          networkName
+        );
 
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap:", e);
-      throw new Error("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
+      throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
     }
   }
 
