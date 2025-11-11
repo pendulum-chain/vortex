@@ -16,9 +16,20 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const SUBSIDY_TIMEOUT_MS = 180000; // 3 minutes
+
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePostSwap";
+  }
+
+  private async waitUntilTrueWithTimeout(test: () => Promise<boolean>, periodMs: number, timeoutMs: number): Promise<void> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout waiting for condition after ${timeoutMs} ms`)), timeoutMs);
+    });
+
+    const waitPromise = waitUntilTrue(test, periodMs);
+    await Promise.race([waitPromise, timeoutPromise]);
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -97,12 +108,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
-        try {
-          await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
-        } catch (e) {
-          console.error("Error while waiting for transaction receipt:", e);
-          throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
-        }
+        await this.waitUntilTrueWithTimeout(didInputTokenArriveOnPendulum, 5000, SUBSIDY_TIMEOUT_MS);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
