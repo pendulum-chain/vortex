@@ -56,15 +56,21 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         );
         const fundingAccountKeypair = getFundingAccount();
 
-        // TODO this and other calls, add to executeApiCall to avoid low priority errors.
-        const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.inputCurrencyId, requiredAmount.toFixed(0, 0))
-          .signAndSend(fundingAccountKeypair);
+        const result = await apiManager.executeApiCall(
+          api =>
+            api.tx.tokens.transfer(
+              substrateEphemeralAddress,
+              quote.metadata.nablaSwap!.inputCurrencyId,
+              requiredAmount.toFixed(0, 0)
+            ),
+          fundingAccountKeypair,
+          networkName
+        );
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.inputDecimals).toNumber();
-        const subsidyToken = quote.metadata.nablaSwap.inputCurrency as unknown as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap!.inputDecimals).toNumber();
+        const subsidyToken = quote.metadata.nablaSwap!.inputCurrency as unknown as SubsidyToken;
 
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");
