@@ -61,14 +61,21 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
-        const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.outputCurrencyId, requiredAmount.toFixed(0, 0))
-          .signAndSend(fundingAccountKeypair);
+        const result = await apiManager.executeApiCall(
+          api =>
+            api.tx.tokens.transfer(
+              substrateEphemeralAddress,
+              quote.metadata.nablaSwap!.outputCurrencyId,
+              requiredAmount.toFixed(0, 0)
+            ),
+          fundingAccountKeypair,
+          networkName
+        );
 
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
