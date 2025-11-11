@@ -5,7 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager, EvmClientManager, setLogger } from "@packages/shared";
+import { ApiManager, EvmClientManager, setLogger } from "@vortexfi/shared";
 import { config, testDatabaseConnection } from "./config";
 import cryptoService from "./config/crypto";
 import app from "./config/express";

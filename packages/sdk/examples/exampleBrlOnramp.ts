@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@packages/shared";
+import { CreateQuoteRequest, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 

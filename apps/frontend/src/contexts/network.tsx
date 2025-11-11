@@ -1,4 +1,4 @@
-import { getNetworkId, isNetworkEVM, Networks } from "@packages/shared";
+import { getNetworkId, isNetworkEVM, Networks } from "@vortexfi/shared";
 import { createContext, ReactNode, useCallback, useContext, useState } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { WALLETCONNECT_ASSETHUB_ID } from "../constants/constants";

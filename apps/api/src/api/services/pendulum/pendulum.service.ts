@@ -1,6 +1,6 @@
-import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG } from "@packages/shared";
 import { Keyring } from "@polkadot/api";
 import { KeyringPair } from "@polkadot/keyring/types";
+import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG, waitUntilTrueWithTimeout } from "@vortexfi/shared";
 import Big from "big.js";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
 import { multiplyByPowerOfTen } from "./helpers";
@@ -51,6 +51,16 @@ export const fundEphemeralAccount = async (
         networkName
       );
     }
+
+    const didBalanceReachExpected = async () => {
+      const balanceResponse = await apiData.api.query.balances.account(ephemeralAddress);
+
+      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      return currentBalance.gt(0);
+    };
+
+    // Check if balance eventually becomes greater than zero
+    await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
 
     return true;
   } catch (error) {

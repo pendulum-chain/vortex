@@ -1,4 +1,4 @@
-import { getTokenConfigByAssetCode, StellarTokenConfig, TOKEN_CONFIG } from "@packages/shared";
+import { getTokenConfigByAssetCode, StellarTokenConfig, TOKEN_CONFIG } from "@vortexfi/shared";
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from "stellar-sdk";
 import { HORIZON_URL, SANDBOX_ENABLED, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
 

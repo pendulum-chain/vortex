@@ -1,7 +1,7 @@
-import { multiplyByPowerOfTen, SlackNotifier } from "@packages/shared";
+import { multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
-import { getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
+import { getMoonbeamEvmClients, getPendulumAccount } from "../../utils/config.ts";
 import {
   checkInitialPendulumBalance,
   pollForSufficientBalance,
@@ -74,6 +74,6 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string) {
     text:
       `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}\n` +
       `Rebalanced ${amountAxlUsdc} USDC.axl to ${brlaAmount} BRLA and back to ${brlaToUsdcSwapQuote.amountUsd} USDC.axl\n` +
-      `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(initialBalance)).toFixed(4, 0)}`
+      `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${rebalancingCost.div(amountAxlUsdc).mul(10000).toFixed(2, 0)} bps`
   });
 }

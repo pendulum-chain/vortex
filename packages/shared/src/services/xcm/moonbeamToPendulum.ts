@@ -1,8 +1,8 @@
-import { ApiManager } from "@packages/shared";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
+import { ApiManager } from "../../index";
 
 export async function createMoonbeamToPendulumXCM(
   receiverAddress: string,
@@ -34,6 +34,10 @@ export async function createMoonbeamToPendulumXCM(
   };
   const feeAssetItem = 0;
   const weightLimit = "Unlimited";
+
+  if (!moonbeamNode.api.tx.polkadotXcm?.transferAssets) {
+    throw new Error("createMoonbeamToPendulumXCM: transferAssets is not available");
+  }
 
   const xcm = moonbeamNode.api.tx.polkadotXcm.transferAssets(destination, beneficiary, assets, feeAssetItem, weightLimit);
 

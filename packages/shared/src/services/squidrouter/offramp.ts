@@ -1,7 +1,7 @@
-import { EvmTransactionData, Networks, SquidrouterRoute } from "@packages/shared";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { createRandomString, createSquidRouterHash } from "../../helpers/squidrouter";
+import { EvmTransactionData, Networks, SquidrouterRoute } from "../../index";
 import { EvmClientManager } from "../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import { encodePayload } from "./payload";

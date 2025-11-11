@@ -1,4 +1,4 @@
-import { FiatToken, Networks } from "@packages/shared";
+import { FiatToken, Networks } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";

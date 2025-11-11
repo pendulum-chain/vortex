@@ -5,7 +5,7 @@
 export const HORIZON_URL = "https://horizon.stellar.org";
 export const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = "2.5"; // Amount to send to the new stellar ephemeral account created
 export const PENDULUM_WSS = "wss://rpc-pendulum.prd.pendulumchain.tech";
-export const ASSETHUB_WSS = "wss://polkadot-asset-hub-rpc.polkadot.io";
+export const ASSETHUB_WSS = "wss://dot-rpc.stakeworld.io/assethub";
 export const MOONBEAM_WSS = "wss://wss.api.moonbeam.network";
 export const WALLETCONNECT_ASSETHUB_ID = "polkadot:68d56f15f85d3136970ec16946040bc1";
 export const NABLA_ROUTER = "6gAVVw13mQgzzKk4yEwScMmWiCNyMAunXFJUZonbgKrym81N"; // AssetHub USDC instance

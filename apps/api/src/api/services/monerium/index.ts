@@ -13,7 +13,7 @@ import {
   MoneriumTokenResponse,
   MoneriumUserProfile,
   Networks
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
 

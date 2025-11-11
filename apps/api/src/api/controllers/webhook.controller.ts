@@ -1,4 +1,4 @@
-import { DeleteWebhookRequest, DeleteWebhookResponse, RegisterWebhookRequest, RegisterWebhookResponse } from "@packages/shared";
+import { DeleteWebhookRequest, DeleteWebhookResponse, RegisterWebhookRequest, RegisterWebhookResponse } from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";

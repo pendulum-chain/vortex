@@ -1,4 +1,4 @@
-import { AveniaTicketStatus, BrlaApiService, isFiatTokenEnum, PixOutputTicketPayload, RampPhase } from "@packages/shared";
+import { AveniaTicketStatus, BrlaApiService, isFiatTokenEnum, PixOutputTicketPayload, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -61,7 +61,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         try {
           const balanceResponse = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
           if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
-            if (new Big(balanceResponse.balances.BRLA).gte(amountForPayout)) {
+            if (new Big(balanceResponse.balances.BRLA).gte(Big(amountForPayout).round(2, 0))) {
+              // compare with rounded down amount.
               logger.info(`Sufficient BRLA balance found: ${balanceResponse.balances.BRLA}`);
               return balanceResponse;
             }

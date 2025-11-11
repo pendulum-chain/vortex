@@ -1,4 +1,4 @@
-import { RampPhase } from "@packages/shared";
+import { RampPhase } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 

@@ -1,7 +1,8 @@
-import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@vortexfi/shared";
 import Big from "big.js";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -17,7 +18,15 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     const apiManager = ApiManager.getInstance();
-    const moonbeamNode = await apiManager.getApi("moonbeam");
+
+    // Check if there's a previous error for this phase to determine if we should use RPC shuffling
+    const hasPreviousError = state.errorLogs.some(log => log.phase === "moonbeamToPendulumXcm");
+
+    // Use shuffling on (a potential) retry when there's a previous error, otherwise use the default RPC
+    const moonbeamNode = hasPreviousError
+      ? await apiManager.getApiWithShuffling("moonbeam")
+      : await apiManager.getApi("moonbeam");
+
     const pendulumNode = await apiManager.getApi("pendulum");
 
     const { substrateEphemeralAddress, evmEphemeralAddress } = state.state as StateMetadata;
@@ -56,11 +65,17 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           );
         }
 
-        // TODO verify this works on Moonbeam also. It does not.
         await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
-    } catch (e) {
-      console.error("Error while executing moonbeam-to-pendulum xcm:", e);
+    } catch (error) {
+      if (error && error instanceof Error) {
+        if (error.message.includes("IsInvalid")) {
+          throw new RecoverablePhaseError(
+            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid but we assume it can be fixed with resubmission."
+          );
+        }
+      }
+      console.error("Error while executing moonbeam-to-pendulum xcm:", error);
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction");
     }
 

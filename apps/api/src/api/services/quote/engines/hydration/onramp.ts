@@ -1,4 +1,4 @@
-import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@packages/shared";
+import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import HydrationRouter from "../../../hydration/swap";
 import { priceFeedService } from "../../../priceFeed.service";

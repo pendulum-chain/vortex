@@ -1,4 +1,4 @@
-import { NABLA_ROUTER } from "@packages/shared";
+import { NABLA_ROUTER } from "@vortexfi/shared";
 import request from "graphql-request";
 import { graphql } from "../../../gql";
 import type { GetRouterQuery } from "../../../gql/graphql.ts";

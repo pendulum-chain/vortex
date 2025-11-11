@@ -1,5 +1,5 @@
-import { isNetworkEVM } from "@packages/shared";
 import { useAppKitAccount } from "@reown/appkit/react";
+import { isNetworkEVM } from "@vortexfi/shared";
 import { FC } from "react";
 import { useNetwork } from "../../../contexts/network";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";

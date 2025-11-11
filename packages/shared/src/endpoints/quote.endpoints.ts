@@ -20,6 +20,7 @@ export interface CreateQuoteRequest {
   outputCurrency: RampCurrency;
   partnerId?: string; // Optional partner name for fee markup (not UUID)
   apiKey?: string; // Optional public API key (pk_*) for tracking and discounts
+  api?: boolean; // Optional flag to indicate API usage
   paymentMethod?: PaymentMethod;
   countryCode?: string;
   network: Networks;

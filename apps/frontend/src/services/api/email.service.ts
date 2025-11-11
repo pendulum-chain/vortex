@@ -1,4 +1,4 @@
-import { StoreEmailRequest, StoreEmailResponse } from "@packages/shared";
+import { StoreEmailRequest, StoreEmailResponse } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

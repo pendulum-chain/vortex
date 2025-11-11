@@ -3,7 +3,7 @@ import {
   SubsidizePostSwapResponse,
   SubsidizePreSwapRequest,
   SubsidizePreSwapResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

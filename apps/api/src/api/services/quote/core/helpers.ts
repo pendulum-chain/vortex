@@ -1,4 +1,4 @@
-import { DestinationType, Networks, RampCurrency, RampDirection } from "@packages/shared";
+import { DestinationType, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
 

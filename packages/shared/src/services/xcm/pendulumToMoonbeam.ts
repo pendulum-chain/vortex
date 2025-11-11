@@ -1,4 +1,4 @@
-import { ApiManager, MOONBEAM_XCM_FEE_GLMR, PendulumCurrencyId } from "@packages/shared";
+import { ApiManager, MOONBEAM_XCM_FEE_GLMR, PendulumCurrencyId } from "../../index";
 import "@pendulum-chain/types"; // Import to augment the api types
 
 // We send a fixed fee amount of 0.05 GLMR.

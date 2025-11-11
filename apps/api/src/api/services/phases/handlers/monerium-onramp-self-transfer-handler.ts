@@ -6,7 +6,7 @@ import {
   Networks,
   RampDirection,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
@@ -98,6 +98,10 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       // Wait for the transfer transaction to be confirmed
       await this.waitForTransactionConfirmation(transferHash, chainId);
       logger.info(`Transfer transaction confirmed: ${transferHash}`);
+
+      // Wait for another 30 seconds to give time for the balance to update (in case other RPC nodes are lagging)
+      logger.info("Waiting 30 seconds to ensure balance is updated...");
+      await new Promise(resolve => setTimeout(resolve, 30000));
 
       // Transition to the next phase
       return this.transitionToNextPhase(state, "squidRouterSwap");

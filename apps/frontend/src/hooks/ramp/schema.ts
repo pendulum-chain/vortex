@@ -1,6 +1,6 @@
-import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, Networks, RampDirection } from "@packages/shared";
 import { decodeAddress, encodeAddress } from "@polkadot/keyring";
 import { hexToU8a, isHex } from "@polkadot/util";
+import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, Networks, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 import { useQuote } from "../../stores/quote/useQuoteStore";

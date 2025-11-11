@@ -1,4 +1,4 @@
-import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from "@packages/shared";
+import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from "@vortexfi/shared";
 
 const EUR = {
   id: FiatToken.EURC,

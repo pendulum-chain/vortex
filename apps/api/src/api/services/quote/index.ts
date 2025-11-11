@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, QuoteError, QuoteResponse } from "@packages/shared";
+import { CreateQuoteRequest, QuoteError, QuoteResponse } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";

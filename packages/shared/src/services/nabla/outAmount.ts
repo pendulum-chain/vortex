@@ -1,4 +1,3 @@
-import { NABLA_ROUTER, PendulumTokenDetails } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import Big from "big.js";
 import BigNumber from "big.js";
@@ -9,6 +8,7 @@ import {
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals
 } from "../../helpers/contracts";
+import { NABLA_ROUTER, PendulumTokenDetails } from "../../index";
 import { contractRead } from "./contractRead";
 
 export interface TokenOutData {
@@ -67,6 +67,9 @@ export async function getTokenOutAmount(params: {
     },
     parseSuccessOutput: (data: bigint[]) => {
       const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[0]);
+      if (!preciseQuotedAmountOut) {
+        throw new Error("Failed to parse quoted amount out");
+      }
       const swapFee = parseContractBalanceResponse(outputTokenPendulumDetails.decimals, data[1]);
       return {
         effectiveExchangeRate: stringifyBigWithSignificantDecimals(preciseQuotedAmountOut.preciseBigDecimal.div(amountBig), 4),

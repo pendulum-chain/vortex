@@ -1,6 +1,6 @@
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/react/20/solid";
-import { getAddressForFormat } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
+import { getAddressForFormat } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useAssetHubNode } from "../../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../../contexts/polkadotWallet";

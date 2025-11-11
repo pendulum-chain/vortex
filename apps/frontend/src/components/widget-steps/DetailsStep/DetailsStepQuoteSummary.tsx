@@ -1,4 +1,4 @@
-import { QuoteResponse } from "@packages/shared";
+import { QuoteResponse } from "@vortexfi/shared";
 import { QuoteSummary } from "../../QuoteSummary";
 
 export interface DetailsStepQuoteSummaryProps {

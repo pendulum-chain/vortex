@@ -1,5 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api/types";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../../logger";
@@ -8,29 +8,29 @@ export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam" | "hydrat
 
 export interface NetworkConfig {
   name: SubstrateApiNetwork;
-  wsUrl: string;
+  wsUrls: string[];
 }
 
 const NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
-    wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
+    wsUrls: ["wss://dot-rpc.stakeworld.io/assethub"]
   },
   {
     name: "hydration",
-    wsUrl: "wss://rpc.hydradx.cloud"
+    wsUrls: ["wss://rpc.hydradx.cloud"]
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.unitedbloc.com"
+    wsUrls: ["wss://wss.api.moonbeam.network", "wss://moonbeam.api.onfinality.io/public-ws", "wss://moonbeam.ibp.network"]
   },
   {
     name: "pendulum",
-    wsUrl: "wss://rpc-pendulum.prd.pendulumchain.tech"
+    wsUrls: ["wss://rpc-pendulum.prd.pendulumchain.tech"]
   },
   {
     name: "paseo",
-    wsUrl: "wss://asset-hub-paseo-rpc.n.dwellir.com"
+    wsUrls: ["wss://asset-hub-paseo-rpc.n.dwellir.com"]
   }
 ];
 
@@ -43,6 +43,7 @@ export type API = {
 export class ApiManager {
   private static instance: ApiManager;
 
+  // API instances keyed by "networkName-rpcIndex".
   private apiInstances: Map<string, API> = new Map();
 
   private previousSpecVersions: Map<string, number> = new Map();
@@ -70,12 +71,15 @@ export class ApiManager {
     return ApiManager.instance;
   }
 
-  public async populateApi(networkName: SubstrateApiNetwork): Promise<API> {
+  public async populateApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    logger.current.info(`Connecting to node ${network.wsUrl}...`);
-    const newApi = await this.connectApi(networkName);
-    this.apiInstances.set(networkName, newApi);
-    logger.current.info(`Connected to node ${network.wsUrl}`);
+    const index = wsUrlIndex ?? 0;
+    const wsUrl = network.wsUrls[index];
+    logger.current.info(`Connecting to node ${wsUrl}...`);
+    const newApi = await this.connectApi(networkName, index);
+    const instanceKey = this.generateInstanceKey(networkName, index);
+    this.apiInstances.set(instanceKey, newApi);
+    logger.current.info(`Connected to node ${wsUrl}`);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
@@ -91,7 +95,8 @@ export class ApiManager {
   }
 
   public async getApi(networkName: SubstrateApiNetwork, forceRefresh = false): Promise<API> {
-    const apiInstance = this.apiInstances.get(networkName);
+    const instanceKey = this.generateInstanceKey(networkName, 0);
+    const apiInstance = this.apiInstances.get(instanceKey);
 
     if (!apiInstance || forceRefresh) {
       return await this.populateApi(networkName);
@@ -106,6 +111,35 @@ export class ApiManager {
     }
 
     return apiInstance;
+  }
+
+  /**
+   * Gets an API instance with a randomly selected RPC URL from the available RPCs.
+   *
+   * @param networkName - The network to connect to
+   * @returns A cached API instance connected to a randomly selected RPC
+   */
+  public async getApiWithShuffling(networkName: SubstrateApiNetwork): Promise<API> {
+    const network = this.getNetworkConfig(networkName);
+    const randomIndex = Math.floor(Math.random() * network.wsUrls.length);
+    const instanceKey = this.generateInstanceKey(networkName, randomIndex);
+
+    let apiInstance = this.apiInstances.get(instanceKey);
+
+    if (apiInstance) {
+      logger.current.info(`Using cached API connection to ${networkName} (RPC index: ${randomIndex})`);
+      return apiInstance;
+    }
+
+    logger.current.info(`Creating new API connection to ${networkName} (RPC index: ${randomIndex})`);
+    apiInstance = await this.connectApi(networkName, randomIndex);
+    this.apiInstances.set(instanceKey, apiInstance);
+
+    return apiInstance;
+  }
+
+  private generateInstanceKey(networkName: SubstrateApiNetwork, rpcIndex: number): string {
+    return `${networkName}-${rpcIndex}`;
   }
 
   public async executeApiCall(
@@ -190,11 +224,12 @@ export class ApiManager {
     return network;
   }
 
-  private async connectApi(networkName: SubstrateApiNetwork): Promise<API> {
+  private async connectApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
     const network = this.getNetworkConfig(networkName);
+    const wsUrl = wsUrlIndex !== undefined ? network.wsUrls[wsUrlIndex] : network.wsUrls[0];
 
     // Parameters from here https://github.com/galacticcouncil/sdk/blob/master/packages/sdk/TROUBLESHOOTING.md#websocket-ttl-cache
-    const wsProvider = new WsProvider(network.wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
+    const wsProvider = new WsProvider(wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
     const api = await ApiPromise.create({
       noInitWarn: true,
       provider: wsProvider

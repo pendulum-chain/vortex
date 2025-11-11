@@ -1,5 +1,5 @@
-import { FiatToken, QuoteResponse, RampDirection } from "@packages/shared";
 import { WalletAccount } from "@talismn/connect-wallets";
+import { FiatToken, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -25,6 +25,7 @@ const initialRampContext: RampContext = {
   callbackUrl: undefined,
   chainId: undefined,
   connectedWalletAddress: undefined,
+  errorMessage: undefined,
   executionInput: undefined,
   externalSessionId: undefined,
   getMessageSignature: undefined,
@@ -130,8 +131,13 @@ export const rampMachine = setup({
       connectedWalletAddress: context.connectedWalletAddress,
       initializeFailedMessage: context.initializeFailedMessage
     })),
-    setFailedMessage: assign({
-      initializeFailedMessage: () => "Ramp failed, please retry"
+    setErrorMessage: assign({
+      errorMessage: ({ event }: { event: any }) => {
+        if (event.error?.message) {
+          return event.error.message;
+        }
+        return "An unexpected error occurred.";
+      }
     }),
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
     urlCleanerWithCallbackAction: ({ context }) => {
@@ -272,6 +278,17 @@ export const rampMachine = setup({
     }
   },
   states: {
+    Error: {
+      entry: assign(({ context }) => ({
+        ...context,
+        rampSigningPhase: undefined
+      })),
+      on: {
+        RESET_RAMP: {
+          target: "Resetting"
+        }
+      }
+    },
     Failure: {
       // TODO We also need to display the "final" error message in the UI.
       entry: assign(({ context }) => ({
@@ -445,8 +462,8 @@ export const rampMachine = setup({
           target: "UpdateRamp"
         },
         onError: {
-          actions: [{ type: "setFailedMessage" }],
-          target: "Resetting"
+          actions: [{ type: "setErrorMessage" }],
+          target: "Error"
         },
         src: "registerRamp"
       }
@@ -473,8 +490,8 @@ export const rampMachine = setup({
           }
         ],
         onError: {
-          actions: [{ type: "setFailedMessage" }],
-          target: "Resetting"
+          actions: [{ type: "setErrorMessage" }],
+          target: "Error"
         },
         src: "startRamp"
       }
@@ -507,8 +524,8 @@ export const rampMachine = setup({
             target: "Resetting"
           },
           {
-            // Handle other errors
-            target: "Resetting"
+            actions: [{ type: "setErrorMessage" }],
+            target: "Error"
           }
         ],
         src: "signTransactions"
