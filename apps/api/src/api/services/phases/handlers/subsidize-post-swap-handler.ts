@@ -1,4 +1,12 @@
-import { ApiManager, AssetHubToken, FiatToken, nativeToDecimal, RampDirection, RampPhase } from "@vortexfi/shared";
+import {
+  ApiManager,
+  AssetHubToken,
+  FiatToken,
+  nativeToDecimal,
+  RampDirection,
+  RampPhase,
+  waitUntilTrue
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -55,6 +63,18 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       );
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+
+      const didInputTokenArriveOnPendulum = async () => {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          quote.metadata.nablaSwap!.inputCurrencyId
+        );
+
+        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+        return requiredAmount.lte(Big(0));
+      };
+
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
@@ -76,6 +96,13 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        try {
+          await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
+        } catch (e) {
+          console.error("Error while waiting for transaction receipt:", e);
+          throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
+        }
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
