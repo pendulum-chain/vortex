@@ -25,7 +25,7 @@ const CHAIN_EXPLORERS: Record<string, string> = {
 };
 
 async function getAxelarScanExecutionLink(hash: string): Promise<{ explorerLink: string; executionHash: string }> {
-  const url = "https://axelarscan.io/gmp/searchGMP";
+  const url = "https://api.axelarscan.io/gmp/searchGMP";
   const response = await fetch(url, {
     body: JSON.stringify({ txHash: hash }),
     headers: {
