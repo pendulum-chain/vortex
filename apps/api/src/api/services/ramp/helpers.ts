@@ -12,7 +12,19 @@ enum TransactionHashKey {
 
 type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
 
-async function getAxelarScanExecutionLink(hash: string): Promise<string> {
+// Map chain names from AxelarScan to their respective explorer URLs
+const CHAIN_EXPLORERS: Record<string, string> = {
+  arbitrum: "https://arbiscan.io/tx",
+  avalanche: "https://snowtrace.io/tx",
+  base: "https://basescan.org/tx",
+  binance: "https://bscscan.com/tx",
+  bsc: "https://bscscan.com/tx",
+  ethereum: "https://etherscan.io/tx",
+  moonbeam: "https://moonscan.io/tx",
+  polygon: "https://polygonscan.com/tx"
+};
+
+async function getAxelarScanExecutionLink(hash: string): Promise<{ explorerLink: string; executionHash: string }> {
   const url = "https://axelarscan.io/gmp/searchGMP";
   const response = await fetch(url, {
     body: JSON.stringify({ txHash: hash }),
@@ -24,15 +36,49 @@ async function getAxelarScanExecutionLink(hash: string): Promise<string> {
 
   if (!response.ok) {
     logger.error(`Failed to fetch AxelarScan link for hash ${hash}: ${response.statusText}`);
-    return `https://axelarscan.io/gmp/${hash}`; // Fallback link
+    // Fallback to AxelarScan link
+    return {
+      executionHash: hash,
+      explorerLink: `https://axelarscan.io/gmp/${hash}`
+    };
   }
+
   try {
     const data = await response.json();
+    const chain = data[0]?.expressExecuted?.chain || data[0]?.executed?.chain;
     const executionHash = data[0]?.expressExecuted?.transactionHash || data[0]?.executed?.transactionHash;
-    return executionHash;
+
+    if (!executionHash) {
+      logger.warn(`No execution hash found in AxelarScan response for ${hash}`);
+      return {
+        executionHash: hash,
+        explorerLink: `https://axelarscan.io/gmp/${hash}`
+      };
+    }
+
+    // Normalize chain name to lowercase for matching
+    const normalizedChain = chain?.toLowerCase();
+    const explorerBaseUrl = normalizedChain ? CHAIN_EXPLORERS[normalizedChain] : undefined;
+
+    if (explorerBaseUrl) {
+      return {
+        executionHash,
+        explorerLink: `${explorerBaseUrl}/${executionHash}`
+      };
+    }
+
+    // Fallback to AxelarScan if chain is not recognized
+    logger.warn(`Unknown chain "${chain}" in AxelarScan response for hash ${hash}, using AxelarScan link`);
+    return {
+      executionHash,
+      explorerLink: `https://axelarscan.io/gmp/${executionHash}`
+    };
   } catch (error) {
     logger.error(`Failed to parse AxelarScan response for hash ${hash}: ${error}`);
-    return `https://axelarscan.io/gmp/${hash}`; // Fallback link
+    return {
+      executionHash: hash,
+      explorerLink: `https://axelarscan.io/gmp/${hash}`
+    };
   }
 }
 
@@ -92,11 +138,16 @@ export async function getFinalTransactionHashForRamp(
           const isMoneriumPolygonOnramp =
             rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
 
-          const executionHash = isMoneriumPolygonOnramp ? hash : await getAxelarScanExecutionLink(hash);
+          if (isMoneriumPolygonOnramp) {
+            // For Monerium Polygon onramp, use the hash directly
+            return {
+              transactionExplorerLink: `https://polygonscan.com/tx/${hash}`,
+              transactionHash: hash
+            };
+          }
 
-          const explorerLink = isMoneriumPolygonOnramp
-            ? `https://polygonscan.com/tx/${executionHash}`
-            : `https://axelarscan.io/gmp/${executionHash}`;
+          // For other cases, query AxelarScan for the execution hash and chain-specific explorer
+          const { explorerLink, executionHash } = await getAxelarScanExecutionLink(hash);
 
           return {
             transactionExplorerLink: explorerLink,
