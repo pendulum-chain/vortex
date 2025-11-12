@@ -435,7 +435,11 @@ export class RampService extends BaseRampService {
     let transactionExplorerLink = rampState.state.finalTransactionExplorerLink;
 
     // If not stored yet and ramp is complete, compute and store them
-    if (rampState.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+    if (
+      rampState.type === RampDirection.BUY &&
+      rampState.currentPhase === "complete" &&
+      (!transactionHash || !transactionExplorerLink)
+    ) {
       const result = await getFinalTransactionHashForRamp(rampState, quote);
       transactionHash = result.transactionHash;
       transactionExplorerLink = result.transactionExplorerLink;
