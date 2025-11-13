@@ -44,9 +44,9 @@ async function getAxelarScanExecutionLink(hash: string): Promise<{ explorerLink:
   }
 
   try {
-    const data = await response.json();
-    const chain = data[0]?.expressExecuted?.chain || data[0]?.executed?.chain;
-    const executionHash = data[0]?.expressExecuted?.transactionHash || data[0]?.executed?.transactionHash;
+    const data = (await response.json()).data;
+    const chain = data[0]?.express_executed?.chain || data[0]?.executed?.chain;
+    const executionHash = data[0]?.express_executed?.transactionHash || data[0]?.executed?.transactionHash;
 
     if (!executionHash) {
       logger.warn(`No execution hash found in AxelarScan response for ${hash}`);
