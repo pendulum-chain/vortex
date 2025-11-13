@@ -370,6 +370,71 @@ export class PriceFeedService {
   }
 
   /**
+   * Get the onchain oracle price for a specific currency
+   *
+   * @param currency - The RampCurrency to get the oracle price for
+   * @returns The oracle price data including price value and last update timestamp
+   * @throws Error if the price cannot be fetched or currency is not found
+   */
+  public async getOnchainOraclePrice(currency: RampCurrency): Promise<{
+    price: number;
+    lastUpdateTimestamp: number;
+    name: string;
+  }> {
+    logger.debug(`Fetching onchain oracle price for ${currency}`);
+
+    const apiManager = ApiManager.getInstance();
+    const pendulumApi = await apiManager.getApi("pendulum");
+    const pendulumApiInstance = pendulumApi.api;
+
+    try {
+      // Construct the query parameters
+      const blockchain = "FIAT";
+      const symbol = `${currency}-USD`;
+
+      logger.debug(`Querying oracle with blockchain: ${blockchain}, symbol: ${symbol}`);
+
+      // Query the oracle for the specific currency
+      const priceDataEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap({
+        blockchain,
+        symbol
+      });
+
+      // Check if price data exists
+      if (priceDataEncoded.isEmpty) {
+        throw new Error(`No oracle price found for currency ${currency} (${blockchain}/${symbol})`);
+      }
+
+      // Parse the price data
+      const priceData = priceDataEncoded.toHuman() as {
+        name: string;
+        price: string;
+        lastUpdateTimestamp: string;
+      };
+
+      // Remove commas from numeric strings and parse
+      const price = parseFloat(priceData.price.replaceAll(",", ""));
+      const lastUpdateTimestamp = parseInt(priceData.lastUpdateTimestamp.replaceAll(",", ""), 10);
+
+      logger.debug(`Oracle price for ${currency}: ${price}, Last update: ${lastUpdateTimestamp}, Name: ${priceData.name}`);
+
+      return {
+        lastUpdateTimestamp,
+        name: priceData.name,
+        price
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(`Error fetching onchain oracle price for ${currency}: ${error.message}`);
+      } else {
+        logger.error(`Unknown error fetching onchain oracle price for ${currency}`);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Helper function to map RampCurrency to CoinGecko token ID
    * @param currency - The RampCurrency to map
    * @returns The corresponding CoinGecko token ID or null if not mappable
