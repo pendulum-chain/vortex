@@ -377,7 +377,7 @@ export class PriceFeedService {
    * @throws Error if the price cannot be fetched or currency is not found
    */
   public async getOnchainOraclePrice(currency: RampCurrency): Promise<{
-    price: number;
+    price: Big;
     lastUpdateTimestamp: number;
     name: string;
   }> {
@@ -413,8 +413,11 @@ export class PriceFeedService {
       };
 
       // Remove commas from numeric strings and parse
-      const price = parseFloat(priceData.price.replaceAll(",", ""));
+      const priceRaw = parseFloat(priceData.price.replaceAll(",", ""));
       const lastUpdateTimestamp = parseInt(priceData.lastUpdateTimestamp.replaceAll(",", ""), 10);
+
+      // Convert price from raw to decimal number by dividing by 10^12
+      const price = Big(priceRaw).div(1_000_000_000_000);
 
       logger.debug(`Oracle price for ${currency}: ${price}, Last update: ${lastUpdateTimestamp}, Name: ${priceData.name}`);
 

@@ -93,7 +93,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
     inputAmountForSwapRaw: string,
     inputToken: PendulumTokenDetails,
     outputToken: PendulumTokenDetails,
-    oraclePrice?: number
+    oraclePrice?: Big
   ): void {
     ctx.nablaSwap = {
       ...ctx.nablaSwap,
