@@ -3,7 +3,6 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
-import QuoteTicket from "../../../models/quoteTicket.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
 import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
@@ -51,10 +50,10 @@ export class QuoteService extends BaseRampService {
 
     logger.info(`Fetching quotes for ${eligibleNetworks.length} networks: ${eligibleNetworks.join(", ")}`);
 
-    // Fetch quotes for all eligible networks in parallel
+    // Fetch quotes for all eligible networks in parallel (in-memory only)
     const quotePromises = eligibleNetworks.map(async network => {
       try {
-        const quote = await this.executeQuoteCalculation({ ...request, network });
+        const quote = await this.executeQuoteCalculation({ ...request, network }, true);
         return { network, quote };
       } catch (error) {
         logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
@@ -83,24 +82,21 @@ export class QuoteService extends BaseRampService {
       `Best quote found on network ${bestQuote.network} with output amount ${bestQuote.quote.outputAmount}. Considered ${validQuotes.length} networks.`
     );
 
-    // Delete all non-winning quote records from database
-    const quoteIdsToDelete = validQuotes.filter(q => q.quote.id !== bestQuote.quote.id).map(q => q.quote.id);
+    // Now save only the best quote to the database
+    const savedQuote = await this.executeQuoteCalculation({ ...request, network: bestQuote.network }, false);
 
-    if (quoteIdsToDelete.length > 0) {
-      await QuoteTicket.destroy({ where: { id: quoteIdsToDelete } });
-      logger.info(`Deleted ${quoteIdsToDelete.length} non-winning quote(s) from database`);
-    }
-
-    return bestQuote.quote;
+    return savedQuote;
   }
 
   /**
-   * Execute quote calculation logic and save to database
+   * Execute quote calculation logic
    * @param request - Quote request
-   * @returns The calculated and persisted quote
+   * @param skipPersistence - Whether to skip database persistence (for comparison)
+   * @returns The calculated quote
    */
   private async executeQuoteCalculation(
-    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
+    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null },
+    skipPersistence: boolean = false
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
@@ -129,6 +125,11 @@ export class QuoteService extends BaseRampService {
       targetFeeFiatCurrency
     });
 
+    // Set skipPersistence flag in context
+    if (skipPersistence) {
+      ctx.skipPersistence = true;
+    }
+
     const orchestrator = new QuoteOrchestrator();
     const resolver = new RouteResolver();
     const strategy = resolver.resolve(ctx);
@@ -144,8 +145,6 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    // If persist is false, we return a temporary quote response without saving
-    // The orchestrator already saved it, so we need a different approach
     return ctx.builtResponse;
   }
 
