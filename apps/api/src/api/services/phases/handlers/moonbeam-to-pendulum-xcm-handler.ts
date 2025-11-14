@@ -6,6 +6,8 @@ import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION = 1800; // 30 minutes
+const MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID = 60; // 1 minute
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "moonbeamToPendulumXcm";
@@ -23,9 +25,21 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     const hasPreviousError = state.errorLogs.some(log => log.phase === "moonbeamToPendulumXcm");
 
     // Use shuffling on (a potential) retry when there's a previous error, otherwise use the default RPC
-    const moonbeamNode = hasPreviousError
-      ? await apiManager.getApiWithShuffling("moonbeam")
-      : await apiManager.getApi("moonbeam");
+    // Failure to obtain an RPC handle means we have exhausted all options, we should fail recoverably with larger waits.
+    let moonbeamNode;
+    try {
+      moonbeamNode = hasPreviousError
+        ? await apiManager.getApiWithShuffling("moonbeam", state.id)
+        : await apiManager.getApi("moonbeam");
+    } catch (e) {
+      throw new RecoverablePhaseError(
+        "MoonbeamToPendulumXcmPhaseHandler: All RPC options exhausted.",
+        MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION
+      );
+    }
+
+    // TODO if no node is returned, we fail recoverably but wait a longer amount here. For this phase, and current failure mode
+    // it is known to be at least 30 minues.
 
     const pendulumNode = await apiManager.getApi("pendulum");
 
@@ -69,9 +83,10 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
       }
     } catch (error) {
       if (error && error instanceof Error) {
-        if (error.message.includes("IsInvalid")) {
+        if (error.message.includes("IsInvalid") || error.message.includes("banned")) {
           throw new RecoverablePhaseError(
-            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid but we assume it can be fixed with resubmission."
+            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid or banned, but we assume it can be fixed with resubmission.",
+            MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID
           );
         }
       }
