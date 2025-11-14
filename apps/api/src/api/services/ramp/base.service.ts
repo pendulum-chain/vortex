@@ -12,10 +12,12 @@ export class BaseRampService {
    * Clean up expired quotes by deleting them from the database
    */
   public async cleanupExpiredQuotes(): Promise<number> {
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+
     const count = await QuoteTicket.destroy({
       where: {
         expiresAt: {
-          [Op.lt]: new Date()
+          [Op.lt]: sixtyDaysAgo
         },
         status: "pending"
       }
