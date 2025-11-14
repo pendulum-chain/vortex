@@ -6,6 +6,8 @@ import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION = 1800; // 30 minutes
+
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "moonbeamToPendulumXcm";
@@ -30,7 +32,10 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         ? await apiManager.getApiWithShuffling("moonbeam", state.id)
         : await apiManager.getApi("moonbeam");
     } catch (e) {
-      throw new RecoverablePhaseError("MoonbeamToPendulumXcmPhaseHandler: All RPC options exhausted.");
+      throw new RecoverablePhaseError(
+        "MoonbeamToPendulumXcmPhaseHandler: All RPC options exhausted.",
+        MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION
+      );
     }
 
     // TODO if no node is returned, we fail recoverably but wait a longer amount here. For this phase, and current failure mode
