@@ -35,6 +35,7 @@ export interface QuoteResponse {
   outputAmount: string;
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
+  network: Networks;
 
   // Flattened fees (Fiat)
   networkFeeFiat: string;
