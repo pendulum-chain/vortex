@@ -392,7 +392,7 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   next();
 };
 
-export const validateCreateBestQuoteInput: RequestHandler = (req, res, next) => {
+export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (req, res, next) => {
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {

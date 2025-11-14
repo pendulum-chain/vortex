@@ -1,6 +1,7 @@
 import { CreateQuoteRequest, DestinationType, Networks, QuoteError, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
@@ -50,16 +51,21 @@ export class QuoteService extends BaseRampService {
 
     logger.info(`Fetching quotes for ${eligibleNetworks.length} networks: ${eligibleNetworks.join(", ")}`);
 
-    // Fetch quotes for all eligible networks in parallel (in-memory only)
-    const quotePromises = eligibleNetworks.map(async network => {
-      try {
-        const quote = await this.executeQuoteCalculation({ ...request, network }, true);
-        return { network, quote };
-      } catch (error) {
-        logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
-        return null;
-      }
-    });
+    // Use concurrency limit to prevent resource exhaustion when many networks are eligible
+    const limit = pLimit(5); // Process up to 5 networks concurrently
+
+    // Fetch quotes for all eligible networks with controlled parallelism (in-memory only)
+    const quotePromises = eligibleNetworks.map(network =>
+      limit(async () => {
+        try {
+          const quote = await this.executeQuoteCalculation({ ...request, network }, true);
+          return { network, quote };
+        } catch (error) {
+          logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
+          return null;
+        }
+      })
+    );
 
     const quoteResults = await Promise.all(quotePromises);
     const validQuotes = quoteResults.filter((result): result is { network: Networks; quote: QuoteResponse } => result !== null);
