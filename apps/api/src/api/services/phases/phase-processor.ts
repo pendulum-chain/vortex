@@ -2,7 +2,7 @@ import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError } from "../../errors/phase-error";
+import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
 import phaseRegistry from "./phase-registry";
 
 /**
@@ -187,6 +187,8 @@ export class PhaseProcessor {
       const error = e as Error;
       const isPhaseError = error instanceof PhaseError;
       const isRecoverable = isPhaseError && error.isRecoverable;
+      const minimumWaitSeconds =
+        error instanceof RecoverablePhaseError ? (error as RecoverablePhaseError).minimumWaitSeconds : undefined;
 
       if (isRecoverable) {
         const currentRetries = this.retriesMap.get(state.id) || 0;
@@ -209,7 +211,7 @@ export class PhaseProcessor {
         if (currentRetries < this.MAX_RETRIES) {
           const nextRetry = currentRetries + 1;
           this.retriesMap.set(errorUpdatedState.id, nextRetry);
-          const delayMs = Math.pow(2, currentRetries) * 1000;
+          const delayMs = minimumWaitSeconds ? minimumWaitSeconds * 1000 : Math.pow(2, currentRetries) * 1000;
 
           logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${errorUpdatedState.id} in ${delayMs}ms`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
