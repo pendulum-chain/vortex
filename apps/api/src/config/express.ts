@@ -39,7 +39,7 @@ app.use(
 
 // enable rate limiting
 // Set number of expected proxies
-app.set("trust proxy", rateLimitNumberOfProxies);
+app.set("trust proxy", Number(rateLimitNumberOfProxies));
 
 // Define rate limiter
 const limiter = rateLimit({

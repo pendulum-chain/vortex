@@ -54,6 +54,9 @@ export class ApiManager {
 
   private networks: NetworkConfig[] = [];
 
+  // Used RPC indices keyed by UUID to avoid repeat usage
+  private usedRpcIndices: Map<string, Set<number>> = new Map();
+
   private constructor() {
     this.networks = NETWORKS;
 
@@ -117,11 +120,34 @@ export class ApiManager {
    * Gets an API instance with a randomly selected RPC URL from the available RPCs.
    *
    * @param networkName - The network to connect to
+   * @param uuid - Optional UUID to avoid repeating RPC usage
    * @returns A cached API instance connected to a randomly selected RPC
    */
-  public async getApiWithShuffling(networkName: SubstrateApiNetwork): Promise<API> {
+  public async getApiWithShuffling(networkName: SubstrateApiNetwork, uuid?: string): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    const randomIndex = Math.floor(Math.random() * network.wsUrls.length);
+    const usedIndices = uuid ? this.usedRpcIndices.get(uuid) || new Set<number>() : null;
+
+    // Get available indices: all if no UUID, unused ones if UUID provided
+    let availableIndices = uuid
+      ? network.wsUrls.map((_, index) => index).filter(index => !usedIndices!.has(index))
+      : network.wsUrls.map((_, index) => index);
+
+    // If no available indices any more, reset the used indices for this UUID and throw
+    if (availableIndices.length === 0) {
+      this.usedRpcIndices.delete(uuid!); // uuid is guaranteed to be defined here.
+      throw new Error(`All RPC endpoints have been used for network ${networkName} with UUID ${uuid}`);
+    }
+
+    const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+
+    // Mark the index as used if UUID provided
+    if (uuid) {
+      if (!this.usedRpcIndices.has(uuid)) {
+        this.usedRpcIndices.set(uuid, new Set<number>());
+      }
+      this.usedRpcIndices.get(uuid)!.add(randomIndex);
+    }
+
     const instanceKey = this.generateInstanceKey(networkName, randomIndex);
 
     let apiInstance = this.apiInstances.get(instanceKey);
