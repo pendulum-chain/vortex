@@ -38,6 +38,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
     id: quoteTicket.id,
     inputAmount: trimTrailingZeros(quoteTicket.inputAmount),
     inputCurrency: quoteTicket.inputCurrency,
+    network: quoteTicket.network,
     networkFeeFiat: fiatFees.network,
     networkFeeUsd: usdFees.network,
     outputAmount: trimTrailingZeros(quoteTicket.outputAmount),
