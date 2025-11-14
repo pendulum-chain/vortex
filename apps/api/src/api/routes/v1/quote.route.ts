@@ -64,18 +64,34 @@ router.route("/").post(
  * @apiParam  {String}  outputCurrency Output currency
  * @apiParam  {String}  [partnerId]    Partner ID (requires secret key authentication)
  * @apiParam  {String}  [apiKey]       Public API key (pk_*) for tracking and discounts
+ * @apiParam  {String}  [countryCode]  Country code for region-specific processing
  *
  * @apiHeader {String} [X-API-Key] Secret API key (sk_*) for partner authentication (required if partnerId is provided)
  *
- * @apiSuccess (Created 201) {String}  id             Quote ID
- * @apiSuccess (Created 201) {String}  rampType       Ramp type
- * @apiSuccess (Created 201) {String}  from           DestinationType
- * @apiSuccess (Created 201) {String}  to             DestinationType
- * @apiSuccess (Created 201) {String}  inputAmount    Input amount
- * @apiSuccess (Created 201) {String}  inputCurrency  Input currency
- * @apiSuccess (Created 201) {String}  outputAmount   Output amount
- * @apiSuccess (Created 201) {String}  outputCurrency Output currency
- * @apiSuccess (Created 201) {Date}    expiresAt      Expiration date
+ * @apiSuccess (Created 201) {String}  id                Quote ID
+ * @apiSuccess (Created 201) {String}  rampType          Ramp type
+ * @apiSuccess (Created 201) {String}  from              DestinationType
+ * @apiSuccess (Created 201) {String}  to                DestinationType
+ * @apiSuccess (Created 201) {String}  inputAmount       Input amount
+ * @apiSuccess (Created 201) {String}  inputCurrency     Input currency
+ * @apiSuccess (Created 201) {String}  outputAmount      Output amount
+ * @apiSuccess (Created 201) {String}  outputCurrency    Output currency
+ * @apiSuccess (Created 201) {String}  network           Selected network for the quote
+ * @apiSuccess (Created 201) {String}  networkFeeFiat    Network fee in fiat currency
+ * @apiSuccess (Created 201) {String}  anchorFeeFiat     Anchor fee in fiat currency
+ * @apiSuccess (Created 201) {String}  vortexFeeFiat     Vortex fee in fiat currency
+ * @apiSuccess (Created 201) {String}  partnerFeeFiat    Partner fee in fiat currency
+ * @apiSuccess (Created 201) {String}  totalFeeFiat      Total fee in fiat currency
+ * @apiSuccess (Created 201) {String}  processingFeeFiat Processing fee (anchor + vortex) in fiat currency
+ * @apiSuccess (Created 201) {String}  feeCurrency       Currency used for fee display
+ * @apiSuccess (Created 201) {String}  networkFeeUsd     Network fee in USD
+ * @apiSuccess (Created 201) {String}  anchorFeeUsd      Anchor fee in USD
+ * @apiSuccess (Created 201) {String}  vortexFeeUsd      Vortex fee in USD
+ * @apiSuccess (Created 201) {String}  partnerFeeUsd     Partner fee in USD
+ * @apiSuccess (Created 201) {String}  totalFeeUsd       Total fee in USD
+ * @apiSuccess (Created 201) {String}  processingFeeUsd  Processing fee (anchor + vortex) in USD
+ * @apiSuccess (Created 201) {String}  paymentMethod     Payment method used for the quote
+ * @apiSuccess (Created 201) {Date}    expiresAt         Expiration date
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  * @apiError (Unauthorized 401) InvalidApiKey The provided API key is invalid or expired

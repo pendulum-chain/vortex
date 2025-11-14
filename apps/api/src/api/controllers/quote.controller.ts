@@ -68,7 +68,7 @@ export const createBestQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey, countryCode } = req.body;
 
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
@@ -77,6 +77,7 @@ export const createBestQuote = async (
     // Create best quote by querying all eligible networks
     const quote = await quoteService.createBestQuote({
       apiKey: publicApiKey,
+      countryCode,
       from,
       inputAmount,
       inputCurrency,
