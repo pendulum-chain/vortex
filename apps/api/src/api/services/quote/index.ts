@@ -3,6 +3,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
+import QuoteTicket from "../../../models/quoteTicket.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
 import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
@@ -15,52 +16,7 @@ export class QuoteService extends BaseRampService {
   public async createQuote(
     request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
   ): Promise<QuoteResponse> {
-    validateChainSupport(request.rampType, request.from, request.to);
-
-    let partner = null;
-    let partnerNameToUse = request.partnerId || request.partnerName;
-
-    // Try to find partner by name (from partnerId field or from apiKey lookup)
-    if (partnerNameToUse) {
-      partner = await Partner.findOne({
-        where: {
-          isActive: true,
-          name: partnerNameToUse,
-          rampType: request.rampType
-        }
-      });
-
-      // If partner name was provided but not found or not active, log a warning and proceed without a partner
-      if (!partner) {
-        logger.warn(`Partner with name '${partnerNameToUse}' not found or not active. Proceeding with default fees.`);
-      }
-    }
-
-    // Determine the target fiat currency for fees
-    const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
-
-    const ctx = createQuoteContext({
-      partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
-      request: { ...request, apiKey: request.apiKey || undefined },
-      targetFeeFiatCurrency
-    });
-
-    const orchestrator = new QuoteOrchestrator();
-    const resolver = new RouteResolver();
-    const strategy = resolver.resolve(ctx);
-    try {
-      await orchestrator.run(strategy, ctx);
-    } catch (error) {
-      logger.error(error instanceof Error ? error.message : String(error));
-      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-
-    if (ctx.builtResponse) {
-      return ctx.builtResponse;
-    }
-
-    // Unreachable: all BUY and SELL routes are handled above via the pipeline strategies.
-    throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    return this.executeQuoteCalculation(request);
   }
 
   public async getQuote(id: string): Promise<QuoteResponse | null> {
@@ -95,14 +51,11 @@ export class QuoteService extends BaseRampService {
 
     logger.info(`Fetching quotes for ${eligibleNetworks.length} networks: ${eligibleNetworks.join(", ")}`);
 
-    // Fetch quotes for all eligible networks in parallel (in-memory, no DB saves)
+    // Fetch quotes for all eligible networks in parallel
     const quotePromises = eligibleNetworks.map(async network => {
       try {
-        const quoteContext = await this.createQuoteInMemory({
-          ...request,
-          network
-        });
-        return { network, quote: quoteContext };
+        const quote = await this.executeQuoteCalculation({ ...request, network });
+        return { network, quote };
       } catch (error) {
         logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
         return null;
@@ -130,25 +83,29 @@ export class QuoteService extends BaseRampService {
       `Best quote found on network ${bestQuote.network} with output amount ${bestQuote.quote.outputAmount}. Considered ${validQuotes.length} networks.`
     );
 
-    const savedQuote = await this.createQuote({
-      ...request,
-      network: bestQuote.network
-    });
+    // Delete all non-winning quote records from database
+    const quoteIdsToDelete = validQuotes.filter(q => q.quote.id !== bestQuote.quote.id).map(q => q.quote.id);
 
-    return savedQuote;
+    if (quoteIdsToDelete.length > 0) {
+      await QuoteTicket.destroy({ where: { id: quoteIdsToDelete } });
+      logger.info(`Deleted ${quoteIdsToDelete.length} non-winning quote(s) from database`);
+    }
+
+    return bestQuote.quote;
   }
 
   /**
-   * Create a quote in-memory without saving to database
-   * Used for comparing quotes across networks
+   * Execute quote calculation logic and save to database
+   * @param request - Quote request
+   * @returns The calculated and persisted quote
    */
-  private async createQuoteInMemory(
+  private async executeQuoteCalculation(
     request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
     let partner = null;
-    let partnerNameToUse = request.partnerId || request.partnerName;
+    const partnerNameToUse = request.partnerId || request.partnerName;
 
     if (partnerNameToUse) {
       partner = await Partner.findOne({
@@ -187,6 +144,8 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
+    // If persist is false, we return a temporary quote response without saving
+    // The orchestrator already saved it, so we need a different approach
     return ctx.builtResponse;
   }
 
