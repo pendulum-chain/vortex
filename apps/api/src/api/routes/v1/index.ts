@@ -171,7 +171,7 @@ router.use("/public-key", publicKeyRoutes);
 router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
-  response.send({ headers: request.headers["x-forwarded-for"], ip: request.ip, ips: request.ips });
+  response.send(request.ip);
 });
 
 export default router;
