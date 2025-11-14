@@ -2,16 +2,13 @@ import {
   CreateQuoteRequest,
   GetQuoteRequest,
   getNetworkFromDestination,
-  Networks,
   QuoteError,
   QuoteResponse,
   RampDirection
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
-import { ASSETHUB_XCM_FEE_USDC_UNITS } from "../../constants/constants";
 import { APIError } from "../errors/api-error";
 import quoteService from "../services/quote";
 
@@ -54,14 +51,45 @@ export const createQuote = async (
       to
     });
 
-    // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
-    if (rampType === RampDirection.BUY && to === Networks.AssetHub) {
-      quote.outputAmount = new Big(quote.outputAmount).sub(ASSETHUB_XCM_FEE_USDC_UNITS).toFixed();
-    }
-
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
     logger.error(`Error creating quote: ${error instanceof Error ? error.message : String(error)}`);
+    next(error);
+  }
+};
+
+/**
+ * Create a best quote across all eligible networks
+ * @public
+ */
+export const createBestQuote = async (
+  req: Request<unknown, unknown, Omit<CreateQuoteRequest, "network">>,
+  res: Response<QuoteResponse>,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey } = req.body;
+
+    // Get apiKey from body or from validated public key middleware
+    const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
+    const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+
+    // Create best quote by querying all eligible networks
+    const quote = await quoteService.createBestQuote({
+      apiKey: publicApiKey,
+      from,
+      inputAmount,
+      inputCurrency,
+      outputCurrency,
+      partnerId,
+      partnerName: publicKeyPartnerName,
+      rampType,
+      to
+    });
+
+    res.status(httpStatus.CREATED).json(quote);
+  } catch (error) {
+    logger.error(`Error creating best quote: ${error instanceof Error ? error.message : String(error)}`);
     next(error);
   }
 };
