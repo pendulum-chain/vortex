@@ -122,6 +122,7 @@ export interface QuoteContext {
     outputToken: string; // ERC20 wrapper address
     effectiveExchangeRate?: string;
     outputCurrency: RampCurrency;
+    oraclePrice?: Big;
   };
 
   hydrationSwap?: {

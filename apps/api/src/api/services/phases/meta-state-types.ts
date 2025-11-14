@@ -47,4 +47,7 @@ export interface StateMetadata {
   // Used for webhook notifications
   sessionId?: string;
   squidRouterQuoteId: string;
+  // Final transaction hash and explorer link (computed once when ramp is complete)
+  finalTransactionHash?: string;
+  finalTransactionExplorerLink?: string;
 }
