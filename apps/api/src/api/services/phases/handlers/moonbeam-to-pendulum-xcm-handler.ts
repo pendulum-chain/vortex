@@ -7,7 +7,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
 const MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION = 1800; // 30 minutes
-
+const MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID = 60; // 1 minute
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "moonbeamToPendulumXcm";
@@ -85,7 +85,8 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
       if (error && error instanceof Error) {
         if (error.message.includes("IsInvalid") || error.message.includes("banned")) {
           throw new RecoverablePhaseError(
-            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid or banned, but we assume it can be fixed with resubmission."
+            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid or banned, but we assume it can be fixed with resubmission.",
+            MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID
           );
         }
       }
