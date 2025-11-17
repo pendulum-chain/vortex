@@ -142,10 +142,14 @@ export interface PixInputTicketPayload {
   ticketBrlPixInput: {
     additionalData: string;
   };
-  ticketBlockchainOutput: {
-    walletChain: string;
-    walletAddress: string;
-  };
+  ticketBlockchainOutput:
+    | {
+        walletChain: string;
+        walletAddress: string;
+      }
+    | {
+        beneficiaryWalletId: string;
+      };
 }
 
 export interface PixInputTicketOutput {
