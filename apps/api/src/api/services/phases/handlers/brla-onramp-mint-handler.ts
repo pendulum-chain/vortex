@@ -73,7 +73,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
             return false;
           }
 
-          return balances.BRLA.toFixed(6) < quote.metadata.aveniaMint.outputAmountDecimal.toFixed(6, 0);
+          return balances.BRLA.toFixed(6) >= quote.metadata.aveniaMint.outputAmountDecimal.toFixed(6, 0);
         },
         5000,
         PAYMENT_TIMEOUT_MS

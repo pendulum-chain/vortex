@@ -115,9 +115,8 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     squidRouterReceiverId
   };
 
-  // Moonbeam: Initial BRLA transfer to Pendulum
   if (!quote.metadata.evmToMoonbeam?.outputAmountRaw) {
-    throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
+    throw new Error("Missing evmToMoonbeam in quote metadata");
   }
   const receivedTokensOnMoonbeam = quote.metadata.evmToMoonbeam.outputAmountRaw;
 
