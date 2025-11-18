@@ -12,7 +12,7 @@ import {
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
-import httpStatus from "http-status"; // The rationale for these difference is that it allows for a finer check over the payment timeout in
+import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
