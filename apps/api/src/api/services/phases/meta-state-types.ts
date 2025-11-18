@@ -43,6 +43,7 @@ export interface StateMetadata {
   depositQrCode: string | undefined;
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
+  moneriumOnrampPermit?: { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

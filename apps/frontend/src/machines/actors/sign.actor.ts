@@ -1,6 +1,6 @@
 import {
-  ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
+  ERC20_EURE_POLYGON_V2,
   getAddressForFormat,
   getOnChainTokenDetails,
   multiplyByPowerOfTen,
@@ -27,7 +27,11 @@ export class SignRampError extends Error {
   }
 }
 
-async function signERC2612Permit(owner: `0x${string}`, spender: `0x${string}`, valueUnits: string) {
+async function signERC2612Permit(
+  owner: `0x${string}`,
+  spender: `0x${string}`,
+  valueUnits: string
+): Promise<{ r: `0x${string}`; s: `0x${string}`; v: number; deadline: number }> {
   const value = multiplyByPowerOfTen(valueUnits, ERC20_EURE_POLYGON_DECIMALS);
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
 
@@ -41,16 +45,16 @@ async function signERC2612Permit(owner: `0x${string}`, spender: `0x${string}`, v
         type: "function"
       }
     ],
-    address: ERC20_EURE_POLYGON,
+    address: ERC20_EURE_POLYGON_V2,
     args: [owner],
     functionName: "nonces"
   })) as bigint;
 
   const domain = {
     chainId: BigInt(137), // TODO find.
-    name: "Monerium", // TODO check
-    verifyingContract: ERC20_EURE_POLYGON,
-    version: "2"
+    name: "Monerium EURe",
+    verifyingContract: ERC20_EURE_POLYGON_V2,
+    version: "1"
   };
 
   const types = {
@@ -84,7 +88,7 @@ async function signERC2612Permit(owner: `0x${string}`, spender: `0x${string}`, v
   const r = `0x${signature.slice(2, 66)}` as `0x${string}`;
   const s = `0x${signature.slice(66, 130)}` as `0x${string}`;
 
-  return { r, s, v };
+  return { deadline: Number(deadline), r, s, v };
 }
 
 export const signTransactionsActor = async ({
@@ -119,6 +123,17 @@ export const signTransactionsActor = async ({
       : tx.signer.toLowerCase() === signerAddress.toLowerCase();
   });
 
+  // Add userTx for monerium onramp. Signature is required, which is created in this process.
+  if (rampDirection === RampDirection.BUY && quote?.from === "sepa") {
+    userTxs?.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "moneriumOnrampMint",
+      signer: executionInput?.moneriumWalletAddress as `0x${string}`,
+      txData: {} as any // Placeholder, actual txData is not needed for signing the permit
+    });
+  }
   if (!userTxs || userTxs.length === 0) {
     console.log("No user transactions found requiring signature.");
     return rampState;
@@ -129,7 +144,7 @@ export const signTransactionsActor = async ({
   let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampApproveHash: string | undefined = undefined;
-  let moneriumOnrampPermit: { v: number; r: `0x${string}`; s: `0x${string}` } | undefined = undefined;
+  let moneriumOnrampPermit: { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number } | undefined = undefined;
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
@@ -175,7 +190,6 @@ export const signTransactionsActor = async ({
           executionInput?.ephemerals.evmEphemeral.address as `0x${string}`,
           rampState.quote.inputAmount
         );
-        moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else {
         throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);

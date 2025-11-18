@@ -127,7 +127,7 @@ export interface UpdateRampRequest {
     squidRouterSwapHash?: string;
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
-    moneriumOnrampPermit?: { v: number; r: `0x${string}`; s: `0x${string}` };
+    moneriumOnrampPermit?: { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
     [key: string]: unknown;
   };
 }
