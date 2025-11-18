@@ -203,6 +203,9 @@ export interface QuoteContext {
   // Allow engines to supply a ready response (used by special-case engine and finalize stage)
   builtResponse?: QuoteResponse;
 
+  // Flag to skip database persistence (for best quote comparison)
+  skipPersistence?: boolean;
+
   // Helper: convenience accessors
   get isOnRamp(): boolean;
 
