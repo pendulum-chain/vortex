@@ -70,6 +70,7 @@ export enum AveniaPaymentMethod {
 }
 
 export interface PayInQuoteParams {
+  blockchainSendMethod?: BlockchainSendMethod;
   inputCurrency: BrlaCurrency;
   inputPaymentMethod: AveniaPaymentMethod;
   inputAmount: string;
@@ -89,6 +90,8 @@ export interface PayOutQuoteParams {
   outputThirdParty: boolean;
   outputAmount: string;
   subAccountId?: string;
+  outputCurrency?: BrlaCurrency;
+  outputPaymentMethod?: AveniaPaymentMethod;
 }
 
 export interface OnchainSwapQuoteParams {
@@ -139,7 +142,7 @@ export enum AveniaFeeType {
 
 export interface PixInputTicketPayload {
   quoteToken: string;
-  ticketBrlPixInput: {
+  ticketBrlPixInput?: {
     additionalData: string;
   };
   ticketBlockchainOutput:
