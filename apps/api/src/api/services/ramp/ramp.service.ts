@@ -8,6 +8,7 @@ import {
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
+  generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
   QuoteError,
@@ -708,6 +709,9 @@ export class RampService extends BaseRampService {
         ticketBlockchainOutput: {
           // This means we are paying out to the subAccount itself.
           beneficiaryWalletId: "00000000-0000-0000-0000-000000000000"
+        },
+        ticketBrlPixInput: {
+          additionalData: generateReferenceLabel(quote)
         }
       },
       taxIdRecord.subAccountId

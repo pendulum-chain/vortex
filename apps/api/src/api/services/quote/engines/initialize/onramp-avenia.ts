@@ -1,5 +1,6 @@
 import {
   AveniaPaymentMethod,
+  BlockchainSendMethod,
   BrlaApiService,
   BrlaCurrency,
   FiatToken,
@@ -36,6 +37,7 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     });
 
     const aveniaTransferToMoonbeamQuote = await brlaApiService.createPayInQuote({
+      blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputAmount: aveniaPayInToInternalQuote.outputAmount.toString(),
       inputCurrency: BrlaCurrency.BRLA,
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
@@ -70,13 +72,13 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     // We received minted BRLA on the ephemeral account
     const mintedBrlaDecimal = new Big(aveniaTransferToMoonbeamQuote.outputAmount).minus(gasFeeBuffer);
     const mintedBrlaRaw = multiplyByPowerOfTen(mintedBrlaDecimal, brlaTokenDetails.decimals).toFixed(0, 0);
-    const fee = receivedBrlaDecimal.minus(mintedBrlaDecimal);
+    const transferFee = receivedBrlaDecimal.minus(mintedBrlaDecimal);
 
     ctx.aveniaTransfer = {
       currency: FiatToken.BRL,
-      fee,
-      inputAmountDecimal,
-      inputAmountRaw,
+      fee: transferFee,
+      inputAmountDecimal: ctx.aveniaMint.outputAmountDecimal,
+      inputAmountRaw: ctx.aveniaMint.outputAmountRaw,
       outputAmountDecimal: mintedBrlaDecimal,
       outputAmountRaw: mintedBrlaRaw
     };
