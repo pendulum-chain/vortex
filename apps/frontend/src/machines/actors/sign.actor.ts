@@ -1,7 +1,17 @@
-import { getAddressForFormat, getOnChainTokenDetails, Networks, RampDirection } from "@vortexfi/shared";
+import {
+  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_DECIMALS,
+  getAddressForFormat,
+  getOnChainTokenDetails,
+  multiplyByPowerOfTen,
+  Networks,
+  RampDirection
+} from "@vortexfi/shared";
+import { readContract, signTypedData } from "@wagmi/core";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
 import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
+import { wagmiConfig } from "../../wagmiConfig";
 import { RampContext, RampMachineActor, RampState } from "../types";
 
 export enum SignRampErrorType {
@@ -15,6 +25,66 @@ export class SignRampError extends Error {
     super(message);
     this.type = type;
   }
+}
+
+async function signERC2612Permit(owner: `0x${string}`, spender: `0x${string}`, valueUnits: string) {
+  const value = multiplyByPowerOfTen(valueUnits, ERC20_EURE_POLYGON_DECIMALS);
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+
+  const nonce = (await readContract(wagmiConfig, {
+    abi: [
+      {
+        inputs: [{ name: "owner", type: "address" }],
+        name: "nonces",
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function"
+      }
+    ],
+    address: ERC20_EURE_POLYGON,
+    args: [owner],
+    functionName: "nonces"
+  })) as bigint;
+
+  const domain = {
+    chainId: BigInt(137), // TODO find.
+    name: "Monerium", // TODO check
+    verifyingContract: ERC20_EURE_POLYGON,
+    version: "2"
+  };
+
+  const types = {
+    Permit: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "value", type: "uint256" },
+      { name: "nonce", type: "uint256" },
+      { name: "deadline", type: "uint256" }
+    ]
+  };
+
+  const message = {
+    deadline,
+    nonce,
+    owner,
+    spender,
+    value
+  };
+  console.log("DEBUG: Signing ERC2612 Permit with message:", message);
+
+  const signature = await signTypedData(wagmiConfig, {
+    account: owner,
+    domain,
+    message,
+    primaryType: "Permit",
+    types
+  });
+
+  const v = parseInt(signature.slice(130, 132), 16);
+  const r = `0x${signature.slice(2, 66)}` as `0x${string}`;
+  const s = `0x${signature.slice(66, 130)}` as `0x${string}`;
+
+  return { r, s, v };
 }
 
 export const signTransactionsActor = async ({
@@ -59,6 +129,7 @@ export const signTransactionsActor = async ({
   let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampApproveHash: string | undefined = undefined;
+  let moneriumOnrampPermit: { v: number; r: `0x${string}`; s: `0x${string}` } | undefined = undefined;
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
@@ -81,7 +152,7 @@ export const signTransactionsActor = async ({
     for (const tx of sortedTxs) {
       if (tx.phase === "squidRouterApprove") {
         if (isNativeTokenTransfer) {
-          input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+          input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
           continue;
         }
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
@@ -99,6 +170,11 @@ export const signTransactionsActor = async ({
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "moneriumOnrampMint") {
         input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+        moneriumOnrampPermit = await signERC2612Permit(
+          executionInput?.moneriumWalletAddress as `0x${string}`,
+          executionInput?.ephemerals.evmEphemeral.address as `0x${string}`,
+          rampState.quote.inputAmount
+        );
         moneriumOnrampApproveHash = await signAndSubmitEvmTransaction(tx);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else {
@@ -120,6 +196,7 @@ export const signTransactionsActor = async ({
   const additionalData = {
     assethubToPendulumHash,
     moneriumOfframpSignature,
+    moneriumOnrampPermit,
     squidRouterApproveHash,
     squidRouterSwapHash
   };
@@ -134,7 +211,7 @@ export const signTransactionsActor = async ({
     ramp: updatedRampProcess,
     userSigningMeta: {
       assethubToPendulumHash,
-      moneriumOnrampApproveHash,
+      moneriumOnrampPermit,
       squidRouterApproveHash,
       squidRouterSwapHash
     }
