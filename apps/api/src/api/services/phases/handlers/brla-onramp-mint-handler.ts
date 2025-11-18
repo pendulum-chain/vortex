@@ -63,9 +63,6 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    // Check internal balance of Avenia subaccount
-    const { balances } = await brlaApiService.getAccountBalance(state.state.taxId);
-
     try {
       await waitUntilTrueWithTimeout(
         async () => {
@@ -73,6 +70,8 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
             return false;
           }
 
+          // Check internal balance of Avenia subaccount
+          const { balances } = await brlaApiService.getAccountBalance(state.state.taxId);
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
