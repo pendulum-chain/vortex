@@ -81,9 +81,9 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.inputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.inputCurrency as unknown as SubsidyToken;
 
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 60000);
-
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");
