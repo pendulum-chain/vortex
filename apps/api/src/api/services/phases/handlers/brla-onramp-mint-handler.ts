@@ -73,6 +73,9 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
             return false;
           }
 
+          if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
+            return false;
+          }
           return balances.BRLA.toFixed(6) >= quote.metadata.aveniaMint.outputAmountDecimal.toFixed(6, 0);
         },
         5000,
