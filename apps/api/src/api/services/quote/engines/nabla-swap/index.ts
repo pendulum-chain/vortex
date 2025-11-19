@@ -12,9 +12,10 @@ export interface NablaSwapConfig {
 
 export interface NablaSwapComputation {
   oraclePrice?: Big;
-  inputAmountPreFees: Big;
   inputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenPendulumDetails: PendulumTokenDetails;
+  inputAmountForSwap: string;
+  inputAmountForSwapRaw: string;
 }
 
 export abstract class BaseNablaSwapEngine implements Stage {
@@ -33,11 +34,8 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
     this.validate(ctx);
 
-    const { inputAmountPreFees, inputTokenPendulumDetails, outputTokenPendulumDetails } = this.compute(ctx);
-
-    const deductibleFeeAmount = this.getDeductibleFeeAmount(ctx);
-    const inputAmountForSwap = inputAmountPreFees.minus(deductibleFeeAmount).toString();
-    const inputAmountForSwapRaw = this.calculateInputAmountForSwapRaw(inputAmountForSwap, inputTokenPendulumDetails);
+    const { inputTokenPendulumDetails, outputTokenPendulumDetails, inputAmountForSwapRaw, inputAmountForSwap } =
+      this.compute(ctx);
 
     const result = await calculateNablaSwapOutput({
       inputAmountForSwap,
@@ -74,7 +72,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
   protected abstract compute(ctx: QuoteContext): NablaSwapComputation;
 
-  private getDeductibleFeeAmount(ctx: QuoteContext): Big {
+  protected getDeductibleFeeAmount(ctx: QuoteContext): Big {
     if (ctx.request.rampType === RampDirection.SELL) {
       return ctx.preNabla?.deductibleFeeAmountInSwapCurrency || new Big(0);
     } else {
@@ -82,7 +80,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
     }
   }
 
-  private calculateInputAmountForSwapRaw(inputAmountForSwap: string, inputToken: PendulumTokenDetails): string {
+  protected calculateInputAmountForSwapRaw(inputAmountForSwap: string, inputToken: PendulumTokenDetails): string {
     return new Big(inputAmountForSwap).times(new Big(10).pow(inputToken.decimals)).toFixed(0);
   }
 
