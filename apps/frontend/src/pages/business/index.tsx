@@ -1,3 +1,4 @@
+import BackgroundImage2 from "../../assets/bg-4.svg";
 import VortexMetamaskImage from "../../assets/vortex-metamask.png";
 
 export function BusinessMain() {
@@ -32,6 +33,11 @@ export function BusinessMain() {
             </div>
           </div>
         </div>
+        <img
+          alt="Background"
+          className="hidden lg:block absolute right-[-100px] bottom-[-200px] z-1 w-[300px] h-[300px]"
+          src={BackgroundImage2}
+        />
         <img
           alt="Vortex Metamask"
           className="hover:scale-[1.01] hidden lg:block transition-all duration-300 absolute right-[-140px] bottom-[-80px] w-3/5 z-20"
