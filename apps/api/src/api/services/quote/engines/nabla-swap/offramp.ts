@@ -29,8 +29,13 @@ export class OffRampSwapEngine extends BaseNablaSwapEngine {
       request.from === "assethub" ? getPendulumDetails(request.inputCurrency, Networks.AssetHub) : PENDULUM_USDC_AXL;
     const outputTokenPendulumDetails = getPendulumDetails(request.outputCurrency as FiatToken);
 
+    const deductibleFeeAmount = this.getDeductibleFeeAmount(ctx);
+    const inputAmountForSwap = inputAmountPreFees.minus(deductibleFeeAmount).toString();
+    const inputAmountForSwapRaw = this.calculateInputAmountForSwapRaw(inputAmountForSwap, inputTokenPendulumDetails);
+
     return {
-      inputAmountPreFees,
+      inputAmountForSwap,
+      inputAmountForSwapRaw,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails
     };
