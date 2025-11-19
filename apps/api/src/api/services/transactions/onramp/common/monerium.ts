@@ -3,11 +3,6 @@ import { encodeFunctionData } from "viem";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import erc20ABI from "../../../../../contracts/ERC20";
 
-// TODO Deprecated
-export async function createOnrampUserApprove(amountRaw: string, toAddress: string): Promise<EvmTransactionData> {
-  throw new Error("Deprecated - createOnrampUserApprove");
-}
-
 export async function createOnrampEphemeralSelfTransfer(
   amountRaw: string,
   fromAddress: string,

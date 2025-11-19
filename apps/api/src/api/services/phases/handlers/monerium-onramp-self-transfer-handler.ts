@@ -14,51 +14,10 @@ import { encodeFunctionData, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
-import erc20ABI from "../../../../contracts/ERC20";
+import { permitAbi } from "../../../../contracts/PermitAbi";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
-
-const permitAbi = [
-  {
-    constant: false,
-    inputs: [
-      {
-        name: "owner",
-        type: "address"
-      },
-      {
-        name: "spender",
-        type: "address"
-      },
-      {
-        name: "value",
-        type: "uint256"
-      },
-      {
-        name: "deadline",
-        type: "uint256"
-      },
-      {
-        name: "v",
-        type: "uint8"
-      },
-      {
-        name: "r",
-        type: "bytes32"
-      },
-      {
-        name: "s",
-        type: "bytes32"
-      }
-    ],
-    name: "permit",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function"
-  }
-];
 
 /**
  * Handler for the monerium self-transfer phase
@@ -137,7 +96,6 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
     try {
       const account = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
       const amountRaw = multiplyByPowerOfTen(quote.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0);
-      console.log("DEBUG permit data: ", moneriumOnrampPermit);
       // Send permit transaction
       const permitData = encodeFunctionData({
         abi: permitAbi,

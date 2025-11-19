@@ -77,7 +77,7 @@ export async function prepareEvmToMoneriumEvmOfframpTransactions({
     fromToken: inputTokenDetails.erc20AddressSourceChain,
     rawAmount: inputAmountRaw, // By design, EURe is the only supported offramp currency.
     toNetwork: Networks.Polygon,
-    toToken: ERC20_EURE_POLYGON_V1 // TEMPORARY, USE THE V1 token address to swap!
+    toToken: ERC20_EURE_POLYGON_V1
   });
 
   unsignedTxs.push({

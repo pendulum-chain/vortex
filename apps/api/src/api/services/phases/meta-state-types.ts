@@ -1,3 +1,4 @@
+import { PermitSignature } from "@packages/shared";
 import { ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@vortexfi/shared";
 
 export interface StateMetadata {
@@ -43,7 +44,7 @@ export interface StateMetadata {
   depositQrCode: string | undefined;
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
-  moneriumOnrampPermit?: { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
+  moneriumOnrampPermit?: PermitSignature;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;
