@@ -45,6 +45,7 @@ export interface StateMetadata {
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
   moneriumOnrampPermit?: PermitSignature;
+  permitTxHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

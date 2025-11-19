@@ -96,28 +96,38 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
     try {
       const account = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
       const amountRaw = multiplyByPowerOfTen(quote.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0);
-      // Send permit transaction
-      const permitData = encodeFunctionData({
-        abi: permitAbi,
-        args: [
-          moneriumWalletAddress,
-          state.state.evmEphemeralAddress,
-          BigInt(amountRaw),
-          moneriumOnrampPermit.deadline,
-          moneriumOnrampPermit.v,
-          moneriumOnrampPermit.r,
-          moneriumOnrampPermit.s
-        ],
-        functionName: "permit"
-      });
-      const permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
-        data: permitData,
-        to: ERC20_EURE_POLYGON_V2
-      });
-      logger.info(`Permit transaction executed with hash: ${permitHash}`);
+      let permitHash: string;
 
-      await this.waitForTransactionConfirmation(permitHash);
-      logger.info(`Permit transaction confirmed: ${permitHash}`);
+      if (state.state.permitTxHash) {
+        logger.info(`Permit transaction already sent with hash: ${state.state.permitTxHash}. Skipping permit sending.`);
+        permitHash = state.state.permitTxHash;
+      } else {
+        // Send permit transaction
+        const permitData = encodeFunctionData({
+          abi: permitAbi,
+          args: [
+            moneriumWalletAddress,
+            state.state.evmEphemeralAddress,
+            BigInt(amountRaw),
+            moneriumOnrampPermit.deadline,
+            moneriumOnrampPermit.v,
+            moneriumOnrampPermit.r,
+            moneriumOnrampPermit.s
+          ],
+          functionName: "permit"
+        });
+        permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
+          data: permitData,
+          to: ERC20_EURE_POLYGON_V2
+        });
+        logger.info(`Permit transaction executed with hash: ${permitHash}`);
+
+        await this.waitForTransactionConfirmation(permitHash);
+        logger.info(`Permit transaction confirmed: ${permitHash}`);
+
+        state.state.permitTxHash = permitHash;
+        await state.update({ state: state.state });
+      }
 
       const transferTransaction = this.getPresignedTransaction(state, "moneriumOnrampSelfTransfer");
 
@@ -139,7 +149,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       // Transition to the next phase
       return this.transitionToNextPhase(state, "squidRouterSwap");
     } catch (error: unknown) {
-      logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
+      logger.error(`Error in self-transfer phase for ramp ${state.id}:`, error);
       throw this.createRecoverableError(
         `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`
       );
