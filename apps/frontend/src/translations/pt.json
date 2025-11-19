@@ -306,9 +306,11 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Agendar demo",
+      "business": "Empresas",
       "community": "Comunidade",
       "docs": "Documentação",
       "howItWorks": "Como funciona",
+      "individuals": "Indivíduos",
       "sellCrypto": "Vender Cripto",
       "solutions": "Soluções",
       "toggleMobileMenu": "Alternar menu móvel",
@@ -501,7 +503,8 @@
     },
     "main": {
       "hero": {
-        "title": "A <1>Menor Custo</1> Solução <br /> de Entrada e Saída Criptomoedas"
+        "subtitle": "Mantemos as coisas simples para você e garantimos que você obtenha a melhor taxa disponível.",
+        "title": "<0>Compre e venda cripto.</0> <br /> Rápido, seguro, melhores taxas."
       }
     },
     "progress": {
