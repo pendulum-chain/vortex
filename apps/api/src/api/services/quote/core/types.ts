@@ -71,7 +71,6 @@ export interface StellarMeta {
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
-  discount?: number; // decimal, e.g., 0.05 => 5%
   name?: string | null;
 }
 

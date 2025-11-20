@@ -39,7 +39,7 @@ export class QuoteService extends BaseRampService {
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     const ctx = createQuoteContext({
-      partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
+      partner: partner ? { id: partner.id, name: partner.name } : { id: null },
       request: { ...request, apiKey: request.apiKey || undefined },
       targetFeeFiatCurrency
     });
