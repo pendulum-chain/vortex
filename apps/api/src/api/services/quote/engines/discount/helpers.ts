@@ -81,15 +81,15 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
     return new Big(0);
   }
 
-  // Calculate the difference (shortfall)
   const shortfall = expectedOutput.minus(actualOutput);
-  const shortfallRate = shortfall.div(expectedOutput);
 
   // Cap at maxSubsidy if configured
   const maxSubsidyBig = new Big(maxSubsidy);
-  const effectiveSubsidyRate = maxSubsidy > 0 && shortfallRate.gt(maxSubsidyBig) ? maxSubsidyBig : shortfallRate;
-
-  return expectedOutput.mul(effectiveSubsidyRate);
+  if (maxSubsidy > 0) {
+    const maxAllowedSubsidy = expectedOutput.mul(maxSubsidyBig);
+    return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
+  }
+  return shortfall;
 }
 
 export function buildDiscountSubsidy(
