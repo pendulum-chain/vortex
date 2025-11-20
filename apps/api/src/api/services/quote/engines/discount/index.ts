@@ -1,11 +1,20 @@
 import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
+import {
+  buildDiscountSubsidy,
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  formatPartnerNote,
+  resolveDiscountPartner
+} from "./helpers";
 
-const DEFAULT_PARTNER_NAME = "vortex";
-
-type ActivePartner = Pick<Partner, "id" | "discount" | "name"> | null;
+export interface DiscountStageConfig {
+  direction: RampDirection;
+  skipNote: string;
+  missingContextMessage: string;
+  isOfframp: boolean;
+}
 
 export abstract class BaseDiscountEngine implements Stage {
   abstract readonly config: DiscountStageConfig;
@@ -14,7 +23,7 @@ export abstract class BaseDiscountEngine implements Stage {
 
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
-    const { direction, skipNote, missingContextMessage } = this.config;
+    const { direction, skipNote, missingContextMessage, isOfframp } = this.config;
 
     if (request.rampType !== direction) {
       ctx.addNote?.(skipNote);
@@ -26,75 +35,37 @@ export abstract class BaseDiscountEngine implements Stage {
       throw new Error(missingContextMessage);
     }
 
+    if (!nablaSwap.oraclePrice) {
+      throw new Error(`${missingContextMessage}: oraclePrice is required`);
+    }
+
+    if (!request.inputAmount) {
+      throw new Error(`${missingContextMessage}: request.inputAmount is required`);
+    }
+
     const partner = await resolveDiscountPartner(ctx, request.rampType);
-    const rate = partner?.discount ?? 0;
+    const targetDiscount = partner?.targetDiscount ?? 0;
+    const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    ctx.subsidy = buildDiscountSubsidy(rate, partner, {
-      outputAmountDecimal: nablaSwap.outputAmountDecimal,
-      outputAmountRaw: nablaSwap.outputAmountRaw
+    // Calculate expected output amount based on oracle price + target discount
+    const expectedOutputAmount = calculateExpectedOutput(request.inputAmount, nablaSwap.oraclePrice, targetDiscount, isOfframp);
+    const actualOutputAmount = nablaSwap.outputAmountDecimal;
+
+    // Calculate ideal subsidy (uncapped - the full shortfall needed to reach expected output)
+    const idealSubsidyAmount = actualOutputAmount.gte(expectedOutputAmount)
+      ? new Big(0)
+      : expectedOutputAmount.minus(actualOutputAmount);
+
+    // Calculate actual subsidy (capped by maxSubsidy)
+    const actualSubsidyAmount =
+      targetDiscount > 0 ? calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy) : Big(0);
+
+    ctx.subsidy = buildDiscountSubsidy(actualSubsidyAmount, idealSubsidyAmount, partner, {
+      actualOutputAmountDecimal: actualOutputAmount,
+      actualOutputAmountRaw: nablaSwap.outputAmountRaw,
+      expectedOutputAmountDecimal: expectedOutputAmount
     });
 
-    ctx.addNote?.(formatPartnerNote(partner, rate));
+    ctx.addNote?.(formatPartnerNote(partner, targetDiscount, maxSubsidy, actualSubsidyAmount, idealSubsidyAmount));
   }
-}
-
-interface DiscountSubsidyPayload {
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-}
-
-export interface DiscountStageConfig {
-  direction: RampDirection;
-  skipNote: string;
-  missingContextMessage: string;
-}
-
-export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
-  const partnerId = ctx.partner?.id;
-
-  const where = {
-    isActive: true,
-    rampType
-  } as const;
-
-  if (partnerId) {
-    const partner = await Partner.findOne({
-      where: {
-        ...where,
-        id: partnerId
-      }
-    });
-
-    if (partner) {
-      return partner;
-    }
-  }
-
-  return Partner.findOne({
-    where: {
-      ...where,
-      name: DEFAULT_PARTNER_NAME
-    }
-  });
-}
-
-export function buildDiscountSubsidy(
-  rate: number,
-  partner: ActivePartner,
-  payload: DiscountSubsidyPayload
-): QuoteContext["subsidy"] {
-  const subsidyAmountInOutputTokenDecimal = payload.outputAmountDecimal.mul(rate);
-  const subsidyAmountInOutputTokenRaw = new Big(payload.outputAmountRaw).mul(rate).toFixed(0, 0);
-
-  return {
-    applied: rate > 0,
-    partnerId: partner?.id,
-    rate: rate.toString(),
-    subsidyAmountInOutputTokenDecimal,
-    subsidyAmountInOutputTokenRaw
-  };
-}
-
-export function formatPartnerNote(partner: ActivePartner, rate: number): string {
-  return `partner=${partner?.name || DEFAULT_PARTNER_NAME} (${partner?.id || "N/A"}), rate=${rate}`;
 }
