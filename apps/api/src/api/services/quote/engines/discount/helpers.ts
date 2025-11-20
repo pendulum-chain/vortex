@@ -117,7 +117,8 @@ export function buildDiscountSubsidy(
   partner: ActivePartner,
   payload: DiscountSubsidyPayload
 ): QuoteContext["subsidy"] {
-  const subsidyAmountInOutputTokenDecimal = subsidyAmount;
+  // Trim to 6 decimal places for output token decimal representation
+  const subsidyAmountInOutputTokenDecimal = Big(subsidyAmount.toFixed(6, 0));
   const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
 
   // Calculate raw subsidy amount (maintain precision)
