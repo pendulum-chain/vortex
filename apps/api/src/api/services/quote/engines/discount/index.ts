@@ -57,7 +57,8 @@ export abstract class BaseDiscountEngine implements Stage {
       : expectedOutputAmount.minus(actualOutputAmount);
 
     // Calculate actual subsidy (capped by maxSubsidy)
-    const actualSubsidyAmount = calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy);
+    const actualSubsidyAmount =
+      targetDiscount > 0 ? calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy) : Big(0);
 
     ctx.subsidy = buildDiscountSubsidy(actualSubsidyAmount, idealSubsidyAmount, partner, {
       actualOutputAmountDecimal: actualOutputAmount,
