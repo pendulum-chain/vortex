@@ -13,6 +13,35 @@ export interface DiscountSubsidyPayload {
   expectedOutputAmountDecimal: Big;
 }
 
+export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
+  const partnerId = ctx.partner?.id;
+
+  const where = {
+    isActive: true,
+    rampType
+  } as const;
+
+  if (partnerId) {
+    const partner = await Partner.findOne({
+      where: {
+        ...where,
+        id: partnerId
+      }
+    });
+
+    if (partner) {
+      return partner;
+    }
+  }
+
+  return Partner.findOne({
+    where: {
+      ...where,
+      name: DEFAULT_PARTNER_NAME
+    }
+  });
+}
+
 /**
  * Calculate expected output amount based on oracle price and target discount
  * @param inputAmount - The input amount from the request
@@ -63,49 +92,6 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
   return expectedOutput.mul(effectiveSubsidyRate);
 }
 
-/**
- * Resolve the active discount partner for the quote
- * @param ctx - Quote context
- * @param rampType - Direction of the ramp
- * @returns Active partner or null
- */
-export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
-  const partnerId = ctx.partner?.id;
-
-  const where = {
-    isActive: true,
-    rampType
-  } as const;
-
-  if (partnerId) {
-    const partner = await Partner.findOne({
-      where: {
-        ...where,
-        id: partnerId
-      }
-    });
-
-    if (partner) {
-      return partner;
-    }
-  }
-
-  return Partner.findOne({
-    where: {
-      ...where,
-      name: DEFAULT_PARTNER_NAME
-    }
-  });
-}
-
-/**
- * Build the subsidy object for the quote context
- * @param subsidyAmount - Calculated subsidy amount (capped)
- * @param idealSubsidyAmount - Ideal subsidy amount (uncapped)
- * @param partner - Active partner
- * @param payload - Payload with actual and expected amounts
- * @returns Subsidy object for context
- */
 export function buildDiscountSubsidy(
   subsidyAmount: Big,
   idealSubsidyAmount: Big,
@@ -139,15 +125,6 @@ export function buildDiscountSubsidy(
   };
 }
 
-/**
- * Format a note about the partner discount configuration
- * @param partner - Active partner
- * @param targetDiscount - Target discount rate
- * @param maxSubsidy - Maximum subsidy rate
- * @param actualSubsidyAmount - Actual subsidy amount (capped)
- * @param idealSubsidyAmount - Ideal subsidy amount (uncapped)
- * @returns Formatted note string
- */
 export function formatPartnerNote(
   partner: ActivePartner,
   targetDiscount: number,
