@@ -9,12 +9,27 @@ import { StateMetadata } from "../phases/meta-state-types";
 
 export class BaseRampService {
   /**
-   * Clean up expired quotes by deleting them from the database
+   * Clean up expired quotes by expiring them or deleting them from the database
    */
   public async cleanupExpiredQuotes(): Promise<number> {
-    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    // Make quotes older than 10 minutes expire
+    let [count] = await QuoteTicket.update(
+      {
+        status: "expired"
+      },
+      {
+        where: {
+          expiresAt: {
+            [Op.lt]: new Date()
+          },
+          status: "pending"
+        }
+      }
+    );
 
-    const count = await QuoteTicket.destroy({
+    // Delete quotes that have been expired for more than 60 days
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    count += await QuoteTicket.destroy({
       where: {
         expiresAt: {
           [Op.lt]: sixtyDaysAgo
@@ -22,6 +37,7 @@ export class BaseRampService {
         status: "pending"
       }
     });
+
     return count;
   }
 
