@@ -2,17 +2,12 @@ import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 import {
-  type ActivePartner,
   buildDiscountSubsidy,
   calculateExpectedOutput,
   calculateSubsidyAmount,
-  type DiscountSubsidyPayload,
   formatPartnerNote,
   resolveDiscountPartner
 } from "./helpers";
-
-// Re-export types for external use
-export type { ActivePartner, DiscountSubsidyPayload };
 
 export interface DiscountStageConfig {
   direction: RampDirection;
@@ -54,8 +49,6 @@ export abstract class BaseDiscountEngine implements Stage {
 
     // Calculate expected output amount based on oracle price + target discount
     const expectedOutputAmount = calculateExpectedOutput(request.inputAmount, nablaSwap.oraclePrice, targetDiscount, isOfframp);
-
-    // Compare actual vs expected and calculate subsidies
     const actualOutputAmount = nablaSwap.outputAmountDecimal;
 
     // Calculate ideal subsidy (uncapped - the full shortfall needed to reach expected output)
