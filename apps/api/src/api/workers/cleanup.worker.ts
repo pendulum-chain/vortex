@@ -126,10 +126,10 @@ class CleanupWorker {
   private async cleanup(): Promise<void> {
     logger.info("Running cleanup worker cycle");
     try {
-      // Delete expired quotes
+      // Update or delete expired quotes
       const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
       if (expiredQuotesCount > 0) {
-        logger.info(`Deleted ${expiredQuotesCount} expired quotes`);
+        logger.info(`Handled ${expiredQuotesCount} expired quotes`);
       }
 
       // Post-process completed RampStates

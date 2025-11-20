@@ -29,6 +29,8 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
   protected async compute(ctx: QuoteContext): Promise<PendulumTransferComputation> {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const nablaSwap = ctx.nablaSwap!;
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const usdFees = ctx.fees!.usd!;
     const req = ctx.request;
 
     const hydrationDestinationFee = {
@@ -64,8 +66,16 @@ export class OnRampPendulumTransferEngine extends BasePendulumTransferEngine {
       }
     };
 
-    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
-    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+    // Deduce fees distributed after Nabla swap and before transfer to next destination
+    // Onramps always have a USD-stablecoin as output, so we can use the USD fee structure
+    const usdFeesDistributedDecimal = Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
+    const usdFeesDistributedRaw = multiplyByPowerOfTen(usdFeesDistributedDecimal, nablaSwap.outputDecimals);
+
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal)).minus(usdFeesDistributedDecimal);
+    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw))
+      .minus(usdFeesDistributedRaw)
+      .toFixed(0, 0);
+
     let outputAmountDecimal = inputAmountDecimal;
     if (req.to === Networks.AssetHub) {
       // Only the Hydration and Assethub transfer needs to deduct the fees like this.

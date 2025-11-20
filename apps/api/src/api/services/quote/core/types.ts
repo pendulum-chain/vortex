@@ -71,7 +71,8 @@ export interface StellarMeta {
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
-  discount?: number; // decimal, e.g., 0.05 => 5%
+  targetDiscount?: number;
+  maxSubsidy?: number;
   name?: string | null;
 }
 
@@ -196,6 +197,9 @@ export interface QuoteContext {
     partnerId?: string;
     subsidyAmountInOutputTokenDecimal: Big;
     subsidyAmountInOutputTokenRaw: string;
+    // Ideal subsidy needed to reach expected output (uncapped)
+    idealSubsidyAmountInOutputTokenDecimal: Big;
+    idealSubsidyAmountInOutputTokenRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
