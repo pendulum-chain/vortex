@@ -75,7 +75,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           .plus(usdFeeStructure.vortex)
           .plus(usdFeeStructure.partnerMarkup);
 
-        const totalFeeDistributedUsdRaw = multiplyByPowerOfTen(totalFeeDistributedUsd, quote.metadata.nablaSwap.outputDecimals);
+        const totalFeeDistributedUsdRaw = multiplyByPowerOfTen(
+          totalFeeDistributedUsd,
+          quote.metadata.nablaSwap.outputDecimals
+        ).toFixed(0, 0);
 
         expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw)
           .minus(totalFeeDistributedUsdRaw)
