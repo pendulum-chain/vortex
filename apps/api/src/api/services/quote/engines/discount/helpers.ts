@@ -34,11 +34,7 @@ export function calculateExpectedOutput(
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
 
   // Apply target discount to the rate
-  // For onramps: better rate = higher USD output per FIAT input
-  // For offramps: better rate = higher FIAT output per USD input
   const discountedRate = effectivePrice.mul(new Big(1).plus(targetDiscount));
-
-  // Calculate expected output
   return inputAmountBig.mul(discountedRate);
 }
 
@@ -58,15 +54,12 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
 
   // Calculate the difference (shortfall)
   const shortfall = expectedOutput.minus(actualOutput);
-
-  // Calculate the shortfall as a percentage of expected output
   const shortfallRate = shortfall.div(expectedOutput);
 
   // Cap at maxSubsidy if configured
   const maxSubsidyBig = new Big(maxSubsidy);
   const effectiveSubsidyRate = maxSubsidy > 0 && shortfallRate.gt(maxSubsidyBig) ? maxSubsidyBig : shortfallRate;
 
-  // Calculate final subsidy amount based on expected output
   return expectedOutput.mul(effectiveSubsidyRate);
 }
 
@@ -121,9 +114,6 @@ export function buildDiscountSubsidy(
 ): QuoteContext["subsidy"] {
   // Trim to 6 decimal places for output token decimal representation
   const subsidyAmountInOutputTokenDecimal = Big(subsidyAmount.toFixed(6, 0));
-  const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
-
-  // Calculate raw subsidy amount
   const subsidyAmountInOutputTokenRaw = subsidyAmount
     .mul(new Big(payload.actualOutputAmountRaw))
     .div(payload.actualOutputAmountDecimal)
@@ -135,6 +125,8 @@ export function buildDiscountSubsidy(
     .mul(new Big(payload.actualOutputAmountRaw))
     .div(payload.actualOutputAmountDecimal)
     .toFixed(0, 0);
+
+  const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
 
   return {
     applied: subsidyAmount.gt(0),
