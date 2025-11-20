@@ -107,13 +107,15 @@ export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDi
 
 /**
  * Build the subsidy object for the quote context
- * @param subsidyAmount - Calculated subsidy amount
+ * @param subsidyAmount - Calculated subsidy amount (capped)
+ * @param idealSubsidyAmount - Ideal subsidy amount (uncapped)
  * @param partner - Active partner
  * @param payload - Payload with actual and expected amounts
  * @returns Subsidy object for context
  */
 export function buildDiscountSubsidy(
   subsidyAmount: Big,
+  idealSubsidyAmount: Big,
   partner: ActivePartner,
   payload: DiscountSubsidyPayload
 ): QuoteContext["subsidy"] {
@@ -127,8 +129,17 @@ export function buildDiscountSubsidy(
     .div(payload.actualOutputAmountDecimal)
     .toFixed(0, 0);
 
+  // Calculate ideal (uncapped) subsidy amounts
+  const idealSubsidyAmountInOutputTokenDecimal = Big(idealSubsidyAmount.toFixed(6, 0));
+  const idealSubsidyAmountInOutputTokenRaw = idealSubsidyAmount
+    .mul(new Big(payload.actualOutputAmountRaw))
+    .div(payload.actualOutputAmountDecimal)
+    .toFixed(0, 0);
+
   return {
     applied: subsidyAmount.gt(0),
+    idealSubsidyAmountInOutputTokenDecimal,
+    idealSubsidyAmountInOutputTokenRaw,
     partnerId: partner?.id,
     rate: rate.toString(),
     subsidyAmountInOutputTokenDecimal,
@@ -141,18 +152,23 @@ export function buildDiscountSubsidy(
  * @param partner - Active partner
  * @param targetDiscount - Target discount rate
  * @param maxSubsidy - Maximum subsidy rate
- * @param subsidyAmount - Calculated subsidy amount
+ * @param actualSubsidyAmount - Actual subsidy amount (capped)
+ * @param idealSubsidyAmount - Ideal subsidy amount (uncapped)
  * @returns Formatted note string
  */
 export function formatPartnerNote(
   partner: ActivePartner,
   targetDiscount: number,
   maxSubsidy: number,
-  subsidyAmount: Big
+  actualSubsidyAmount: Big,
+  idealSubsidyAmount: Big
 ): string {
+  const isCapped = actualSubsidyAmount.lt(idealSubsidyAmount);
   return (
     `partner=${partner?.name || DEFAULT_PARTNER_NAME} (${partner?.id || "N/A"}), ` +
     `targetDiscount=${targetDiscount}, maxSubsidy=${maxSubsidy}, ` +
-    `calculatedSubsidy=${subsidyAmount.toString()}`
+    `idealSubsidy=${idealSubsidyAmount.toString()}, ` +
+    `actualSubsidy=${actualSubsidyAmount.toString()}` +
+    (isCapped ? ` [CAPPED]` : ``)
   );
 }

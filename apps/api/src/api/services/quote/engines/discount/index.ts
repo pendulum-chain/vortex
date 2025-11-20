@@ -1,4 +1,5 @@
 import { RampDirection } from "@vortexfi/shared";
+import Big from "big.js";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 import {
   type ActivePartner,
@@ -54,16 +55,23 @@ export abstract class BaseDiscountEngine implements Stage {
     // Calculate expected output amount based on oracle price + target discount
     const expectedOutputAmount = calculateExpectedOutput(request.inputAmount, nablaSwap.oraclePrice, targetDiscount, isOfframp);
 
-    // Compare actual vs expected and calculate subsidy
+    // Compare actual vs expected and calculate subsidies
     const actualOutputAmount = nablaSwap.outputAmountDecimal;
-    const subsidyAmount = calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy);
 
-    ctx.subsidy = buildDiscountSubsidy(subsidyAmount, partner, {
+    // Calculate ideal subsidy (uncapped - the full shortfall needed to reach expected output)
+    const idealSubsidyAmount = actualOutputAmount.gte(expectedOutputAmount)
+      ? new Big(0)
+      : expectedOutputAmount.minus(actualOutputAmount);
+
+    // Calculate actual subsidy (capped by maxSubsidy)
+    const actualSubsidyAmount = calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy);
+
+    ctx.subsidy = buildDiscountSubsidy(actualSubsidyAmount, idealSubsidyAmount, partner, {
       actualOutputAmountDecimal: actualOutputAmount,
       actualOutputAmountRaw: nablaSwap.outputAmountRaw,
       expectedOutputAmountDecimal: expectedOutputAmount
     });
 
-    ctx.addNote?.(formatPartnerNote(partner, targetDiscount, maxSubsidy, subsidyAmount));
+    ctx.addNote?.(formatPartnerNote(partner, targetDiscount, maxSubsidy, actualSubsidyAmount, idealSubsidyAmount));
   }
 }
