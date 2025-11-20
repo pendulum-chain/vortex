@@ -46,10 +46,9 @@ export abstract class BaseDiscountEngine implements Stage {
     const subsidyAmount = calculateSubsidyAmount(expectedOutputAmount, actualOutputAmount, maxSubsidy);
 
     ctx.subsidy = buildDiscountSubsidy(subsidyAmount, partner, {
-      actualOutputAmount,
-      expectedOutputAmount,
-      outputAmountDecimal: nablaSwap.outputAmountDecimal,
-      outputAmountRaw: nablaSwap.outputAmountRaw
+      actualOutputAmountDecimal: actualOutputAmount,
+      actualOutputAmountRaw: nablaSwap.outputAmountRaw,
+      expectedOutputAmountDecimal: expectedOutputAmount
     });
 
     ctx.addNote?.(formatPartnerNote(partner, targetDiscount, maxSubsidy, subsidyAmount));
@@ -57,10 +56,9 @@ export abstract class BaseDiscountEngine implements Stage {
 }
 
 interface DiscountSubsidyPayload {
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-  expectedOutputAmount: Big;
-  actualOutputAmount: Big;
+  actualOutputAmountDecimal: Big;
+  actualOutputAmountRaw: string;
+  expectedOutputAmountDecimal: Big;
 }
 
 export interface DiscountStageConfig {
@@ -84,8 +82,11 @@ function calculateExpectedOutput(inputAmount: string, oraclePrice: Big, targetDi
   // For offramps, we need to invert the oracle price
   // Oracle price is FIAT-USD, so for offramps we want USD-FIAT
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
+  console.log(`Oracle Price:`, oraclePrice.toString());
+  console.log(`Effective Price (${isOfframp ? "Inverted" : "Direct"}):`, effectivePrice.toString());
 
   const discountedRate = effectivePrice.plus(targetDiscount);
+  console.log(`Discounted Rate (Effective Price + Target Discount):`, discountedRate.toString());
   return inputAmountBig.mul(discountedRate);
 }
 
@@ -105,14 +106,12 @@ function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsi
 
   // Calculate the shortfall
   const shortfall = expectedOutput.minus(actualOutput);
-  const shortfallRate = shortfall.div(expectedOutput);
 
   // Cap at maxSubsidy if configured
   const maxSubsidyBig = new Big(maxSubsidy);
-  const effectiveSubsidyRate = maxSubsidy > 0 && shortfallRate.gt(maxSubsidyBig) ? maxSubsidyBig : shortfallRate;
+  const cappedMaxSubsidy = expectedOutput.mul(maxSubsidyBig);
 
-  // Calculate final subsidy amount based on expected output
-  return expectedOutput.mul(effectiveSubsidyRate);
+  return shortfall.gt(cappedMaxSubsidy) ? cappedMaxSubsidy : shortfall;
 }
 
 export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
@@ -150,12 +149,12 @@ export function buildDiscountSubsidy(
   payload: DiscountSubsidyPayload
 ): QuoteContext["subsidy"] {
   const subsidyAmountInOutputTokenDecimal = subsidyAmount;
-  const rate = payload.outputAmountDecimal.gt(0) ? subsidyAmount.div(payload.outputAmountDecimal) : new Big(0);
+  const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
 
-  // Calculate raw subsidy amount (maintain precision)
+  // Calculate raw subsidy amount
   const subsidyAmountInOutputTokenRaw = subsidyAmount
-    .mul(new Big(payload.outputAmountRaw))
-    .div(payload.outputAmountDecimal)
+    .mul(new Big(payload.actualOutputAmountRaw))
+    .div(payload.actualOutputAmountDecimal)
     .toFixed(0, 0);
 
   return {
