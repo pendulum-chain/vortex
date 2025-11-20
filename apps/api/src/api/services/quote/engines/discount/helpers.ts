@@ -123,7 +123,7 @@ export function buildDiscountSubsidy(
   const subsidyAmountInOutputTokenDecimal = Big(subsidyAmount.toFixed(6, 0));
   const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
 
-  // Calculate raw subsidy amount (maintain precision)
+  // Calculate raw subsidy amount
   const subsidyAmountInOutputTokenRaw = subsidyAmount
     .mul(new Big(payload.actualOutputAmountRaw))
     .div(payload.actualOutputAmountDecimal)
