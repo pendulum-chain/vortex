@@ -195,6 +195,9 @@ export interface QuoteContext {
     partnerId?: string;
     subsidyAmountInOutputTokenDecimal: Big;
     subsidyAmountInOutputTokenRaw: string;
+    // Ideal subsidy needed to reach expected output (uncapped)
+    idealSubsidyAmountInOutputTokenDecimal: Big;
+    idealSubsidyAmountInOutputTokenRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
