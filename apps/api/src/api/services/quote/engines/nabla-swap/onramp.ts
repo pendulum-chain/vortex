@@ -34,12 +34,8 @@ export class OnRampSwapEngine extends BaseNablaSwapEngine {
     const outputTokenPendulumDetails =
       request.to === "assethub" ? getPendulumDetails(AssetHubToken.USDC, Networks.AssetHub) : PENDULUM_USDC_AXL;
 
-    const inputAmountForSwap = amountReceivedOnPendulum.toString();
-    const inputAmountForSwapRaw = this.calculateInputAmountForSwapRaw(inputAmountForSwap, inputTokenPendulumDetails);
-
     return {
-      inputAmountForSwap,
-      inputAmountForSwapRaw,
+      inputAmountPreFees: amountReceivedOnPendulum,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails
     };

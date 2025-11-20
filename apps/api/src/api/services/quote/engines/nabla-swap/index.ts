@@ -12,10 +12,9 @@ export interface NablaSwapConfig {
 
 export interface NablaSwapComputation {
   oraclePrice?: Big;
+  inputAmountPreFees: Big;
   inputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenPendulumDetails: PendulumTokenDetails;
-  inputAmountForSwap: string;
-  inputAmountForSwapRaw: string;
 }
 
 export abstract class BaseNablaSwapEngine implements Stage {
@@ -34,8 +33,11 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
     this.validate(ctx);
 
-    const { inputTokenPendulumDetails, outputTokenPendulumDetails, inputAmountForSwapRaw, inputAmountForSwap } =
-      this.compute(ctx);
+    const { inputAmountPreFees, inputTokenPendulumDetails, outputTokenPendulumDetails } = this.compute(ctx);
+
+    const deductibleFeeAmount = this.getDeductibleFeeAmount(ctx);
+    const inputAmountForSwap = inputAmountPreFees.minus(deductibleFeeAmount).toString();
+    const inputAmountForSwapRaw = this.calculateInputAmountForSwapRaw(inputAmountForSwap, inputTokenPendulumDetails);
 
     const result = await calculateNablaSwapOutput({
       inputAmountForSwap,
@@ -76,7 +78,8 @@ export abstract class BaseNablaSwapEngine implements Stage {
     if (ctx.request.rampType === RampDirection.SELL) {
       return ctx.preNabla?.deductibleFeeAmountInSwapCurrency || new Big(0);
     } else {
-      return new Big(ctx.fees?.usd?.total || 0);
+      // For onramps, the fees are deducted after the nabla swap, so no deductible fee before the swap
+      return new Big(0);
     }
   }
 
