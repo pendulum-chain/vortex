@@ -31,15 +31,16 @@ export class OffRampToAveniaPendulumTransferEngine extends BasePendulumTransferE
 
     // We don't need to deduct the XCM fees from the output amount because the fees are not paid in the token
     // being transferred but in GLMR
-    const outputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
-    const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const xcmMeta: XcmMeta = {
       fromToken: nablaSwap.outputCurrency,
-      inputAmountDecimal: nablaSwap.outputAmountDecimal,
-      inputAmountRaw: nablaSwap.outputAmountRaw,
-      outputAmountDecimal,
-      outputAmountRaw,
+      inputAmountDecimal,
+      inputAmountRaw,
+      // The fees are not paid in the token being transferred, so amountOut = amountIn
+      outputAmountDecimal: inputAmountDecimal,
+      outputAmountRaw: inputAmountRaw,
       toToken: nablaSwap.outputCurrency,
       xcmFees
     };
