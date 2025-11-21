@@ -56,10 +56,10 @@ export async function prepareAveniaToEvmOnrampTransactions({
   let moonbeamNonce = 0;
 
   // Moonbeam: Initial BRLA transfer to Pendulum
-  if (!quote.metadata.aveniaMint?.outputAmountRaw) {
-    throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
+  if (!quote.metadata.aveniaTransfer?.outputAmountRaw) {
+    throw new Error("Missing aveniaTransfer amountOutRaw in quote metadata");
   }
-  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaMint.outputAmountRaw;
+  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
 
   moonbeamNonce = await addMoonbeamTransactions(
     {
