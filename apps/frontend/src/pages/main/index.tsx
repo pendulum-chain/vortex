@@ -14,7 +14,7 @@ export const Main = () => {
     <main>
       {!isWidgetMode ? (
         <>
-          <div className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] pb-4">
+          <div className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] pb-32">
             <div className="container mx-auto flex grow-1 flex-col items-center justify-between lg:flex-row">
               <div className="flex flex-col gap-4 mr-5 animate-slide-up">
                 <div className="pt-8 text-center font-semibold text-3xl md:text-5xl text-white lg:text-6xl lg:pt-0 lg:text-start">

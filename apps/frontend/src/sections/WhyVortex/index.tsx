@@ -59,7 +59,7 @@ export const WhyVortex = () => {
   ];
 
   return (
-    <motion.section className="container mx-auto pb-24">
+    <section className="container mx-auto py-32">
       <div className="relative grid grid-cols-1 lg:grid-cols-2">
         <motion.h1
           animate={{ x: 0 }}
@@ -80,6 +80,6 @@ export const WhyVortex = () => {
           ))}
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 };
