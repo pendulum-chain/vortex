@@ -96,7 +96,7 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
 export function buildDiscountSubsidy(computation: DiscountComputation): QuoteContext["subsidy"] {
   // Trim to 6 decimal places for output token decimal representation
   const subsidyAmountInOutputTokenDecimal = Big(computation.subsidyAmountInOutputTokenDecimal.toFixed(6, 0));
-  const idealSubsidyAmountInOutputTokenDecimal = Big(computation.subsidyAmountInOutputTokenDecimal.toFixed(6, 0));
+  const idealSubsidyAmountInOutputTokenDecimal = Big(computation.idealSubsidyAmountInOutputTokenDecimal.toFixed(6, 0));
 
   return {
     ...computation,
