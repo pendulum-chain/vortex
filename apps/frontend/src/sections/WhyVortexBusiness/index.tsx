@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 
 import COFFEE from "../../assets/why-vortex/coffee.svg";
 import LOCK from "../../assets/why-vortex/lock.svg";
@@ -32,48 +32,39 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
   </motion.div>
 );
 
-export const WhyVortex = () => {
+export const WhyVortexBusiness = () => {
   const { t } = useTranslation();
 
   const features: Feature[] = [
     {
-      description: t("sections.whyVortex.features.lowFees.description"),
+      description: "Add your own markup and earn on every ramp",
       icon: PERCENT,
-      title: t("sections.whyVortex.features.lowFees.title")
+      title: "New Revenue Stream"
     },
     {
-      description: t("sections.whyVortex.features.easyToUse.description"),
+      description: "Fiat settlement in under 10 minutes",
       icon: COFFEE,
-      title: t("sections.whyVortex.features.easyToUse.title")
+      title: "Fast Payouts"
     },
     {
-      description: t("sections.whyVortex.features.securityFirst.description"),
+      description: "KYC, AML and licensing. Handled by Vortex",
       icon: LOCK,
-      title: t("sections.whyVortex.features.securityFirst.title")
+      title: "Compliance built in"
     },
     {
-      description: t("sections.whyVortex.features.smartKYC.description"),
+      description: "True mid-market FX. Users pay 0.5 - 0.85%",
       icon: USER_CHECK,
-      title: t("sections.whyVortex.features.smartKYC.title")
+      title: "Transparent pricing - built for your users"
     }
   ];
 
   return (
-    <section className="container mx-auto py-32">
-      <div className="relative grid grid-cols-1 lg:grid-cols-2">
-        <motion.h1
-          animate={{ x: 0 }}
-          className="text-center text-3xl text-black sm:text-5xl lg:sticky lg:top-24 lg:h-[100px] lg:pl-4 lg:text-left lg:text-4xl"
-          initial={{ x: -50 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
-          {t("sections.whyVortex.title")}
-          <br className="hidden lg:block" />{" "}
-          <Trans i18nKey="sections.whyVortex.withVortexFinance">
-            with <strong className="text-primary">Vortex Finance</strong>?
-          </Trans>
-        </motion.h1>
+    <section className="container mx-auto pb-24 pt-32">
+      <div className="relative flex flex-col items-center justify-center">
+        <h1 className="text-center font-light text-3xl text-black sm:text-5xl md:text-6xl lg:pt-0 lg:text-start">
+          One integration. Everything handled.
+        </h1>
+        <p className="mt-6 mb-16">Vortex hostep app is the fastest way to add a secure fiat on/offramp to your app.</p>
         <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
           {features.map(feature => (
             <FeatureCard key={feature.title} {...feature} />

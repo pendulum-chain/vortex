@@ -109,7 +109,7 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto mt-8 max-w-2xl p-8 text-center">
+    <div className="mx-auto max-w-2xl py-32 text-center">
       <div className="mb-12">
         <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.networks.title")}</h2>
         <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.networks.description")}</p>

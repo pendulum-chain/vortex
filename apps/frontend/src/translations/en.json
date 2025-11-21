@@ -305,9 +305,11 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
+      "business": "Business",
       "community": "Community",
       "docs": "Docs",
       "howItWorks": "How it works",
+      "individuals": "Individuals",
       "sellCrypto": "Sell Crypto",
       "solutions": "Solutions",
       "toggleMobileMenu": "Toggle mobile menu",
@@ -501,7 +503,8 @@
     },
     "main": {
       "hero": {
-        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+        "subtitle": "We keep things simple for you and make sure you get the best rate out there.",
+        "title": "<0>Buy & Sell crypto.</0> <br /> Fast, secure, best rates."
       }
     },
     "progress": {

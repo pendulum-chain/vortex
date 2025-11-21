@@ -9,7 +9,7 @@ export const GotQuestions = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="overflow-hidden bg-blue-900 px-8 py-20 text-white">
+    <section className="overflow-hidden bg-blue-900 px-8 py-32 text-white">
       <div className="relative mx-auto flex flex-col justify-between sm:container md:flex-row">
         <motion.img
           alt="Planet"

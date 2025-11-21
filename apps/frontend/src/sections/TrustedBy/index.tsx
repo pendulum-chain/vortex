@@ -76,7 +76,7 @@ export const TrustedBy = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="mx-2 mt-12 mb-20 sm:container sm:mx-auto">
+    <section className="mx-2 py-32 sm:container sm:mx-auto">
       <motion.h1 className="mb-5 text-center text-2xl text-black sm:text-[1.5rem]">{t("sections.trustedBy.title")}</motion.h1>
       <ImageList images={trustedByImages} />
     </section>
