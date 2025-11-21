@@ -68,6 +68,9 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
       targetDiscount > 0 ? calculateSubsidyAmount(expectedOutputAmountDecimal, actualOutputAmountDecimal, maxSubsidy) : Big(0);
     const actualSubsidyAmountRaw = multiplyByPowerOfTen(actualSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
+    const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(actualSubsidyAmountDecimal);
+    const targetOutputAmountRaw = Big(actualOutputAmountRaw).plus(actualSubsidyAmountRaw).toFixed(0, 0);
+
     const subsidyRate = expectedOutputAmountDecimal.gt(0)
       ? actualSubsidyAmountDecimal.div(expectedOutputAmountDecimal)
       : new Big(0);
@@ -82,7 +85,9 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
       partnerId: partner ? partner.id : null,
       subsidyAmountInOutputTokenDecimal: actualSubsidyAmountDecimal,
       subsidyAmountInOutputTokenRaw: actualSubsidyAmountRaw,
-      subsidyRate
+      subsidyRate,
+      targetOutputAmountDecimal,
+      targetOutputAmountRaw
     };
   }
 }
