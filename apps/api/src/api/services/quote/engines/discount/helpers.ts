@@ -2,6 +2,7 @@ import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import Partner from "../../../../../models/partner.model";
 import { QuoteContext } from "../../core/types";
+import { DiscountComputation } from "./index";
 
 export const DEFAULT_PARTNER_NAME = "vortex";
 
@@ -92,52 +93,27 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
   return shortfall;
 }
 
-export function buildDiscountSubsidy(
-  subsidyAmount: Big,
-  idealSubsidyAmount: Big,
-  partner: ActivePartner,
-  payload: DiscountSubsidyPayload
-): QuoteContext["subsidy"] {
+export function buildDiscountSubsidy(computation: DiscountComputation): QuoteContext["subsidy"] {
   // Trim to 6 decimal places for output token decimal representation
-  const subsidyAmountInOutputTokenDecimal = Big(subsidyAmount.toFixed(6, 0));
-  const subsidyAmountInOutputTokenRaw = subsidyAmount
-    .mul(new Big(payload.actualOutputAmountRaw))
-    .div(payload.actualOutputAmountDecimal)
-    .toFixed(0, 0);
-
-  // Calculate ideal (uncapped) subsidy amounts
-  const idealSubsidyAmountInOutputTokenDecimal = Big(idealSubsidyAmount.toFixed(6, 0));
-  const idealSubsidyAmountInOutputTokenRaw = idealSubsidyAmount
-    .mul(new Big(payload.actualOutputAmountRaw))
-    .div(payload.actualOutputAmountDecimal)
-    .toFixed(0, 0);
-
-  const rate = payload.expectedOutputAmountDecimal.gt(0) ? subsidyAmount.div(payload.expectedOutputAmountDecimal) : new Big(0);
+  const subsidyAmountInOutputTokenDecimal = Big(computation.subsidyAmountInOutputTokenDecimal.toFixed(6, 0));
+  const idealSubsidyAmountInOutputTokenDecimal = Big(computation.subsidyAmountInOutputTokenDecimal.toFixed(6, 0));
 
   return {
-    applied: subsidyAmount.gt(0),
+    ...computation,
+    applied: computation.subsidyAmountInOutputTokenDecimal.gt(0),
     idealSubsidyAmountInOutputTokenDecimal,
-    idealSubsidyAmountInOutputTokenRaw,
-    partnerId: partner?.id,
-    rate: rate.toString(),
-    subsidyAmountInOutputTokenDecimal,
-    subsidyAmountInOutputTokenRaw
+    subsidyAmountInOutputTokenDecimal
   };
 }
 
-export function formatPartnerNote(
-  partner: ActivePartner,
-  targetDiscount: number,
-  maxSubsidy: number,
-  actualSubsidyAmount: Big,
-  idealSubsidyAmount: Big
-): string {
-  const isCapped = actualSubsidyAmount.lt(idealSubsidyAmount);
+export function formatPartnerNote(ctx: QuoteContext, computation: DiscountComputation): string {
+  const isCapped = computation.subsidyAmountInOutputTokenDecimal.lt(computation.idealSubsidyAmountInOutputTokenDecimal);
   return (
-    `partner=${partner?.name || DEFAULT_PARTNER_NAME} (${partner?.id || "N/A"}), ` +
-    `targetDiscount=${targetDiscount}, maxSubsidy=${maxSubsidy}, ` +
-    `idealSubsidy=${idealSubsidyAmount.toString()}, ` +
-    `actualSubsidy=${actualSubsidyAmount.toString()}` +
-    (isCapped ? ` [CAPPED]` : ``)
+    `partner=${computation.partnerId || DEFAULT_PARTNER_NAME}, ` +
+    `targetDiscount=${ctx.partner?.targetDiscount}, ` +
+    `maxSubsidy=${ctx.partner?.maxSubsidy}, ` +
+    `idealSubsidy=${computation.idealSubsidyAmountInOutputTokenDecimal.toString()}, ` +
+    `actualSubsidy=${computation.subsidyAmountInOutputTokenDecimal.toString()}` +
+    (isCapped ? " [CAPPED]" : "")
   );
 }
