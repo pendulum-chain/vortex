@@ -1,5 +1,4 @@
-import { PermitSignature } from "@packages/shared";
-import { ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@vortexfi/shared";
+import { ExtrinsicOptions, IbanPaymentData, PermitSignature, StellarTokenDetails } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
