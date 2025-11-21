@@ -14,6 +14,8 @@ export interface DiscountComputation {
   expectedOutputAmountRaw: string;
   actualOutputAmountDecimal: Big;
   actualOutputAmountRaw: string;
+  targetOutputAmountDecimal: Big;
+  targetOutputAmountRaw: string;
   idealSubsidyAmountInOutputTokenDecimal: Big;
   idealSubsidyAmountInOutputTokenRaw: string;
   subsidyAmountInOutputTokenDecimal: Big;

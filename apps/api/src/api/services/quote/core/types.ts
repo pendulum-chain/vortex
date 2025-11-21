@@ -204,6 +204,9 @@ export interface QuoteContext {
     // Ideal subsidy needed to reach expected output (uncapped)
     idealSubsidyAmountInOutputTokenDecimal: Big;
     idealSubsidyAmountInOutputTokenRaw: string;
+    // Target output amount after subsidy
+    targetOutputAmountDecimal: Big;
+    targetOutputAmountRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
