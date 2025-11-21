@@ -81,17 +81,6 @@ export abstract class BaseFinalizeEngine implements Stage {
 
     const paymentMethod = getPaymentMethodFromDestinations(request.from, request.to);
 
-    // Sort the metadata
-    const metadata = Object.keys(ctx)
-      .sort()
-      .reduce(
-        (sorted, key) => {
-          const typedKey = key as keyof QuoteContext;
-          return { ...sorted, [key]: ctx[typedKey] };
-        },
-        {} as Record<string, unknown>
-      );
-
     const record = await QuoteTicket.create({
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,
@@ -100,7 +89,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       from: request.from,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      metadata,
+      metadata: ctx,
       network: request.network,
       outputAmount: outputAmountStr,
       outputCurrency: request.outputCurrency,
