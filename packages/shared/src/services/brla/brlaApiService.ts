@@ -221,7 +221,10 @@ export class BrlaApiService {
     throw new Error("Invalid response from Avenia API for createPixInputTicket");
   }
 
-  public async createPixOutputTicket(payload: PixOutputTicketPayload, subAccountId: string): Promise<{ id: string }> {
+  public async createPixOutputTicket(
+    payload: PixOutputTicketPayload | PixInputTicketPayload,
+    subAccountId: string
+  ): Promise<{ id: string }> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
 

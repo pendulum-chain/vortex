@@ -12,6 +12,7 @@ import {
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -64,6 +65,9 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
     const brlaApiService = BrlaApiService.getInstance();
     try {
+      logger.info(
+        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
+      );
       await waitUntilTrueWithTimeout(
         async () => {
           if (!quote.metadata.aveniaMint) {
@@ -71,11 +75,11 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           }
 
           // Check internal balance of Avenia subaccount
-          const { balances } = await brlaApiService.getAccountBalance(state.state.taxId);
+          const { balances } = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
-          return balances.BRLA.toFixed(6) >= quote.metadata.aveniaMint.outputAmountDecimal.toFixed(6, 0);
+          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
         PAYMENT_TIMEOUT_MS
@@ -97,7 +101,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     // Transfer the funds from the subaccount to the ephemeral address
     const aveniaQuote = await brlaApiService.createPayInQuote({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: quote.metadata.aveniaMint.outputAmountDecimal.toFixed(6, 0),
+      inputAmount: Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0),
       inputCurrency: BrlaCurrency.BRLA,
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
@@ -109,7 +113,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
 
-    const aveniaTicket = await brlaApiService.createPixInputTicket(
+    const aveniaTicket = await brlaApiService.createPixOutputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
