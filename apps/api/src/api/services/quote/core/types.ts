@@ -193,13 +193,20 @@ export interface QuoteContext {
 
   subsidy?: {
     applied: boolean;
-    rate: string;
-    partnerId?: string;
+    subsidyRate: Big;
+    partnerId: string | null;
+    expectedOutputAmountDecimal: Big;
+    expectedOutputAmountRaw: string;
+    actualOutputAmountDecimal: Big;
+    actualOutputAmountRaw: string;
     subsidyAmountInOutputTokenDecimal: Big;
     subsidyAmountInOutputTokenRaw: string;
     // Ideal subsidy needed to reach expected output (uncapped)
     idealSubsidyAmountInOutputTokenDecimal: Big;
     idealSubsidyAmountInOutputTokenRaw: string;
+    // Target output amount after subsidy (actual output + subsidy)
+    targetOutputAmountDecimal: Big;
+    targetOutputAmountRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
