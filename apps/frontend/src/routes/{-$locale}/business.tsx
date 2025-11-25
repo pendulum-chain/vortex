@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BaseLayout } from "../../layouts";
 import { BusinessMain } from "../../pages/business";
+import { WhyVortexApi } from "../../sections/WhyVortexApi";
 import { WhyVortexBusiness } from "../../sections/WhyVortexBusiness";
 
 export const Route = createFileRoute("/{-$locale}/business")({
@@ -12,6 +13,7 @@ function BusinessRouteComponent() {
     <>
       <BusinessMain />
       <WhyVortexBusiness />
+      <WhyVortexApi />
     </>
   );
 
