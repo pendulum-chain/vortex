@@ -1,7 +1,9 @@
 import {
+  ERC20_EURE_POLYGON_DECIMALS,
+  ERC20_EURE_POLYGON_TOKEN_NAME,
+  ERC20_EURE_POLYGON_V2,
   getAddressForFormat,
   getOnChainTokenDetails,
-  multiplyByPowerOfTen,
   Networks,
   PermitSignature,
   RampDirection
@@ -100,7 +102,7 @@ export const signTransactionsActor = async ({
     for (const tx of sortedTxs) {
       if (tx.phase === "squidRouterApprove") {
         if (isNativeTokenTransfer) {
-          input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+          input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
           continue;
         }
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
@@ -121,7 +123,11 @@ export const signTransactionsActor = async ({
         moneriumOnrampPermit = await signERC2612Permit(
           executionInput?.moneriumWalletAddress as `0x${string}`,
           executionInput?.ephemerals.evmEphemeral.address as `0x${string}`,
-          rampState.quote.inputAmount
+          rampState.quote.inputAmount,
+          ERC20_EURE_POLYGON_V2, // EURe V2 address on Polygon
+          ERC20_EURE_POLYGON_DECIMALS,
+          137, // Polygon chainId
+          ERC20_EURE_POLYGON_TOKEN_NAME
         );
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else {

@@ -1,13 +1,17 @@
-import { ERC20_EURE_POLYGON_DECIMALS, ERC20_EURE_POLYGON_V2, multiplyByPowerOfTen } from "@vortexfi/shared";
+import { multiplyByPowerOfTen } from "@vortexfi/shared";
 import { readContract, signTypedData } from "@wagmi/core";
 import { wagmiConfig } from "../wagmiConfig";
 
 export async function signERC2612Permit(
   owner: `0x${string}`,
   spender: `0x${string}`,
-  valueUnits: string
+  valueUnits: string,
+  tokenAddress: `0x${string}`,
+  decimals: number,
+  chainId: number,
+  tokenName: string
 ): Promise<{ r: `0x${string}`; s: `0x${string}`; v: number; deadline: number }> {
-  const value = multiplyByPowerOfTen(valueUnits, ERC20_EURE_POLYGON_DECIMALS);
+  const value = multiplyByPowerOfTen(valueUnits, decimals);
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
 
   const nonce = (await readContract(wagmiConfig, {
@@ -20,15 +24,15 @@ export async function signERC2612Permit(
         type: "function"
       }
     ],
-    address: ERC20_EURE_POLYGON_V2,
+    address: tokenAddress,
     args: [owner],
     functionName: "nonces"
   })) as bigint;
 
   const domain = {
-    chainId: BigInt(137),
-    name: "Monerium EURe",
-    verifyingContract: ERC20_EURE_POLYGON_V2,
+    chainId: BigInt(chainId),
+    name: tokenName,
+    verifyingContract: tokenAddress,
     version: "1"
   };
 

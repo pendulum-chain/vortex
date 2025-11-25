@@ -20,4 +20,5 @@ export const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 // Constants relevant for the Monerium ramps
 export const ERC20_EURE_POLYGON_V1: `0x${string}` = "0x18ec0A6E18E5bc3784fDd3a3634b31245ab704F6"; // EUR.e on Polygon
 export const ERC20_EURE_POLYGON_V2: `0x${string}` = "0xE0aEa583266584DafBB3f9C3211d5588c73fEa8d"; // EUR.e on Polygon V2
+export const ERC20_EURE_POLYGON_TOKEN_NAME = `Monerium EURe`;
 export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals
