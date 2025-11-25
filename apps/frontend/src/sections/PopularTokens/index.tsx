@@ -1,5 +1,13 @@
-import { AssetHubToken, assethubTokenConfig, EvmToken, evmTokenConfig, FiatToken } from "@packages/shared";
-import { doesNetworkSupportRamp, getNetworkDisplayName, Networks } from "@vortexfi/shared";
+import {
+  AssetHubToken,
+  assetHubTokenConfig,
+  doesNetworkSupportRamp,
+  EvmToken,
+  evmTokenConfig,
+  FiatToken,
+  getNetworkDisplayName,
+  Networks
+} from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +31,7 @@ const getTokenIcon = (name: string): string => {
     return getEvmTokenIcon(name as EvmToken);
   }
   if (Object.values(AssetHubToken).includes(name as AssetHubToken)) {
-    const config = assethubTokenConfig[name as AssetHubToken];
+    const config = assetHubTokenConfig[name as AssetHubToken];
     return config?.networkAssetIcon || name.toLowerCase() || "";
   }
 
