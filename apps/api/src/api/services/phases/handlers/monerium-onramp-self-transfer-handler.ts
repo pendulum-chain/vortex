@@ -1,10 +1,7 @@
 import {
-  ERC20_EURE_POLYGON_DECIMALS,
   ERC20_EURE_POLYGON_V2,
   EvmClientManager,
   getEvmTokenBalance,
-  getNetworkId,
-  multiplyByPowerOfTen,
   Networks,
   RampDirection,
   RampPhase
@@ -72,7 +69,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       throw new Error("MoneriumOnrampSelfTransfer: Missing Monerium wallet address in state metadata. State corrupted.");
     }
 
-    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.outputAmountRaw;
+    const mintedAmountRaw = quote.metadata.moneriumMint.outputAmountRaw;
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({
@@ -80,7 +77,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
         ownerAddress: evmEphemeralAddress as `0x${string}`,
         tokenAddress: ERC20_EURE_POLYGON_V2
       });
-      return balance.gte(Big(inputAmountBeforeSwapRaw));
+      return balance.gte(Big(mintedAmountRaw));
     };
 
     try {
@@ -95,7 +92,6 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
     try {
       const account = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-      const amountRaw = multiplyByPowerOfTen(quote.inputAmount, ERC20_EURE_POLYGON_DECIMALS).toFixed(0);
       let permitHash: string;
 
       if (state.state.permitTxHash) {
@@ -108,7 +104,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
           args: [
             moneriumWalletAddress,
             state.state.evmEphemeralAddress,
-            BigInt(amountRaw),
+            BigInt(mintedAmountRaw),
             moneriumOnrampPermit.deadline,
             moneriumOnrampPermit.v,
             moneriumOnrampPermit.r,
