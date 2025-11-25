@@ -484,6 +484,61 @@
     }
   },
   "pages": {
+    "business": {
+      "hero": {
+        "comingSoon": "Em breve",
+        "description": "Com uma integração simples e gratuita, a Vortex lida com KYC, conformidade e liquidação para que você possa se concentrar no seu produto.",
+        "sdkIntegration": "Integração via SDK",
+        "titlePart1": "Permita que seus clientes comprem e vendam cripto instantaneamente - diretamente",
+        "titlePart2": "dentro do seu APP",
+        "widgetIntegration": "Integração via Widget"
+      },
+      "whyVortexApi": {
+        "cta": {
+          "npmPackage": "Veja o pacote NPM",
+          "readDocs": "Leia nossa documentação",
+          "title": "Obtenha uma cotação. Registre a rampa. Execute a rampa."
+        },
+        "features": {
+          "automated": {
+            "description": "Dispare liquidações diretamente de carteiras de custódia, multisigs ou contratos inteligentes",
+            "title": "Automatizado por design"
+          },
+          "liquidity": {
+            "description": "Acesse trilhos institucionais para executar com confiabilidade, mesmo em escala.",
+            "title": "Liquidez profunda"
+          },
+          "pricing": {
+            "description": "Cotações instantâneas. Vinculado à liquidez interbancária/Binance FX. Custo total de 5-45 bps.",
+            "title": "Preço de mercado real"
+          }
+        },
+        "title1": "Precisa de liquidações frequentes cripto-fiat?",
+        "title2": "Use a API Vortex"
+      },
+      "whyVortexBusiness": {
+        "features": {
+          "compliance": {
+            "description": "KYC, AML e licenciamento. Gerenciado pela Vortex",
+            "title": "Conformidade integrada"
+          },
+          "fastPayouts": {
+            "description": "Liquidação fiat em menos de 10 minutos",
+            "title": "Pagamentos Rápidos"
+          },
+          "newRevenueStream": {
+            "description": "Adicione sua própria margem e ganhe em cada rampa",
+            "title": "Novo fluxo de receita"
+          },
+          "pricing": {
+            "description": "Câmbio real de mercado. Usuários pagam 0.5 - 0.85%",
+            "title": "Preços transparentes - feito para seus usuários"
+          }
+        },
+        "subtitle": "O app hospedado da Vortex é a maneira mais rápida de adicionar uma rampa fiat on/off segura ao seu app.",
+        "title": "Uma integração. Tudo resolvido."
+      }
+    },
     "failure": {
       "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
       "contactSupport": {
