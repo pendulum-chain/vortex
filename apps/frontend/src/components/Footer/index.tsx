@@ -81,7 +81,7 @@ const FooterLink = ({
 );
 
 export function Footer() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <footer className="px-4 lg:px-10 py-16 container mx-auto border-t border-gray-100">
@@ -93,7 +93,7 @@ export function Footer() {
 
         <div className="flex flex-wrap flex-1 lg:justify-end justify-between items-start gap-y-8">
           <FooterSection title={t("components.footer.company.title")}>
-            <FooterLink href="#">{t("components.footer.company.privacyPolicy")}</FooterLink>
+            <FooterLink href={`/${i18n.language}/privacy-policy`}>{t("components.footer.company.privacyPolicy")}</FooterLink>
             <FooterLink href="#">{t("components.footer.company.terms")}</FooterLink>
             <FooterLink external href="https://satoshipay.jobs.personio.de/">
               {t("components.footer.company.careers")}

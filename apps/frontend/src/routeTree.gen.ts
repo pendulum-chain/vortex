@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LocaleChar125RouteImport } from './routes/{-$locale}'
 import { Route as Char123LocaleChar125IndexRouteImport } from './routes/{-$locale}/index'
+import { Route as Char123LocaleChar125PrivacyPolicyRouteImport } from './routes/{-$locale}/privacy-policy'
 import { Route as Char123LocaleChar125BusinessRouteImport } from './routes/{-$locale}/business'
 
 const Char123LocaleChar125Route = Char123LocaleChar125RouteImport.update({
@@ -24,6 +25,12 @@ const Char123LocaleChar125IndexRoute =
     path: '/',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
+const Char123LocaleChar125PrivacyPolicyRoute =
+  Char123LocaleChar125PrivacyPolicyRouteImport.update({
+    id: '/privacy-policy',
+    path: '/privacy-policy',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
 const Char123LocaleChar125BusinessRoute =
   Char123LocaleChar125BusinessRouteImport.update({
     id: '/business',
@@ -34,24 +41,36 @@ const Char123LocaleChar125BusinessRoute =
 export interface FileRoutesByFullPath {
   '/{-$locale}': typeof Char123LocaleChar125RouteWithChildren
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
+  '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
   '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRoutesByTo {
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
+  '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
   '/{-$locale}': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/{-$locale}': typeof Char123LocaleChar125RouteWithChildren
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
+  '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
   '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/{-$locale}' | '/{-$locale}/business' | '/{-$locale}/'
+  fullPaths:
+    | '/{-$locale}'
+    | '/{-$locale}/business'
+    | '/{-$locale}/privacy-policy'
+    | '/{-$locale}/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/{-$locale}/business' | '/{-$locale}'
-  id: '__root__' | '/{-$locale}' | '/{-$locale}/business' | '/{-$locale}/'
+  to: '/{-$locale}/business' | '/{-$locale}/privacy-policy' | '/{-$locale}'
+  id:
+    | '__root__'
+    | '/{-$locale}'
+    | '/{-$locale}/business'
+    | '/{-$locale}/privacy-policy'
+    | '/{-$locale}/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -74,6 +93,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LocaleChar125IndexRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
+    '/{-$locale}/privacy-policy': {
+      id: '/{-$locale}/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/{-$locale}/privacy-policy'
+      preLoaderRoute: typeof Char123LocaleChar125PrivacyPolicyRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
     '/{-$locale}/business': {
       id: '/{-$locale}/business'
       path: '/business'
@@ -86,11 +112,14 @@ declare module '@tanstack/react-router' {
 
 interface Char123LocaleChar125RouteChildren {
   Char123LocaleChar125BusinessRoute: typeof Char123LocaleChar125BusinessRoute
+  Char123LocaleChar125PrivacyPolicyRoute: typeof Char123LocaleChar125PrivacyPolicyRoute
   Char123LocaleChar125IndexRoute: typeof Char123LocaleChar125IndexRoute
 }
 
 const Char123LocaleChar125RouteChildren: Char123LocaleChar125RouteChildren = {
   Char123LocaleChar125BusinessRoute: Char123LocaleChar125BusinessRoute,
+  Char123LocaleChar125PrivacyPolicyRoute:
+    Char123LocaleChar125PrivacyPolicyRoute,
   Char123LocaleChar125IndexRoute: Char123LocaleChar125IndexRoute,
 }
 
