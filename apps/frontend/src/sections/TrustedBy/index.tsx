@@ -25,36 +25,29 @@ interface ImageProps {
   comingSoon?: boolean;
 }
 
-const Image = ({ src, alt, comingSoon }: ImageProps) => {
-  const { t } = useTranslation();
-
-  return (
-    <div className="relative flex items-center pt-4">
-      <motion.img
-        alt={alt}
-        className="h-[38px] max-w-[120px]"
-        initial={{ opacity: 0, y: 20 }}
-        src={src}
-        transition={{ duration: 0.2 }}
-        viewport={{ once: true }}
-        whileHover={{
-          rotate: [0, -1, 1, -1, 0],
-          scale: 1.02,
-          transition: {
-            rotate: {
-              duration: 0.9,
-              repeat: Infinity
-            }
+const Image = ({ src, alt }: ImageProps) => (
+  <div className="relative flex items-center pt-10">
+    <motion.img
+      alt={alt}
+      className="h-[42px] max-w-[148px]"
+      initial={{ opacity: 0, y: 20 }}
+      src={src}
+      transition={{ duration: 0.2 }}
+      viewport={{ once: true }}
+      whileHover={{
+        rotate: [0, -1, 1, -1, 0],
+        scale: 1.02,
+        transition: {
+          rotate: {
+            duration: 0.9,
+            repeat: Infinity
           }
-        }}
-        whileInView={{ opacity: 1, y: 0 }}
-      />
-      {comingSoon && (
-        <div className="absolute top-0 right-0 text-right text-blue-700 text-xs">{t("sections.trustedBy.comingSoon")}</div>
-      )}
-    </div>
-  );
-};
+        }
+      }}
+      whileInView={{ opacity: 1, y: 0 }}
+    />
+  </div>
+);
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
   <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-1">
@@ -76,8 +69,8 @@ export const TrustedBy = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="mx-2 py-32 sm:container sm:mx-auto">
-      <motion.h1 className="mb-5 text-center text-2xl text-black sm:text-[1.5rem]">{t("sections.trustedBy.title")}</motion.h1>
+    <section className="px-4 md:px-10 py-32 sm:container sm:mx-auto">
+      <h1 className="text-h1 mb-5 text-center text-black">{t("sections.trustedBy.title")}</h1>
       <ImageList images={trustedByImages} />
     </section>
   );
