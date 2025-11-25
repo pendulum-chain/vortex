@@ -1,26 +1,47 @@
-import { getNetworkDisplayName, Networks } from "@vortexfi/shared";
+import { AssetHubToken, assethubTokenConfig, EvmToken, evmTokenConfig, FiatToken } from "@packages/shared";
+import { doesNetworkSupportRamp, getNetworkDisplayName, Networks } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-
 import { cn } from "../../helpers/cn";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { isValidAssetIcon, useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
 import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompatibility";
 
-const tokens: Array<{ name: string; assetIcon: string }> = [
-  { assetIcon: "usdc", name: "USDC" },
-  { assetIcon: "usdc", name: "USDC.e" },
-  { assetIcon: "eth", name: "ETH" },
-  { assetIcon: "usdt", name: "USDT" },
-  { assetIcon: "brl", name: "BRL" },
-  { assetIcon: "ars", name: "ARS" },
-  { assetIcon: "eur", name: "EUR" }
-];
+const getEvmTokenIcon = (token: EvmToken): string => {
+  for (const networkConfig of Object.values(evmTokenConfig)) {
+    const tokenConfig = networkConfig[token];
+    if (tokenConfig?.networkAssetIcon) {
+      return tokenConfig.networkAssetIcon;
+    }
+  }
+  return token.toLowerCase();
+};
 
-const networks = Object.values(Networks).filter(
-  network => network !== Networks.Pendulum && network !== Networks.Stellar && network !== Networks.Moonbeam
+const getTokenIcon = (name: string): string => {
+  if (Object.values(EvmToken).includes(name as EvmToken)) {
+    return getEvmTokenIcon(name as EvmToken);
+  }
+  if (Object.values(AssetHubToken).includes(name as AssetHubToken)) {
+    const config = assethubTokenConfig[name as AssetHubToken];
+    return config?.networkAssetIcon || name.toLowerCase() || "";
+  }
+
+  return name.toLowerCase() || "";
+};
+
+const allCurrencies = Array.from(
+  new Set([...Object.values(FiatToken), ...Object.values(AssetHubToken), ...Object.values(EvmToken)])
 );
+
+const tokens: Array<{ name: string; assetIcon: string }> = allCurrencies
+  .map(name => ({
+    assetIcon: getTokenIcon(name),
+    name
+  }))
+  .filter(token => isValidAssetIcon(token.assetIcon));
+
+const networks = Object.values(Networks).filter(doesNetworkSupportRamp);
 
 type BadgeProps = {
   icon: string;
@@ -31,22 +52,22 @@ type BadgeProps = {
 };
 
 const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: BadgeProps) => {
-  const scale = isAnimating ? 1.05 : 1;
+  const scale = isAnimating ? 1.08 : 1;
   const bgColor = isAnimating ? "bg-gray-300" : "bg-secondary";
 
   return (
     <motion.li
       animate={{ scale }}
       className={cn(
-        "flex items-center justify-center rounded-full px-4 py-2 shadow-lg",
+        "flex items-center justify-center rounded-full px-4 py-2 shadow-lg cursor-pointer hover:bg-gray-200",
         bgColor,
-        onClick && "cursor-pointer active:scale-95 active:bg-gray-400"
+        onClick && "active:scale-95 active:bg-gray-400"
       )}
       onClick={onClick}
-      transition={{ duration: 1 }}
+      transition={{ duration: 0.25 }}
       whileHover={{
         rotate: [0, -1, 1, -1, 0],
-        scale: 1.05,
+        scale: 1.08,
         transition: {
           rotate: {
             duration: rotationDuration,
@@ -109,10 +130,10 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl py-32 text-center">
+    <div className="mx-auto max-w-2xl py-32 text-center px-4 md:px-10">
       <div className="mb-12">
-        <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.networks.title")}</h2>
-        <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.networks.description")}</p>
+        <h2 className="text-h2 text-gray-900">{t("sections.popularTokens.networks.title")}</h2>
+        <p className="text-body-lg mt-2 text-gray-600">{t("sections.popularTokens.networks.description")}</p>
 
         <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {networks.map((network, index) => (
@@ -126,8 +147,8 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.tokens.title")}</h2>
-        <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.tokens.description")}</p>
+        <h2 className="text-h2 text-gray-900">{t("sections.popularTokens.tokens.title")}</h2>
+        <p className="text-body-lg mt-2 text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
         <motion.ul
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 flex flex-wrap items-center justify-center gap-2"
