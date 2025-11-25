@@ -37,24 +37,24 @@ export const WhyVortexBusiness = () => {
 
   const features: Feature[] = [
     {
-      description: "Add your own markup and earn on every ramp",
+      description: t("pages.business.whyVortexBusiness.features.newRevenueStream.description"),
       icon: PERCENT,
-      title: "New Revenue Stream"
+      title: t("pages.business.whyVortexBusiness.features.newRevenueStream.title")
     },
     {
-      description: "Fiat settlement in under 10 minutes",
+      description: t("pages.business.whyVortexBusiness.features.fastPayouts.description"),
       icon: COFFEE,
-      title: "Fast Payouts"
+      title: t("pages.business.whyVortexBusiness.features.fastPayouts.title")
     },
     {
-      description: "KYC, AML and licensing. Handled by Vortex",
+      description: t("pages.business.whyVortexBusiness.features.compliance.description"),
       icon: LOCK,
-      title: "Compliance built in"
+      title: t("pages.business.whyVortexBusiness.features.compliance.title")
     },
     {
-      description: "True mid-market FX. Users pay 0.5 - 0.85%",
+      description: t("pages.business.whyVortexBusiness.features.pricing.description"),
       icon: USER_CHECK,
-      title: "Transparent pricing - built for your users"
+      title: t("pages.business.whyVortexBusiness.features.pricing.title")
     }
   ];
 
@@ -62,11 +62,9 @@ export const WhyVortexBusiness = () => {
     <section className="container mx-auto py-16 md:py-32">
       <div className="relative flex flex-col items-center justify-center">
         <h1 className="text-center font-light text-3xl text-black sm:text-5xl md:text-6xl lg:pt-0 lg:text-start">
-          One integration. Everything handled.
+          {t("pages.business.whyVortexBusiness.title")}
         </h1>
-        <p className="mt-6 md:mb-16 text-center md:text-left">
-          Vortex hostep app is the fastest way to add a secure fiat on/offramp to your app.
-        </p>
+        <p className="mt-6 md:mb-16 text-center md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>
         <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
           {features.map(feature => (
             <FeatureCard key={feature.title} {...feature} />
