@@ -38,9 +38,9 @@ export const FAQAccordion = () => {
   ];
 
   return (
-    <div className="py-32">
+    <div className="pb-32 px-4 md:px-10 ">
       <p className="mb-3 text-center font-bold text-blue-700">{t("sections.faq.learnMore")}</p>
-      <h1 className="text-center font-bold text-3xl text-black">{t("sections.faq.title")}</h1>
+      <h1 className="text-h2 text-center text-black">{t("sections.faq.title")}</h1>
       <div className="mt-6">
         <Accordion>
           {FAQ_ITEMS.map(({ id, question, answer }) => (
