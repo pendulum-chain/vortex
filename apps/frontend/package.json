@@ -76,7 +76,7 @@
     "@polkadot/types-create": "catalog:",
     "@polkadot/types-known": "catalog:",
     "@storybook/react-vite": "^9.1.4",
-    "@tanstack/react-query-devtools": "^5.90.2",
+    "@tanstack/react-query-devtools": "^5.91.1",
     "@tanstack/router-plugin": "^1.136.8",
     "@types/big.js": "catalog:",
     "@types/bn.js": "^5",
