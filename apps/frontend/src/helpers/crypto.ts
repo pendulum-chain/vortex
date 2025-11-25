@@ -26,6 +26,7 @@ export async function signERC2612Permit(
     ],
     address: tokenAddress,
     args: [owner],
+    chainId: chainId,
     functionName: "nonces"
   })) as bigint;
 
