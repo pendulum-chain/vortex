@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { motion } from "motion/react";
 import { Trans } from "react-i18next";
 import WidgetSnippetImage from "../../assets/widget-snippet.png";
 import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
@@ -27,10 +28,12 @@ export const Main = () => {
                   <Trans i18nKey="pages.main.hero.subtitle" />
                 </p>
               </div>
-              <div className="animate-slide-up md:w-3/4 lg:w-full xl:w-3/4 flex justify-center flex-col items-center mx-auto lg:mx-0 ">
-                <img
+              <div className="animate-slide-up md:w-3/4 lg:w-full xl:w-3/4 flex justify-center pt-2 flex-col items-center mx-auto lg:mx-0 overflow-hidden">
+                <motion.img
                   alt="Widget Snippet"
-                  className="max-w-3/4 hover:scale-105 transition-all duration-300 cursor-pointer z-10"
+                  animate={{ opacity: 1, scale: 1, transition: { duration: 0.15, ease: "easeOut" }, y: 0 }}
+                  className="max-w-3/4 hover:scale-101 transition-all duration-300 cursor-pointer z-10"
+                  initial={{ opacity: 0, scale: 0.9, y: 250 }}
                   src={WidgetSnippetImage}
                 />
                 <div className="bg-black rounded-lg p-4 px-8 flex w-full justify-center gap-4 items-center relative z-20">
