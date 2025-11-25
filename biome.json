@@ -19,7 +19,8 @@
       "!**/coverage/**",
       "!**/gql/**",
       "!**/*.test.ts",
-      "!**/*.test.tsx"
+      "!**/*.test.tsx",
+      "!**/routeTree.gen.ts"
     ],
     "maxSize": 8000000
   },
