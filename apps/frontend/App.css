@@ -120,7 +120,7 @@
 }
 
 .btn-vortex-primary:hover {
-  @apply bg-white text-blue-700;
+  @apply bg-blue-200 text-blue-700;
 }
 
 .btn-vortex-primary:disabled {
@@ -152,8 +152,7 @@
 }
 
 .btn-vortex-primary-inverse:hover {
-  @apply bg-blue-700;
-  @apply text-white;
+  @apply bg-blue-200;
   @apply border-blue-700;
 }
 
