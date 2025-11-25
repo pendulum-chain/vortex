@@ -269,8 +269,42 @@
       "yourQuote": "Your quote"
     },
     "footer": {
+      "business": {
+        "contactSales": "Contact Sales",
+        "title": "Business"
+      },
+      "buyCrypto": {
+        "buyDot": "Buy DOT",
+        "buyEth": "Buy ETH",
+        "buyUsdc": "Buy USDC",
+        "buyUsdt": "Buy USDT",
+        "title": "Buy Crypto"
+      },
+      "company": {
+        "anclap": "Anclap",
+        "avenia": "Avenia",
+        "careers": "Careers",
+        "licences": "Licences",
+        "monerium": "Monerium EMI ehf.",
+        "mykobo": "MyKobo sp. z.o.o.",
+        "privacyPolicy": "Privacy Policy",
+        "terms": "Terms",
+        "title": "Company"
+      },
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
-      "poweredBy": "Powered by"
+      "docs": {
+        "apiDocs": "API Docs",
+        "title": "Docs",
+        "vortexDocs": "Vortex Docs"
+      },
+      "poweredBy": "Powered by",
+      "sellCrypto": {
+        "sellDot": "Sell DOT",
+        "sellEth": "Sell ETH",
+        "sellUsdc": "Sell USDC",
+        "sellUsdt": "Sell USDT",
+        "title": "Sell Crypto"
+      }
     },
     "initialQuoteFailed": {
       "invalidParameters": "The passed parameters are invalid.",
@@ -503,8 +537,8 @@
     },
     "main": {
       "hero": {
-        "subtitle": "We keep things simple for you and make sure you get the best rate out there.",
-        "title": "<0>Buy & Sell crypto.</0> <br /> Fast, secure, best rates."
+        "subtitle": "We keep things simple for you and get you the best rate out there.",
+        "title": "<0>Buy and Sell crypto.</0> <br /> Fast, secure, best rates."
       }
     },
     "progress": {
@@ -640,7 +674,7 @@
     "gotQuestions": {
       "contactUs": "Contact Us",
       "description": "Get in touch with us for answers and support.",
-      "title": "Got Questions? We're here to help!"
+      "title": "Got Questions? <br /> We're here to help!"
     },
     "howToSell": {
       "steps": {
@@ -649,7 +683,7 @@
         "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
         "4": "Wait for the funds to arrive in your account."
       },
-      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance"
+      "title": "How to sell crypto <1> with Vortex Finance </1>"
     },
     "pitch": {
       "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market.",
@@ -661,7 +695,7 @@
         "title": "Supported Networks"
       },
       "tokens": {
-        "description": "Trade these popular stablecoins",
+        "description": "Trade these popular crypto and fiat currencies",
         "title": "Supported Tokens"
       }
     },
@@ -689,7 +723,7 @@
           "title": "Smart KYC"
         }
       },
-      "title": "Buy & Sell Crypto the secure Way",
+      "title": "Buy & Sell Crypto the secure way",
       "withVortexFinance": "with <1>Vortex Finance</1>?"
     }
   },
