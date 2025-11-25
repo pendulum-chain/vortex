@@ -12,7 +12,7 @@ export async function signERC2612Permit(
   tokenName: string
 ): Promise<{ r: `0x${string}`; s: `0x${string}`; v: number; deadline: number }> {
   const value = multiplyByPowerOfTen(valueUnits, decimals);
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600); // 1 week from now
 
   const nonce = (await readContract(wagmiConfig, {
     abi: [
