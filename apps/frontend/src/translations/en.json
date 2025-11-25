@@ -518,6 +518,61 @@
     }
   },
   "pages": {
+    "business": {
+      "hero": {
+        "comingSoon": "Coming Soon",
+        "description": "With one simple, free integration Vortex handles KYC, compliance and settlement so you can stay focused on your product.",
+        "sdkIntegration": "SDK integration",
+        "titlePart1": "Enable your customers to buy and sell crypto instantly - directly",
+        "titlePart2": "inside your APP",
+        "widgetIntegration": "Widget integration"
+      },
+      "whyVortexApi": {
+        "cta": {
+          "npmPackage": "See the NPM package",
+          "readDocs": "Read our docs",
+          "title": "Obtain a quote. Register the ramp. Execute the ramp."
+        },
+        "features": {
+          "automated": {
+            "description": "Trigger settlements directly from custody wallets, multisigs or smart contracts",
+            "title": "Automated by design"
+          },
+          "liquidity": {
+            "description": "Tap into institutional grade rails to execute reliably, even at scale.",
+            "title": "Deep liquidity"
+          },
+          "pricing": {
+            "description": "Instant quotes. Linked to interbank/Binance FX liquidity. All in cost from 5-45 bps.",
+            "title": "True mid-market pricing"
+          }
+        },
+        "title1": "Need frequent crypto-fiat settlements?",
+        "title2": "Use Vortex API"
+      },
+      "whyVortexBusiness": {
+        "features": {
+          "compliance": {
+            "description": "KYC, AML and licensing. Handled by Vortex",
+            "title": "Compliance built in"
+          },
+          "fastPayouts": {
+            "description": "Fiat settlement in under 10 minutes",
+            "title": "Fast Payouts"
+          },
+          "newRevenueStream": {
+            "description": "Add your own markup and earn on every ramp",
+            "title": "New Revenue Stream"
+          },
+          "pricing": {
+            "description": "True mid-market FX. Users pay 0.5 - 0.85%",
+            "title": "Transparent pricing - built for your users"
+          }
+        },
+        "subtitle": "Vortex hostep app is the fastest way to add a secure fiat on/offramp to your app.",
+        "title": "One integration. Everything handled."
+      }
+    },
     "failure": {
       "contactedSupport": "Ready to try again?",
       "contactSupport": {
