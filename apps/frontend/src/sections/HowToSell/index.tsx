@@ -24,11 +24,11 @@ export const HowToSell = () => {
 
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-32">
-      <div className="container relative z-10 mx-auto mb-12 px-4">
+      <div className="container relative z-10 mx-auto mb-12 px-4 md:px-10">
         <div className="mb-12 text-center">
-          <p className="text-4xl text-white leading-[3rem] md:text-4xl">
+          <p className="text-h2 text-white leading-[3rem]">
             <Trans i18nKey="sections.howToSell.title">
-              How to sell cryptocurrency online <br className="hidden md:block" /> with Vortex Finance
+              How to sell crypto <span className="text-blue-400"> with Vortex Finance </span>
             </Trans>
           </p>
         </div>
@@ -46,7 +46,7 @@ export const HowToSell = () => {
                 )}
                 <div className="relative z-[1] flex flex-col items-center">
                   <div className="mb-4 flex h-18 w-18 items-center justify-center rounded-full border-2 border-blue-700 bg-[radial-gradient(at_50%_50%,theme(colors.black),theme(colors.blue.950),theme(colors.black)_134%)] shadow-lg transition-all duration-300 group-hover:scale-105">
-                    <span className="font-bold text-white text-xl">0{step.id}</span>
+                    <span className="text-h3 text-white">0{step.id}</span>
                   </div>
                   <div className="text-center transition-all duration-300 group-hover:translate-y-1 group-hover:transform">
                     <p className="text-white/90">{step.text}</p>
