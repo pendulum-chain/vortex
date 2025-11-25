@@ -21,14 +21,14 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
     whileInView={{ opacity: 1, y: 0 }}
   >
     <motion.div
-      className="flex h-[70px] w-[70px] items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl"
+      className="flex h-[70px] w-[70px] items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl cursor-pointer"
       transition={{ stiffness: 300, type: "spring" }}
       whileHover={{ scale: 1.05 }}
     >
-      <img alt={title} className="filter-primary mx-auto h-[28px] w-[28px] text-primary" src={icon} />
+      <img alt={title} className="filter-primary mx-auto h-[28px] w-[28px] text-primary " src={icon} />
     </motion.div>
-    <h3 className="mt-6 font-bold text-blue-900 text-xl">{title}</h3>
-    <p className="mt-3 px-10 text-center text-black text-gray-500 lg:px-0 lg:text-left">{description}</p>
+    <h3 className="text-h3 font-bold mt-6 text-blue-900">{title}</h3>
+    <p className="text-body mt-3 px-10 text-center text-gray-500 lg:px-0 lg:text-left">{description}</p>
   </motion.div>
 );
 
@@ -59,26 +59,23 @@ export const WhyVortex = () => {
   ];
 
   return (
-    <section className="container mx-auto py-32">
-      <div className="relative grid grid-cols-1 lg:grid-cols-2">
-        <motion.h1
-          animate={{ x: 0 }}
-          className="text-center text-3xl text-black sm:text-5xl lg:sticky lg:top-24 lg:h-[100px] lg:pl-4 lg:text-left lg:text-4xl"
-          initial={{ x: -50 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
-          {t("sections.whyVortex.title")}
-          <br className="hidden lg:block" />{" "}
-          <Trans i18nKey="sections.whyVortex.withVortexFinance">
-            with <strong className="text-primary">Vortex Finance</strong>?
-          </Trans>
-        </motion.h1>
-        <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
-          {features.map(feature => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
-        </div>
+    <section className="container mx-auto py-32 relative grid grid-cols-1 lg:grid-cols-2 gap-x-20 px-4 md:px-10 py-8">
+      <motion.h1
+        animate={{ x: 0 }}
+        className="text-h1 md:text-h2 text-center text-black lg:sticky lg:top-24 lg:h-[100px] lg:pl-4 lg:text-left"
+        initial={{ x: -50 }}
+        transition={{ duration: 0.6 }}
+        viewport={{ once: true }}
+      >
+        {t("sections.whyVortex.title")}{" "}
+        <Trans i18nKey="sections.whyVortex.withVortexFinance">
+          with <strong className="text-primary">Vortex Finance</strong>?
+        </Trans>
+      </motion.h1>
+      <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
+        {features.map(feature => (
+          <FeatureCard key={feature.title} {...feature} />
+        ))}
       </div>
     </section>
   );
