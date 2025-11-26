@@ -35,7 +35,7 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
     }
 
     // Determine environment
-    const environment = SANDBOX_ENABLED === "true" ? "test" : "live";
+    const environment = SANDBOX_ENABLED ? "test" : "live";
 
     // Generate public key (pk_live_* or pk_test_*)
     const publicKey = generateApiKey("public", environment);

@@ -1,6 +1,6 @@
 import {
   createOfframpSquidrouterTransactionsToEvm,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V1,
   EvmTransactionData,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -77,7 +77,7 @@ export async function prepareEvmToMoneriumEvmOfframpTransactions({
     fromToken: inputTokenDetails.erc20AddressSourceChain,
     rawAmount: inputAmountRaw, // By design, EURe is the only supported offramp currency.
     toNetwork: Networks.Polygon,
-    toToken: ERC20_EURE_POLYGON
+    toToken: ERC20_EURE_POLYGON_V1
   });
 
   unsignedTxs.push({

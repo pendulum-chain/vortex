@@ -5,7 +5,7 @@ import {
   createRandomString,
   createRouteParamsWithMoonbeamPostHook,
   createSquidRouterHash,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V1,
   EvmClientManager,
   EvmTransactionData,
   encodePayload,
@@ -97,7 +97,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
@@ -141,7 +141,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,

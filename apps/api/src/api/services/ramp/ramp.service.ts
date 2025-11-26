@@ -698,16 +698,17 @@ export class RampService extends BaseRampService {
       inputPaymentMethod: AveniaPaymentMethod.PIX,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
+
     const aveniaTicket = await brlaApiService.createPixInputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
-          walletAddress: moonbeamEphemeralAddress,
-          walletChain: AveniaPaymentMethod.MOONBEAM
+          // This means we are paying out to the subAccount itself.
+          beneficiaryWalletId: "00000000-0000-0000-0000-000000000000"
         },
         ticketBrlPixInput: {
           additionalData: generateReferenceLabel(quote)

@@ -45,7 +45,7 @@ const MOONBEAM_FUNDING_PRIVATE_KEY = MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
 const { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET } = process.env;
 const { ALCHEMY_API_KEY } = process.env;
-const { SANDBOX_ENABLED } = process.env;
+const SANDBOX_ENABLED = process.env.SANDBOX_ENABLED === "true";
 
 export {
   ALCHEMY_API_KEY,

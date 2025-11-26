@@ -1,4 +1,4 @@
-import { DestinationType, EvmAddress, Networks, PaymentMethod, RampDirection } from "../index";
+import { DestinationType, EvmAddress, Networks, PaymentMethod, PermitSignature, RampDirection } from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
 export type RampPhase =
@@ -127,6 +127,7 @@ export interface UpdateRampRequest {
     squidRouterSwapHash?: string;
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
+    moneriumOnrampPermit?: PermitSignature;
     [key: string]: unknown;
   };
 }
