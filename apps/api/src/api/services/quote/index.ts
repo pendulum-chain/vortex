@@ -1,4 +1,12 @@
-import { CreateQuoteRequest, DestinationType, Networks, QuoteError, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import {
+  CreateBestQuoteRequest,
+  CreateQuoteRequest,
+  DestinationType,
+  Networks,
+  QuoteError,
+  QuoteResponse,
+  RampDirection
+} from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import pLimit from "p-limit";
@@ -35,7 +43,7 @@ export class QuoteService extends BaseRampService {
    * @returns The best quote across all eligible networks
    */
   public async createBestQuote(
-    request: Omit<CreateQuoteRequest, "network"> & { apiKey?: string | null; partnerName?: string | null }
+    request: CreateBestQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
   ): Promise<QuoteResponse> {
     const { rampType, from, to } = request;
 
@@ -93,16 +101,6 @@ export class QuoteService extends BaseRampService {
     const bestQuote = validQuotes.reduce((best, current) => {
       const currentOutput = new Big(current.quote.outputAmount);
       const bestOutput = new Big(best.quote.outputAmount);
-      console.log(
-        "Comparing networks",
-        best.network,
-        "and",
-        current.network,
-        "with outputs",
-        bestOutput.toString(),
-        "and",
-        currentOutput.toString()
-      );
       return currentOutput.gt(bestOutput) ? current : best;
     });
 

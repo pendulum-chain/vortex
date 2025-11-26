@@ -392,10 +392,14 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   next();
 };
 
-export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (req, res, next) => {
+export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (
+  req,
+  res,
+  next
+) => {
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
-  if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
+  if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
     return;
   }
@@ -403,6 +407,15 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
+  }
+
+  if (rampType === RampDirection.BUY && !from) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingFromField });
+    return;
+  }
+
+  if (rampType === RampDirection.SELL && !to) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
   }
 
   next();
