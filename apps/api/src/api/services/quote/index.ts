@@ -73,9 +73,11 @@ export class QuoteService extends BaseRampService {
           const quote = await this.executeQuoteCalculation(
             {
               ...request,
-              from: rampType === RampDirection.BUY ? request.from : network,
+              // biome-ignore lint/style/noNonNullAssertion: Validated in getEligibleNetworks
+              from: rampType === RampDirection.BUY ? request.from! : network,
               network,
-              to: rampType === RampDirection.BUY ? network : request.to
+              // biome-ignore lint/style/noNonNullAssertion: Validated in getEligibleNetworks
+              to: rampType === RampDirection.BUY ? network : request.to!
             },
             true
           );
@@ -191,22 +193,19 @@ export class QuoteService extends BaseRampService {
    * @param to - Target destination
    * @returns Array of eligible networks
    */
-  private getEligibleNetworks(rampType: RampDirection, from: DestinationType, to: DestinationType): Networks[] {
+  private getEligibleNetworks(rampType: RampDirection, from?: DestinationType, to?: DestinationType): Networks[] {
     const supportedChains = SUPPORTED_CHAINS[rampType];
 
-    // For onramps (BUY): 'to' can be one of the supported networks
-    // For offramps (SELL): 'from' can be one of the supported networks
     if (rampType === RampDirection.BUY) {
       // Check if 'from' (payment method) is supported
-      if (!supportedChains.from.includes(from)) {
+      if (!from || !supportedChains.from.includes(from)) {
         return [];
       }
       // Return all supported 'to' networks that are actually Networks (not payment methods)
       return supportedChains.to.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
     } else {
-      // SELL (offramp)
       // Check if 'to' (payment method) is supported
-      if (!supportedChains.to.includes(to)) {
+      if (!to || !supportedChains.to.includes(to)) {
         return [];
       }
       // Return all supported 'from' networks that are actually Networks
