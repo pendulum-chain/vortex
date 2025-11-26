@@ -57,8 +57,20 @@ export class QuoteService extends BaseRampService {
     // Fetch quotes for all eligible networks with controlled parallelism (in-memory only)
     const quotePromises = eligibleNetworks.map(network =>
       limit(async () => {
+        // Add a random delay to avoid rate limiting when many networks are queried
+        const randomDelay = Math.floor(Math.random() * 2000);
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+
         try {
-          const quote = await this.executeQuoteCalculation({ ...request, network }, true);
+          const quote = await this.executeQuoteCalculation(
+            {
+              ...request,
+              from: rampType === RampDirection.BUY ? request.from : network,
+              network,
+              to: rampType === RampDirection.BUY ? network : request.to
+            },
+            true
+          );
           return { network, quote };
         } catch (error) {
           logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
@@ -81,6 +93,16 @@ export class QuoteService extends BaseRampService {
     const bestQuote = validQuotes.reduce((best, current) => {
       const currentOutput = new Big(current.quote.outputAmount);
       const bestOutput = new Big(best.quote.outputAmount);
+      console.log(
+        "Comparing networks",
+        best.network,
+        "and",
+        current.network,
+        "with outputs",
+        bestOutput.toString(),
+        "and",
+        currentOutput.toString()
+      );
       return currentOutput.gt(bestOutput) ? current : best;
     });
 
@@ -89,7 +111,10 @@ export class QuoteService extends BaseRampService {
     );
 
     // Now save only the best quote to the database
-    const savedQuote = await this.executeQuoteCalculation({ ...request, network: bestQuote.network }, false);
+    const savedQuote = await this.executeQuoteCalculation(
+      { ...request, from: bestQuote.quote.from, network: bestQuote.network, to: bestQuote.quote.to },
+      false
+    );
 
     return savedQuote;
   }
@@ -102,7 +127,7 @@ export class QuoteService extends BaseRampService {
    */
   private async executeQuoteCalculation(
     request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null },
-    skipPersistence: boolean = false
+    skipPersistence = false
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
