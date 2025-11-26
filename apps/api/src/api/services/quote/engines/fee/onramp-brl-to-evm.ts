@@ -20,7 +20,10 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.aveniaMint) {
-      throw new Error("OnRampFeeAveniaToEvmEngine requires aveniaMint in context");
+      throw new Error("OnRampAveniaToEvmFeeEngine requires aveniaMint in context");
+    }
+    if (!ctx.aveniaTransfer) {
+      throw new Error("OnRampAveniaToEvmFeeEngine requires aveniaTransfer in context");
     }
   }
 
@@ -28,13 +31,13 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
     const { request } = ctx;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
-    const computedAnchorFee = ctx.aveniaMint!.fee.toString();
+    const computedAnchorFee = ctx.aveniaMint!.fee.plus(ctx.aveniaTransfer!.fee).toString();
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
     const anchorFeeCurrency = ctx.aveniaMint!.currency as RampCurrency;
 
     const toNetwork = getNetworkFromDestination(request.to);
     if (!toNetwork) {
-      throw new Error(`OnRampFeeAveniaToEvmEngine: invalid network for destination: ${request.to}`);
+      throw new Error(`OnRampAveniaToEvmFeeEngine: invalid network for destination: ${request.to}`);
     }
 
     const toToken = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;

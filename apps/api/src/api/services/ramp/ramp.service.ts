@@ -430,7 +430,31 @@ export class RampService extends BaseRampService {
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    const { transactionExplorerLink, transactionHash } = getFinalTransactionHashForRamp(rampState, quote);
+    // Get or compute final transaction hash and explorer link
+    let transactionHash = rampState.state.finalTransactionHash;
+    let transactionExplorerLink = rampState.state.finalTransactionExplorerLink;
+
+    // If not stored yet and ramp is complete, compute and store them
+    if (
+      rampState.type === RampDirection.BUY &&
+      rampState.currentPhase === "complete" &&
+      (!transactionHash || !transactionExplorerLink)
+    ) {
+      const result = await getFinalTransactionHashForRamp(rampState, quote);
+      transactionHash = result.transactionHash;
+      transactionExplorerLink = result.transactionExplorerLink;
+
+      // Store the computed values in the state for future use
+      if (transactionHash && transactionExplorerLink) {
+        await rampState.update({
+          state: {
+            ...rampState.state,
+            finalTransactionExplorerLink: transactionExplorerLink,
+            finalTransactionHash: transactionHash
+          }
+        });
+      }
+    }
 
     const response: GetRampStatusResponse = {
       anchorFeeFiat: fiatFees.anchor,
@@ -674,16 +698,17 @@ export class RampService extends BaseRampService {
       inputPaymentMethod: AveniaPaymentMethod.PIX,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
+
     const aveniaTicket = await brlaApiService.createPixInputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
-          walletAddress: moonbeamEphemeralAddress,
-          walletChain: AveniaPaymentMethod.MOONBEAM
+          // This means we are paying out to the subAccount itself.
+          beneficiaryWalletId: "00000000-0000-0000-0000-000000000000"
         },
         ticketBrlPixInput: {
           additionalData: generateReferenceLabel(quote)

@@ -9,8 +9,10 @@ export class PhaseError extends Error {
 }
 
 export class RecoverablePhaseError extends PhaseError {
-  constructor(message: string) {
+  readonly minimumWaitSeconds?: number;
+  constructor(message: string, minimumWaitSeconds?: number) {
     super(message, true);
+    this.minimumWaitSeconds = minimumWaitSeconds;
   }
 }
 

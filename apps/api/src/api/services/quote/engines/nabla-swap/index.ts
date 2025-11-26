@@ -1,5 +1,7 @@
 import { PendulumTokenDetails, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
+import logger from "../../../../../config/logger";
+import { priceFeedService } from "../../../priceFeed.service";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -9,6 +11,7 @@ export interface NablaSwapConfig {
 }
 
 export interface NablaSwapComputation {
+  oraclePrice?: Big;
   inputAmountPreFees: Big;
   inputTokenPendulumDetails: PendulumTokenDetails;
   outputTokenPendulumDetails: PendulumTokenDetails;
@@ -43,13 +46,25 @@ export abstract class BaseNablaSwapEngine implements Stage {
       rampType: request.rampType
     });
 
+    let oraclePrice;
+    try {
+      oraclePrice = await priceFeedService.getOnchainOraclePrice(
+        request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency
+      );
+    } catch (error) {
+      logger.warn(
+        `OffRampSwapEngine: Unable to fetch on-chain oracle price for ${request.outputCurrency}, proceeding without it. Error: ${error}`
+      );
+    }
+
     this.assignNablaSwapContext(
       ctx,
       result,
       inputAmountForSwap,
       inputAmountForSwapRaw,
       inputTokenPendulumDetails,
-      outputTokenPendulumDetails
+      outputTokenPendulumDetails,
+      oraclePrice?.price
     );
 
     this.addNote(ctx, inputTokenPendulumDetails, outputTokenPendulumDetails, inputAmountForSwap, result);
@@ -59,15 +74,16 @@ export abstract class BaseNablaSwapEngine implements Stage {
 
   protected abstract compute(ctx: QuoteContext): NablaSwapComputation;
 
-  private getDeductibleFeeAmount(ctx: QuoteContext): Big {
+  protected getDeductibleFeeAmount(ctx: QuoteContext): Big {
     if (ctx.request.rampType === RampDirection.SELL) {
       return ctx.preNabla?.deductibleFeeAmountInSwapCurrency || new Big(0);
     } else {
-      return new Big(ctx.fees?.usd?.total || 0);
+      // For onramps, the fees are deducted after the nabla swap, so no deductible fee before the swap
+      return new Big(0);
     }
   }
 
-  private calculateInputAmountForSwapRaw(inputAmountForSwap: string, inputToken: PendulumTokenDetails): string {
+  protected calculateInputAmountForSwapRaw(inputAmountForSwap: string, inputToken: PendulumTokenDetails): string {
     return new Big(inputAmountForSwap).times(new Big(10).pow(inputToken.decimals)).toFixed(0);
   }
 
@@ -77,7 +93,8 @@ export abstract class BaseNablaSwapEngine implements Stage {
     inputAmountForSwapDecimal: string,
     inputAmountForSwapRaw: string,
     inputToken: PendulumTokenDetails,
-    outputToken: PendulumTokenDetails
+    outputToken: PendulumTokenDetails,
+    oraclePrice?: Big
   ): void {
     ctx.nablaSwap = {
       ...ctx.nablaSwap,
@@ -88,6 +105,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
       inputCurrencyId: inputToken.currencyId,
       inputDecimals: inputToken.decimals,
       inputToken: inputToken.erc20WrapperAddress,
+      oraclePrice,
       outputAmountDecimal: result.nablaOutputAmountDecimal,
       outputAmountRaw: result.nablaOutputAmountRaw,
       outputCurrency: outputToken.currency,

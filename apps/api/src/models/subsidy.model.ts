@@ -11,7 +11,8 @@ export enum SubsidyToken {
   BRLA = "BRLA",
   EURC = "EURC",
   USDC = "USDC",
-  MATIC = "MATIC"
+  MATIC = "MATIC",
+  BRL = "BRL"
 }
 
 export interface SubsidyAttributes {

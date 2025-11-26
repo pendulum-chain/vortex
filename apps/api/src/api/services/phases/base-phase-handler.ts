@@ -153,6 +153,18 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     paymentDate: Date = new Date()
   ): Promise<void> {
     try {
+      const existingSubsidy = await Subsidy.findOne({
+        where: {
+          phase: this.getPhaseName(),
+          rampId: state.id
+        }
+      });
+
+      if (existingSubsidy) {
+        logger.info(`Subsidy entry already exists for ramp ${state.id} in phase ${this.getPhaseName()}`);
+        return;
+      }
+
       const subsidy = await Subsidy.create({
         amount,
         payerAccount,

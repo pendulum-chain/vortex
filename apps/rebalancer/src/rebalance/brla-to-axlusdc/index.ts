@@ -1,8 +1,8 @@
 import { multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
 import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
-import { phaseOrder, RebalancePhase, RebalanceStateParsed, StateManager } from "../../services/stateManager.ts";
-import { getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
+import { phaseOrder, RebalancePhase, StateManager } from "../../services/stateManager.ts";
+import { getMoonbeamEvmClients, getPendulumAccount } from "../../utils/config.ts";
 import {
   checkInitialPendulumBalance,
   pollForSufficientBalance,

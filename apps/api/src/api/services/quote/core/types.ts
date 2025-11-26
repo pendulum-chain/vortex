@@ -71,7 +71,8 @@ export interface StellarMeta {
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
-  discount?: number; // decimal, e.g., 0.05 => 5%
+  targetDiscount?: number;
+  maxSubsidy?: number;
   name?: string | null;
 }
 
@@ -122,6 +123,7 @@ export interface QuoteContext {
     outputToken: string; // ERC20 wrapper address
     effectiveExchangeRate?: string;
     outputCurrency: RampCurrency;
+    oraclePrice?: Big;
   };
 
   hydrationSwap?: {
@@ -146,6 +148,15 @@ export interface QuoteContext {
   };
 
   aveniaMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
+  aveniaTransfer?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;
     outputAmountDecimal: Big;
@@ -191,16 +202,29 @@ export interface QuoteContext {
 
   subsidy?: {
     applied: boolean;
-    rate: string;
-    partnerId?: string;
+    subsidyRate: Big;
+    partnerId: string | null;
+    expectedOutputAmountDecimal: Big;
+    expectedOutputAmountRaw: string;
+    actualOutputAmountDecimal: Big;
+    actualOutputAmountRaw: string;
     subsidyAmountInOutputTokenDecimal: Big;
     subsidyAmountInOutputTokenRaw: string;
+    // Ideal subsidy needed to reach expected output (uncapped)
+    idealSubsidyAmountInOutputTokenDecimal: Big;
+    idealSubsidyAmountInOutputTokenRaw: string;
+    // Target output amount after subsidy (actual output + subsidy)
+    targetOutputAmountDecimal: Big;
+    targetOutputAmountRaw: string;
   };
 
   // Accumulated logs/notes for debugging (optional)
   notes?: string[];
   // Allow engines to supply a ready response (used by special-case engine and finalize stage)
   builtResponse?: QuoteResponse;
+
+  // Flag to skip database persistence (for best quote comparison)
+  skipPersistence?: boolean;
 
   // Helper: convenience accessors
   get isOnRamp(): boolean;
