@@ -58,7 +58,7 @@ export class StateManager {
     this.supabase = createClient(config.supabaseUrl!, config.supabaseServiceKey!);
   }
 
-  private async getRawState(): Promise<RebalanceState> {
+  private async getRawState(): Promise<RebalanceState | undefined> {
     try {
       const { data, error } = await this.supabase.storage.from("rebalancer_state").download("rebalancer_state.json");
 
@@ -67,27 +67,17 @@ export class StateManager {
       const stateText = await data.text();
       return JSON.parse(stateText);
     } catch (error: any) {
-      if (error.message.includes("404") || error.message.includes("Object not found") || error.message.includes("Not Found")) {
-        // return default idle state.
-        return {
-          amountAxlUsdc: null,
-          brlaAmount: null,
-          brlaToUsdcAmountUsd: null,
-          currentPhase: RebalancePhase.Idle,
-          initialBalance: null,
-          squidRouterReceiverId: null,
-          startingTime: new Date().toISOString(),
-          updatedTime: new Date().toISOString(),
-          usdcAmountRaw: null
-        };
-      }
       console.error("Error getting rebalance state:", error);
-      throw error;
+      return undefined;
     }
   }
 
-  async getState(): Promise<RebalanceStateParsed> {
+  async getState(): Promise<RebalanceStateParsed | undefined> {
     const rawState = await this.getRawState();
+    if (!rawState) {
+      return undefined;
+    }
+
     return {
       ...rawState,
       brlaAmount: rawState.brlaAmount ? Big(rawState.brlaAmount) : null,

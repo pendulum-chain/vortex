@@ -24,12 +24,17 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart
   let state = await stateManager.getState();
   console.log("Fetched rebalance state from storage.", state);
 
-  const isResuming = !forceRestart && state.currentPhase !== RebalancePhase.Idle;
+  const isResuming = !forceRestart && state && state.currentPhase !== RebalancePhase.Idle;
   if (isResuming) {
-    console.log(`Resuming rebalance from phase: ${state.currentPhase}`);
+    console.log(`Resuming rebalance from phase: ${state!.currentPhase}`);
   } else {
     // Forcing reset state, to ensure a clean one.
     state = await stateManager.startNewRebalance(amountAxlUsdc);
+  }
+
+  // For type safety, we know state must be defined here.
+  if (!state) {
+    throw new Error("State is undefined after initialization.");
   }
 
   const currentOrder = phaseOrder[state.currentPhase];

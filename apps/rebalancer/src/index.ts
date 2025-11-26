@@ -46,7 +46,6 @@ async function checkForRebalancing() {
       `Rebalancer account balance ${rebalancerAccountBalance} is below the minimum required balance of ${config.rebalancingUsdToBrlMinBalance} to perform rebalancing.`
     );
   }
-
   await rebalanceBrlaToUsdcAxl(amountAxlUsdc, forceRestart);
 }
 
