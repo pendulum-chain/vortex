@@ -206,7 +206,7 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse>
 ): Promise<void> => {
   try {
-    const { name, taxId, accountType: requestAccountType } = req.body;
+    const { name, taxId, accountType: requestAccountType, quoteId } = req.body;
 
     const isCnpj = isValidCnpj(taxId);
 
@@ -218,6 +218,7 @@ export const createSubaccount = async (
 
     await TaxId.create({
       accountType,
+      initialQuoteId: quoteId,
       subAccountId: id,
       taxId: taxId
     });
@@ -234,7 +235,7 @@ export const fetchSubaccountKycStatus = async (
   res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId } = req.query;
+    const { taxId, quoteId } = req.query;
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
@@ -263,6 +264,10 @@ export const fetchSubaccountKycStatus = async (
       }
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
+    }
+
+    if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
+      await TaxId.update({ finalQuoteId: quoteId, finalTimestamp: new Date() }, { where: { taxId } });
     }
 
     res.status(httpStatus.OK).json({

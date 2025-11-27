@@ -37,9 +37,10 @@ export interface BrlaGetRampStatusResponse {
   status: string;
 }
 
-// GET /brla/getKycStatus?taxId=:taxId
+// GET /brla/getKycStatus?taxId=:taxId&finalQuoteId=:finalQuoteId
 export interface BrlaGetKycStatusRequest {
   taxId: string;
+  quoteId: string;
 }
 
 export interface BrlaGetSelfieLivenessUrlRequest {
@@ -96,6 +97,7 @@ export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
+  quoteId: string;
 }
 
 export interface BrlaCreateSubaccountResponse {

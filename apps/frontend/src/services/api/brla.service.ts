@@ -43,9 +43,9 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The KYC status
    */
-  static async getKycStatus(taxId: string): Promise<BrlaGetKycStatusResponse> {
+  static async getKycStatus(taxId: string, quoteId: string): Promise<BrlaGetKycStatusResponse> {
     return apiRequest<BrlaGetKycStatusResponse>("get", `${this.BASE_PATH}/getKycStatus`, undefined, {
-      params: { taxId }
+      params: { quoteId, taxId }
     });
   }
 
