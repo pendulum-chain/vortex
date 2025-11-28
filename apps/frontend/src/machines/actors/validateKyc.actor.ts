@@ -9,7 +9,7 @@ interface ValidateKycResult {
 }
 
 export const validateKycActor = async ({ input }: { input: RampContext }): Promise<ValidateKycResult> => {
-  const { executionInput, rampDirection } = input;
+  const { executionInput, rampDirection, quoteId } = input;
   console.log("Validating KYC with input:", input);
 
   if (!executionInput) {
@@ -54,6 +54,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       if (isValidCpf(taxId) || isValidCnpj(taxId)) {
         console.log("User doesn't exist yet. Needs KYC.");
+        BrlaService.recordInitialKycAttempt(taxId, quoteId);
         return { kycNeeded: true };
       } else if (errorResponse.error?.includes("KYC invalid")) {
         console.log("User KYC is invalid. Needs KYC.");

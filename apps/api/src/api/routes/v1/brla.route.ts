@@ -24,4 +24,6 @@ router.route("/kyb/new-level-1/web-sdk").post(brlaController.initiateKybLevel1);
 
 router.route("/kyb/attempt-status").get(brlaController.getKybAttemptStatus);
 
+router.route("/kyc/record-attempt").post(brlaController.recordInitialKycAttempt);
+
 export default router;

@@ -60,7 +60,7 @@ export class BrlHandler implements RampHandler {
       throw new Error("Tax ID is required for BRL onramp");
     }
 
-    await this.validateBrlKyc(additionalData.taxId);
+    await this.validateBrlKyc(additionalData.taxId, quoteId);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -99,7 +99,7 @@ export class BrlHandler implements RampHandler {
       throw new Error("Tax ID is required for BRL offramps");
     }
 
-    await this.validateBrlKyc(additionalData.taxId);
+    await this.validateBrlKyc(additionalData.taxId, quoteId);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -162,12 +162,12 @@ export class BrlHandler implements RampHandler {
     return this.apiService.startRamp(startRequest);
   }
 
-  private async validateBrlKyc(taxId: string): Promise<void> {
+  private async validateBrlKyc(taxId: string, quoteId?: string): Promise<void> {
     if (!taxId) {
       throw new BrlKycStatusError("Tax ID is required", 400);
     }
 
-    const kycStatus = await this.apiService.getBrlKycStatus(taxId);
+    const kycStatus = await this.apiService.getBrlKycStatus(taxId, quoteId);
     if (kycStatus.kycLevel < 1) {
       throw new Error(`Insufficient KYC level. Current: ${kycStatus.kycLevel}`);
     }

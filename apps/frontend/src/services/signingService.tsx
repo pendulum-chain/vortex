@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BrlaGetKycStatusResponse, CreateAveniaSubaccountRequest, FiatToken, KycLevel1Payload } from "@vortexfi/shared";
+import { BrlaCreateSubaccountRequest, BrlaGetKycStatusResponse, FiatToken, KycLevel1Payload } from "@vortexfi/shared";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 interface AccountStatusResponse {
@@ -169,8 +169,8 @@ export const fetchSep10Signatures = async ({
   return { clientPublic, clientSignature, masterClientPublic, masterClientSignature };
 };
 
-export const fetchKycStatus = async (taxId: string) => {
-  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}`);
+export const fetchKycStatus = async (taxId: string, quoteId: string) => {
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}&quoteId=${quoteId}`);
 
   if (statusResponse.status !== 200) {
     throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
@@ -212,10 +212,11 @@ export class KycSubmissionNetworkError extends Error {
 export const createSubaccount = async ({
   name,
   accountType,
-  taxId
-}: CreateAveniaSubaccountRequest): Promise<{ subAccountId: string }> => {
+  taxId,
+  quoteId
+}: BrlaCreateSubaccountRequest): Promise<{ subAccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify({ accountType, name, taxId }),
+    body: JSON.stringify({ accountType, name, quoteId, taxId }),
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     method: "POST"

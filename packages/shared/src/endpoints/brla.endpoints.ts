@@ -20,6 +20,9 @@ export interface BrlaGetUserRequest {
   taxId: string;
 }
 
+export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
+  quoteId?: string;
+}
 export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
@@ -37,9 +40,10 @@ export interface BrlaGetRampStatusResponse {
   status: string;
 }
 
-// GET /brla/getKycStatus?taxId=:taxId
+// GET /brla/getKycStatus?taxId=:taxId&quoteId=:quoteId
 export interface BrlaGetKycStatusRequest {
   taxId: string;
+  quoteId: string;
 }
 
 export interface BrlaGetSelfieLivenessUrlRequest {
@@ -96,6 +100,7 @@ export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
+  quoteId: string;
 }
 
 export interface BrlaCreateSubaccountResponse {

@@ -2,18 +2,40 @@ import { AveniaAccountType } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
+export enum TaxIdInternalStatus {
+  Consulted = "Consulted",
+  Requested = "Requested",
+  Accepted = "Accepted",
+  Rejected = "Rejected"
+}
+
 // Define the attributes of the TaxId model
 export interface TaxIdAttributes {
   taxId: string;
   subAccountId: string;
   accountType: AveniaAccountType;
   kycAttempt: string | null;
+  initialQuoteId: string | null;
+  finalQuoteId: string | null;
+  finalTimestamp: Date | null;
+  internalStatus: TaxIdInternalStatus | null;
+  requestedDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Define the attributes that can be set during creation
-type TaxIdCreationAttributes = Optional<TaxIdAttributes, "createdAt" | "updatedAt" | "kycAttempt">;
+type TaxIdCreationAttributes = Optional<
+  TaxIdAttributes,
+  | "createdAt"
+  | "updatedAt"
+  | "kycAttempt"
+  | "initialQuoteId"
+  | "finalQuoteId"
+  | "finalTimestamp"
+  | "internalStatus"
+  | "requestedDate"
+>;
 
 // Define the TaxId model
 class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements TaxIdAttributes {
@@ -21,6 +43,11 @@ class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements T
   declare subAccountId: string;
   declare accountType: AveniaAccountType;
   declare kycAttempt: string | null;
+  declare initialQuoteId: string | null;
+  declare finalQuoteId: string | null;
+  declare finalTimestamp: Date | null;
+  declare internalStatus: TaxIdInternalStatus | null;
+  declare requestedDate: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -39,13 +66,38 @@ TaxId.init(
       field: "created_at",
       type: DataTypes.DATE
     },
+    finalQuoteId: {
+      allowNull: true,
+      field: "final_quote_id",
+      type: DataTypes.STRING
+    },
+    finalTimestamp: {
+      allowNull: true,
+      field: "final_timestamp",
+      type: DataTypes.DATE
+    },
+    initialQuoteId: {
+      allowNull: true,
+      field: "initial_quote_id",
+      type: DataTypes.STRING
+    },
+    internalStatus: {
+      allowNull: true,
+      field: "internal_status",
+      type: DataTypes.ENUM(...Object.values(TaxIdInternalStatus))
+    },
     kycAttempt: {
       allowNull: true,
       field: "kyc_attempt",
       type: DataTypes.STRING
     },
+    requestedDate: {
+      allowNull: true,
+      field: "requested_date",
+      type: DataTypes.DATE
+    },
     subAccountId: {
-      allowNull: false,
+      allowNull: true,
       field: "sub_account_id",
       type: DataTypes.STRING
     },
