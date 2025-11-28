@@ -1,3 +1,4 @@
+import { BrlaPostRecordInitialKycAttemptRequest, isValidCpf } from "@packages/shared";
 import {
   AveniaAccountType,
   AveniaDocumentType,
@@ -30,7 +31,8 @@ import {
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import TaxId from "../../models/taxId.model";
+import { Op } from "sequelize";
+import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
@@ -107,7 +109,14 @@ export const getAveniaUser = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findOne({
+      where: {
+        internalStatus: {
+          [Op.ne]: TaxIdInternalStatus.Consulted
+        },
+        taxId
+      }
+    });
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
@@ -137,6 +146,49 @@ export const getAveniaUser = async (
       return;
     }
     handleApiError(error, res, "getAveniaUser");
+  }
+};
+
+export const recordInitialKycAttempt = async (
+  req: Request<unknown, unknown, BrlaPostRecordInitialKycAttemptRequest, unknown>,
+  res: Response<{} | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { taxId, quoteId } = req.body;
+
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findOne({
+      where: {
+        taxId
+      }
+    });
+    if (!taxIdRecord) {
+      const accountType = isValidCnpj(taxId)
+        ? AveniaAccountType.COMPANY
+        : isValidCpf(taxId)
+          ? AveniaAccountType.INDIVIDUAL
+          : undefined;
+      console.log("Creating TaxId entry with CONSULTED status for taxId:", taxId, "accountType:", accountType);
+      // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
+      if (accountType) {
+        await TaxId.create({
+          accountType,
+          initialQuoteId: quoteId ?? null,
+          internalStatus: TaxIdInternalStatus.Consulted,
+          subAccountId: "",
+          taxId
+        });
+      }
+    }
+
+    res.status(httpStatus.OK).json({});
+  } catch (error) {
+    res.status;
+    handleApiError(error, res, "recordInitialKycAttempt");
   }
 };
 
@@ -216,12 +268,27 @@ export const createSubaccount = async (
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
 
-    await TaxId.create({
-      accountType,
-      initialQuoteId: quoteId,
-      subAccountId: id,
-      taxId: taxId
-    });
+    const existingTaxId = await TaxId.findByPk(taxId);
+
+    if (existingTaxId) {
+      await existingTaxId.update({
+        accountType,
+        internalStatus: TaxIdInternalStatus.Requested,
+        requestedDate: new Date(),
+        subAccountId: id
+      });
+    } else {
+      // The entry should have been created the very first a new cpf/cnpj is consulted.
+      // We leave this as is for now to avoid breaking changes.
+      await TaxId.create({
+        accountType,
+        initialQuoteId: quoteId,
+        internalStatus: TaxIdInternalStatus.Requested,
+        requestedDate: new Date(),
+        subAccountId: id,
+        taxId: taxId
+      });
+    }
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
@@ -267,7 +334,15 @@ export const fetchSubaccountKycStatus = async (
     }
 
     if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
-      await TaxId.update({ finalQuoteId: quoteId, finalTimestamp: new Date() }, { where: { taxId } });
+      await TaxId.update(
+        { finalQuoteId: quoteId, finalTimestamp: new Date(), internalStatus: TaxIdInternalStatus.Accepted },
+        {
+          where: {
+            internalStatus: TaxIdInternalStatus.Consulted,
+            taxId
+          }
+        }
+      );
     }
 
     res.status(httpStatus.OK).json({

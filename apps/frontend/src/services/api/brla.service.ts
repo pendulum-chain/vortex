@@ -39,6 +39,16 @@ export class BrlaService {
   }
 
   /**
+   * Record the initial KYC attempt for a user
+   * @param taxId
+   * @param quoteId
+   * @returns An empty response
+   **/
+  static async recordInitialKycAttempt(taxId: string, quoteId?: string): Promise<{}> {
+    console.log("Recording initial KYC attempt for taxId:", taxId, "quoteId:", quoteId);
+    return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, taxId });
+  }
+  /**
    * Get the KYC status of a subaccount
    * @param taxId The user's tax ID
    * @returns The KYC status

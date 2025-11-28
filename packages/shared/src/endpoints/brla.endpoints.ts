@@ -20,6 +20,9 @@ export interface BrlaGetUserRequest {
   taxId: string;
 }
 
+export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
+  quoteId?: string;
+}
 export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
@@ -37,7 +40,7 @@ export interface BrlaGetRampStatusResponse {
   status: string;
 }
 
-// GET /brla/getKycStatus?taxId=:taxId&finalQuoteId=:finalQuoteId
+// GET /brla/getKycStatus?taxId=:taxId&quoteId=:quoteId
 export interface BrlaGetKycStatusRequest {
   taxId: string;
   quoteId: string;
