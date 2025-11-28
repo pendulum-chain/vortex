@@ -329,6 +329,17 @@ export const fetchSubaccountKycStatus = async (
         });
         return;
       }
+      // Also try updating in case we missed the attempt
+      await TaxId.update(
+        { finalQuoteId: quoteId, finalTimestamp: new Date(), internalStatus: TaxIdInternalStatus.Accepted },
+        {
+          where: {
+            internalStatus: TaxIdInternalStatus.Requested,
+            taxId
+          }
+        }
+      );
+
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
     }
@@ -338,7 +349,7 @@ export const fetchSubaccountKycStatus = async (
         { finalQuoteId: quoteId, finalTimestamp: new Date(), internalStatus: TaxIdInternalStatus.Accepted },
         {
           where: {
-            internalStatus: TaxIdInternalStatus.Consulted,
+            internalStatus: TaxIdInternalStatus.Requested,
             taxId
           }
         }
