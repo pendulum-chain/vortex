@@ -269,8 +269,42 @@
       "yourQuote": "Your quote"
     },
     "footer": {
+      "business": {
+        "contactSales": "Contact Sales",
+        "title": "Business"
+      },
+      "buyCrypto": {
+        "buyDot": "Buy DOT",
+        "buyEth": "Buy ETH",
+        "buyUsdc": "Buy USDC",
+        "buyUsdt": "Buy USDT",
+        "title": "Buy Crypto"
+      },
+      "company": {
+        "anclap": "Anclap",
+        "avenia": "Avenia",
+        "careers": "Careers",
+        "licences": "Licences",
+        "monerium": "Monerium EMI ehf.",
+        "mykobo": "MyKobo sp. z.o.o.",
+        "privacyPolicy": "Privacy Policy",
+        "terms": "Terms",
+        "title": "Company"
+      },
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
-      "poweredBy": "Powered by"
+      "docs": {
+        "apiDocs": "API Docs",
+        "title": "Docs",
+        "vortexDocs": "Vortex Docs"
+      },
+      "poweredBy": "Powered by",
+      "sellCrypto": {
+        "sellDot": "Sell DOT",
+        "sellEth": "Sell ETH",
+        "sellUsdc": "Sell USDC",
+        "sellUsdt": "Sell USDT",
+        "title": "Sell Crypto"
+      }
     },
     "initialQuoteFailed": {
       "invalidParameters": "The passed parameters are invalid.",
@@ -305,9 +339,11 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
+      "business": "Business",
       "community": "Community",
       "docs": "Docs",
       "howItWorks": "How it works",
+      "individuals": "Individuals",
       "sellCrypto": "Sell Crypto",
       "solutions": "Solutions",
       "toggleMobileMenu": "Toggle mobile menu",
@@ -482,6 +518,61 @@
     }
   },
   "pages": {
+    "business": {
+      "hero": {
+        "comingSoon": "Coming Soon",
+        "description": "With one simple, free integration Vortex handles KYC, compliance and settlement so you can stay focused on your product.",
+        "sdkIntegration": "SDK integration",
+        "titlePart1": "Enable your customers to buy and sell crypto instantly - directly",
+        "titlePart2": "inside your APP",
+        "widgetIntegration": "Widget integration"
+      },
+      "whyVortexApi": {
+        "cta": {
+          "npmPackage": "See the NPM package",
+          "readDocs": "Read our docs",
+          "title": "Obtain a quote. Register the ramp. Execute the ramp."
+        },
+        "features": {
+          "automated": {
+            "description": "Trigger settlements directly from custody wallets, multisigs or smart contracts",
+            "title": "Automated by design"
+          },
+          "liquidity": {
+            "description": "Tap into institutional grade rails to execute reliably, even at scale.",
+            "title": "Deep liquidity"
+          },
+          "pricing": {
+            "description": "Instant quotes. Linked to interbank/Binance FX liquidity. All in cost from 5-45 bps.",
+            "title": "True mid-market pricing"
+          }
+        },
+        "title1": "Need frequent crypto-fiat settlements?",
+        "title2": "Use Vortex API"
+      },
+      "whyVortexBusiness": {
+        "features": {
+          "compliance": {
+            "description": "KYC, AML and licensing. Handled by Vortex",
+            "title": "Compliance built in"
+          },
+          "fastPayouts": {
+            "description": "Fiat settlement in under 10 minutes",
+            "title": "Fast Payouts"
+          },
+          "newRevenueStream": {
+            "description": "Add your own markup and earn on every ramp",
+            "title": "New Revenue Stream"
+          },
+          "pricing": {
+            "description": "True mid-market FX. Users pay 0.5 - 0.85%",
+            "title": "Transparent pricing - built for your users"
+          }
+        },
+        "subtitle": "Vortex hostep app is the fastest way to add a secure fiat on/offramp to your app.",
+        "title": "One integration. Everything handled."
+      }
+    },
     "failure": {
       "contactedSupport": "Ready to try again?",
       "contactSupport": {
@@ -501,7 +592,8 @@
     },
     "main": {
       "hero": {
-        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+        "subtitle": "We keep things simple for you and get you the best rate out there.",
+        "title": "<0>Buy and Sell crypto.</0> <br /> Fast, secure, best rates."
       }
     },
     "progress": {
@@ -637,7 +729,7 @@
     "gotQuestions": {
       "contactUs": "Contact Us",
       "description": "Get in touch with us for answers and support.",
-      "title": "Got Questions? We're here to help!"
+      "title": "Got Questions? <br /> We're here to help!"
     },
     "howToSell": {
       "steps": {
@@ -646,7 +738,7 @@
         "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
         "4": "Wait for the funds to arrive in your account."
       },
-      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance"
+      "title": "How to sell crypto <1> with Vortex Finance </1>"
     },
     "pitch": {
       "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market.",
@@ -658,7 +750,7 @@
         "title": "Supported Networks"
       },
       "tokens": {
-        "description": "Trade these popular stablecoins",
+        "description": "Trade these popular crypto and fiat currencies",
         "title": "Supported Tokens"
       }
     },
@@ -686,7 +778,7 @@
           "title": "Smart KYC"
         }
       },
-      "title": "Buy & Sell Crypto the secure Way",
+      "title": "Buy & Sell Crypto the secure way",
       "withVortexFinance": "with <1>Vortex Finance</1>?"
     }
   },

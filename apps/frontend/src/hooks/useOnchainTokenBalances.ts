@@ -1,7 +1,7 @@
 import {
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
-  assethubTokenConfig,
+  assetHubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   evmTokenConfig,
@@ -62,7 +62,7 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
   const { selectedNetwork } = useNetwork();
 
   const nativeToken = useMemo(() => {
-    const assethubTokens = Object.values(assethubTokenConfig);
+    const assethubTokens = Object.values(assetHubTokenConfig);
     return assethubTokens.find(token => token.isNative);
   }, []);
 

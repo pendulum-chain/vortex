@@ -104,7 +104,7 @@ export function FeeProviderRow({
   ]);
 
   return (
-    <div className={cn(isBestRate && "rounded-md bg-green-500/10 py-1")}>
+    <div className={cn("w-full", isBestRate && "rounded-md bg-green-500/10 py-1")}>
       {isBestRate && (
         <div className="ml-4 pb-1 text-green-700 text-sm italic">{t("sections.feeComparison.table.bestRate")}</div>
       )}
