@@ -75,3 +75,5 @@ export enum MoneriumErrors {
   USER_MINT_ADDRESS_NOT_FOUND = "User mint address not found",
   USER_MINT_ADDRESS_IS_NOT_READY = "User mint address is not ready yet"
 }
+
+export type PermitSignature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };

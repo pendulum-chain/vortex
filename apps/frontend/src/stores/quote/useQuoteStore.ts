@@ -57,6 +57,8 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 const friendlyErrorMessages: Record<QuoteError, string> = {
   // Validation errors - show specific messages
   [QuoteError.MissingRequiredFields]: "pages.swap.error.missingFields",
+  [QuoteError.MissingToField]: "pages.swap.error.missingToField",
+  [QuoteError.MissingFromField]: "pages.swap.error.missingFromField",
   [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
   [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
 

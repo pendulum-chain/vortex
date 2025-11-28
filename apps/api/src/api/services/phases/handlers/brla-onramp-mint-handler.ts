@@ -1,15 +1,24 @@
 import {
+  AveniaPaymentMethod,
   BalanceCheckError,
   BalanceCheckErrorType,
+  BlockchainSendMethod,
+  BrlaApiService,
+  BrlaCurrency,
   checkEvmBalancePeriodically,
   FiatToken,
   getAnyFiatTokenDetailsMoonbeam,
   Networks,
-  RampPhase
+  RampPhase,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
+import Big from "big.js";
+import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import TaxId from "../../../../models/taxId.model";
+import { APIError } from "../../../errors/api-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -38,11 +47,88 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.aveniaMint?.outputAmountRaw) {
-      throw new Error("Missing expected amount to be received in Moonbeam in quote metadata");
+    if (!quote.metadata.aveniaMint) {
+      throw new Error("Missing 'aveniaMint' in quote metadata");
     }
 
-    const expectedAmountReceived = quote.metadata.aveniaMint?.outputAmountRaw;
+    if (!quote.metadata.aveniaTransfer) {
+      throw new Error("Missing 'aveniaTransfer' in quote metadata");
+    }
+
+    const taxIdRecord = await TaxId.findByPk(state.state.taxId);
+    if (!taxIdRecord) {
+      throw new APIError({
+        message: "Subaccount not found",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    try {
+      logger.info(
+        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
+      );
+      await waitUntilTrueWithTimeout(
+        async () => {
+          if (!quote.metadata.aveniaMint) {
+            return false;
+          }
+
+          // Check internal balance of Avenia subaccount
+          const { balances } = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
+          if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
+            return false;
+          }
+          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
+        },
+        5000,
+        PAYMENT_TIMEOUT_MS
+      );
+    } catch (error) {
+      const isCheckTimeout = error instanceof Error && error.message.includes("Timeout");
+      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+        logger.error("Payment timeout. Cancelling ramp.");
+        return this.transitionToNextPhase(state, "failed");
+      }
+
+      throw isCheckTimeout
+        ? this.createRecoverableError(
+            `BrlaOnrampMintHandler: phase timeout reached waiting for Avenia balance with error: ${error}`
+          )
+        : new Error(`Error checking Avenia balance: ${error}`);
+    }
+
+    // Transfer the funds from the subaccount to the ephemeral address
+    const aveniaQuote = await brlaApiService.createPayInQuote({
+      blockchainSendMethod: BlockchainSendMethod.PERMIT,
+      inputAmount: Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0),
+      inputCurrency: BrlaCurrency.BRLA,
+      inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
+      inputThirdParty: false,
+      outputCurrency: BrlaCurrency.BRLA,
+      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputThirdParty: false,
+      subAccountId: taxIdRecord.subAccountId
+    });
+
+    logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
+
+    const aveniaTicket = await brlaApiService.createPixOutputTicket(
+      {
+        quoteToken: aveniaQuote.quoteToken,
+        ticketBlockchainOutput: {
+          walletAddress: state.state.evmEphemeralAddress,
+          walletChain: AveniaPaymentMethod.MOONBEAM
+        }
+      },
+      taxIdRecord.subAccountId
+    );
+
+    const expectedAmountReceived = quote.metadata.aveniaTransfer?.outputAmountRaw;
+
+    logger.info(
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Moonbeam address ${state.state.evmEphemeralAddress}`
+    );
 
     try {
       const pollingTimeMs = 1000;

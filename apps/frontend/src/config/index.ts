@@ -2,7 +2,7 @@ type Environment = "development" | "staging" | "production";
 const nodeEnv = process.env.NODE_ENV as Environment;
 const maybeSignerServiceUrl = import.meta.env.VITE_SIGNING_SERVICE_PATH;
 const alchemyApiKey = import.meta.env.VITE_ALCHEMY_API_KEY;
-const sandboxEnabled = import.meta.env.VITE_SANDBOX_ENABLED;
+const sandboxEnabled = import.meta.env.VITE_SANDBOX_ENABLED === "true";
 const env = (import.meta.env.VITE_ENVIRONMENT || nodeEnv) as Environment;
 
 export const config = {

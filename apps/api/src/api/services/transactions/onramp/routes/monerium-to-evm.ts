@@ -1,6 +1,6 @@
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V1,
   EvmTransactionData,
   isAssetHubTokenDetails,
   Networks,
@@ -10,7 +10,7 @@ import Big from "big.js";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
-import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
+import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
 import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
@@ -47,17 +47,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     walletAddress: destinationAddress
   };
 
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, evmEphemeralEntry.address);
   const moneriumMintNetwork = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
-
-  unsignedTxs.push({
-    meta: {},
-    network: moneriumMintNetwork,
-    nonce: 0,
-    phase: "moneriumOnrampMint",
-    signer: moneriumWalletAddress,
-    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
-  });
 
   let polygonAccountNonce = 0;
 
@@ -80,7 +70,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
       destinationAddress: moneriumWalletAddress,
       fromAddress: evmEphemeralEntry.address,
-      fromToken: ERC20_EURE_POLYGON,
+      fromToken: ERC20_EURE_POLYGON_V1,
       rawAmount: inputAmountPostAnchorFeeRaw,
       toNetwork,
       toToken: outputTokenDetails.erc20AddressSourceChain

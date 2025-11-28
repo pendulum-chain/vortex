@@ -3,7 +3,7 @@ import {
   createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook,
   createPendulumToAssethubTransfer,
   createPendulumToHydrationTransfer,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V1,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkId,
@@ -18,7 +18,7 @@ import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
 import { encodeEvmTransactionData } from "../../index";
-import { createOnrampEphemeralSelfTransfer, createOnrampUserApprove } from "../common/monerium";
+import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
 import {
   addFeeDistributionTransaction,
   addMoonbeamTransactions,
@@ -62,16 +62,6 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
   }
 
   const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.outputAmountRaw).toFixed(0, 0);
-  const initialTransferTxData = await createOnrampUserApprove(inputAmountPostAnchorFeeRaw, evmEphemeralEntry.address);
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Polygon,
-    nonce: 0,
-    phase: "moneriumOnrampMint",
-    signer: moneriumWalletAddress,
-    txData: encodeEvmTransactionData(initialTransferTxData) as EvmTransactionData
-  });
 
   let polygonAccountNonce = 0;
 
@@ -95,7 +85,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     await createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook({
       destinationAddress: substrateEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
-      fromToken: ERC20_EURE_POLYGON,
+      fromToken: ERC20_EURE_POLYGON_V1,
       rawAmount: inputAmountPostAnchorFeeRaw,
       toToken: AXL_USDC_MOONBEAM
     });
@@ -125,9 +115,8 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     squidRouterReceiverId
   };
 
-  // Moonbeam: Initial BRLA transfer to Pendulum
   if (!quote.metadata.evmToMoonbeam?.outputAmountRaw) {
-    throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
+    throw new Error("Missing evmToMoonbeam in quote metadata");
   }
   const receivedTokensOnMoonbeam = quote.metadata.evmToMoonbeam.outputAmountRaw;
 

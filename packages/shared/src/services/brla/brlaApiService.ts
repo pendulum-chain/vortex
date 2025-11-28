@@ -14,7 +14,6 @@ import {
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSwapTicket,
-  AveniaTicketStatus,
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
@@ -168,6 +167,10 @@ export class BrlaApiService {
     if (quoteParams.subAccountId) {
       urlSearchParams.append("subAccountId", quoteParams.subAccountId);
     }
+    if (quoteParams.blockchainSendMethod) {
+      urlSearchParams.append("blockchainSendMethod", quoteParams.blockchainSendMethod);
+    }
+
     const query = urlSearchParams.toString();
     return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
   }
@@ -179,8 +182,8 @@ export class BrlaApiService {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Subtract from user's account
       inputThirdParty: String(false), // Fixed. We know it comes from the user's balance
       outputAmount: quoteParams.outputAmount,
-      outputCurrency: BrlaCurrency.BRL,
-      outputPaymentMethod: AveniaPaymentMethod.PIX,
+      outputCurrency: quoteParams.outputCurrency ? quoteParams.outputCurrency : BrlaCurrency.BRL,
+      outputPaymentMethod: quoteParams.outputPaymentMethod ? quoteParams.outputPaymentMethod : AveniaPaymentMethod.PIX,
       outputThirdParty: String(quoteParams.outputThirdParty)
     });
 
@@ -218,7 +221,10 @@ export class BrlaApiService {
     throw new Error("Invalid response from Avenia API for createPixInputTicket");
   }
 
-  public async createPixOutputTicket(payload: PixOutputTicketPayload, subAccountId: string): Promise<{ id: string }> {
+  public async createPixOutputTicket(
+    payload: PixOutputTicketPayload | PixInputTicketPayload,
+    subAccountId: string
+  ): Promise<{ id: string }> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
 

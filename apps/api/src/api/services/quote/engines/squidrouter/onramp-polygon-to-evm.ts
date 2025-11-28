@@ -1,6 +1,6 @@
 import {
-  ERC20_EURE_POLYGON,
   ERC20_EURE_POLYGON_DECIMALS,
+  ERC20_EURE_POLYGON_V1,
   getNetworkFromDestination,
   Networks,
   OnChainToken,
@@ -50,7 +50,7 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
       data: {
         amountRaw: moneriumMint.outputAmountRaw,
         fromNetwork: Networks.Polygon,
-        fromToken: ERC20_EURE_POLYGON,
+        fromToken: ERC20_EURE_POLYGON_V1,
         inputAmountDecimal: moneriumMint.outputAmountDecimal,
         inputAmountRaw: moneriumMint.outputAmountRaw,
         outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
