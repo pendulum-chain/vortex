@@ -91,7 +91,7 @@ export function Footer() {
           <PoweredBySatoshipay />
         </div>
 
-        <div className="flex flex-wrap flex-1 lg:justify-end justify-between items-start gap-y-8">
+        <div className="grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr] md:grid-cols-5 gap-y-8">
           <FooterSection title={t("components.footer.company.title")}>
             <FooterLink href={`/${i18n.language}/privacy-policy`}>{t("components.footer.company.privacyPolicy")}</FooterLink>
             <FooterLink href="#">{t("components.footer.company.terms")}</FooterLink>
