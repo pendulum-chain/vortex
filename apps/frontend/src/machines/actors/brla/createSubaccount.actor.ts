@@ -33,7 +33,7 @@ export const createSubaccountActor = fromPromise(
       ({ subAccountId } = await BrlaService.getUser(taxId));
 
       try {
-        maybeKycAttemptStatus = await fetchKycStatus(taxId, input.quoteId || "");
+        maybeKycAttemptStatus = await fetchKycStatus(taxId, input.quoteId || "", input.externalSessionId);
       } catch (e) {
         console.log("Debug: could not fetch kyc status", e);
         // It's fine if this fails, we just won't have the status.
@@ -72,6 +72,7 @@ export const createSubaccountActor = fromPromise(
         accountType,
         name: nameToUse,
         quoteId: input.quoteId || "",
+        sessionId: input.externalSessionId,
         taxId
       }));
 

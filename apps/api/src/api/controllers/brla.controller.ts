@@ -154,7 +154,7 @@ export const recordInitialKycAttempt = async (
   res: Response<{} | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId, quoteId } = req.body;
+    const { taxId, quoteId, sessionId } = req.body;
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
@@ -178,6 +178,7 @@ export const recordInitialKycAttempt = async (
         await TaxId.create({
           accountType,
           initialQuoteId: quoteId ?? null,
+          initialSessionId: sessionId ?? null,
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
           taxId
@@ -258,7 +259,7 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse>
 ): Promise<void> => {
   try {
-    const { name, taxId, accountType: requestAccountType, quoteId } = req.body;
+    const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
 
     const isCnpj = isValidCnpj(taxId);
 
@@ -283,6 +284,7 @@ export const createSubaccount = async (
       await TaxId.create({
         accountType,
         initialQuoteId: quoteId,
+        initialSessionId: sessionId ?? null,
         internalStatus: TaxIdInternalStatus.Requested,
         requestedDate: new Date(),
         subAccountId: id,
@@ -302,7 +304,7 @@ export const fetchSubaccountKycStatus = async (
   res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId, quoteId } = req.query;
+    const { taxId, quoteId, sessionId } = req.query;
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
@@ -331,7 +333,12 @@ export const fetchSubaccountKycStatus = async (
       }
       // Also try updating in case we missed the attempt
       await TaxId.update(
-        { finalQuoteId: quoteId, finalTimestamp: new Date(), internalStatus: TaxIdInternalStatus.Accepted },
+        {
+          finalQuoteId: quoteId,
+          finalSessionId: sessionId ?? null,
+          finalTimestamp: new Date(),
+          internalStatus: TaxIdInternalStatus.Accepted
+        },
         {
           where: {
             internalStatus: TaxIdInternalStatus.Requested,
@@ -346,7 +353,12 @@ export const fetchSubaccountKycStatus = async (
 
     if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
       await TaxId.update(
-        { finalQuoteId: quoteId, finalTimestamp: new Date(), internalStatus: TaxIdInternalStatus.Accepted },
+        {
+          finalQuoteId: quoteId,
+          finalSessionId: sessionId ?? null,
+          finalTimestamp: new Date(),
+          internalStatus: TaxIdInternalStatus.Accepted
+        },
         {
           where: {
             internalStatus: TaxIdInternalStatus.Requested,

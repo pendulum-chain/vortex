@@ -169,8 +169,10 @@ export const fetchSep10Signatures = async ({
   return { clientPublic, clientSignature, masterClientPublic, masterClientSignature };
 };
 
-export const fetchKycStatus = async (taxId: string, quoteId: string) => {
-  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}&quoteId=${quoteId}`);
+export const fetchKycStatus = async (taxId: string, quoteId: string, sessionId?: string) => {
+  const statusResponse = await fetch(
+    `${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}&quoteId=${quoteId}${sessionId ? `&sessionId=${sessionId}` : ""}`
+  );
 
   if (statusResponse.status !== 200) {
     throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
@@ -213,10 +215,11 @@ export const createSubaccount = async ({
   name,
   accountType,
   taxId,
-  quoteId
+  quoteId,
+  sessionId
 }: BrlaCreateSubaccountRequest): Promise<{ subAccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify({ accountType, name, quoteId, taxId }),
+    body: JSON.stringify({ accountType, name, quoteId, sessionId, taxId }),
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     method: "POST"

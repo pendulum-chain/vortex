@@ -16,7 +16,9 @@ export interface TaxIdAttributes {
   accountType: AveniaAccountType;
   kycAttempt: string | null;
   initialQuoteId: string | null;
+  initialSessionId: string | null;
   finalQuoteId: string | null;
+  finalSessionId: string | null;
   finalTimestamp: Date | null;
   internalStatus: TaxIdInternalStatus | null;
   requestedDate: Date | null;
@@ -31,7 +33,9 @@ type TaxIdCreationAttributes = Optional<
   | "updatedAt"
   | "kycAttempt"
   | "initialQuoteId"
+  | "initialSessionId"
   | "finalQuoteId"
+  | "finalSessionId"
   | "finalTimestamp"
   | "internalStatus"
   | "requestedDate"
@@ -44,7 +48,9 @@ class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements T
   declare accountType: AveniaAccountType;
   declare kycAttempt: string | null;
   declare initialQuoteId: string | null;
+  declare initialSessionId: string | null;
   declare finalQuoteId: string | null;
+  declare finalSessionId: string | null;
   declare finalTimestamp: Date | null;
   declare internalStatus: TaxIdInternalStatus | null;
   declare requestedDate: Date | null;
@@ -71,6 +77,11 @@ TaxId.init(
       field: "final_quote_id",
       type: DataTypes.STRING
     },
+    finalSessionId: {
+      allowNull: true,
+      field: "final_session_id",
+      type: DataTypes.STRING
+    },
     finalTimestamp: {
       allowNull: true,
       field: "final_timestamp",
@@ -79,6 +90,11 @@ TaxId.init(
     initialQuoteId: {
       allowNull: true,
       field: "initial_quote_id",
+      type: DataTypes.STRING
+    },
+    initialSessionId: {
+      allowNull: true,
+      field: "initial_session_id",
       type: DataTypes.STRING
     },
     internalStatus: {

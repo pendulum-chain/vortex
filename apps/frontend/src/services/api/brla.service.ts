@@ -44,18 +44,17 @@ export class BrlaService {
    * @param quoteId
    * @returns An empty response
    **/
-  static async recordInitialKycAttempt(taxId: string, quoteId?: string): Promise<{}> {
-    console.log("Recording initial KYC attempt for taxId:", taxId, "quoteId:", quoteId);
-    return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, taxId });
+  static async recordInitialKycAttempt(taxId: string, quoteId?: string, sessionId?: string): Promise<{}> {
+    return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
   }
   /**
    * Get the KYC status of a subaccount
    * @param taxId The user's tax ID
    * @returns The KYC status
    */
-  static async getKycStatus(taxId: string, quoteId: string): Promise<BrlaGetKycStatusResponse> {
+  static async getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse> {
     return apiRequest<BrlaGetKycStatusResponse>("get", `${this.BASE_PATH}/getKycStatus`, undefined, {
-      params: { quoteId, taxId }
+      params: { quoteId, sessionId, taxId }
     });
   }
 
