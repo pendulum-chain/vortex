@@ -28,11 +28,11 @@ export const Main = () => {
                   <Trans i18nKey="pages.main.hero.subtitle" />
                 </p>
               </div>
-              <div className="animate-slide-up md:w-5/6 lg:w-full xl:w-5/6 flex justify-center pt-2 flex-col items-center mx-auto lg:mx-0 overflow-hidden">
+              <div className="animate-slide-up md:w-4/5 lg:w-full xl:w-4/5 flex justify-center pt-2 flex-col items-center mx-auto lg:mx-0 overflow-hidden">
                 <motion.img
                   alt="Widget Snippet"
                   animate={{ opacity: 1, scale: 1, transition: { duration: 0.15, ease: "easeOut" }, y: 0 }}
-                  className="max-w-5/6 hover:scale-101 transition-all duration-300 cursor-pointer z-10"
+                  className="max-w-4/5 hover:scale-101 transition-all duration-300 cursor-pointer z-10"
                   initial={{ opacity: 0, scale: 0.9, y: 250 }}
                   src={WidgetSnippetImage}
                 />
