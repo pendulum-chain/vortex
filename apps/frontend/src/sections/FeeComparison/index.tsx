@@ -15,10 +15,10 @@ export const FeeComparison = () => {
 
   return (
     <section
-      className="py-32 bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 sm:px-10"
+      className="py-32 bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))]"
       ref={ref}
     >
-      <div className="container mx-auto grid grid-cols-1 gap-x-20 gap-y-10 lg:gap-y-0 px-4 py-8 lg:grid-cols-2">
+      <div className="container mx-auto grid grid-cols-1 gap-x-20 gap-y-10 lg:gap-y-0 py-8 lg:grid-cols-2 px-4 sm:px-8">
         <div className="text-white ">
           <h1 className="text-h1">
             <Trans i18nKey="sections.feeComparison.title">

@@ -59,10 +59,10 @@ export const WhyVortex = () => {
   ];
 
   return (
-    <section className="container mx-auto py-32 relative grid grid-cols-1 lg:grid-cols-2 gap-x-20 px-4 md:px-10 py-8">
+    <section className="container mx-auto pt-32 mb-32 relative grid grid-cols-1 lg:grid-cols-2 gap-x-20 px-4 sm:px-8">
       <motion.h1
         animate={{ x: 0 }}
-        className="text-h1 md:text-h2 text-center text-black lg:sticky lg:top-24 lg:h-[100px] lg:pl-4 lg:text-left"
+        className="text-h1 md:text-5xl! xl:text-6xl! text-center text-black lg:sticky lg:top-24 lg:h-[200px] lg:text-left"
         initial={{ x: -50 }}
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}

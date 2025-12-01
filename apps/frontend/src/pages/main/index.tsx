@@ -16,8 +16,8 @@ export const Main = () => {
     <main>
       {!isWidgetMode ? (
         <>
-          <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] lg:py-32 px-4 md:px-10">
-            <div className="container mx-auto grid grid-cols-1 gap-x-20 px-4 py-8 gap-y-10 lg:grid-cols-2">
+          <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] lg:py-32">
+            <div className="container mx-auto grid grid-cols-1 gap-x-20 py-8 gap-y-10 lg:grid-cols-2 px-4 sm:px-8">
               <div className="flex flex-col gap-6 animate-slide-up">
                 <h1 className="text-h1 pt-8 text-center text-white lg:pt-0 lg:text-start font-bold">
                   <Trans i18nKey="pages.main.hero.title">
