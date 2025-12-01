@@ -1,15 +1,17 @@
 import {
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V2,
   EvmClientManager,
   getEvmTokenBalance,
-  getNetworkId,
   Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { PublicClient } from "viem";
+import { encodeFunctionData, PublicClient } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
+import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
+import { permitAbi } from "../../../../contracts/PermitAbi";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -19,11 +21,12 @@ import { BasePhaseHandler } from "../base-phase-handler";
  */
 export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   private polygonClient: PublicClient;
+  private evmClientManager: EvmClientManager;
 
   constructor() {
     super();
-    const evmClientManager = EvmClientManager.getInstance();
-    this.polygonClient = evmClientManager.getClient(Networks.Polygon);
+    this.evmClientManager = EvmClientManager.getInstance();
+    this.polygonClient = this.evmClientManager.getClient(Networks.Polygon);
   }
 
   /**
@@ -55,20 +58,26 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       throw new Error("MoneriumOnrampSelfTransfer: Missing moneriumMint metadata.");
     }
 
-    const { evmEphemeralAddress } = state.state;
+    const { evmEphemeralAddress, moneriumOnrampPermit, moneriumWalletAddress } = state.state;
     if (!evmEphemeralAddress) {
       throw new Error("MoneriumOnrampSelfTransfer: Polygon ephemeral address not defined in the state. This is a bug.");
     }
+    if (!moneriumOnrampPermit) {
+      throw new Error("MoneriumOnrampSelfTransfer: Missing Monerium permit in state metadata. State corrupted.");
+    }
+    if (!moneriumWalletAddress) {
+      throw new Error("MoneriumOnrampSelfTransfer: Missing Monerium wallet address in state metadata. State corrupted.");
+    }
 
-    const inputAmountBeforeSwapRaw = quote.metadata.moneriumMint.outputAmountRaw;
+    const mintedAmountRaw = quote.metadata.moneriumMint.outputAmountRaw;
 
     const didTokensArriveOnEvm = async () => {
       const balance = await getEvmTokenBalance({
         chain: Networks.Polygon,
         ownerAddress: evmEphemeralAddress as `0x${string}`,
-        tokenAddress: ERC20_EURE_POLYGON
+        tokenAddress: ERC20_EURE_POLYGON_V2
       });
-      return balance.gte(Big(inputAmountBeforeSwapRaw));
+      return balance.gte(Big(mintedAmountRaw));
     };
 
     try {
@@ -82,22 +91,52 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
     }
 
     try {
+      const account = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      let permitHash: string;
+
+      if (state.state.permitTxHash) {
+        logger.info(`Permit transaction already sent with hash: ${state.state.permitTxHash}. Skipping permit sending.`);
+        permitHash = state.state.permitTxHash;
+      } else {
+        // Send permit transaction
+        const permitData = encodeFunctionData({
+          abi: permitAbi,
+          args: [
+            moneriumWalletAddress,
+            state.state.evmEphemeralAddress,
+            BigInt(mintedAmountRaw),
+            moneriumOnrampPermit.deadline,
+            moneriumOnrampPermit.v,
+            moneriumOnrampPermit.r,
+            moneriumOnrampPermit.s
+          ],
+          functionName: "permit"
+        });
+        permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
+          data: permitData,
+          to: ERC20_EURE_POLYGON_V2
+        });
+        logger.info(`Permit transaction executed with hash: ${permitHash}`);
+
+        await this.waitForTransactionConfirmation(permitHash);
+        logger.info(`Permit transaction confirmed: ${permitHash}`);
+
+        state.state.permitTxHash = permitHash;
+        await state.update({ state: state.state });
+      }
+
       const transferTransaction = this.getPresignedTransaction(state, "moneriumOnrampSelfTransfer");
 
       if (!transferTransaction) {
-        throw new Error("Missing presigned transactions for moneriumOnrampSelfTransfer phase");
+        throw new Error("Missing presigned transactions for moneriumOnrampSelfTransfer phase. State corrupted.");
       }
-
-      // Under our current implementation, funds are transferred to an Ephemeral also on Polygon.
-      const chainId = getNetworkId(Networks.Polygon);
 
       // Execute the transfer transaction
       const transferHash = await this.executeTransaction(transferTransaction.txData as string);
       logger.info(`Transfer transaction executed with hash: ${transferHash}`);
 
-      // Wait for the transfer transaction to be confirmed
-      await this.waitForTransactionConfirmation(transferHash, chainId);
-      logger.info(`Transfer transaction confirmed: ${transferHash}`);
+      await this.waitForTransactionConfirmation(transferHash);
+      logger.info(`TransferFrom transaction confirmed: ${transferHash}`);
 
       // Wait for another 30 seconds to give time for the balance to update (in case other RPC nodes are lagging)
       logger.info("Waiting 30 seconds to ensure balance is updated...");
@@ -106,7 +145,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       // Transition to the next phase
       return this.transitionToNextPhase(state, "squidRouterSwap");
     } catch (error: unknown) {
-      logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
+      logger.error(`Error in self-transfer phase for ramp ${state.id}:`, error);
       throw this.createRecoverableError(
         `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`
       );
@@ -134,7 +173,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    * @param txHash The transaction hash
    * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
+  private async waitForTransactionConfirmation(txHash: string): Promise<void> {
     try {
       const receipt = await this.polygonClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`
