@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import SEPA from "../../assets/payments/sepa.svg";
+import CIRCLE from "../../assets/trusted-by/circle.svg";
 import COINDESK from "../../assets/trusted-by/coindesk.svg";
 import ETHEREUM from "../../assets/trusted-by/ethereum.svg";
 import METAMASK from "../../assets/trusted-by/metamask.svg";
@@ -10,6 +11,7 @@ import POLKADOT from "../../assets/trusted-by/polkadot.svg";
 import WEB3 from "../../assets/trusted-by/web3.svg";
 
 const trustedByImages = [
+  { alt: "Circle logo", src: CIRCLE },
   { alt: "Polkadot logo", src: POLKADOT },
   { alt: "Ethereum logo", src: ETHEREUM },
   { alt: "MetaMask logo", src: METAMASK },
