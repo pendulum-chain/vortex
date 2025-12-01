@@ -28,7 +28,7 @@ export const HowToSell = () => {
         <div className="mb-12 text-center">
           <p className="text-h2 text-white leading-[3rem]">
             <Trans i18nKey="sections.howToSell.title">
-              How to sell crypto <span className="text-blue-400"> with Vortex Finance </span>
+              How to sell crypto <span className="text-blue-400"> with Vortex </span>
             </Trans>
           </p>
         </div>
