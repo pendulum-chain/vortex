@@ -69,7 +69,7 @@ export const WhyVortex = () => {
       >
         {t("sections.whyVortex.title")}{" "}
         <Trans i18nKey="sections.whyVortex.withVortexFinance">
-          with <strong className="text-primary">Vortex Finance</strong>?
+          with <strong className="text-primary">Vortex</strong>?
         </Trans>
       </motion.h1>
       <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">

@@ -530,7 +530,7 @@
       },
       "whyVortexApi": {
         "cta": {
-          "npmPackage": "See the NPM package",
+          "npmPackage": "NPM package",
           "readDocs": "Read our docs",
           "title": "Obtain a quote. Register the ramp. Execute the ramp."
         },
@@ -780,7 +780,7 @@
         }
       },
       "title": "Buy & Sell Crypto the secure way",
-      "withVortexFinance": "with <1>Vortex Finance</1>?"
+      "withVortexFinance": "with <1>Vortex</1>?"
     }
   },
   "toasts": {

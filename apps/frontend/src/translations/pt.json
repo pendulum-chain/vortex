@@ -704,7 +704,7 @@
         "3": "Retorne ao VortexFinance.co e confirme a transação em sua carteira.",
         "4": "Aguarde a chegada dos fundos em sua conta."
       },
-      "title": "Como vender criptomoedas online <br class='hidden md:block' /> com Vortex Finance"
+      "title": "Como vender criptomoedas online <br class='hidden md:block' /> com Vortex"
     },
     "pitch": {
       "description": "Complete tudo em uma única etapa simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> desfrute de transações rápidas, seguras e as melhores taxas do mercado.",
@@ -745,7 +745,7 @@
         }
       },
       "title": "Compre e Venda criptomoedas com segurança",
-      "withVortexFinance": "com <1>Vortex Finance</1>?"
+      "withVortexFinance": "com <1>Vortex</1>?"
     }
   },
   "toasts": {
