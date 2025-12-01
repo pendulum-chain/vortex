@@ -1,4 +1,3 @@
-import { BrlaPostRecordInitialKycAttemptRequest, isValidCpf } from "@packages/shared";
 import {
   AveniaAccountType,
   AveniaDocumentType,
@@ -17,9 +16,11 @@ import {
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserRequest,
   BrlaGetUserResponse,
+  BrlaPostRecordInitialKycAttemptRequest,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
   isValidCnpj,
+  isValidCpf,
   KybAttemptStatusResponse,
   KybLevel1Response,
   KycAttemptResult,
