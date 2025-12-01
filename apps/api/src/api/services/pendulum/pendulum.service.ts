@@ -53,9 +53,9 @@ export const fundEphemeralAccount = async (
     }
 
     const didBalanceReachExpected = async () => {
-      const balanceResponse = await apiData.api.query.balances.account(ephemeralAddress);
+      const { data: balance } = await apiData.api.query.system.account(ephemeralAddress);
 
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      const currentBalance = Big(balance?.free?.toString() ?? "0");
       return currentBalance.gt(0);
     };
 
