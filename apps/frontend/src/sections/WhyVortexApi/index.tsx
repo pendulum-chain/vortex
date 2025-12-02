@@ -15,8 +15,8 @@ export function WhyVortexApi() {
           </h1>
         </div>
 
-        <div className="grid grid-cols-1 items-center justify-center gap-x-20 gap-y-10 lg:grid-cols-[1fr_2fr]">
-          <ul>
+        <div className="grid grid-cols-1 justify-center gap-x-20 gap-y-10 lg:grid-cols-[1fr_2fr]">
+          <ul className="mt-0 md:mt-8">
             <li>
               <div className="mt-6 flex items-center gap-2">
                 <CheckCircleIcon className="h-6 w-6 text-blue-400" />
@@ -62,9 +62,7 @@ export function WhyVortexApi() {
               playsInline
               src={quoteRequestPreview}
             />
-            <p className="mt-3 px-10 text-center text-h3 text-white lg:px-0 lg:text-left">
-              {t("pages.business.whyVortexApi.cta.title")}
-            </p>
+            <p className="mt-6 px-10 text-center text-h3 text-white lg:px-0">{t("pages.business.whyVortexApi.cta.title")}</p>
             <div className="mt-6 flex items-center justify-center gap-2">
               <a
                 className="btn btn-vortex-primary px-10 text-white"
