@@ -38,13 +38,13 @@ const SocialIcon = ({ social }: { social: SocialLink }) => (
 
 const Copyright = () => {
   const { t } = useTranslation();
-  return <p className="text-sm text-gray-500">{t("components.footer.copyright", { year: new Date().getFullYear() })}</p>;
+  return <p className="text-gray-500 text-sm">{t("components.footer.copyright", { year: new Date().getFullYear() })}</p>;
 };
 
 const PoweredBySatoshipay = () => {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center mt-4">
+    <div className="mt-4 flex items-center">
       <p className="mr-1 text-gray-500 text-xs">{t("components.footer.poweredBy")}</p>
       <a className="transition hover:opacity-80" href="https://satoshipay.io" rel="noopener noreferrer" target="_blank">
         <img alt="Satoshipay" className="h-4" src={SATOSHIPAY_LOGO} />
@@ -54,9 +54,9 @@ const PoweredBySatoshipay = () => {
 };
 
 const FooterSection = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="flex flex-col min-w-[160px] mb-8 mr-8">
-    <h3 className="font-bold mb-4 text-gray-900">{title}</h3>
-    <div className="flex flex-col gap-3 text-sm text-gray-600">{children}</div>
+  <div className="mr-8 mb-8 flex min-w-[160px] flex-col">
+    <h3 className="mb-4 font-bold text-gray-900">{title}</h3>
+    <div className="flex flex-col gap-3 text-gray-600 text-sm">{children}</div>
   </div>
 );
 
@@ -72,7 +72,7 @@ const FooterLink = ({
   className?: string;
 }) => (
   <a
-    className={`hover:text-primary transition-colors ${className}`}
+    className={`transition-colors hover:text-primary ${className}`}
     href={href}
     {...(external ? { rel: "noopener noreferrer", target: "_blank" } : {})}
   >
@@ -84,14 +84,14 @@ export function Footer() {
   const { t, i18n } = useTranslation();
 
   return (
-    <footer className="px-4 lg:px-10 py-16 container mx-auto border-t border-gray-100">
+    <footer className="container mx-auto border-gray-100 border-t px-4 py-16 lg:px-10">
       <div className="flex flex-wrap justify-between">
-        <div className="w-full lg:w-auto mb-10 mr-4 lg:mr-8 flex flex-col items-start">
-          <img alt="Vortex" className="h-8 mb-4" src={VORTEX_LOGO} />
+        <div className="mr-4 mb-10 flex w-full flex-col items-start lg:mr-8 lg:w-auto">
+          <img alt="Vortex" className="mb-4 h-8" src={VORTEX_LOGO} />
           <PoweredBySatoshipay />
         </div>
 
-        <div className="grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr] md:grid-cols-5 gap-y-8">
+        <div className="grid w-full grid-cols-[1fr_1fr] gap-y-8 sm:grid-cols-[1fr_1fr_1fr] md:grid-cols-5">
           <FooterSection title={t("components.footer.company.title")}>
             <FooterLink href={`/${i18n.language}/privacy-policy`}>{t("components.footer.company.privacyPolicy")}</FooterLink>
             <FooterLink href="#">{t("components.footer.company.terms")}</FooterLink>
@@ -99,31 +99,31 @@ export function Footer() {
               {t("components.footer.company.careers")}
             </FooterLink>
 
-            <div className="flex flex-col gap-2 mt-2">
+            <div className="mt-2 flex flex-col gap-2">
               <span className="font-medium text-gray-900">{t("components.footer.company.licences")}</span>
               <FooterLink
-                className="pl-2 border-l-2 border-gray-200 hover:border-primary"
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
                 external
                 href="https://app.avenia.io/Avenia-TC.pdf"
               >
                 {t("components.footer.company.avenia")}
               </FooterLink>
               <FooterLink
-                className="pl-2 border-l-2 border-gray-200 hover:border-primary hover:border-primary"
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary hover:border-primary"
                 external
                 href="https://anclap.com"
               >
                 {t("components.footer.company.anclap")}
               </FooterLink>
               <FooterLink
-                className="pl-2 border-l-2 border-gray-200 hover:border-primary"
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
                 external
                 href="https://monerium.com/policies/personal-terms-of-service-2025-05-20/"
               >
                 {t("components.footer.company.monerium")}
               </FooterLink>
               <FooterLink
-                className="pl-2 border-l-2 border-gray-200 hover:border-primary"
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
                 external
                 href="https://terms.mykobo.co/"
               >
@@ -162,9 +162,9 @@ export function Footer() {
         </div>
       </div>
 
-      <hr className="border-gray-200 my-8" />
+      <hr className="my-8 border-gray-200" />
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
         <Copyright />
         <div className="flex gap-4">
           {SOCIALS.map(social => (
