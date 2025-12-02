@@ -74,7 +74,7 @@ export function BusinessMain() {
           whileHover={{ scale: 1.15, transition: { duration: 0.1, ease: "easeOut" } }}
         />
       </div>
-      <div className="relative z-20 mt-4 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+      <div className="relative z-20 mt-24 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
     </section>
   );
 }

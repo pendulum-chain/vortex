@@ -61,10 +61,10 @@ export const WhyVortexBusiness = () => {
   return (
     <section className="container mx-auto py-16 md:py-32">
       <div className="relative flex flex-col items-center justify-center">
-        <h1 className="text-center font-light text-3xl text-black sm:text-5xl md:text-6xl lg:pt-0 lg:text-start">
+        <h1 className="text-center text-gray-900 text-h2 lg:pt-0 lg:text-start">
           {t("pages.business.whyVortexBusiness.title")}
         </h1>
-        <p className="mt-6 md:mb-16 text-center md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>
+        <p className="mt-6 text-center md:mb-16 md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>
         <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
           {features.map(feature => (
             <FeatureCard key={feature.title} {...feature} />
