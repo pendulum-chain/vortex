@@ -161,10 +161,10 @@ export function PopularTokens() {
           </div>
         </div>
         <div className="relative z-20 mt-4 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
-        <div className="relative z-20 mt-2 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-2 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-2 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-2 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
       </div>
 
       <div className="mb-12">
