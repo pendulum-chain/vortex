@@ -73,11 +73,11 @@ export const Main = () => {
       {!isWidgetMode ? (
         <>
           <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] lg:py-32">
-            <div className="container mx-auto grid grid-cols-1 gap-x-20 py-8 gap-y-10 lg:grid-cols-[1fr_1fr] px-4 sm:px-8">
+            <div className="container mx-auto grid grid-cols-1 gap-x-20 gap-y-10 px-4 py-8 sm:px-8 lg:grid-cols-[1fr_1fr]">
               <div className="flex flex-col gap-6">
                 <motion.h1
                   animate="visible"
-                  className="text-h1 pt-8 text-center text-white lg:pt-0 lg:text-start font-bold"
+                  className="pt-8 text-center font-bold text-h1 text-white lg:pt-0 lg:text-start"
                   initial="hidden"
                   variants={{
                     visible: {
@@ -89,29 +89,29 @@ export const Main = () => {
                 >
                   <AnimatedTitle text={t("pages.main.hero.title")} />
                 </motion.h1>
-                <p className="text-body-lg text-center text-white lg:text-left">
+                <p className="text-center text-body-lg text-white lg:text-left">
                   <Trans i18nKey="pages.main.hero.subtitle" />
                 </p>
-                <div className="flex gap-x-12">
+                <div className="flex w-full justify-center gap-x-4 lg:justify-start">
                   <a
-                    className="btn btn-vortex-primary flex-1"
+                    className="btn btn-vortex-primary w-1/3"
                     href="https://api-docs.vortexfinance.co/widgets/"
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    Buy and Sell Crypto
+                    Buy & Sell Crypto
                   </a>
-                  <Link className="btn btn-vortex-primary-inverse flex-1" to="/{-$locale}/business">
+                  <Link className="btn btn-vortex-primary-inverse w-1/3" to="/{-$locale}/business">
                     Partner with us
                   </Link>
                 </div>
               </div>
-              <div className="md:w-4/5 lg:w-full xl:w-4/5 flex justify-center pt-2 flex-col items-center mx-auto lg:mx-0 relative">
-                <div className="overflow-hidden relative pt-2">
+              <div className="relative mx-auto flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 lg:w-full xl:w-4/5">
+                <div className="relative overflow-hidden pt-2">
                   <motion.img
                     alt="Widget Snippet"
                     animate={{ opacity: 1, rotateX: 0, scale: 1, transition: { duration: 0.3, ease: "easeOut" }, y: 0 }}
-                    className="max-w-4/5 z-20 relative shadow-custom mx-auto"
+                    className="relative z-20 mx-auto max-w-4/5 shadow-custom"
                     initial={{ opacity: 0.4, rotateX: "120deg", scale: 0.9, y: 350 }}
                     src={WidgetSnippetImage}
                     whileHover={{ scale: 1.01 }}
@@ -129,16 +129,13 @@ export const Main = () => {
                         type: "spring"
                       }
                     }}
-                    className="max-w-4/5 z-10 absolute top-2/3 left-4/7 -translate-x-1/2 -translate-y-1/2 shadow-custom hover:z-30"
+                    className="-translate-x-1/2 -translate-y-1/2 absolute top-2/3 left-4/7 z-10 max-w-4/5 shadow-custom hover:z-30"
                     initial={{ opacity: 0, rotateZ: 0, scale: 0.8 }}
                     src={WidgetSnippetImageSell}
                     whileHover={{ rotateZ: 2, scale: 1.01 }}
                   />
                 </div>
-                <div className="bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 rounded-lg p-0.5 flex w-full justify-center gap-4 items-center relative z-20"></div>
-                <div className="mt-2 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 rounded-lg p-0.5 flex w-5/6 justify-center gap-4 items-center relative z-20 opacity-60"></div>
-                <div className="mt-2 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 rounded-lg p-0.5 flex w-4/6 justify-center gap-4 items-center relative z-20 opacity-40"></div>
-                <div className="mt-2 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 rounded-lg p-0.5 flex w-3/6 justify-center gap-4 items-center relative z-20 opacity-20"></div>
+                <div className="relative z-20 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
               </div>
             </div>
           </section>

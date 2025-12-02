@@ -28,7 +28,7 @@ export function FeeComparisonProviderList({ sourceAssetSymbol, targetAssetSymbol
             : undefined;
 
         return (
-          <div className="flex h-[74px] w-full items-center border-gray-200 border-t hover:bg-blue-950/10" key={provider.name}>
+          <div className="flex h-[74px] w-full items-center border-gray-100 border-t hover:bg-blue-950/10" key={provider.name}>
             <FeeProviderRow
               amountRaw={amount}
               bestPrice={bestProvider.bestPrice}

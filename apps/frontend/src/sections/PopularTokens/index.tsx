@@ -142,22 +142,29 @@ export function PopularTokens() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-32 text-center md:px-10">
-      <div className="mb-32 flex w-full gap-4">
-        <a
-          className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
-          href="https://partners.circle.com/partner/vortex"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <img alt="Circle Internet Group" src={CIRCLE} />
-          <div className="mt-4 flex items-center justify-center gap-1">
-            <>We're an official partner of Circle</>
-            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+      <div className="mb-32 flex flex-col items-center justify-center">
+        <div className="flex w-full gap-4">
+          <a
+            className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
+            href="https://partners.circle.com/partner/vortex"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <img alt="Circle Internet Group" src={CIRCLE} />
+            <div className="mt-4 flex items-center justify-center gap-1">
+              <>We're an official partner of Circle</>
+              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            </div>
+          </a>
+          <div className="flex w-2/5 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-103">
+            <img alt="Vortex" className="w-1/2" src={VORTEX} />
           </div>
-        </a>
-        <div className="flex w-2/5 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-103">
-          <img alt="Vortex" className="w-1/2" src={VORTEX} />
         </div>
+        <div className="relative z-20 mt-4 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+        <div className="relative z-20 mt-2 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-2 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-2 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-2 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
       </div>
 
       <div className="mb-12">

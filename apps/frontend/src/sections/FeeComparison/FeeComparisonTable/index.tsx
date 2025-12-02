@@ -16,9 +16,8 @@ export function FeeComparisonTable() {
   const { sourceAssetSymbol, targetAssetSymbol } = getAssetSymbols(rampDirection, selectedNetwork, onChainToken, fiatToken);
 
   return (
-    <div className="rounded-2xl bg-white p-4 pb-8 shadow-custom transition-all duration-300 hover:scale-[101%]">
+    <div className="rounded-xl bg-white p-4 pb-8 shadow-xl transition-all duration-300 hover:scale-101">
       <FeeComparisonHeader amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
-
       <FeeComparisonProviderList amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
     </div>
   );
