@@ -9,8 +9,8 @@ export function WhyVortexApi() {
     <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 md:px-10 md:py-32">
       <div className="container mx-auto">
         <div className="flex animate-slide-up flex-col items-center justify-center">
-          <h1 className="pt-8 text-center font-bold text-h1 text-white">{t("pages.business.whyVortexApi.title1")}</h1>
-          <h1 className="pt-2 text-center font-bold text-blue-400 text-h1 lg:pt-0 lg:text-start">
+          <h1 className="pt-8 text-center text-h2 text-white">{t("pages.business.whyVortexApi.title1")}</h1>
+          <h1 className="pt-2 text-center text-blue-400 text-h2 lg:pt-0 lg:text-start">
             {t("pages.business.whyVortexApi.title2")}
           </h1>
         </div>
