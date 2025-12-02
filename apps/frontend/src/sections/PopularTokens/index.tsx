@@ -143,7 +143,9 @@ export function PopularTokens() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-32 text-center md:px-10">
       <div className="mb-32 flex flex-col items-center justify-center">
-        <div className="flex w-full gap-4">
+        <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
+        <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
+        <div className="mt-4 flex w-full gap-4">
           <a
             className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
             href="https://partners.circle.com/partner/vortex"

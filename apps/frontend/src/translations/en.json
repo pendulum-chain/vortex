@@ -532,7 +532,7 @@
         "cta": {
           "npmPackage": "NPM package",
           "readDocs": "Read our docs",
-          "title": "Obtain a quote. Register the ramp. Execute the ramp."
+          "title": "Obtain a quote. Register the ramp. Execute the transaction."
         },
         "features": {
           "automated": {
