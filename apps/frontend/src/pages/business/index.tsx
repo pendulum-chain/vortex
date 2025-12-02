@@ -1,3 +1,4 @@
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "framer-motion";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -10,42 +11,41 @@ export function BusinessMain() {
 
   return (
     <main>
-      <section className="container mx-auto grid grid-cols-1 gap-x-20 px-4 md:px-10 py-8 gap-y-10 lg:grid-cols-2 grid-rows-2 lg:grid-rows-1 pt-16 md:py-32">
-        <div className="flex flex-col justify-center animate-slide-up">
-          <div>
-            <h1 className="animate-slide-up text-h1 text-center text-black lg:text-start">
-              <Trans i18nKey="pages.business.hero.titlePart1" />{" "}
-              <span className="text-blue-700">
-                <Trans i18nKey="pages.business.hero.titlePart2" />
-              </span>
-            </h1>
-            <p className="animate-slide-up my-6 text-center lg:text-left sm:text-xl">{t("pages.business.hero.description")}</p>
-          </div>
-          <div className="animate-slide-up mt-4 flex gap-2 justify-center lg:justify-start">
+      <section className="container mx-auto grid grid-cols-1 grid-rows-2 gap-x-20 gap-y-10 px-4 md:px-10 ">
+        <div className="flex flex-col items-center justify-center">
+          <h1 className="max-w-128 text-center font-bold text-gray-800 text-h2">
+            <Trans i18nKey="pages.business.hero.titlePart1" />{" "}
+            <span className="text-blue-700">
+              <Trans i18nKey="pages.business.hero.titlePart2" />
+            </span>
+          </h1>
+          <p className="my-6 max-w-164 text-center sm:text-lg">{t("pages.business.hero.description")}</p>
+
+          <div className="mt-4 flex justify-center gap-2 lg:justify-start">
             <a
               className="btn btn-vortex-primary"
               href="https://api-docs.vortexfinance.co/"
               rel="noopener noreferrer"
               target="_blank"
             >
-              {t("pages.business.hero.sdkIntegration")}
+              {t("pages.business.hero.sdkIntegration")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
             </a>
             <div className="relative">
-              <div className="animate-slide-up badge absolute top-[-10px] right-[-20px] z-20 bg-blue-700 text-white">
+              <div className="badge absolute top-[-10px] right-[-20px] z-20 animate-slide-up bg-blue-700 text-white">
                 {t("pages.business.hero.comingSoon")}
               </div>
-              <button className="animate-slide-up btn btn-vortex-primary-inverse" disabled>
-                {t("pages.business.hero.widgetIntegration")}
+              <button className="btn btn-vortex-primary-inverse animate-slide-up" disabled>
+                {t("pages.business.hero.widgetIntegration")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="relative flex justify-around items-center w-flex">
+        <div className="relative mx-auto flex w-flex items-center justify-around lg:w-2/3">
           <motion.img
             alt="Widget Snippet EUR"
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="cursor-pointer shadow-custom rounded-lg w-1/3 z-10 hover:z-30"
+            className="z-10 w-1/3 cursor-pointer rounded-lg shadow-custom hover:z-30"
             draggable={false}
             initial={{ opacity: 0, scale: 0.9, y: 150 }}
             src={WidgetSnippetImageEUR}
@@ -56,7 +56,7 @@ export function BusinessMain() {
           <motion.img
             alt="Widget Snippet Sell"
             animate={{ opacity: 1, scale: 1.15, y: 0 }}
-            className="cursor-pointer shadow-custom rounded-lg w-1/3 z-20 hover:z-30"
+            className="z-20 w-1/3 cursor-pointer rounded-lg shadow-custom hover:z-30"
             draggable={false}
             initial={{ opacity: 0, scale: 0.9, y: 150 }}
             src={WidgetSnippetImageSell}
@@ -67,7 +67,7 @@ export function BusinessMain() {
           <motion.img
             alt="Widget Snippet BRL"
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="cursor-pointer shadow-custom rounded-lg w-1/3 z-10 hover:z-30"
+            className="z-10 w-1/3 cursor-pointer rounded-lg shadow-custom hover:z-30"
             draggable={false}
             initial={{ opacity: 0, scale: 0.9, y: 150 }}
             src={WidgetSnippetImageBRL}
