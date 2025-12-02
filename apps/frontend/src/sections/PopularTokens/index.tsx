@@ -1,3 +1,4 @@
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   AssetHubToken,
   assetHubTokenConfig,
@@ -11,6 +12,8 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import VORTEX from "../../assets/logo/vortex_x.svg";
+import CIRCLE from "../../assets/trusted-by/circle.svg";
 import { cn } from "../../helpers/cn";
 import { isValidAssetIcon, useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
@@ -67,7 +70,7 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
     <motion.li
       animate={{ scale }}
       className={cn(
-        "flex items-center justify-center rounded-full px-4 py-2 shadow-lg cursor-pointer hover:bg-gray-200",
+        "flex cursor-pointer items-center justify-center rounded-full px-4 py-2 shadow-lg hover:bg-gray-200",
         bgColor,
         onClick && "active:scale-95 active:bg-gray-400"
       )}
@@ -138,10 +141,28 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl py-32 text-center px-4 md:px-10">
+    <div className="mx-auto max-w-2xl px-4 py-32 text-center md:px-10">
+      <div className="mb-32 flex w-full gap-4">
+        <a
+          className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
+          href="https://partners.circle.com/partner/vortex"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <img alt="Circle Internet Group" src={CIRCLE} />
+          <div className="mt-4 flex items-center justify-center gap-1">
+            <>We're an official partner of Circle</>
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          </div>
+        </a>
+        <div className="flex w-2/5 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-103">
+          <img alt="Vortex" className="w-1/2" src={VORTEX} />
+        </div>
+      </div>
+
       <div className="mb-12">
-        <h2 className="text-h2 text-gray-900">{t("sections.popularTokens.networks.title")}</h2>
-        <p className="text-body-lg mt-2 text-gray-600">{t("sections.popularTokens.networks.description")}</p>
+        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.networks.title")}</h2>
+        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.networks.description")}</p>
 
         <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {networks.map((network, index) => (
@@ -155,8 +176,8 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="text-h2 text-gray-900">{t("sections.popularTokens.tokens.title")}</h2>
-        <p className="text-body-lg mt-2 text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
+        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.tokens.title")}</h2>
+        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
         <motion.ul
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 flex flex-wrap items-center justify-center gap-2"

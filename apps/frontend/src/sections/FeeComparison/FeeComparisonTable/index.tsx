@@ -7,11 +7,11 @@ import { FeeComparisonProviderList } from "./components/FeeComparisonProviderLis
 import { getAssetSymbols } from "./utils/assetUtils";
 
 export function FeeComparisonTable() {
-  const { inputAmount, onChainToken, fiatToken } = useQuoteFormStore();
+  const { onChainToken, fiatToken } = useQuoteFormStore();
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
 
-  const amount = inputAmount || "100";
+  const amount = "100";
 
   const { sourceAssetSymbol, targetAssetSymbol } = getAssetSymbols(rampDirection, selectedNetwork, onChainToken, fiatToken);
 
