@@ -1,26 +1,58 @@
-import { getNetworkDisplayName, Networks } from "@vortexfi/shared";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import {
+  AssetHubToken,
+  assetHubTokenConfig,
+  doesNetworkSupportRamp,
+  EvmToken,
+  evmTokenConfig,
+  FiatToken,
+  getNetworkDisplayName,
+  Networks
+} from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-
+import VORTEX from "../../assets/logo/vortex_x.svg";
+import CIRCLE from "../../assets/trusted-by/circle.svg";
 import { cn } from "../../helpers/cn";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { isValidAssetIcon, useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
 import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompatibility";
 
-const tokens: Array<{ name: string; assetIcon: string }> = [
-  { assetIcon: "usdc", name: "USDC" },
-  { assetIcon: "usdc", name: "USDC.e" },
-  { assetIcon: "eth", name: "ETH" },
-  { assetIcon: "usdt", name: "USDT" },
-  { assetIcon: "brl", name: "BRL" },
-  { assetIcon: "ars", name: "ARS" },
-  { assetIcon: "eur", name: "EUR" }
-];
+const getEvmTokenIcon = (token: EvmToken): string => {
+  for (const networkConfig of Object.values(evmTokenConfig)) {
+    const tokenConfig = networkConfig[token];
+    if (tokenConfig?.networkAssetIcon) {
+      return tokenConfig.networkAssetIcon;
+    }
+  }
+  return token.toLowerCase();
+};
 
-const networks = Object.values(Networks).filter(
-  network => network !== Networks.Pendulum && network !== Networks.Stellar && network !== Networks.Moonbeam
+const getTokenIcon = (name: string): string => {
+  if (Object.values(EvmToken).includes(name as EvmToken)) {
+    return getEvmTokenIcon(name as EvmToken);
+  }
+  if (Object.values(AssetHubToken).includes(name as AssetHubToken)) {
+    const config = assetHubTokenConfig[name as AssetHubToken];
+    return config?.networkAssetIcon || name.toLowerCase() || "";
+  }
+
+  return name.toLowerCase() || "";
+};
+
+const allCurrencies = Array.from(
+  new Set([...Object.values(FiatToken), ...Object.values(AssetHubToken), ...Object.values(EvmToken)])
 );
+
+const tokens: Array<{ name: string; assetIcon: string }> = allCurrencies
+  .map(name => ({
+    assetIcon: getTokenIcon(name),
+    name
+  }))
+  .filter(token => isValidAssetIcon(token.assetIcon));
+
+const networks = Object.values(Networks).filter(doesNetworkSupportRamp);
 
 type BadgeProps = {
   icon: string;
@@ -31,22 +63,22 @@ type BadgeProps = {
 };
 
 const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: BadgeProps) => {
-  const scale = isAnimating ? 1.05 : 1;
+  const scale = isAnimating ? 1.08 : 1;
   const bgColor = isAnimating ? "bg-gray-300" : "bg-secondary";
 
   return (
     <motion.li
       animate={{ scale }}
       className={cn(
-        "flex items-center justify-center rounded-full px-4 py-2 shadow-lg",
+        "flex cursor-pointer items-center justify-center rounded-full px-4 py-2 shadow-lg hover:bg-gray-200",
         bgColor,
-        onClick && "cursor-pointer active:scale-95 active:bg-gray-400"
+        onClick && "active:scale-95 active:bg-gray-400"
       )}
       onClick={onClick}
-      transition={{ duration: 1 }}
+      transition={{ duration: 0.25 }}
       whileHover={{
         rotate: [0, -1, 1, -1, 0],
-        scale: 1.05,
+        scale: 1.08,
         transition: {
           rotate: {
             duration: rotationDuration,
@@ -109,10 +141,37 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto mt-8 max-w-2xl p-8 text-center">
+    <div className="mx-auto max-w-2xl px-4 py-32 text-center md:px-10">
+      <div className="mb-32 flex flex-col items-center justify-center">
+        <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
+        <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
+        <div className="mt-4 flex w-full gap-4">
+          <a
+            className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
+            href="https://partners.circle.com/partner/vortex"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <img alt="Circle Internet Group" src={CIRCLE} />
+            <div className="mt-4 flex items-center justify-center gap-1">
+              <>We're an official partner of Circle</>
+              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            </div>
+          </a>
+          <div className="flex w-2/5 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-103">
+            <img alt="Vortex" className="w-1/2" src={VORTEX} />
+          </div>
+        </div>
+        <div className="relative z-20 mt-4 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+        <div className="relative z-20 mt-1.5 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
+      </div>
+
       <div className="mb-12">
-        <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.networks.title")}</h2>
-        <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.networks.description")}</p>
+        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.networks.title")}</h2>
+        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.networks.description")}</p>
 
         <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {networks.map((network, index) => (
@@ -126,8 +185,8 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="font-bold text-3xl text-gray-900">{t("sections.popularTokens.tokens.title")}</h2>
-        <p className="mt-2 text-gray-600 text-lg">{t("sections.popularTokens.tokens.description")}</p>
+        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.tokens.title")}</h2>
+        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
         <motion.ul
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 flex flex-wrap items-center justify-center gap-2"

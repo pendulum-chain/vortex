@@ -7,7 +7,7 @@ import { PENDULUM_USDC_ASSETHUB } from "../pendulum/config";
 import { AssetHubTokenDetails } from "../types/assethub";
 import { AssetHubToken, TokenType } from "../types/base";
 
-export const assethubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = {
+export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = {
   [AssetHubToken.USDC]: {
     assetSymbol: "USDC",
     decimals: 6,

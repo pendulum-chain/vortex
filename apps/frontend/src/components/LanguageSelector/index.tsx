@@ -1,11 +1,11 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-// Import country flag images
 import brazilFlag from "../../assets/countries/brazil.png";
 import usFlag from "../../assets/countries/english.png";
 import { cn } from "../../helpers/cn";
+import { useClickOutside } from "../../hooks/useClickOutside";
 import { Language } from "../../translations/helpers";
 
 interface LanguageButtonProps {
@@ -76,33 +76,16 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
   </AnimatePresence>
 );
 
-function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, callback: () => void) {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        callback();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [callback, ref]);
-}
-
-// Helper function to update path with language
 const updatePathWithLanguage = (path: string, language: Language): string => {
   const languageValues = Object.values(Language);
 
-  // Check if path already contains a language segment
   for (const lang of languageValues) {
     const langSegment = `/${lang.toLowerCase()}`;
     if (path.includes(langSegment)) {
-      // Replace existing language segment
       return path.replace(langSegment, `/${language.toLowerCase()}`);
     }
   }
 
-  // No language segment found, add it at the beginning
   return `/${language.toLowerCase()}${path}`;
 };
 
@@ -111,20 +94,17 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Get current language from i18n
   const currentLanguage = i18n.language === Language.Portuguese_Brazil ? Language.Portuguese_Brazil : Language.English;
 
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const handleLanguageSelect = (language: Language) => {
-    // Get current path and replace language segment or add it
     const currentPath = window.location.pathname;
     const newPath = updatePathWithLanguage(currentPath, language);
 
     // Update URL without full page reload
     window.history.pushState({}, "", newPath);
 
-    // Update i18n language
     i18n.changeLanguage(language);
 
     setIsOpen(false);

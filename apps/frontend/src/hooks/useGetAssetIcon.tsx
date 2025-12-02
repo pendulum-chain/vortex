@@ -56,6 +56,10 @@ const ICONS = {
 
 export type AssetIconType = keyof typeof ICONS;
 
+export function isValidAssetIcon(assetIcon: string): boolean {
+  return assetIcon in ICONS;
+}
+
 export function useGetAssetIcon(assetIcon: string) {
   if (assetIcon in ICONS) {
     return ICONS[assetIcon as AssetIconType];

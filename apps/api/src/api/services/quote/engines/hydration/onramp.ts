@@ -1,4 +1,4 @@
-import { AssetHubToken, assethubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { AssetHubToken, assetHubTokenConfig, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import HydrationRouter from "../../../hydration/swap";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -22,8 +22,8 @@ export class OnRampHydrationEngine implements Stage {
     }
 
     // We will always use Assethub USDC as the input token of the swap
-    const inputTokenDetails = assethubTokenConfig[AssetHubToken.USDC];
-    const outputTokenDetails = assethubTokenConfig[req.outputCurrency as AssetHubToken];
+    const inputTokenDetails = assetHubTokenConfig[AssetHubToken.USDC];
+    const outputTokenDetails = assetHubTokenConfig[req.outputCurrency as AssetHubToken];
 
     const assetIn = inputTokenDetails.hydrationId;
     const assetOut = outputTokenDetails.hydrationId;
