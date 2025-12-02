@@ -74,7 +74,14 @@ export function BusinessMain() {
           whileHover={{ scale: 1.15, transition: { duration: 0.1, ease: "easeOut" } }}
         />
       </div>
-      <div className="relative z-20 mt-24 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+      <div className="mt-24 flex flex-col items-center justify-center">
+        <div className="relative z-20 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+        <div className="relative z-20 mt-1.5 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
+        <div className="relative z-20 mt-1.5 flex w-1/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-2 transition-opacity duration-300 hover:opacity-100"></div>
+      </div>
     </section>
   );
 }
