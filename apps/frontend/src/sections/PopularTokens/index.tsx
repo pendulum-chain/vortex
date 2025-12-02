@@ -141,7 +141,7 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-32 text-center md:px-10">
+    <div className="mx-auto max-w-2xl px-4 py-16 text-center md:px-10 lg:py-32">
       <div className="mb-32 flex flex-col items-center justify-center">
         <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
         <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>

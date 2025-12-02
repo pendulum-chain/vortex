@@ -62,12 +62,12 @@ const FeatureCard = ({ icon, title, description, index }: FeatureCardProps) => {
     isPlaying.current = false;
   };
 
-  const startX = index % 2 === 0 ? -200 : 200;
+  const startX = index % 2 === 0 ? -40 : 40;
   const startRotateZ = index % 2 === 0 ? -15 : 15;
 
   return (
     <motion.li
-      className="rounded-xl bg-gradient-to-r from-blue-900 to-blue-950 shadow-xs"
+      className="rounded-xl bg-gradient-to-r from-blue-900 to-blue-950"
       initial={{ rotateZ: startRotateZ, scale: 0.9, x: startX, y: 20 }}
       onMouseEnter={handleMouseEnter}
       ref={cardRef}
@@ -76,10 +76,10 @@ const FeatureCard = ({ icon, title, description, index }: FeatureCardProps) => {
       whileInView={{ rotateZ: 0, scale: 1, x: 0, y: 0 }}
     >
       <div className="flex h-full justify-between">
-        <div className="h-full w-3/5 bg-gray-50 px-8 py-12">
+        <div className="h-full w-3/5 bg-gray-50 px-4 py-8 md:px-8 md:py-12">
           <h3 className="mt-6 font-bold text-blue-900 text-xl">{title}</h3>
           <div className="my-6 h-[1px] w-full bg-gray-200" />
-          <p className="mt-3 px-10 text-center text-black text-gray-500 lg:px-0 lg:text-left">{description}</p>
+          <p className="mt-3 text-black text-gray-500 lg:px-0 ">{description}</p>
         </div>
         <div className="my-auto flex h-full w-2/5 items-center justify-center">
           <Lottie
@@ -123,7 +123,7 @@ export const WhyVortexBusiness = () => {
   ];
 
   return (
-    <section className="container mx-auto py-16 md:py-32 lg:px-10">
+    <section className="container mx-auto px-4 py-16 md:py-32 lg:px-10">
       <div className="relative flex flex-col items-center justify-center">
         <h1 className="text-center text-gray-900 text-h2 lg:pt-0 lg:text-start">
           {t("pages.business.whyVortexBusiness.title")}

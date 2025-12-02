@@ -72,8 +72,8 @@ export const Main = () => {
     <main>
       {!isWidgetMode ? (
         <>
-          <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] lg:py-32">
-            <div className="container mx-auto grid grid-cols-1 gap-x-20 gap-y-10 px-4 py-8 sm:px-8 lg:grid-cols-[1fr_1fr]">
+          <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-32">
+            <div className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr]">
               <div className="flex flex-col gap-6">
                 <motion.h1
                   animate="visible"

@@ -71,8 +71,8 @@ export const TrustedBy = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="px-4 md:px-10 py-32 sm:container sm:mx-auto">
-      <h1 className="text-h1 mb-5 text-center text-black">{t("sections.trustedBy.title")}</h1>
+    <section className="px-4 py-16 sm:container sm:mx-auto md:px-10 lg:py-32">
+      <h1 className="mb-5 text-center text-black text-h1">{t("sections.trustedBy.title")}</h1>
       <ImageList images={trustedByImages} />
     </section>
   );

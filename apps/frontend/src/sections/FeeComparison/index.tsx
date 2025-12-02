@@ -15,7 +15,7 @@ export const FeeComparison = () => {
 
   return (
     <section
-      className="bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-32"
+      className="bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-32"
       ref={ref}
     >
       <div className="container mx-auto grid grid-cols-1 gap-x-20 gap-y-10 px-4 py-8 sm:px-8 lg:grid-cols-2 lg:gap-y-0">

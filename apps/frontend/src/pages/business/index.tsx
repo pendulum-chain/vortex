@@ -10,7 +10,7 @@ export function BusinessMain() {
   const { t } = useTranslation();
 
   return (
-    <section className="container mx-auto grid grid-cols-1 grid-rows-2 gap-x-20 gap-y-10 px-4 md:px-10 ">
+    <section className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 py-16 md:px-10 lg:py-20">
       <div className="flex animate-slide-up flex-col items-center justify-center">
         <h1 className="max-w-128 text-center font-bold text-gray-800 text-h2">
           <Trans i18nKey="pages.business.hero.titlePart1" />{" "}
@@ -20,7 +20,7 @@ export function BusinessMain() {
         </h1>
         <p className="my-6 max-w-164 text-center sm:text-lg">{t("pages.business.hero.description")}</p>
 
-        <div className="mt-4 flex animate-slide-up justify-center gap-2 lg:justify-start">
+        <div className="mt-4 flex animate-slide-up justify-center gap-2 lg:justify-start ">
           <a
             className="btn btn-vortex-primary"
             href="https://api-docs.vortexfinance.co/"
@@ -40,7 +40,7 @@ export function BusinessMain() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex w-flex items-center justify-around lg:w-2/3">
+      <div className="relative mx-auto mt-16 flex w-flex items-center justify-around lg:w-2/3">
         <motion.img
           alt="Widget Snippet EUR"
           animate={{ opacity: 1, scale: 1, y: 0 }}

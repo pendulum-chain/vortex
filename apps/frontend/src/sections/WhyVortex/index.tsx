@@ -21,14 +21,14 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
     whileInView={{ opacity: 1, y: 0 }}
   >
     <motion.div
-      className="flex h-[70px] w-[70px] items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl cursor-pointer"
+      className="flex h-[70px] w-[70px] cursor-pointer items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl"
       transition={{ stiffness: 300, type: "spring" }}
       whileHover={{ scale: 1.05 }}
     >
       <img alt={title} className="filter-primary mx-auto h-[28px] w-[28px] text-primary " src={icon} />
     </motion.div>
-    <h3 className="text-h3 font-bold mt-6 text-blue-900">{title}</h3>
-    <p className="text-body mt-3 px-10 text-center text-gray-500 lg:px-0 lg:text-left">{description}</p>
+    <h3 className="mt-6 font-bold text-blue-900 text-h3">{title}</h3>
+    <p className="mt-3 px-10 text-center text-body text-gray-500 lg:px-0 lg:text-left">{description}</p>
   </motion.div>
 );
 
@@ -59,10 +59,10 @@ export const WhyVortex = () => {
   ];
 
   return (
-    <section className="container mx-auto pt-32 mb-32 relative grid grid-cols-1 lg:grid-cols-2 gap-x-20 px-4 sm:px-8">
+    <section className="container relative mx-auto mb-16 grid grid-cols-1 gap-x-20 px-4 pt-16 sm:px-8 lg:mb-32 lg:grid-cols-2 lg:pt-32">
       <motion.h1
         animate={{ x: 0 }}
-        className="text-h1 md:text-5xl! xl:text-6xl! text-center text-black lg:sticky lg:top-24 lg:h-[200px] lg:text-left"
+        className="text-center text-black text-h1 md:text-5xl! lg:sticky lg:top-24 lg:h-[200px] lg:text-left xl:text-6xl!"
         initial={{ x: -50 }}
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}

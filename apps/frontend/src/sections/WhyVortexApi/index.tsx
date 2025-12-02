@@ -6,7 +6,7 @@ export function WhyVortexApi() {
   const { t } = useTranslation();
 
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 md:px-10 md:py-32">
+    <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 md:px-10 lg:py-32">
       <div className="container mx-auto">
         <div className="flex animate-slide-up flex-col items-center justify-center">
           <h1 className="pt-8 text-center text-h2 text-white">{t("pages.business.whyVortexApi.title1")}</h1>

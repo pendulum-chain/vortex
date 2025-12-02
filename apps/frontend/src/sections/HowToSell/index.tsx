@@ -23,7 +23,7 @@ export const HowToSell = () => {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-32">
+    <section className="relative overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-32">
       <div className="container relative z-10 mx-auto mb-12 px-4 md:px-10">
         <div className="mb-12 text-center">
           <p className="text-h2 text-white leading-[3rem]">
