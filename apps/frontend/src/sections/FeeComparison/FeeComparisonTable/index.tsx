@@ -6,12 +6,14 @@ import { FeeComparisonHeader } from "./components/FeeComparisonHeader";
 import { FeeComparisonProviderList } from "./components/FeeComparisonProviderList";
 import { getAssetSymbols } from "./utils/assetUtils";
 
+const FEE_COMPARISON_AMOUNT = "100";
+
 export function FeeComparisonTable() {
   const { onChainToken, fiatToken } = useQuoteFormStore();
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
 
-  const amount = "100";
+  const amount = FEE_COMPARISON_AMOUNT;
 
   const { sourceAssetSymbol, targetAssetSymbol } = getAssetSymbols(rampDirection, selectedNetwork, onChainToken, fiatToken);
 

@@ -18,6 +18,7 @@
       "!**/node_modules/",
       "!**/coverage/**",
       "!**/gql/**",
+      "!**/lottie/**",
       "!**/*.test.ts",
       "!**/*.test.tsx",
       "!**/routeTree.gen.ts"

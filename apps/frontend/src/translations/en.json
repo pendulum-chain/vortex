@@ -567,7 +567,7 @@
           },
           "pricing": {
             "description": "True mid-market FX. Users pay 0.5 - 0.85%",
-            "title": "Transparent pricing - built for your users"
+            "title": "Transparent pricing"
           }
         },
         "subtitle": "Vortex hostep app is the fastest way to add a secure fiat on/offramp to your app.",
