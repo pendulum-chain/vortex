@@ -18,7 +18,7 @@ export function WhyVortexApi() {
         <div className="grid grid-cols-1 justify-center gap-x-20 gap-y-10 lg:grid-cols-[1fr_2fr]">
           <ul className="mt-0 md:mt-8">
             <li>
-              <div className="mt-6 flex items-center gap-2">
+              <div className="mt-6 flex items-center justify-center gap-2 lg:justify-start">
                 <CheckCircleIcon className="h-6 w-6 text-blue-400" />
                 <h2 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
                   {t("pages.business.whyVortexApi.features.automated.title")}
@@ -29,7 +29,7 @@ export function WhyVortexApi() {
               </p>
             </li>
             <li>
-              <div className="mt-6 flex items-center gap-2">
+              <div className="mt-6 flex items-center justify-center gap-2 lg:justify-start">
                 <CheckCircleIcon className="h-6 w-6 text-blue-400" />
                 <h2 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
                   {t("pages.business.whyVortexApi.features.pricing.title")}
@@ -40,7 +40,7 @@ export function WhyVortexApi() {
               </p>
             </li>
             <li>
-              <div className="mt-6 flex items-center gap-2">
+              <div className="mt-6 flex items-center justify-center gap-2 lg:justify-start">
                 <CheckCircleIcon className="h-6 w-6 text-blue-400" />
                 <h2 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
                   {t("pages.business.whyVortexApi.features.liquidity.title")}
