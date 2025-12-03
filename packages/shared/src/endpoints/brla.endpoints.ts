@@ -21,7 +21,7 @@ export interface BrlaGetUserRequest {
 }
 
 export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
-  quoteId?: string;
+  quoteId: string;
   sessionId?: string;
 }
 export interface BrlaGetUserResponse {

@@ -177,7 +177,7 @@ export const recordInitialKycAttempt = async (
       if (accountType) {
         await TaxId.create({
           accountType,
-          initialQuoteId: quoteId ?? null,
+          initialQuoteId: quoteId,
           initialSessionId: sessionId ?? null,
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
