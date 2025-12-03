@@ -1,12 +1,12 @@
 import { useSelector } from "@xstate/react";
 import { useCallback, useEffect } from "react";
+import type { ActorRefFrom } from "xstate";
 import { supabase } from "../config/supabase";
-import { useRampActor } from "../contexts/rampState";
+import type { rampMachine } from "../machines/ramp.machine";
 import { AuthService } from "../services/auth";
 
-export function useAuthTokens() {
-  const rampActor = useRampActor();
-  const { isAuthenticated, userId, userEmail } = useSelector(rampActor, state => ({
+export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
+  const { isAuthenticated, userId, userEmail } = useSelector(actorRef, state => ({
     isAuthenticated: state.context.isAuthenticated,
     userEmail: state.context.userEmail,
     userId: state.context.userId
@@ -25,14 +25,14 @@ export function useAuthTokens() {
           };
 
           AuthService.storeTokens(tokens);
-          rampActor.send({ tokens, type: "AUTH_SUCCESS" });
+          actorRef.send({ tokens, type: "AUTH_SUCCESS" });
 
           // Clean URL
           window.history.replaceState({}, "", window.location.pathname);
         }
       });
     }
-  }, [rampActor]);
+  }, [actorRef]);
 
   // Setup auto-refresh on mount
   useEffect(() => {
@@ -44,7 +44,7 @@ export function useAuthTokens() {
   useEffect(() => {
     const tokens = AuthService.getTokens();
     if (tokens && !isAuthenticated) {
-      rampActor.send({
+      actorRef.send({
         tokens: {
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
@@ -53,12 +53,12 @@ export function useAuthTokens() {
         type: "AUTH_SUCCESS"
       });
     }
-  }, [rampActor, isAuthenticated]);
+  }, [actorRef, isAuthenticated]);
 
   const signOut = useCallback(async () => {
     await AuthService.signOut();
-    rampActor.send({ type: "RESET_RAMP" });
-  }, [rampActor]);
+    actorRef.send({ type: "RESET_RAMP" });
+  }, [actorRef]);
 
   return {
     isAuthenticated,

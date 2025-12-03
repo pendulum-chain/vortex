@@ -217,6 +217,16 @@ export const rampMachine = setup({
   id: "ramp",
   initial: "Idle",
   on: {
+    AUTH_SUCCESS: {
+      actions: assign({
+        authTokens: ({ event }) => ({
+          access_token: event.tokens.access_token,
+          refresh_token: event.tokens.refresh_token
+        }),
+        isAuthenticated: true,
+        userId: ({ event }) => event.tokens.user_id
+      })
+    },
     EXPIRE_QUOTE: {
       actions: assign({
         isQuoteExpired: true

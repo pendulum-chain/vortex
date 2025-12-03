@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { SIGNING_SERVICE_URL } from "../../constants/constants";
+import { AuthService } from "../auth";
 
 // TODO: CONSIDER REACT TANSTACK QUERY
 
@@ -14,10 +15,14 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: 30000
 });
 
-// Add request interceptor for common headers
+// Add request interceptor for common headers and auth token
 apiClient.interceptors.request.use(
   config => {
-    // Add any common headers here
+    // Add Authorization header if user is authenticated
+    const tokens = AuthService.getTokens();
+    if (tokens?.access_token) {
+      config.headers.Authorization = `Bearer ${tokens.access_token}`;
+    }
     return config;
   },
   error => {
