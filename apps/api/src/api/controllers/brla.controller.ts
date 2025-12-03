@@ -173,7 +173,6 @@ export const recordInitialKycAttempt = async (
         : isValidCpf(taxId)
           ? AveniaAccountType.INDIVIDUAL
           : undefined;
-      console.log("Creating TaxId entry with CONSULTED status for taxId:", taxId, "accountType:", accountType);
       // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
       if (accountType) {
         await TaxId.create({
