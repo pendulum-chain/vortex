@@ -1,10 +1,34 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { CopyButton } from "../../components/CopyButton";
 
 type PackageManager = "npm" | "yarn" | "pnpm" | "bun";
 
 export const WhyVortexWidget = () => {
-  const [packageManager, setPackageManager] = useState<PackageManager>({ id: "npm" });
+  const [packageManager, setPackageManager] = useState<PackageManager>("npm");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeTabElementRef = useRef<HTMLButtonElement>(null);
+
+  useLayoutEffect(() => {
+    const updateClipPath = () => {
+      const container = containerRef.current;
+      const activeTabElement = activeTabElementRef.current;
+
+      if (container && activeTabElement) {
+        const { offsetLeft, offsetWidth } = activeTabElement;
+        const clipLeft = offsetLeft;
+        const clipRight = offsetLeft + offsetWidth;
+        container.style.clipPath = `inset(0 ${Number(container.offsetWidth - clipRight).toFixed()}px 0 ${Number(
+          clipLeft
+        ).toFixed()}px round 4px)`;
+      }
+    };
+
+    if (packageManager) {
+      updateClipPath();
+    }
+    window.addEventListener("resize", updateClipPath);
+    return () => window.removeEventListener("resize", updateClipPath);
+  }, [packageManager]);
 
   const installCommands: Record<PackageManager, string> = {
     bun: "bun add @vortexfi/widget",
@@ -27,25 +51,46 @@ export const WhyVortexWidget = () => {
 
         <div className="flex flex-col">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-2 rounded-lg bg-[#0f172a] p-1">
-              {(Object.keys(installCommands) as PackageManager[]).map(pm => (
-                <button
-                  className={`rounded px-4 py-1.5 font-medium text-sm transition-colors ${
-                    packageManager === pm ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
-                  }`}
-                  key={pm}
-                  onClick={() => setPackageManager(pm)}
-                  type="button"
-                >
-                  {pm}
-                </button>
-              ))}
+            <div className="relative">
+              <div className="flex gap-2 rounded-lg bg-[#0f172a] p-1">
+                {(Object.keys(installCommands) as PackageManager[]).map(pm => (
+                  <button
+                    className="rounded px-4 py-1.5 font-medium text-gray-400 text-sm transition-colors hover:text-white"
+                    key={pm}
+                    onClick={() => setPackageManager(pm)}
+                    ref={packageManager === pm ? activeTabElementRef : null}
+                    type="button"
+                  >
+                    {pm}
+                  </button>
+                ))}
+              </div>
+
+              <div aria-hidden className="absolute inset-0 z-10" ref={containerRef}>
+                <div className="flex gap-2 rounded-lg bg-[#0f172a] p-1">
+                  {(Object.keys(installCommands) as PackageManager[]).map(pm => (
+                    <button
+                      className="rounded bg-blue-600 px-4 py-1.5 font-medium text-sm text-white"
+                      key={pm}
+                      onClick={() => setPackageManager(pm)}
+                      tabIndex={-1}
+                      type="button"
+                    >
+                      {pm}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="flex w-full items-center gap-2 rounded-lg bg-[#0f172a] px-4 py-2 font-mono text-gray-300 text-sm">
               <span className="text-green-400">$</span>
               <span className="mr-2">{installCommands[packageManager]}</span>
-              <CopyButton className="!bg-transparent !p-0 !text-gray-400 hover:!text-white" noBorder text={"copy"} />
+              <CopyButton
+                className="!bg-transparent !p-0 !text-gray-400 hover:!text-white"
+                noBorder
+                text={installCommands[packageManager]}
+              />
             </div>
           </div>
         </div>
@@ -54,33 +99,33 @@ export const WhyVortexWidget = () => {
           <div className="flex gap-1 border-gray-800 border-b bg-[#1e293b] p-4">
             <div className="h-3 w-3 rounded-full bg-green-400 hover:bg-green-500"></div>
             <div className="h-3 w-3 rounded-full bg-yellow-400 hover:bg-yellow-500"></div>
-            <div className="h-3 w-3 rounded-full bg-red-400 hover:bg-red-500"></div>
+            <div className="h-3 w-3 rounded-full bg-[#e06c75] hover:bg-red-500"></div>
           </div>
 
           <div className="p-6 sm:p-8">
             <pre className="overflow-x-auto font-mono text-gray-300 text-sm leading-relaxed">
               <code>
-                <span className="text-pink-500">import</span> <span className="text-yellow-300">{"{"}</span>{" "}
-                <span className="text-red-400">VortexWidget</span>
-                <span className="text-gray-300">,</span> <span className="text-red-400">useVortexConnection</span>{" "}
-                <span className="text-yellow-300">{"}"}</span> <span className="text-pink-500">from</span>{" "}
+                <span className="text-[#c678dd]">import</span> <span className="text-yellow-300">{"{"}</span>{" "}
+                <span className="text-[#e06c75]">VortexWidget</span>
+                <span className="text-gray-300">,</span> <span className="text-[#e06c75]">useVortexConnection</span>{" "}
+                <span className="text-yellow-300">{"}"}</span> <span className="text-[#c678dd]">from</span>{" "}
                 <span className="text-green-300">'@vortexfi/widget'</span>
                 <span>;</span>
                 {"\n\n"}
-                <span className="text-pink-500">const</span> <span className="text-blue-400">MyApp</span>{" "}
-                <span className="text-pink-500">=</span> <span className="text-yellow-300">()</span>{" "}
-                <span className="text-pink-500">{"=>"}</span> <span className="text-yellow-300">{"{"}</span>
+                <span className="text-[#c678dd]">const</span> <span className="text-[#61afef]">MyApp</span>{" "}
+                <span className="text-[#c678dd]">=</span> <span className="text-yellow-300">()</span>{" "}
+                <span className="text-[#c678dd]">{"=>"}</span> <span className="text-yellow-300">{"{"}</span>
                 {"\n  "}
-                <span className="text-pink-500">const</span> <span className="text-orange-400">vortexConfig</span>{" "}
-                <span className="text-pink-500">=</span> <span className="text-blue-400">useVortexConnection</span>
-                <span className="text-yellow-300">({"{"}</span> <span>my_app_id</span>
-                <span className="text-pink-500">:</span> <span className="text-green-300">'random_app_id'</span>
+                <span className="text-[#c678dd]">const</span> <span className="text-[#d19a66]">vortexConfig</span>{" "}
+                <span className="text-[#c678dd]">=</span> <span className="text-[#61afef]">useVortexConnection</span>
+                <span className="text-yellow-300">({"{"}</span> <span className="text-[#e5c07b]">my_app_id</span>
+                <span className="text-[#c678dd]">:</span> <span className="text-green-300">'random_app_id'</span>
                 <span className="text-yellow-300">{"}"})</span>
                 <span className="text-gray-300">;</span>
                 {"\n\n  "}
-                <span className="text-pink-500">return</span> <span className="text-gray-300">&lt;</span>
-                <span className="text-yellow-500">VortexWidget</span> <span className="text-orange-400">config</span>
-                <span className="text-pink-500">=</span>
+                <span className="text-[#c678dd]">return</span> <span className="text-gray-300">&lt;</span>
+                <span className="text-[#e5c07b]">VortexWidget</span> <span className="text-[#d19a66]">config</span>
+                <span className="text-[#c678dd]">=</span>
                 <span>
                   {"{"}vortexConfig{"}"}
                 </span>{" "}
