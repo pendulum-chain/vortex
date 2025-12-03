@@ -1,7 +1,14 @@
-import { ApiManager, EvmClientManager, encodePayload, Networks, RampPhase, waitUntilTrue } from "@packages/shared";
-import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
+import {
+  ApiManager,
+  EvmClientManager,
+  encodePayload,
+  Networks,
+  RampPhase,
+  splitReceiverABI,
+  waitUntilTrue
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";

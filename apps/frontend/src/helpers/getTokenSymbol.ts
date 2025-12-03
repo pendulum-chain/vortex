@@ -5,7 +5,7 @@ import {
   isOnChainTokenDetails,
   OnChainTokenDetails,
   TokenDetails
-} from "@packages/shared";
+} from "@vortexfi/shared";
 
 export const getTokenSymbol = (token: BaseFiatTokenDetails | OnChainTokenDetails): string => {
   if (isFiatTokenDetails(token as TokenDetails)) {

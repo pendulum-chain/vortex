@@ -1,4 +1,4 @@
-import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@packages/shared";
+import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
@@ -38,6 +38,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
     id: quoteTicket.id,
     inputAmount: trimTrailingZeros(quoteTicket.inputAmount),
     inputCurrency: quoteTicket.inputCurrency,
+    network: quoteTicket.network,
     networkFeeFiat: fiatFees.network,
     networkFeeUsd: usdFees.network,
     outputAmount: trimTrailingZeros(quoteTicket.outputAmount),
@@ -81,6 +82,51 @@ export abstract class BaseFinalizeEngine implements Stage {
 
     const paymentMethod = getPaymentMethodFromDestinations(request.from, request.to);
 
+    // Check if we should skip persistence (for best quote comparison)
+    if (ctx.skipPersistence) {
+      // Build response without saving to database
+      const usdFees = ctx.fees.usd;
+      const fiatFees = ctx.fees.displayFiat;
+
+      if (!usdFees || !fiatFees) {
+        throw new APIError({ message: "Missing fee information", status: httpStatus.INTERNAL_SERVER_ERROR });
+      }
+
+      const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
+      const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
+
+      ctx.builtResponse = {
+        anchorFeeFiat: fiatFees.anchor,
+        anchorFeeUsd: usdFees.anchor,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        feeCurrency: fiatFees.currency,
+        from: request.from,
+        id: "temp-" + Date.now(), // Temporary ID for comparison
+        inputAmount: trimTrailingZeros(request.inputAmount),
+        inputCurrency: request.inputCurrency,
+        network: request.network,
+        networkFeeFiat: fiatFees.network,
+        networkFeeUsd: usdFees.network,
+        outputAmount: trimTrailingZeros(outputAmountStr),
+        outputCurrency: request.outputCurrency,
+        partnerFeeFiat: fiatFees.partnerMarkup,
+        partnerFeeUsd: usdFees.partnerMarkup,
+        paymentMethod,
+        processingFeeFiat,
+        processingFeeUsd,
+        rampType: request.rampType,
+        to: request.to,
+        totalFeeFiat: fiatFees.total,
+        totalFeeUsd: usdFees.total,
+        vortexFeeFiat: fiatFees.vortex,
+        vortexFeeUsd: usdFees.vortex
+      };
+
+      ctx.addNote?.("Built in-memory quote response (no persistence)");
+      return;
+    }
+
+    // Normal flow: persist to database
     const record = await QuoteTicket.create({
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,

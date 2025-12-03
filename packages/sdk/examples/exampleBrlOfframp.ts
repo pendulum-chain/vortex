@@ -1,5 +1,5 @@
-import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "@packages/shared";
 import * as readline from "readline";
+import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
@@ -24,6 +24,7 @@ async function runBrlOfframpExample() {
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
       apiBaseUrl: "http://localhost:3000",
+      apiKey: "your_api_key",
       autoReconnect: true, // 'wss://custom-moonbeam-rpc.com',
       // Optional: provide custom WebSocket URLs
       moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',

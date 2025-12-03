@@ -13,7 +13,7 @@ import {
   RampDirection,
   RampPhase,
   submitXTokens
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";

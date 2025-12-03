@@ -1,4 +1,4 @@
-import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } from "@packages/shared";
+import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } from "@vortexfi/shared";
 import cryptoService from "../../../config/crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";

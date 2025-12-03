@@ -7,7 +7,7 @@
  * duplication between class fields and interface.
  */
 
-import { CreateQuoteRequest, RampCurrency, RampDirection } from "@packages/shared";
+import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/shared";
 import type { QuoteContext as IQuoteContext, PartnerInfo } from "./types";
 
 export function createQuoteContext(args: {

@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, Networks, RampDirection } from "@packages/shared";
+import { CreateQuoteRequest, Networks, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { calculateEvmBridgeAndNetworkFee, EvmBridgeRequest, EvmBridgeResult } from "../../core/squidrouter";
 import { QuoteContext, Stage, StageKey } from "../../core/types";

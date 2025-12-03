@@ -19,7 +19,7 @@ In the project directory, you can run:
 
 Install dependencies. 
 
-If you encounter issues with the `bun install` command, you can try upgrading your `bun` version with `bun upgrade`. The installation is confirmed to work in bun v1.2.19. 
+If you encounter issues with the `bun install` command, you can try upgrading your `bun` version with `bun upgrade`. The installation is confirmed to work in bun v1.3.1. 
 
 ### `bun dev`
 

@@ -1,4 +1,4 @@
-import { FlowType, StoreDataErrorResponse, StoreDataResponse } from "@packages/shared";
+import { FlowType, StoreDataErrorResponse, StoreDataResponse } from "@vortexfi/shared";
 import { Request, Response } from "express";
 
 import { config } from "../../config/vars";

@@ -8,7 +8,7 @@ import type {
   StartRampResponse,
   UpdateRampRequest,
   UpdateRampResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { handleAPIResponse } from "../errors";
 import type { BrlKycResponse } from "../types";
 

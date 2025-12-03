@@ -10,7 +10,7 @@ import {
   StartRampRequest,
   StartRampResponse,
   UpdateRampRequest
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

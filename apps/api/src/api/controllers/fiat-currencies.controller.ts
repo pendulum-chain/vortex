@@ -2,7 +2,7 @@ import {
   GetSupportedFiatCurrenciesRequest,
   GetSupportedFiatCurrenciesResponse,
   SUPPORTED_FIAT_CURRENCIES
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 

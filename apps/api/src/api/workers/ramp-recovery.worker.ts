@@ -1,4 +1,4 @@
-import { RampErrorLog } from "@packages/shared";
+import { RampErrorLog } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";

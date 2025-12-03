@@ -19,7 +19,7 @@ import {
   PendulumTokenDetails,
   StellarTokenDetails,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";

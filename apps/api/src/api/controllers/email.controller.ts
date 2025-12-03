@@ -1,4 +1,4 @@
-import type { StoreEmailErrorResponse, StoreEmailResponse } from "@packages/shared";
+import type { StoreEmailErrorResponse, StoreEmailResponse } from "@vortexfi/shared";
 import type { Request, Response } from "express";
 import { config } from "../../config";
 import { storeDataInGoogleSpreadsheet } from "./googleSpreadSheet.controller";

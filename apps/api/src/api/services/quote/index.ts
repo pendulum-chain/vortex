@@ -1,10 +1,20 @@
-import { CreateQuoteRequest, QuoteError, QuoteResponse } from "@packages/shared";
+import {
+  CreateBestQuoteRequest,
+  CreateQuoteRequest,
+  DestinationType,
+  Networks,
+  QuoteError,
+  QuoteResponse,
+  RampDirection
+} from "@vortexfi/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
+import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
-import { getTargetFiatCurrency, validateChainSupport } from "./core/helpers";
+import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
 import { buildQuoteResponse } from "./engines/finalize";
@@ -14,52 +24,7 @@ export class QuoteService extends BaseRampService {
   public async createQuote(
     request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
   ): Promise<QuoteResponse> {
-    validateChainSupport(request.rampType, request.from, request.to);
-
-    let partner = null;
-    let partnerNameToUse = request.partnerId || request.partnerName;
-
-    // Try to find partner by name (from partnerId field or from apiKey lookup)
-    if (partnerNameToUse) {
-      partner = await Partner.findOne({
-        where: {
-          isActive: true,
-          name: partnerNameToUse,
-          rampType: request.rampType
-        }
-      });
-
-      // If partner name was provided but not found or not active, log a warning and proceed without a partner
-      if (!partner) {
-        logger.warn(`Partner with name '${partnerNameToUse}' not found or not active. Proceeding with default fees.`);
-      }
-    }
-
-    // Determine the target fiat currency for fees
-    const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
-
-    const ctx = createQuoteContext({
-      partner: partner ? { discount: partner.discount, id: partner.id, name: partner.name } : { id: null },
-      request: { ...request, apiKey: request.apiKey || undefined },
-      targetFeeFiatCurrency
-    });
-
-    const orchestrator = new QuoteOrchestrator();
-    const resolver = new RouteResolver();
-    const strategy = resolver.resolve(ctx);
-    try {
-      await orchestrator.run(strategy, ctx);
-    } catch (error) {
-      logger.error(error instanceof Error ? error.message : String(error));
-      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-
-    if (ctx.builtResponse) {
-      return ctx.builtResponse;
-    }
-
-    // Unreachable: all BUY and SELL routes are handled above via the pipeline strategies.
-    throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    return this.executeQuoteCalculation(request);
   }
 
   public async getQuote(id: string): Promise<QuoteResponse | null> {
@@ -70,6 +35,182 @@ export class QuoteService extends BaseRampService {
     }
 
     return buildQuoteResponse(quote);
+  }
+
+  /**
+   * Create a quote by querying all eligible networks and returning the best one
+   * @param request - Quote request without network specification
+   * @returns The best quote across all eligible networks
+   */
+  public async createBestQuote(
+    request: CreateBestQuoteRequest & { apiKey?: string | null; partnerName?: string | null }
+  ): Promise<QuoteResponse> {
+    const { rampType, from, to } = request;
+
+    // Determine eligible networks based on the corridor
+    const eligibleNetworks = this.getEligibleNetworks(rampType, from, to);
+
+    if (eligibleNetworks.length === 0) {
+      throw new APIError({
+        message: `No eligible networks found for ${rampType} from ${from} to ${to}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    logger.info(`Fetching quotes for ${eligibleNetworks.length} networks: ${eligibleNetworks.join(", ")}`);
+
+    // Use concurrency limit to prevent resource exhaustion when many networks are eligible
+    const limit = pLimit(5); // Process up to 5 networks concurrently
+
+    // Fetch quotes for all eligible networks with controlled parallelism (in-memory only)
+    const quotePromises = eligibleNetworks.map(network =>
+      limit(async () => {
+        // Add a random delay to avoid rate limiting when many networks are queried
+        const randomDelay = Math.floor(Math.random() * 2000);
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+        try {
+          const quote = await this.executeQuoteCalculation(
+            {
+              ...request,
+              // biome-ignore lint/style/noNonNullAssertion: Validated in getEligibleNetworks
+              from: rampType === RampDirection.BUY ? request.from! : network,
+              network,
+              // biome-ignore lint/style/noNonNullAssertion: Validated in getEligibleNetworks
+              to: rampType === RampDirection.BUY ? network : request.to!
+            },
+            true
+          );
+          return { network, quote };
+        } catch (error) {
+          logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
+          return null;
+        }
+      })
+    );
+
+    const quoteResults = await Promise.all(quotePromises);
+    const validQuotes = quoteResults.filter((result): result is { network: Networks; quote: QuoteResponse } => result !== null);
+
+    if (validQuotes.length === 0) {
+      throw new APIError({
+        message: QuoteError.FailedToCalculateQuote,
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    // Find the best quote (highest output amount)
+    const bestQuote = validQuotes.reduce((best, current) => {
+      const currentOutput = new Big(current.quote.outputAmount);
+      const bestOutput = new Big(best.quote.outputAmount);
+      return currentOutput.gt(bestOutput) ? current : best;
+    });
+
+    logger.info(
+      `Best quote found on network ${bestQuote.network} with output amount ${bestQuote.quote.outputAmount}. Considered ${validQuotes.length} networks.`
+    );
+
+    // Now save only the best quote to the database
+    const savedQuote = await this.executeQuoteCalculation(
+      { ...request, from: bestQuote.quote.from, network: bestQuote.network, to: bestQuote.quote.to },
+      false
+    );
+
+    return savedQuote;
+  }
+
+  /**
+   * Execute quote calculation logic
+   * @param request - Quote request
+   * @param skipPersistence - Whether to skip database persistence (for comparison)
+   * @returns The calculated quote
+   */
+  private async executeQuoteCalculation(
+    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null },
+    skipPersistence = false
+  ): Promise<QuoteResponse> {
+    validateChainSupport(request.rampType, request.from, request.to);
+
+    let partner = null;
+    const partnerNameToUse = request.partnerId || request.partnerName;
+
+    if (partnerNameToUse) {
+      partner = await Partner.findOne({
+        where: {
+          isActive: true,
+          name: partnerNameToUse,
+          rampType: request.rampType
+        }
+      });
+
+      if (!partner) {
+        logger.warn(`Partner with name '${partnerNameToUse}' not found or not active. Proceeding with default fees.`);
+      }
+    }
+
+    const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+
+    const ctx = createQuoteContext({
+      partner: partner
+        ? {
+            id: partner.id,
+            maxSubsidy: partner.maxSubsidy,
+            name: partner.name,
+            targetDiscount: partner.targetDiscount
+          }
+        : { id: null },
+      request: { ...request, apiKey: request.apiKey || undefined },
+      targetFeeFiatCurrency
+    });
+
+    // Set skipPersistence flag in context
+    if (skipPersistence) {
+      ctx.skipPersistence = true;
+    }
+
+    const orchestrator = new QuoteOrchestrator();
+    const resolver = new RouteResolver();
+    const strategy = resolver.resolve(ctx);
+
+    try {
+      await orchestrator.run(strategy, ctx);
+    } catch (error) {
+      logger.error(error instanceof Error ? error.message : String(error));
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
+
+    if (!ctx.builtResponse) {
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
+
+    return ctx.builtResponse;
+  }
+
+  /**
+   * Get eligible networks for a given corridor
+   * @param rampType - Buy or Sell
+   * @param from - Source destination
+   * @param to - Target destination
+   * @returns Array of eligible networks
+   */
+  private getEligibleNetworks(rampType: RampDirection, from?: DestinationType, to?: DestinationType): Networks[] {
+    const supportedChains = SUPPORTED_CHAINS[rampType];
+
+    if (rampType === RampDirection.BUY) {
+      // Check if 'from' (payment method) is supported
+      if (!from || !supportedChains.from.includes(from)) {
+        return [];
+      }
+      // Return all supported 'to' networks that are actually Networks (not payment methods)
+      return supportedChains.to.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
+    } else {
+      // Check if 'to' (payment method) is supported
+      if (!to || !supportedChains.to.includes(to)) {
+        return [];
+      }
+      // Return all supported 'from' networks that are actually Networks
+      return supportedChains.from.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
+    }
   }
 }
 

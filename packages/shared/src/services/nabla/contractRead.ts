@@ -8,7 +8,7 @@ const ALICE = "6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr";
 type MessageCallErrorResult = ReadMessageResult & { type: "error" | "panic" | "reverted" };
 
 export async function contractRead<ReturnType>(params: {
-  abi: Dict<unknown>;
+  abi: any;
   address: string;
   method: string;
   args: unknown[];

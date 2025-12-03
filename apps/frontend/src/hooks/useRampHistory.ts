@@ -1,5 +1,5 @@
-import { GetRampHistoryTransaction } from "@packages/shared";
 import { useQuery } from "@tanstack/react-query";
+import { GetRampHistoryTransaction } from "@vortexfi/shared";
 import { useAccount } from "wagmi";
 
 import { Transaction, TransactionDestination, TransactionStatus } from "../components/menus/HistoryMenu/types";

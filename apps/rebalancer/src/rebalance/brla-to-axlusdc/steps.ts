@@ -1,3 +1,6 @@
+import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
 import {
   ApiManager,
   AveniaFeeType,
@@ -25,12 +28,9 @@ import {
   OnchainSwapQuoteParams,
   PendulumTokenDetails,
   signAndSubmitXcm,
+  splitReceiverABI,
   waitUntilTrue
-} from "@packages/shared";
-import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
-import { signExtrinsic, submitExtrinsic } from "@pendulum-chain/api-solang";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from "@polkadot/util-crypto";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
@@ -204,17 +204,22 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 
   const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
 
-  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDCE) as EvmTokenDetails;
+  const usdcTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC) as EvmTokenDetails;
   const toTokenDetails = getOnChainTokenDetails(Networks.Moonbeam, EvmToken.AXLUSDC) as EvmTokenDetails;
 
-  const { approveData, swapData, squidRouterReceiverId, route } = await createOfframpSquidrouterTransactions({
-    fromAddress: polygonWalletClient.account.address,
-    fromNetwork: Networks.Polygon,
-    fromToken: usdcTokenDetails.erc20AddressSourceChain,
-    pendulumAddressDestination: pendulumAddress,
-    rawAmount: usdcAmountRaw,
-    toToken: toTokenDetails.erc20AddressSourceChain
-  });
+  const { approveData, swapData, squidRouterReceiverId, squidRouterQuoteId, squidRouterReceiverHash, route } =
+    await createOfframpSquidrouterTransactions({
+      fromAddress: polygonWalletClient.account.address,
+      fromNetwork: Networks.Polygon,
+      fromToken: usdcTokenDetails.erc20AddressSourceChain,
+      pendulumAddressDestination: pendulumAddress,
+      rawAmount: usdcAmountRaw,
+      toToken: toTokenDetails.erc20AddressSourceChain
+    });
+
+  console.log(
+    `Created SquidRouter transactions for USDC transfer to Moonbeam with receiver ID ${squidRouterReceiverId}, receiver hash ${squidRouterReceiverHash} and quote ID ${squidRouterQuoteId}`
+  );
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
@@ -246,11 +251,11 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
     value: BigInt(swapData.value)
   };
 
-  console.log("Swapping BRLA to USDC.axl on Moonbeam via Squidrouter...");
+  console.log("Swapping BRLA to USDC.axl on Polygon via Squidrouter...");
   const swapHash = await polygonWalletClient.sendTransaction(swapDataExtended);
-  console.log(`BRLA swap to USDC.axl on Moonbeam sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
+  console.log(`BRLA swap to USDC.axl on Polygon sent with transaction hash: ${swapHash}. Waiting for confirmation...`);
   await waitForTransactionConfirmation(swapHash, polygonPublicClient);
-  console.log("BRLA swapped to USDC.axl on Moonbeam via Squidrouter. Transaction hash:", swapHash);
+  console.log("BRLA swapped to USDC.axl on Polygon via Squidrouter. Transaction hash:", swapHash);
 
   // Wait until the swap is executed on Axelar
   let isExecuted = false;

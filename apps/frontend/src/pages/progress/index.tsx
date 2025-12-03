@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isNetworkEVM, Networks, RampDirection, RampPhase } from "@packages/shared";
+import { FiatToken, isNetworkEVM, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";

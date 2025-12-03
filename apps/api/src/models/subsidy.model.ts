@@ -1,4 +1,4 @@
-import { RampPhase } from "@packages/shared";
+import { RampPhase } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -11,7 +11,8 @@ export enum SubsidyToken {
   BRLA = "BRLA",
   EURC = "EURC",
   USDC = "USDC",
-  MATIC = "MATIC"
+  MATIC = "MATIC",
+  BRL = "BRL"
 }
 
 export interface SubsidyAttributes {

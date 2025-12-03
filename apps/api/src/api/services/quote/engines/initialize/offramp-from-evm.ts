@@ -1,4 +1,4 @@
-import { EvmToken, Networks, OnChainToken, RampDirection } from "@packages/shared";
+import { EvmToken, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";

@@ -1,4 +1,4 @@
-import { ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@packages/shared";
+import { ExtrinsicOptions, IbanPaymentData, PermitSignature, StellarTokenDetails } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -43,8 +43,13 @@ export interface StateMetadata {
   depositQrCode: string | undefined;
   payOutTicketId: string | undefined;
   // Only used in onramp, offramp - monerium
+  moneriumOnrampPermit?: PermitSignature;
+  permitTxHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;
   squidRouterQuoteId: string;
+  // Final transaction hash and explorer link (computed once when ramp is complete)
+  finalTransactionHash?: string;
+  finalTransactionExplorerLink?: string;
 }

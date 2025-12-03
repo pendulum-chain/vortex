@@ -1,4 +1,4 @@
-import { WebhookEventType } from "@packages/shared";
+import { WebhookEventType } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 

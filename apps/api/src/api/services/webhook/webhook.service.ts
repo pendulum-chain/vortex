@@ -1,4 +1,4 @@
-import { RegisterWebhookRequest, RegisterWebhookResponse, WebhookEventType } from "@packages/shared";
+import { RegisterWebhookRequest, RegisterWebhookResponse, WebhookEventType } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";

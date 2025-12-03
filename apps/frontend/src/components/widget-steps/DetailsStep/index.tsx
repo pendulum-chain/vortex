@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
-import { FiatToken, Networks } from "@packages/shared";
+import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";

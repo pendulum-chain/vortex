@@ -1,4 +1,4 @@
-import { AlchemyPayPriceResponse, RampDirection } from "@packages/shared";
+import { AlchemyPayPriceResponse, RampDirection } from "@vortexfi/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,

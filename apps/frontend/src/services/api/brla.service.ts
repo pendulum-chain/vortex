@@ -9,7 +9,7 @@ import {
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

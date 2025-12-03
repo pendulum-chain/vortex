@@ -1,5 +1,10 @@
-import { EvmClientManager, MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse, Networks } from "@packages/shared";
-import splitReceiverABI from "@packages/shared/src/contracts/moonbeam/splitReceiverABI.json";
+import {
+  EvmClientManager,
+  MoonbeamExecuteXcmRequest,
+  MoonbeamExecuteXcmResponse,
+  Networks,
+  splitReceiverABI
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
@@ -76,7 +81,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     const balance = await moonbeamClient.getBalance({
       address: moonbeamExecutorAccount.address
     });
-    const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toString());
+    const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toFixed(0, 0));
 
     if (balance < minimumBalance) {
       await slackService.sendMessage({

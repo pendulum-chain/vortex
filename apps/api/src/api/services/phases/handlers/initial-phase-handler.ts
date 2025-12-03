@@ -1,4 +1,4 @@
-import { FiatToken, RampDirection, RampPhase } from "@packages/shared";
+import { FiatToken, RampDirection, RampPhase } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -48,6 +48,9 @@ export class InitialPhaseHandler extends BasePhaseHandler {
     if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, "brlaOnrampMint");
     } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
+      if (!state.state.moneriumOnrampPermit) {
+        throw new Error("InitialPhaseHandler: Missing moneriumOnrampPermit in state. Cannot proceed.");
+      }
       return this.transitionToNextPhase(state, "moneriumOnrampMint");
     }
 

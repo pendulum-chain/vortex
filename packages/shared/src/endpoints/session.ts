@@ -1,4 +1,4 @@
-import { FiatToken, Networks, OnChainToken, PaymentMethod, RampDirection } from "@packages/shared";
+import { FiatToken, Networks, OnChainToken, PaymentMethod, RampDirection } from "../index";
 
 export interface GetWidgetUrlLocked {
   quoteId: string;

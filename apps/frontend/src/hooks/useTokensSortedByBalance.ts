@@ -1,4 +1,4 @@
-import { getNetworkDisplayName, isOnChainTokenDetails, OnChainToken, OnChainTokenDetails } from "@packages/shared";
+import { getNetworkDisplayName, isOnChainTokenDetails, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
 import { useMemo } from "react";
 import { ExtendedTokenDefinition } from "../components/TokenSelection/TokenSelectionList/hooks/useTokenSelection";
 import { useOnchainTokenBalancesSorted } from "./useOnchainTokenBalancesSorted";

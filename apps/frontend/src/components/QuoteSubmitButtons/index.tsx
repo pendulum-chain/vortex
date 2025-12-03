@@ -1,5 +1,5 @@
-import { isNetworkEVM, RampDirection } from "@packages/shared";
 import { useAppKitAccount } from "@reown/appkit/react";
+import { isNetworkEVM, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC, useMemo } from "react";
 import { useTranslation } from "react-i18next";

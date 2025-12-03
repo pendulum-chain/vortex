@@ -6,7 +6,7 @@ import {
   OnChainTokenDetails,
   QuoteResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { TFunction } from "i18next";
 import { useCallback, useMemo } from "react";

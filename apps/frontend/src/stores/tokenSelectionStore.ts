@@ -1,4 +1,4 @@
-import { Networks } from "@packages/shared";
+import { Networks } from "@vortexfi/shared";
 import { create } from "zustand";
 
 interface TokenSelectionState {

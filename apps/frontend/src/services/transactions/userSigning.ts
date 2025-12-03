@@ -1,8 +1,8 @@
-import { decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData, UnsignedTx } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { WalletAccount } from "@talismn/connect-wallets";
-import { getAccount, sendTransaction, switchChain } from "@wagmi/core";
+import { decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData, UnsignedTx } from "@vortexfi/shared";
+import { Config, getAccount, sendTransaction, switchChain } from "@wagmi/core";
 import { config } from "../../config";
 import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
 import { wagmiConfig } from "../../wagmiConfig";

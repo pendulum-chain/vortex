@@ -1,4 +1,4 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@packages/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";

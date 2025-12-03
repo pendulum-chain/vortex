@@ -1,5 +1,13 @@
-import { ApiManager, AssetHubToken, FiatToken, RampDirection, RampPhase } from "@packages/shared";
-import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
+import {
+  ApiManager,
+  AssetHubToken,
+  FiatToken,
+  multiplyByPowerOfTen,
+  nativeToDecimal,
+  RampDirection,
+  RampPhase,
+  waitUntilTrueWithTimeout
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -38,6 +46,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Missing subsidy information in quote metadata");
     }
 
+    if (!quote.metadata.fees?.usd) {
+      throw new Error("Missing fee information in quote metadata");
+    }
+
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         substrateEphemeralAddress,
@@ -51,31 +63,70 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       }
 
       // Add the (potential) subsidy amount to the expected swap output to get the target balance
-      const expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
+      let expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
+      // For onramps, the fees are distributed between the nablaSwap and the subsidy, so we need to subtract them from the expected output
+      if (state.type === RampDirection.BUY) {
+        // Onramps always have a USD-stablecoin as the output, so we can use the USD fee structure
+        const usdFeeStructure = quote.metadata.fees.usd;
+        const totalFeeDistributedUsd = Big(usdFeeStructure.network)
+          .plus(usdFeeStructure.vortex)
+          .plus(usdFeeStructure.partnerMarkup);
+
+        const totalFeeDistributedUsdRaw = multiplyByPowerOfTen(
+          totalFeeDistributedUsd,
+          quote.metadata.nablaSwap.outputDecimals
+        ).toFixed(0, 0);
+
+        expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw)
+          .minus(totalFeeDistributedUsdRaw)
+          .plus(quote.metadata.subsidy.subsidyAmountInOutputTokenRaw);
+      }
+
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+
+      const didBalanceReachExpected = async () => {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          quote.metadata.nablaSwap?.inputCurrencyId
+        );
+
+        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+        return requiredAmount.lte(Big(0));
+      };
+
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
-        const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.outputCurrencyId, requiredAmount.toFixed(0, 0))
-          .signAndSend(fundingAccountKeypair);
+        const result = await apiManager.executeApiCall(
+          api =>
+            api.tx.tokens.transfer(
+              substrateEphemeralAddress,
+              quote.metadata.nablaSwap?.outputCurrencyId,
+              requiredAmount.toFixed(0, 0)
+            ),
+          fundingAccountKeypair,
+          networkName
+        );
 
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap:", e);
-      throw new Error("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
+      throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
     }
   }
 

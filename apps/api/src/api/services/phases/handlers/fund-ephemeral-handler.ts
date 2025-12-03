@@ -6,7 +6,7 @@ import {
   Networks,
   RampDirection,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
@@ -57,6 +57,22 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return true;
   }
 
+  protected getRequiresPolygonEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
+    // Only required for Monerium onramps.
+    if (isOnramp(state) && inputCurrency === FiatToken.EURC) {
+      return true;
+    }
+    return false;
+  }
+
+  protected getRequiresMoonbeamEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
+    // Only required for BRLA onramps.
+    if (isOnramp(state) && inputCurrency === FiatToken.BRL) {
+      return true;
+    }
+    return false;
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
@@ -69,6 +85,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     const { evmEphemeralAddress, substrateEphemeralAddress } = state.state as StateMetadata;
     const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state, quote.inputCurrency);
+    const requiresPolygonEphemeralAddress = this.getRequiresPolygonEphemeralAddress(state, quote.inputCurrency);
+    const requiresMoonbeamEphemeralAddress = this.getRequiresMoonbeamEphemeralAddress(state, quote.inputCurrency);
 
     // Ephemeral checks.
     if (!substrateEphemeralAddress && requiresPendulumEphemeralAddress) {
@@ -86,11 +104,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         ? await isPendulumEphemeralFunded(substrateEphemeralAddress, pendulumNode)
         : true;
 
-      const isMoonbeamFunded =
-        isOnramp(state) && evmEphemeralAddress ? await isMoonbeamEphemeralFunded(evmEphemeralAddress, moonbeamNode) : true;
+      const isMoonbeamFunded = requiresMoonbeamEphemeralAddress
+        ? await isMoonbeamEphemeralFunded(evmEphemeralAddress, moonbeamNode)
+        : true;
 
-      const isPolygonFunded =
-        isOnramp(state) && evmEphemeralAddress ? await isPolygonEphemeralFunded(evmEphemeralAddress) : true;
+      const isPolygonFunded = requiresPolygonEphemeralAddress ? await isPolygonEphemeralFunded(evmEphemeralAddress) : true;
 
       if (state.state.stellarTarget) {
         const isFunded = await isStellarEphemeralFunded(

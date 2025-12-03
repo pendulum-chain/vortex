@@ -11,7 +11,7 @@ import {
   MoonbeamTokenDetails,
   Networks,
   OnChainTokenDetails
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 
 export function validateAveniaOnramp(

@@ -9,7 +9,7 @@ import {
   isStellarOutputTokenDetails,
   PaymentData,
   StellarTokenDetails
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 

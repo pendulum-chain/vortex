@@ -1,4 +1,4 @@
-import { AlchemyPayPriceResponse, RampDirection } from "@packages/shared";
+import { AlchemyPayPriceResponse, RampDirection } from "@vortexfi/shared";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
 import { AlchemyPayResponse, processAlchemyPayResponse } from "./response-handler";

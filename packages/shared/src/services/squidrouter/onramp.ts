@@ -1,18 +1,18 @@
+import { u8aToHex } from "@polkadot/util";
+import { decodeAddress } from "@polkadot/util-crypto";
 import {
   AXL_USDC_MOONBEAM,
   createRandomString,
   createRouteParamsWithMoonbeamPostHook,
   createSquidRouterHash,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V1,
   EvmClientManager,
   EvmTransactionData,
   encodePayload,
   getSquidRouterConfig,
   Networks,
   SquidrouterRoute
-} from "@packages/shared";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from "@polkadot/util-crypto";
+} from "../../index";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 
@@ -97,7 +97,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
@@ -141,7 +141,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON,
+      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
