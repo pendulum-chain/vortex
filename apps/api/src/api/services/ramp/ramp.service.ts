@@ -141,7 +141,8 @@ export class RampService extends BaseRampService {
         } as StateMetadata,
         to: quote.to,
         type: quote.rampType,
-        unsignedTxs
+        unsignedTxs,
+        userId: quote.userId
       });
 
       const response: RegisterRampResponse = {
