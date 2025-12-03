@@ -3,12 +3,16 @@ import { QueryInterface } from "sequelize";
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // This migration alters the table to align with new requirements without dropping it.
   await queryInterface.sequelize.query(`
-    -- Rename the "taxId" column to "tax_id" to match naming conventions
-    ALTER TABLE "tax_ids" RENAME COLUMN "taxId" TO "tax_id";
+    DO $$
+    BEGIN
+      -- Rename the "taxId" column to "tax_id" if it exists
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tax_ids' AND column_name = 'taxId') THEN
+        ALTER TABLE "tax_ids" RENAME COLUMN "taxId" TO "tax_id";
+      END IF;
+    END $$;
 
-    -- Add the 'COMPANY' value to the existing enum type.
-    -- This is a non-destructive operation.
-    ALTER TYPE "enum_tax_ids_account_type" ADD VALUE 'COMPANY';
+    -- Add the 'COMPANY' value to the existing enum type safely
+    ALTER TYPE "enum_tax_ids_account_type" ADD VALUE IF NOT EXISTS 'COMPANY';
   `);
 }
 
