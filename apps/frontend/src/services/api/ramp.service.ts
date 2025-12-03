@@ -29,12 +29,14 @@ export class RampService {
   static async registerRamp(
     quoteId: string,
     signingAccounts: AccountMeta[],
-    additionalData?: RegisterRampRequest["additionalData"]
+    additionalData?: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<RegisterRampResponse> {
-    const request: RegisterRampRequest = {
+    const request: RegisterRampRequest & { userId?: string } = {
       additionalData,
       quoteId,
-      signingAccounts
+      signingAccounts,
+      userId
     };
     return apiRequest<RegisterRampResponse>("post", `${this.BASE_PATH}/register`, request);
   }
