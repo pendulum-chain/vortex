@@ -36,6 +36,42 @@ import { Op } from "sequelize";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
+// Helper functions for TaxId updates
+
+async function updateTaxIdToAccepted(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  await TaxId.update(
+    {
+      finalQuoteId: quoteId,
+      finalSessionId: sessionId ?? null,
+      finalTimestamp: new Date(),
+      internalStatus: TaxIdInternalStatus.Accepted
+    },
+    {
+      where: {
+        internalStatus: TaxIdInternalStatus.Requested,
+        taxId
+      }
+    }
+  );
+}
+
+async function updateTaxIdToRejected(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  await TaxId.update(
+    {
+      finalQuoteId: quoteId,
+      finalSessionId: sessionId ?? null,
+      finalTimestamp: new Date(),
+      internalStatus: TaxIdInternalStatus.Rejected
+    },
+    {
+      where: {
+        internalStatus: TaxIdInternalStatus.Requested,
+        taxId
+      }
+    }
+  );
+}
+
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
 
@@ -329,43 +365,21 @@ export const fetchSubaccountKycStatus = async (
           status: KycAttemptStatus.COMPLETED,
           type: "KYC"
         });
-        return;
+
+        // Also try updating in case we missed the attempt
+        await updateTaxIdToAccepted(taxId, quoteId, sessionId);
       }
-      // Also try updating in case we missed the attempt
-      await TaxId.update(
-        {
-          finalQuoteId: quoteId,
-          finalSessionId: sessionId ?? null,
-          finalTimestamp: new Date(),
-          internalStatus: TaxIdInternalStatus.Accepted
-        },
-        {
-          where: {
-            internalStatus: TaxIdInternalStatus.Requested,
-            taxId
-          }
-        }
-      );
 
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
     }
 
+    // Update our internal status based on the KYC result.
     if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
-      await TaxId.update(
-        {
-          finalQuoteId: quoteId,
-          finalSessionId: sessionId ?? null,
-          finalTimestamp: new Date(),
-          internalStatus: TaxIdInternalStatus.Accepted
-        },
-        {
-          where: {
-            internalStatus: TaxIdInternalStatus.Requested,
-            taxId
-          }
-        }
-      );
+      await updateTaxIdToAccepted(taxId, quoteId, sessionId);
+    }
+    if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
+      await updateTaxIdToRejected(taxId, quoteId, sessionId);
     }
 
     res.status(httpStatus.OK).json({
