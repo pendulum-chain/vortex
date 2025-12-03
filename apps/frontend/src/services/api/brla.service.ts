@@ -44,7 +44,7 @@ export class BrlaService {
    * @param quoteId
    * @returns An empty response
    **/
-  static async recordInitialKycAttempt(taxId: string, quoteId?: string, sessionId?: string): Promise<{}> {
+  static async recordInitialKycAttempt(taxId: string, quoteId: string, sessionId?: string): Promise<{}> {
     return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
   }
   /**

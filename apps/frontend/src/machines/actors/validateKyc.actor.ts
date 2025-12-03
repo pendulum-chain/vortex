@@ -20,6 +20,10 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     throw new Error("rampDirection is missing from ramp context");
   }
 
+  if (!quoteId) {
+    throw new Error("quoteId is missing from ramp context");
+  }
+
   if (executionInput.fiatToken === FiatToken.EURC || executionInput.fiatToken === FiatToken.ARS) {
     return { kycNeeded: true };
   }
