@@ -1,5 +1,8 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
+import { useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CopyButton } from "../../components/CopyButton";
+import TabsClipPath from "./TabsClipPath";
 
 const WidgetCodeSnippet = () => (
   <div className="mt-12 overflow-hidden rounded-2xl bg-[#0f172a] shadow-2xl">
@@ -61,31 +64,9 @@ const WidgetCodeSnippet = () => (
 type PackageManager = "npm" | "yarn" | "pnpm" | "bun";
 
 export const WhyVortexWidget = () => {
+  const { t } = useTranslation();
+
   const [packageManager, setPackageManager] = useState<PackageManager>("npm");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeTabElementRef = useRef<HTMLButtonElement>(null);
-
-  useLayoutEffect(() => {
-    const updateClipPath = () => {
-      const container = containerRef.current;
-      const activeTabElement = activeTabElementRef.current;
-
-      if (container && activeTabElement) {
-        const { offsetLeft, offsetWidth } = activeTabElement;
-        const clipLeft = offsetLeft;
-        const clipRight = offsetLeft + offsetWidth;
-        container.style.clipPath = `inset(0 ${Number(container.offsetWidth - clipRight).toFixed()}px 0 ${Number(
-          clipLeft
-        ).toFixed()}px round 4px)`;
-      }
-    };
-
-    if (packageManager) {
-      updateClipPath();
-    }
-    window.addEventListener("resize", updateClipPath);
-    return () => window.removeEventListener("resize", updateClipPath);
-  }, [packageManager]);
 
   const installCommands: Record<PackageManager, string> = {
     bun: "bun add @vortexfi/widget",
@@ -106,49 +87,30 @@ export const WhyVortexWidget = () => {
           </p>
         </div>
 
-        <div className="flex flex-col">
-          <div className="flex flex-col gap-4">
-            <div className="relative">
-              <div className="flex gap-2 rounded-lg bg-[#0f172a] p-1">
-                {(Object.keys(installCommands) as PackageManager[]).map(pm => (
-                  <button
-                    className="rounded px-4 py-1.5 font-medium text-gray-400 text-sm transition-colors hover:text-white"
-                    key={pm}
-                    onClick={() => setPackageManager(pm)}
-                    ref={packageManager === pm ? activeTabElementRef : null}
-                    type="button"
-                  >
-                    {pm}
-                  </button>
-                ))}
-              </div>
+        <TabsClipPath
+          activeTab={packageManager}
+          onChange={tab => setPackageManager(tab as PackageManager)}
+          tabs={Object.keys(installCommands)}
+        />
 
-              <div aria-hidden className="absolute inset-0 z-10" ref={containerRef}>
-                <div className="flex gap-2 rounded-lg bg-[#0f172a] p-1">
-                  {(Object.keys(installCommands) as PackageManager[]).map(pm => (
-                    <button
-                      className="rounded bg-blue-600 px-4 py-1.5 font-medium text-sm text-white"
-                      key={pm}
-                      onClick={() => setPackageManager(pm)}
-                      tabIndex={-1}
-                      type="button"
-                    >
-                      {pm}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 font-mono text-gray-300 text-sm">
-              <span className="text-green-400">$</span>
-              <span className="mr-2 text-primary">{installCommands[packageManager]}</span>
-              <CopyButton className="" text={"copy"} />
-            </div>
-          </div>
+        <div className="relative mx-auto mt-4 flex w-1/2 items-center gap-2 rounded-xl bg-gray-100 px-4 py-4 font-mono text-sm shadow-lg">
+          <span className="text-pink-500">$</span>
+          <span className="mr-2 text-primary">{installCommands[packageManager]}</span>
+          <CopyButton className="absolute right-[10px] rounded-xl py-2" text={"copy"} />
         </div>
 
         <WidgetCodeSnippet />
+
+        <div className="flex justify-center">
+          <div className="relative mt-12">
+            <div className="badge absolute top-[-10px] right-[-20px] z-20 bg-blue-700 text-white">
+              {t("pages.business.hero.comingSoon")}
+            </div>
+            <button className="btn btn-vortex-primary-inverse" disabled>
+              Get started <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );

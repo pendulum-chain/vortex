@@ -1,4 +1,4 @@
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import { ArrowTopRightOnSquareIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import quoteRequestPreview from "../../assets/quote-request-preview.mp4";
 
@@ -70,7 +70,7 @@ export function WhyVortexApi() {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                {t("pages.business.whyVortexApi.cta.readDocs")}
+                {t("pages.business.whyVortexApi.cta.readDocs")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
               </a>
               <a
                 className="btn btn-vortex-primary-inverse px-10"
@@ -78,7 +78,7 @@ export function WhyVortexApi() {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                {t("pages.business.whyVortexApi.cta.npmPackage")}
+                {t("pages.business.whyVortexApi.cta.npmPackage")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
               </a>
             </div>
           </div>
