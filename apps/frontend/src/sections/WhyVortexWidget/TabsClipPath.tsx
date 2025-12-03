@@ -29,8 +29,8 @@ export default function TabsClipPath({
   }, [activeTab, activeTabElementRef, containerRef]);
 
   return (
-    <div className="relative mx-auto flex w-fit bg-gray-50">
-      <ul className="relative flex items-center justify-center gap-2 shadow-xs">
+    <div className="relative mx-auto flex w-fit rounded-xl bg-gray-50 shadow-xs">
+      <ul className="relative flex items-center justify-center gap-2 ">
         {tabs.map(tab => (
           <li key={tab}>
             <button
