@@ -90,7 +90,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       const didBalanceReachExpected = async () => {
         const balanceResponse = await pendulumNode.api.query.tokens.accounts(
           substrateEphemeralAddress,
-          quote.metadata.nablaSwap?.inputCurrencyId
+          quote.metadata.nablaSwap?.outputCurrencyId
         );
 
         const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
@@ -120,7 +120,8 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
+        // Wait for the balance to update
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
