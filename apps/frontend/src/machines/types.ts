@@ -39,7 +39,7 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
-  authTokens?: {
+  userSessionTokens?: {
     access_token: string;
     refresh_token: string;
   };
