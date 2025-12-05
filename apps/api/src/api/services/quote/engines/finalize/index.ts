@@ -144,7 +144,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       rampType: request.rampType,
       status: "pending",
       to: request.to,
-      userId: (request as any).userId || "00000000-0000-0000-0000-000000000000"
+      userId: (request as any).userId || null
     });
 
     ctx.builtResponse = buildQuoteResponse(record);

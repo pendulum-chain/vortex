@@ -6,7 +6,7 @@ import sequelize from "../config/database";
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
-  userId: string; // UUID reference to Supabase Auth user
+  userId: string | null; // UUID reference to Supabase Auth user (nullable for unauthenticated quotes)
   rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
@@ -34,7 +34,7 @@ export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id"
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
 
-  declare userId: string;
+  declare userId: string | null;
 
   declare rampType: RampDirection;
 
@@ -176,7 +176,7 @@ QuoteTicket.init(
       type: DataTypes.DATE
     },
     userId: {
-      allowNull: false,
+      allowNull: true,
       field: "user_id",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
