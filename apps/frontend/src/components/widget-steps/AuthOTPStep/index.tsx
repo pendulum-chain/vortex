@@ -1,6 +1,8 @@
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef, useState } from "react";
 import { useRampActor } from "../../../contexts/rampState";
+import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../../QuoteSummary";
 
 export interface AuthOTPStepProps {
   className?: string;
@@ -13,6 +15,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
     userEmail: state.context.userEmail
   }));
 
+  const quote = useQuote();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -49,14 +52,17 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
     const pastedData = e.clipboardData.getData("text");
     const digits = pastedData.match(/\d/g);
 
-    if (digits && digits.length === 6) {
-      setOtp(digits);
+    if (digits && digits.length >= 6) {
+      const newOtp = digits.slice(0, 6);
+      setOtp(newOtp);
       inputRefs.current[5]?.focus();
-      rampActor.send({ code: digits.join(""), type: "VERIFY_OTP" });
+
+      // Auto-submit
+      const code = newOtp.join("");
+      rampActor.send({ code, type: "VERIFY_OTP" });
     }
   };
 
-  // Clear OTP on error
   useEffect(() => {
     if (errorMessage) {
       setOtp(["", "", "", "", "", ""]);
@@ -65,14 +71,16 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   }, [errorMessage]);
 
   return (
-    <div className={`flex min-h-[506px] grow flex-col ${className || ""}`}>
-      <div className="flex flex-col items-center justify-center flex-grow px-6 py-8">
-        <div className="w-full max-w-md">
-          <h2 className="text-2xl font-semibold mb-2 text-center">Enter Verification Code</h2>
-          <p className="text-gray-600 mb-6 text-center">
-            We sent a 6-digit code to <strong>{userEmail}</strong>
-          </p>
+    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+      <div className="mt-4 text-center">
+        <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
+        <p className="text-gray-600 mb-6">
+          We sent a 6-digit code to <strong>{userEmail}</strong>
+        </p>
+      </div>
 
+      <div className="flex flex-col items-center justify-center flex-grow px-6">
+        <div className="w-full max-w-md">
           <div className="flex gap-2 justify-center mb-4" onPaste={handlePaste}>
             {otp.map((digit, index) => (
               <input
@@ -106,6 +114,12 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
           </button>
         </div>
       </div>
+
+      {quote && (
+        <div className="absolute bottom-2 left-0 right-0 px-6">
+          <QuoteSummary quote={quote} />
+        </div>
+      )}
     </div>
   );
 };

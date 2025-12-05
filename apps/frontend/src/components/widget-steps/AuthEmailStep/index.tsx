@@ -1,6 +1,8 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { useRampActor } from "../../../contexts/rampState";
+import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../../QuoteSummary";
 
 export interface AuthEmailStepProps {
   className?: string;
@@ -13,6 +15,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     userEmail: state.context.userEmail
   }));
 
+  const quote = useQuote();
   const [email, setEmail] = useState(contextEmail || "");
   const [localError, setLocalError] = useState("");
 
@@ -31,12 +34,14 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
   };
 
   return (
-    <div className={`flex min-h-[506px] grow flex-col ${className || ""}`}>
-      <div className="flex flex-col items-center justify-center flex-grow px-6 py-8">
-        <div className="w-full max-w-md">
-          <h2 className="text-2xl font-semibold mb-2 text-center">Enter Your Email</h2>
-          <p className="text-gray-600 mb-6 text-center">We'll send you a one-time code to verify your identity</p>
+    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+      <div className="mt-4 text-center">
+        <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Your Email</h1>
+        <p className="text-gray-600 mb-6">We'll send you a one-time code to verify your identity</p>
+      </div>
 
+      <div className="flex flex-col items-center justify-center flex-grow px-6">
+        <div className="w-full max-w-md">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="email">
@@ -65,6 +70,12 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
           </form>
         </div>
       </div>
+
+      {quote && (
+        <div className="absolute bottom-2 left-0 right-0 px-6">
+          <QuoteSummary quote={quote} />
+        </div>
+      )}
     </div>
   );
 };
