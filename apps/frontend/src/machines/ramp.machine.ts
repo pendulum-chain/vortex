@@ -342,6 +342,13 @@ export const rampMachine = setup({
     },
     EnterOTP: {
       on: {
+        CHANGE_EMAIL: {
+          actions: assign({
+            errorMessage: undefined,
+            userEmail: undefined
+          }),
+          target: "EnterEmail"
+        },
         ENTER_EMAIL: {
           actions: assign({
             errorMessage: undefined,

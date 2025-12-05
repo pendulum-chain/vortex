@@ -100,7 +100,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
           <button
             className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium underline disabled:text-gray-400 disabled:no-underline"
             disabled={isVerifying}
-            onClick={() => rampActor.send({ email: userEmail!, type: "ENTER_EMAIL" })}
+            onClick={() => rampActor.send({ type: "CHANGE_EMAIL" })}
           >
             Use a different email
           </button>

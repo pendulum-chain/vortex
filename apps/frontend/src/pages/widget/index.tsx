@@ -59,7 +59,11 @@ const WidgetContent = () => {
 
   const isAuthEmail = useSelector(
     rampActor,
-    state => state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP")
+    state =>
+      state.matches("CheckAuth") ||
+      state.matches("EnterEmail") ||
+      state.matches("CheckingEmail") ||
+      state.matches("RequestingOTP")
   );
 
   const isAuthOTP = useSelector(rampActor, state => state.matches("EnterOTP") || state.matches("VerifyingOTP"));

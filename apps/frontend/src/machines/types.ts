@@ -71,6 +71,7 @@ export type RampMachineEvents =
   | { type: "REFRESH_FAILED" }
   // Auth events
   | { type: "ENTER_EMAIL"; email: string }
+  | { type: "CHANGE_EMAIL" }
   | { type: "EMAIL_VERIFIED" }
   | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
