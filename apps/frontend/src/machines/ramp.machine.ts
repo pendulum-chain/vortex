@@ -150,7 +150,9 @@ export type RampMachineEvents =
   | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
   | { type: "AUTH_SUCCESS"; tokens: { access_token: string; refresh_token: string; user_id: string } }
-  | { type: "AUTH_ERROR"; error: string };
+  | { type: "AUTH_ERROR"; error: string }
+  | { type: "CHANGE_EMAIL" }
+  | { type: "LOGOUT" };
 
 export const rampMachine = setup({
   actions: {
@@ -257,6 +259,15 @@ export const rampMachine = setup({
       actions: assign({
         isQuoteExpired: true
       })
+    },
+    LOGOUT: {
+      actions: assign({
+        isAuthenticated: false,
+        userEmail: undefined,
+        userId: undefined,
+        userSessionTokens: undefined
+      }),
+      target: ".CheckAuth"
     },
     RESET_RAMP: [
       {
