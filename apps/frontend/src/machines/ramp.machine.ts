@@ -4,6 +4,7 @@ import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
+import { AuthService } from "../services/auth";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
 import { registerRampActor } from "./actors/register.actor";
@@ -644,15 +645,25 @@ export const rampMachine = setup({
           email: context.userEmail!
         }),
         onDone: {
-          actions: assign({
-            authTokens: ({ event }) => ({
-              access_token: event.output.access_token,
-              refresh_token: event.output.refresh_token
+          actions: [
+            assign({
+              authTokens: ({ event }) => ({
+                access_token: event.output.access_token,
+                refresh_token: event.output.refresh_token
+              }),
+              errorMessage: undefined,
+              isAuthenticated: true,
+              userId: ({ event }) => event.output.user_id
             }),
-            errorMessage: undefined,
-            isAuthenticated: true,
-            userId: ({ event }) => event.output.user_id
-          }),
+            ({ event }) => {
+              // Store tokens in localStorage for session persistence
+              AuthService.storeTokens({
+                access_token: event.output.access_token,
+                refresh_token: event.output.refresh_token,
+                user_id: event.output.user_id
+              });
+            }
+          ],
           target: "RampRequested"
         },
         onError: {

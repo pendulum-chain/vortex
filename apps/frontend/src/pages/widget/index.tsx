@@ -14,6 +14,7 @@ import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFoll
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
+import { useAuthTokens } from "../../hooks/useAuthTokens";
 
 export interface WidgetProps {
   className?: string;
@@ -38,6 +39,9 @@ const WidgetContent = () => {
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
+
+  // Enable session persistence and auto-refresh
+  useAuthTokens(rampActor);
 
   const { rampState, isRedirectCallback, isError } = useSelector(rampActor, state => ({
     isError: state.matches("Error"),
