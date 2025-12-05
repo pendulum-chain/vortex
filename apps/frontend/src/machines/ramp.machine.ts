@@ -21,6 +21,31 @@ const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
+// Restore session from localStorage if available
+const getInitialAuthState = () => {
+  if (typeof window === "undefined") {
+    return { isAuthenticated: false, userId: undefined, userSessionTokens: undefined };
+  }
+
+  const tokens = AuthService.getTokens();
+
+  if (tokens) {
+    const authState = {
+      isAuthenticated: true,
+      userId: tokens.user_id,
+      userSessionTokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token
+      }
+    };
+    return authState;
+  }
+
+  return { isAuthenticated: false, userId: undefined, userSessionTokens: undefined };
+};
+
+const authState = getInitialAuthState();
+
 const initialRampContext: RampContext = {
   apiKey: undefined,
   authToken: undefined,
@@ -32,7 +57,7 @@ const initialRampContext: RampContext = {
   externalSessionId: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
-  isAuthenticated: false,
+  isAuthenticated: authState.isAuthenticated,
   isQuoteExpired: false,
   isSep24Redo: false,
   partnerId: undefined,
@@ -45,10 +70,10 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   substrateWalletAccount: undefined,
-  // Auth fields
+  // Auth fields - restore from localStorage if available
   userEmail: undefined,
-  userId: undefined,
-  userSessionTokens: undefined,
+  userId: authState.userId,
+  userSessionTokens: authState.userSessionTokens,
   walletLocked: undefined
 };
 
