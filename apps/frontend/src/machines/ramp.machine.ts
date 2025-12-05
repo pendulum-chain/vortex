@@ -24,7 +24,7 @@ export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 // Restore session from localStorage if available
 const getInitialAuthState = () => {
   if (typeof window === "undefined") {
-    return { isAuthenticated: false, userId: undefined, userSessionTokens: undefined };
+    return { isAuthenticated: false, userEmail: undefined, userId: undefined, userSessionTokens: undefined };
   }
 
   const tokens = AuthService.getTokens();
@@ -32,6 +32,7 @@ const getInitialAuthState = () => {
   if (tokens) {
     const authState = {
       isAuthenticated: true,
+      userEmail: tokens.user_email,
       userId: tokens.user_id,
       userSessionTokens: {
         access_token: tokens.access_token,
@@ -41,7 +42,7 @@ const getInitialAuthState = () => {
     return authState;
   }
 
-  return { isAuthenticated: false, userId: undefined, userSessionTokens: undefined };
+  return { isAuthenticated: false, userEmail: undefined, userId: undefined, userSessionTokens: undefined };
 };
 
 const authState = getInitialAuthState();
@@ -71,7 +72,7 @@ const initialRampContext: RampContext = {
   rampState: undefined,
   substrateWalletAccount: undefined,
   // Auth fields - restore from localStorage if available
-  userEmail: undefined,
+  userEmail: authState.userEmail,
   userId: authState.userId,
   userSessionTokens: authState.userSessionTokens,
   walletLocked: undefined
@@ -697,11 +698,12 @@ export const rampMachine = setup({
                 refresh_token: event.output.refresh_token
               })
             }),
-            ({ event }) => {
+            ({ event, context }) => {
               // Store tokens in localStorage for session persistence
               AuthService.storeTokens({
                 access_token: event.output.access_token,
                 refresh_token: event.output.refresh_token,
+                user_email: context.userEmail,
                 user_id: event.output.user_id
               });
             }

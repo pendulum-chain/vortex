@@ -4,12 +4,14 @@ export interface AuthTokens {
   access_token: string;
   refresh_token: string;
   user_id: string;
+  user_email?: string;
 }
 
 export class AuthService {
   private static readonly ACCESS_TOKEN_KEY = "vortex_access_token";
   private static readonly REFRESH_TOKEN_KEY = "vortex_refresh_token";
   private static readonly USER_ID_KEY = "vortex_user_id";
+  private static readonly USER_EMAIL_KEY = "vortex_user_email";
 
   /**
    * Store tokens in localStorage
@@ -18,6 +20,9 @@ export class AuthService {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.access_token);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refresh_token);
     localStorage.setItem(this.USER_ID_KEY, tokens.user_id);
+    if (tokens.user_email) {
+      localStorage.setItem(this.USER_EMAIL_KEY, tokens.user_email);
+    }
   }
 
   /**
@@ -27,12 +32,13 @@ export class AuthService {
     const access_token = localStorage.getItem(this.ACCESS_TOKEN_KEY);
     const refresh_token = localStorage.getItem(this.REFRESH_TOKEN_KEY);
     const user_id = localStorage.getItem(this.USER_ID_KEY);
+    const user_email = localStorage.getItem(this.USER_EMAIL_KEY);
 
     if (!access_token || !refresh_token || !user_id) {
       return null;
     }
 
-    return { access_token, refresh_token, user_id };
+    return { access_token, refresh_token, user_email: user_email || undefined, user_id };
   }
 
   /**
@@ -42,6 +48,7 @@ export class AuthService {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
+    localStorage.removeItem(this.USER_EMAIL_KEY);
   }
 
   /**
