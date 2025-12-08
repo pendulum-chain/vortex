@@ -26,11 +26,11 @@ export const HowToSell = () => {
     <section className="relative overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-32">
       <div className="container relative z-10 mx-auto mb-12 px-4 md:px-10">
         <div className="mb-12 text-center">
-          <p className="text-h2 text-white leading-[3rem]">
+          <h2 className="text-h2 text-white leading-[3rem]">
             <Trans i18nKey="sections.howToSell.title">
               How to sell crypto <span className="text-blue-400"> with Vortex </span>
             </Trans>
-          </p>
+          </h2>
         </div>
         <div className="relative flex justify-center">
           <div className="relative grid max-w-5xl grid-cols-1 xs:grid-cols-2 gap-8 lg:grid-cols-4">

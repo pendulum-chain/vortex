@@ -1,4 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import {
   AssetHubToken,
   assetHubTokenConfig,
@@ -14,10 +15,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import VORTEX from "../../assets/logo/vortex_x.svg";
 import CIRCLE from "../../assets/trusted-by/circle.svg";
+import PENDULUM from "../../assets/trusted-by/pendulum-icon.svg";
 import { cn } from "../../helpers/cn";
 import { isValidAssetIcon, useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../hooks/useGetNetworkIcon";
-import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompatibility";
 
 const getEvmTokenIcon = (token: EvmToken): string => {
   for (const networkConfig of Object.values(evmTokenConfig)) {
@@ -62,7 +63,7 @@ type BadgeProps = {
   onClick?: () => void;
 };
 
-const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: BadgeProps) => {
+const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5 }: BadgeProps) => {
   const scale = isAnimating ? 1.08 : 1;
   const bgColor = isAnimating ? "bg-gray-300" : "bg-secondary";
 
@@ -71,10 +72,8 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
       animate={{ scale }}
       className={cn(
         "flex cursor-pointer items-center justify-center rounded-full px-4 py-2 shadow-lg hover:bg-gray-200",
-        bgColor,
-        onClick && "active:scale-95 active:bg-gray-400"
+        bgColor
       )}
-      onClick={onClick}
       transition={{ duration: 0.25 }}
       whileHover={{
         rotate: [0, -1, 1, -1, 0],
@@ -96,17 +95,8 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
 
 const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
   const networkIcon = useGetNetworkIcon(network);
-  const { handleNetworkSelect } = useNetworkTokenCompatibility();
 
-  return (
-    <Badge
-      icon={networkIcon}
-      isAnimating={isAnimating}
-      label={getNetworkDisplayName(network)}
-      onClick={() => handleNetworkSelect(network, true)}
-      rotationDuration={0.5}
-    />
-  );
+  return <Badge icon={networkIcon} isAnimating={isAnimating} label={getNetworkDisplayName(network)} rotationDuration={0.5} />;
 };
 
 const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
@@ -141,67 +131,91 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 text-center md:px-10 lg:py-32">
-      <div className="mb-32 flex flex-col items-center justify-center">
-        <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
-        <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
-        <div className="mt-4 flex w-full gap-4">
-          <a
-            className="flex w-3/5 flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
-            href="https://partners.circle.com/partner/vortex"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <img alt="Circle Internet Group" src={CIRCLE} />
-            <div className="mt-4 flex items-center justify-center gap-1">
-              <>We're an official partner of Circle</>
-              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+    <>
+      <div className="container mx-auto py-32">
+        <div className="flex flex-col items-center justify-center">
+          <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
+          <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
+          <div className="mt-12 grid grid-cols-[1fr_1fr_1fr] gap-8">
+            <div className="group relative">
+              <a
+                className="flex items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 font-normal shadow-lg transition-all duration-150 hover:scale-103"
+                href="https://partners.circle.com/partner/vortex"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <img
+                  alt="Circle Internet Group"
+                  className="h-[120px] grayscale transition-all duration-300 group-hover:grayscale-0"
+                  src={CIRCLE}
+                />
+              </a>
+              <div className="-translate-x-1/2 pointer-events-none invisible absolute bottom-full left-1/2 mb-2 flex w-full items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-primary-content text-sm opacity-0 shadow-lg transition-opacity duration-200 group-hover:visible group-hover:opacity-100">
+                <span>We're an official partner of Circle.</span>
+                <ArrowTopRightOnSquareIcon className="h-4 w-4 flex-shrink-0" />
+              </div>
             </div>
-          </a>
-          <div className="flex w-2/5 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-103">
-            <img alt="Vortex" className="w-1/2" src={VORTEX} />
+            <div className="flex scale-120 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-125">
+              <img alt="Vortex" className="h-[80px]" src={VORTEX} />
+            </div>
+            <div className="group relative">
+              <a
+                className="flex flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
+                href="https://partners.circle.com/partner/vortex"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <img
+                  alt="Pendulum Chain"
+                  className="h-[120px] grayscale transition-all duration-300 group-hover:grayscale-0"
+                  src={PENDULUM}
+                />
+              </a>
+              <div className="-translate-x-1/2 pointer-events-none invisible absolute bottom-full left-1/2 mb-2 flex w-full items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-primary-content text-sm opacity-0 shadow-lg transition-opacity duration-200 group-hover:visible group-hover:opacity-100">
+                <span>
+                  Our infrastructure is powered by Pendulum. <CheckBadgeIcon className="h-4 w-4 flex-shrink-0" />
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="relative z-20 mt-4 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
-        <div className="relative z-20 mt-1.5 flex w-5/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-60 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-1.5 flex w-4/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-40 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-1.5 flex w-3/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-20 transition-opacity duration-300 hover:opacity-100"></div>
-        <div className="relative z-20 mt-1.5 flex w-2/6 items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5 opacity-5 transition-opacity duration-300 hover:opacity-100"></div>
       </div>
+      <hr className="border-gray-100 border-b-1" />
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center md:px-10 lg:py-32">
+        <div className="mb-12">
+          <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.networks.title")}</h2>
+          <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.networks.description")}</p>
 
-      <div className="mb-12">
-        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.networks.title")}</h2>
-        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.networks.description")}</p>
+          <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {networks.map((network, index) => (
+              <NetworkBadge
+                isAnimating={animatingIndex.type === "network" && index === animatingIndex.index}
+                key={network}
+                network={network}
+              />
+            ))}
+          </ul>
+        </div>
 
-        <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {networks.map((network, index) => (
-            <NetworkBadge
-              isAnimating={animatingIndex.type === "network" && index === animatingIndex.index}
-              key={network}
-              network={network}
-            />
-          ))}
-        </ul>
+        <div>
+          <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.tokens.title")}</h2>
+          <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
+          <motion.ul
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 flex flex-wrap items-center justify-center gap-2"
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5 }}
+          >
+            {tokens.map((token, index) => (
+              <TokenBadge
+                isAnimating={animatingIndex.type === "token" && index === animatingIndex.index}
+                key={index}
+                token={token}
+              />
+            ))}
+          </motion.ul>
+        </div>
       </div>
-
-      <div>
-        <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.tokens.title")}</h2>
-        <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
-        <motion.ul
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 flex flex-wrap items-center justify-center gap-2"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5 }}
-        >
-          {tokens.map((token, index) => (
-            <TokenBadge
-              isAnimating={animatingIndex.type === "token" && index === animatingIndex.index}
-              key={index}
-              token={token}
-            />
-          ))}
-        </motion.ul>
-      </div>
-    </div>
+    </>
   );
 }

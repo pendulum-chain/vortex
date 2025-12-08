@@ -9,7 +9,7 @@ export const GotQuestions = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="overflow-hidden bg-blue-900 px-4 md:px-10 py-32 text-white">
+    <section className="overflow-hidden bg-blue-900 px-4 py-32 text-white md:px-10">
       <div className="relative mx-auto flex flex-col justify-between sm:container md:flex-row">
         <motion.img
           alt="Planet"
@@ -22,16 +22,14 @@ export const GotQuestions = () => {
           whileInView={{ opacity: 1, rotate: 0, x: 0, y: 0 }}
         />
         <div className="z-10 md:w-1/2">
-          <h1 className="text-h1 md:text-start text-center font-bold md:font-normal">
-            <Trans i18nKey="sections.gotQuestions.title">
-              Got Questions? <br /> We're here to help!
-            </Trans>
+          <h1 className="text-center font-bold text-h1 md:text-start md:font-normal">
+            Get Started <br /> <span className="text-blue-400">with Vortex</span>
           </h1>
         </div>
-        <div className="z-10 flex flex-col md:w-1/2 md:items-end justify-center">
-          <p className="text-body-lg mt-3 mb-4 md:mt-0 md:text-end text-center">{t("sections.gotQuestions.description")}</p>
+        <div className="z-10 flex flex-col justify-center md:w-1/2 md:items-end">
+          <p className="mt-3 mb-4 text-center text-body-lg md:mt-0 md:text-end">{t("sections.gotQuestions.description")}</p>
           <a className="btn btn-vortex-secondary mx-auto flex items-center gap-2 rounded-3xl px-6 md:mx-0" href={FORM_URL}>
-            <span>{t("sections.gotQuestions.contactUs")}</span>
+            <span>Contact Sales</span>
             <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
           </a>
         </div>

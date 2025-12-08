@@ -10,15 +10,13 @@ import { Ramp } from "../ramp";
 import MainSections from "./MainSections";
 
 const wordVariants: Variants = {
-  hidden: { opacity: 0, rotateX: "90deg" as const, scale: 0.9, y: 10 },
+  hidden: { filter: "blur(3px)", opacity: 0, rotateX: "-45deg", scale: 0.9, y: 50 },
   visible: {
+    filter: "blur(0px)",
     opacity: 1,
     rotateX: 0,
     scale: 1,
-    transition: {
-      duration: 0.6,
-      ease: "easeOut" as const
-    },
+    transition: { duration: 0.2, ease: "easeOut" },
     y: 0
   }
 };
@@ -37,7 +35,12 @@ const AnimatedTitle = ({ text }: { text: string }) => {
               return <span key={`space-${partIndex}-${wordIdx}`}>{word}</span>;
             }
             return (
-              <motion.span className="text-blue-400" key={`part-${partIndex}-word-${wordIdx}`} variants={wordVariants}>
+              <motion.span
+                className="inline-block text-blue-400"
+                key={`part-${partIndex}-word-${wordIdx}`}
+                style={{ transformStyle: "preserve-3d" }}
+                variants={wordVariants}
+              >
                 {word}
               </motion.span>
             );
@@ -51,7 +54,12 @@ const AnimatedTitle = ({ text }: { text: string }) => {
               return <span key={`space-${partIndex}-${wordIdx}`}>{word}</span>;
             }
             return (
-              <motion.span key={`part-${partIndex}-word-${wordIdx}`} variants={wordVariants}>
+              <motion.span
+                className="inline-block"
+                key={`part-${partIndex}-word-${wordIdx}`}
+                style={{ transformStyle: "preserve-3d" }}
+                variants={wordVariants}
+              >
                 {word}
               </motion.span>
             );
@@ -79,30 +87,46 @@ export const Main = () => {
                   animate="visible"
                   className="pt-8 text-center font-bold text-h1 text-white lg:pt-0 lg:text-start"
                   initial="hidden"
+                  style={{ perspective: "1000px" }}
                   variants={{
                     visible: {
                       transition: {
-                        staggerChildren: 0.1
+                        staggerChildren: 0.05
                       }
                     }
                   }}
                 >
                   <AnimatedTitle text={t("pages.main.hero.title")} />
                 </motion.h1>
-                <p className="text-center text-body-lg text-white lg:text-left">
+                <motion.p
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center text-body-lg text-white lg:text-left"
+                  initial={{ opacity: 0, y: 10 }}
+                  transition={{ delay: 0.45, duration: 0.2, ease: "easeOut" }}
+                >
                   <Trans i18nKey="pages.main.hero.subtitle" />
-                </p>
-                <div className="flex w-full justify-center gap-x-4 lg:justify-start">
-                  <a
+                </motion.p>
+                <div className="mt-2 flex w-full justify-center gap-x-4 lg:justify-start">
+                  <motion.a
+                    animate={{ opacity: 1, y: 0 }}
                     className="btn btn-vortex-primary w-1/3"
                     href="https://api-docs.vortexfinance.co/widgets/"
+                    initial={{ opacity: 0, y: 10 }}
                     rel="noopener noreferrer"
                     target="_blank"
+                    transition={{ delay: 0.55, duration: 0.2, ease: "easeOut" }}
                   >
                     Buy & Sell Crypto
-                  </a>
-                  <Link className="btn btn-vortex-primary-inverse w-1/3" to="/{-$locale}/business">
-                    Partner with us
+                  </motion.a>
+                  <Link className="w-1/3" to="/{-$locale}/business">
+                    <motion.div
+                      animate={{ opacity: 1, y: 0 }}
+                      className="btn btn-vortex-primary-inverse w-full"
+                      initial={{ opacity: 0, y: 10 }}
+                      transition={{ delay: 0.65, duration: 0.2, ease: "easeOut" }}
+                    >
+                      Partner with us
+                    </motion.div>
                   </Link>
                 </div>
               </div>
@@ -124,7 +148,7 @@ export const Main = () => {
                       scale: 1,
                       transition: {
                         damping: 18,
-                        delay: 0.3,
+                        delay: 0.5,
                         stiffness: 320,
                         type: "spring"
                       }

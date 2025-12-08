@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import SEPA from "../../assets/payments/sepa.svg";
-import CIRCLE from "../../assets/trusted-by/circle.svg";
+import CIRCLE from "../../assets/trusted-by/circle-full.svg";
 import COINDESK from "../../assets/trusted-by/coindesk.svg";
 import ETHEREUM from "../../assets/trusted-by/ethereum.svg";
 import METAMASK from "../../assets/trusted-by/metamask.svg";
@@ -71,8 +71,16 @@ export const TrustedBy = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="px-4 py-16 sm:container sm:mx-auto md:px-10 lg:py-32">
-      <h1 className="mb-5 text-center text-black text-h1">{t("sections.trustedBy.title")}</h1>
+    <section className=" px-4 py-16 sm:container sm:mx-auto md:px-10 lg:py-32">
+      <motion.h2
+        animate={{ y: 0 }}
+        className="mb-5 text-center text-black text-h2"
+        initial={{ y: 50 }}
+        transition={{ duration: 0.2 }}
+        viewport={{ once: true }}
+      >
+        {t("sections.trustedBy.title")}
+      </motion.h2>
       <ImageList images={trustedByImages} />
     </section>
   );

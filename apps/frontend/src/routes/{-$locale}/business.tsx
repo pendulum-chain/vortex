@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BaseLayout } from "../../layouts";
 import { BusinessMain } from "../../pages/business";
+import { GotQuestions } from "../../sections/GotQuestions";
 import { WhyVortexApi } from "../../sections/WhyVortexApi";
 import { WhyVortexBusiness } from "../../sections/WhyVortexBusiness";
 import { WhyVortexWidget } from "../../sections/WhyVortexWidget";
@@ -16,6 +17,7 @@ function BusinessRouteComponent() {
       <WhyVortexBusiness />
       <WhyVortexApi />
       <WhyVortexWidget />
+      <GotQuestions />
     </>
   );
 

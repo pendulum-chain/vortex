@@ -1,5 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
-import { useLayoutEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyButton } from "../../components/CopyButton";
 import TabsClipPath from "./TabsClipPath";
@@ -76,42 +76,46 @@ export const WhyVortexWidget = () => {
   };
 
   return (
-    <section className="px-4 py-16 md:px-10 lg:py-32">
-      <div className="container mx-auto max-w-5xl">
-        <div className="mb-12 text-center">
-          <h1 className="mx-auto max-w-3xl text-gray-800 text-h2">
-            One small snippet of code to help you <strong className="text-primary">scale your business quickly</strong>
-          </h1>
-          <p className="mt-6 text-gray-500 text-lg">
-            Our offramp and onramp can be integrated into your app in 5 minutes - see for yourself.
-          </p>
-        </div>
+    <>
+      <div className="relative z-20 h-[1px] w-full bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700"></div>
+      <section className="bg-gradient-to-b from-white to-blue-50 px-4 py-16 md:px-10 lg:py-32">
+        <div className="container mx-auto max-w-5xl">
+          <div className="mb-12 text-center">
+            <h1 className="mx-auto max-w-3xl text-gray-800 text-h2 ">
+              One small snippet of code to help you <strong className="text-primary">scale your business quickly</strong>
+            </h1>
+            <p className="mt-6 text-gray-500 text-lg">
+              Our offramp and onramp can be integrated into your app in 5 minutes - see for yourself.
+            </p>
+          </div>
 
-        <TabsClipPath
-          activeTab={packageManager}
-          onChange={tab => setPackageManager(tab as PackageManager)}
-          tabs={Object.keys(installCommands)}
-        />
+          <TabsClipPath
+            activeTab={packageManager}
+            onChange={tab => setPackageManager(tab as PackageManager)}
+            tabs={Object.keys(installCommands)}
+          />
 
-        <div className="relative mx-auto mt-4 flex w-1/2 items-center gap-2 rounded-xl bg-gray-100 px-4 py-4 font-mono text-sm shadow-lg">
-          <span className="text-pink-500">$</span>
-          <span className="mr-2 text-primary">{installCommands[packageManager]}</span>
-          <CopyButton className="absolute right-[10px] rounded-xl py-2" text={"copy"} />
-        </div>
+          <div className="relative mx-auto mt-4 flex w-1/2 items-center gap-2 rounded-xl bg-gray-100 px-4 py-4 font-mono text-sm shadow-lg">
+            <span className="text-pink-500">$</span>
+            <span className="mr-2 text-primary">{installCommands[packageManager]}</span>
+            <CopyButton className="absolute right-[10px] rounded-xl py-2" text={"copy"} />
+          </div>
 
-        <WidgetCodeSnippet />
+          <WidgetCodeSnippet />
 
-        <div className="flex justify-center">
-          <div className="relative mt-12">
-            <div className="badge absolute top-[-10px] right-[-20px] z-20 bg-blue-700 text-white">
-              {t("pages.business.hero.comingSoon")}
+          <div className="flex justify-center">
+            <div className="relative mt-12">
+              <div className="badge absolute top-[-10px] right-[-20px] z-20 bg-blue-700 text-white">
+                {t("pages.business.hero.comingSoon")}
+              </div>
+              <button className="btn btn-vortex-primary-inverse" disabled>
+                Get started <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+              </button>
             </div>
-            <button className="btn btn-vortex-primary-inverse" disabled>
-              Get started <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-            </button>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+      <div className="relative z-20 h-[1px] w-full bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700"></div>
+    </>
   );
 };

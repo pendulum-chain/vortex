@@ -60,9 +60,9 @@ export const WhyVortex = () => {
 
   return (
     <section className="container relative mx-auto mb-16 grid grid-cols-1 gap-x-20 px-4 pt-16 sm:px-8 lg:mb-32 lg:grid-cols-2 lg:pt-32">
-      <motion.h1
+      <motion.h2
         animate={{ x: 0 }}
-        className="text-center text-black text-h1 md:text-5xl! lg:sticky lg:top-24 lg:h-[200px] lg:text-left xl:text-6xl!"
+        className="text-center text-black text-h2 lg:sticky lg:top-24 lg:h-[200px] lg:text-left"
         initial={{ x: -50 }}
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}
@@ -71,7 +71,7 @@ export const WhyVortex = () => {
         <Trans i18nKey="sections.whyVortex.withVortexFinance">
           with <strong className="text-primary">Vortex</strong>?
         </Trans>
-      </motion.h1>
+      </motion.h2>
       <div className="mt-12 grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-2 lg:mt-0">
         {features.map(feature => (
           <FeatureCard key={feature.title} {...feature} />

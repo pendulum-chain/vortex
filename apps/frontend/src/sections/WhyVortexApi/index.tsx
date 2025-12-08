@@ -7,16 +7,13 @@ export function WhyVortexApi() {
 
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 md:px-10 lg:py-32">
-      <div className="container mx-auto">
-        <div className="flex animate-slide-up flex-col items-center justify-center">
-          <h1 className="pt-8 text-center text-h2 text-white">{t("pages.business.whyVortexApi.title1")}</h1>
-          <h1 className="pt-2 text-center text-blue-400 text-h2 lg:pt-0 lg:text-start">
+      <div className="container mx-auto grid grid-cols-2">
+        <div className="flex animate-slide-up flex-col ">
+          <h1 className="pt-8 font-bold text-h2 text-white">{t("pages.business.whyVortexApi.title1")}</h1>
+          <h1 className="pt-2 font-bold text-blue-400 text-h2 lg:pt-0 lg:text-start">
             {t("pages.business.whyVortexApi.title2")}
           </h1>
-        </div>
-
-        <div className="grid grid-cols-1 justify-center gap-x-20 gap-y-10 lg:grid-cols-[1fr_2fr]">
-          <ul className="mt-0 md:mt-8">
+          <ul className="mt-0 grid grid-cols-1 gap-x-6 md:mt-8">
             <li>
               <div className="mt-6 flex items-center justify-center gap-2 lg:justify-start">
                 <CheckCircleIcon className="h-6 w-6 text-blue-400" />
@@ -51,35 +48,39 @@ export function WhyVortexApi() {
               </p>
             </li>
           </ul>
-          <div className="mt-0 md:mt-12">
-            <video
-              aria-label="Quote request preview"
-              autoPlay
-              className="rounded-xl"
-              controls={false}
-              loop
-              muted
-              playsInline
-              src={quoteRequestPreview}
-            />
-            <p className="mt-6 px-10 text-center text-h3 text-white lg:px-0">{t("pages.business.whyVortexApi.cta.title")}</p>
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <a
-                className="btn btn-vortex-primary px-10 text-white"
-                href="https://api-docs.vortexfinance.co/"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t("pages.business.whyVortexApi.cta.readDocs")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-              </a>
-              <a
-                className="btn btn-vortex-primary-inverse px-10"
-                href="https://www.npmjs.com/package/@vortexfi/sdk"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t("pages.business.whyVortexApi.cta.npmPackage")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-              </a>
+        </div>
+        <div>
+          <div className="justify-center gap-x-20 gap-y-10 lg:grid-cols-[1fr_2fr]">
+            <div className="mt-0 md:mt-12">
+              <video
+                aria-label="Quote request preview"
+                autoPlay
+                className="mx-auto rounded-xl"
+                controls={false}
+                loop
+                muted
+                playsInline
+                src={quoteRequestPreview}
+              />
+              <p className="mt-6 px-10 text-center text-h3 text-white lg:px-0">{t("pages.business.whyVortexApi.cta.title")}</p>
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <a
+                  className="btn btn-vortex-primary px-10 text-white"
+                  href="https://api-docs.vortexfinance.co/"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {t("pages.business.whyVortexApi.cta.readDocs")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                </a>
+                <a
+                  className="btn btn-vortex-primary-inverse px-10"
+                  href="https://www.npmjs.com/package/@vortexfi/sdk"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {t("pages.business.whyVortexApi.cta.npmPackage")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -125,7 +125,7 @@ export const WhyVortexBusiness = () => {
   return (
     <section className="container mx-auto px-4 py-16 md:py-32 lg:px-10">
       <div className="relative flex flex-col items-center justify-center">
-        <h1 className="text-center text-gray-900 text-h2 lg:pt-0 lg:text-start">
+        <h1 className="text-center text-gray-900 text-h2 lg:pt-0 lg:text-start ">
           {t("pages.business.whyVortexBusiness.title")}
         </h1>
         <p className="mt-6 text-center md:mb-16 md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>

@@ -259,7 +259,7 @@
   }
 
   .text-h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
+    @apply text-4xl md:text-5xl lg:text-6xl leading-[1.18];
   }
 
   .text-h2 {
@@ -271,7 +271,7 @@
   }
 
   .text-body-lg {
-    @apply text-lg md:text-xl leading-relaxed;
+    @apply text-base md:text-lg leading-relaxed;
   }
 
   .text-body {

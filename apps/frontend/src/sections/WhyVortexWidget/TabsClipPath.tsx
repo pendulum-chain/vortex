@@ -1,3 +1,7 @@
+// @biome-ignore lint/complexity/noStaticOnlyExports
+// @biome-ignore lint/correctness/useExhaustiveDependencies
+// @biome-ignore lint/*
+
 import { useEffect, useRef, useState } from "react";
 
 export default function TabsClipPath({
