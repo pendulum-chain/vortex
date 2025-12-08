@@ -11,10 +11,10 @@ import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../../QuoteSummary";
 import { DetailsStepActions } from "./DetailsStepActions";
 import { DetailsStepForm } from "./DetailsStepForm";
 import { DetailsStepHeader } from "./DetailsStepHeader";
-import { DetailsStepQuoteSummary } from "./DetailsStepQuoteSummary";
 
 export interface DetailsStepProps {
   className?: string;
@@ -102,25 +102,31 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   return (
     <FormProvider {...form}>
-      <form className={`flex min-h-[506px] grow flex-col ${className || ""}`} onSubmit={form.handleSubmit(handleFormSubmit)}>
-        <DetailsStepHeader />
-        <DetailsStepForm
-          isBrazilLanding={isBrazilLanding}
-          isWalletAddressDisabled={!!walletLockedFromState}
-          showWalletAddressField={isMoneriumToAssethubRamp}
-          signingState={signingState}
-        />
-        {isSep24Redo && (
-          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
-            <div className="flex items-center space-x-3">
-              <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
+      <div className="relative flex min-h-[506px] grow flex-col">
+        <form className={`flex grow flex-col ${className || ""}`} onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <DetailsStepHeader />
+          <DetailsStepForm
+            isBrazilLanding={isBrazilLanding}
+            isWalletAddressDisabled={!!walletLockedFromState}
+            showWalletAddressField={isMoneriumToAssethubRamp}
+            signingState={signingState}
+          />
+          {isSep24Redo && (
+            <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-center space-x-3">
+                <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
+                <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
+              </div>
             </div>
+          )}
+          <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
+        </form>
+        {quote && (
+          <div className="absolute bottom-2 left-0 right-0">
+            <QuoteSummary quote={quote} />
           </div>
         )}
-        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
-      </form>
-      <DetailsStepQuoteSummary quote={quote} />
+      </div>
     </FormProvider>
   );
 };

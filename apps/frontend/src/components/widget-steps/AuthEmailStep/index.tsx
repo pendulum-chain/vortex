@@ -40,7 +40,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         <p className="text-gray-600 mb-6">We'll send you a one-time code to verify your identity</p>
       </div>
 
-      <div className="flex flex-col items-center justify-center flex-grow px-6">
+      <div className="flex flex-col items-center justify-center flex-grow">
         <div className="w-full max-w-md">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
@@ -72,7 +72,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
       </div>
 
       {quote && (
-        <div className="absolute bottom-2 left-0 right-0 px-6">
+        <div className="absolute bottom-2 left-0 right-0">
           <QuoteSummary quote={quote} />
         </div>
       )}

@@ -116,7 +116,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
       </div>
 
       {quote && (
-        <div className="absolute bottom-2 left-0 right-0 px-6">
+        <div className="absolute bottom-2 left-0 right-0">
           <QuoteSummary quote={quote} />
         </div>
       )}
