@@ -71,7 +71,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   }, [errorMessage]);
 
   return (
-    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+    <div className={`relative flex min-h-[506px] grow flex-col pb-20 ${className || ""}`}>
       <div className="mt-4 text-center">
         <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
         <p className="text-gray-600 mb-6">
