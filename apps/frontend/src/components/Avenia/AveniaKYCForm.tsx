@@ -144,8 +144,10 @@ export const AveniaKYCForm = () => {
   }
 
   return (
-    <div className="relative flex h-full grow flex-col pb-20">
-      <div className="relative">{content}</div>
+    <div className="relative flex h-full grow flex-col overflow-hidden">
+      <div className="relative flex grow flex-col overflow-y-auto pb-32">
+        <div className="relative">{content}</div>
+      </div>
       {quote && (
         <div className="absolute bottom-2 left-0 right-0">
           <QuoteSummary quote={quote} />

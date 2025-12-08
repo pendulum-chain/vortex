@@ -32,68 +32,71 @@ export const AveniaKYBVerifyStep = ({
   const { t } = useTranslation();
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col pb-20">
-      <div>
-        <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
+    <div className="relative flex min-h-[506px] w-full grow flex-col overflow-hidden">
+      <div className="flex grow flex-col overflow-y-auto pb-32">
+        <div className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between">
+          <div>
+            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
 
-        <img alt="Business Check" className="mx-auto mt-16 w-[170px] transition-all duration-300" src={imageSrc} />
+            <img alt="Business Check" className="mx-auto mt-16 w-[170px] transition-all duration-300" src={imageSrc} />
 
-        {!isVerificationStarted && (
-          <p className="mx-1 mt-6 mb-4 text-center">
-            <Trans i18nKey={instructionsKey}>
-              Please provide our trusted partner
-              <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
-                Avenia
-              </a>
-              with your company registration information and the required documents.
-            </Trans>
-          </p>
-        )}
-
-        {isVerificationStarted && (
-          <div className="mx-1 mt-6 text-center">
-            <Trans
-              components={{
-                1: (
-                  <a
-                    className="cursor-pointer font-bold text-primary underline"
-                    href={verificationUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    here
+            {!isVerificationStarted && (
+              <p className="mx-1 mt-6 mb-4 text-center">
+                <Trans i18nKey={instructionsKey}>
+                  Please provide our trusted partner
+                  <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                    Avenia
                   </a>
-                )
-              }}
-              i18nKey="components.aveniaKYB.tryAgain"
-            />
+                  with your company registration information and the required documents.
+                </Trans>
+              </p>
+            )}
+
+            {isVerificationStarted && (
+              <div className="mx-1 mt-6 text-center">
+                <Trans
+                  components={{
+                    1: (
+                      <a
+                        className="cursor-pointer font-bold text-primary underline"
+                        href={verificationUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        here
+                      </a>
+                    )
+                  }}
+                  i18nKey="components.aveniaKYB.tryAgain"
+                />
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="mt-8 flex gap-4">
+            <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
+              {t(cancelButtonKey)}
+            </button>
+
+            {isVerificationStarted ? (
+              <button className="btn-vortex-primary btn flex-1" onClick={onVerificationDone}>
+                {t("components.aveniaKYB.buttons.iHaveVerified")}
+              </button>
+            ) : (
+              <a
+                className="btn-vortex-primary btn flex flex-1 items-center justify-center gap-1"
+                href={verificationUrl}
+                onClick={onVerificationStart}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {t(verifyButtonKey)}
+                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+        </div>
       </div>
-
-      <div className="mt-8 flex gap-4">
-        <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
-          {t(cancelButtonKey)}
-        </button>
-
-        {isVerificationStarted ? (
-          <button className="btn-vortex-primary btn flex-1" onClick={onVerificationDone}>
-            {t("components.aveniaKYB.buttons.iHaveVerified")}
-          </button>
-        ) : (
-          <a
-            className="btn-vortex-primary btn flex flex-1 items-center justify-center gap-1"
-            href={verificationUrl}
-            onClick={onVerificationStart}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {t(verifyButtonKey)}
-            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-          </a>
-        )}
-      </div>
-
       {quote && (
         <div className="absolute bottom-2 left-0 right-0">
           <QuoteSummary quote={quote} />

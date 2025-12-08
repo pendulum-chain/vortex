@@ -102,8 +102,11 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   return (
     <FormProvider {...form}>
-      <div className="relative flex min-h-[506px] grow flex-col">
-        <form className={`flex grow flex-col pb-20 ${className || ""}`} onSubmit={form.handleSubmit(handleFormSubmit)}>
+      <div className="relative flex min-h-[506px] max-h-full grow flex-col overflow-hidden">
+        <form
+          className={`flex grow flex-col overflow-y-auto pb-32 ${className || ""}`}
+          onSubmit={form.handleSubmit(handleFormSubmit)}
+        >
           <DetailsStepHeader />
           <DetailsStepForm
             isBrazilLanding={isBrazilLanding}

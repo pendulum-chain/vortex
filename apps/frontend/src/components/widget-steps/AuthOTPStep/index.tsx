@@ -71,47 +71,49 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   }, [errorMessage]);
 
   return (
-    <div className={`relative flex min-h-[506px] grow flex-col pb-20 ${className || ""}`}>
-      <div className="mt-4 text-center">
-        <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
-        <p className="text-gray-600 mb-6">
-          We sent a 6-digit code to <strong>{userEmail}</strong>
-        </p>
-      </div>
+    <div className={`relative flex min-h-[506px] grow flex-col overflow-hidden ${className || ""}`}>
+      <div className="flex grow flex-col overflow-y-auto pb-32">
+        <div className="mt-4 text-center">
+          <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
+          <p className="text-gray-600 mb-6">
+            We sent a 6-digit code to <strong>{userEmail}</strong>
+          </p>
+        </div>
 
-      <div className="flex flex-col items-center justify-center flex-grow px-6">
-        <div className="w-full max-w-md">
-          <div className="flex gap-2 justify-center mb-4" onPaste={handlePaste}>
-            {otp.map((digit, index) => (
-              <input
-                autoFocus={index === 0}
-                className="w-12 h-14 text-center text-2xl font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                disabled={isVerifying}
-                inputMode="numeric"
-                key={index}
-                maxLength={1}
-                onChange={e => handleChange(index, e.target.value)}
-                onKeyDown={e => handleKeyDown(index, e)}
-                ref={el => {
-                  inputRefs.current[index] = el;
-                }}
-                type="text"
-                value={digit}
-              />
-            ))}
+        <div className="flex flex-col items-center justify-center flex-grow px-6">
+          <div className="w-full max-w-md">
+            <div className="flex gap-2 justify-center mb-4" onPaste={handlePaste}>
+              {otp.map((digit, index) => (
+                <input
+                  autoFocus={index === 0}
+                  className="w-12 h-14 text-center text-2xl font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  disabled={isVerifying}
+                  inputMode="numeric"
+                  key={index}
+                  maxLength={1}
+                  onChange={e => handleChange(index, e.target.value)}
+                  onKeyDown={e => handleKeyDown(index, e)}
+                  ref={el => {
+                    inputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  value={digit}
+                />
+              ))}
+            </div>
+
+            {errorMessage && <p className="text-sm text-red-600 text-center mb-4">{errorMessage}</p>}
+
+            {isVerifying && <p className="text-sm text-blue-600 text-center mb-4">Verifying...</p>}
+
+            <button
+              className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium underline disabled:text-gray-400 disabled:no-underline"
+              disabled={isVerifying}
+              onClick={() => rampActor.send({ type: "CHANGE_EMAIL" })}
+            >
+              Use a different email
+            </button>
           </div>
-
-          {errorMessage && <p className="text-sm text-red-600 text-center mb-4">{errorMessage}</p>}
-
-          {isVerifying && <p className="text-sm text-blue-600 text-center mb-4">Verifying...</p>}
-
-          <button
-            className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium underline disabled:text-gray-400 disabled:no-underline"
-            disabled={isVerifying}
-            onClick={() => rampActor.send({ type: "CHANGE_EMAIL" })}
-          >
-            Use a different email
-          </button>
         </div>
       </div>
 
