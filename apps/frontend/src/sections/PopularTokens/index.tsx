@@ -134,10 +134,28 @@ export function PopularTokens() {
     <>
       <div className="container mx-auto py-32">
         <div className="flex flex-col items-center justify-center">
-          <h2 className="text-gray-900 text-h2">Vortex everywhere</h2>
+          <motion.h2
+            className="text-gray-900 text-h2"
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ damping: 20, stiffness: 240, type: "spring" }}
+            viewport={{ margin: "0px 0px -80px 0px", once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            Vortex everywhere
+          </motion.h2>
           <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
           <div className="mt-12 grid grid-cols-[1fr_1fr_1fr] gap-8">
-            <div className="group relative">
+            <motion.div
+              className="group relative"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{
+                damping: 20,
+                stiffness: 240,
+                type: "spring"
+              }}
+              viewport={{ margin: "0px 0px -80px 0px", once: true }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+            >
               <a
                 className="flex items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 font-normal shadow-lg transition-all duration-150 hover:scale-103"
                 href="https://partners.circle.com/partner/vortex"
@@ -151,14 +169,25 @@ export function PopularTokens() {
                 />
               </a>
               <div className="-translate-x-1/2 pointer-events-none invisible absolute bottom-full left-1/2 mb-2 flex w-full items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-primary-content text-sm opacity-0 shadow-lg transition-opacity duration-200 group-hover:visible group-hover:opacity-100">
-                <span>We're an official partner of Circle.</span>
-                <ArrowTopRightOnSquareIcon className="h-4 w-4 flex-shrink-0" />
+                <p>
+                  We're an official partner of Circle. <ArrowTopRightOnSquareIcon className="mb-0.5 inline-block h-4 w-4" />
+                </p>
               </div>
-            </div>
+            </motion.div>
             <div className="flex scale-120 items-center justify-center rounded-lg bg-gradient-to-r from-blue-700 via-blue-700 to-blue-800 px-8 py-12 shadow-lg transition-all duration-150 hover:scale-125">
               <img alt="Vortex" className="h-[80px]" src={VORTEX} />
             </div>
-            <div className="group relative">
+            <motion.div
+              className="group relative"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{
+                damping: 20,
+                stiffness: 240,
+                type: "spring"
+              }}
+              viewport={{ margin: "0px 0px -80px 0px", once: true }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+            >
               <a
                 className="flex flex-col items-center justify-center rounded-lg bg-gradient-to-r from-gray-50 via-gray-100 to-gray-100 px-8 py-6 shadow-lg transition-all duration-150 hover:scale-103 hover:from-gray-100 hover:to-gray-200"
                 href="https://partners.circle.com/partner/vortex"
@@ -172,11 +201,9 @@ export function PopularTokens() {
                 />
               </a>
               <div className="-translate-x-1/2 pointer-events-none invisible absolute bottom-full left-1/2 mb-2 flex w-full items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-primary-content text-sm opacity-0 shadow-lg transition-opacity duration-200 group-hover:visible group-hover:opacity-100">
-                <span>
-                  Our infrastructure is powered by Pendulum. <CheckBadgeIcon className="h-4 w-4 flex-shrink-0" />
-                </span>
+                <p>Our infrastructure is powered by Pendulum.</p>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

@@ -524,10 +524,12 @@
         "comingSoon": "Coming Soon",
         "description": "With one simple, free integration Vortex handles KYC, compliance and settlement so you can stay focused on your product.",
         "sdkIntegration": "SDK integration",
+        "title": "Enable your customers to buy and sell crypto instantly - directly <0>inside your APP</0>",
         "titlePart1": "Enable your customers to buy and sell crypto instantly - directly",
         "titlePart2": "inside your APP",
         "widgetIntegration": "Widget integration"
       },
+
       "whyVortexApi": {
         "cta": {
           "npmPackage": "NPM package",

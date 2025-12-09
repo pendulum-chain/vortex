@@ -1,7 +1,8 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "framer-motion";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import WidgetSnippetImageEUR from "../../assets/vortex-metamask.png";
+import { AnimatedTitle } from "../../components/AnimatedTitle";
 
 export function BusinessMain() {
   const { t } = useTranslation();
@@ -10,26 +11,50 @@ export function BusinessMain() {
     <section className="relative overflow-hidden bg-gradient-to-b from-white to-blue-50 py-16 lg:py-32">
       <div className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr]">
         <div className="flex flex-col gap-6">
-          <h1 className="pt-8 text-center font-bold text-gray-800 text-h1 lg:pt-0 lg:text-start">
-            <Trans i18nKey="pages.business.hero.titlePart1" />{" "}
-            <span className="text-blue-700">
-              <Trans i18nKey="pages.business.hero.titlePart2" />
-            </span>
-          </h1>
-          <p className="text-center text-body-lg lg:text-left">{t("pages.business.hero.description")}</p>
+          <motion.h1
+            animate="visible"
+            className="pt-8 text-center font-bold text-gray-800 text-h1 lg:pt-0 lg:text-start"
+            initial="hidden"
+            style={{ perspective: "1000px" }}
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.05
+                }
+              }
+            }}
+          >
+            <AnimatedTitle highlightColor="text-blue-700" text={t("pages.business.hero.title")} />
+          </motion.h1>
+          <motion.p
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center text-body-lg lg:text-left"
+            initial={{ opacity: 0, y: 10 }}
+            transition={{ delay: 0.45, duration: 0.2, ease: "easeOut" }}
+          >
+            {t("pages.business.hero.description")}
+          </motion.p>
 
           <div className="mt-2 flex justify-center gap-x-4 lg:justify-start">
-            <a
+            <motion.a
+              animate={{ opacity: 1, y: 0 }}
               className="btn btn-vortex-primary w-1/3"
               href="https://api-docs.vortexfinance.co/"
+              initial={{ opacity: 0, y: 10 }}
               rel="noopener noreferrer"
               target="_blank"
+              transition={{ delay: 0.55, duration: 0.2, ease: "easeOut" }}
             >
               Contact us <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-            </a>
-            <button className="btn btn-vortex-primary-inverse w-1/3">
+            </motion.a>
+            <motion.button
+              animate={{ opacity: 1, y: 0 }}
+              className="btn btn-vortex-primary-inverse w-1/3"
+              initial={{ opacity: 0, y: 10 }}
+              transition={{ delay: 0.65, duration: 0.2, ease: "easeOut" }}
+            >
               Read our docs <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-            </button>
+            </motion.button>
           </div>
         </div>
 
