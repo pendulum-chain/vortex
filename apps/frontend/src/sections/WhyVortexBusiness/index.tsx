@@ -155,7 +155,7 @@ export const WhyVortexBusiness = () => {
           {t("pages.business.whyVortexBusiness.title")}
         </h1>
         <p className="mt-6 text-center md:mb-16 md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>
-        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-6 lg:mt-0 lg:grid-cols-2 ">
+        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-6 lg:mt-0 lg:grid-cols-2">
           {features.map(feature => (
             <FeatureCard key={feature.title} {...feature} />
           ))}

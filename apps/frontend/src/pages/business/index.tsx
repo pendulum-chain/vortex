@@ -7,7 +7,7 @@ export function BusinessMain() {
   const { t } = useTranslation();
 
   return (
-    <section className="bg-gradient-to-b from-white to-blue-50 py-16 lg:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-b from-white to-blue-50 py-16 lg:py-32">
       <div className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr]">
         <div className="flex flex-col gap-6">
           <h1 className="pt-8 text-center font-bold text-gray-800 text-h1 lg:pt-0 lg:text-start">
@@ -33,18 +33,13 @@ export function BusinessMain() {
           </div>
         </div>
 
-        <div className="relative mx-auto flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 lg:w-full">
-          <div className="relative mx-auto flex w-flex items-center justify-around lg:w-full">
-            <motion.img
-              alt="Widget Snippet EUR"
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="z-10 rounded-lg shadow-custom hover:z-30"
-              draggable={false}
-              initial={{ opacity: 0, scale: 0.9, y: 150 }}
-              src={WidgetSnippetImageEUR}
-              transition={{ delay: 0.45, duration: 0.25, ease: "easeOut" }}
-            />
-          </div>
+        <div className="mx-auto flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 xl:w-full">
+          <img
+            alt="Widget Snippet EUR"
+            className="z-10 rounded-lg shadow-custom hover:z-30 lg:absolute lg:top-1/5 lg:right-[-230px] lg:w-full lg:max-w-[780px] xl:max-w-[880px] 2xl:static"
+            draggable={false}
+            src={WidgetSnippetImageEUR}
+          />
         </div>
       </div>
     </section>

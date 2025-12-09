@@ -43,7 +43,7 @@ export const DesktopNavbar = () => {
 
             <div className="flex items-center">
               <button
-                className="btn btn-vortex-secondary "
+                className="btn btn-vortex-secondary rounded-3xl"
                 onClick={() => {
                   console.log("book demo");
                 }}
