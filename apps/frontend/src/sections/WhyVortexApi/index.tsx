@@ -6,47 +6,39 @@ export function WhyVortexApi() {
   const { t } = useTranslation();
 
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 md:px-10 lg:py-32">
+    <section className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] px-4 py-16 sm:py-32 md:px-10">
       <div className="container mx-auto grid grid-cols-1 gap-12 lg:gap-16">
         <div className="flex animate-slide-up flex-col">
           <h1 className="text-center font-bold text-h2 text-white">
-            {t("pages.business.whyVortexApi.title1")} <br className="hidden lg:block" />
+            {t("pages.business.whyVortexApi.title1")} <br />
             <strong className="text-blue-400">{t("pages.business.whyVortexApi.title2")}</strong>
           </h1>
 
-          <ul className="mt-16 grid grid-cols-3">
+          <ul className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
             <li>
-              <div className="flex items-center justify-center gap-2 lg:justify-start">
+              <div className="flex gap-2 ">
                 <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
-                <h3 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
+                <h3 className=" font-bold text-blue-400 text-h3 ">
                   {t("pages.business.whyVortexApi.features.automated.title")}
                 </h3>
               </div>
-              <p className="mt-2 text-center text-body-lg text-white lg:text-left">
-                {t("pages.business.whyVortexApi.features.automated.description")}
-              </p>
+              <p className="mt-2 text-body-lg text-white ">{t("pages.business.whyVortexApi.features.automated.description")}</p>
             </li>
             <li>
-              <div className="flex items-center justify-center gap-2 lg:justify-start">
+              <div className="flex gap-2 ">
                 <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
-                <h3 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
-                  {t("pages.business.whyVortexApi.features.pricing.title")}
-                </h3>
+                <h3 className=" font-bold text-blue-400 text-h3 ">{t("pages.business.whyVortexApi.features.pricing.title")}</h3>
               </div>
-              <p className="mt-2 text-center text-body-lg text-white lg:text-left">
-                {t("pages.business.whyVortexApi.features.pricing.description")}
-              </p>
+              <p className="mt-2 text-body-lg text-white ">{t("pages.business.whyVortexApi.features.pricing.description")}</p>
             </li>
             <li>
-              <div className="flex items-center justify-center gap-2 lg:justify-start">
+              <div className="flex gap-2 ">
                 <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
-                <h3 className="text-center font-bold text-blue-400 text-h3 lg:text-left">
+                <h3 className=" font-bold text-blue-400 text-h3 ">
                   {t("pages.business.whyVortexApi.features.liquidity.title")}
                 </h3>
               </div>
-              <p className="mt-2 text-center text-body-lg text-white lg:text-left">
-                {t("pages.business.whyVortexApi.features.liquidity.description")}
-              </p>
+              <p className="mt-2 text-body-lg text-white ">{t("pages.business.whyVortexApi.features.liquidity.description")}</p>
             </li>
           </ul>
         </div>
@@ -62,9 +54,9 @@ export function WhyVortexApi() {
             src={quoteRequestPreview}
           />
           <p className="my-8 text-body-lg text-white">{t("pages.business.whyVortexApi.cta.title")}</p>
-          <div className="flex flex-col items-center gap-4 md:flex-row">
+          <div className="flex items-center justify-center gap-4">
             <a
-              className="btn btn-vortex-primary w-full text-white md:w-auto md:px-10"
+              className="btn btn-vortex-primary text-white md:px-10"
               href="https://api-docs.vortexfinance.co/"
               rel="noopener noreferrer"
               target="_blank"
@@ -72,7 +64,7 @@ export function WhyVortexApi() {
               {t("pages.business.whyVortexApi.cta.readDocs")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
             </a>
             <a
-              className="btn btn-vortex-primary-inverse w-full md:w-auto md:px-10"
+              className="btn btn-vortex-primary-inverse md:px-10"
               href="https://www.npmjs.com/package/@vortexfi/sdk"
               rel="noopener noreferrer"
               target="_blank"

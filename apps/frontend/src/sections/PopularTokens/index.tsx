@@ -144,7 +144,7 @@ export function PopularTokens() {
             Vortex everywhere
           </motion.h2>
           <p className="mt-2 text-body-lg text-gray-600">Join our network of official partners</p>
-          <div className="mt-12 grid grid-cols-[1fr_1fr_1fr] gap-8">
+          <div className="mt-12 grid gap-8 sm:grid-cols-[1fr_1fr_1fr]">
             <motion.div
               className="group relative"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}

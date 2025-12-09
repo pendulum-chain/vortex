@@ -8,12 +8,12 @@ export function BusinessMain() {
   const { t } = useTranslation();
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white to-blue-50 py-16 lg:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-b from-white to-blue-50 py-24 lg:py-32">
       <div className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr]">
         <div className="flex flex-col gap-6">
           <motion.h1
             animate="visible"
-            className="pt-8 text-center font-bold text-gray-800 text-h1 lg:pt-0 lg:text-start"
+            className="text-center font-bold text-gray-800 text-h1 lg:pt-0 lg:text-start"
             initial="hidden"
             style={{ perspective: "1000px" }}
             variants={{

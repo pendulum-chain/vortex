@@ -81,7 +81,7 @@ export const WhyVortexWidget = () => {
       <section className="bg-gradient-to-b from-white to-blue-50 px-4 py-16 md:px-10 lg:py-32">
         <div className="container mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h1 className="mx-auto max-w-3xl text-gray-800 text-h2 ">
+            <h1 className="mx-auto max-w-3xl text-gray-800 text-h2">
               One small snippet of code to help you <strong className="text-primary">scale your business quickly</strong>
             </h1>
             <p className="mt-6 text-gray-500 text-lg">
@@ -95,7 +95,7 @@ export const WhyVortexWidget = () => {
             tabs={Object.keys(installCommands)}
           />
 
-          <div className="relative mx-auto mt-4 flex w-1/2 items-center gap-2 rounded-xl bg-gray-100 px-4 py-4 font-mono text-sm shadow-lg">
+          <div className="relative mx-auto mt-4 flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-4 font-mono text-sm shadow-lg sm:w-1/2">
             <span className="text-pink-500">$</span>
             <span className="mr-2 text-primary">{installCommands[packageManager]}</span>
             <CopyButton className="absolute right-[10px] rounded-xl py-2" text={"copy"} />
