@@ -1,8 +1,4 @@
-// @biome-ignore lint/complexity/noStaticOnlyExports
-// @biome-ignore lint/correctness/useExhaustiveDependencies
-// @biome-ignore lint/*
-
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export default function TabsClipPath({
   tabs,
@@ -17,7 +13,7 @@ export default function TabsClipPath({
   const activeTabElementRef = useRef(null);
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerRef.current as HTMLElement | null;
 
     if (activeTab && container) {
       const activeTabElement = activeTabElementRef.current;
@@ -30,7 +26,7 @@ export default function TabsClipPath({
         container.style.clipPath = `inset(0 ${Number(100 - (clipRight / container.offsetWidth) * 100).toFixed()}% 0 ${Number((clipLeft / container.offsetWidth) * 100).toFixed()}% round 17px)`;
       }
     }
-  }, [activeTab, activeTabElementRef, containerRef]);
+  }, [activeTab]);
 
   return (
     <div className="relative mx-auto flex w-fit rounded-xl bg-gray-50 shadow-xs">
