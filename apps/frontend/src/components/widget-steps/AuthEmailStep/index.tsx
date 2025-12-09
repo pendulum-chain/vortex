@@ -73,11 +73,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         </div>
       </div>
 
-      {quote && (
-        <div className="absolute bottom-2 left-0 right-0 z-10">
-          <QuoteSummary quote={quote} />
-        </div>
-      )}
+      {quote && <QuoteSummary quote={quote} />}
     </div>
   );
 };
