@@ -3,22 +3,22 @@ import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import CLOCK from "../../assets/lottie/clock.json";
-import COIN from "../../assets/lottie/coin.json";
-import DOCUMENT from "../../assets/lottie/document.json";
-import EYE from "../../assets/lottie/eye.json";
+import COFFEE from "../../assets/why-vortex/coffee.svg";
+import LOCK from "../../assets/why-vortex/lock.svg";
+import PERCENT from "../../assets/why-vortex/percent.svg";
+import USER_CHECK from "../../assets/why-vortex/user-check.svg";
 
-interface Feature {
+interface XFeature {
   icon: LottieOptions["animationData"];
   title: string;
   description: string;
 }
 
-interface FeatureCardProps extends Feature {
+interface XFeatureCardProps extends XFeature {
   index: number;
 }
 
-const FeatureCard = ({ icon, title, description, index }: FeatureCardProps) => {
+const _XFeatureCard = ({ icon, title, description, index }: XFeatureCardProps) => {
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const cardRef = useRef<HTMLLIElement>(null);
   const hasPlayedOnce = useRef(false);
@@ -96,28 +96,54 @@ const FeatureCard = ({ icon, title, description, index }: FeatureCardProps) => {
   );
 };
 
+interface Feature {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+const FeatureCard = ({ icon, title, description }: Feature) => (
+  <motion.div
+    className="flex flex-col items-center lg:items-start lg:text-left"
+    initial={{ opacity: 0, y: 20 }}
+    transition={{ duration: 0.5 }}
+    viewport={{ once: true }}
+    whileInView={{ opacity: 1, y: 0 }}
+  >
+    <motion.div
+      className="flex h-[70px] w-[70px] cursor-pointer items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl"
+      transition={{ stiffness: 300, type: "spring" }}
+      whileHover={{ scale: 1.05 }}
+    >
+      <img alt={title} className="filter-primary mx-auto h-[28px] w-[28px] text-primary " src={icon} />
+    </motion.div>
+    <h3 className="mt-6 font-bold text-blue-900 text-h3">{title}</h3>
+    <p className="mt-3 px-10 text-center text-body text-gray-500 lg:px-0 lg:text-left">{description}</p>
+  </motion.div>
+);
+
 export const WhyVortexBusiness = () => {
   const { t } = useTranslation();
 
   const features: Feature[] = [
     {
       description: t("pages.business.whyVortexBusiness.features.newRevenueStream.description"),
-      icon: COIN,
+      icon: PERCENT,
       title: t("pages.business.whyVortexBusiness.features.newRevenueStream.title")
     },
     {
       description: t("pages.business.whyVortexBusiness.features.fastPayouts.description"),
-      icon: CLOCK,
+      icon: COFFEE,
       title: t("pages.business.whyVortexBusiness.features.fastPayouts.title")
     },
     {
       description: t("pages.business.whyVortexBusiness.features.compliance.description"),
-      icon: DOCUMENT,
+      icon: LOCK,
       title: t("pages.business.whyVortexBusiness.features.compliance.title")
     },
     {
       description: t("pages.business.whyVortexBusiness.features.pricing.description"),
-      icon: EYE,
+      icon: USER_CHECK,
       title: t("pages.business.whyVortexBusiness.features.pricing.title")
     }
   ];
@@ -130,8 +156,8 @@ export const WhyVortexBusiness = () => {
         </h1>
         <p className="mt-6 text-center md:mb-16 md:text-left">{t("pages.business.whyVortexBusiness.subtitle")}</p>
         <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-6 lg:mt-0 lg:grid-cols-2 ">
-          {features.map((feature, index) => (
-            <FeatureCard key={feature.title} {...feature} index={index} />
+          {features.map(feature => (
+            <FeatureCard key={feature.title} {...feature} />
           ))}
         </ul>
       </div>
