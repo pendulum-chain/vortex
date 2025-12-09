@@ -64,6 +64,29 @@ export const revertAllMigrations = async (): Promise<void> => {
   }
 };
 
+// Revert specific migration
+export const revertMigration = async (name: string): Promise<void> => {
+  try {
+    const executed = await umzug.executed();
+    const index = executed.findIndex(m => m.name === name);
+
+    if (index === -1) {
+      throw new Error(`Migration ${name} not found in executed migrations`);
+    }
+
+    // If it's the first migration, revert all (to 0)
+    // Otherwise, revert to the previous migration
+    const to = index === 0 ? 0 : executed[index - 1].name;
+
+    logger.info(`Reverting to ${index === 0 ? "initial state" : to} (will revert ${name} and any subsequent migrations)`);
+    await umzug.down({ to });
+    logger.info(`Migration ${name} reverted successfully`);
+  } catch (error) {
+    logger.error(`Error reverting migration ${name}:`, error);
+    throw error;
+  }
+};
+
 // Get pending migrations
 export const getPendingMigrations = async (): Promise<string[]> => {
   const pending = await umzug.pending();
@@ -84,9 +107,16 @@ if (require.main === module) {
       logger.info("Connection to the database has been established successfully");
 
       // Check if the script is execute to run or revert migrations
-      if (process.argv[2] === "revert") {
-        await revertLastMigration();
-      } else if (process.argv[2] === "revert-all") {
+      const command = process.argv[2];
+      const arg = process.argv[3];
+
+      if (command === "revert") {
+        if (arg) {
+          await revertMigration(arg);
+        } else {
+          await revertLastMigration();
+        }
+      } else if (command === "revert-all") {
         await revertAllMigrations();
       } else {
         await runMigrations();
