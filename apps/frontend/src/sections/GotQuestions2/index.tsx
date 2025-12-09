@@ -22,9 +22,9 @@ export const GotQuestions = () => {
           whileInView={{ opacity: 1, rotate: 0, x: 0, y: 0 }}
         />
         <div className="z-10 md:w-1/2">
-          <h1 className="text-center font-bold text-h1 md:text-start md:font-normal">
+          <h2 className="text-center font-bold text-h2 md:text-start md:font-normal">
             Get Started <br /> <span className="font-bold text-blue-400">with Vortex</span>
-          </h1>
+          </h2>
         </div>
         <div className="z-10 flex flex-col justify-center md:w-1/2 md:items-end">
           <p className="mt-3 mb-4 text-center text-body-lg md:mt-0 md:text-end">{t("sections.gotQuestions.description")}</p>
