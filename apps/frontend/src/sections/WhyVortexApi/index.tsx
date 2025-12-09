@@ -46,7 +46,7 @@ export function WhyVortexApi() {
           <video
             aria-label="Quote request preview"
             autoPlay
-            className="mx-auto w-full rounded-xl"
+            className="mx-auto w-4/5 rounded-xl"
             controls={false}
             loop
             muted
