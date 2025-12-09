@@ -32,7 +32,7 @@ export const AveniaKYBVerifyStep = ({
   const { t } = useTranslation();
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col overflow-hidden">
+    <div className="relative flex min-h-[506px] w-full grow flex-col">
       <div className="flex grow flex-col overflow-y-auto pb-32">
         <div className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between">
           <div>
@@ -98,7 +98,7 @@ export const AveniaKYBVerifyStep = ({
         </div>
       </div>
       {quote && (
-        <div className="absolute bottom-2 left-0 right-0">
+        <div className="absolute bottom-2 left-0 right-0 z-10">
           <QuoteSummary quote={quote} />
         </div>
       )}

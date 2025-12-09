@@ -102,9 +102,9 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   return (
     <FormProvider {...form}>
-      <div className="relative flex min-h-[506px] max-h-full grow flex-col overflow-hidden">
+      <div className="relative flex min-h-[506px] max-h-full grow flex-col">
         <form
-          className={`flex grow flex-col overflow-y-auto pb-32 ${className || ""}`}
+          className={`flex grow flex-col overflow-y-auto px-1 pb-32 ${className || ""}`}
           onSubmit={form.handleSubmit(handleFormSubmit)}
         >
           <DetailsStepHeader />
@@ -125,7 +125,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
           <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
         </form>
         {quote && (
-          <div className="absolute bottom-2 left-0 right-0">
+          <div className="absolute bottom-2 left-0 right-0 z-10">
             <QuoteSummary quote={quote} />
           </div>
         )}

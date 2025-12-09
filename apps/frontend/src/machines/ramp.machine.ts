@@ -268,7 +268,7 @@ export const rampMachine = setup({
         userId: undefined,
         userSessionTokens: undefined
       }),
-      target: ".CheckAuth"
+      target: "#ramp.EnterEmail"
     },
     RESET_RAMP: [
       {

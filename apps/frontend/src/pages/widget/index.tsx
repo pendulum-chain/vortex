@@ -4,6 +4,8 @@ import { motion } from "motion/react";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
+import { HistoryMenu } from "../../components/menus/HistoryMenu";
+import { SettingsMenu } from "../../components/menus/SettingsMenu";
 import { AuthEmailStep } from "../../components/widget-steps/AuthEmailStep";
 import { AuthOTPStep } from "../../components/widget-steps/AuthOTPStep";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
@@ -31,6 +33,8 @@ export const Widget = ({ className }: WidgetProps) => (
     transition={{ duration: 0.3 }}
   >
     <WidgetContent />
+    <SettingsMenu />
+    <HistoryMenu />
   </motion.div>
 );
 

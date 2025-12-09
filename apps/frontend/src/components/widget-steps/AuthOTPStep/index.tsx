@@ -71,8 +71,8 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   }, [errorMessage]);
 
   return (
-    <div className={`relative flex min-h-[506px] grow flex-col overflow-hidden ${className || ""}`}>
-      <div className="flex grow flex-col overflow-y-auto pb-32">
+    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+      <div className="flex grow flex-col overflow-y-auto px-1 pb-32">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
           <p className="text-gray-600 mb-6">
@@ -118,7 +118,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
       </div>
 
       {quote && (
-        <div className="absolute bottom-2 left-0 right-0">
+        <div className="absolute bottom-2 left-0 right-0 z-10">
           <QuoteSummary quote={quote} />
         </div>
       )}
