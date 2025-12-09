@@ -147,9 +147,10 @@ export function PopularTokens() {
           <div className="mt-12 grid gap-8 sm:grid-cols-[1fr_1fr_1fr]">
             <motion.div
               className="group relative"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
               transition={{
                 damping: 20,
+                duration: 0.25,
                 stiffness: 240,
                 type: "spring"
               }}
@@ -179,9 +180,10 @@ export function PopularTokens() {
             </div>
             <motion.div
               className="group relative"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
               transition={{
                 damping: 20,
+                duration: 0.25,
                 stiffness: 240,
                 type: "spring"
               }}
