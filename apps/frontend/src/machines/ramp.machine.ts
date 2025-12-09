@@ -527,6 +527,7 @@ export const rampMachine = setup({
             initializeFailedMessage: undefined,
             rampDirection: ({ event }) => event.input.rampDirection
           }),
+          guard: ({ context }) => context.quoteId !== undefined,
           target: "RampRequested"
         }
       }
