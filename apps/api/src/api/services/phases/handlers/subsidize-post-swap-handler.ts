@@ -2,7 +2,6 @@ import {
   ApiManager,
   AssetHubToken,
   FiatToken,
-  multiplyByPowerOfTen,
   nativeToDecimal,
   RampDirection,
   RampPhase,
@@ -46,10 +45,6 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Missing subsidy information in quote metadata");
     }
 
-    if (!quote.metadata.fees?.usd) {
-      throw new Error("Missing fee information in quote metadata");
-    }
-
     try {
       const balanceResponse = await pendulumNode.api.query.tokens.accounts(
         substrateEphemeralAddress,
@@ -62,27 +57,26 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
 
-      // Add the (potential) subsidy amount to the expected swap output to get the target balance
+      // Add a default/base expected output amount from the swap
       let expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
-      // For onramps, the fees are distributed between the nablaSwap and the subsidy, so we need to subtract them from the expected output
+      // Try to find the required amount to subsidize on the quote metadata
       if (state.type === RampDirection.BUY) {
-        // Onramps always have a USD-stablecoin as the output, so we can use the USD fee structure
-        const usdFeeStructure = quote.metadata.fees.usd;
-        const totalFeeDistributedUsd = Big(usdFeeStructure.network)
-          .plus(usdFeeStructure.vortex)
-          .plus(usdFeeStructure.partnerMarkup);
-
-        const totalFeeDistributedUsdRaw = multiplyByPowerOfTen(
-          totalFeeDistributedUsd,
-          quote.metadata.nablaSwap.outputDecimals
-        ).toFixed(0, 0);
-
-        expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw)
-          .minus(totalFeeDistributedUsdRaw)
-          .plus(quote.metadata.subsidy.subsidyAmountInOutputTokenRaw);
+        if (quote.metadata.pendulumToHydrationXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToHydrationXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToAssethubXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToAssethubXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        }
+      } else {
+        if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToStellar) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToStellar.inputAmountRaw);
+        }
       }
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
@@ -90,7 +84,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       const didBalanceReachExpected = async () => {
         const balanceResponse = await pendulumNode.api.query.tokens.accounts(
           substrateEphemeralAddress,
-          quote.metadata.nablaSwap?.inputCurrencyId
+          quote.metadata.nablaSwap?.outputCurrencyId
         );
 
         const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
@@ -120,7 +114,8 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
+        // Wait for the balance to update
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));

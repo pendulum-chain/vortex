@@ -9,7 +9,7 @@ interface ValidateKycResult {
 }
 
 export const validateKycActor = async ({ input }: { input: RampContext }): Promise<ValidateKycResult> => {
-  const { executionInput, rampDirection } = input;
+  const { executionInput, rampDirection, quoteId, externalSessionId } = input;
   console.log("Validating KYC with input:", input);
 
   if (!executionInput) {
@@ -18,6 +18,10 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
   if (!rampDirection) {
     throw new Error("rampDirection is missing from ramp context");
+  }
+
+  if (!quoteId) {
+    throw new Error("quoteId is missing from ramp context");
   }
 
   if (executionInput.fiatToken === FiatToken.EURC || executionInput.fiatToken === FiatToken.ARS) {
@@ -54,6 +58,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       if (isValidCpf(taxId) || isValidCnpj(taxId)) {
         console.log("User doesn't exist yet. Needs KYC.");
+        BrlaService.recordInitialKycAttempt(taxId, quoteId, externalSessionId);
         return { kycNeeded: true };
       } else if (errorResponse.error?.includes("KYC invalid")) {
         console.log("User KYC is invalid. Needs KYC.");
