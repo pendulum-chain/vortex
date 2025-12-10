@@ -16,6 +16,8 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+// Timeout for waiting for balance to reach expected amount after subsidy transfer
+// Post-swap uses a shorter timeout as it's later in the flow and needs to be more responsive
 const BALANCE_CHECK_TIMEOUT_MS = 2000;
 
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
