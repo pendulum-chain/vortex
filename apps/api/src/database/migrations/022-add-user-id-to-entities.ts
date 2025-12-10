@@ -1,5 +1,5 @@
-import { DataTypes, QueryInterface } from "sequelize";
-import { v4 as uuidv4 } from "uuid";
+import {DataTypes, QueryInterface} from "sequelize";
+import {v4 as uuidv4} from "uuid";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Generate a dummy user ID for migration
@@ -142,8 +142,28 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
     }
   };
 
-  // IMPORTANT: Set user_id to NULL for records referencing dummy users BEFORE removing columns
-  // This prevents CASCADE deletion of data when the dummy user is deleted
+  // IMPORTANT: Drop NOT NULL constraints and foreign keys BEFORE updating to NULL
+  // This prevents constraint violations and CASCADE deletion when the dummy user is deleted
+
+  // Drop constraints for kyc_level_2
+  await queryInterface.changeColumn("kyc_level_2", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Drop constraints for ramp_states
+  await queryInterface.changeColumn("ramp_states", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Drop constraints for tax_ids
+  await queryInterface.changeColumn("tax_ids", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Now safe to set user_id to NULL for records referencing dummy users
   await queryInterface.sequelize.query(`
     UPDATE kyc_level_2
     SET user_id = NULL
