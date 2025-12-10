@@ -8,6 +8,13 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+// Interface for Polkadot token account balance response
+interface TokenAccountBalance {
+  free?: string;
+  reserved?: string;
+  frozen?: string;
+}
+
 // Timeout for waiting for balance to reach expected amount after subsidy transfer
 // Pre-swap uses a longer timeout as it's at the start of the flow and can afford more time
 const BALANCE_CHECK_TIMEOUT_MS = 5000;
@@ -44,7 +51,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.nablaSwap.inputCurrencyId
       );
 
-      const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
+      const currentBalance = Big((balanceResponse.toJSON() as TokenAccountBalance)?.free ?? "0");
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
@@ -59,7 +66,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.metadata.nablaSwap?.inputCurrencyId
         );
 
-        const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
+        const currentBalance = Big((balanceResponse.toJSON() as TokenAccountBalance)?.free ?? "0");
         return currentBalance.gte(Big(expectedInputAmountForSwapRaw));
       };
 
