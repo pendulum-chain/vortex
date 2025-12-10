@@ -8,6 +8,8 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const BALANCE_CHECK_TIMEOUT_MS = 5000;
+
 export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePreSwap";
@@ -40,8 +42,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.nablaSwap.inputCurrencyId
       );
 
-      // @ts-ignore
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
@@ -56,7 +57,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.metadata.nablaSwap?.inputCurrencyId
         );
 
-        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
         return currentBalance.gte(Big(expectedInputAmountForSwapRaw));
       };
 
@@ -83,12 +84,12 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, BALANCE_CHECK_TIMEOUT_MS);
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");
     } catch (e) {
-      console.error("Error in subsidizePreSwap:", e);
+      logger.error("Error in subsidizePreSwap:", e);
       throw this.createRecoverableError("SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.");
     }
   }

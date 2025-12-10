@@ -16,6 +16,8 @@ import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const BALANCE_CHECK_TIMEOUT_MS = 2000;
+
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePostSwap";
@@ -51,8 +53,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.nablaSwap.outputCurrencyId
       );
 
-      // @ts-ignore
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
@@ -87,7 +88,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           quote.metadata.nablaSwap?.outputCurrencyId
         );
 
-        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const currentBalance = Big((balanceResponse.toJSON() as { free?: string })?.free ?? "0");
         const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
         return requiredAmount.lte(Big(0));
       };
@@ -115,7 +116,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
 
         // Wait for the balance to update
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, BALANCE_CHECK_TIMEOUT_MS);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
