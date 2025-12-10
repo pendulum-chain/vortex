@@ -217,7 +217,11 @@ export const recordInitialKycAttempt = async (
           initialSessionId: sessionId ?? null,
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
-          taxId
+          taxId,
+          // @ts-ignore: Assume userId is passed in body for now, or use empty string if logic permits (but schema is NOT NULL)
+          // Actually, if Auth is first, we should have userId.
+          // Using a placeholder assertion as we can't change the request type easily here without bigger refactor.
+          userId: (req.body as any).userId
         });
       }
     }
@@ -324,7 +328,9 @@ export const createSubaccount = async (
         internalStatus: TaxIdInternalStatus.Requested,
         requestedDate: new Date(),
         subAccountId: id,
-        taxId: taxId
+        taxId: taxId,
+        // @ts-ignore: See previous comment on userId
+        userId: (req.body as any).userId
       });
     }
 

@@ -34,7 +34,7 @@ const umzug = new Umzug({
             // This is critical to unblock 022 when 001/004 etc are re-running on existing data
             const tableName = args[0];
             logger.warn(`Swallowing bulkInsert error on ${tableName}: ${error.message || error}`);
-            return;
+            return 0;
           }
         };
       }
@@ -109,7 +109,7 @@ const umzug = new Umzug({
                     const match = sql.match(/CREATE (?:OR REPLACE )?(?:TRIGGER|FUNCTION|TABLE) ["']?(\w+)["']?/i);
                     const objectName = match ? match[1] : "unknown object";
                     logger.warn(`Query failed with "${error.message}" for ${objectName}, skipping.`);
-                    return;
+                    return [[], 0];
                   }
                   throw error;
                 }
