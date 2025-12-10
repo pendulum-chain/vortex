@@ -82,23 +82,24 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
 
         <div className="flex flex-col items-center justify-center flex-grow px-6">
           <div className="w-full max-w-md">
-            <div className="flex gap-2 justify-center mb-4" onPaste={handlePaste}>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 justify-center mb-4" onPaste={handlePaste}>
               {otp.map((digit, index) => (
-                <input
-                  autoFocus={index === 0}
-                  className="w-12 h-14 text-center text-2xl font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                  disabled={isVerifying}
-                  inputMode="numeric"
-                  key={index}
-                  maxLength={1}
-                  onChange={e => handleChange(index, e.target.value)}
-                  onKeyDown={e => handleKeyDown(index, e)}
-                  ref={el => {
-                    inputRefs.current[index] = el;
-                  }}
-                  type="text"
-                  value={digit}
-                />
+                <div className="flex justify-center" key={index}>
+                  <input
+                    autoFocus={index === 0}
+                    className="w-12 h-14 text-center text-2xl font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                    disabled={isVerifying}
+                    inputMode="numeric"
+                    maxLength={1}
+                    onChange={e => handleChange(index, e.target.value)}
+                    onKeyDown={e => handleKeyDown(index, e)}
+                    ref={el => {
+                      inputRefs.current[index] = el;
+                    }}
+                    type="text"
+                    value={digit}
+                  />
+                </div>
               ))}
             </div>
 
