@@ -395,6 +395,7 @@ export const rampMachine = setup({
           target: "CheckingEmail"
         },
         VERIFY_OTP: {
+          actions: assign({ errorMessage: undefined }),
           target: "VerifyingOTP"
         }
       }
