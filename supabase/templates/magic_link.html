@@ -88,17 +88,27 @@
       border-top: 1px solid #e5e7eb;
     }
     .footer-text {
-      font-size: 13px;
+      font-size: 12px;
       color: #9ca3af;
-      margin: 0;
+      margin: 0 0 12px 0;
       line-height: 1.6;
     }
+    .footer-links {
+      margin-bottom: 16px;
+    }
     .footer-link {
-      color: #2563eb;
-      text-decoration: none;
+      color: #6b7280;
+      text-decoration: underline;
+      margin: 0 8px;
+      font-size: 12px;
     }
     .footer-link:hover {
-      text-decoration: underline;
+      color: #2563eb;
+    }
+    .help-text {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 12px;
     }
   </style>
 </head>
@@ -132,9 +142,18 @@
 
     <!-- Footer -->
     <div class="footer">
+      <div class="footer-links">
+        <a href="https://www.vortexfinance.co/terms" class="footer-link">Terms of Service</a>
+        <a href="https://www.vortexfinance.co/privacy" class="footer-link">Privacy Policy</a>
+      </div>
+      
       <p class="footer-text">
-        This email was sent by <a href="https://www.vortexfinance.co" class="footer-link">Vortex Finance</a><br>
-        Questions? Contact us at <a href="mailto:support@vortexfinance.co" class="footer-link">support@vortexfinance.co</a>
+        This email was sent by <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
+        Questions? Contact us at <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+      </p>
+      
+      <p class="help-text">
+        &copy; 2025 Vortex Finance. All rights reserved.
       </p>
     </div>
   </div>
