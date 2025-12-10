@@ -9,6 +9,7 @@ import { TransactionId } from "../TransactionId";
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
+  className?: string;
 }
 
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
@@ -73,7 +74,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
-export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
+export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleToggle = (isExpanded: boolean) => {
@@ -89,13 +90,15 @@ export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
   };
 
   return (
-    <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
-      <CollapsibleSummary>
-        <QuoteSummaryCore quote={quote} />
-      </CollapsibleSummary>
-      <CollapsibleDetails>
-        <QuoteSummaryDetails quote={quote} />
-      </CollapsibleDetails>
-    </CollapsibleCard>
+    <div className={`absolute bottom-2 left-0 right-0 z-10 ${className || ""}`}>
+      <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
+        <CollapsibleSummary>
+          <QuoteSummaryCore quote={quote} />
+        </CollapsibleSummary>
+        <CollapsibleDetails>
+          <QuoteSummaryDetails quote={quote} />
+        </CollapsibleDetails>
+      </CollapsibleCard>
+    </div>
   );
 };

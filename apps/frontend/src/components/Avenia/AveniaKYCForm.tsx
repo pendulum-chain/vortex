@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../QuoteSummary";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
-import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 import { DocumentUpload } from "./DocumentUpload";
@@ -144,10 +144,12 @@ export const AveniaKYCForm = () => {
   }
 
   return (
-    <>
-      <div className="relative">{content}</div>
-      <DetailsStepQuoteSummary quote={quote} />
-    </>
+    <div className="relative flex h-full grow flex-col">
+      <div className="relative flex grow flex-col overflow-y-auto pb-32">
+        <div className="relative">{content}</div>
+      </div>
+      {quote && <QuoteSummary quote={quote} />}
+    </div>
   );
 };
 ///

@@ -4,6 +4,7 @@ import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
 import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
+import { useAuthTokens } from "../../hooks/useAuthTokens";
 import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
@@ -19,6 +20,7 @@ export const Ramp = () => {
   const { forceSetQuote } = useQuoteActions();
   useMoneriumFlow();
   useSiweSignature(stellarKycActor);
+  useAuthTokens(rampActor);
 
   const { showToast } = useToastMessage();
 
