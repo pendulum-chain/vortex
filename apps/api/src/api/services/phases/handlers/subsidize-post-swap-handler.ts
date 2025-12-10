@@ -14,14 +14,7 @@ import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { BasePhaseHandler } from "../base-phase-handler";
-import { StateMetadata } from "../meta-state-types";
-
-// Interface for Polkadot token account balance response
-interface TokenAccountBalance {
-  free?: string;
-  reserved?: string;
-  frozen?: string;
-}
+import { StateMetadata, TokenAccountBalance } from "../meta-state-types";
 
 // Timeout for waiting for balance to reach expected amount after subsidy transfer
 // Post-swap uses a shorter timeout as it's later in the flow and needs to be more responsive

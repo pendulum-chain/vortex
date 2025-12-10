@@ -1,5 +1,15 @@
 import { ExtrinsicOptions, IbanPaymentData, PermitSignature, StellarTokenDetails } from "@vortexfi/shared";
 
+/**
+ * Interface representing Polkadot token account balance response structure
+ * Used for type-safe parsing of balance queries from Polkadot API
+ */
+export interface TokenAccountBalance {
+  free?: string;
+  reserved?: string;
+  frozen?: string;
+}
+
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
