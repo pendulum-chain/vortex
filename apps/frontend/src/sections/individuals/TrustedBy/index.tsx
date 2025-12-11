@@ -55,11 +55,11 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
   <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-1">
     {images.map((img, index) => (
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ filter: "blur(3px)", opacity: 0, scale: 0.8, y: 20 }}
         key={img.alt}
-        transition={{ delay: index * 0.1, duration: 0.5 }}
+        transition={{ delay: index * 0.1, duration: 0.3 }}
         viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
+        whileInView={{ filter: "blur(0px)", opacity: 1, scale: 1, y: 0 }}
       >
         <Image {...img} />
       </motion.div>
@@ -72,15 +72,7 @@ export const TrustedBy = () => {
 
   return (
     <section className=" px-4 py-16 sm:container sm:mx-auto md:px-10 lg:py-32">
-      <motion.h2
-        animate={{ y: 0 }}
-        className="mb-5 text-center text-black text-h2"
-        initial={{ y: 50 }}
-        transition={{ duration: 0.2 }}
-        viewport={{ once: true }}
-      >
-        {t("sections.trustedBy.title")}
-      </motion.h2>
+      <h2 className="mb-5 text-center text-black text-h2">{t("sections.trustedBy.title")}</h2>
       <ImageList images={trustedByImages} />
     </section>
   );

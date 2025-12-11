@@ -10,14 +10,14 @@ export const wordVariants: Variants = {
     opacity: 0,
     rotateX: "-45deg",
     scale: 0.9,
-    y: 50
+    y: 10
   },
   visible: {
     filter: "blur(0px)",
     opacity: 1,
     rotateX: 0,
     scale: 1,
-    transition: { duration: 0.2, ease: "easeOut" },
+    transition: { damping: 20, duration: 0.4, ease: "easeOut", stiffness: 400, type: "spring" },
     y: 0
   }
 };
