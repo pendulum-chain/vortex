@@ -39,10 +39,6 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
-  userSessionTokens?: {
-    access_token: string;
-    refresh_token: string;
-  };
 }
 
 export type RampMachineEvents =

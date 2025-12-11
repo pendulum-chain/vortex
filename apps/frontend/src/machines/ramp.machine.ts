@@ -24,7 +24,7 @@ export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 // Restore session from localStorage if available
 const getInitialAuthState = () => {
   if (typeof window === "undefined") {
-    return { isAuthenticated: false, userEmail: undefined, userId: undefined, userSessionTokens: undefined };
+    return { isAuthenticated: false, userEmail: undefined, userId: undefined };
   }
 
   const tokens = AuthService.getTokens();
@@ -33,16 +33,12 @@ const getInitialAuthState = () => {
     const authState = {
       isAuthenticated: true,
       userEmail: tokens.user_email,
-      userId: tokens.user_id,
-      userSessionTokens: {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token
-      }
+      userId: tokens.user_id
     };
     return authState;
   }
 
-  return { isAuthenticated: false, userEmail: undefined, userId: undefined, userSessionTokens: undefined };
+  return { isAuthenticated: false, userEmail: undefined, userId: undefined };
 };
 
 const authState = getInitialAuthState();
@@ -74,7 +70,6 @@ const initialRampContext: RampContext = {
   // Auth fields - restore from localStorage if available
   userEmail: authState.userEmail,
   userId: authState.userId,
-  userSessionTokens: authState.userSessionTokens,
   walletLocked: undefined
 };
 
@@ -249,11 +244,7 @@ export const rampMachine = setup({
     AUTH_SUCCESS: {
       actions: assign({
         isAuthenticated: true,
-        userId: ({ event }) => event.tokens.user_id,
-        userSessionTokens: ({ event }) => ({
-          access_token: event.tokens.access_token,
-          refresh_token: event.tokens.refresh_token
-        })
+        userId: ({ event }) => event.tokens.user_id
       })
     },
     EXPIRE_QUOTE: {
@@ -694,11 +685,7 @@ export const rampMachine = setup({
             assign({
               errorMessage: undefined,
               isAuthenticated: true,
-              userId: ({ event }) => event.output.user_id,
-              userSessionTokens: ({ event }) => ({
-                access_token: event.output.access_token,
-                refresh_token: event.output.refresh_token
-              })
+              userId: ({ event }) => event.output.user_id
             }),
             ({ event, context }) => {
               // Store tokens in localStorage for session persistence
