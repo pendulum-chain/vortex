@@ -720,6 +720,12 @@
         "title": "Tokens Suportados"
       }
     },
+    "popularTokensPartners": {
+      "circlePartner": "Somos parceiros oficiais da Circle.",
+      "joinNetwork": "Junte-se à nossa rede de parceiros oficiais",
+      "pendulumPowered": "Nossa infraestrutura é alimentada por Pendulum.",
+      "title": "Vortex em todos os lugares"
+    },
     "trustedBy": {
       "comingSoon": "Em breve",
       "title": "Confiado por"
@@ -746,6 +752,12 @@
       },
       "title": "Compre e Venda criptomoedas com segurança",
       "withVortexFinance": "com <1>Vortex</1>?"
+    },
+    "whyVortexWidget": {
+      "copy": "copiar",
+      "description": "Nosso offramp e onramp podem ser integrados ao seu aplicativo em 5 minutos - veja por si mesmo.",
+      "getStarted": "Começar",
+      "title": "Um pequeno trecho de código para ajudá-lo a <0>escalar seu negócio rapidamente</0>"
     }
   },
   "toasts": {

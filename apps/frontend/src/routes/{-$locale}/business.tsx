@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BaseLayout } from "../../layouts";
-import { BusinessMain } from "../../pages/business";
-import { GotQuestions } from "../../sections/GotQuestions2";
-import { WhyVortexApi } from "../../sections/WhyVortexApi";
-import { WhyVortexBusiness } from "../../sections/WhyVortexBusiness";
-import { WhyVortexWidget } from "../../sections/WhyVortexWidget";
+import { WhyVortexApi, WhyVortexBusiness, WhyVortexWidget } from "../../sections";
+import { GotQuestions } from "../../sections/business/GotQuestions";
+import { Hero } from "../../sections/business/Hero";
 
 export const Route = createFileRoute("/{-$locale}/business")({
   component: BusinessRouteComponent
@@ -13,7 +11,7 @@ export const Route = createFileRoute("/{-$locale}/business")({
 function BusinessRouteComponent() {
   const main = (
     <>
-      <BusinessMain />
+      <Hero />
       <WhyVortexBusiness />
       <WhyVortexApi />
       <WhyVortexWidget />

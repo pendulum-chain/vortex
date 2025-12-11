@@ -522,7 +522,9 @@
     "business": {
       "hero": {
         "comingSoon": "Coming Soon",
+        "contactUs": "Contact us",
         "description": "With one simple, free integration Vortex handles KYC, compliance and settlement so you can stay focused on your product.",
+        "readDocs": "Read our docs",
         "sdkIntegration": "SDK integration",
         "title": "Enable your customers to buy and sell crypto instantly - directly <0>inside your APP</0>",
         "titlePart1": "Enable your customers to buy and sell crypto instantly - directly",
@@ -551,7 +553,7 @@
           }
         },
         "title1": "Need frequent crypto-fiat settlements?",
-        "title2": "Use Vortex API"
+        "title2": "Use <0>Vortex API</0>"
       },
       "whyVortexBusiness": {
         "features": {
@@ -573,7 +575,8 @@
           }
         },
         "subtitle": "Vortex hosted app is the fastest way to add a secure fiat on/offramp to your app.",
-        "title": "One integration. Everything handled."
+        "title": "One integration.",
+        "title2": " Everything handled."
       }
     },
     "failure": {
@@ -595,6 +598,8 @@
     },
     "main": {
       "hero": {
+        "buyAndSellCrypto": "Buy & Sell Crypto",
+        "partnerWithUs": "Partner with us",
         "subtitle": "We keep things simple for you and get you the best rate out there.",
         "title": "<0>Buy and Sell crypto.</0> <br /> Fast, secure, best rates."
       }
@@ -730,8 +735,10 @@
       "title": "<0>Save</0> on exchange rate markups"
     },
     "gotQuestions": {
+      "contactSales": "Contact Sales",
       "contactUs": "Contact Us",
       "description": "Get in touch with us for answers and support.",
+      "getStartedTitle": "Get Started <br /> <0>with Vortex</0>",
       "title": "Got Questions? <br /> We're here to help!"
     },
     "howToSell": {
@@ -756,6 +763,12 @@
         "description": "Trade these popular crypto and fiat currencies",
         "title": "Supported Tokens"
       }
+    },
+    "popularTokensPartners": {
+      "circlePartner": "We're an official partner of Circle.",
+      "joinNetwork": "Join our network of official partners",
+      "pendulumPowered": "Our infrastructure is powered by Pendulum.",
+      "title": "Vortex everywhere"
     },
     "trustedBy": {
       "comingSoon": "Coming soon",
@@ -783,6 +796,12 @@
       },
       "title": "Buy & Sell Crypto the secure way",
       "withVortexFinance": "with <1>Vortex</1>?"
+    },
+    "whyVortexWidget": {
+      "copy": "copy",
+      "description": "Our offramp and onramp can be integrated into your app in 5 minutes - see for yourself.",
+      "getStarted": "Get started",
+      "title": "One small snippet of code to help you <0>scale your business quickly</0>"
     }
   },
   "toasts": {

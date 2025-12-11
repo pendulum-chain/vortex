@@ -1,16 +1,5 @@
-import { motion, Variants } from "motion/react";
-
-const wordVariants: Variants = {
-  hidden: { filter: "blur(3px)", opacity: 0, rotateX: "-45deg", scale: 0.9, y: 50 },
-  visible: {
-    filter: "blur(0px)",
-    opacity: 1,
-    rotateX: 0,
-    scale: 1,
-    transition: { duration: 0.2, ease: "easeOut" },
-    y: 0
-  }
-};
+import { motion } from "motion/react";
+import { wordVariants } from "../constants/animations";
 
 interface AnimatedTitleProps {
   text: string;

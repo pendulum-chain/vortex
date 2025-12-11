@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LocaleChar125RouteImport } from './routes/{-$locale}'
 import { Route as Char123LocaleChar125IndexRouteImport } from './routes/{-$locale}/index'
+import { Route as Char123LocaleChar125WidgetRouteImport } from './routes/{-$locale}/widget'
 import { Route as Char123LocaleChar125PrivacyPolicyRouteImport } from './routes/{-$locale}/privacy-policy'
 import { Route as Char123LocaleChar125BusinessRouteImport } from './routes/{-$locale}/business'
 
@@ -23,6 +24,12 @@ const Char123LocaleChar125IndexRoute =
   Char123LocaleChar125IndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
+const Char123LocaleChar125WidgetRoute =
+  Char123LocaleChar125WidgetRouteImport.update({
+    id: '/widget',
+    path: '/widget',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
 const Char123LocaleChar125PrivacyPolicyRoute =
@@ -42,11 +49,13 @@ export interface FileRoutesByFullPath {
   '/{-$locale}': typeof Char123LocaleChar125RouteWithChildren
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
   '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
+  '/{-$locale}/widget': typeof Char123LocaleChar125WidgetRoute
   '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRoutesByTo {
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
   '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
+  '/{-$locale}/widget': typeof Char123LocaleChar125WidgetRoute
   '/{-$locale}': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRoutesById {
@@ -54,6 +63,7 @@ export interface FileRoutesById {
   '/{-$locale}': typeof Char123LocaleChar125RouteWithChildren
   '/{-$locale}/business': typeof Char123LocaleChar125BusinessRoute
   '/{-$locale}/privacy-policy': typeof Char123LocaleChar125PrivacyPolicyRoute
+  '/{-$locale}/widget': typeof Char123LocaleChar125WidgetRoute
   '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
 }
 export interface FileRouteTypes {
@@ -62,14 +72,20 @@ export interface FileRouteTypes {
     | '/{-$locale}'
     | '/{-$locale}/business'
     | '/{-$locale}/privacy-policy'
+    | '/{-$locale}/widget'
     | '/{-$locale}/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/{-$locale}/business' | '/{-$locale}/privacy-policy' | '/{-$locale}'
+  to:
+    | '/{-$locale}/business'
+    | '/{-$locale}/privacy-policy'
+    | '/{-$locale}/widget'
+    | '/{-$locale}'
   id:
     | '__root__'
     | '/{-$locale}'
     | '/{-$locale}/business'
     | '/{-$locale}/privacy-policy'
+    | '/{-$locale}/widget'
     | '/{-$locale}/'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LocaleChar125IndexRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
+    '/{-$locale}/widget': {
+      id: '/{-$locale}/widget'
+      path: '/widget'
+      fullPath: '/{-$locale}/widget'
+      preLoaderRoute: typeof Char123LocaleChar125WidgetRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
     '/{-$locale}/privacy-policy': {
       id: '/{-$locale}/privacy-policy'
       path: '/privacy-policy'
@@ -113,6 +136,7 @@ declare module '@tanstack/react-router' {
 interface Char123LocaleChar125RouteChildren {
   Char123LocaleChar125BusinessRoute: typeof Char123LocaleChar125BusinessRoute
   Char123LocaleChar125PrivacyPolicyRoute: typeof Char123LocaleChar125PrivacyPolicyRoute
+  Char123LocaleChar125WidgetRoute: typeof Char123LocaleChar125WidgetRoute
   Char123LocaleChar125IndexRoute: typeof Char123LocaleChar125IndexRoute
 }
 
@@ -120,6 +144,7 @@ const Char123LocaleChar125RouteChildren: Char123LocaleChar125RouteChildren = {
   Char123LocaleChar125BusinessRoute: Char123LocaleChar125BusinessRoute,
   Char123LocaleChar125PrivacyPolicyRoute:
     Char123LocaleChar125PrivacyPolicyRoute,
+  Char123LocaleChar125WidgetRoute: Char123LocaleChar125WidgetRoute,
   Char123LocaleChar125IndexRoute: Char123LocaleChar125IndexRoute,
 }
 
