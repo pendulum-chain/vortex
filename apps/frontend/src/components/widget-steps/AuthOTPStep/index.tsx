@@ -1,6 +1,7 @@
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef, useState } from "react";
 import { useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../../QuoteSummary";
 
@@ -71,7 +72,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   }, [errorMessage]);
 
   return (
-    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
       <div className="flex grow flex-col overflow-y-auto px-1 pb-32">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
@@ -82,7 +83,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
 
         <div className="flex flex-col items-center justify-center flex-grow px-6">
           <div className="w-full max-w-md">
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 justify-center mb-4" onPaste={handlePaste}>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-4 gap-y-4 sm:gap-4 justify-center mb-4" onPaste={handlePaste}>
               {otp.map((digit, index) => (
                 <div className="flex justify-center" key={index}>
                   <input

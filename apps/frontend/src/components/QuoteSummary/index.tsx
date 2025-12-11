@@ -1,6 +1,7 @@
 import { QuoteResponse } from "@vortexfi/shared";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
@@ -90,7 +91,7 @@ export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
   };
 
   return (
-    <div className={`absolute bottom-2 left-0 right-0 z-10 ${className || ""}`}>
+    <div className={cn("absolute right-0 bottom-2 left-0 z-10", className)}>
       <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
         <CollapsibleSummary>
           <QuoteSummaryCore quote={quote} />

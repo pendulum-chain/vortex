@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
@@ -104,7 +105,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     <FormProvider {...form}>
       <div className="relative flex min-h-[506px] max-h-full grow flex-col">
         <form
-          className={`flex grow flex-col overflow-y-auto px-1 pb-32 ${className || ""}`}
+          className={cn("flex grow flex-col overflow-y-auto px-1 pb-32", className)}
           onSubmit={form.handleSubmit(handleFormSubmit)}
         >
           <DetailsStepHeader />

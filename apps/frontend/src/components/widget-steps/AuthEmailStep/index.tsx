@@ -1,6 +1,7 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../../QuoteSummary";
 
@@ -34,7 +35,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
   };
 
   return (
-    <div className={`relative flex min-h-[506px] grow flex-col ${className || ""}`}>
+    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
       <div className="flex grow flex-col overflow-y-auto px-1 pb-32">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Your Email</h1>
