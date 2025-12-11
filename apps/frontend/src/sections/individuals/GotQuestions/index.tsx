@@ -6,11 +6,11 @@ export const GotQuestions = () => {
 
   return (
     <CallToActionSection
-      buttonText={t("sections.gotQuestions.contactSales")}
+      buttonText={t("sections.gotQuestions.contactUs")}
       description={t("sections.gotQuestions.description")}
       title={
-        <Trans i18nKey="sections.gotQuestions.getStartedTitle">
-          <span className="font-bold text-blue-400" />
+        <Trans i18nKey="sections.gotQuestions.title">
+          Got Questions? <br /> We're here to help!
         </Trans>
       }
     />
