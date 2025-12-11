@@ -15,7 +15,7 @@ AS $$
     FROM public.ramp_states AS rs
     JOIN public.quote_tickets AS qt ON qt.id = rs.quote_id
     WHERE rs.current_phase = 'complete'
-      AND (year_param IS NULL OR date_trunc('year', rs.created_at) = (year_param || '-01-01')::date)
+      AND (year_param IS NULL OR date_trunc('year', rs.created_at) = make_date(year_param, 1, 1))
   )
   SELECT
     month,

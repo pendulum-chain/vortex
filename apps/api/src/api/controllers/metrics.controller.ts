@@ -3,23 +3,20 @@ import { Request, Response } from "express";
 import { config } from "../../config";
 import { cache } from "../services";
 
-export interface RawDailyVolumeRow {
+export interface VolumeRow {
+  buy_usd: number;
+  sell_usd: number;
+  total_usd: number;
+}
+
+export interface DailyVolume extends VolumeRow {
   day: string;
-  buy_usd: number;
-  sell_usd: number;
-  total_usd: number;
 }
 
-export interface DailyVolume extends RawDailyVolumeRow {}
-
-export interface RawMonthlyVolumeRow {
+export interface MonthlyVolume extends VolumeRow {
   month: string;
-  buy_usd: number;
-  sell_usd: number;
-  total_usd: number;
 }
 
-export interface MonthlyVolume extends RawMonthlyVolumeRow {}
 export interface WeeklyVolume {
   week: string;
   startDate: string;
@@ -36,16 +33,12 @@ export interface VolumeData {
 
 const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
 
-function getNextMonth(monthStr: string): string {
-  const [year, month] = monthStr.split("-").map(Number);
-  let nextMonth = month + 1;
-  let nextYear = year;
-  if (nextMonth > 12) {
-    nextMonth = 1;
-    nextYear++;
-  }
-  return `${nextYear}-${nextMonth.toString().padStart(2, "0")}`;
-}
+const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
+  [keyName]: key,
+  buy_usd: 0,
+  sell_usd: 0,
+  total_usd: 0
+});
 
 async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   const cacheKey = `monthly`;
@@ -54,164 +47,86 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 
   try {
     const { data, error } = await supabase.rpc("get_monthly_volumes");
-    console.log("DEBUG - RPC data for monthly: ", data);
     if (error) throw error;
 
-    const rawData = data as RawMonthlyVolumeRow[];
+    const rawData = (data as MonthlyVolume[]) || [];
+    if (!rawData.length) return [];
 
-    const dataMap = new Map<string, MonthlyVolume>();
-    for (const row of rawData) {
-      dataMap.set(row.month, {
-        buy_usd: row.buy_usd,
-        month: row.month,
-        sell_usd: row.sell_usd,
-        total_usd: row.total_usd
-      });
-    }
+    const dataMap = new Map(rawData.map(row => [row.month, row]));
 
-    const minMonth = rawData[0].month;
-
-    const currentDate = new Date();
-    const currentMonth = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}`;
+    const [startYear, startMonth] = rawData[0].month.split("-").map(Number);
+    const current = new Date(startYear, startMonth - 1, 1);
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const volumes: MonthlyVolume[] = [];
-    let iterMonth = minMonth;
 
-    while (iterMonth <= currentMonth) {
-      const existing = dataMap.get(iterMonth);
-      if (existing) {
-        volumes.push(existing);
-      } else {
-        volumes.push({
-          buy_usd: 0,
-          month: iterMonth,
-          sell_usd: 0,
-          total_usd: 0
-        });
-      }
-      iterMonth = getNextMonth(iterMonth);
+    while (current <= end) {
+      const monthStr = current.toISOString().slice(0, 7);
+      volumes.push(dataMap.get(monthStr) || zeroVolume(monthStr, "month"));
+      current.setMonth(current.getMonth() + 1);
     }
 
-    // TTL 5 minutes since current year includes current month
     cache.set(cacheKey, volumes, 5 * 60);
     return volumes;
-  } catch (rpcError: any) {
-    throw new Error("Could not calculate monthly volumes: " + rpcError.message);
+  } catch (error: any) {
+    throw new Error("Could not calculate monthly volumes: " + error.message);
   }
 }
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
   const cacheKey = `daily-${startDate}-${endDate}`;
   const cached = cache.get<DailyVolume[]>(cacheKey);
-
   if (cached) return cached;
 
   try {
     const { data, error } = await supabase.rpc("get_daily_volumes", { end_date: endDate, start_date: startDate });
     if (error) throw error;
 
-    // Create a map of existing data
-    const dataMap = new Map<string, DailyVolume>();
-    (data as RawDailyVolumeRow[]).forEach(row => {
-      dataMap.set(row.day, {
-        buy_usd: row.buy_usd,
-        day: row.day,
-        sell_usd: row.sell_usd,
-        total_usd: row.total_usd
-      });
-    });
+    const dataMap = new Map((data as DailyVolume[]).map(row => [row.day, row]));
 
-    const start = new Date(startDate);
+    const current = new Date(startDate);
     const end = new Date(endDate);
     const volumes: DailyVolume[] = [];
-    const current = new Date(start);
+
     while (current <= end) {
       const dayStr = current.toISOString().slice(0, 10);
-      const existing = dataMap.get(dayStr);
-      if (existing) {
-        volumes.push(existing);
-      } else {
-        volumes.push({
-          buy_usd: 0,
-          day: dayStr,
-          sell_usd: 0,
-          total_usd: 0
-        });
-      }
+      volumes.push(dataMap.get(dayStr) || zeroVolume(dayStr, "day"));
       current.setDate(current.getDate() + 1);
     }
 
     cache.set(cacheKey, volumes, 5 * 60);
     return volumes;
-  } catch (rpcError: any) {
-    throw new Error("Could not calculate daily volumes: " + rpcError.message);
+  } catch (error: any) {
+    throw new Error("Could not calculate daily volumes: " + error.message);
   }
 }
 
-function aggregateWeekly(daily: DailyVolume[], startDate: string, endDate: string): WeeklyVolume[] {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+// TODO make inclusive the last day.
+function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
+  const weeks: WeeklyVolume[] = [];
 
-  const numWeeks = Math.ceil(totalDays / 7);
+  for (let i = 0; i < daily.length; i += 7) {
+    const chunk = daily.slice(i, i + 7);
+    const startDay = chunk[0];
+    const endDay = chunk[chunk.length - 1];
 
-  const weeks: { [key: string]: { volume: number; startDate: Date; endDate: Date } } = {};
-  for (let i = 1; i <= numWeeks; i++) {
-    const weekStart = new Date(start);
-    weekStart.setDate(start.getDate() + (i - 1) * 7);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    if (weekEnd > end) {
-      weekEnd.setTime(end.getTime());
-    }
-    weeks[`Week ${i}`] = {
-      endDate: weekEnd,
-      startDate: weekStart,
-      volume: 0
-    };
-  }
+    const startDate = new Date(startDay.day);
+    const endDate = new Date(endDay.day);
 
-  // Aggregate daily volumes into weeks
-  daily.forEach(d => {
-    const dayDate = new Date(d.day);
-    const daysDiff = Math.floor((dayDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const weekNum = Math.floor(daysDiff / 7) + 1;
-    const weekKey = `Week ${weekNum}`;
-    if (weeks[weekKey] !== undefined) {
-      weeks[weekKey].volume += d.total_usd;
-    }
-  });
+    const startMonth = startDate.toLocaleString("en-US", { month: "short" });
+    const endMonth = endDate.toLocaleString("en-US", { month: "short" });
+    const weekLabel = `${startMonth} ${startDate.getDate()} - ${endMonth} ${endDate.getDate()}`;
 
-  return Object.entries(weeks)
-    .sort((a, b) => {
-      const weekA = parseInt(a[0].replace("Week ", ""));
-      const weekB = parseInt(b[0].replace("Week ", ""));
-      return weekA - weekB;
-    })
-    .map(([week, data]) => {
-      const startMonth = data.startDate.toLocaleString("en-US", { month: "short" });
-      const startDay = data.startDate.getDate();
-      const endMonth = data.endDate.toLocaleString("en-US", { month: "short" });
-      const endDay = data.endDate.getDate();
-      const weekLabel = `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
-      return {
-        endDate: data.endDate.toISOString().slice(0, 10),
-        startDate: data.startDate.toISOString().slice(0, 10),
-        volume: data.volume,
-        week: weekLabel
-      };
+    weeks.push({
+      endDate: endDay.day,
+      startDate: startDay.day,
+      volume: chunk.reduce((sum, d) => sum + d.total_usd, 0),
+      week: weekLabel
     });
-}
+  }
 
-async function getWeeklyVolumes(startDate: string, endDate: string): Promise<WeeklyVolume[]> {
-  const cacheKey = `weekly-${startDate}-${endDate}`;
-  const cached = cache.get<WeeklyVolume[]>(cacheKey);
-  if (cached) return cached;
-
-  const daily = await getDailyVolumes(startDate, endDate);
-  const weekly = aggregateWeekly(daily, startDate, endDate);
-  cache.set(cacheKey, weekly, 5 * 60);
-  return weekly;
+  return weeks;
 }
 
 export const getVolumes = async (req: Request, res: Response) => {
@@ -225,20 +140,18 @@ export const getVolumes = async (req: Request, res: Response) => {
       startDate = start as string;
       endDate = end as string;
     } else {
-      selectedMonth = (month as string) || new Date().toISOString().slice(0, 7); // YYYY-MM
+      selectedMonth = (month as string) || new Date().toISOString().slice(0, 7);
       startDate = `${selectedMonth}-01`;
-      const monthDate = new Date(selectedMonth + "-01");
-      monthDate.setMonth(monthDate.getMonth() + 1);
-      monthDate.setDate(0);
-      endDate = monthDate.toISOString().slice(0, 10);
+      const [y, m] = selectedMonth.split("-").map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      endDate = `${selectedMonth}-${lastDay.toString().padStart(2, "0")}`;
     }
 
     console.log("Fetching volumes for period:", startDate, "to", endDate);
-    const [monthly, weekly, daily] = await Promise.all([
-      getMonthlyVolumes(),
-      getWeeklyVolumes(startDate, endDate),
-      getDailyVolumes(startDate, endDate)
-    ]);
+
+    const [monthly, daily] = await Promise.all([getMonthlyVolumes(), getDailyVolumes(startDate, endDate)]);
+
+    const weekly = aggregateWeekly(daily);
 
     res.json({
       daily,
