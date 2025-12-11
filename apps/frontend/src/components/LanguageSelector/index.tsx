@@ -1,4 +1,5 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -93,17 +94,19 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
   const { i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const routerState = useRouterState();
 
   const currentLanguage = i18n.language === Language.Portuguese_Brazil ? Language.Portuguese_Brazil : Language.English;
 
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const handleLanguageSelect = (language: Language) => {
-    const currentPath = window.location.pathname;
+    const currentPath = routerState.location.pathname;
     const newPath = updatePathWithLanguage(currentPath, language);
 
     // Update URL without full page reload
-    window.history.pushState({}, "", newPath);
+    router.history.push(newPath);
 
     i18n.changeLanguage(language);
 

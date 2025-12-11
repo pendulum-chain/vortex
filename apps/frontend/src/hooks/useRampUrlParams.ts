@@ -20,6 +20,7 @@ import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
+import { useWidgetMode } from "./useWidgetMode";
 
 interface RampUrlParams {
   rampDirection: RampDirection;
@@ -241,10 +242,11 @@ export const useSetRampUrlParams = () => {
     [setFiatToken]
   );
 
+  const isWidget = useWidgetMode();
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     // effect to read params when at /widget path
-    const isWidget = window.location.pathname.includes("/widget");
     if (!isWidget) return;
     if (hasInitialized.current) return;
 
@@ -333,7 +335,6 @@ export const useSetRampUrlParams = () => {
 
   useEffect(() => {
     // effect to read params when NOT in /widget path
-    const isWidget = window.location.pathname.includes("/widget");
     if (isWidget) return;
 
     if (hasInitialized.current) return;
@@ -376,6 +377,7 @@ export const useSetRampUrlParams = () => {
 
     hasInitialized.current = true;
   }, [
+    isWidget,
     apiKey,
     cryptoLocked,
     fiat,

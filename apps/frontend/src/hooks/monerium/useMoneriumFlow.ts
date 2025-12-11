@@ -1,3 +1,4 @@
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { useMoneriumKycActor, useMoneriumKycSelector } from "../../contexts/rampState";
 
@@ -7,6 +8,8 @@ import { useMoneriumKycActor, useMoneriumKycSelector } from "../../contexts/ramp
 export const useMoneriumFlow = () => {
   const moneriumKycActor = useMoneriumKycActor();
   const moneriumState = useMoneriumKycSelector();
+  const router = useRouter();
+  const routerState = useRouterState();
 
   const codeProcessedRef = useRef(false);
 
@@ -15,13 +18,14 @@ export const useMoneriumFlow = () => {
       return;
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(routerState.location.search);
     const code = urlParams.get("code");
 
     if (code && moneriumState.stateValue === "Redirect") {
       codeProcessedRef.current = true;
       moneriumKycActor.send({ code, type: "CODE_RECEIVED" });
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Remove the code parameter from URL
+      router.history.replace(routerState.location.pathname);
     }
-  }, [moneriumKycActor, moneriumState]);
+  }, [moneriumKycActor, moneriumState, router, routerState]);
 };

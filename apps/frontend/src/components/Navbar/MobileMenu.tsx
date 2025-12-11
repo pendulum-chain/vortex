@@ -3,11 +3,10 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 interface MobileMenuProps {
-  onBookDemoClick: () => void;
   onMenuItemClick: () => void;
 }
 
-export const MobileMenu = ({ onBookDemoClick, onMenuItemClick }: MobileMenuProps) => {
+export const MobileMenu = ({ onMenuItemClick }: MobileMenuProps) => {
   const { t } = useTranslation();
   const params = useParams({ strict: false });
 
@@ -45,9 +44,9 @@ export const MobileMenu = ({ onBookDemoClick, onMenuItemClick }: MobileMenuProps
         </Link>
 
         <div className="mt-6 mb-4">
-          <button className="btn btn-vortex-secondary w-full rounded-md" onClick={onBookDemoClick}>
-            {t("components.navbar.bookDemo")}
-          </button>
+          <Link className="btn btn-vortex-secondary w-full rounded-md" to="/{-$locale}/widget">
+            Buy & Sell
+          </Link>
         </div>
       </div>
     </motion.div>

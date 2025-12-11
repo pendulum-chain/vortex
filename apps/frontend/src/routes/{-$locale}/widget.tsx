@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
 import { Ramp } from "../../pages/ramp";
 
 export const Route = createFileRoute("/{-$locale}/widget")({
@@ -6,5 +7,7 @@ export const Route = createFileRoute("/{-$locale}/widget")({
 });
 
 function RouteComponent() {
+  useSetRampUrlParams();
+
   return <Ramp />;
 }

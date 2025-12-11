@@ -38,16 +38,7 @@ export const MobileNavbar = () => {
           )}
         </div>
       </div>
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <MobileMenu
-            onBookDemoClick={() => {
-              console.log("book demo");
-            }}
-            onMenuItemClick={closeMobileMenu}
-          />
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{isMobileMenuOpen && <MobileMenu onMenuItemClick={closeMobileMenu} />}</AnimatePresence>
     </div>
   );
 };

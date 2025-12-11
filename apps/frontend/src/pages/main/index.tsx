@@ -1,22 +1,19 @@
-import { useSetRampUrlParams } from "../../hooks/useRampUrlParams";
-import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { BaseLayout } from "../../layouts";
-import { Ramp } from "../ramp";
-import MainSections from "./MainSections";
+import { FAQAccordion, FeeComparison, HowToSell, PopularTokens, TrustedBy, WhyVortex } from "../../sections";
+import { GotQuestions } from "../../sections/individuals/GotQuestions";
+import { Hero } from "../../sections/individuals/Hero";
 
 export const Main = () => {
-  const isWidgetMode = useWidgetMode();
-  useSetRampUrlParams();
-
   const main = (
     <main>
-      {!isWidgetMode ? (
-        <>
-          <MainSections />
-        </>
-      ) : (
-        <Ramp />
-      )}
+      <Hero />
+      <TrustedBy />
+      <FeeComparison />
+      <WhyVortex />
+      <HowToSell />
+      <PopularTokens />
+      <FAQAccordion />
+      <GotQuestions />
     </main>
   );
 

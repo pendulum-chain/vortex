@@ -6,7 +6,8 @@ export const useRampNavigation = (
   successComponent: ReactNode,
   failureComponent: ReactNode,
   progressComponent: ReactNode,
-  formComponent: ReactNode
+  formComponent: ReactNode,
+  quoteComponent: ReactNode
 ) => {
   const rampActor = useRampActor();
   const { rampState, rampMachineState } = useSelector(rampActor, state => ({
@@ -27,8 +28,14 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value]);
+    console.log("rampMachineState.value", rampMachineState.value);
+
+    if (rampState !== undefined && rampMachineState.value === "QuoteReady") {
+      return formComponent;
+    }
+
+    return quoteComponent;
+  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value, quoteComponent]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,

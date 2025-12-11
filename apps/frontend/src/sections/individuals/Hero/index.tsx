@@ -36,19 +36,19 @@ export const Hero = () => {
             <Trans i18nKey="pages.main.hero.subtitle" />
           </motion.p>
           <div className="mt-2 flex w-full justify-center gap-x-4 lg:justify-start">
-            <motion.a
-              animate="visible"
-              aria-label={t("pages.main.hero.buyAndSellCrypto")}
-              className="btn btn-vortex-primary w-1/3"
-              custom={0.55}
-              href="https://api-docs.vortexfinance.co/widgets/"
-              initial={reducedMotion ? "visible" : "hidden"}
-              rel="noopener noreferrer"
-              target="_blank"
-              variants={fadeInUp}
-            >
-              {t("pages.main.hero.buyAndSellCrypto")}
-            </motion.a>
+            <Link className="w-1/3" to="/{-$locale}/widget">
+              <motion.div
+                animate="visible"
+                aria-label={t("pages.main.hero.buyAndSellCrypto")}
+                className="btn btn-vortex-primary w-full"
+                custom={0.55}
+                initial={reducedMotion ? "visible" : "hidden"}
+                rel="noopener noreferrer"
+                variants={fadeInUp}
+              >
+                {t("pages.main.hero.buyAndSellCrypto")}
+              </motion.div>
+            </Link>
             <Link className="w-1/3" to="/{-$locale}/business">
               <motion.div
                 animate="visible"
