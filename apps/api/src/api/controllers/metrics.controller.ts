@@ -3,11 +3,6 @@ import { Request, Response } from "express";
 import { config } from "../../config";
 import { cache } from "../services";
 
-export interface MonthlyVolume {
-  month: string;
-  volume: number;
-}
-
 export interface DailyVolume {
   day: string;
   buy_usd: number;
@@ -15,6 +10,21 @@ export interface DailyVolume {
   total_usd: number;
 }
 
+export interface RawDailyVolumeRow {
+  day: string;
+  buy_usd: string;
+  sell_usd: string;
+  total_usd: string;
+}
+
+export interface RawMonthlyVolumeRow {
+  month: string;
+  buy_usd: number;
+  sell_usd: number;
+  total_usd: number;
+}
+
+export interface MonthlyVolume extends RawMonthlyVolumeRow {}
 export interface WeeklyVolume {
   week: string;
   startDate: string;
@@ -31,35 +41,60 @@ export interface VolumeData {
 
 const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
 
-async function getMonthlyVolumes(year: number): Promise<MonthlyVolume[]> {
-  const cacheKey = `monthly-${year}`;
+function getNextMonth(monthStr: string): string {
+  const [year, month] = monthStr.split("-").map(Number);
+  let nextMonth = month + 1;
+  let nextYear = year;
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear++;
+  }
+  return `${nextYear}-${nextMonth.toString().padStart(2, "0")}`;
+}
+
+async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
+  const cacheKey = `monthly`;
   const cached = cache.get<MonthlyVolume[]>(cacheKey);
   if (cached) return cached;
 
   try {
-    const { data, error } = await supabase.rpc("get_monthly_volumes", { year_param: year });
-
+    const { data, error } = await supabase.rpc("get_monthly_volumes");
+    console.log("DEBUG - RPC data for monthly: ", data);
     if (error) throw error;
 
-    // Create a map of existing data
-    const dataMap = new Map<string, number>();
-    data.forEach((row: any) => {
-      dataMap.set(row.month, parseFloat(row.volume));
-    });
+    const rawData = data as RawMonthlyVolumeRow[];
 
-    // Fill in all months of the year up to current month
+    const dataMap = new Map<string, MonthlyVolume>();
+    for (const row of rawData) {
+      dataMap.set(row.month, {
+        buy_usd: row.buy_usd,
+        month: row.month,
+        sell_usd: row.sell_usd,
+        total_usd: row.total_usd
+      });
+    }
+
+    const minMonth = rawData[0].month;
+
     const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1; // 1-12
-
-    // Determine how many months to show
-    const maxMonth = year === currentYear ? currentMonth : 12;
+    const currentMonth = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}`;
 
     const volumes: MonthlyVolume[] = [];
-    for (let month = 1; month <= maxMonth; month++) {
-      const monthStr = `${year}-${month.toString().padStart(2, "0")}`;
-      const volume = dataMap.get(monthStr) ?? 0;
-      volumes.push({ month: monthStr, volume });
+    let iterMonth = minMonth;
+
+    while (iterMonth <= currentMonth) {
+      const existing = dataMap.get(iterMonth);
+      if (existing) {
+        volumes.push(existing);
+      } else {
+        volumes.push({
+          buy_usd: 0,
+          month: iterMonth,
+          sell_usd: 0,
+          total_usd: 0
+        });
+      }
+      iterMonth = getNextMonth(iterMonth);
     }
 
     // TTL 5 minutes since current year includes current month
@@ -73,7 +108,8 @@ async function getMonthlyVolumes(year: number): Promise<MonthlyVolume[]> {
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
   const cacheKey = `daily-${startDate}-${endDate}`;
   const cached = cache.get<DailyVolume[]>(cacheKey);
-  if (cached) return cached;
+
+  //if (cached) return cached;
 
   try {
     const { data, error } = await supabase.rpc("get_daily_volumes", { end_date: endDate, start_date: startDate });
@@ -82,7 +118,7 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
 
     // Create a map of existing data
     const dataMap = new Map<string, DailyVolume>();
-    data.forEach((row: any) => {
+    (data as RawDailyVolumeRow[]).forEach(row => {
       dataMap.set(row.day, {
         buy_usd: parseFloat(row.buy_usd),
         day: row.day,
@@ -203,10 +239,9 @@ export const getVolumes = async (req: Request, res: Response) => {
       endDate = monthDate.toISOString().slice(0, 10);
     }
 
-    const year = new Date().getFullYear();
     console.log("Fetching volumes for period:", startDate, "to", endDate);
     const [monthly, weekly, daily] = await Promise.all([
-      getMonthlyVolumes(year),
+      getMonthlyVolumes(),
       getWeeklyVolumes(startDate, endDate),
       getDailyVolumes(startDate, endDate)
     ]);
