@@ -5,32 +5,13 @@ import COFFEE from "../../../assets/why-vortex/coffee.svg";
 import LOCK from "../../../assets/why-vortex/lock.svg";
 import PERCENT from "../../../assets/why-vortex/percent.svg";
 import USER_CHECK from "../../../assets/why-vortex/user-check.svg";
+import { FeatureCard } from "../../../components/FeatureCard";
 
 interface Feature {
   icon: string;
   title: string;
   description: string;
 }
-
-const FeatureCard = ({ icon, title, description }: Feature) => (
-  <motion.div
-    className="flex flex-col items-center lg:items-start lg:text-left"
-    initial={{ opacity: 0, y: 20 }}
-    transition={{ duration: 0.5 }}
-    viewport={{ once: true }}
-    whileInView={{ opacity: 1, y: 0 }}
-  >
-    <motion.div
-      className="flex h-[70px] w-[70px] cursor-pointer items-center justify-center rounded-2xl border-1 border-gray-100 shadow-xl"
-      transition={{ stiffness: 300, type: "spring" }}
-      whileHover={{ scale: 1.05 }}
-    >
-      <img alt={title} className="filter-primary mx-auto h-[28px] w-[28px] text-primary " src={icon} />
-    </motion.div>
-    <h3 className="mt-6 font-bold text-blue-900 text-h3">{title}</h3>
-    <p className="mt-3 px-10 text-center text-body text-gray-500 lg:px-0 lg:text-left">{description}</p>
-  </motion.div>
-);
 
 export const WhyVortex = () => {
   const { t } = useTranslation();

@@ -42,7 +42,7 @@ export function Hero() {
                 aria-label={t("pages.business.hero.contactUs")}
                 className="btn btn-vortex-primary w-1/2 xl:w-2/5"
                 custom={0.55}
-                href="https://api-docs.vortexfinance.co/"
+                href="mailto:business@vortexfinance.co"
                 initial={reducedMotion ? "visible" : "hidden"}
                 rel="noopener noreferrer"
                 target="_blank"

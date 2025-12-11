@@ -535,7 +535,7 @@
       "whyVortexApi": {
         "cta": {
           "npmPackage": "NPM package",
-          "readDocs": "Read our docs",
+          "readDocs": "Read API docs",
           "title": "Obtain a quote. Register the ramp. Execute the transaction."
         },
         "features": {

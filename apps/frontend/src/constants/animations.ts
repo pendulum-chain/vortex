@@ -68,18 +68,6 @@ export const featureCardVariants = {
 };
 
 /**
- * Simple fade-in animation for list items
- */
-export const listItemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    transition: { duration: 0.5 },
-    y: 0
-  }
-};
-
-/**
  * Utility to check if user prefers reduced motion
  */
 export const prefersReducedMotion = (): boolean => {

@@ -496,7 +496,7 @@
       "whyVortexApi": {
         "cta": {
           "npmPackage": "Veja o pacote NPM",
-          "readDocs": "Leia nossa documentação",
+          "readDocs": "Leia a documentação da API",
           "title": "Obtenha uma cotação. Registre a rampa. Execute a rampa."
         },
         "features": {
