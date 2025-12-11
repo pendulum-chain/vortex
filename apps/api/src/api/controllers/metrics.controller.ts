@@ -17,11 +17,10 @@ export interface MonthlyVolume extends VolumeRow {
   month: string;
 }
 
-export interface WeeklyVolume {
+export interface WeeklyVolume extends VolumeRow {
   week: string;
   startDate: string;
   endDate: string;
-  volume: number;
 }
 
 export interface VolumeData {
@@ -119,9 +118,11 @@ function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
     const weekLabel = `${startMonth} ${startDate.getUTCDate()} - ${endMonth} ${endDate.getUTCDate()}`;
 
     weeks.push({
+      buy_usd: chunk.reduce((sum, d) => sum + d.buy_usd, 0),
       endDate: endDay.day,
+      sell_usd: chunk.reduce((sum, d) => sum + d.sell_usd, 0),
       startDate: startDay.day,
-      volume: chunk.reduce((sum, d) => sum + d.total_usd, 0),
+      total_usd: chunk.reduce((sum, d) => sum + d.total_usd, 0),
       week: weekLabel
     });
   }
