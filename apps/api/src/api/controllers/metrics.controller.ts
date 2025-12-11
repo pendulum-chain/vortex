@@ -114,9 +114,9 @@ function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
     const startDate = new Date(startDay.day);
     const endDate = new Date(endDay.day);
 
-    const startMonth = startDate.toLocaleString("en-US", { month: "short" });
-    const endMonth = endDate.toLocaleString("en-US", { month: "short" });
-    const weekLabel = `${startMonth} ${startDate.getDate()} - ${endMonth} ${endDate.getDate()}`;
+    const startMonth = startDate.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    const endMonth = endDate.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    const weekLabel = `${startMonth} ${startDate.getUTCDate()} - ${endMonth} ${endDate.getUTCDate()}`;
 
     weeks.push({
       endDate: endDay.day,
