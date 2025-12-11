@@ -10,7 +10,7 @@ export const GotQuestions = () => {
       description={t("sections.gotQuestions.description")}
       title={
         <Trans i18nKey="sections.gotQuestions.getStartedTitle">
-          Get Started <br /> <span className="font-bold text-blue-400">with Vortex</span>
+          <span className="font-bold text-blue-400" />
         </Trans>
       }
     />
