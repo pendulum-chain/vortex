@@ -3,19 +3,14 @@ import { Request, Response } from "express";
 import { config } from "../../config";
 import { cache } from "../services";
 
-export interface DailyVolume {
+export interface RawDailyVolumeRow {
   day: string;
   buy_usd: number;
   sell_usd: number;
   total_usd: number;
 }
 
-export interface RawDailyVolumeRow {
-  day: string;
-  buy_usd: string;
-  sell_usd: string;
-  total_usd: string;
-}
+export interface DailyVolume extends RawDailyVolumeRow {}
 
 export interface RawMonthlyVolumeRow {
   month: string;
@@ -109,21 +104,20 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
   const cacheKey = `daily-${startDate}-${endDate}`;
   const cached = cache.get<DailyVolume[]>(cacheKey);
 
-  //if (cached) return cached;
+  if (cached) return cached;
 
   try {
     const { data, error } = await supabase.rpc("get_daily_volumes", { end_date: endDate, start_date: startDate });
-    console.log("DEBUG - RPC data: ", data);
     if (error) throw error;
 
     // Create a map of existing data
     const dataMap = new Map<string, DailyVolume>();
     (data as RawDailyVolumeRow[]).forEach(row => {
       dataMap.set(row.day, {
-        buy_usd: parseFloat(row.buy_usd),
+        buy_usd: row.buy_usd,
         day: row.day,
-        sell_usd: parseFloat(row.sell_usd),
-        total_usd: parseFloat(row.total_usd)
+        sell_usd: row.sell_usd,
+        total_usd: row.total_usd
       });
     });
 
