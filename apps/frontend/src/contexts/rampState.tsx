@@ -45,8 +45,9 @@ const PersistenceEffect = () => {
     | AveniaKycActorRef
     | undefined;
 
-  const { rampContext, rampState, isQuoteExpired } = useSelector(rampActor, state => ({
+  const { rampContext, rampState, isQuoteExpired, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state?.context.isQuoteExpired,
+    quote: state?.context.quote,
     rampContext: state?.context,
     rampState: state?.value
   }));
@@ -67,8 +68,8 @@ const PersistenceEffect = () => {
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-    // It's important to have `isQuoteExpired` here in the deps array to persist it when it changes
-  }, [rampContext, rampState, moneriumState, stellarState, aveniaState, isQuoteExpired, rampActor.getPersistedSnapshot]);
+    // It's important to have `isQuoteExpired` and `quote` here in the deps array to persist them when they change
+  }, [rampContext, rampState, moneriumState, stellarState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;
 };
