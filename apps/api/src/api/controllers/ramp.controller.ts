@@ -23,7 +23,7 @@ import rampService from "../services/ramp/ramp.service";
  */
 export const registerRamp = async (req: Request, res: Response<RampProcess>, next: NextFunction): Promise<void> => {
   try {
-    const { quoteId, signingAccounts, additionalData, userId } = req.body;
+    const { quoteId, signingAccounts, additionalData } = req.body;
 
     // Validate required fields
     if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
@@ -38,7 +38,7 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
       additionalData,
       quoteId,
       signingAccounts,
-      userId
+      userId: req.userId
     });
 
     res.status(httpStatus.CREATED).json(ramp);

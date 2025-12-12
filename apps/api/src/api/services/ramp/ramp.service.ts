@@ -142,9 +142,7 @@ export class RampService extends BaseRampService {
         to: quote.to,
         type: quote.rampType,
         unsignedTxs,
-        // Use userId from quote (which is now nullable) or request.
-        // Since RampState requires userId, and Auth is now first step, we expect a user.
-        userId: (request as any).userId || quote.userId!
+        userId: request.userId || quote.userId
       });
 
       const response: RegisterRampResponse = {

@@ -203,12 +203,14 @@ export const recordInitialKycAttempt = async (
         taxId
       }
     });
+
     if (!taxIdRecord) {
       const accountType = isValidCnpj(taxId)
         ? AveniaAccountType.COMPANY
         : isValidCpf(taxId)
           ? AveniaAccountType.INDIVIDUAL
           : undefined;
+
       // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
       if (accountType) {
         await TaxId.create({
@@ -221,7 +223,7 @@ export const recordInitialKycAttempt = async (
           // @ts-ignore: Assume userId is passed in body for now, or use empty string if logic permits (but schema is NOT NULL)
           // Actually, if Auth is first, we should have userId.
           // Using a placeholder assertion as we can't change the request type easily here without bigger refactor.
-          userId: (req.body as any).userId
+          userId: req.userId
         });
       }
     }
@@ -321,6 +323,14 @@ export const createSubaccount = async (
     } else {
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
+
+      if (!req.userId) {
+        throw new APIError({
+          message: "User ID is required to create a new subaccount",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       await TaxId.create({
         accountType,
         initialQuoteId: quoteId,
@@ -329,8 +339,7 @@ export const createSubaccount = async (
         requestedDate: new Date(),
         subAccountId: id,
         taxId: taxId,
-        // @ts-ignore: See previous comment on userId
-        userId: (req.body as any).userId
+        userId: req.userId
       });
     }
 
