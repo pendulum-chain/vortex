@@ -73,7 +73,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
 
   return (
     <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
-      <div className="flex grow flex-col overflow-y-auto px-1 pb-32">
+      <div className="flex grow flex-col pb-32">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
           <p className="text-gray-600 mb-6">

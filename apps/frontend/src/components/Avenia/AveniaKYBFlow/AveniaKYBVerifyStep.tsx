@@ -33,7 +33,7 @@ export const AveniaKYBVerifyStep = ({
 
   return (
     <div className="relative flex min-h-[506px] w-full grow flex-col">
-      <div className="flex grow flex-col overflow-y-auto pb-32">
+      <div className="flex grow flex-col pb-32">
         <div className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between">
           <div>
             <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
