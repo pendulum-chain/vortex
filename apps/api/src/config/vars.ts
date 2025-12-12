@@ -49,6 +49,8 @@ interface Config {
   swap: {
     deadlineMinutes: number;
   };
+  supabaseKey: string | undefined;
+  supabaseUrl: string | undefined;
 }
 
 export const config: Config = {
@@ -94,6 +96,8 @@ export const config: Config = {
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
+  supabaseKey: process.env.SUPABASE_SERVICE_KEY,
+  supabaseUrl: process.env.SUPABASE_URL,
   swap: {
     deadlineMinutes: 60 * 24 * 7 // 1 week
   }
