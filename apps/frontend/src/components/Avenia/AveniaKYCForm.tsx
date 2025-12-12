@@ -1,4 +1,5 @@
 import { isValidCnpj } from "@vortexfi/shared";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
@@ -143,12 +144,17 @@ export const AveniaKYCForm = () => {
     );
   }
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
-    <div className="relative flex h-full grow flex-col">
+    <div
+      className="relative flex h-full grow flex-col"
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
       <div className="flex flex-col flex-1">
         <div className="relative">{content}</div>
       </div>
-      {quote && <QuoteSummary quote={quote} />}
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };

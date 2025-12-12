@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
@@ -51,12 +51,17 @@ export const AveniaKYBForm = () => {
     }
   ];
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
-    <div className="relative flex h-full grow flex-col">
+    <div
+      className="relative flex h-full grow flex-col"
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
       <div className="flex flex-col flex-1">
         <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
       </div>
-      {quote && <QuoteSummary quote={quote} />}
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };

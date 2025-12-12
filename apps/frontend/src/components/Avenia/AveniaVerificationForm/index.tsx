@@ -31,12 +31,12 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
-        className="mt-8 mb-4 flex min-h-[506px] w-full flex-col"
+        className="mt-8 mb-4 flex min-h-[506px] w-full flex-col h-full"
         initial={{ opacity: 0, scale: 0.9 }}
         onSubmit={handleSubmit(onSubmit)}
         transition={{ duration: 0.3 }}
       >
-        <div>
+        <div className="flex-1 pb-36">
           <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">
             {isCompany ? t("components.aveniaKYB.title.default") : t("components.aveniaKYC.title")}
           </h1>
@@ -75,32 +75,33 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <div className="flex-1" />
-        <div className="mt-8 mb-32 grid gap-3">
-          <div className="flex gap-3">
-            <button
-              className="btn-vortex-primary-inverse btn flex-1"
-              onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
-              type="button"
-            >
-              {isCompany ? t("components.aveniaKYB.buttons.cancel") : t("components.aveniaKYC.buttons.back")}
-            </button>
-            <button
-              className="btn-vortex-primary btn flex-1"
-              disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
-              onClick={() => {
-                const formData = form.getValues();
-                aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
-              }}
-              title={buttonProps.title}
-              type="button"
-            >
-              {isMaintenanceDisabled
-                ? buttonProps.title
-                : isCompany
-                  ? t("components.aveniaKYB.buttons.next")
-                  : t("components.aveniaKYC.buttons.next")}
-            </button>
+        <div className="absolute right-0 left-0 z-[5]" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+          <div className="mt-8 grid gap-3">
+            <div className="flex gap-3">
+              <button
+                className="btn-vortex-primary-inverse btn flex-1"
+                onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
+                type="button"
+              >
+                {isCompany ? t("components.aveniaKYB.buttons.cancel") : t("components.aveniaKYC.buttons.back")}
+              </button>
+              <button
+                className="btn-vortex-primary btn flex-1"
+                disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
+                onClick={() => {
+                  const formData = form.getValues();
+                  aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
+                }}
+                title={buttonProps.title}
+                type="button"
+              >
+                {isMaintenanceDisabled
+                  ? buttonProps.title
+                  : isCompany
+                    ? t("components.aveniaKYB.buttons.next")
+                    : t("components.aveniaKYC.buttons.next")}
+              </button>
+            </div>
           </div>
         </div>
       </motion.form>

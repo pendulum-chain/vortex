@@ -34,9 +34,14 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     rampActor.send({ email, type: "ENTER_EMAIL" });
   };
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
-    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
-      <div className="flex flex-col flex-1">
+    <div
+      className={cn("relative flex min-h-[506px] grow flex-col", className)}
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
+      <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Your Email</h1>
           <p className="text-gray-600 mb-6">We'll send you a one-time code to verify your identity</p>
@@ -64,24 +69,25 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
             </form>
           </div>
         </div>
+      </div>
 
-        <div className="flex-1" />
-
-        <div className="flex flex-col items-center mb-32">
-          <div className="w-full max-w-md">
-            <button
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              disabled={isLoading}
-              onClick={handleSubmit}
-              type="button"
-            >
-              {isLoading ? "Sending..." : "Continue"}
-            </button>
-          </div>
+      <div
+        className="absolute right-0 left-0 z-[5] flex flex-col items-center mb-4"
+        style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+      >
+        <div className="w-full max-w-md">
+          <button
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            disabled={isLoading}
+            onClick={handleSubmit}
+            type="button"
+          >
+            {isLoading ? "Sending..." : "Continue"}
+          </button>
         </div>
       </div>
 
-      {quote && <QuoteSummary quote={quote} />}
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };

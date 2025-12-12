@@ -1,4 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
+import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../../QuoteSummary";
@@ -30,10 +31,14 @@ export const AveniaKYBVerifyStep = ({
 }: AveniaKYBVerifyStepProps) => {
   const quote = useQuote();
   const { t } = useTranslation();
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col">
-      <div className="flex flex-col flex-1">
+    <div
+      className="relative flex min-h-[506px] w-full grow flex-col"
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
+      <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
           <div>
             <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
@@ -72,34 +77,34 @@ export const AveniaKYBVerifyStep = ({
               </div>
             )}
           </div>
-
-          <div className="flex-1" />
-
-          <div className="mt-8 mb-32 flex gap-4">
-            <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
-              {t(cancelButtonKey)}
-            </button>
-
-            {isVerificationStarted ? (
-              <button className="btn-vortex-primary btn flex-1" onClick={onVerificationDone}>
-                {t("components.aveniaKYB.buttons.iHaveVerified")}
-              </button>
-            ) : (
-              <a
-                className="btn-vortex-primary btn flex flex-1 items-center justify-center gap-1"
-                href={verificationUrl}
-                onClick={onVerificationStart}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t(verifyButtonKey)}
-                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-              </a>
-            )}
-          </div>
         </div>
       </div>
-      {quote && <QuoteSummary quote={quote} />}
+
+      <div className="absolute right-0 left-0 z-[5]" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+        <div className="mt-8 flex gap-4">
+          <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
+            {t(cancelButtonKey)}
+          </button>
+
+          {isVerificationStarted ? (
+            <button className="btn-vortex-primary btn flex-1" onClick={onVerificationDone}>
+              {t("components.aveniaKYB.buttons.iHaveVerified")}
+            </button>
+          ) : (
+            <a
+              className="btn-vortex-primary btn flex flex-1 items-center justify-center gap-1"
+              href={verificationUrl}
+              onClick={onVerificationStart}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {t(verifyButtonKey)}
+              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+      </div>
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };

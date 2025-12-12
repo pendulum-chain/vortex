@@ -71,9 +71,14 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
     }
   }, [errorMessage]);
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
-    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
-      <div className="flex flex-col flex-1">
+    <div
+      className={cn("relative flex min-h-[506px] grow flex-col", className)}
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
+      <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
           <p className="text-gray-600 mb-6">
@@ -117,11 +122,9 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
             </button>
           </div>
         </div>
-
-        <div className="flex-1 mb-32" />
       </div>
 
-      {quote && <QuoteSummary quote={quote} />}
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };

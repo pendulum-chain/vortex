@@ -1,7 +1,7 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
@@ -101,34 +101,41 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     onRampConfirm(data);
   };
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
     <FormProvider {...form}>
-      <div className="relative flex min-h-[506px] max-h-full grow flex-col">
-        <form className={cn("flex flex-col flex-1", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
-          <DetailsStepHeader />
-          <DetailsStepForm
-            isBrazilLanding={isBrazilLanding}
-            isWalletAddressDisabled={!!walletLockedFromState}
-            showWalletAddressField={isMoneriumToAssethubRamp}
-            signingState={signingState}
-          />
-          {isSep24Redo && (
-            <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
-              <div className="flex items-center space-x-3">
-                <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-                <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
+      <div
+        className="relative flex min-h-[506px] max-h-full grow flex-col"
+        style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      >
+        <form className={cn("flex flex-col h-full", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <div className="flex-1 pb-36">
+            <DetailsStepHeader />
+            <DetailsStepForm
+              isBrazilLanding={isBrazilLanding}
+              isWalletAddressDisabled={!!walletLockedFromState}
+              showWalletAddressField={isMoneriumToAssethubRamp}
+              signingState={signingState}
+            />
+            {isSep24Redo && (
+              <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-center space-x-3">
+                  <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
+                  <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
+                </div>
               </div>
-            </div>
-          )}
-          <div className="flex-1" />
-          <DetailsStepActions
-            className="mb-32"
-            forceNetwork={forceNetwork}
-            requiresConnection={!canSkipConnection}
-            signingState={signingState}
-          />
+            )}
+          </div>
+          <div className="absolute right-0 left-0 z-[5]" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+            <DetailsStepActions
+              forceNetwork={forceNetwork}
+              requiresConnection={!canSkipConnection}
+              signingState={signingState}
+            />
+          </div>
         </form>
-        {quote && <QuoteSummary quote={quote} />}
+        {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
       </div>
     </FormProvider>
   );

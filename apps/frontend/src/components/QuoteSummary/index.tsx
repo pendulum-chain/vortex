@@ -1,5 +1,5 @@
 import { QuoteResponse } from "@vortexfi/shared";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
@@ -11,6 +11,7 @@ import { TransactionId } from "../TransactionId";
 interface QuoteSummaryProps {
   quote: QuoteResponse;
   className?: string;
+  onHeightChange?: (height: number) => void;
 }
 
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
@@ -75,11 +76,46 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
-export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
+export const QuoteSummary = ({ quote, className, onHeightChange }: QuoteSummaryProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const isExpandedRef = useRef(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!cardRef.current || !onHeightChange) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        // Only report height changes when the card is NOT expanded
+        // This prevents the button from moving when the quote summary expands/collapses
+        if (!isExpandedRef.current) {
+          // Report the height including the bottom-2 positioning (0.5rem = 8px)
+          const height = entry.contentRect.height + 8;
+          onHeightChange(height);
+        }
+      }
+    });
+
+    resizeObserver.observe(cardRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, [onHeightChange]);
 
   const handleToggle = (isExpanded: boolean) => {
-    if (isExpanded && cardRef.current) {
+    // Clear any pending timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
+    if (isExpanded) {
+      // Expanding: immediately prevent height updates
+      isExpandedRef.current = true;
+
       // Wait for the animation to complete (300ms) before scrolling
       setTimeout(() => {
         cardRef.current?.scrollIntoView({
@@ -87,6 +123,12 @@ export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
           block: "end"
         });
       }, 300);
+    } else {
+      // Collapsing: keep preventing height updates during animation
+      // Then re-enable after animation completes to measure collapsed height
+      animationTimeoutRef.current = setTimeout(() => {
+        isExpandedRef.current = false;
+      }, 350); // 300ms animation + 50ms buffer
     }
   };
 
