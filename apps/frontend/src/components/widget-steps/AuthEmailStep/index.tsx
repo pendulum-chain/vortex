@@ -36,13 +36,13 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
   return (
     <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
-      <div className="flex grow flex-col pb-32">
+      <div className="flex flex-col flex-1">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Your Email</h1>
           <p className="text-gray-600 mb-6">We'll send you a one-time code to verify your identity</p>
         </div>
 
-        <div className="flex flex-col items-center justify-center flex-grow">
+        <div className="flex flex-col items-center">
           <div className="w-full max-w-md">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
@@ -61,15 +61,22 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
                 />
                 {(localError || errorMessage) && <p className="mt-2 text-sm text-red-600">{localError || errorMessage}</p>}
               </div>
-
-              <button
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                disabled={isLoading}
-                type="submit"
-              >
-                {isLoading ? "Sending..." : "Continue"}
-              </button>
             </form>
+          </div>
+        </div>
+
+        <div className="flex-1" />
+
+        <div className="flex flex-col items-center mb-32">
+          <div className="w-full max-w-md">
+            <button
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              disabled={isLoading}
+              onClick={handleSubmit}
+              type="button"
+            >
+              {isLoading ? "Sending..." : "Continue"}
+            </button>
           </div>
         </div>
       </div>

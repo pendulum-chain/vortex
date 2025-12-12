@@ -33,8 +33,8 @@ export const AveniaKYBVerifyStep = ({
 
   return (
     <div className="relative flex min-h-[506px] w-full grow flex-col">
-      <div className="flex grow flex-col pb-32">
-        <div className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between">
+      <div className="flex flex-col flex-1">
+        <div className="mt-8 mb-4 flex w-full flex-col">
           <div>
             <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
 
@@ -73,7 +73,9 @@ export const AveniaKYBVerifyStep = ({
             )}
           </div>
 
-          <div className="mt-8 flex gap-4">
+          <div className="flex-1" />
+
+          <div className="mt-8 mb-32 flex gap-4">
             <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
               {t(cancelButtonKey)}
             </button>

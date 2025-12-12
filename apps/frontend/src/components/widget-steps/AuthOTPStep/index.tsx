@@ -73,7 +73,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
 
   return (
     <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
-      <div className="flex grow flex-col pb-32">
+      <div className="flex flex-col flex-1">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
           <p className="text-gray-600 mb-6">
@@ -81,7 +81,7 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
           </p>
         </div>
 
-        <div className="flex flex-col items-center justify-center flex-grow px-6">
+        <div className="flex flex-col items-center px-6">
           <div className="w-full max-w-md">
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-4 gap-y-4 sm:gap-4 justify-center mb-4" onPaste={handlePaste}>
               {otp.map((digit, index) => (
@@ -117,6 +117,8 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
             </button>
           </div>
         </div>
+
+        <div className="flex-1 mb-32" />
       </div>
 
       {quote && <QuoteSummary quote={quote} />}
