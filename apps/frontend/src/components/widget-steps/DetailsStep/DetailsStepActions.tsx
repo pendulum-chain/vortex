@@ -28,7 +28,7 @@ export const DetailsStepActions = ({ signingState, className, requiresConnection
   return (
     <div className={className}>
       {requiresConnection && <ConnectWalletSection forceNetwork={forceNetwork} />}
-      {displayRampSubmitButton && <RampSubmitButton className="mb-4" />}
+      {displayRampSubmitButton && <RampSubmitButton />}
     </div>
   );
 };

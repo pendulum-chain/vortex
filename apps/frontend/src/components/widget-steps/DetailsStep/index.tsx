@@ -106,10 +106,10 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   return (
     <FormProvider {...form}>
       <div
-        className="relative flex min-h-[506px] max-h-full grow flex-col"
+        className="relative flex max-h-full min-h-[506px] grow flex-col"
         style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
       >
-        <form className={cn("flex flex-col h-full", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
+        <form className={cn("flex h-full flex-col", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
           <div className="flex-1 pb-36">
             <DetailsStepHeader />
             <DetailsStepForm
@@ -127,7 +127,10 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               </div>
             )}
           </div>
-          <div className="absolute right-0 left-0 z-[5]" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+          <div
+            className="absolute right-0 left-0 z-[5] mb-4"
+            style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+          >
             <DetailsStepActions
               forceNetwork={forceNetwork}
               requiresConnection={!canSkipConnection}

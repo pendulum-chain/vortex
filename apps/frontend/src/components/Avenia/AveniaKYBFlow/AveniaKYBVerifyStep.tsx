@@ -80,7 +80,7 @@ export const AveniaKYBVerifyStep = ({
         </div>
       </div>
 
-      <div className="absolute right-0 left-0 z-[5]" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+      <div className="absolute right-0 left-0 z-[5] mb-4" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
         <div className="mt-8 flex gap-4">
           <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
             {t(cancelButtonKey)}
