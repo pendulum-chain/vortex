@@ -8,8 +8,8 @@ import {
   RampPhase,
   UnsignedTx
 } from "@vortexfi/shared";
-import { DataTypes, Model, Optional } from "sequelize";
-import { StateMetadata } from "../api/services/phases/meta-state-types";
+import {DataTypes, Model, Optional} from "sequelize";
+import {StateMetadata} from "../api/services/phases/meta-state-types";
 import sequelize from "../config/database";
 
 export interface PhaseHistoryEntry {
@@ -39,7 +39,7 @@ type PostCompleteState = {
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
   id: string; // UUID
-  userId: string; // UUID reference to Supabase Auth user
+  userId: string | null; // UUID reference to Supabase Auth user
   type: RampDirection;
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[]; // JSONB array
@@ -64,7 +64,7 @@ export type RampStateCreationAttributes = Optional<RampStateAttributes, "id" | "
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
   declare id: string;
 
-  declare userId: string;
+  declare userId: string | null;
 
   declare type: RampDirection;
 
@@ -208,7 +208,7 @@ RampState.init(
       type: DataTypes.DATE
     },
     userId: {
-      allowNull: false,
+      allowNull: true,
       field: "user_id",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",

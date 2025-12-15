@@ -78,7 +78,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   `);
 
   await queryInterface.changeColumn("ramp_states", "user_id", {
-    allowNull: false,
+    allowNull: true,
     onDelete: "CASCADE",
     onUpdate: "CASCADE",
     references: {
