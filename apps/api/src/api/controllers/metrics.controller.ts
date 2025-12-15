@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { Request, Response } from "express";
 import { config } from "../../config";
+import logger from "../../config/logger";
 import { cache } from "../services";
+
+const CACHE_TTL_SECONDS = 5 * 60; // 5 minutes
 
 export interface VolumeRow {
   buy_usd: number;
@@ -28,6 +31,13 @@ export interface VolumeData {
   weekly: WeeklyVolume[];
   daily: DailyVolume[];
   selectedMonth: string;
+}
+
+if (!config.supabaseUrl) {
+  throw new Error("Missing Supabase URL in configuration.");
+}
+if (!config.supabaseKey) {
+  throw new Error("Missing Supabase Key in configuration.");
 }
 
 const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
@@ -66,7 +76,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
       current.setMonth(current.getMonth() + 1);
     }
 
-    cache.set(cacheKey, volumes, 5 * 60);
+    cache.set(cacheKey, volumes, CACHE_TTL_SECONDS);
     return volumes;
   } catch (error: any) {
     throw new Error("Could not calculate monthly volumes: " + error.message);
@@ -82,7 +92,8 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
     const { data, error } = await supabase.rpc("get_daily_volumes", { end_date: endDate, start_date: startDate });
     if (error) throw error;
 
-    const dataMap = new Map((data as DailyVolume[]).map(row => [row.day, row]));
+    const rawData = (data as DailyVolume[]) || [];
+    const dataMap = new Map(rawData.map(row => [row.day, row]));
 
     const current = new Date(startDate);
     const end = new Date(endDate);
@@ -94,14 +105,13 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
       current.setDate(current.getDate() + 1);
     }
 
-    cache.set(cacheKey, volumes, 5 * 60);
+    cache.set(cacheKey, volumes, CACHE_TTL_SECONDS);
     return volumes;
   } catch (error: any) {
     throw new Error("Could not calculate daily volumes: " + error.message);
   }
 }
 
-// TODO make inclusive the last day.
 function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
   const weeks: WeeklyVolume[] = [];
 
@@ -148,8 +158,6 @@ export const getVolumes = async (req: Request, res: Response) => {
       endDate = `${selectedMonth}-${lastDay.toString().padStart(2, "0")}`;
     }
 
-    console.log("Fetching volumes for period:", startDate, "to", endDate);
-
     const [monthly, daily] = await Promise.all([getMonthlyVolumes(), getDailyVolumes(startDate, endDate)]);
 
     const weekly = aggregateWeekly(daily);
@@ -163,7 +171,7 @@ export const getVolumes = async (req: Request, res: Response) => {
       weekly
     });
   } catch (error) {
-    console.error("Error fetching volumes:", error);
+    logger.error("Error fetching volumes:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
