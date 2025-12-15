@@ -6,6 +6,17 @@ import { DiscountComputation } from "./index";
 
 export const DEFAULT_PARTNER_NAME = "vortex";
 
+const DISCOUNT_STATE_TIMEOUT_MINUTES = 1;
+const DELTA_D_BASIS_POINTS = 0.3;
+
+const partnerDiscountState = new Map<string, { lastQuoteTimestamp: Date | null; difference: Big }>();
+
+function getDeltaD(): Big {
+  return new Big(DELTA_D_BASIS_POINTS).div(100);
+}
+
+export { partnerDiscountState, DISCOUNT_STATE_TIMEOUT_MINUTES, getDeltaD };
+
 export type ActivePartner = Pick<Partner, "id" | "targetDiscount" | "maxSubsidy" | "name"> | null;
 
 export interface DiscountSubsidyPayload {
@@ -49,13 +60,15 @@ export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDi
  * @param oraclePrice - The oracle price (FIAT-USD format, e.g., BRL-USD)
  * @param targetDiscount - The target discount rate to apply
  * @param isOfframp - Whether this is an offramp (requires price inversion)
+ * @param partnerId - Partner ID for state management
  * @returns Expected output amount
  */
 export function calculateExpectedOutput(
   inputAmount: string,
   oraclePrice: Big,
   targetDiscount: number,
-  isOfframp: boolean
+  isOfframp: boolean,
+  partnerId?: string | null
 ): Big {
   const inputAmountBig = new Big(inputAmount);
 
@@ -63,20 +76,65 @@ export function calculateExpectedOutput(
   // Oracle price is FIAT-USD, so for offramps we want USD-FIAT
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
 
-  // Apply target discount to the rate
-  const discountedRate = effectivePrice.mul(new Big(1).plus(targetDiscount));
+  // Apply target discount to the rate, adjusting first for dynamic penalty
+  const adjustedTargetDiscount = new Big(targetDiscount).minus(getAdjustedDifference(partnerId));
+  const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
   return inputAmountBig.mul(discountedRate);
 }
 
-/**
- * Calculate the subsidy amount by comparing expected vs actual output
- * Caps at maxSubsidy if configured
- * @param expectedOutput - The expected output amount
- * @param actualOutput - The actual output amount from nabla swap
- * @param maxSubsidy - Maximum subsidy rate (decimal)
- * @returns Subsidy amount as Big
- */
-export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
+export function getAdjustedDifference(partnerId?: string | null): Big {
+  console.log("DEBUG: getting adjusted difference for partnerId:", partnerId);
+  if (!partnerId) {
+    return new Big(0);
+  }
+
+  const partnerState = partnerDiscountState.get(partnerId);
+  console.log("DEBUG: partnerState:", partnerState);
+  const now = new Date();
+
+  if (!partnerState || !partnerState.lastQuoteTimestamp) {
+    partnerDiscountState.set(partnerId, { difference: new Big(0), lastQuoteTimestamp: now });
+    return new Big(0);
+  }
+
+  const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
+
+  if (!isYounger) {
+    const updatedDifference = partnerState.difference.minus(getDeltaD());
+    partnerDiscountState.set(partnerId, { difference: updatedDifference, lastQuoteTimestamp: now });
+    return updatedDifference;
+  } else {
+    // Return existing difference
+    return partnerState.difference;
+  }
+}
+export function handleQuoteConsumptionForDiscountState(partnerId: string | null): void {
+  if (!partnerId) {
+    return;
+  }
+
+  const partnerState = partnerDiscountState.get(partnerId);
+  const now = new Date();
+
+  if (!partnerState || !partnerState.lastQuoteTimestamp) {
+    // This state should not exist. Only in case of server shut down and loss of state.
+    return;
+  }
+
+  const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
+
+  if (isYounger) {
+    const updatedDifference = partnerState.difference.plus(getDeltaD());
+    partnerDiscountState.set(partnerId, { difference: updatedDifference, lastQuoteTimestamp: now });
+  }
+}
+
+export function calculateSubsidyAmount(
+  expectedOutput: Big,
+  actualOutput: Big,
+  maxSubsidy: number,
+  partnerId?: string | null
+): Big {
   // If actual output is already >= expected, no subsidy needed
   if (actualOutput.gte(expectedOutput)) {
     return new Big(0);
