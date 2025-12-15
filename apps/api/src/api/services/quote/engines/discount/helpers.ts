@@ -8,6 +8,8 @@ export const DEFAULT_PARTNER_NAME = "vortex";
 
 const DISCOUNT_STATE_TIMEOUT_MINUTES = 1;
 const DELTA_D_BASIS_POINTS = 0.3;
+const MAX_DIFFERENCE_CAP = 10;
+const MIN_DIFFERENCE_CAP = -10;
 
 const partnerDiscountState = new Map<string, { lastQuoteTimestamp: Date | null; difference: Big }>();
 
@@ -78,6 +80,7 @@ export function calculateExpectedOutput(
 
   // Apply target discount to the rate, adjusting first for dynamic penalty
   const adjustedTargetDiscount = new Big(targetDiscount).minus(getAdjustedDifference(partnerId));
+  console.log("DEBUG: adjustedTargetDiscount:", adjustedTargetDiscount.toString());
   const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
   return inputAmountBig.mul(discountedRate);
 }
@@ -101,8 +104,9 @@ export function getAdjustedDifference(partnerId?: string | null): Big {
 
   if (!isYounger) {
     const updatedDifference = partnerState.difference.minus(getDeltaD());
-    partnerDiscountState.set(partnerId, { difference: updatedDifference, lastQuoteTimestamp: now });
-    return updatedDifference;
+    const clampedDifference = updatedDifference.lt(MIN_DIFFERENCE_CAP) ? Big(MIN_DIFFERENCE_CAP) : updatedDifference;
+    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
+    return clampedDifference;
   } else {
     // Return existing difference
     return partnerState.difference;
@@ -125,16 +129,14 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
 
   if (isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
-    partnerDiscountState.set(partnerId, { difference: updatedDifference, lastQuoteTimestamp: now });
+    const clampedDifference = updatedDifference.gt(MAX_DIFFERENCE_CAP) ? Big(MAX_DIFFERENCE_CAP) : updatedDifference;
+    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
   }
+
+  console.log("DEBUG: after consumption, partnerState:", partnerDiscountState.get(partnerId));
 }
 
-export function calculateSubsidyAmount(
-  expectedOutput: Big,
-  actualOutput: Big,
-  maxSubsidy: number,
-  partnerId?: string | null
-): Big {
+export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
   // If actual output is already >= expected, no subsidy needed
   if (actualOutput.gte(expectedOutput)) {
     return new Big(0);
