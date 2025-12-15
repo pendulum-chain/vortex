@@ -1,5 +1,5 @@
 import { useSelector } from "@xstate/react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { ActorRefFrom } from "xstate";
 import { supabase } from "../config/supabase";
 import type { rampMachine } from "../machines/ramp.machine";
@@ -11,6 +11,9 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
     userEmail: state.context.userEmail,
     userId: state.context.userId
   }));
+  
+  // Track if we've already restored the session to avoid running multiple times
+  const hasRestoredSession = useRef(false);
 
   // Check for tokens in URL on mount (magic link callback)
   useEffect(() => {
@@ -42,20 +45,22 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    const tokens = AuthService.getTokens();
-    if (tokens && !isAuthenticated) {
-      actorRef.send({
-        tokens: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          user_id: tokens.user_id
-        },
-        type: "AUTH_SUCCESS"
-      });
+    // Only restore once on initial mount to avoid infinite loops
+    if (!hasRestoredSession.current && !isAuthenticated) {
+      const tokens = AuthService.getTokens();
+      if (tokens) {
+        hasRestoredSession.current = true;
+        actorRef.send({
+          tokens: {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            user_id: tokens.user_id
+          },
+          type: "AUTH_SUCCESS"
+        });
+      }
     }
-    // Only run on mount, not when isAuthenticated changes to avoid infinite loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actorRef]);
+  }, [actorRef, isAuthenticated]);
 
   const signOut = useCallback(async () => {
     await AuthService.signOut();

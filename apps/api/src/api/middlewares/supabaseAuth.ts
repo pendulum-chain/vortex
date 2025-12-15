@@ -60,10 +60,16 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 
     next();
   } catch (error) {
+    // Log truncated token for security - only show first/last few characters
+    const authHeader = req.headers.authorization;
+    const truncatedAuth = authHeader 
+      ? `${authHeader.substring(0, 15)}...${authHeader.substring(authHeader.length - 4)}`
+      : undefined;
+    
     console.warn("optionalAuth middleware: authentication error", {
       error,
       path: req.path,
-      authorization: req.headers.authorization
+      authorization: truncatedAuth
     });
     next();
   }
