@@ -256,8 +256,7 @@ export const rampMachine = setup({
       actions: assign({
         isAuthenticated: false,
         userEmail: undefined,
-        userId: undefined,
-        userSessionTokens: undefined
+        userId: undefined
       }),
       target: "#ramp.EnterEmail"
     },
@@ -366,6 +365,20 @@ export const rampMachine = setup({
             userEmail: ({ event }) => event.email
           }),
           target: "CheckingEmail"
+        },
+        SET_QUOTE: {
+          actions: assign({
+            quoteId: ({ event }) => event.quoteId,
+            quoteLocked: ({ event }) => event.lock
+          })
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            apiKey: ({ event }) => event.apiKey,
+            callbackUrl: ({ event }) => event.callbackUrl,
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
         }
       }
     },
@@ -490,7 +503,9 @@ export const rampMachine = setup({
     LoadingQuote: {
       invoke: {
         id: "loadQuote",
-        input: ({ event }) => ({ quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId }),
+        input: ({ event, context }) => ({
+          quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId || context.quoteId!
+        }),
         onDone: {
           actions: assign({
             isQuoteExpired: ({ event }) => event.output.isExpired,
@@ -509,6 +524,12 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
+      always: [
+        {
+          guard: ({ context }) => context.quoteId !== undefined && context.quote === undefined,
+          target: "LoadingQuote"
+        }
+      ],
       on: {
         // This is the main confirm button.
         CONFIRM: {
