@@ -115,14 +115,6 @@ export const QuoteSummary = ({ quote, className, onHeightChange }: QuoteSummaryP
     if (isExpanded) {
       // Expanding: immediately prevent height updates
       isExpandedRef.current = true;
-
-      // Wait for the animation to complete (300ms) before scrolling
-      setTimeout(() => {
-        cardRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end"
-        });
-      }, 300);
     } else {
       // Collapsing: keep preventing height updates during animation
       // Then re-enable after animation completes to measure collapsed height
