@@ -18,8 +18,8 @@ export function WhyVortexApi() {
 
           <ul className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
             <li>
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
+              <div className="relative flex items-center gap-2">
+                <CheckCircleIcon className="absolute left-[-32px] h-6 w-6 shrink-0 text-blue-400" />
                 <h3 className=" font-bold text-blue-400 text-h3 ">
                   {t("pages.business.whyVortexApi.features.automated.title")}
                 </h3>
@@ -27,15 +27,15 @@ export function WhyVortexApi() {
               <p className="mt-2 text-body text-white ">{t("pages.business.whyVortexApi.features.automated.description")}</p>
             </li>
             <li>
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
+              <div className="relative flex items-center gap-2">
+                <CheckCircleIcon className="absolute left-[-32px] h-6 w-6 shrink-0 text-blue-400" />
                 <h3 className=" font-bold text-blue-400 text-h3 ">{t("pages.business.whyVortexApi.features.pricing.title")}</h3>
               </div>
               <p className="mt-2 text-body text-white ">{t("pages.business.whyVortexApi.features.pricing.description")}</p>
             </li>
             <li>
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-6 w-6 shrink-0 text-blue-400" />
+              <div className="relative flex items-center gap-2">
+                <CheckCircleIcon className="absolute left-[-32px] h-6 w-6 shrink-0 text-blue-400" />
                 <h3 className=" font-bold text-blue-400 text-h3 ">
                   {t("pages.business.whyVortexApi.features.liquidity.title")}
                 </h3>

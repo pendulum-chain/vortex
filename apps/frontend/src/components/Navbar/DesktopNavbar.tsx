@@ -1,5 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
 import { useNavbarHandlers } from "./hooks/useNavbarHandlers";
 import { LogoButton } from "./LogoButton";
@@ -11,7 +12,7 @@ export const DesktopNavbar = () => {
   const params = useParams({ strict: false });
 
   return (
-    <div className="relative bg-blue-950 px-4 py-4 md:px-10 md:py-5">
+    <div className={cn("relative px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-white" : "bg-blue-950")}>
       <div className="mx-6 flex items-center justify-between sm:container sm:mx-auto">
         {isWidgetMode ? (
           <LogoButton onClick={resetRampAndNavigateHome} />

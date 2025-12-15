@@ -25,7 +25,11 @@ export const useMoneriumFlow = () => {
       codeProcessedRef.current = true;
       moneriumKycActor.send({ code, type: "CODE_RECEIVED" });
       // Remove the code parameter from URL
-      router.history.replace(routerState.location.pathname);
+      router.navigate({
+        replace: true,
+        search: {},
+        to: routerState.location.pathname
+      });
     }
   }, [moneriumKycActor, moneriumState, router, routerState]);
 };

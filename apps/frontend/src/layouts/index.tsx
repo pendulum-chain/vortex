@@ -38,11 +38,10 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
       <Navbar />
       <MaintenanceBanner />
       {isWidgetMode && (
-        <div className="container mx-auto px-4 pt-6 md:w-120">
-          <Stepper className="mb-6" steps={steps} />
-        </div>
+        <div className="container mx-auto px-4 pt-6 md:w-120">{/* <Stepper className="mb-6" steps={steps} /> */}</div>
       )}
-      {main}
+      <div className="absolute top-1/8 right-0 z-10 h-[80vh] w-full bg-gradient-to-b from-white via-blue-100 to-white px-4 pt-6"></div>
+      <div className="relative z-30">{main}</div>
       {!isWidgetMode && <Footer />}
     </>
   );

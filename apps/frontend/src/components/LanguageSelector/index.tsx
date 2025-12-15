@@ -105,8 +105,7 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
     const currentPath = routerState.location.pathname;
     const newPath = updatePathWithLanguage(currentPath, language);
 
-    // Update URL without full page reload
-    router.history.push(newPath);
+    router.navigate({ to: newPath });
 
     i18n.changeLanguage(language);
 

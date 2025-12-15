@@ -1,3 +1,5 @@
+import { AssetHubToken, EvmToken, Networks, RampDirection } from "@packages/shared";
+import { Link } from "@tanstack/react-router";
 import { ComponentType, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import VORTEX_LOGO from "../../assets/logo/blue.svg";
@@ -5,6 +7,7 @@ import SATOSHIPAY_LOGO from "../../assets/logo/satoshipay.svg";
 import { Github } from "../../assets/SocialsGithub";
 import { Telegram } from "../../assets/SocialsTelegram";
 import { X } from "../../assets/SocialsX";
+import { RampUrlParamsKeys } from "../../hooks/useRampUrlParams";
 
 interface SocialLink {
   name: string;
@@ -70,15 +73,26 @@ const FooterLink = ({
   children: ReactNode;
   external?: boolean;
   className?: string;
-}) => (
-  <a
-    className={`transition-colors hover:text-primary ${className}`}
-    href={href}
-    {...(external ? { rel: "noopener noreferrer", target: "_blank" } : {})}
-  >
-    {children}
-  </a>
-);
+}) => {
+  // Use Link for internal navigation, <a> for external
+  if (external || href.startsWith("mailto:") || href === "#") {
+    return (
+      <a
+        className={`transition-colors hover:text-primary ${className}`}
+        href={href}
+        {...(external ? { rel: "noopener noreferrer", target: "_blank" } : {})}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link className={`transition-colors hover:text-primary ${className}`} to={href}>
+      {children}
+    </Link>
+  );
+};
 
 export function Footer() {
   const { t, i18n } = useTranslation();
@@ -147,17 +161,49 @@ export function Footer() {
           </FooterSection>
 
           <FooterSection title={t("components.footer.buyCrypto.title")}>
-            <FooterLink href="/widget?type=buy&token=USDT">{t("components.footer.buyCrypto.buyUsdt")}</FooterLink>
-            <FooterLink href="/widget?type=buy&token=USDC">{t("components.footer.buyCrypto.buyUsdc")}</FooterLink>
-            <FooterLink href="/widget?type=buy&token=ETH">{t("components.footer.buyCrypto.buyEth")}</FooterLink>
-            <FooterLink href="/widget?type=buy&token=DOT">{t("components.footer.buyCrypto.buyDot")}</FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDT}`}
+            >
+              {t("components.footer.buyCrypto.buyUsdt")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDC}`}
+            >
+              {t("components.footer.buyCrypto.buyUsdc")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.ETH}`}
+            >
+              {t("components.footer.buyCrypto.buyEth")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.NETWORK}=${Networks.AssetHub}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${AssetHubToken.DOT}`}
+            >
+              {t("components.footer.buyCrypto.buyDot")}
+            </FooterLink>
           </FooterSection>
 
           <FooterSection title={t("components.footer.sellCrypto.title")}>
-            <FooterLink href="/widget?type=sell&token=USDT">{t("components.footer.sellCrypto.sellUsdt")}</FooterLink>
-            <FooterLink href="/widget?type=sell&token=USDC">{t("components.footer.sellCrypto.sellUsdc")}</FooterLink>
-            <FooterLink href="/widget?type=sell&token=ETH">{t("components.footer.sellCrypto.sellEth")}</FooterLink>
-            <FooterLink href="/widget?type=sell&token=DOT">{t("components.footer.sellCrypto.sellDot")}</FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDT}`}
+            >
+              {t("components.footer.sellCrypto.sellUsdt")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDC}`}
+            >
+              {t("components.footer.sellCrypto.sellUsdc")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.ETH}`}
+            >
+              {t("components.footer.sellCrypto.sellEth")}
+            </FooterLink>
+            <FooterLink
+              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.NETWORK}=${Networks.AssetHub}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${AssetHubToken.DOT}`}
+            >
+              {t("components.footer.sellCrypto.sellDot")}
+            </FooterLink>
           </FooterSection>
         </div>
       </div>

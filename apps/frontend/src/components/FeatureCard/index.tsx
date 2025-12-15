@@ -1,5 +1,4 @@
 import { motion } from "motion/react";
-import { prefersReducedMotion } from "../../constants/animations";
 
 interface FeatureCardProps {
   icon: string;
@@ -9,8 +8,6 @@ interface FeatureCardProps {
 }
 
 export const FeatureCard = ({ icon, title, description, iconAlt }: FeatureCardProps) => {
-  const reducedMotion = prefersReducedMotion();
-
   return (
     <article className="flex flex-col items-center lg:items-start lg:text-left">
       <motion.div
