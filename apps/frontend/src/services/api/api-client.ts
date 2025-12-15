@@ -20,8 +20,8 @@ apiClient.interceptors.request.use(
   config => {
     // Add Authorization header if user is authenticated
     const tokens = AuthService.getTokens();
-    if (tokens?.access_token) {
-      config.headers.Authorization = `Bearer ${tokens.access_token}`;
+    if (tokens?.accessToken) {
+      config.headers.Authorization = `Bearer ${tokens.accessToken}`;
     }
     return config;
   },

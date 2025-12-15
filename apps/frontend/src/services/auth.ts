@@ -1,10 +1,10 @@
 import { supabase } from "../config/supabase";
 
 export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  user_id: string;
-  user_email?: string;
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
+  userEmail?: string;
 }
 
 export class AuthService {
@@ -22,11 +22,11 @@ export class AuthService {
    * The current implementation prioritizes user experience and ease of integration.
    */
   static storeTokens(tokens: AuthTokens): void {
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.access_token);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refresh_token);
-    localStorage.setItem(this.USER_ID_KEY, tokens.user_id);
-    if (tokens.user_email) {
-      localStorage.setItem(this.USER_EMAIL_KEY, tokens.user_email);
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.accessToken);
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refreshToken);
+    localStorage.setItem(this.USER_ID_KEY, tokens.userId);
+    if (tokens.userEmail) {
+      localStorage.setItem(this.USER_EMAIL_KEY, tokens.userEmail);
     }
   }
 
@@ -43,7 +43,7 @@ export class AuthService {
       return null;
     }
 
-    return { access_token, refresh_token, user_email: user_email || undefined, user_id };
+    return { accessToken: access_token, refreshToken: refresh_token, userEmail: user_email || undefined, userId: user_id };
   }
 
   /**
@@ -76,13 +76,13 @@ export class AuthService {
    * Note: These are raw URL tokens; the caller should use them to set up
    * the Supabase session and get the full user details.
    */
-  static handleUrlTokens(): { access_token: string; refresh_token: string } | null {
+  static handleUrlTokens(): { accessToken: string; refreshToken: string } | null {
     const params = new URLSearchParams(window.location.hash.substring(1));
     const access_token = params.get("access_token");
     const refresh_token = params.get("refresh_token");
 
     if (access_token && refresh_token) {
-      return { access_token, refresh_token };
+      return { accessToken: access_token, refreshToken: refresh_token };
     }
 
     return null;
@@ -99,7 +99,7 @@ export class AuthService {
 
     try {
       const { data, error } = await supabase.auth.refreshSession({
-        refresh_token: tokens.refresh_token
+        refresh_token: tokens.refreshToken
       });
 
       if (error || !data.session || !data.user) {
@@ -108,9 +108,9 @@ export class AuthService {
       }
 
       const newTokens: AuthTokens = {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        user_id: data.user.id
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        userId: data.user.id
       };
 
       this.storeTokens(newTokens);

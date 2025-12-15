@@ -7,9 +7,9 @@ export interface CheckEmailResponse {
 
 export interface VerifyOTPResponse {
   success: boolean;
-  access_token: string;
-  refresh_token: string;
-  user_id: string;
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
 }
 
 export class AuthAPI {
@@ -36,20 +36,36 @@ export class AuthAPI {
    * Verify OTP
    */
   static async verifyOTP(email: string, token: string): Promise<VerifyOTPResponse> {
-    const response = await apiClient.post<VerifyOTPResponse>("/auth/verify-otp", {
-      email,
-      token
-    });
-    return response.data;
+    const response = await apiClient.post<{ success: boolean; access_token: string; refresh_token: string; user_id: string }>(
+      "/auth/verify-otp",
+      {
+        email,
+        token
+      }
+    );
+    return {
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+      success: response.data.success,
+      userId: response.data.user_id
+    };
   }
 
   /**
    * Refresh token
    */
   static async refreshToken(refreshToken: string): Promise<VerifyOTPResponse> {
-    const response = await apiClient.post<VerifyOTPResponse>("/auth/refresh", {
-      refresh_token: refreshToken
-    });
-    return response.data;
+    const response = await apiClient.post<{ success: boolean; access_token: string; refresh_token: string; user_id: string }>(
+      "/auth/refresh",
+      {
+        refresh_token: refreshToken
+      }
+    );
+    return {
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+      success: response.data.success,
+      userId: response.data.user_id
+    };
   }
 }

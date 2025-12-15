@@ -71,7 +71,7 @@ export type RampMachineEvents =
   | { type: "EMAIL_VERIFIED" }
   | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
-  | { type: "AUTH_SUCCESS"; tokens: { access_token: string; refresh_token: string; user_id: string } }
+  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string } }
   | { type: "AUTH_ERROR"; error: string };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;

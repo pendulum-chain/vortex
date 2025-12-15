@@ -22,8 +22,8 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
       // Use the URL tokens to set session with Supabase, then get full user details
       supabase.auth
         .setSession({
-          access_token: urlTokens.access_token,
-          refresh_token: urlTokens.refresh_token
+          access_token: urlTokens.accessToken,
+          refresh_token: urlTokens.refreshToken
         })
         .then(({ data, error }) => {
           if (error) {
@@ -33,9 +33,9 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
 
           if (data.session) {
             const tokens = {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              user_id: data.session.user.id
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+              userId: data.session.user.id
             };
 
             AuthService.storeTokens(tokens);
@@ -63,9 +63,9 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
         hasRestoredSession.current = true;
         actorRef.send({
           tokens: {
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            user_id: tokens.user_id
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            userId: tokens.userId
           },
           type: "AUTH_SUCCESS"
         });
