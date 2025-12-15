@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from "sequelize";
+import {DataTypes, Model, Optional} from "sequelize";
 import sequelize from "../config/database";
 
 export interface KycLevel2Attributes {
@@ -80,7 +80,7 @@ KycLevel2.init(
       onUpdate: "CASCADE",
       references: {
         key: "id",
-        model: "users"
+        model: "profiles"
       },
       type: DataTypes.UUID
     }

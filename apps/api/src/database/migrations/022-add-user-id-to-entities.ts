@@ -16,7 +16,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   // Insert dummy user to satisfy foreign key constraint
   const timestamp = new Date().toISOString();
   await queryInterface.sequelize.query(`
-    INSERT INTO users (id, email, created_at, updated_at)
+    INSERT INTO profiles (id, email, created_at, updated_at)
     VALUES ('${DUMMY_USER_ID}', 'migration_placeholder_${DUMMY_USER_ID}@example.com', '${timestamp}', '${timestamp}')
     ON CONFLICT (id) DO NOTHING;
   `);
@@ -24,7 +24,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     UPDATE kyc_level_2 
     SET user_id = '${DUMMY_USER_ID}' 
-    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM users)
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
   `);
 
   await queryInterface.changeColumn("kyc_level_2", "user_id", {
@@ -33,7 +33,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onUpdate: "CASCADE",
     references: {
       key: "id",
-      model: "users"
+      model: "profiles"
     },
     type: DataTypes.UUID
   });
@@ -56,7 +56,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onUpdate: "CASCADE",
     references: {
       key: "id",
-      model: "users"
+      model: "profiles"
     },
     type: DataTypes.UUID
   });
@@ -74,7 +74,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     UPDATE ramp_states 
     SET user_id = '${DUMMY_USER_ID}' 
-    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM users)
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
   `);
 
   await queryInterface.changeColumn("ramp_states", "user_id", {
@@ -83,7 +83,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onUpdate: "CASCADE",
     references: {
       key: "id",
-      model: "users"
+      model: "profiles"
     },
     type: DataTypes.UUID
   });
@@ -101,7 +101,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     UPDATE tax_ids 
     SET user_id = '${DUMMY_USER_ID}' 
-    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM users)
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
   `);
 
   await queryInterface.changeColumn("tax_ids", "user_id", {
@@ -110,7 +110,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onUpdate: "CASCADE",
     references: {
       key: "id",
-      model: "users"
+      model: "profiles"
     },
     type: DataTypes.UUID
   });
@@ -167,23 +167,23 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     UPDATE kyc_level_2
     SET user_id = NULL
-    WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'migration_placeholder_%')
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
   `);
 
   await queryInterface.sequelize.query(`
     UPDATE ramp_states
     SET user_id = NULL
-    WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'migration_placeholder_%')
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
   `);
 
   await queryInterface.sequelize.query(`
     UPDATE tax_ids
     SET user_id = NULL
-    WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'migration_placeholder_%')
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
   `);
 
   // Remove the dummy user created in up() (now safe to delete without cascading)
-  await queryInterface.sequelize.query(`DELETE FROM users WHERE email LIKE 'migration_placeholder_%'`);
+  await queryInterface.sequelize.query(`DELETE FROM profiles WHERE email LIKE 'migration_placeholder_%'`);
 
   // Remove indexes
   await safeRemoveIndex("kyc_level_2", "idx_kyc_level_2_user_id");

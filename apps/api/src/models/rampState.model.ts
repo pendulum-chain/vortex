@@ -214,7 +214,7 @@ RampState.init(
       onUpdate: "CASCADE",
       references: {
         key: "id",
-        model: "users"
+        model: "profiles"
       },
       type: DataTypes.UUID
     }

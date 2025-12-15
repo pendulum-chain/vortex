@@ -1,5 +1,5 @@
-import { AveniaAccountType } from "@vortexfi/shared";
-import { DataTypes, Model, Optional } from "sequelize";
+import {AveniaAccountType} from "@vortexfi/shared";
+import {DataTypes, Model, Optional} from "sequelize";
 import sequelize from "../config/database";
 
 export enum TaxIdInternalStatus {
@@ -137,7 +137,7 @@ TaxId.init(
       onUpdate: "CASCADE",
       references: {
         key: "id",
-        model: "users"
+        model: "profiles"
       },
       type: DataTypes.UUID
     }

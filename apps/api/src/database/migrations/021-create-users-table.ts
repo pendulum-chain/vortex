@@ -1,8 +1,8 @@
-import { DataTypes, QueryInterface } from "sequelize";
+import {DataTypes, QueryInterface} from "sequelize";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create users table
-  await queryInterface.createTable("users", {
+  await queryInterface.createTable("profiles", {
     created_at: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -27,13 +27,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Add index on email for faster lookups
-  await queryInterface.addIndex("users", ["email"], {
-    name: "idx_users_email",
+  await queryInterface.addIndex("profiles", ["email"], {
+    name: "idx_profiles_email",
     unique: true
   });
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  await queryInterface.removeIndex("users", "idx_users_email");
-  await queryInterface.dropTable("users");
+  await queryInterface.removeIndex("profiles", "idx_profiles_email");
+  await queryInterface.dropTable("profiles");
 }

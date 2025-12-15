@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from "sequelize";
+import {DataTypes, Model, Optional} from "sequelize";
 import sequelize from "../config/database";
 
 export interface UserAttributes {
@@ -47,13 +47,13 @@ User.init(
     indexes: [
       {
         fields: ["email"],
-        name: "idx_users_email",
+        name: "idx_profiles_email",
         unique: true
       }
     ],
     modelName: "User",
     sequelize,
-    tableName: "users",
+    tableName: "profiles",
     timestamps: true
   }
 );

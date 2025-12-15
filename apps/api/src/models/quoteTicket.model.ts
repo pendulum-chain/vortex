@@ -1,6 +1,13 @@
-import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@vortexfi/shared";
-import { DataTypes, Model, Optional } from "sequelize";
-import { QuoteTicketMetadata } from "../api/services/quote/core/types";
+import {
+  DestinationType,
+  Networks,
+  PaymentMethod,
+  QuoteFeeStructure,
+  RampCurrency,
+  RampDirection
+} from "@vortexfi/shared";
+import {DataTypes, Model, Optional} from "sequelize";
+import {QuoteTicketMetadata} from "../api/services/quote/core/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
@@ -182,7 +189,7 @@ QuoteTicket.init(
       onUpdate: "CASCADE",
       references: {
         key: "id",
-        model: "users"
+        model: "profiles"
       },
       type: DataTypes.UUID
     }
