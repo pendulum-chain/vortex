@@ -49,7 +49,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
         <div className="flex flex-col items-center">
           <div className="w-full max-w-md">
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4" id="email-form" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="email">
                   Email Address
@@ -79,8 +79,8 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
           <button
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             disabled={isLoading}
-            onClick={handleSubmit}
-            type="button"
+            type="submit"
+            form="email-form"
           >
             {isLoading ? "Sending..." : "Continue"}
           </button>

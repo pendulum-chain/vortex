@@ -14,8 +14,8 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
 
   // Check for tokens in URL on mount (magic link callback)
   useEffect(() => {
-    const urlTokens = AuthService.handleUrlTokens();
-    if (urlTokens) {
+    const hasUrlTokens = AuthService.handleUrlTokens();
+    if (hasUrlTokens) {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
           const tokens = {
@@ -53,7 +53,9 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
         type: "AUTH_SUCCESS"
       });
     }
-  }, [actorRef, isAuthenticated]);
+    // Only run on mount, not when isAuthenticated changes to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actorRef]);
 
   const signOut = useCallback(async () => {
     await AuthService.signOut();

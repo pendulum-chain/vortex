@@ -2,10 +2,11 @@ import {DataTypes, QueryInterface} from "sequelize";
 import {v4 as uuidv4} from "uuid";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
-  // Generate a dummy user ID for migration
-  const DUMMY_USER_ID = uuidv4();
+  // Use a well-known sentinel UUID for the migration placeholder user
+  // This UUID is specifically reserved for migration purposes
+  const DUMMY_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-  console.log(`Using dummy user ID for migration: ${DUMMY_USER_ID}`);
+  console.log(`Using sentinel migration user ID: ${DUMMY_USER_ID}`);
 
   // Add user_id to kyc_level_2
   await queryInterface.addColumn("kyc_level_2", "user_id", {
@@ -14,10 +15,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Insert dummy user to satisfy foreign key constraint
+  // Use ON CONFLICT to handle cases where migration is re-run
   const timestamp = new Date().toISOString();
   await queryInterface.sequelize.query(`
     INSERT INTO profiles (id, email, created_at, updated_at)
-    VALUES ('${DUMMY_USER_ID}', 'migration_placeholder_${DUMMY_USER_ID}@example.com', '${timestamp}', '${timestamp}')
+    VALUES ('${DUMMY_USER_ID}', 'migration_placeholder@vortex.internal', '${timestamp}', '${timestamp}')
     ON CONFLICT (id) DO NOTHING;
   `);
 

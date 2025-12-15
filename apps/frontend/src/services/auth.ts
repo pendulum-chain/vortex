@@ -15,6 +15,11 @@ export class AuthService {
 
   /**
    * Store tokens in localStorage
+   * 
+   * Security Note: Storing tokens in localStorage makes them vulnerable to XSS attacks.
+   * For production applications, consider using httpOnly cookies or implementing additional
+   * security measures such as Content Security Policy headers and token encryption.
+   * The current implementation prioritizes user experience and ease of integration.
    */
   static storeTokens(tokens: AuthTokens): void {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.access_token);
@@ -67,17 +72,15 @@ export class AuthService {
 
   /**
    * Handle tokens from URL (for magic link callback)
+   * Returns null when tokens are found, as the actual user_id will be
+   * fetched from the session in the calling code
    */
-  static handleUrlTokens(): AuthTokens | null {
+  static handleUrlTokens(): boolean {
     const params = new URLSearchParams(window.location.hash.substring(1));
     const access_token = params.get("access_token");
     const refresh_token = params.get("refresh_token");
 
-    if (access_token && refresh_token) {
-      return { access_token, refresh_token, user_id: "" };
-    }
-
-    return null;
+    return !!(access_token && refresh_token);
   }
 
   /**

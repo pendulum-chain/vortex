@@ -60,6 +60,11 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 
     next();
   } catch (error) {
+    console.warn("optionalAuth middleware: authentication error", {
+      error,
+      path: req.path,
+      authorization: req.headers.authorization
+    });
     next();
   }
 }
