@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import logger from "../../config/logger";
 import { SupabaseAuthService } from "../services/auth";
 
 declare global {
@@ -62,14 +63,14 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   } catch (error) {
     // Log truncated token for security - only show first/last few characters
     const authHeader = req.headers.authorization;
-    const truncatedAuth = authHeader 
+    const truncatedAuth = authHeader
       ? `${authHeader.substring(0, 15)}...${authHeader.substring(authHeader.length - 4)}`
       : undefined;
-    
-    console.warn("optionalAuth middleware: authentication error", {
+
+    logger.warn("optionalAuth middleware: authentication error", {
+      authorization: truncatedAuth,
       error,
-      path: req.path,
-      authorization: truncatedAuth
+      path: req.path
     });
     next();
   }
