@@ -11,29 +11,40 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
     userEmail: state.context.userEmail,
     userId: state.context.userId
   }));
-  
+
   // Track if we've already restored the session to avoid running multiple times
   const hasRestoredSession = useRef(false);
 
   // Check for tokens in URL on mount (magic link callback)
   useEffect(() => {
-    const hasUrlTokens = AuthService.handleUrlTokens();
-    if (hasUrlTokens) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          const tokens = {
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-            user_id: data.session.user.id
-          };
+    const urlTokens = AuthService.handleUrlTokens();
+    if (urlTokens) {
+      // Use the URL tokens to set session with Supabase, then get full user details
+      supabase.auth
+        .setSession({
+          access_token: urlTokens.access_token,
+          refresh_token: urlTokens.refresh_token
+        })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Failed to set session from URL tokens:", error);
+            return;
+          }
 
-          AuthService.storeTokens(tokens);
-          actorRef.send({ tokens, type: "AUTH_SUCCESS" });
+          if (data.session) {
+            const tokens = {
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              user_id: data.session.user.id
+            };
 
-          // Clean URL
-          window.history.replaceState({}, "", window.location.pathname);
-        }
-      });
+            AuthService.storeTokens(tokens);
+            actorRef.send({ tokens, type: "AUTH_SUCCESS" });
+
+            // Clean URL
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        });
     }
   }, [actorRef]);
 
