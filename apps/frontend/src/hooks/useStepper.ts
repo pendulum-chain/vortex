@@ -36,21 +36,21 @@ export const useStepper = () => {
     redirectCallback: state.matches("RedirectCallback")
   }));
 
-  // Step 1: Login - complete when authenticated
-  const loginStepComplete = isAuthenticated;
-
-  // Step 2: Details - active after login, complete when KYC starts
-  const detailsStepActive = isAuthenticated && !isKycActive && !isKycComplete && !isKycFailure;
-  const detailsStepComplete = isKycComplete || isKycActive || isKycFailure;
-
   // Step 3: Verification - active during KYC, complete when done
   const verificationStepActive = isKycActive || isKycFailure;
   const verificationStepComplete =
     rampFollowUp || redirectCallback || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
 
   // Step 4: Confirm - active when verification complete, complete when payment confirmed
-  const confirmStepActive = verificationStepComplete && rampSummaryVisible;
+  const confirmStepActive = verificationStepComplete && (rampSummaryVisible || isRegisterOrUpdate);
   const confirmStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed;
+
+  // Step 2: Details - active after login, complete when KYC starts
+  const detailsStepActive = isAuthenticated && !isKycActive && !isKycComplete && !isKycFailure;
+  const detailsStepComplete = verificationStepComplete || isKycComplete || isKycActive || isKycFailure;
+
+  // Step 1: Login - complete when authenticated
+  const loginStepComplete = isAuthenticated;
 
   const steps = useMemo((): Step[] => {
     return [
