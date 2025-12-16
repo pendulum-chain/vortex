@@ -17,6 +17,8 @@ export interface PartnerAttributes {
   vortexFeeValue: number;
   targetDiscount: number;
   maxSubsidy: number;
+  minTargetDiscount: number;
+  maxTargetDiscount: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +54,10 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
   declare targetDiscount: number;
 
   declare maxSubsidy: number;
+
+  declare minTargetDiscount: number;
+
+  declare maxTargetDiscount: number;
 
   declare isActive: boolean;
 
@@ -111,6 +117,18 @@ Partner.init(
       allowNull: false,
       defaultValue: 0,
       field: "max_subsidy",
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    maxTargetDiscount: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "max_target_discount",
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    minTargetDiscount: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "min_target_discount",
       type: DataTypes.DECIMAL(10, 4)
     },
     name: {

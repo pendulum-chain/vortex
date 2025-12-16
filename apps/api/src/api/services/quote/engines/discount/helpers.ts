@@ -10,7 +10,12 @@ export const DEFAULT_PARTNER_NAME = "vortex";
 const MAX_DIFFERENCE_CAP = 10;
 const MIN_DIFFERENCE_CAP = -10;
 
-const partnerDiscountState = new Map<string, { lastQuoteTimestamp: Date | null; difference: Big }>();
+interface PartnerDiscountState {
+  lastQuoteTimestamp: Date | null;
+  difference: Big;
+}
+
+const partnerDiscountState = new Map<string, PartnerDiscountState>();
 
 function getDeltaD(): Big {
   return new Big(config.quote.deltaDBasisPoints).div(100);
@@ -22,7 +27,10 @@ function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
 
 export { partnerDiscountState, getDeltaD };
 
-export type ActivePartner = Pick<Partner, "id" | "targetDiscount" | "maxSubsidy" | "name"> | null;
+export type ActivePartner = Pick<
+  Partner,
+  "id" | "targetDiscount" | "maxSubsidy" | "minTargetDiscount" | "maxTargetDiscount" | "name"
+> | null;
 
 export interface DiscountSubsidyPayload {
   actualOutputAmountDecimal: Big;
@@ -73,7 +81,7 @@ export function calculateExpectedOutput(
   oraclePrice: Big,
   targetDiscount: number,
   isOfframp: boolean,
-  partnerId?: string | null
+  partner: ActivePartner
 ): Big {
   const inputAmountBig = new Big(inputAmount);
 
@@ -82,26 +90,29 @@ export function calculateExpectedOutput(
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
 
   // Apply target discount to the rate, adjusting first for dynamic discount variable.
-  const adjustedTargetDiscount = new Big(targetDiscount).plus(getAdjustedDifference(partnerId));
+  const adjustedTargetDiscount = new Big(targetDiscount).plus(getAdjustedDifference(partner));
   const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
   return inputAmountBig.mul(discountedRate);
 }
 
-export function getAdjustedDifference(partnerId?: string | null): Big {
-  if (!partnerId) {
+export function getAdjustedDifference(partner?: ActivePartner): Big {
+  if (!partner?.id) {
     return new Big(0);
   }
 
-  const partnerState = partnerDiscountState.get(partnerId);
+  const partnerState = partnerDiscountState.get(partner.id);
   const now = new Date();
 
+  // Use partner's min caps if available, otherwise fall back to constants
+  const minCap = partner.minTargetDiscount ?? MIN_DIFFERENCE_CAP;
+
   if (!partnerState) {
-    partnerDiscountState.set(partnerId, { difference: new Big(0), lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
     return new Big(0);
   }
 
   if (!partnerState.lastQuoteTimestamp) {
-    partnerDiscountState.set(partnerId, { difference: partnerState.difference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.id, { difference: partnerState.difference, lastQuoteTimestamp: now });
     return partnerState.difference;
   }
 
@@ -109,20 +120,20 @@ export function getAdjustedDifference(partnerId?: string | null): Big {
 
   if (!isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
-    const clampedDifference = updatedDifference.lt(MIN_DIFFERENCE_CAP) ? Big(MIN_DIFFERENCE_CAP) : updatedDifference;
-    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
+    const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
+    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
   } else {
     // Return existing difference
     return partnerState.difference;
   }
 }
-export function handleQuoteConsumptionForDiscountState(partnerId: string | null): void {
-  if (!partnerId) {
+export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner): void {
+  if (!partner?.id) {
     return;
   }
 
-  const partnerState = partnerDiscountState.get(partnerId);
+  const partnerState = partnerDiscountState.get(partner.id);
   const now = new Date();
 
   if (!partnerState || !partnerState.lastQuoteTimestamp) {
@@ -133,9 +144,12 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
   const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (isYounger) {
+    // Use partner's max caps if available, otherwise fall back to constants
+    const maxCap = partner.maxTargetDiscount ?? MAX_DIFFERENCE_CAP;
+
     const updatedDifference = partnerState.difference.minus(getDeltaD());
-    const clampedDifference = updatedDifference.gt(MAX_DIFFERENCE_CAP) ? Big(MAX_DIFFERENCE_CAP) : updatedDifference;
-    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: null });
+    const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
+    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }
 
