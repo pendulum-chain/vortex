@@ -104,7 +104,7 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   const now = new Date();
 
   // Use partner's min caps if available, otherwise fall back to constants
-  const minCap = partner.minTargetDiscount ?? MIN_DIFFERENCE_CAP;
+  const maxCap = partner.maxTargetDiscount ?? MAX_DIFFERENCE_CAP;
 
   if (!partnerState) {
     partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
@@ -120,7 +120,7 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
 
   if (!isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
-    const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
+    const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
     partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
   } else {
@@ -145,10 +145,10 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
 
   if (isYounger) {
     // Use partner's max caps if available, otherwise fall back to constants
-    const maxCap = partner.maxTargetDiscount ?? MAX_DIFFERENCE_CAP;
+    const minCap = partner.minTargetDiscount ?? MIN_DIFFERENCE_CAP;
 
     const updatedDifference = partnerState.difference.minus(getDeltaD());
-    const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
+    const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
     partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }
