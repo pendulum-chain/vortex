@@ -11,8 +11,19 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       END IF;
     END $$;
 
-    -- Add the 'COMPANY' value to the existing enum type safely
-    ALTER TYPE "enum_tax_ids_account_type" ADD VALUE IF NOT EXISTS 'COMPANY';
+    -- Add the 'COMPANY' value to the existing enum type safely (compatible with PostgreSQL <12)
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_enum
+        WHERE enumlabel = 'COMPANY'
+          AND enumtypid = (
+            SELECT oid FROM pg_type WHERE typname = 'enum_tax_ids_account_type'
+          )
+      ) THEN
+        ALTER TYPE "enum_tax_ids_account_type" ADD VALUE 'COMPANY';
+      END IF;
+    END $$;
   `);
 }
 

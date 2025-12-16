@@ -32,8 +32,8 @@ const getInitialAuthState = () => {
   if (tokens) {
     const authState = {
       isAuthenticated: true,
-      userEmail: tokens.user_email,
-      userId: tokens.user_id
+      userEmail: tokens.userEmail,
+      userId: tokens.userId
     };
     return authState;
   }
@@ -145,7 +145,7 @@ export type RampMachineEvents =
   | { type: "EMAIL_VERIFIED" }
   | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
-  | { type: "AUTH_SUCCESS"; tokens: { access_token: string; refresh_token: string; user_id: string } }
+  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "CHANGE_EMAIL" }
   | { type: "LOGOUT" };
@@ -244,7 +244,7 @@ export const rampMachine = setup({
     AUTH_SUCCESS: {
       actions: assign({
         isAuthenticated: true,
-        userId: ({ event }) => event.tokens.user_id
+        userId: ({ event }) => event.tokens.userId
       })
     },
     EXPIRE_QUOTE: {
@@ -706,15 +706,15 @@ export const rampMachine = setup({
             assign({
               errorMessage: undefined,
               isAuthenticated: true,
-              userId: ({ event }) => event.output.user_id
+              userId: ({ event }) => event.output.userId
             }),
             ({ event, context }) => {
               // Store tokens in localStorage for session persistence
               AuthService.storeTokens({
-                access_token: event.output.access_token,
-                refresh_token: event.output.refresh_token,
-                user_email: context.userEmail,
-                user_id: event.output.user_id
+                accessToken: event.output.accessToken,
+                refreshToken: event.output.refreshToken,
+                userEmail: context.userEmail,
+                userId: event.output.userId
               });
             }
           ],

@@ -205,6 +205,14 @@ export const recordInitialKycAttempt = async (
     });
 
     if (!taxIdRecord) {
+      // Validate that user is authenticated since userId is required in the schema
+      if (!req.userId) {
+        res.status(httpStatus.UNAUTHORIZED).json({ 
+          error: "Authentication required to record KYC attempt" 
+        });
+        return;
+      }
+
       const accountType = isValidCnpj(taxId)
         ? AveniaAccountType.COMPANY
         : isValidCpf(taxId)
@@ -220,9 +228,6 @@ export const recordInitialKycAttempt = async (
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
           taxId,
-          // @ts-ignore: Assume userId is passed in body for now, or use empty string if logic permits (but schema is NOT NULL)
-          // Actually, if Auth is first, we should have userId.
-          // Using a placeholder assertion as we can't change the request type easily here without bigger refactor.
           userId: req.userId
         });
       }

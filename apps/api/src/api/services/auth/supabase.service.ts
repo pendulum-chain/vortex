@@ -6,14 +6,22 @@ export class SupabaseAuthService {
    */
   static async checkUserExists(email: string): Promise<boolean> {
     try {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+      // Query the profiles table directly for better performance
+      const { data, error } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
 
       if (error) {
+        // If error is "PGRST116" (no rows returned), user doesn't exist
+        if (error.code === "PGRST116") {
+          return false;
+        }
         throw error;
       }
 
-      const userExists = data.users.some(user => user.email === email);
-      return userExists;
+      return !!data;
     } catch (error) {
       console.error("Error checking user existence:", error);
       throw error;

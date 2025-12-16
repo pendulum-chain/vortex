@@ -1,5 +1,5 @@
 import { useSelector } from "@xstate/react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { ActorRefFrom } from "xstate";
 import { supabase } from "../config/supabase";
 import type { rampMachine } from "../machines/ramp.machine";
@@ -12,25 +12,39 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
     userId: state.context.userId
   }));
 
+  // Track if we've already restored the session to avoid running multiple times
+  const hasRestoredSession = useRef(false);
+
   // Check for tokens in URL on mount (magic link callback)
   useEffect(() => {
     const urlTokens = AuthService.handleUrlTokens();
     if (urlTokens) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          const tokens = {
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-            user_id: data.session.user.id
-          };
+      // Use the URL tokens to set session with Supabase, then get full user details
+      supabase.auth
+        .setSession({
+          access_token: urlTokens.accessToken,
+          refresh_token: urlTokens.refreshToken
+        })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Failed to set session from URL tokens:", error);
+            return;
+          }
 
-          AuthService.storeTokens(tokens);
-          actorRef.send({ tokens, type: "AUTH_SUCCESS" });
+          if (data.session) {
+            const tokens = {
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+              userId: data.session.user.id
+            };
 
-          // Clean URL
-          window.history.replaceState({}, "", window.location.pathname);
-        }
-      });
+            AuthService.storeTokens(tokens);
+            actorRef.send({ tokens, type: "AUTH_SUCCESS" });
+
+            // Clean URL
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        });
     }
   }, [actorRef]);
 
@@ -42,16 +56,20 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    const tokens = AuthService.getTokens();
-    if (tokens && !isAuthenticated) {
-      actorRef.send({
-        tokens: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          user_id: tokens.user_id
-        },
-        type: "AUTH_SUCCESS"
-      });
+    // Only restore once on initial mount to avoid infinite loops
+    if (!hasRestoredSession.current && !isAuthenticated) {
+      const tokens = AuthService.getTokens();
+      if (tokens) {
+        hasRestoredSession.current = true;
+        actorRef.send({
+          tokens: {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            userId: tokens.userId
+          },
+          type: "AUTH_SUCCESS"
+        });
+      }
     }
   }, [actorRef, isAuthenticated]);
 
