@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Request, Response } from "express";
 import { config } from "../../config";
 import logger from "../../config/logger";
@@ -33,14 +33,20 @@ export interface VolumeData {
   selectedMonth: string;
 }
 
-if (!config.supabaseUrl) {
-  throw new Error("Missing Supabase URL in configuration.");
-}
-if (!config.supabaseKey) {
-  throw new Error("Missing Supabase Key in configuration.");
-}
+let supabaseClient: SupabaseClient | null = null;
 
-const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
+function getSupabaseClient() {
+  if (!supabaseClient) {
+    if (!config.supabaseUrl) {
+      throw new Error("Missing Supabase URL in configuration.");
+    }
+    if (!config.supabaseKey) {
+      throw new Error("Missing Supabase Key in configuration.");
+    }
+    supabaseClient = createClient(config.supabaseUrl, config.supabaseKey);
+  }
+  return supabaseClient;
+}
 
 const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
   [keyName]: key,
@@ -55,6 +61,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   if (cached) return cached;
 
   try {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase.rpc("get_monthly_volumes", { year_param: null });
     if (error) throw error;
 
@@ -70,7 +77,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 
     const volumes: MonthlyVolume[] = [];
 
-    while (current <= end) {
+    while (current < end) {
       const monthStr = current.toISOString().slice(0, 7);
       volumes.push(dataMap.get(monthStr) || zeroVolume(monthStr, "month"));
       current.setMonth(current.getMonth() + 1);
@@ -89,6 +96,7 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
   if (cached) return cached;
 
   try {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase.rpc("get_daily_volumes", { end_date: endDate, start_date: startDate });
     if (error) throw error;
 
