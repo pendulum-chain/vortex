@@ -270,8 +270,38 @@
       "yourQuote": "Sua cotação"
     },
     "footer": {
+      "business": {
+        "contactSales": "Contatar Vendas",
+        "contactSupport": "Contatar Suporte",
+        "title": "Negócios"
+      },
+      "buyCrypto": {
+        "buyDot": "Comprar DOT",
+        "buyEth": "Comprar ETH",
+        "buyUsdc": "Comprar USDC",
+        "buyUsdt": "Comprar USDT",
+        "title": "Comprar Crypto"
+      },
+      "company": {
+        "anclap": "Anclap",
+        "avenia": "Avenia",
+        "careers": "Carreiras",
+        "licences": "Licenças",
+        "monerium": "Monerium",
+        "mykobo": "MyKobo",
+        "privacyPolicy": "Política de Privacidade",
+        "termsAndConditions": "Termos e Condições",
+        "title": "Empresa"
+      },
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
-      "poweredBy": "Desenvolvido por"
+      "poweredBy": "Desenvolvido por",
+      "sellCrypto": {
+        "sellDot": "Vender DOT",
+        "sellEth": "Vender ETH",
+        "sellUsdc": "Vender USDC",
+        "sellUsdt": "Vender USDT",
+        "title": "Vender Crypto"
+      }
     },
     "initialQuoteFailed": {
       "invalidParameters": "Os parâmetros passados são inválidos.",

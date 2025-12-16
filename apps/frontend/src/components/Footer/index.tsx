@@ -108,7 +108,9 @@ export function Footer() {
         <div className="grid w-full grid-cols-[1fr_1fr] gap-y-8 sm:grid-cols-[1fr_1fr_1fr] md:grid-cols-5">
           <FooterSection title={t("components.footer.company.title")}>
             <FooterLink href={`/${i18n.language}/privacy-policy`}>{t("components.footer.company.privacyPolicy")}</FooterLink>
-            <FooterLink href="#">{t("components.footer.company.terms")}</FooterLink>
+            <FooterLink href={`/${i18n.language}/terms-and-conditions`}>
+              {t("components.footer.company.termsAndConditions")}
+            </FooterLink>
             <FooterLink external href="https://satoshipay.jobs.personio.de/">
               {t("components.footer.company.careers")}
             </FooterLink>
