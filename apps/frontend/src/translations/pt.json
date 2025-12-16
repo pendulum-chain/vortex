@@ -562,6 +562,264 @@
         "title": "<0>Compre e venda cripto.</0> <br /> Rápido, seguro, melhores taxas."
       }
     },
+    "privacyPolicy": {
+      "intro": "Esta Política de Privacidade explica como a Vortex (uma marca operada pela SatoshiPay Ltd) coleta e processa dados pessoais quando você usa nossos sites, aplicativos, widgets e serviços relacionados (coletivamente, os \"Serviços\"). Ela substitui versões anteriores e será atualizada conforme nossos Serviços evoluem.",
+      "lastUpdated": "Última atualização: 28 de setembro de 2025",
+      "sections": {
+        "1": {
+          "contact": {
+            "label": "Contato:"
+          },
+          "controller": {
+            "label": "Controlador:",
+            "name": "SatoshiPay Ltd (operando como \"Vortex\")"
+          },
+          "description": "A SatoshiPay opera os frontends web/app da Vortex e determina os propósitos e meios de processamento de dados pessoais para os Serviços descritos aqui.",
+          "independentControllers": {
+            "label": "Controladores independentes (parceiros locais).",
+            "text": "Para on-/off-ramping, trabalhamos com parceiros de pagamento locais licenciados que atuam como controladores independentes para seu próprio onboarding (por exemplo, KYC/KYB), contas fiat e pagamentos. Veja a Seção 7 para a lista atual de parceiros e links para suas políticas."
+          },
+          "processors": {
+            "label": "Processadores.",
+            "text": "Também usamos fornecedores verificados (por exemplo, hospedagem em nuvem, análises) como processadores sob acordos de processamento de dados. Veja a Seção 8."
+          },
+          "registeredOffice": {
+            "label": "Escritório registrado:",
+            "line1": "Hill Dickinson Llp",
+            "line2": "The Broadgate Tower",
+            "line3": "20 Primrose Street",
+            "line4": "Londres, EC2A 2EW Reino Unido"
+          },
+          "title": "1. Quem somos (Controlador)"
+        },
+        "2": {
+          "intro": "Esta política se aplica a:",
+          "items": {
+            "1": "vortexfinance.co e quaisquer subdomínios",
+            "2": "o aplicativo Vortex Buy & Sell Crypto e Vortex Widget",
+            "3": "Serviços de API e backend que operamos para parceiros"
+          },
+          "note": "Ela não cobre serviços operados exclusivamente por nossos parceiros locais; eles fornecem seus próprios avisos de privacidade e consentimentos quando necessário.",
+          "title": "2. Escopo"
+        },
+        "3": {
+          "intro": "Coletamos as seguintes categorias de dados pessoais, dependendo de como você usa os Serviços:",
+          "items": {
+            "contactData": {
+              "label": "Dados de contato:",
+              "text": "endereço de e-mail (para verificação de conta/segurança e comunicações de serviço)."
+            },
+            "cookiesData": {
+              "label": "Dados de cookies/análises:",
+              "text": "apenas com seu consentimento quando necessário (veja a Seção 11)."
+            },
+            "supportData": {
+              "label": "Dados de suporte:",
+              "text": "informações que você fornece em solicitações (por exemplo, mensagens, anexos)."
+            },
+            "transactionData": {
+              "label": "Metadados de transação:",
+              "text": "identificadores de pedido, corredor, tipo de ativo (por exemplo, stablecoin, token), valores e status. Não mantemos suas chaves privadas sob custódia. Transações on-chain são públicas por design."
+            },
+            "usageData": {
+              "label": "Dados de uso e dispositivo:",
+              "text": "endereço IP, informações de dispositivo/navegador, idioma, timestamps, URLs de referência e logs de servidor."
+            }
+          },
+          "title": "3. Quais dados coletamos"
+        },
+        "4": {
+          "emailNote": {
+            "label": "Endereços de e-mail apenas para serviço.",
+            "text": "Armazenamos endereços de e-mail para fornecer o Serviço (por exemplo, verificação, notificações de transação, reconhecimento de usuários recorrentes entre rails). Isso não requer consentimento de marketing. Para evitar uso indevido, podemos enviar um e-mail de verificação para confirmar o controle do endereço."
+          },
+          "intro": "Processamos dados pessoais para os seguintes propósitos e bases legais sob o GDPR:",
+          "table": {
+            "headers": {
+              "examples": "Exemplos",
+              "legalBasis": "Base legal",
+              "purpose": "Propósito"
+            },
+            "rows": {
+              "1": {
+                "examples": "iniciar e completar conversões; exibir taxas; rotear transações",
+                "legalBasis": "Art. 6(1)(b) GDPR (contrato)",
+                "purpose": "Fornecer e operar os Serviços"
+              },
+              "2": {
+                "examples": "e-mails de verificação; atualizações de status; alertas de segurança",
+                "legalBasis": "Art. 6(1)(b) (contrato)",
+                "purpose": "Comunicações de serviço e verificação de conta"
+              },
+              "3": {
+                "examples": "limitação de taxa, investigação de incidentes, prevenção de uso indevido",
+                "legalBasis": "Art. 6(1)(f) (interesses legítimos)",
+                "purpose": "Segurança e prevenção de abuso"
+              },
+              "4": {
+                "examples": "garantir que os corredores operem dentro das regras aplicáveis; logs de auditoria (não executamos KYC/KYB)",
+                "legalBasis": "Art. 6(1)(c) quando aplicável; caso contrário 6(1)(f)",
+                "purpose": "Suporte de conformidade"
+              },
+              "5": {
+                "examples": "melhorar UX e desempenho",
+                "legalBasis": "Art. 6(1)(a) (consentimento)",
+                "purpose": "Análises e qualidade (cookies/análises)"
+              },
+              "6": {
+                "examples": "newsletters, atualizações de produtos",
+                "legalBasis": "Art. 6(1)(a) (consentimento). Não enviamos e-mails de marketing sem opt-in explícito.",
+                "purpose": "Marketing (opcional)"
+              }
+            }
+          },
+          "title": "4. Por que processamos dados (propósitos e bases legais)"
+        },
+        "5": {
+          "items": {
+            "1": "Diretamente de você (por exemplo, campos de entrada, suporte).",
+            "2": "Automaticamente via seu dispositivo/navegador (IP, logs, cookies sujeitos a consentimento).",
+            "3": "De parceiros locais, limitado ao necessário para operar um corredor (por exemplo, status da transação). Os parceiros conduzem KYC/KYB em seus sistemas sob suas políticas."
+          },
+          "title": "5. Fontes de dados"
+        },
+        "6": {
+          "intro": "Compartilhamos dados pessoais apenas conforme necessário para executar os Serviços:",
+          "items": {
+            "legal": {
+              "label": "Por razões legais:",
+              "text": "se exigido por lei, regulamentação ou para proteger direitos, segurança e integridade dos Serviços."
+            },
+            "partners": {
+              "label": "Com parceiros locais independentes (controladores):",
+              "text": "para executar fluxos de on/off-ramp (por exemplo, confirmação de pagamento). Os parceiros usam seus dados sob suas próprias políticas e bases legais."
+            },
+            "processors": {
+              "label": "Com processadores:",
+              "text": "para hospedagem, análises, comunicações e ferramentas de suporte sob acordos de processamento de dados."
+            }
+          },
+          "noSale": "Não vendemos dados pessoais.",
+          "title": "6. Compartilhamento e divulgações (visão geral)"
+        },
+        "7": {
+          "futurePartners": {
+            "label": "Parceiros futuros (cláusula abrangente).",
+            "text": "Para fornecer os Serviços, podemos adicionar ou substituir parceiros locais. Atualizaremos esta lista mediante mudanças materiais e, quando legalmente exigido, notificaremos os usuários. Mesmo que um parceiro ainda não esteja listado aqui, dados pessoais podem ser compartilhados quando necessário para fornecer o serviço de on-/off-ramp solicitado."
+          },
+          "intro": "Esses parceiros operam em suas próprias jurisdições para coleta/pagamento fiat e conformidade relacionada. Eles podem coletar dados adicionais diretamente de você. Por favor, revise seus termos e avisos de privacidade.",
+          "partners": {
+            "anclap": {
+              "name": "ANCLAP (Argentina)",
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "avenia": {
+              "name": "BRLA Digital Ltda (Brasil)",
+              "privacy": {
+                "label": "Privacidade:"
+              },
+              "terms": {
+                "label": "T/Cs:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "monerium": {
+              "name": "Monerium EMI ehf. (EEA/Islândia)",
+              "privacyTos": {
+                "label": "Privacidade/ToS:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "mykobo": {
+              "name": "MYKOBO UAB (UE/Lituânia)",
+              "privacy": {
+                "label": "Privacidade:"
+              },
+              "terms": {
+                "label": "Termos:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            }
+          },
+          "title": "7. Parceiros locais (controladores independentes)"
+        },
+        "8": {
+          "internationalTransfers": {
+            "label": "Transferências internacionais.",
+            "text": "Quando os dados são transferidos para fora do EEA/Reino Unido, usamos Cláusulas Contratuais Padrão da UE e/ou contamos com decisões de adequação (por exemplo, EU-US Data Privacy Framework) conforme aplicável, além de salvaguardas suplementares."
+          },
+          "intro": "Usamos fornecedores respeitáveis sob acordos de processamento de dados (DPAs):",
+          "items": {
+            "analytics": {
+              "label": "Análises (baseadas em consentimento):",
+              "text": "Google Analytics."
+            },
+            "cloudHosting": {
+              "label": "Hospedagem em nuvem e infraestrutura:",
+              "text": "Amazon Web Services (AWS), Render, Netlify, Supabase."
+            },
+            "support": {
+              "label": "Suporte/CRM:",
+              "text": "Pipedrive, Google sheets."
+            }
+          },
+          "title": "8. Processadores (provedores de serviço)"
+        },
+        "9": {
+          "intro": "Retemos dados pessoais apenas pelo tempo necessário para os propósitos acima:",
+          "items": {
+            "cookies": {
+              "label": "Cookies de análise:",
+              "text": "conforme seu consentimento; retenção gerenciada pelo provedor."
+            },
+            "logs": {
+              "label": "Logs:",
+              "text": "tipicamente até 12 meses, a menos que necessário por mais tempo por razões de segurança ou legais."
+            },
+            "serviceData": {
+              "label": "Dados de serviço e segurança:",
+              "text": "durante a vida da conta/relacionamento e por um período limitado depois (por exemplo, até 24 meses após a última atividade) para solução de problemas e suporte de conformidade."
+            }
+          },
+          "legalRetention": "Podemos reter informações conforme exigido por lei (por exemplo, impostos/auditoria) ou para estabelecer, exercer ou defender reivindicações legais.",
+          "title": "9. Retenção"
+        },
+        "10": {
+          "complaint": "Você também tem o direito de registrar uma reclamação com sua autoridade local de proteção de dados.",
+          "text": "Sob a lei aplicável (por exemplo, GDPR/UK-GDPR), você pode ter direitos de acessar, retificar, apagar, restringir ou objetar ao processamento, e à portabilidade de dados. Você pode retirar o consentimento a qualquer momento (para atividades baseadas em consentimento). Para exercer direitos, entre em contato",
+          "title": "10. Seus direitos"
+        },
+        "11": {
+          "and": "e",
+          "googleAnalytics": "Google Analytics: A anonimização de IP está ativada. Para ferramentas de opt-out e detalhes, veja",
+          "intro": "Usamos cookies para funcionalidade essencial e, com seu consentimento, para análises. Você pode gerenciar preferências de cookies em seu navegador ou através de nosso banner de cookies.",
+          "title": "11. Cookies e análises"
+        },
+        "12": {
+          "text": "Implementamos medidas técnicas e organizacionais apropriadas, incluindo criptografia em trânsito, controles de acesso e monitoramento. Nenhum serviço de internet pode ser 100% seguro; trabalhamos para detectar e mitigar incidentes prontamente.",
+          "title": "12. Segurança"
+        },
+        "13": {
+          "text": "Atualizamos esta política quando necessário. A data \"Última atualização\" e versão aparecem no topo. Para mudanças materiais (por exemplo, novas categorias de dados, novos propósitos ou novos parceiros-chave), forneceremos um aviso claro e, quando necessário, buscaremos consentimento.",
+          "title": "13. Alterações nesta política (versionamento)"
+        },
+        "14": {
+          "alternative": "Se preferir, você também pode entrar em contato com a SatoshiPay Ltd em seu endereço registrado listado acima.",
+          "text": "Para perguntas sobre esta política, solicitações de dados ou reclamações, entre em contato:",
+          "title": "14. Contato"
+        }
+      },
+      "title": "Política de Privacidade da Vortex",
+      "version": "Versão: 1.0"
+    },
     "progress": {
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
@@ -637,6 +895,61 @@
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
         "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
       }
+    },
+    "termsAndConditions": {
+      "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (\"TERMOS E CONDIÇÕES COMPLETOS\") está disponível e se aplica integralmente.",
+      "lastUpdated": "Última atualização: [●]",
+      "sections": {
+        "1": {
+          "text": "A Vortex fornece uma camada técnica de roteamento e agregação para transações fiat–cripto e cripto–fiat. A Vortex não é um banco, instituição de pagamento, exchange, corretora, custodiante ou provedor de carteira. As transações são executadas por parceiros terceirizados regulamentados.",
+          "title": "1. Natureza do Serviço"
+        },
+        "2": {
+          "text": "A Vortex nunca detém fundos fiat ou cripto-ativos dos clientes. Os fundos se movem entre a carteira/banco do usuário e o parceiro terceirizado relevante.",
+          "title": "2. Sem Custódia"
+        },
+        "3": {
+          "text": "Todos os requisitos de KYC, KYB, AML e monitoramento de transações são realizados pelos parceiros regulamentados da Vortex e seus provedores de conformidade. Se a verificação falhar, as transações podem ser bloqueadas ou revertidas.",
+          "title": "3. Conformidade e KYC"
+        },
+        "4": {
+          "text": "Todos os preços são mostrados como cotações e podem mudar. Uma transação só é final quando confirmada pelo parceiro de pagamento e liquidação blockchain.",
+          "title": "4. Cotações, Execução e Finalidade"
+        },
+        "5": {
+          "text": "As taxas são exibidas antes da confirmação. Taxas bancárias, blockchain ou de processamento de terceiros podem se aplicar. Os preços promocionais podem mudar a qualquer momento.",
+          "title": "5. Taxas e Preços"
+        },
+        "6": {
+          "text": "Cripto-ativos e taxas de câmbio são voláteis. Transações blockchain são geralmente irreversíveis. Os usuários assumem todo o risco de mercado, execução e técnico.",
+          "title": "6. Tecnologia e Risco de Mercado"
+        },
+        "7": {
+          "text": "Os usuários são os únicos responsáveis por determinar e pagar quaisquer impostos aplicáveis. A Vortex não fornece aconselhamento fiscal.",
+          "title": "7. Impostos"
+        },
+        "8": {
+          "text": "A Vortex pode suspender ou modificar os serviços a qualquer momento devido à manutenção, conformidade, liquidez ou requisitos regulatórios.",
+          "title": "8. Disponibilidade do Serviço"
+        },
+        "9": {
+          "text": "Os Serviços não devem ser usados para atividades ilegais, violações de sanções, fraude, lavagem de dinheiro, financiamento de terrorismo ou outra conduta proibida.",
+          "title": "9. Uso Proibido"
+        },
+        "10": {
+          "text": "Na extensão máxima permitida por lei, a Vortex não é responsável por perdas indiretas, consequenciais ou relacionadas ao mercado.",
+          "title": "10. Limitação de Responsabilidade"
+        },
+        "11": {
+          "text": "Estes Termos são regidos pelas leis de [●]. As disputas estão sujeitas aos tribunais ou arbitragem especificados nos Termos Completos.",
+          "title": "11. Lei Aplicável"
+        },
+        "12": {
+          "text": "Estes Termos Curtos são complementados pelos Termos de Serviço Completos, Política de Privacidade e Termos do Parceiro, que se aplicam integralmente em todos os casos.",
+          "title": "12. Termos Completos"
+        }
+      },
+      "title": "Vortex Finance – Termos e Condições Resumidos"
     },
     "widget": {
       "details": {
