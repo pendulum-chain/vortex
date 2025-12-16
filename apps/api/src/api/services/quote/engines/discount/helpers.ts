@@ -1,23 +1,26 @@
 import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import Partner from "../../../../../models/partner.model";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
 export const DEFAULT_PARTNER_NAME = "vortex";
 
-const DISCOUNT_STATE_TIMEOUT_MINUTES = 1;
-const DELTA_D_BASIS_POINTS = 0.3;
 const MAX_DIFFERENCE_CAP = 10;
 const MIN_DIFFERENCE_CAP = -10;
 
 const partnerDiscountState = new Map<string, { lastQuoteTimestamp: Date | null; difference: Big }>();
 
 function getDeltaD(): Big {
-  return new Big(DELTA_D_BASIS_POINTS).div(100);
+  return new Big(config.quote.deltaDBasisPoints).div(100);
 }
 
-export { partnerDiscountState, DISCOUNT_STATE_TIMEOUT_MINUTES, getDeltaD };
+function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
+  return now.getTime() - timestamp.getTime() < config.quote.discountStateTimeoutMinutes * 60 * 1000;
+}
+
+export { partnerDiscountState, getDeltaD };
 
 export type ActivePartner = Pick<Partner, "id" | "targetDiscount" | "maxSubsidy" | "name"> | null;
 
@@ -102,7 +105,7 @@ export function getAdjustedDifference(partnerId?: string | null): Big {
     return partnerState.difference;
   }
 
-  const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
+  const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (!isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
@@ -127,7 +130,7 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
     return;
   }
 
-  const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
+  const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (isYounger) {
     const updatedDifference = partnerState.difference.minus(getDeltaD());

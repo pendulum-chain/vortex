@@ -49,6 +49,10 @@ interface Config {
   swap: {
     deadlineMinutes: number;
   };
+  quote: {
+    discountStateTimeoutMinutes: number;
+    deltaDBasisPoints: number;
+  };
 }
 
 export const config: Config = {
@@ -81,6 +85,10 @@ export const config: Config = {
       baseUrl: process.env.TRANSAK_PROD_URL || "https://api.transak.com",
       partnerApiKey: process.env.TRANSAK_API_KEY
     }
+  },
+  quote: {
+    deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
+    discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
   },
   rateLimitMaxRequests: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
