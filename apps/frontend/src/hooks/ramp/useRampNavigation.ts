@@ -1,8 +1,5 @@
-import { useSearch } from "@tanstack/react-router";
-import { useSelector } from "@xstate/react";
 import { ReactNode, useCallback } from "react";
-import { useRampActor } from "../../contexts/rampState";
-import { RampSearchParams } from "../../types/searchParams";
+import { useRampComponentState } from "./useRampComponentState";
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -11,21 +8,13 @@ export const useRampNavigation = (
   formComponent: ReactNode,
   quoteComponent: ReactNode
 ) => {
-  const rampActor = useRampActor();
-  const searchParams = useSearch({ strict: false }) as RampSearchParams;
-
-  const { rampState, rampMachineState } = useSelector(rampActor, state => ({
-    rampMachineState: state,
-    rampState: state.context.rampState
-  }));
+  const { searchParams, rampState, rampMachineState } = useRampComponentState();
 
   const getCurrentComponent = useCallback(() => {
-    // Priority 1: If quoteId exists in URL, always show the widget/form
     if (searchParams.quoteId) {
       return formComponent;
     }
 
-    // Priority 2-5: Existing logic
     if (rampState?.ramp?.currentPhase === "complete") {
       return successComponent;
     }

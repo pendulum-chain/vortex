@@ -3,6 +3,7 @@ import { Footer } from "../components/Footer";
 import { MaintenanceBanner } from "../components/MaintenanceBanner";
 import { Navbar } from "../components/Navbar";
 import Stepper from "../components/Stepper";
+import { useIsQuoteComponentDisplayed } from "../hooks/ramp/useIsQuoteComponentDisplayed";
 import { useStepper } from "../hooks/useStepper";
 import { useWidgetMode } from "../hooks/useWidgetMode";
 import { useFetchMaintenanceStatus } from "../stores/maintenanceStore";
@@ -16,6 +17,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
   const isWidgetMode = useWidgetMode();
   const fetchMaintenanceStatus = useFetchMaintenanceStatus();
   const { steps } = useStepper();
+  const isQuoteComponentDisplayed = useIsQuoteComponentDisplayed();
 
   // Fetch maintenance status when the app loads
   useEffect(() => {
@@ -32,15 +34,22 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
     return () => clearInterval(interval);
   }, [fetchMaintenanceStatus]);
 
+  const isStepperHidden = isWidgetMode && isQuoteComponentDisplayed;
+
   return (
     <>
       {modals}
       <Navbar />
       <MaintenanceBanner />
       {isWidgetMode && (
-        <div className="container mx-auto px-4 pt-6 md:w-120">{/* <Stepper className="mb-6" steps={steps} /> */}</div>
+        <>
+          <div className="container relative z-20 mx-auto px-4 pt-6 md:w-120">
+            {isStepperHidden ? <div className="h-[54px]" /> : <Stepper className="mb-6" steps={steps} />}
+          </div>
+          <div className="absolute top-1/8 right-0 z-10 h-[80vh] w-full bg-gradient-to-b from-white via-blue-100 to-white px-4 pt-6"></div>
+        </>
       )}
-      <div className="absolute top-1/8 right-0 z-10 h-[80vh] w-full bg-gradient-to-b from-white via-blue-100 to-white px-4 pt-6"></div>
+
       <div className="relative z-30">{main}</div>
       {!isWidgetMode && <Footer />}
     </>
