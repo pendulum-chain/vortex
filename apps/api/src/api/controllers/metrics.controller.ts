@@ -55,7 +55,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   if (cached) return cached;
 
   try {
-    const { data, error } = await supabase.rpc("get_monthly_volumes");
+    const { data, error } = await supabase.rpc("get_monthly_volumes", { year_param: null });
     if (error) throw error;
 
     const rawData = (data as MonthlyVolume[]) || [];
@@ -66,7 +66,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
     const [startYear, startMonth] = rawData[0].month.split("-").map(Number);
     const current = new Date(startYear, startMonth - 1, 1);
     const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     const volumes: MonthlyVolume[] = [];
 
