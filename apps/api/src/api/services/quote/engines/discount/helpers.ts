@@ -78,8 +78,8 @@ export function calculateExpectedOutput(
   // Oracle price is FIAT-USD, so for offramps we want USD-FIAT
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
 
-  // Apply target discount to the rate, adjusting first for dynamic penalty
-  const adjustedTargetDiscount = new Big(targetDiscount).minus(getAdjustedDifference(partnerId));
+  // Apply target discount to the rate, adjusting first for dynamic discount variable.
+  const adjustedTargetDiscount = new Big(targetDiscount).plus(getAdjustedDifference(partnerId));
   const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
   return inputAmountBig.mul(discountedRate);
 }
@@ -105,7 +105,7 @@ export function getAdjustedDifference(partnerId?: string | null): Big {
   const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
 
   if (!isYounger) {
-    const updatedDifference = partnerState.difference.minus(getDeltaD());
+    const updatedDifference = partnerState.difference.plus(getDeltaD());
     const clampedDifference = updatedDifference.lt(MIN_DIFFERENCE_CAP) ? Big(MIN_DIFFERENCE_CAP) : updatedDifference;
     partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
@@ -130,7 +130,7 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
   const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
 
   if (isYounger) {
-    const updatedDifference = partnerState.difference.plus(getDeltaD());
+    const updatedDifference = partnerState.difference.minus(getDeltaD());
     const clampedDifference = updatedDifference.gt(MAX_DIFFERENCE_CAP) ? Big(MAX_DIFFERENCE_CAP) : updatedDifference;
     partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
