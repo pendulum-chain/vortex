@@ -294,6 +294,16 @@
         "title": "Empresa"
       },
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados.",
+      "docs": {
+        "apiDocs": "Documentação da API",
+        "stats": {
+          "metrics": "Métricas",
+          "status": "Status",
+          "title": "Estatísticas"
+        },
+        "title": "Documentação",
+        "vortexDocs": "Documentação Vortex"
+      },
       "poweredBy": "Desenvolvido por",
       "sellCrypto": {
         "sellDot": "Vender DOT",

@@ -160,6 +160,24 @@ export function Footer() {
             <FooterLink external href="https://api-docs.vortexfinance.co/">
               {t("components.footer.docs.apiDocs")}
             </FooterLink>
+
+            <div className="mt-2 flex flex-col gap-2">
+              <span className="font-medium text-gray-900">{t("components.footer.docs.stats.title")}</span>
+              <FooterLink
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
+                external
+                href="https://metrics.vortexfinance.co/"
+              >
+                {t("components.footer.docs.stats.metrics")}
+              </FooterLink>
+              <FooterLink
+                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
+                external
+                href="https://status.vortexfinance.co/"
+              >
+                {t("components.footer.docs.stats.status")}
+              </FooterLink>
+            </div>
           </FooterSection>
 
           <FooterSection title={t("components.footer.buyCrypto.title")}>

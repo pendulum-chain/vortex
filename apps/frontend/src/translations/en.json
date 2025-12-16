@@ -295,6 +295,11 @@
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
       "docs": {
         "apiDocs": "API Docs",
+        "stats": {
+          "metrics": "Metrics",
+          "status": "Status",
+          "title": "Stats"
+        },
         "title": "Docs",
         "vortexDocs": "Vortex Docs"
       },
