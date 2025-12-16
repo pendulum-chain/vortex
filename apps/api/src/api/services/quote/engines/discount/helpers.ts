@@ -92,9 +92,14 @@ export function getAdjustedDifference(partnerId?: string | null): Big {
   const partnerState = partnerDiscountState.get(partnerId);
   const now = new Date();
 
-  if (!partnerState || !partnerState.lastQuoteTimestamp) {
+  if (!partnerState) {
     partnerDiscountState.set(partnerId, { difference: new Big(0), lastQuoteTimestamp: now });
     return new Big(0);
+  }
+
+  if (!partnerState.lastQuoteTimestamp) {
+    partnerDiscountState.set(partnerId, { difference: partnerState.difference, lastQuoteTimestamp: now });
+    return partnerState.difference;
   }
 
   const isYounger = now.getTime() - partnerState.lastQuoteTimestamp.getTime() < DISCOUNT_STATE_TIMEOUT_MINUTES * 60 * 1000;
@@ -127,7 +132,7 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
   if (isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
     const clampedDifference = updatedDifference.gt(MAX_DIFFERENCE_CAP) ? Big(MAX_DIFFERENCE_CAP) : updatedDifference;
-    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }
 
