@@ -230,6 +230,10 @@ otp_expiry = 3600
 subject = "Your Vortex Verification Code"
 content_path = "./supabase/templates/magic_link.html"
 
+[auth.email.template.confirmation]
+subject = "Confirm your signup"
+content_path = "./supabase/templates/signup.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
