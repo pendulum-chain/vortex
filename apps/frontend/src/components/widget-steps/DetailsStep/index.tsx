@@ -1,20 +1,21 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../../QuoteSummary";
 import { DetailsStepActions } from "./DetailsStepActions";
 import { DetailsStepForm } from "./DetailsStepForm";
 import { DetailsStepHeader } from "./DetailsStepHeader";
-import { DetailsStepQuoteSummary } from "./DetailsStepQuoteSummary";
 
 export interface DetailsStepProps {
   className?: string;
@@ -100,27 +101,45 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     onRampConfirm(data);
   };
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
     <FormProvider {...form}>
-      <form className={`flex min-h-[506px] grow flex-col ${className || ""}`} onSubmit={form.handleSubmit(handleFormSubmit)}>
-        <DetailsStepHeader />
-        <DetailsStepForm
-          isBrazilLanding={isBrazilLanding}
-          isWalletAddressDisabled={!!walletLockedFromState}
-          showWalletAddressField={isMoneriumToAssethubRamp}
-          signingState={signingState}
-        />
-        {isSep24Redo && (
-          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
-            <div className="flex items-center space-x-3">
-              <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
-            </div>
+      <div
+        className="relative flex max-h-full min-h-[506px] grow flex-col"
+        style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      >
+        <form className={cn("flex h-full flex-col", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <div className="flex-1 pb-36">
+            <DetailsStepHeader />
+            <DetailsStepForm
+              isBrazilLanding={isBrazilLanding}
+              isWalletAddressDisabled={!!walletLockedFromState}
+              showWalletAddressField={isMoneriumToAssethubRamp}
+              signingState={signingState}
+            />
+            {isSep24Redo && (
+              <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-center space-x-3">
+                  <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
+                  <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
-      </form>
-      <DetailsStepQuoteSummary quote={quote} />
+          <div
+            className="absolute right-0 left-0 z-[5] mb-4"
+            style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+          >
+            <DetailsStepActions
+              forceNetwork={forceNetwork}
+              requiresConnection={!canSkipConnection}
+              signingState={signingState}
+            />
+          </div>
+        </form>
+        {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+      </div>
     </FormProvider>
   );
 };

@@ -37,7 +37,8 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
     const ramp = await rampService.registerRamp({
       additionalData,
       quoteId,
-      signingAccounts
+      signingAccounts,
+      userId: req.userId
     });
 
     res.status(httpStatus.CREATED).json(ramp);

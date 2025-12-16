@@ -42,8 +42,9 @@ const generateSteps = (
   allIncomplete = false,
   longTitles = false
 ): Step[] => {
-  const shortTitles = ["Setup", "Details", "Review", "Payment", "Complete"];
+  const shortTitles = ["Login", "Setup", "Details", "Review", "Payment", "Complete"];
   const longTitles_array = [
+    "Login & Authentication",
     "Initial Setup & Configuration",
     "Personal Details & Information & Personal Details & Information",
     "Review & Verification",
@@ -289,7 +290,7 @@ type Story = StoryObj<StoryArgs>;
 export const Default: Story = {
   args: {
     currentStep: 1,
-    stepCount: 3
+    stepCount: 4
   },
   render: StepperWrapper
 };

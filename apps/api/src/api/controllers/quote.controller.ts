@@ -48,7 +48,8 @@ export const createQuote = async (
       partnerId,
       partnerName: publicKeyPartnerName,
       rampType,
-      to
+      to,
+      userId: req.userId
     });
 
     res.status(httpStatus.CREATED).json(quote);
@@ -85,7 +86,8 @@ export const createBestQuote = async (
       partnerId,
       partnerName: publicKeyPartnerName,
       rampType,
-      to
+      to,
+      userId: req.userId
     });
 
     res.status(httpStatus.CREATED).json(quote);

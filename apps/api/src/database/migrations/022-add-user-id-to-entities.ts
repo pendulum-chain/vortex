@@ -1,0 +1,203 @@
+import {DataTypes, QueryInterface} from "sequelize";
+import {v4 as uuidv4} from "uuid";
+
+export async function up(queryInterface: QueryInterface): Promise<void> {
+  // Use a well-known sentinel UUID for the migration placeholder user
+  // This UUID is specifically reserved for migration purposes
+  const DUMMY_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+  console.log(`Using sentinel migration user ID: ${DUMMY_USER_ID}`);
+
+  // Add user_id to kyc_level_2
+  await queryInterface.addColumn("kyc_level_2", "user_id", {
+    allowNull: true,
+    type: DataTypes.UUID
+  });
+
+  // Insert dummy user to satisfy foreign key constraint
+  // Use ON CONFLICT to handle cases where migration is re-run
+  const timestamp = new Date().toISOString();
+  await queryInterface.sequelize.query(`
+    INSERT INTO profiles (id, email, created_at, updated_at)
+    VALUES ('${DUMMY_USER_ID}', 'migration_placeholder@vortex.internal', '${timestamp}', '${timestamp}')
+    ON CONFLICT (id) DO NOTHING;
+  `);
+
+  await queryInterface.sequelize.query(`
+    UPDATE kyc_level_2 
+    SET user_id = '${DUMMY_USER_ID}' 
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
+  `);
+
+  await queryInterface.changeColumn("kyc_level_2", "user_id", {
+    allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "profiles"
+    },
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.addIndex("kyc_level_2", ["user_id"], {
+    name: "idx_kyc_level_2_user_id"
+  });
+
+  // Add user_id to quote_tickets (Merged from 023: nullable, no dummy user)
+  await queryInterface.addColumn("quote_tickets", "user_id", {
+    allowNull: true,
+    type: DataTypes.UUID
+  });
+
+  // NOTE: skip update content for quote_tickets as we want it to be nullable for existing rows
+
+  await queryInterface.changeColumn("quote_tickets", "user_id", {
+    allowNull: true, // Merged from 023: Keep nullable
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "profiles"
+    },
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.addIndex("quote_tickets", ["user_id"], {
+    name: "idx_quote_tickets_user_id"
+  });
+
+  // Add user_id to ramp_states
+  await queryInterface.addColumn("ramp_states", "user_id", {
+    allowNull: true,
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE ramp_states 
+    SET user_id = '${DUMMY_USER_ID}' 
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
+  `);
+
+  await queryInterface.changeColumn("ramp_states", "user_id", {
+    allowNull: true,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "profiles"
+    },
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.addIndex("ramp_states", ["user_id"], {
+    name: "idx_ramp_states_user_id"
+  });
+
+  // Add user_id to tax_ids
+  await queryInterface.addColumn("tax_ids", "user_id", {
+    allowNull: true,
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE tax_ids 
+    SET user_id = '${DUMMY_USER_ID}' 
+    WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM profiles)
+  `);
+
+  await queryInterface.changeColumn("tax_ids", "user_id", {
+    allowNull: false,
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+    references: {
+      key: "id",
+      model: "profiles"
+    },
+    type: DataTypes.UUID
+  });
+
+  await queryInterface.addIndex("tax_ids", ["user_id"], {
+    name: "idx_tax_ids_user_id"
+  });
+}
+
+export async function down(queryInterface: QueryInterface): Promise<void> {
+  const safeRemoveIndex = async (tableName: string, indexName: string) => {
+    try {
+      await queryInterface.removeIndex(tableName, indexName);
+    } catch (error: any) {
+      console.warn(`Failed to remove index ${indexName} from ${tableName}:`, error);
+    }
+  };
+
+  const safeRemoveColumn = async (tableName: string, columnName: string) => {
+    try {
+      await queryInterface.removeColumn(tableName, columnName);
+    } catch (error: any) {
+      // Ignore undefined_column error (code 42703)
+      if (error?.original?.code === "42703") {
+        console.warn(`Column ${columnName} does not exist in ${tableName}, skipping removal.`);
+      } else {
+        throw error;
+      }
+    }
+  };
+
+  // IMPORTANT: Drop NOT NULL constraints and foreign keys BEFORE updating to NULL
+  // This prevents constraint violations and CASCADE deletion when the dummy user is deleted
+
+  // Drop constraints for kyc_level_2
+  await queryInterface.changeColumn("kyc_level_2", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Drop constraints for ramp_states
+  await queryInterface.changeColumn("ramp_states", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Drop constraints for tax_ids
+  await queryInterface.changeColumn("tax_ids", "user_id", {
+    type: DataTypes.UUID,
+    allowNull: true // Remove NOT NULL constraint
+  });
+
+  // Now safe to set user_id to NULL for records referencing dummy users
+  await queryInterface.sequelize.query(`
+    UPDATE kyc_level_2
+    SET user_id = NULL
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
+  `);
+
+  await queryInterface.sequelize.query(`
+    UPDATE ramp_states
+    SET user_id = NULL
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
+  `);
+
+  await queryInterface.sequelize.query(`
+    UPDATE tax_ids
+    SET user_id = NULL
+    WHERE user_id IN (SELECT id FROM profiles WHERE email LIKE 'migration_placeholder_%')
+  `);
+
+  // Remove the dummy user created in up() (now safe to delete without cascading)
+  await queryInterface.sequelize.query(`DELETE FROM profiles WHERE email LIKE 'migration_placeholder_%'`);
+
+  // Remove indexes
+  await safeRemoveIndex("kyc_level_2", "idx_kyc_level_2_user_id");
+  await safeRemoveIndex("quote_tickets", "idx_quote_tickets_user_id");
+  await safeRemoveIndex("ramp_states", "idx_ramp_states_user_id");
+  await safeRemoveIndex("tax_ids", "idx_tax_ids_user_id");
+
+  // Remove columns
+  await safeRemoveColumn("ramp_states", "user_id");
+  await safeRemoveColumn("tax_ids", "user_id");
+  await safeRemoveColumn("kyc_level_2", "user_id");
+
+  // NOTE: quote_tickets.user_id is nullable, so we can just remove it
+  await safeRemoveColumn("quote_tickets", "user_id");
+}

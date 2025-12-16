@@ -91,7 +91,7 @@ export interface IRouteStrategy {
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest;
+  readonly request: CreateQuoteRequest & { userId?: string };
   readonly now: Date;
 
   // Partner info (if any)
