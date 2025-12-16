@@ -80,19 +80,16 @@ export function calculateExpectedOutput(
 
   // Apply target discount to the rate, adjusting first for dynamic penalty
   const adjustedTargetDiscount = new Big(targetDiscount).minus(getAdjustedDifference(partnerId));
-  console.log("DEBUG: adjustedTargetDiscount:", adjustedTargetDiscount.toString());
   const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
   return inputAmountBig.mul(discountedRate);
 }
 
 export function getAdjustedDifference(partnerId?: string | null): Big {
-  console.log("DEBUG: getting adjusted difference for partnerId:", partnerId);
   if (!partnerId) {
     return new Big(0);
   }
 
   const partnerState = partnerDiscountState.get(partnerId);
-  console.log("DEBUG: partnerState:", partnerState);
   const now = new Date();
 
   if (!partnerState || !partnerState.lastQuoteTimestamp) {
@@ -132,8 +129,6 @@ export function handleQuoteConsumptionForDiscountState(partnerId: string | null)
     const clampedDifference = updatedDifference.gt(MAX_DIFFERENCE_CAP) ? Big(MAX_DIFFERENCE_CAP) : updatedDifference;
     partnerDiscountState.set(partnerId, { difference: clampedDifference, lastQuoteTimestamp: now });
   }
-
-  console.log("DEBUG: after consumption, partnerState:", partnerDiscountState.get(partnerId));
 }
 
 export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
