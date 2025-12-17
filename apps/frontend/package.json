@@ -46,7 +46,6 @@
     "buffer": "^6.0.3",
     "clsx": "catalog:",
     "crypto-js": "^4.2.0",
-    "framer-motion": "catalog:",
     "i18next": "^24.2.3",
     "lottie-react": "^2.4.1",
     "motion": "^12.0.3",
@@ -111,7 +110,7 @@
   "name": "vortex-frontend",
   "private": true,
   "scripts": {
-    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' bun x --bun vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
+    "build": "bun x --bun vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
     "build-storybook": "storybook build",
     "dev": "bun x --bun vite --host",
     "preview": "bun x --bun vite preview",

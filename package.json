@@ -33,7 +33,6 @@
     "big.js": "^7.0.1",
     "clsx": "^1.2.1",
     "concurrently": "^9.1.2",
-    "framer-motion": "^12.23.24",
     "prettier": "^2.8.4",
     "stellar-sdk": "^13.1.0",
     "tsup": "^8.4.0",

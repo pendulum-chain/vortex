@@ -1,5 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import WidgetSnippetImageEUR from "../../../assets/vortex-metamask.png";
 import { AnimatedTitle } from "../../../components/AnimatedTitle";
