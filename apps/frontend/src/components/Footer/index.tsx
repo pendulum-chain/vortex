@@ -1,5 +1,5 @@
-import { AssetHubToken, EvmToken, Networks, RampDirection } from "@packages/shared";
 import { Link } from "@tanstack/react-router";
+import { AssetHubToken, EvmToken, Networks, RampDirection } from "@vortexfi/shared";
 import { ComponentType, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import VORTEX_LOGO from "../../assets/logo/blue.svg";

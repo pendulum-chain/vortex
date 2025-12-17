@@ -1,5 +1,4 @@
-import { DestinationType, OnChainToken } from "@packages/shared";
-import { Currency, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import { Currency, DestinationType, FiatToken, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteService } from "../quote";
 

@@ -1,5 +1,4 @@
-import { FiatToken } from "@packages/shared";
-import { EvmToken, Networks, RampDirection } from "@vortexfi/shared";
+import { EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { getLanguageFromPath, Language } from "../../../../translations/helpers";
 import { FeeComparisonHeader } from "./components/FeeComparisonHeader";
 import { FeeComparisonProviderList } from "./components/FeeComparisonProviderList";
