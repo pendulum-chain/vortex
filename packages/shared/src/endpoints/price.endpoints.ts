@@ -3,7 +3,7 @@ import { isOnChainToken } from "../tokens/utils/typeGuards";
 import { RampDirection } from "../types";
 
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
-export const VALID_PROVIDERS = ["alchemypay", "moonpay", "transak"] as const;
+export const VALID_PROVIDERS = ["alchemypay", "moonpay", "transak", "vortex"] as const;
 
 export const VALID_CRYPTO_CURRENCIES = [...Object.values(EvmToken), ...Object.values(AssetHubToken)] as const;
 
@@ -89,7 +89,12 @@ export interface TransakPriceResponse extends PriceResponseBase {
   // Transak specific fields can be added here
 }
 
-export type PriceResponse = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse;
+export interface VortexPriceResponse extends PriceResponseBase {
+  provider: "vortex";
+  // Vortex specific fields can be added here
+}
+
+export type PriceResponse = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse | VortexPriceResponse;
 
 export interface PriceErrorResponse {
   error: string;

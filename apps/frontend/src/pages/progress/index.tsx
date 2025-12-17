@@ -9,7 +9,7 @@ import { config } from "../../config";
 import { useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { useRampActor } from "../../contexts/rampState";
-import { GotQuestions } from "../../sections";
+import { GotQuestions } from "../../sections/individuals/GotQuestions";
 import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";

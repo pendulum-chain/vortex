@@ -35,7 +35,10 @@ export const useRefreshTimer = (duration = 30): UseRefreshTimerReturn => {
           if (newTime <= 0) {
             const callback = onCompleteCallbackRef.current;
             if (callback) {
-              callback();
+              // Defer callback execution to avoid setState during render
+              setTimeout(() => {
+                callback();
+              }, 0);
             }
 
             return duration; // Reset for next cycle and continue

@@ -1,5 +1,5 @@
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { FC, ReactNode, useEffect, useState } from "react";
 import { CopyIcon } from "../../assets/CopyIcon";
 

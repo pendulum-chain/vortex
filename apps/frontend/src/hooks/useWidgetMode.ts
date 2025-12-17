@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMatchRoute } from "@tanstack/react-router";
 
 export const useWidgetMode = (): boolean => {
-  const isWidgetMode = useMemo(() => window.location.pathname.includes("/widget"), []);
+  const matchRoute = useMatchRoute();
+  const isWidgetMode = !!matchRoute({ to: "/{-$locale}/widget" });
 
   return isWidgetMode;
 };

@@ -1,20 +1,20 @@
-import { useSelector } from "@xstate/react";
 import { ReactNode, useCallback } from "react";
-import { useRampActor } from "../../contexts/rampState";
+import { useRampComponentState } from "./useRampComponentState";
 
 export const useRampNavigation = (
   successComponent: ReactNode,
   failureComponent: ReactNode,
   progressComponent: ReactNode,
-  formComponent: ReactNode
+  formComponent: ReactNode,
+  quoteComponent: ReactNode
 ) => {
-  const rampActor = useRampActor();
-  const { rampState, rampMachineState } = useSelector(rampActor, state => ({
-    rampMachineState: state,
-    rampState: state.context.rampState
-  }));
+  const { searchParams, rampState, rampMachineState } = useRampComponentState();
 
   const getCurrentComponent = useCallback(() => {
+    if (searchParams.quoteId) {
+      return formComponent;
+    }
+
     if (rampState?.ramp?.currentPhase === "complete") {
       return successComponent;
     }
@@ -27,8 +27,21 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    return formComponent;
-  }, [rampState, formComponent, successComponent, failureComponent, progressComponent, rampMachineState.value]);
+    if (rampState !== undefined && rampMachineState.value === "Idle") {
+      return formComponent;
+    }
+
+    return quoteComponent;
+  }, [
+    searchParams.quoteId,
+    rampState,
+    formComponent,
+    successComponent,
+    failureComponent,
+    progressComponent,
+    rampMachineState.value,
+    quoteComponent
+  ]);
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,

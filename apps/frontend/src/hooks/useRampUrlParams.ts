@@ -20,6 +20,7 @@ import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
+import { useWidgetMode } from "./useWidgetMode";
 
 interface RampUrlParams {
   rampDirection: RampDirection;
@@ -38,7 +39,7 @@ interface RampUrlParams {
   externalSessionId?: string;
 }
 
-function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
+function findFiatToken(fiatToken?: string): FiatToken | undefined {
   if (!fiatToken) {
     return undefined;
   }
@@ -148,26 +149,43 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
   return payloadMap[rampType];
 };
 
+export enum RampUrlParamsKeys {
+  RAMP_TYPE = "rampType",
+  NETWORK = "network",
+  INPUT_AMOUNT = "inputAmount",
+  PARTNER_ID = "partnerId",
+  API_KEY = "apiKey",
+  FIAT = "fiat",
+  CRYPTO_LOCKED = "cryptoLocked",
+  PAYMENT_METHOD = "paymentMethod",
+  WALLET_LOCKED = "walletAddressLocked",
+  CALLBACK_URL = "callbackUrl",
+  EXTERNAL_SESSION_ID = "externalSessionId",
+  COUNTRY_CODE = "countryCode",
+  MONERIUM_CODE = "code",
+  PROVIDED_QUOTE_ID = "quoteId"
+}
+
 export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
 
   const urlParams = useMemo(() => {
-    const rampDirectionParam = params.get("rampType")?.toUpperCase();
-    const networkParam = params.get("network")?.toLowerCase();
+    const rampDirectionParam = params.get(RampUrlParamsKeys.RAMP_TYPE)?.toUpperCase();
+    const networkParam = params.get(RampUrlParamsKeys.NETWORK)?.toLowerCase();
     const inputAmountParam = params.get("inputAmount");
-    const partnerIdParam = params.get("partnerId");
-    const apiKeyParam = params.get("apiKey");
-    const moneriumCode = params.get("code")?.toLowerCase();
-    const providedQuoteId = params.get("quoteId")?.toLowerCase();
-    const fiatParam = params.get("fiat")?.toUpperCase();
-    const cryptoLockedParam = params.get("cryptoLocked")?.toUpperCase();
-    const paymentMethodParam = params.get("paymentMethod") as PaymentMethod | undefined;
-    const walletLockedParam = params.get("walletAddressLocked");
-    const callbackUrlParam = params.get("callbackUrl");
-    const externalSessionIdParam = params.get("externalSessionId");
-    const countryCodeParam = params.get("countryCode")?.toUpperCase();
+    const partnerIdParam = params.get(RampUrlParamsKeys.PARTNER_ID);
+    const apiKeyParam = params.get(RampUrlParamsKeys.API_KEY);
+    const moneriumCode = params.get(RampUrlParamsKeys.MONERIUM_CODE)?.toLowerCase();
+    const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
+    const fiatParam = params.get(RampUrlParamsKeys.FIAT)?.toUpperCase();
+    const cryptoLockedParam = params.get(RampUrlParamsKeys.CRYPTO_LOCKED)?.toUpperCase();
+    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD) as PaymentMethod | undefined;
+    const walletLockedParam = params.get(RampUrlParamsKeys.WALLET_LOCKED);
+    const callbackUrlParam = params.get(RampUrlParamsKeys.CALLBACK_URL);
+    const externalSessionIdParam = params.get(RampUrlParamsKeys.EXTERNAL_SESSION_ID);
+    const countryCodeParam = params.get(RampUrlParamsKeys.COUNTRY_CODE)?.toUpperCase();
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -175,7 +193,7 @@ export const useRampUrlParams = (): RampUrlParams => {
         : rampDirectionStore || DEFAULT_RAMP_DIRECTION;
 
     const network = getNetworkFromParam(networkParam);
-    const fiat = findFiatToken(fiatParam, rampDirection);
+    const fiat = findFiatToken(fiatParam);
     const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork);
 
     return {
@@ -213,7 +231,8 @@ export const useSetRampUrlParams = () => {
     paymentMethod,
     walletLocked,
     callbackUrl,
-    externalSessionId
+    externalSessionId,
+    moneriumCode
   } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
@@ -241,10 +260,11 @@ export const useSetRampUrlParams = () => {
     [setFiatToken]
   );
 
+  const isWidget = useWidgetMode();
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     // effect to read params when at /widget path
-    const isWidget = window.location.pathname.includes("/widget");
     if (!isWidget) return;
     if (hasInitialized.current) return;
 
@@ -333,7 +353,6 @@ export const useSetRampUrlParams = () => {
 
   useEffect(() => {
     // effect to read params when NOT in /widget path
-    const isWidget = window.location.pathname.includes("/widget");
     if (isWidget) return;
 
     if (hasInitialized.current) return;
@@ -350,8 +369,7 @@ export const useSetRampUrlParams = () => {
       setApiKeyFn(null);
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const persistState = params.get("code") !== null;
+    const persistState = moneriumCode !== undefined;
 
     if (persistState) {
       hasInitialized.current = true;
@@ -376,6 +394,7 @@ export const useSetRampUrlParams = () => {
 
     hasInitialized.current = true;
   }, [
+    isWidget,
     apiKey,
     cryptoLocked,
     fiat,
@@ -388,6 +407,7 @@ export const useSetRampUrlParams = () => {
     setApiKeyFn,
     setPartnerIdFn,
     onToggle,
-    handleFiatToken
+    handleFiatToken,
+    moneriumCode
   ]);
 };
