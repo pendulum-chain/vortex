@@ -25,8 +25,6 @@ function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
   return now.getTime() - timestamp.getTime() < config.quote.discountStateTimeoutMinutes * 60 * 1000;
 }
 
-export { partnerDiscountState, getDeltaD };
-
 export type ActivePartner = Pick<
   Partner,
   "id" | "targetDiscount" | "maxSubsidy" | "minTargetDiscount" | "maxTargetDiscount" | "name"
@@ -103,8 +101,8 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   const partnerState = partnerDiscountState.get(partner.id);
   const now = new Date();
 
-  // Use partner's min caps if available, otherwise fall back to constants
-  const maxCap = partner.maxTargetDiscount ?? MAX_DIFFERENCE_CAP;
+  // Use partner's max caps if available, otherwise fall back to targetDiscount
+  const maxCap = partner.maxTargetDiscount ?? partner.targetDiscount;
 
   if (!partnerState) {
     partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
@@ -144,8 +142,8 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
   const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (isYounger) {
-    // Use partner's max caps if available, otherwise fall back to constants
-    const minCap = partner.minTargetDiscount ?? MIN_DIFFERENCE_CAP;
+    // Use partner's min caps if available, otherwise fall back to targetDiscount
+    const minCap = partner.minTargetDiscount ?? partner.targetDiscount;
 
     const updatedDifference = partnerState.difference.minus(getDeltaD());
     const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
