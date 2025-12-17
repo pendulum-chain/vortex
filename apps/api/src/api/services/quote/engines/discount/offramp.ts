@@ -42,7 +42,8 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
       inputAmount,
       oraclePrice,
       targetDiscount,
-      this.config.isOfframp
+      this.config.isOfframp,
+      partner
     );
     const expectedOutputAmountRaw = multiplyByPowerOfTen(expectedOutputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 

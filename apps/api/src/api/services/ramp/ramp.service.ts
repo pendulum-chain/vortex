@@ -31,10 +31,12 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
+import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -117,6 +119,13 @@ export class RampService extends BaseRampService {
       );
 
       await this.consumeQuote(quote.id, transaction);
+
+      let partner: ActivePartner = null;
+      if (quote.partnerId) {
+        partner = await Partner.findByPk(quote.partnerId);
+      }
+
+      handleQuoteConsumptionForDiscountState(partner);
 
       // Create initial ramp state
       const rampState = await this.createRampState({
