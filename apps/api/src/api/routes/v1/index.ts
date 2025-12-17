@@ -9,6 +9,7 @@ import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
+import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
 import moonbeamRoutes from "./moonbeam.route";
 import paymentMethodsRoutes from "./payment-methods.route";
@@ -160,6 +161,11 @@ router.use("/webhook", webhookRoutes);
  * GET v1/public-key
  */
 router.use("/public-key", publicKeyRoutes);
+
+/**
+ * GET v1/metrics
+ */
+router.use("/metrics", metricsRoutes);
 
 /**
  * Admin routes for partner API key management
