@@ -1,13 +1,10 @@
 import { UseQueryOptions, useQuery } from "@tanstack/react-query";
-import { AllPricesResponse, Currency } from "@vortexfi/shared";
+import { AllPricesResponse, Currency, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { useMemo } from "react";
 
 import { activeOptions, cacheKeys } from "../../../../../constants/cache";
-import { useNetwork } from "../../../../../contexts/network";
 import { PriceService } from "../../../../../services/api";
-import { useQuote } from "../../../../../stores/quote/useQuoteStore";
-import { useRampDirection } from "../../../../../stores/rampDirectionStore";
 import { PriceProviderDetails } from "../../priceProviders";
 
 /**
@@ -16,39 +13,35 @@ import { PriceProviderDetails } from "../../priceProviders";
  * @param sourceAssetSymbol Source asset symbol
  * @param targetAssetSymbol Target asset symbol
  * @param providers List of price providers
+ * @param direction Ramp direction
+ * @param network Network to use
  * @returns Processed fee comparison data
  */
 export function useFeeComparisonData(
   amount: string,
   sourceAssetSymbol: string,
   targetAssetSymbol: string,
-  providers: PriceProviderDetails[]
+  providers: PriceProviderDetails[],
+  direction: RampDirection,
+  network: Networks
 ) {
-  const rampDirection = useRampDirection();
-  const { selectedNetwork } = useNetwork();
-
-  const quote = useQuote();
-
-  const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
-
-  // Fetch prices from all providers
+  // Fetch prices from all providers (including vortex)
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery<AllPricesResponse, Error>({
     queryFn: () => {
       return PriceService.getAllPricesBundled(
         sourceAssetSymbol.toLowerCase() as Currency,
         targetAssetSymbol.toLowerCase() as Currency,
         amount,
-        rampDirection,
-        selectedNetwork
+        direction,
+        network
       );
     },
-    queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork, rampDirection],
+    queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, network, direction],
     ...(activeOptions["1m"] as Omit<UseQueryOptions<AllPricesResponse, Error>, "queryKey" | "queryFn">)
   });
 
   const providerPrices = useMemo(() => {
     const prices: Record<string, Big> = {};
-    prices["vortex"] = vortexPrice;
 
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
@@ -59,7 +52,7 @@ export function useFeeComparisonData(
     }
 
     return prices;
-  }, [allPricesResponse, vortexPrice]);
+  }, [allPricesResponse]);
 
   const bestProvider = useMemo(() => {
     return Object.entries(providerPrices).reduce(

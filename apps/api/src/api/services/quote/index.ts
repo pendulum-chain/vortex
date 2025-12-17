@@ -17,7 +17,7 @@ export class QuoteService extends BaseRampService {
     validateChainSupport(request.rampType, request.from, request.to);
 
     let partner = null;
-    let partnerNameToUse = request.partnerId || request.partnerName;
+    const partnerNameToUse = request.partnerId || request.partnerName;
 
     // Try to find partner by name (from partnerId field or from apiKey lookup)
     if (partnerNameToUse) {

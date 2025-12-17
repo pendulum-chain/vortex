@@ -1,26 +1,34 @@
-import { useNetwork } from "../../../../contexts/network";
-import { useQuoteFormStore } from "../../../../stores/quote/useQuoteFormStore";
-import { useRampDirection } from "../../../../stores/rampDirectionStore";
-
+import { FiatToken } from "@packages/shared";
+import { EvmToken, Networks, RampDirection } from "@vortexfi/shared";
+import { getLanguageFromPath, Language } from "../../../../translations/helpers";
 import { FeeComparisonHeader } from "./components/FeeComparisonHeader";
 import { FeeComparisonProviderList } from "./components/FeeComparisonProviderList";
-import { getAssetSymbols } from "./utils/assetUtils";
 
-const FEE_COMPARISON_AMOUNT = "100";
+const FEE_COMPARISON_CRYPTO = EvmToken.USDC;
+const FEE_COMPARISON_DIRECTION = RampDirection.BUY;
 
 export function FeeComparisonTable() {
-  const { onChainToken, fiatToken } = useQuoteFormStore();
-  const { selectedNetwork } = useNetwork();
-  const rampDirection = useRampDirection();
+  const language = getLanguageFromPath();
+  const isBrazilian = language === Language.Portuguese_Brazil;
 
-  const amount = FEE_COMPARISON_AMOUNT;
+  // BRL requires Moonbeam, EUR uses Polygon
+  const fiatCurrency = isBrazilian ? FiatToken.BRL : FiatToken.EURC;
+  const network = Networks.Base;
+  const amount = isBrazilian ? "500" : "100";
 
-  const { sourceAssetSymbol, targetAssetSymbol } = getAssetSymbols(rampDirection, selectedNetwork, onChainToken, fiatToken);
+  const targetAssetSymbol = FEE_COMPARISON_CRYPTO;
+  const sourceAssetSymbol = fiatCurrency;
 
   return (
     <div className="rounded-xl bg-white p-4 pb-8 shadow-xl transition-all duration-300 hover:scale-101">
       <FeeComparisonHeader amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
-      <FeeComparisonProviderList amount={amount} sourceAssetSymbol={sourceAssetSymbol} targetAssetSymbol={targetAssetSymbol} />
+      <FeeComparisonProviderList
+        amount={amount}
+        direction={FEE_COMPARISON_DIRECTION}
+        network={network}
+        sourceAssetSymbol={sourceAssetSymbol}
+        targetAssetSymbol={targetAssetSymbol}
+      />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { Skeleton } from "../../../../components/Skeleton";
 import { RampParameters, useEventsContext } from "../../../../contexts/events";
 import { cn } from "../../../../helpers/cn";
-import { useQuote } from "../../../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../../../stores/rampDirectionStore";
 import { formatPrice } from "../helpers";
 import { PriceProviderDetails } from "../priceProviders";
@@ -37,30 +36,21 @@ export function FeeProviderRow({
   const isBRLOnramp = rampDirection === RampDirection.BUY && sourceAssetSymbol === FiatToken.BRL;
 
   const { schedulePrice } = useEventsContext();
-  // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
-  // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
-  const prevVortexPrice = useRef<Big | null>(null);
   const prevProviderPrice = useRef<Big | null>(null);
-  const quote = useQuote();
-
-  const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   const amount = useMemo(() => Big(amountRaw || "0"), [amountRaw]);
 
   // Determine if there's an error from the result
   const error = result?.status === "rejected" ? result.reason : undefined;
 
-  // Calculate provider price based on the result or vortex price
+  // Calculate provider price based only on result (all providers are handled the same now)
   const providerPrice = useMemo(() => {
-    if (provider.name === "vortex") return vortexPrice.gt(0) ? vortexPrice : undefined;
-
     if (result?.status === "fulfilled" && result.value.quoteAmount) {
       // Use quoteAmount which represents what the user will receive
       return Big(result.value.quoteAmount.toString());
     }
-
     return undefined;
-  }, [provider.name, vortexPrice, result]);
+  }, [result]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return;
@@ -80,28 +70,16 @@ export function FeeProviderRow({
 
   useEffect(() => {
     if (isLoading || !providerPrice || error) return;
-    if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
     const parameters: RampParameters = {
       from_amount: amount.toFixed(2),
       from_asset: sourceAssetSymbol,
-      to_amount: vortexPrice.toFixed(2),
+      to_amount: providerPrice.toFixed(2),
       to_asset: targetAssetSymbol
     };
 
     schedulePrice(provider.name, providerPrice.toFixed(2, 0), parameters, true);
-    prevVortexPrice.current = vortexPrice;
-  }, [
-    isLoading,
-    error,
-    providerPrice,
-    vortexPrice,
-    amount,
-    sourceAssetSymbol,
-    targetAssetSymbol,
-    provider.name,
-    schedulePrice
-  ]);
+  }, [isLoading, error, providerPrice, amount, sourceAssetSymbol, targetAssetSymbol, provider.name, schedulePrice]);
 
   return (
     <div className={cn("w-full", isBestRate && "rounded-md bg-green-500/10 py-1")}>
