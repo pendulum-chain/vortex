@@ -7,7 +7,6 @@ import Partner from "../../models/partner.model";
 export interface AuthenticatedPartner {
   id: string;
   name: string;
-  discount: number;
 }
 
 /**
@@ -163,7 +162,6 @@ export async function validateSecretApiKey(apiKey: string): Promise<Authenticate
 
         // Return partner info (from any partner with this name)
         return {
-          discount: partner.discount,
           id: partner.id,
           name: partner.name
         };

@@ -57,17 +57,34 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
 
-      // Add the (potential) subsidy amount to the expected swap output to get the target balance
-      const expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
+      // Add a default/base expected output amount from the swap
+      let expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
+
+      // Try to find the required amount to subsidize on the quote metadata
+      if (state.type === RampDirection.BUY) {
+        if (quote.metadata.pendulumToHydrationXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToHydrationXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToAssethubXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToAssethubXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        }
+      } else {
+        if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToStellar) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToStellar.inputAmountRaw);
+        }
+      }
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
 
       const didBalanceReachExpected = async () => {
         const balanceResponse = await pendulumNode.api.query.tokens.accounts(
           substrateEphemeralAddress,
-          quote.metadata.nablaSwap?.inputCurrencyId
+          quote.metadata.nablaSwap?.outputCurrencyId
         );
 
         const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
@@ -92,11 +109,13 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           networkName
         );
 
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
-
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
+
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        // Wait for the balance to update
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));

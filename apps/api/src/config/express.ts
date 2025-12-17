@@ -30,6 +30,7 @@ app.use(
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
     origin: [
       "https://app.vortexfinance.co",
+      "https://metrics.vortexfinance.co",
       "https://staging--pendulum-pay.netlify.app",
       process.env.NODE_ENV === "development" ? "http://localhost:5173" : null,
       process.env.NODE_ENV === "development" ? "http://localhost:6006" : null
