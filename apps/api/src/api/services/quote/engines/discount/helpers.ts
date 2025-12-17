@@ -7,9 +7,6 @@ import { DiscountComputation } from "./index";
 
 export const DEFAULT_PARTNER_NAME = "vortex";
 
-const MAX_DIFFERENCE_CAP = 10;
-const MIN_DIFFERENCE_CAP = -10;
-
 interface PartnerDiscountState {
   lastQuoteTimestamp: Date | null;
   difference: Big;
@@ -27,7 +24,7 @@ function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
 
 export type ActivePartner = Pick<
   Partner,
-  "id" | "targetDiscount" | "maxSubsidy" | "minTargetDiscount" | "maxTargetDiscount" | "name"
+  "id" | "targetDiscount" | "maxSubsidy" | "minDynamicDifference" | "maxDynamicDifference" | "name"
 > | null;
 
 export interface DiscountSubsidyPayload {
@@ -102,7 +99,7 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   const now = new Date();
 
   // Use partner's max caps if available, otherwise fall back to targetDiscount
-  const maxCap = partner.maxTargetDiscount ?? partner.targetDiscount;
+  const maxCap = partner.maxDynamicDifference ?? 0;
 
   if (!partnerState) {
     partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
@@ -143,7 +140,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
 
   if (isYounger) {
     // Use partner's min caps if available, otherwise fall back to targetDiscount
-    const minCap = partner.minTargetDiscount ?? partner.targetDiscount;
+    const minCap = partner.minDynamicDifference ?? 0;
 
     const updatedDifference = partnerState.difference.minus(getDeltaD());
     const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
