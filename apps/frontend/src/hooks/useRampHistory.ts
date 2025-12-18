@@ -29,7 +29,7 @@ export function useRampHistory(walletAddress?: string) {
 
       for (const address of addresses) {
         try {
-          const response = await RampService.getRampHistory(address);
+          const response = await RampService.getRampHistory(address, 100);
           const transactions = response.transactions.map(formatTransaction);
           allTransactions.push(...transactions);
         } catch (error) {

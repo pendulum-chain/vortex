@@ -131,6 +131,8 @@ export class RampService {
   /**
    * Get transaction history for a wallet address
    * @param walletAddress The wallet address
+   * @param limit The maximum number of records to return
+   * @param offset The offset for pagination
    * @returns The transaction history
    */
   static async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
