@@ -190,6 +190,8 @@ export type GetRampErrorLogsResponse = RampErrorLog[];
 
 export interface GetRampHistoryRequest {
   walletAddress: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface GetRampHistoryTransaction {
@@ -203,8 +205,11 @@ export interface GetRampHistoryTransaction {
   toCurrency: string;
   status: string;
   date: string;
+  externalTxHash?: string;
+  externalTxExplorerLink?: string;
 }
 
 export type GetRampHistoryResponse = {
   transactions: GetRampHistoryTransaction[];
+  totalCount: number;
 };

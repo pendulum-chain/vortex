@@ -133,7 +133,14 @@ export class RampService {
    * @param walletAddress The wallet address
    * @returns The transaction history
    */
-  static async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    return apiRequest<GetRampHistoryResponse>("get", `${this.BASE_PATH}/history/${walletAddress}`);
+  static async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+    const queryParams = new URLSearchParams();
+    if (limit) queryParams.append("limit", limit.toString());
+    if (offset) queryParams.append("offset", offset.toString());
+
+    const queryString = queryParams.toString();
+    const url = `${this.BASE_PATH}/history/${walletAddress}${queryString ? `?${queryString}` : ""}`;
+
+    return apiRequest<GetRampHistoryResponse>("get", url);
   }
 }
