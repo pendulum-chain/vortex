@@ -5,9 +5,9 @@ export const StatusBadge: FC<{ status: TransactionStatus }> = ({ status }) => {
   const normalizedStatus = status.toLowerCase() as keyof typeof colors;
 
   const colors = {
+    complete: "bg-green-100 text-green-800",
     failed: "bg-red-100 text-red-800",
-    pending: "bg-yellow-100 text-yellow-800",
-    success: "bg-green-100 text-green-800"
+    pending: "bg-yellow-100 text-yellow-800"
   };
 
   return (

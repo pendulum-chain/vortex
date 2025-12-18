@@ -1,6 +1,6 @@
 import { Networks, PaymentMethod } from "@vortexfi/shared";
 
-export type TransactionStatus = "success" | "pending" | "failed";
+export type TransactionStatus = "pending" | "failed" | "complete";
 
 export type TransactionDestination = Networks | PaymentMethod;
 
