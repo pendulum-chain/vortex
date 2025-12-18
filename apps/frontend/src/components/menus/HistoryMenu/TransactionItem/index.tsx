@@ -27,7 +27,7 @@ const formatTooltipDate = (date: Date) =>
     year: "numeric"
   });
 
-const getNetworkName = (network: Transaction["fromNetwork"] | Transaction["toNetwork"]) => {
+const getNetworkName = (network: Transaction["from"] | Transaction["to"]) => {
   if (typeof network === "string" && ["pix", "sepa", "cbu"].includes(network)) {
     return network.toUpperCase();
   }
@@ -54,9 +54,9 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
         </div>
         <div>
           <div className="flex items-center">
-            <span className="text-gray-500">{getNetworkName(transaction.fromNetwork)}</span>
+            <span className="text-gray-500">{getNetworkName(transaction.from)}</span>
             <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-500">{getNetworkName(transaction.toNetwork)}</span>
+            <span className="text-gray-500">{getNetworkName(transaction.to)}</span>
           </div>
           <div className="flex items-center">
             <span className="font-medium">{roundDownToSignificantDecimals(Big(transaction.fromAmount), 2).toString()}</span>

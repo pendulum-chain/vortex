@@ -1,9 +1,9 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { TransactionStatus } from "@vortexfi/shared";
+import { AnimatePresence, motion } from "framer-motion";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
-import { TransactionStatus } from "../menus/HistoryMenu/types";
 
 interface StatusBadgeProps {
   status: TransactionStatus;

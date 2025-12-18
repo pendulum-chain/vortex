@@ -547,6 +547,13 @@ export class RampService extends BaseRampService {
       rampStates.map(async ramp => {
         const quote = quoteMap.get(ramp.quoteId);
 
+        if (!quote) {
+          throw new APIError({
+            message: `Associated quote not found for ramp ${ramp.id}`,
+            status: httpStatus.NOT_FOUND
+          });
+        }
+
         // Get or compute final transaction hash and explorer link (similar to getRampStatus)
         let transactionHash = ramp.state.finalTransactionHash;
         let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
@@ -555,8 +562,7 @@ export class RampService extends BaseRampService {
         if (
           ramp.type === RampDirection.BUY &&
           ramp.currentPhase === "complete" &&
-          (!transactionHash || !transactionExplorerLink) &&
-          quote
+          (!transactionHash || !transactionExplorerLink)
         ) {
           const result = await getFinalTransactionHashForRamp(ramp, quote);
           transactionHash = result.transactionHash;
@@ -578,14 +584,14 @@ export class RampService extends BaseRampService {
           date: ramp.createdAt.toISOString(),
           externalTxExplorerLink: transactionExplorerLink,
           externalTxHash: transactionHash,
-          fromAmount: quote?.inputAmount || "",
-          fromCurrency: quote?.inputCurrency || "",
-          fromNetwork: ramp.from,
+          from: ramp.from,
+          fromAmount: quote.inputAmount,
+          fromCurrency: quote.inputCurrency,
           id: ramp.id,
           status: this.mapPhaseToStatus(ramp.currentPhase),
-          toAmount: quote?.outputAmount || "",
-          toCurrency: quote?.outputCurrency || "",
-          toNetwork: ramp.to,
+          to: ramp.to,
+          toAmount: quote.outputAmount,
+          toCurrency: quote.outputCurrency,
           type: ramp.type
         };
       })

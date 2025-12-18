@@ -195,8 +195,8 @@ export interface GetRampHistoryRequest {
 export interface GetRampHistoryTransaction {
   id: string;
   type: RampDirection;
-  fromNetwork: Networks;
-  toNetwork: Networks;
+  from: Networks | PaymentMethod;
+  to: Networks | PaymentMethod;
   fromAmount: string;
   toAmount: string;
   fromCurrency: RampCurrency;
