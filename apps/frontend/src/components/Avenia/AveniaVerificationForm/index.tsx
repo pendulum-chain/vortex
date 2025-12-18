@@ -75,32 +75,23 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <div className="mt-8 grid gap-3">
-          <div className="flex gap-3">
-            <button
-              className="btn-vortex-primary-inverse btn flex-1"
-              onClick={() => aveniaKycActor.send({ type: "CANCEL" })}
-              type="button"
-            >
-              {isCompany ? t("components.aveniaKYB.buttons.cancel") : t("components.aveniaKYC.buttons.back")}
-            </button>
-            <button
-              className="btn-vortex-primary btn flex-1"
-              disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
-              onClick={() => {
-                const formData = form.getValues();
-                aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
-              }}
-              title={buttonProps.title}
-              type="button"
-            >
-              {isMaintenanceDisabled
-                ? buttonProps.title
-                : isCompany
-                  ? t("components.aveniaKYB.buttons.next")
-                  : t("components.aveniaKYC.buttons.next")}
-            </button>
-          </div>
+        <div className="mt-8">
+          <button
+            className="btn-vortex-primary btn w-full"
+            disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
+            onClick={() => {
+              const formData = form.getValues();
+              aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
+            }}
+            title={buttonProps.title}
+            type="button"
+          >
+            {isMaintenanceDisabled
+              ? buttonProps.title
+              : isCompany
+                ? t("components.aveniaKYB.buttons.next")
+                : t("components.aveniaKYC.buttons.next")}
+          </button>
         </div>
       </motion.form>
     </FormProvider>

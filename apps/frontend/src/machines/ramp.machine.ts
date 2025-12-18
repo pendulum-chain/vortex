@@ -111,7 +111,8 @@ export type RampMachineEvents =
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" };
+  | { type: "REFRESH_FAILED" }
+  | { type: "GO_BACK" };
 
 export const rampMachine = setup({
   actions: {
@@ -331,6 +332,9 @@ export const rampMachine = setup({
         src: "quoteRefresher"
       },
       on: {
+        GO_BACK: {
+          target: "KYC"
+        },
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
         },
@@ -402,6 +406,13 @@ export const rampMachine = setup({
           }),
           guard: ({ context }) => context.quoteId !== undefined,
           target: "RampRequested"
+        },
+        GO_BACK: {
+          actions: assign({
+            quote: undefined,
+            quoteId: undefined
+          }),
+          target: "Idle"
         }
       }
     },

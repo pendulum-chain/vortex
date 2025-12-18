@@ -67,7 +67,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
-      console.log("quote", quote, "isOnramp", isOnramp);
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
@@ -108,6 +107,8 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     //     text: t("components.SummaryPage.tryAgain")
     //   };
     // }
+
+    console.log("submitButtonDisabled", submitButtonDisabled);
 
     if (submitButtonDisabled) {
       return {

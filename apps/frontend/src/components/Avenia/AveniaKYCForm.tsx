@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
@@ -145,7 +146,12 @@ export const AveniaKYCForm = () => {
 
   return (
     <>
-      <div className="relative">{content}</div>
+      <div className="relative">
+        <div className="mb-4">
+          <StepBackButton />
+        </div>
+        {content}
+      </div>
       <DetailsStepQuoteSummary quote={quote} />
     </>
   );

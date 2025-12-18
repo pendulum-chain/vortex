@@ -52,6 +52,9 @@ export interface StellarKycContext extends RampContext {
 export const kycStateNode = {
   initial: "Deciding",
   on: {
+    GO_BACK: {
+      target: "#ramp.QuoteReady"
+    },
     SummaryConfirm: {
       actions: [
         // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
