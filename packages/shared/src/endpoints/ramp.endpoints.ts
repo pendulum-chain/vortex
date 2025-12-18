@@ -190,8 +190,6 @@ export type GetRampErrorLogsResponse = RampErrorLog[];
 
 export interface GetRampHistoryRequest {
   walletAddress: string;
-  limit?: number;
-  offset?: number;
 }
 
 export interface GetRampHistoryTransaction {
