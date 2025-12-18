@@ -14,6 +14,8 @@ export interface Transaction {
   date: Date;
   fromCurrency: string;
   toCurrency: string;
+  externalTxHash?: string;
+  externalTxExplorerLink?: string;
 }
 
 export interface TransactionGroup {

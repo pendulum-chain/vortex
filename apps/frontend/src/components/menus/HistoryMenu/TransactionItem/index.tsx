@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from "@heroicons/react/20/solid";
+import { ArrowTopRightOnSquareIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC } from "react";
@@ -58,6 +58,22 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
             <ChevronRightIcon className="h-4 w-4 text-gray-400" />
             <span className="font-medium">{roundDownToSignificantDecimals(Big(transaction.toAmount), 2).toString()}</span>
           </div>
+          {transaction.externalTxHash && (
+            <div className="mt-1">
+              <a
+                className="flex items-center text-blue-500 text-xs hover:text-blue-700"
+                href={transaction.externalTxExplorerLink}
+                onClick={e => e.stopPropagation()}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <span>
+                  {transaction.externalTxHash.slice(0, 6)}...{transaction.externalTxHash.slice(-4)}
+                </span>
+                <ArrowTopRightOnSquareIcon className="ml-1 h-3 w-3" />
+              </a>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex flex-col items-end space-y-2">
