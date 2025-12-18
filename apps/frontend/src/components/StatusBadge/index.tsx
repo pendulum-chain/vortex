@@ -25,35 +25,36 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
   const showLink = isHovered && !!explorerLink;
 
   const badgeContent = (
-    <LayoutGroup>
-      <motion.div
-        className={cn("relative flex items-center rounded-full px-3 py-1 font-medium text-xs shadow-sm", colorClass)}
-        layout
-        style={{ originX: 1 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-      >
-        <AnimatePresence initial={false} mode="popLayout">
-          <motion.span
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center whitespace-nowrap"
-            exit={{ opacity: 0, y: -5 }}
-            initial={{ opacity: 0, y: 5 }}
-            key={showLink ? "explorer" : "status"}
-            layout
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            {showLink ? (
-              <>
-                {t("menus.history.viewInExplorer")}
-                <ArrowTopRightOnSquareIcon className="ml-1 h-3.5 w-3.5" />
-              </>
-            ) : (
-              t(`menus.history.status.${normalizedStatus}`)
-            )}
-          </motion.span>
-        </AnimatePresence>
-      </motion.div>
-    </LayoutGroup>
+    <motion.div
+      className={cn(
+        "relative flex items-center overflow-hidden rounded-full px-3 py-1 font-medium text-xs shadow-sm",
+        colorClass
+      )}
+      layout
+      style={{ originX: 1 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center whitespace-nowrap"
+          exit={{ opacity: 0, y: -25 }}
+          initial={{ opacity: 0, y: 25 }}
+          key={showLink ? "explorer" : "status"}
+          layout
+          transition={{ bounce: 0, duration: 0.3, type: "spring" }}
+        >
+          {showLink ? (
+            <>
+              {t("menus.history.viewInExplorer")}
+              <ArrowTopRightOnSquareIcon className="ml-1 h-3.5 w-3.5" />
+            </>
+          ) : (
+            t(`menus.history.status.${normalizedStatus}`)
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
   );
 
   if (explorerLink) {

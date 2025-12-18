@@ -45,7 +45,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2">
         <div>
           <div className="relative h-8 w-16">
             <img alt={transaction.fromCurrency} className="absolute top-0 left-0 h-8 w-8" src={fromIcon} />
