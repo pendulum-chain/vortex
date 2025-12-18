@@ -38,8 +38,10 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
   const fromIcon = useGetAssetIcon(transaction.fromCurrency.toLowerCase());
   const toIcon = useGetAssetIcon(transaction.toCurrency.toLowerCase());
 
+  const showExplorerLink = !!transaction.externalTxExplorerLink;
+
   return (
-    <div className="flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50">
+    <div className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50">
       <div className="flex items-center space-x-4">
         <div>
           <div className="relative h-8 w-16">
@@ -58,26 +60,32 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
             <ChevronRightIcon className="h-4 w-4 text-gray-400" />
             <span className="font-medium">{roundDownToSignificantDecimals(Big(transaction.toAmount), 2).toString()}</span>
           </div>
-          {transaction.externalTxHash && (
-            <div className="mt-1">
+        </div>
+      </div>
+      <div className="flex flex-col items-end space-y-2">
+        <div className="relative flex h-8 items-center justify-end">
+          {showExplorerLink ? (
+            <>
+              <div className="transition-opacity duration-200 group-hover:opacity-0">
+                <StatusBadge status={transaction.status} />
+              </div>
               <a
-                className="flex items-center text-blue-500 text-xs hover:text-blue-700"
+                className="absolute right-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 href={transaction.externalTxExplorerLink}
                 onClick={e => e.stopPropagation()}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <span>
-                  {transaction.externalTxHash.slice(0, 6)}...{transaction.externalTxHash.slice(-4)}
+                <span className="flex items-center whitespace-nowrap rounded-full bg-green-500 px-3 py-1 font-medium text-white text-xs hover:bg-green-600">
+                  View in explorer
+                  <ArrowTopRightOnSquareIcon className="ml-1 h-3 w-3" />
                 </span>
-                <ArrowTopRightOnSquareIcon className="ml-1 h-3 w-3" />
               </a>
-            </div>
+            </>
+          ) : (
+            <StatusBadge status={transaction.status} />
           )}
         </div>
-      </div>
-      <div className="flex flex-col items-end space-y-2">
-        <StatusBadge status={transaction.status} />
         <div className="cursor-pointer text-gray-500 text-sm hover:text-gray-700">
           <div className="tooltip tooltip-left z-50" data-tip={formatTooltipDate(transaction.date)}>
             {formatDate(transaction.date)}
