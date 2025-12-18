@@ -1,4 +1,4 @@
-import { ArrowTopRightOnSquareIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
+import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC } from "react";
@@ -63,29 +63,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
         </div>
       </div>
       <div className="flex flex-col items-end space-y-2">
-        <div className="relative flex h-8 items-center justify-end">
-          {showExplorerLink ? (
-            <>
-              <div className="transition-opacity duration-200 group-hover:opacity-0">
-                <StatusBadge status={transaction.status} />
-              </div>
-              <a
-                className="absolute right-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                href={transaction.externalTxExplorerLink}
-                onClick={e => e.stopPropagation()}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <span className="flex items-center whitespace-nowrap rounded-full bg-green-500 px-3 py-1 font-medium text-white text-xs hover:bg-green-600">
-                  View in explorer
-                  <ArrowTopRightOnSquareIcon className="ml-1 h-3 w-3" />
-                </span>
-              </a>
-            </>
-          ) : (
-            <StatusBadge status={transaction.status} />
-          )}
-        </div>
+        <StatusBadge explorerLink={transaction.externalTxExplorerLink} status={transaction.status} />
         <div className="cursor-pointer text-gray-500 text-sm hover:text-gray-700">
           <div className="tooltip tooltip-left z-50" data-tip={formatTooltipDate(transaction.date)}>
             {formatDate(transaction.date)}
