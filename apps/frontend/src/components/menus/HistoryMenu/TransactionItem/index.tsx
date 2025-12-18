@@ -1,7 +1,7 @@
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
-import { FC } from "react";
+import { FC, useState } from "react";
 import { useGetAssetIcon } from "../../../../hooks/useGetAssetIcon";
 import { StatusBadge } from "../../../StatusBadge";
 import { Transaction } from "../types";
@@ -35,12 +35,17 @@ const getNetworkName = (network: Transaction["fromNetwork"] | Transaction["toNet
 };
 
 export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const fromIcon = useGetAssetIcon(transaction.fromCurrency.toLowerCase());
   const toIcon = useGetAssetIcon(transaction.toCurrency.toLowerCase());
 
   return (
-    <div className="flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50">
-      <div className="flex items-center space-x-4">
+    <div
+      className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="flex items-center space-x-2">
         <div>
           <div className="relative h-8 w-16">
             <img alt={transaction.fromCurrency} className="absolute top-0 left-0 h-8 w-8" src={fromIcon} />
@@ -61,7 +66,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
         </div>
       </div>
       <div className="flex flex-col items-end space-y-2">
-        <StatusBadge status={transaction.status} />
+        <StatusBadge explorerLink={transaction.externalTxExplorerLink} isHovered={isHovered} status={transaction.status} />
         <div className="cursor-pointer text-gray-500 text-sm hover:text-gray-700">
           <div className="tooltip tooltip-left z-50" data-tip={formatTooltipDate(transaction.date)}>
             {formatDate(transaction.date)}

@@ -523,8 +523,10 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    const rampStates = await RampState.findAll({
+  public async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+    const { rows: rampStates, count: totalCount } = await RampState.findAndCountAll({
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
       where: {
         [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
@@ -541,23 +543,55 @@ export class RampService extends BaseRampService {
     });
     const quoteMap = new Map(quotes.map(quote => [quote.id, quote]));
 
-    const transactions = rampStates.map(ramp => {
-      const quote = quoteMap.get(ramp.quoteId);
-      return {
-        date: ramp.createdAt.toISOString(),
-        fromAmount: quote?.inputAmount || "",
-        fromCurrency: quote?.inputCurrency || "",
-        fromNetwork: ramp.from,
-        id: ramp.id,
-        status: this.mapPhaseToStatus(ramp.currentPhase),
-        toAmount: quote?.outputAmount || "",
-        toCurrency: quote?.outputCurrency || "",
-        toNetwork: ramp.to,
-        type: ramp.type
-      };
-    });
+    const transactions = await Promise.all(
+      rampStates.map(async ramp => {
+        const quote = quoteMap.get(ramp.quoteId);
 
-    return { transactions };
+        // Get or compute final transaction hash and explorer link (similar to getRampStatus)
+        let transactionHash = ramp.state.finalTransactionHash;
+        let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
+
+        // If not stored yet and ramp is complete, compute and store them
+        if (
+          ramp.type === RampDirection.BUY &&
+          ramp.currentPhase === "complete" &&
+          (!transactionHash || !transactionExplorerLink) &&
+          quote
+        ) {
+          const result = await getFinalTransactionHashForRamp(ramp, quote);
+          transactionHash = result.transactionHash;
+          transactionExplorerLink = result.transactionExplorerLink;
+
+          // Store the computed values in the state for future use
+          if (transactionHash && transactionExplorerLink) {
+            await ramp.update({
+              state: {
+                ...ramp.state,
+                finalTransactionExplorerLink: transactionExplorerLink,
+                finalTransactionHash: transactionHash
+              }
+            });
+          }
+        }
+
+        return {
+          date: ramp.createdAt.toISOString(),
+          externalTxExplorerLink: transactionExplorerLink,
+          externalTxHash: transactionHash,
+          fromAmount: quote?.inputAmount || "",
+          fromCurrency: quote?.inputCurrency || "",
+          fromNetwork: ramp.from,
+          id: ramp.id,
+          status: this.mapPhaseToStatus(ramp.currentPhase),
+          toAmount: quote?.outputAmount || "",
+          toCurrency: quote?.outputCurrency || "",
+          toNetwork: ramp.to,
+          type: ramp.type
+        };
+      })
+    );
+
+    return { totalCount, transactions };
   }
 
   /**

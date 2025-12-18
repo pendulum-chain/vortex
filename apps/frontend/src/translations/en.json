@@ -470,7 +470,13 @@
   "menus": {
     "history": {
       "noHistory": "Your ramp history will appear here.",
-      "title": "History"
+      "status": {
+        "complete": "Complete",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "title": "History",
+      "viewInExplorer": "View in Explorer"
     },
     "settings": {
       "item": {
