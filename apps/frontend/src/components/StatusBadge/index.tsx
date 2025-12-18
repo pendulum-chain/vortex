@@ -1,6 +1,8 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { FC } from "react";
+import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
 import { TransactionStatus } from "../menus/HistoryMenu/types";
 
 interface StatusBadgeProps {
@@ -10,6 +12,7 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHovered = false }) => {
+  const { t } = useTranslation();
   const normalizedStatus = status.toLowerCase();
 
   const colors = {
@@ -24,7 +27,7 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
   const badgeContent = (
     <LayoutGroup>
       <motion.div
-        className={`relative flex items-center rounded-full px-3 py-1 font-medium text-xs shadow-sm ${colorClass}`}
+        className={cn("relative flex items-center rounded-full px-3 py-1 font-medium text-xs shadow-sm", colorClass)}
         layout
         style={{ originX: 1 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
@@ -41,11 +44,11 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
           >
             {showLink ? (
               <>
-                View in explorer
+                {t("menus.history.viewInExplorer")}
                 <ArrowTopRightOnSquareIcon className="ml-1 h-3.5 w-3.5" />
               </>
             ) : (
-              normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)
+              t(`menus.history.status.${normalizedStatus}`)
             )}
           </motion.span>
         </AnimatePresence>
