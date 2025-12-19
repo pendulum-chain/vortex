@@ -154,7 +154,9 @@ export class QuoteService extends BaseRampService {
       partner: partner
         ? {
             id: partner.id,
+            maxDynamicDifference: partner.maxDynamicDifference,
             maxSubsidy: partner.maxSubsidy,
+            minDynamicDifference: partner.minDynamicDifference,
             name: partner.name,
             targetDiscount: partner.targetDiscount
           }
