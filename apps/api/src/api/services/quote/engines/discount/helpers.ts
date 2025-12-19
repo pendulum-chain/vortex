@@ -77,17 +77,18 @@ export function calculateExpectedOutput(
   targetDiscount: number,
   isOfframp: boolean,
   partner: ActivePartner
-): Big {
+): { expectedOutput: Big; adjustedDifference: Big; adjustedTargetDiscount: Big } {
   const inputAmountBig = new Big(inputAmount);
 
   // For offramps, we need to invert the oracle price
   // Oracle price is FIAT-USD, so for offramps we want USD-FIAT
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
-
+  const adjustedDifference = getAdjustedDifference(partner);
   // Apply target discount to the rate, adjusting first for dynamic discount variable.
-  const adjustedTargetDiscount = new Big(targetDiscount).plus(getAdjustedDifference(partner));
+  const adjustedTargetDiscount = new Big(targetDiscount).plus(adjustedDifference);
   const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
-  return inputAmountBig.mul(discountedRate);
+
+  return { adjustedDifference: adjustedDifference, adjustedTargetDiscount, expectedOutput: inputAmountBig.mul(discountedRate) };
 }
 
 export function getAdjustedDifference(partner?: ActivePartner): Big {

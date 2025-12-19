@@ -22,6 +22,8 @@ export interface DiscountComputation {
   subsidyAmountInOutputTokenRaw: string;
   partnerId: string | null;
   subsidyRate: Big;
+  adjustedDifference: Big;
+  adjustedTargetDiscount: Big;
 }
 
 export abstract class BaseDiscountEngine implements Stage {
