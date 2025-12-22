@@ -108,7 +108,7 @@ export function FeeProviderRow({
                 )}
               </div>
               {priceDiff && priceDiff.lt(0) && (
-                <div className="flex w-full justify-end text-red-600">
+                <div className="flex w-full justify-end text-red-800">
                   <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
                 </div>
               )}

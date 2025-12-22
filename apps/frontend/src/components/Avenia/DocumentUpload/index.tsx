@@ -209,7 +209,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           )}
       </div>
 
-      {error && <p className="mt-4 text-center text-red-500">{error}</p>}
+      {error && <p className="mt-4 text-center text-red-800">{error}</p>}
 
       <div className="mt-8">
         <button

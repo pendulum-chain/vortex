@@ -65,7 +65,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
           )}
         </div>
         {isError && (
-          <p className="mt-2 px-4 text-red-600 text-sm md:px-8" id="request-error-message">
+          <p className="mt-2 px-4 text-red-800 text-sm md:px-8" id="request-error-message">
             {t("components.emailForm.error")}
           </p>
         )}

@@ -90,7 +90,9 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
 
     if (quoteId) {
       // Reset the ramp state to make sure that no pending state is loaded on the widget page
-      rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
+      // rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
+
+      rampActor.send({ lock: true, quoteId, type: "SET_QUOTE" });
 
       router.navigate({
         params,

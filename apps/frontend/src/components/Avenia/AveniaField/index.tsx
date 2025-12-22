@@ -72,7 +72,7 @@ export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validation
         {label}
       </label>
       <Field
-        className={cn("w-full p-2", errors[id] && "border border-red-500")}
+        className={cn("w-full p-2", errors[id] && "border border-red-800")}
         id={id}
         register={register(id, {
           pattern: validationPattern
@@ -86,7 +86,7 @@ export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validation
         })}
         {...rest}
       />
-      {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
+      {errorMessage && <span className="mt-1 text-red-800 text-sm">{errorMessage}</span>}
     </motion.div>
   );
 };

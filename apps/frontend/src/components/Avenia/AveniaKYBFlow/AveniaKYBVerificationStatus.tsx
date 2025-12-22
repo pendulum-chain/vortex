@@ -73,7 +73,7 @@ export const AveniaKYBVerificationStatus: React.FC = () => {
               {aveniaState.context.rejectReason && (
                 <motion.p
                   animate={{ opacity: 1 }}
-                  className="mt-2 px-4 text-center text-red-600 text-sm"
+                  className="mt-2 px-4 text-center text-red-800 text-sm"
                   initial={{ opacity: 0 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
                 >
@@ -137,7 +137,7 @@ const SuccessIcon = () => (
 const ErrorIcon = () => (
   <motion.svg
     animate={{ opacity: 1, rotate: 0 }}
-    className="h-16 w-16 text-red-500"
+    className="h-16 w-16 text-red-800"
     fill="none"
     initial={{ opacity: 0, rotate: -90 }}
     stroke="currentColor"

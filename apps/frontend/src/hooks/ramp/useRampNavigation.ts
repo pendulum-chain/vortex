@@ -27,11 +27,11 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    if (rampState !== undefined && rampMachineState.value === "Idle") {
-      return formComponent;
+    if (rampMachineState.value === "Idle") {
+      return quoteComponent;
     }
 
-    return quoteComponent;
+    return formComponent;
   }, [
     searchParams.quoteId,
     rampState,

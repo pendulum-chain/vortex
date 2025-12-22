@@ -22,15 +22,9 @@ export const useIsQuoteComponentDisplayed = (): boolean => {
     return false;
   }
 
-  // Quote is NOT shown if in RampFollowUp state (shows progress)
-  if (rampState !== undefined && rampMachineState.value === "RampFollowUp") {
-    return false;
+  if (rampState === undefined && rampMachineState.value === "Idle") {
+    return true;
   }
 
-  // Quote is NOT shown if in Idle state (shows form)
-  if (rampState !== undefined && rampMachineState.value === "Idle") {
-    return false;
-  }
-
-  return true;
+  return false;
 };
