@@ -1,12 +1,31 @@
 import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import Partner from "../../../../../models/partner.model";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
 export const DEFAULT_PARTNER_NAME = "vortex";
 
-export type ActivePartner = Pick<Partner, "id" | "targetDiscount" | "maxSubsidy" | "name"> | null;
+interface PartnerDiscountState {
+  lastQuoteTimestamp: Date | null;
+  difference: Big;
+}
+
+const partnerDiscountState = new Map<string, PartnerDiscountState>();
+
+function getDeltaD(): Big {
+  return new Big(config.quote.deltaDBasisPoints).div(100);
+}
+
+function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
+  return now.getTime() - timestamp.getTime() < config.quote.discountStateTimeoutMinutes * 60 * 1000;
+}
+
+export type ActivePartner = Pick<
+  Partner,
+  "id" | "targetDiscount" | "maxSubsidy" | "minDynamicDifference" | "maxDynamicDifference" | "name"
+> | null;
 
 export interface DiscountSubsidyPayload {
   actualOutputAmountDecimal: Big;
@@ -49,33 +68,87 @@ export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDi
  * @param oraclePrice - The oracle price (FIAT-USD format, e.g., BRL-USD)
  * @param targetDiscount - The target discount rate to apply
  * @param isOfframp - Whether this is an offramp (requires price inversion)
+ * @param partnerId - Partner ID for state management
  * @returns Expected output amount
  */
 export function calculateExpectedOutput(
   inputAmount: string,
   oraclePrice: Big,
   targetDiscount: number,
-  isOfframp: boolean
-): Big {
+  isOfframp: boolean,
+  partner: ActivePartner
+): { expectedOutput: Big; adjustedDifference: Big; adjustedTargetDiscount: Big } {
   const inputAmountBig = new Big(inputAmount);
 
   // For offramps, we need to invert the oracle price
   // Oracle price is FIAT-USD, so for offramps we want USD-FIAT
   const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
+  const adjustedDifference = getAdjustedDifference(partner);
+  // Apply target discount to the rate, adjusting first for dynamic discount variable.
+  const adjustedTargetDiscount = new Big(targetDiscount).plus(adjustedDifference);
+  const discountedRate = effectivePrice.mul(new Big(1).plus(adjustedTargetDiscount));
 
-  // Apply target discount to the rate
-  const discountedRate = effectivePrice.mul(new Big(1).plus(targetDiscount));
-  return inputAmountBig.mul(discountedRate);
+  return { adjustedDifference: adjustedDifference, adjustedTargetDiscount, expectedOutput: inputAmountBig.mul(discountedRate) };
 }
 
-/**
- * Calculate the subsidy amount by comparing expected vs actual output
- * Caps at maxSubsidy if configured
- * @param expectedOutput - The expected output amount
- * @param actualOutput - The actual output amount from nabla swap
- * @param maxSubsidy - Maximum subsidy rate (decimal)
- * @returns Subsidy amount as Big
- */
+export function getAdjustedDifference(partner?: ActivePartner): Big {
+  if (!partner?.id) {
+    return new Big(0);
+  }
+
+  const partnerState = partnerDiscountState.get(partner.id);
+  const now = new Date();
+
+  // Use partner's max caps if available, otherwise fall back to targetDiscount
+  const maxCap = partner.maxDynamicDifference ?? 0;
+
+  if (!partnerState) {
+    partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
+    return new Big(0);
+  }
+
+  if (!partnerState.lastQuoteTimestamp) {
+    partnerDiscountState.set(partner.id, { difference: partnerState.difference, lastQuoteTimestamp: now });
+    return partnerState.difference;
+  }
+
+  const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
+
+  if (!isYounger) {
+    const updatedDifference = partnerState.difference.plus(getDeltaD());
+    const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
+    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: now });
+    return clampedDifference;
+  } else {
+    // Return existing difference
+    return partnerState.difference;
+  }
+}
+export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner): void {
+  if (!partner?.id) {
+    return;
+  }
+
+  const partnerState = partnerDiscountState.get(partner.id);
+  const now = new Date();
+
+  if (!partnerState || !partnerState.lastQuoteTimestamp) {
+    // This state should not exist. Only in case of server shut down and loss of state.
+    return;
+  }
+
+  const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
+
+  if (isYounger) {
+    // Use partner's min caps if available, otherwise fall back to targetDiscount
+    const minCap = partner.minDynamicDifference ?? 0;
+
+    const updatedDifference = partnerState.difference.minus(getDeltaD());
+    const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
+    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: null });
+  }
+}
+
 export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
   // If actual output is already >= expected, no subsidy needed
   if (actualOutput.gte(expectedOutput)) {

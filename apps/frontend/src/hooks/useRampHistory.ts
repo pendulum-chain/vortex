@@ -2,17 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { GetRampHistoryTransaction } from "@vortexfi/shared";
 import { useAccount } from "wagmi";
 
-import { Transaction, TransactionDestination, TransactionStatus } from "../components/menus/HistoryMenu/types";
+import { Transaction } from "../components/menus/HistoryMenu/types";
 import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import { RampService } from "../services/api/ramp.service";
 
 function formatTransaction(tx: GetRampHistoryTransaction): Transaction {
   return {
     ...tx,
-    date: new Date(tx.date),
-    fromNetwork: tx.fromNetwork as TransactionDestination,
-    status: tx.status as TransactionStatus,
-    toNetwork: tx.toNetwork as TransactionDestination
+    date: new Date(tx.date)
   };
 }
 
@@ -29,7 +26,7 @@ export function useRampHistory(walletAddress?: string) {
 
       for (const address of addresses) {
         try {
-          const response = await RampService.getRampHistory(address);
+          const response = await RampService.getRampHistory(address, 100);
           const transactions = response.transactions.map(formatTransaction);
           allTransactions.push(...transactions);
         } catch (error) {
