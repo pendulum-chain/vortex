@@ -15,8 +15,15 @@ export const useStepBackNavigation = () => {
   const handleBack = () => {
     if (aveniaKycActor && aveniaState) {
       const childState = aveniaState.stateValue;
-      const childHandledStates = ["DocumentUpload", "LivenessCheck", "KYBFlow"];
-      if (childHandledStates.includes(childState as string)) {
+      if (childState === "DocumentUpload") {
+        aveniaKycActor.send({ type: "DOCUMENTS_BACK" });
+        return;
+      }
+      if (childState === "LivenessCheck") {
+        aveniaKycActor.send({ type: "GO_BACK" });
+        return;
+      }
+      if (typeof childState === "object" && childState !== null && "KYBFlow" in childState) {
         aveniaKycActor.send({ type: "GO_BACK" });
         return;
       }

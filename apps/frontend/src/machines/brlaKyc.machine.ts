@@ -210,6 +210,9 @@ export const aveniaKycMachine = setup({
     },
     LivenessCheck: {
       on: {
+        GO_BACK: {
+          target: "DocumentUpload"
+        },
         LIVENESS_DONE: {
           guard: ({ context }) => context.livenessCheckOpened === true,
           target: "Submit"
