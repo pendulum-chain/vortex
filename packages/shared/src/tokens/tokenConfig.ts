@@ -65,7 +65,7 @@ const EURC: StellarTokenConfig = {
   homeDomain: getHomeDomain("EURC"),
   maximumSubsidyAmountRaw: "15000000000000",
   memoEnabled: false, // 15 units
-  minWithdrawalAmount: "10000000000000",
+  minWithdrawalAmount: "20000000000000",
   pendulumCurrencyId: {
     Stellar: {
       AlphaNum4: {
