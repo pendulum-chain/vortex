@@ -19,7 +19,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     maxBuyAmountRaw: "10000000000000000",
     maxSellAmountRaw: "10000000000000000",
     minBuyAmountRaw: "1000000000000",
-    minSellAmountRaw: "10000000000000",
+    minSellAmountRaw: "25000000000000",
     pendulumRepresentative: {
       assetSymbol: "EURC",
       currency: FiatToken.EURC,
@@ -34,7 +34,6 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       decimals: 12,
       erc20WrapperAddress: "6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5"
     },
-    sellFeesBasisPoints: 25,
     stellarAsset: {
       code: {
         hex: "0x45555243",
@@ -78,8 +77,6 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       decimals: 12,
       erc20WrapperAddress: "6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj"
     },
-    sellFeesBasisPoints: 200,
-    sellFeesFixedComponent: 10,
     stellarAsset: {
       code: {
         hex: "0x41525300",
