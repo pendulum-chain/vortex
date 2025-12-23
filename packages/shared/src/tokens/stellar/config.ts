@@ -34,7 +34,6 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       decimals: 12,
       erc20WrapperAddress: "6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5"
     },
-    sellFeesBasisPoints: 25,
     stellarAsset: {
       code: {
         hex: "0x45555243",
@@ -78,8 +77,6 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       decimals: 12,
       erc20WrapperAddress: "6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj"
     },
-    sellFeesBasisPoints: 200,
-    sellFeesFixedComponent: 10,
     stellarAsset: {
       code: {
         hex: "0x41525300",
