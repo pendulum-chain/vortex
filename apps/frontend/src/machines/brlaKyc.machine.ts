@@ -115,10 +115,7 @@ export const aveniaKycMachine = setup({
           target: "SubaccountSetup"
         },
         GO_BACK: {
-          actions: assign({
-            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
-          }),
-          target: "Finish"
+          target: "DocumentUpload"
         }
       }
     },
@@ -139,10 +136,7 @@ export const aveniaKycMachine = setup({
           target: "KYBVerification"
         },
         GO_BACK: {
-          actions: assign({
-            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
-          }),
-          target: "Finish"
+          target: "#brlaKyc.FormFilling"
         }
       },
       states: {

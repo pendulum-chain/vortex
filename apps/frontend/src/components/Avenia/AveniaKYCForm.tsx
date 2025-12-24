@@ -16,8 +16,8 @@ export const AveniaKYCForm = () => {
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
+  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
@@ -156,4 +156,3 @@ export const AveniaKYCForm = () => {
     </>
   );
 };
-///

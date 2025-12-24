@@ -4,7 +4,7 @@ import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
-import { RampContext } from "./types";
+import { RampContext, SelectedAveniaData } from "./types";
 
 // Extended context types for child KYC machines
 export interface AveniaKycContext extends RampContext {
@@ -82,16 +82,21 @@ export const kycStateNode = {
         id: "aveniaKyc",
         input: ({ context }: { context: RampContext }): AveniaKycContext => ({
           ...context,
-          taxId: context.executionInput?.taxId!
+          kycFormData: context.kycFormData,
+          taxId: context.executionInput?.taxId || ""
         }),
         onDone: [
           {
-            guard: ({ event }: { event: any }) => !event.output.error,
+            actions: assign({
+              kycFormData: ({ event }) => (event.output as SelectedAveniaData).context.kycFormData
+            }),
+            guard: ({ event }) => !(event.output as SelectedAveniaData).context.error,
             target: "VerificationComplete"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) => event.output.error.message
+              initializeFailedMessage: ({ event }) =>
+                ((event.output as SelectedAveniaData).context.error as AveniaKycMachineError).message
             }),
             target: "#ramp.KycFailure"
           }

@@ -32,7 +32,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
         className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between"
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0.8, scale: 0.9 }}
         onSubmit={handleSubmit(onSubmit)}
         transition={{ duration: 0.3 }}
       >

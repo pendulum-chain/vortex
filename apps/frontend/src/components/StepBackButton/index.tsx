@@ -9,7 +9,11 @@ export const StepBackButton = () => {
   }
 
   return (
-    <button className={"btn-vortex-accent cursor-pointer px-3.5 py-1.5"} onClick={handleBack} type="button">
+    <button
+      className={"btn-vortex-accent cursor-pointer px-3.5 py-1.5 transition-transform duration-200 active:scale-95"}
+      onClick={handleBack}
+      type="button"
+    >
       <ArrowLeftIcon className="h-5 w-5" />
     </button>
   );

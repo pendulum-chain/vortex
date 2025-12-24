@@ -35,6 +35,7 @@ export interface RampContext {
   externalSessionId?: string;
   isSep24Redo?: boolean;
   errorMessage?: string;
+  kycFormData?: KYCFormData;
 }
 
 export type RampMachineEvents =
