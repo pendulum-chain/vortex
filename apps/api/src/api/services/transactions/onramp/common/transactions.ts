@@ -20,6 +20,7 @@ import Partner from "../../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { getZenlinkIdForAsset } from "../../../zenlink";
 import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 
@@ -91,6 +92,44 @@ export async function createFeeDistributionTransaction(quote: QuoteTicketAttribu
   }
 
   if (new Big(vortexFeeStablecoinRaw).gt(0)) {
+    // If PEN buyback is enabled, create swap transaction on Zenlink DEX
+    const vortexFeePenPercentage = quote.metadata.fees?.vortexFeePenPercentage;
+    if (vortexFeePenPercentage && vortexFeePenPercentage > 0) {
+      const vortexFeePenStablecoinRaw = new Big(vortexFeeStablecoinRaw).mul(vortexFeePenPercentage / 100).toFixed(0, 0);
+
+      const vortexFeeStablecoinAfterPenRaw = new Big(vortexFeeStablecoinRaw).minus(vortexFeePenStablecoinRaw).toFixed(0, 0);
+
+      // Choose a deadline incredibly far in the future to avoid transaction failure due to deadline expiration
+      const deadline = 1_000_000_000;
+      // Set to 1 to accept any amount of stablecoin in return
+      const amountOutMin = 1;
+
+      const penZenlinkId = getZenlinkIdForAsset("PEN");
+      const usdcZenlinkId = getZenlinkIdForAsset(stablecoinDetails.assetSymbol);
+
+      const recipient = {
+        Id: vortexPayoutAddress
+      };
+
+      if (penZenlinkId && usdcZenlinkId) {
+        transfers.push(
+          api.tx.zenlinkProtocol.swapExactAssetsForAssets(
+            vortexFeePenStablecoinRaw,
+            amountOutMin,
+            [usdcZenlinkId, penZenlinkId],
+            recipient,
+            deadline
+          )
+        );
+      } else {
+        logger.warn(`Could not find Zenlink IDs for 'PEN' or ${stablecoinDetails.assetSymbol}, skipping PEN buyback swap`);
+      }
+      transfers.push(
+        api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinAfterPenRaw)
+      );
+    } else {
+      transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
+    }
     transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
   }
 
