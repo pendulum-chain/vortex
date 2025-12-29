@@ -149,7 +149,6 @@ export async function createFeeDistributionTransaction(quote: QuoteTicketAttribu
  * @param account Account metadata
  * @param unsignedTxs Array to add transactions to
  * @param nextNonce Next available nonce
- * @param rampDirection The direction of the ramp ('onramp' or 'offramp')
  * @returns Updated nonce
  */
 export async function addFeeDistributionTransaction(
