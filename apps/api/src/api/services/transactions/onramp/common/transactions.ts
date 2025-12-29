@@ -2,182 +2,19 @@ import {
   AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
-  ApiManager,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
   encodeSubmittableExtrinsic,
-  getNetworkFromDestination,
   getNetworkId,
   Networks,
-  PENDULUM_USDC_ASSETHUB,
-  PENDULUM_USDC_AXL,
   PendulumTokenDetails,
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import logger from "../../../../../config/logger";
-import Partner from "../../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { getZenlinkIdForAsset } from "../../../zenlink";
 import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
-
-/**
- * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
- * @param quote The quote ticket
- * @returns The encoded transaction
- */
-export async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  // Get the API instance
-  const apiManager = ApiManager.getInstance();
-  const { api } = await apiManager.getApi("pendulum");
-
-  // Get the metadata with USD fee structure
-  const usdFeeStructure = quote.metadata.fees?.usd;
-  if (!usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
-    return null;
-  }
-
-  // Read fee components from metadata.usdFeeStructure
-  const networkFeeUSD = usdFeeStructure.network;
-  const vortexFeeUSD = usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
-
-  // Get payout addresses
-  const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex", rampType: quote.rampType }
-  });
-  if (!vortexPartner || !vortexPartner.payoutAddress) {
-    logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
-    return null;
-  }
-  const vortexPayoutAddress = vortexPartner.payoutAddress;
-
-  let partnerPayoutAddress = null;
-  if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
-    });
-    if (quotePartner && quotePartner.payoutAddress) {
-      partnerPayoutAddress = quotePartner.payoutAddress;
-    }
-  }
-
-  // Determine stablecoin based on destination network
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    logger.warn(`Invalid network for destination ${quote.to}, skipping fee distribution transaction`);
-    return null;
-  }
-
-  // Select stablecoin based on destination network
-  const isAssetHubDestination = toNetwork === Networks.AssetHub;
-  const stablecoinDetails = isAssetHubDestination ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
-  const stablecoinCurrencyId = stablecoinDetails.currencyId;
-  const stablecoinDecimals = stablecoinDetails.decimals;
-
-  // Convert USD fees to stablecoin raw units
-  const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
-  const vortexFeeStablecoinRaw = multiplyByPowerOfTen(vortexFeeUSD, stablecoinDecimals).toFixed(0, 0);
-  const partnerMarkupFeeStablecoinRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, stablecoinDecimals).toFixed(0, 0);
-
-  // Build transfers
-  const transfers = [];
-
-  if (new Big(networkFeeStablecoinRaw).gt(0)) {
-    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw));
-  }
-
-  if (new Big(vortexFeeStablecoinRaw).gt(0)) {
-    // If PEN buyback is enabled, create swap transaction on Zenlink DEX
-    const vortexFeePenPercentage = quote.metadata.fees?.vortexFeePenPercentage;
-    if (vortexFeePenPercentage && vortexFeePenPercentage > 0) {
-      const vortexFeePenStablecoinRaw = new Big(vortexFeeStablecoinRaw).mul(vortexFeePenPercentage / 100).toFixed(0, 0);
-
-      const vortexFeeStablecoinAfterPenRaw = new Big(vortexFeeStablecoinRaw).minus(vortexFeePenStablecoinRaw).toFixed(0, 0);
-
-      // Choose a deadline incredibly far in the future to avoid transaction failure due to deadline expiration
-      const deadline = 1_000_000_000;
-      // Set to 1 to accept any amount of stablecoin in return
-      const amountOutMin = 1;
-
-      const penZenlinkId = getZenlinkIdForAsset("PEN");
-      const usdcZenlinkId = getZenlinkIdForAsset(stablecoinDetails.assetSymbol);
-
-      const recipient = {
-        Id: vortexPayoutAddress
-      };
-
-      if (penZenlinkId && usdcZenlinkId) {
-        transfers.push(
-          api.tx.zenlinkProtocol.swapExactAssetsForAssets(
-            vortexFeePenStablecoinRaw,
-            amountOutMin,
-            [usdcZenlinkId, penZenlinkId],
-            recipient,
-            deadline
-          )
-        );
-      } else {
-        logger.warn(`Could not find Zenlink IDs for 'PEN' or ${stablecoinDetails.assetSymbol}, skipping PEN buyback swap`);
-      }
-      transfers.push(
-        api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinAfterPenRaw)
-      );
-    } else {
-      transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
-    }
-    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
-  }
-
-  if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
-    transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
-  }
-
-  // Create batch transaction
-  if (transfers.length > 0) {
-    const batchTx = api.tx.utility.batchAll(transfers);
-    // Create unsigned transaction (don't sign it here)
-    return encodeSubmittableExtrinsic(batchTx);
-  }
-
-  return null;
-}
-
-/**
- * Adds fee distribution transaction if available
- * @param quote Quote ticket
- * @param account Account metadata
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-export async function addFeeDistributionTransaction(
-  quote: QuoteTicketAttributes,
-  account: AccountMeta,
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  // Generate the fee distribution transaction
-  const feeDistributionTx = await createFeeDistributionTransaction(quote);
-
-  if (feeDistributionTx) {
-    unsignedTxs.push({
-      meta: {},
-      network: Networks.Pendulum,
-      nonce: nextNonce,
-      phase: "distributeFees",
-      signer: account.address,
-      txData: feeDistributionTx
-    });
-    nextNonce++;
-  }
-
-  return nextNonce;
-}
 
 /**
  * Creates Moonbeam to Pendulum XCM transactions
