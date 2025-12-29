@@ -1,4 +1,6 @@
-import { DestinationType, EPaymentMethod, Networks, PaymentMethod, RampDirection } from "../index";
+import { EPaymentMethod, PaymentMethod } from "../endpoints/payment-methods.endpoints";
+import { RampDirection } from "../types/rampDirection";
+import { DestinationType, Networks } from "./networks";
 
 const COUNTRY_TO_PAYMENT_METHOD: Record<string, PaymentMethod> = {
   AR: EPaymentMethod.CBU,
