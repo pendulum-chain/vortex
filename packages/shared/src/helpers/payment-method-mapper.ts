@@ -1,4 +1,4 @@
-import { DestinationType, Networks, PaymentMethod, RampDirection } from "../index";
+import { DestinationType, EPaymentMethod, Networks, PaymentMethod, RampDirection } from "../index";
 
 const COUNTRY_TO_PAYMENT_METHOD: Record<string, PaymentMethod> = {
   AR: "cbu",
@@ -48,7 +48,7 @@ export function deriveFromTo(
  */
 export function getPaymentMethodFromDestinations(from: DestinationType, to: DestinationType): PaymentMethod {
   // Check if 'from' is a payment method
-  const paymentMethods: PaymentMethod[] = ["pix", "sepa", "cbu"];
+  const paymentMethods: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU];
 
   if (paymentMethods.includes(from as PaymentMethod)) {
     return from as PaymentMethod;

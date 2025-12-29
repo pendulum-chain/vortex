@@ -1,5 +1,17 @@
-import { ReactNode, useCallback } from "react";
+import { ReactNode, useCallback, useMemo } from "react";
+import { RampSearchParams } from "../../types/searchParams";
 import { useRampComponentState } from "./useRampComponentState";
+
+/**
+ * Checks if all required URL parameters are present for automatic quote creation.
+ * When these params are present, the Quote selection form should be skipped.
+ *
+ * Required params: cryptoLocked, fiat, inputAmount, network, rampType
+ * These match the params checked in useRampUrlParams.ts for auto-creating a quote.
+ */
+export const hasAllQuoteRefreshParams = (params: RampSearchParams): boolean => {
+  return Boolean(params.cryptoLocked && params.fiat && params.inputAmount && params.network && params.rampType);
+};
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -10,8 +22,10 @@ export const useRampNavigation = (
 ) => {
   const { searchParams, rampState, rampMachineState } = useRampComponentState();
 
+  const shouldSkipQuoteForm = useMemo(() => searchParams.quoteId || hasAllQuoteRefreshParams(searchParams), [searchParams]);
+
   const getCurrentComponent = useCallback(() => {
-    if (searchParams.quoteId) {
+    if (shouldSkipQuoteForm) {
       return formComponent;
     }
 
@@ -33,7 +47,7 @@ export const useRampNavigation = (
 
     return formComponent;
   }, [
-    searchParams.quoteId,
+    shouldSkipQuoteForm,
     rampState,
     formComponent,
     successComponent,

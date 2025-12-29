@@ -1,4 +1,5 @@
 import { useRampComponentState } from "./useRampComponentState";
+import { hasAllQuoteRefreshParams } from "./useRampNavigation";
 
 /**
  * Hook to determine if the Quote component is currently displayed in the Ramp page.
@@ -7,8 +8,8 @@ import { useRampComponentState } from "./useRampComponentState";
 export const useIsQuoteComponentDisplayed = (): boolean => {
   const { searchParams, rampState, rampMachineState } = useRampComponentState();
 
-  // Quote is NOT shown if quoteId exists in URL (shows form instead)
-  if (searchParams.quoteId) {
+  // Quote is NOT shown if quoteId exists in URL or all quote refresh params are present
+  if (searchParams.quoteId || hasAllQuoteRefreshParams(searchParams)) {
     return false;
   }
 

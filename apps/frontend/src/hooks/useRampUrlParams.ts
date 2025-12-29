@@ -1,6 +1,7 @@
 import {
   AssetHubToken,
   DestinationType,
+  EPaymentMethod,
   EvmToken,
   FiatToken,
   Networks,
@@ -97,12 +98,12 @@ function getNetworkFromParam(param?: string): Networks | undefined {
 
 const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
-    ARS: "cbu",
-    BRL: "pix",
-    EUR: "sepa"
+    ARS: EPaymentMethod.CBU,
+    BRL: EPaymentMethod.PIX,
+    EUR: EPaymentMethod.SEPA
   };
 
-  return destinationMap[fiatToken] || "sepa";
+  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
 };
 
 interface QuoteParams {
