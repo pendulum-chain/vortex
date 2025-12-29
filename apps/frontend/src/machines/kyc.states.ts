@@ -1,5 +1,5 @@
 import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
-import { assign, sendTo } from "xstate";
+import { assign, DoneActorEvent, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
@@ -50,7 +50,8 @@ export interface StellarKycContext extends RampContext {
 // The "Verifying" state will invoke child actors based on the particula ramp.
 // The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
 export const kycStateNode = {
-  entry: ({ context }) => console.log("Entering KYC state node. RampContext kycFormData:", context.kycFormData),
+  entry: ({ context }: { context: RampContext }) =>
+    console.log("Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
     GO_BACK: {
@@ -92,15 +93,15 @@ export const kycStateNode = {
         onDone: [
           {
             actions: assign({
-              kycFormData: ({ event }) => (event.output as SelectedAveniaData).context.kycFormData
+              kycFormData: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => event.output.context.kycFormData
             }),
-            guard: ({ event }) => !(event.output as SelectedAveniaData).context.error,
+            guard: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => !event.output.context.error,
             target: "VerificationComplete"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) =>
-                ((event.output as SelectedAveniaData).context.error as AveniaKycMachineError).message
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) =>
+                (event.output.context.error as AveniaKycMachineError).message
             }),
             target: "#ramp.KycFailure"
           }

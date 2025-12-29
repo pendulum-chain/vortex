@@ -16,7 +16,7 @@ export const AveniaKYBVerifyCompany = () => {
     <AveniaKYBVerifyStep
       imageSrc={BusinessCheck}
       isVerificationStarted={companyVerificationStarted ?? false}
-      onCancel={() => aveniaKycActor.send({ type: "CANCEL" })}
+      onCancel={() => aveniaKycActor.send({ type: "GO_BACK" })}
       onVerificationDone={() => aveniaKycActor.send({ type: "KYB_COMPANY_DONE" })}
       onVerificationStart={() => aveniaKycActor.send({ type: "COMPANY_VERIFICATION_STARTED" })}
       titleKey="components.aveniaKYB.title.company"

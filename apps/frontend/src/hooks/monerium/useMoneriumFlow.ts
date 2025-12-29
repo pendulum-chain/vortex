@@ -18,8 +18,8 @@ export const useMoneriumFlow = () => {
       return;
     }
 
-    const urlParams = new URLSearchParams(routerState.location.search);
-    const code = urlParams.get("code");
+    const searchParams = routerState.location.search as { code?: string };
+    const code = searchParams?.code;
 
     if (code && moneriumState.stateValue === "Redirect") {
       codeProcessedRef.current = true;

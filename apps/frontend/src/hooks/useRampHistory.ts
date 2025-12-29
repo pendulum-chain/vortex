@@ -8,8 +8,17 @@ import { RampService } from "../services/api/ramp.service";
 
 function formatTransaction(tx: GetRampHistoryTransaction): Transaction {
   return {
-    ...tx,
-    date: new Date(tx.date)
+    date: new Date(tx.date),
+    externalTxExplorerLink: tx.externalTxExplorerLink,
+    externalTxHash: tx.externalTxHash,
+    from: tx.from,
+    fromAmount: tx.fromAmount,
+    fromCurrency: tx.fromCurrency,
+    id: tx.id,
+    status: tx.status,
+    to: tx.to,
+    toAmount: tx.toAmount,
+    toCurrency: tx.toCurrency
   };
 }
 
