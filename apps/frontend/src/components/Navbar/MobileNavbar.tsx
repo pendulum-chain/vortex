@@ -27,7 +27,7 @@ export const MobileNavbar = () => {
 
   return (
     <div ref={navbarRef}>
-      <div className={cn("relative z-50 px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-white" : "bg-blue-950")}>
+      <div className={cn("relative z-50 px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-transparent" : "bg-blue-950")}>
         <div className="flex items-center justify-between">
           {isWidgetMode ? (
             <LogoButton onClick={resetRampAndNavigateHome} />

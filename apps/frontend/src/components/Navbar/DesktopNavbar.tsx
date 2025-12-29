@@ -12,7 +12,7 @@ export const DesktopNavbar = () => {
   const params = useParams({ strict: false });
 
   return (
-    <div className={cn("relative px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-white" : "bg-blue-950")}>
+    <div className={cn("relative px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-transparent" : "bg-blue-950")}>
       <div className="mx-6 flex items-center justify-between sm:container sm:mx-auto">
         {isWidgetMode ? (
           <LogoButton onClick={resetRampAndNavigateHome} />

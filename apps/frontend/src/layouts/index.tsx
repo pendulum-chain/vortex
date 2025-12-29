@@ -46,11 +46,14 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
           <div className="container relative z-20 mx-auto px-4 pt-6 md:w-120">
             {isStepperHidden ? <div className="h-[54px]" /> : <Stepper className="mb-6" steps={steps} />}
           </div>
-          <div className="absolute top-1/8 right-0 z-10 h-[80vh] w-full bg-gradient-to-b from-white via-blue-100 to-white px-4 pt-6"></div>
+          <div className="absolute inset-0 z-0 h-full w-full overflow-hidden">
+            <div className="absolute inset-y-0 left-0 z-0 w-1/2 animate-float bg-gradient-to-b from-white via-blue-100 to-white"></div>
+            <div className="absolute inset-y-0 right-0 z-0 w-1/2 rotate-180 animate-float-delayed bg-gradient-to-b from-white via-blue-100 to-white"></div>
+          </div>
         </>
       )}
 
-      <div className="relative z-30">{main}</div>
+      <div className="relative z-30 pb-8">{main}</div>
       {!isWidgetMode && <Footer />}
     </>
   );

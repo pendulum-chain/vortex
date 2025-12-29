@@ -100,13 +100,19 @@ export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
 
   const kycFormSchema = createKycFormSchema(t);
 
+  console.log("useKYCForm: Received initialData:", initialData);
+
+  const defaultValues = {
+    ...getEnumInitialValues(ExtendedAveniaFieldOptions),
+    ...initialData,
+    [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
+    [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
+  };
+
+  console.log("useKYCForm: Calculated defaultValues:", defaultValues);
+
   const kycForm = useForm<KYCFormData>({
-    defaultValues: {
-      ...getEnumInitialValues(ExtendedAveniaFieldOptions),
-      ...initialData,
-      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
-      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
-    },
+    defaultValues: defaultValues,
     mode: "onBlur",
     resolver: yupResolver(kycFormSchema)
   });

@@ -16,7 +16,7 @@ export function WhyVortexApi() {
             </Trans>
           </h1>
 
-          <ul className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
+          <ul className="mx-8 mt-16 grid grid-cols-1 gap-8 sm:mx-0 sm:grid-cols-3">
             <li>
               <div className="relative flex items-center gap-2">
                 <CheckCircleIcon className="absolute left-[-32px] h-6 w-6 shrink-0 text-blue-400" />

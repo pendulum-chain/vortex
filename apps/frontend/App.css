@@ -254,6 +254,13 @@
     animation: appear 0.3s ease-out forwards;
   }
 
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  .animate-float-delayed {
+    animation: float-delayed 6s ease-in-out infinite;
+  }
+
   .animate-slide-up {
     animation: slideUp 0.3s ease-out forwards;
   }
@@ -298,5 +305,29 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-25px) scale(1.02);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float-delayed {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(35px) scale(1.02);
+  }
+  to {
+    transform: translateY(0) scale(1);
   }
 }

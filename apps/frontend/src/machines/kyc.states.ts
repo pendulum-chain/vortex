@@ -50,6 +50,7 @@ export interface StellarKycContext extends RampContext {
 // The "Verifying" state will invoke child actors based on the particula ramp.
 // The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
 export const kycStateNode = {
+  entry: ({ context }) => console.log("Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
     GO_BACK: {
@@ -80,11 +81,14 @@ export const kycStateNode = {
     Avenia: {
       invoke: {
         id: "aveniaKyc",
-        input: ({ context }: { context: RampContext }): AveniaKycContext => ({
-          ...context,
-          kycFormData: context.kycFormData,
-          taxId: context.executionInput?.taxId || ""
-        }),
+        input: ({ context }: { context: RampContext }): AveniaKycContext => {
+          console.log("Invoking Avenia KYC actor with RampContext input:", context);
+          return {
+            ...context,
+            kycFormData: context.kycFormData, // Pass kycFormData from parent RampContext to AveniaKycContext
+            taxId: context.executionInput?.taxId!
+          };
+        },
         onDone: [
           {
             actions: assign({

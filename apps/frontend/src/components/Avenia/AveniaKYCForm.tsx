@@ -17,6 +17,10 @@ export const AveniaKYCForm = () => {
   const quote = useQuote();
 
   const { t } = useTranslation();
+  console.log(
+    "AveniaKYCForm: kycFormData from aveniaState context before passing to useKYCForm:",
+    aveniaState?.context.kycFormData
+  );
   const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
