@@ -1,9 +1,9 @@
 import { DestinationType, EPaymentMethod, Networks, PaymentMethod, RampDirection } from "../index";
 
 const COUNTRY_TO_PAYMENT_METHOD: Record<string, PaymentMethod> = {
-  AR: "cbu",
-  BR: "pix",
-  EU: "sepa"
+  AR: EPaymentMethod.CBU,
+  BR: EPaymentMethod.PIX,
+  EU: EPaymentMethod.SEPA
 };
 
 /**
