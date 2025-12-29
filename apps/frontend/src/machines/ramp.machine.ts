@@ -25,6 +25,7 @@ const initialRampContext: RampContext = {
   callbackUrl: undefined,
   chainId: undefined,
   connectedWalletAddress: undefined,
+  enteredViaForm: undefined,
   errorMessage: undefined,
   executionInput: undefined,
   externalSessionId: undefined,
@@ -104,7 +105,7 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
   | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
@@ -309,6 +310,7 @@ export const rampMachine = setup({
         },
         SET_QUOTE: {
           actions: assign({
+            enteredViaForm: ({ event }) => event.enteredViaForm,
             quoteId: ({ event }) => event.quoteId,
             quoteLocked: ({ event }) => event.lock
           }),

@@ -9,8 +9,11 @@ export const useStepBackNavigation = () => {
   const aveniaState = useAveniaKycSelector();
 
   const rampState = useSelector(rampActor, state => state.value);
+  const enteredViaForm = useSelector(rampActor, state => state.context.enteredViaForm);
 
-  const shouldHide = rampState === "RampFollowUp" || rampState === "RedirectCallback";
+  // Hide back button when in RampFollowUp/RedirectCallback, or when in QuoteReady but user entered via URL (not form)
+  const shouldHide =
+    rampState === "RampFollowUp" || rampState === "RedirectCallback" || (rampState === "QuoteReady" && !enteredViaForm);
 
   const handleBack = () => {
     if (aveniaKycActor && aveniaState) {

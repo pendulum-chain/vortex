@@ -59,7 +59,7 @@ interface QuoteSubmitButtonProps {
 export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disabled, pending }) => {
   const { t } = useTranslation();
   const { getCurrentErrorMessage } = useRampValidation();
-  const rampDirection = useRampDirection(); // XSTATE: maybe move into state.
+  const rampDirection = useRampDirection();
   const rampActor = useRampActor();
   const router = useRouter();
   const params = useParams({ strict: false });
@@ -92,7 +92,8 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
       // Reset the ramp state to make sure that no pending state is loaded on the widget page
       // rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
 
-      rampActor.send({ lock: true, quoteId, type: "SET_QUOTE" });
+      // enteredViaForm: true allows the user to go back to the Quote form
+      rampActor.send({ enteredViaForm: true, lock: true, quoteId, type: "SET_QUOTE" });
 
       router.navigate({
         params,
