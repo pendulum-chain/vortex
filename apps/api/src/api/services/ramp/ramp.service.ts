@@ -31,10 +31,12 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
+import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -117,6 +119,13 @@ export class RampService extends BaseRampService {
       );
 
       await this.consumeQuote(quote.id, transaction);
+
+      let partner: ActivePartner = null;
+      if (quote.partnerId) {
+        partner = await Partner.findByPk(quote.partnerId);
+      }
+
+      handleQuoteConsumptionForDiscountState(partner);
 
       // Create initial ramp state
       const rampState = await this.createRampState({
@@ -514,8 +523,10 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    const rampStates = await RampState.findAll({
+  public async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+    const { rows: rampStates, count: totalCount } = await RampState.findAndCountAll({
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
       where: {
         [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
@@ -532,23 +543,61 @@ export class RampService extends BaseRampService {
     });
     const quoteMap = new Map(quotes.map(quote => [quote.id, quote]));
 
-    const transactions = rampStates.map(ramp => {
-      const quote = quoteMap.get(ramp.quoteId);
-      return {
-        date: ramp.createdAt.toISOString(),
-        fromAmount: quote?.inputAmount || "",
-        fromCurrency: quote?.inputCurrency || "",
-        fromNetwork: ramp.from,
-        id: ramp.id,
-        status: this.mapPhaseToStatus(ramp.currentPhase),
-        toAmount: quote?.outputAmount || "",
-        toCurrency: quote?.outputCurrency || "",
-        toNetwork: ramp.to,
-        type: ramp.type
-      };
-    });
+    const transactions = await Promise.all(
+      rampStates.map(async ramp => {
+        const quote = quoteMap.get(ramp.quoteId);
 
-    return { transactions };
+        if (!quote) {
+          throw new APIError({
+            message: `Associated quote not found for ramp ${ramp.id}`,
+            status: httpStatus.NOT_FOUND
+          });
+        }
+
+        // Get or compute final transaction hash and explorer link (similar to getRampStatus)
+        let transactionHash = ramp.state.finalTransactionHash;
+        let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
+
+        // If not stored yet and ramp is complete, compute and store them
+        if (
+          ramp.type === RampDirection.BUY &&
+          ramp.currentPhase === "complete" &&
+          (!transactionHash || !transactionExplorerLink)
+        ) {
+          const result = await getFinalTransactionHashForRamp(ramp, quote);
+          transactionHash = result.transactionHash;
+          transactionExplorerLink = result.transactionExplorerLink;
+
+          // Store the computed values in the state for future use
+          if (transactionHash && transactionExplorerLink) {
+            await ramp.update({
+              state: {
+                ...ramp.state,
+                finalTransactionExplorerLink: transactionExplorerLink,
+                finalTransactionHash: transactionHash
+              }
+            });
+          }
+        }
+
+        return {
+          date: ramp.createdAt.toISOString(),
+          externalTxExplorerLink: transactionExplorerLink,
+          externalTxHash: transactionHash,
+          from: ramp.from,
+          fromAmount: quote.inputAmount,
+          fromCurrency: quote.inputCurrency,
+          id: ramp.id,
+          status: this.mapPhaseToStatus(ramp.currentPhase),
+          to: ramp.to,
+          toAmount: quote.outputAmount,
+          toCurrency: quote.outputCurrency,
+          type: ramp.type
+        };
+      })
+    );
+
+    return { totalCount, transactions };
   }
 
   /**

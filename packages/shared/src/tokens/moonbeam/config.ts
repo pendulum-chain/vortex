@@ -41,8 +41,6 @@ export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails
     partnerUrl: "https://brla.digital", // 150,000 BRL. We put this as an artificial limit to avoid too high amounts.
     pendulumRepresentative: PENDULUM_BRLA_MOONBEAM,
     polygonErc20Address: "0xe6a537a407488807f0bbeb0038b79004f19dddfb", // 0.75 BRL
-    sellFeesBasisPoints: 0,
-    sellFeesFixedComponent: 0.75, // 0.75 BRL
     type: TokenType.Moonbeam
   }
 };

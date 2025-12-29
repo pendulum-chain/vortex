@@ -512,7 +512,13 @@
   "menus": {
     "history": {
       "noHistory": "Seu histórico de rampa aparecerá aqui.",
-      "title": "História"
+      "status": {
+        "complete": "Concluído",
+        "failed": "Falhou",
+        "pending": "Pendente"
+      },
+      "title": "História",
+      "viewInExplorer": "Ver no Explorer"
     },
     "settings": {
       "item": {
