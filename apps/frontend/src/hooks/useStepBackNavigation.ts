@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@xstate/react";
 import { useAveniaKycActor, useAveniaKycSelector, useRampActor } from "../contexts/rampState";
 

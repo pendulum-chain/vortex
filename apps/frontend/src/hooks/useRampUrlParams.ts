@@ -175,7 +175,7 @@ export const useRampUrlParams = (): RampUrlParams => {
   const urlParams = useMemo(() => {
     const rampDirectionParam = params.get(RampUrlParamsKeys.RAMP_TYPE)?.toUpperCase();
     const networkParam = params.get(RampUrlParamsKeys.NETWORK)?.toLowerCase();
-    const inputAmountParam = params.get("inputAmount");
+    const inputAmountParam = params.get(RampUrlParamsKeys.INPUT_AMOUNT);
     const partnerIdParam = params.get(RampUrlParamsKeys.PARTNER_ID);
     const apiKeyParam = params.get(RampUrlParamsKeys.API_KEY);
     const moneriumCode = params.get(RampUrlParamsKeys.MONERIUM_CODE)?.toLowerCase();
@@ -350,7 +350,7 @@ export const useSetRampUrlParams = () => {
     }
 
     hasInitialized.current = true;
-  }, []); // Empty dependency array means run once on mount
+  }, [isWidget]);
 
   useEffect(() => {
     // effect to read params when NOT in /widget path
