@@ -40,7 +40,7 @@ export function Hero() {
               <motion.a
                 animate="visible"
                 aria-label={t("pages.business.hero.contactUs")}
-                className="btn btn-vortex-primary w-1/2 xl:w-2/5"
+                className="btn btn-vortex-primary w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5"
                 custom={0.55}
                 href="mailto:business@vortexfinance.co"
                 initial={reducedMotion ? "visible" : "hidden"}
@@ -53,7 +53,7 @@ export function Hero() {
               <motion.a
                 animate="visible"
                 aria-label={t("pages.business.hero.readDocs")}
-                className="btn btn-vortex-primary-inverse w-1/2 xl:w-2/5"
+                className="btn btn-vortex-primary-inverse w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5"
                 custom={0.65}
                 href="https://api-docs.vortexfinance.co/"
                 initial={reducedMotion ? "visible" : "hidden"}
