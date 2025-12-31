@@ -200,6 +200,7 @@ export interface QuoteContext {
       total: string;
     };
     displayFiat?: QuoteFeeStructure;
+    vortexFeePenPercentage?: number;
   };
 
   subsidy?: {

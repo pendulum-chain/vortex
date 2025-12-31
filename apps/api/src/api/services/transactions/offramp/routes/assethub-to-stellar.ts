@@ -8,9 +8,9 @@ import {
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 import {
-  addFeeDistributionTransaction,
   createAssetHubSourceTransactions,
   createNablaSwapTransactions,
   createSpacewalkTransactions,

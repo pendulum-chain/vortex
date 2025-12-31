@@ -11,13 +11,9 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
-import {
-  addFeeDistributionTransaction,
-  addMoonbeamTransactions,
-  addNablaSwapTransactions,
-  addPendulumCleanupTx
-} from "../common/transactions";
+import { addMoonbeamTransactions, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
 import { AveniaOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateAveniaOnramp } from "../common/validation";
 

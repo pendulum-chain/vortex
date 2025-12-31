@@ -2,13 +2,9 @@ import { encodeSubmittableExtrinsic, getPendulumDetails, isEvmTokenDetails, Netw
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
-import {
-  addFeeDistributionTransaction,
-  createBRLTransactions,
-  createEvmSourceTransactions,
-  createNablaSwapTransactions
-} from "../common/transactions";
+import { createBRLTransactions, createEvmSourceTransactions, createNablaSwapTransactions } from "../common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
 
