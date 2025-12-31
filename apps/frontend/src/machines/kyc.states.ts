@@ -55,6 +55,7 @@ export const kycStateNode = {
   initial: "Deciding",
   on: {
     GO_BACK: {
+      actions: [assign({ rampSigningPhase: undefined })],
       target: "#ramp.QuoteReady"
     },
     SummaryConfirm: {
@@ -150,7 +151,7 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            actions: [{ type: "showSigningRejectedErrorToast" }],
+            actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
             guard: ({ event }: { event: any }) =>
               (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
             target: "#ramp.QuoteReady"

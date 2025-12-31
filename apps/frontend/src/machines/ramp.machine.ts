@@ -396,6 +396,7 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
+      entry: assign({ rampSigningPhase: undefined }),
       on: {
         // This is the main confirm button.
         CONFIRM: {
