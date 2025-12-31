@@ -3,6 +3,7 @@ import React from "react";
 import { Step, StepConnectorProps } from "./types";
 
 const getConnectorColor = (currentStatus: Step["status"], nextStatus: Step["status"]): string => {
+  if (currentStatus === "error") return "#f87171";
   if (currentStatus === "complete" && nextStatus === "complete") return "#22c55e";
   if (currentStatus === "complete") return "#3b82f6";
   return "#d1d5db";
@@ -16,7 +17,7 @@ export const StepConnector: React.FC<StepConnectorProps> = ({ currentStepStatus,
       <motion.div
         animate={{
           backgroundColor,
-          width: currentStepStatus === "complete" ? "100%" : 0
+          width: currentStepStatus === "complete" || currentStepStatus === "error" ? "100%" : 0
         }}
         className="absolute z-10 h-px"
         initial={{ backgroundColor, width: 0 }}

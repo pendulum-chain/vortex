@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import * as readline from "readline";
 import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";

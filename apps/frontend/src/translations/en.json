@@ -269,8 +269,48 @@
       "yourQuote": "Your quote"
     },
     "footer": {
+      "business": {
+        "contactSales": "Contact Sales",
+        "contactSupport": "Contact Support",
+        "title": "Business"
+      },
+      "buyCrypto": {
+        "buyDot": "Buy DOT",
+        "buyEth": "Buy ETH",
+        "buyUsdc": "Buy USDC",
+        "buyUsdt": "Buy USDT",
+        "title": "Buy Crypto"
+      },
+      "company": {
+        "anclap": "Anclap",
+        "avenia": "Avenia",
+        "careers": "Careers",
+        "licences": "Licences",
+        "monerium": "Monerium EMI ehf.",
+        "mykobo": "MyKobo sp. z.o.o.",
+        "privacyPolicy": "Privacy Policy",
+        "termsAndConditions": "Terms and Conditions",
+        "title": "Company"
+      },
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved.",
-      "poweredBy": "Powered by"
+      "docs": {
+        "apiDocs": "API Docs",
+        "stats": {
+          "metrics": "Metrics",
+          "status": "Status",
+          "title": "Stats"
+        },
+        "title": "Docs",
+        "vortexDocs": "Vortex Docs"
+      },
+      "poweredBy": "Powered by",
+      "sellCrypto": {
+        "sellDot": "Sell DOT",
+        "sellEth": "Sell ETH",
+        "sellUsdc": "Sell USDC",
+        "sellUsdt": "Sell USDT",
+        "title": "Sell Crypto"
+      }
     },
     "initialQuoteFailed": {
       "invalidParameters": "The passed parameters are invalid.",
@@ -305,9 +345,11 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
+      "business": "Business",
       "community": "Community",
       "docs": "Docs",
       "howItWorks": "How it works",
+      "individuals": "Individuals",
       "sellCrypto": "Sell Crypto",
       "solutions": "Solutions",
       "toggleMobileMenu": "Toggle mobile menu",
@@ -488,6 +530,66 @@
     }
   },
   "pages": {
+    "business": {
+      "hero": {
+        "comingSoon": "Coming Soon",
+        "contactUs": "Contact us",
+        "description": "With one simple, free integration Vortex handles KYC, compliance and settlement so you can stay focused on your product.",
+        "readDocs": "Read our docs",
+        "sdkIntegration": "SDK integration",
+        "title": "Enable your customers to buy and sell crypto instantly - directly <0>inside your APP</0>",
+        "titlePart1": "Enable your customers to buy and sell crypto instantly - directly",
+        "titlePart2": "inside your APP",
+        "widgetIntegration": "Widget integration"
+      },
+
+      "whyVortexApi": {
+        "cta": {
+          "npmPackage": "NPM package",
+          "readDocs": "Read API docs",
+          "title": "Obtain a quote. Register the ramp. Execute the transaction."
+        },
+        "features": {
+          "automated": {
+            "description": "Trigger settlements directly from custody wallets, multisigs or smart contracts",
+            "title": "Automated by design"
+          },
+          "liquidity": {
+            "description": "Tap into institutional grade rails to execute reliably, even at scale.",
+            "title": "Deep liquidity"
+          },
+          "pricing": {
+            "description": "Instant quotes. Linked to interbank/Binance FX liquidity. All in cost from 5-45 bps.",
+            "title": "True mid-market pricing"
+          }
+        },
+        "title1": "Need frequent crypto-fiat settlements?",
+        "title2": "Use <0>Vortex API</0>"
+      },
+      "whyVortexBusiness": {
+        "features": {
+          "compliance": {
+            "description": "KYC, AML and licensing. Handled by Vortex",
+            "title": "Compliance built in"
+          },
+          "fastPayouts": {
+            "description": "Fiat settlement in under 10 minutes",
+            "title": "Fast Payouts"
+          },
+          "newRevenueStream": {
+            "description": "Add your own markup and earn on every ramp",
+            "title": "New Revenue Stream"
+          },
+          "pricing": {
+            "description": "True mid-market FX. Users pay 0.5 - 0.85%",
+            "title": "Transparent pricing"
+          }
+        },
+        "subtitle": "Vortex hosted app is the fastest way to add a secure fiat on/offramp to your app.",
+        "title": "One integration.",
+        "title2": " Everything handled."
+      }
+    },
     "failure": {
       "contactedSupport": "Ready to try again?",
       "contactSupport": {
@@ -507,8 +609,269 @@
     },
     "main": {
       "hero": {
-        "title": "The <1>Lowest-Cost</1> On <br /> and Off Ramping <br /> Solution"
+        "buyAndSellCrypto": "Buy & Sell Crypto",
+        "partnerWithUs": "Partner with us",
+        "subtitle": "We keep things simple for you and get you the best rate out there.",
+        "title": "<0>Buy and Sell crypto.</0> <br /> Fast, secure, best rates."
       }
+    },
+    "privacyPolicy": {
+      "intro": "This Privacy Policy explains how Vortex (a brand operated by SatoshiPay Ltd) collects and processes personal data when you use our websites, apps, widgets, and related services (collectively, the \"Services\"). It replaces earlier versions and will be updated as our Services evolve.",
+      "lastUpdated": "Last updated: 28 September 2025",
+      "sections": {
+        "1": {
+          "contact": {
+            "label": "Contact:"
+          },
+          "controller": {
+            "label": "Controller:",
+            "name": "SatoshiPay Ltd (trading as \"Vortex\")"
+          },
+          "description": "SatoshiPay operates Vortex's web/app frontends and determines the purposes and means of processing personal data for the Services described here.",
+          "independentControllers": {
+            "label": "Independent controllers (local partners).",
+            "text": "For on-/off-ramping, we work with licensed local payment partners who act as independent controllers for their own onboarding (e.g., KYC/KYB), fiat accounts, and payouts. See Section 7 for the current partner list and links to their policies."
+          },
+          "processors": {
+            "label": "Processors.",
+            "text": "We also use vetted vendors (e.g., cloud hosting, analytics) as processors under data processing agreements. See Section 8."
+          },
+          "registeredOffice": {
+            "label": "Registered office:",
+            "line1": "Hill Dickinson Llp",
+            "line2": "The Broadgate Tower",
+            "line3": "20 Primrose Street",
+            "line4": "London, EC2A 2EW United Kingdom"
+          },
+          "title": "1. Who we are (Controller)"
+        },
+        "2": {
+          "intro": "This policy applies to:",
+          "items": {
+            "1": "vortexfinance.co and any sub-domains",
+            "2": "the Vortex Buy & Sell Crypto App and Vortex Widget",
+            "3": "API and backend services that we operate for partners"
+          },
+          "note": "It does not cover services operated solely by our local partners; they provide their own privacy notices and consents where required.",
+          "title": "2. Scope"
+        },
+        "3": {
+          "intro": "We collect the following categories of personal data, depending on how you use the Services:",
+          "items": {
+            "contactData": {
+              "label": "Contact data:",
+              "text": "e-mail address (for account/security verification and service communications)."
+            },
+            "cookiesData": {
+              "label": "Cookies/analytics data:",
+              "text": "only with your consent where required (see Section 11)."
+            },
+            "supportData": {
+              "label": "Support data:",
+              "text": "information you provide in requests (e.g., messages, attachments)."
+            },
+            "transactionData": {
+              "label": "Transaction metadata:",
+              "text": "order identifiers, corridor, asset type (e.g., stablecoin, token), amounts, and status. We do not custodially hold your private keys. On-chain transactions are public by design."
+            },
+            "usageData": {
+              "label": "Usage & device data:",
+              "text": "IP address, device/browser information, language, timestamps, referral URLs, and server logs."
+            }
+          },
+          "title": "3. What data we collect"
+        },
+        "4": {
+          "emailNote": {
+            "label": "E-mail addresses for service only.",
+            "text": "We store e-mail addresses to provide the Service (e.g., verification, transaction notifications, recognizing returning users across rails). This does not require marketing consent. To prevent misuse, we may send a verification e-mail to confirm control of the address."
+          },
+          "intro": "We process personal data for the following purposes and legal bases under the GDPR:",
+          "table": {
+            "headers": {
+              "examples": "Examples",
+              "legalBasis": "Legal basis",
+              "purpose": "Purpose"
+            },
+            "rows": {
+              "1": {
+                "examples": "initiate and complete conversions; display rates; route transactions",
+                "legalBasis": "Art. 6(1)(b) GDPR (contract)",
+                "purpose": "Provide and operate the Services"
+              },
+              "2": {
+                "examples": "verification e-mails; status updates; security alerts",
+                "legalBasis": "Art. 6(1)(b) (contract)",
+                "purpose": "Service communications & account verification"
+              },
+              "3": {
+                "examples": "rate-limiting, incident investigation, preventing misuse",
+                "legalBasis": "Art. 6(1)(f) (legitimate interests)",
+                "purpose": "Security & abuse prevention"
+              },
+              "4": {
+                "examples": "ensuring corridors operate within applicable rules; audit logs (we do not run KYC/KYB)",
+                "legalBasis": "Art. 6(1)(c) where applicable; otherwise 6(1)(f)",
+                "purpose": "Compliance support"
+              },
+              "5": {
+                "examples": "improving UX and performance",
+                "legalBasis": "Art. 6(1)(a) (consent)",
+                "purpose": "Analytics & quality (cookies/analytics)"
+              },
+              "6": {
+                "examples": "newsletters, product updates",
+                "legalBasis": "Art. 6(1)(a) (consent). We do not send marketing e-mails without explicit opt-in.",
+                "purpose": "Marketing (optional)"
+              }
+            }
+          },
+          "title": "4. Why we process data (purposes & legal bases)"
+        },
+        "5": {
+          "items": {
+            "1": "Directly from you (e.g., input fields, support).",
+            "2": "Automatically via your device/browser (IP, logs, cookies subject to consent).",
+            "3": "From local partners, limited to what is necessary to operate a corridor (e.g., transaction status). Partners conduct KYC/KYB on their systems under their policies."
+          },
+          "title": "5. Data sources"
+        },
+        "6": {
+          "intro": "We share personal data only as needed to run the Services:",
+          "items": {
+            "legal": {
+              "label": "For legal reasons:",
+              "text": "if required by law, regulation, or to protect rights, safety, and integrity of the Services."
+            },
+            "partners": {
+              "label": "With independent local partners (controllers):",
+              "text": "to execute on/off-ramp flows (e.g., payout confirmation). Partners use your data under their own policies and legal bases."
+            },
+            "processors": {
+              "label": "With processors:",
+              "text": "for hosting, analytics, communications, and support tooling under data processing agreements."
+            }
+          },
+          "noSale": "We do not sell personal data.",
+          "title": "6. Sharing and disclosures (overview)"
+        },
+        "7": {
+          "futurePartners": {
+            "label": "Future partners (blanket clause).",
+            "text": "To provide the Services, we may add or replace local partners. We will update this list upon material changes and, where legally required, notify users. Even if a partner is not yet listed here, personal data may be shared where necessary to provide the requested on-/off-ramp service."
+          },
+          "intro": "These partners operate in their own jurisdictions for fiat collection/payout and related compliance. They may collect additional data directly from you. Please review their terms and privacy notices.",
+          "partners": {
+            "anclap": {
+              "name": "ANCLAP (Argentina)",
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "avenia": {
+              "name": "BRLA Digital Ltda (Brazil)",
+              "privacy": {
+                "label": "Privacy:"
+              },
+              "terms": {
+                "label": "T/Cs:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "monerium": {
+              "name": "Monerium EMI ehf. (EEA/Iceland)",
+              "privacyTos": {
+                "label": "Privacy/ToS:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            },
+            "mykobo": {
+              "name": "MYKOBO UAB (EU/Lithuania)",
+              "privacy": {
+                "label": "Privacy:"
+              },
+              "terms": {
+                "label": "Terms:"
+              },
+              "website": {
+                "label": "Website:"
+              }
+            }
+          },
+          "title": "7. Local partners (independent controllers)"
+        },
+        "8": {
+          "internationalTransfers": {
+            "label": "International transfers.",
+            "text": "Where data is transferred outside the EEA/UK, we use EU Standard Contractual Clauses and/or rely on adequacy decisions (e.g., EU-US Data Privacy Framework) as applicable, plus supplementary safeguards."
+          },
+          "intro": "We use reputable vendors under data processing agreements (DPAs):",
+          "items": {
+            "analytics": {
+              "label": "Analytics (consent-based):",
+              "text": "Google Analytics."
+            },
+            "cloudHosting": {
+              "label": "Cloud hosting & infrastructure:",
+              "text": "Amazon Web Services (AWS), Render, Netlify, Supabase."
+            },
+            "support": {
+              "label": "Support/CRM:",
+              "text": "Pipedrive, Google sheets."
+            }
+          },
+          "title": "8. Processors (service providers)"
+        },
+        "9": {
+          "intro": "We retain personal data only as long as necessary for the purposes above:",
+          "items": {
+            "cookies": {
+              "label": "Analytics cookies:",
+              "text": "per your consent; retention managed by the provider."
+            },
+            "logs": {
+              "label": "Logs:",
+              "text": "typically up to 12 months, unless needed longer for security or legal reasons."
+            },
+            "serviceData": {
+              "label": "Service & security data:",
+              "text": "for the lifetime of the account/relationship and for a limited period thereafter (e.g., up to 24 months after last activity) for troubleshooting and compliance support."
+            }
+          },
+          "legalRetention": "We may retain information as required by law (e.g., tax/audit) or to establish, exercise, or defend legal claims.",
+          "title": "9. Retention"
+        },
+        "10": {
+          "complaint": "You also have the right to lodge a complaint with your local data protection authority.",
+          "text": "Under applicable law (e.g., GDPR/UK-GDPR), you may have rights to access, rectify, erase, restrict, or object to processing, and to data portability. You may withdraw consent at any time (for activities based on consent). To exercise rights, contact",
+          "title": "10. Your rights"
+        },
+        "11": {
+          "and": "and",
+          "googleAnalytics": "Google Analytics: IP anonymization is enabled. For opt-out tools and details, see",
+          "intro": "We use cookies for essential functionality and, with your consent, for analytics. You can manage cookie preferences in your browser or via our cookie banner.",
+          "title": "11. Cookies & analytics"
+        },
+        "12": {
+          "text": "We implement appropriate technical and organizational measures, including encryption in transit, access controls, and monitoring. No internet service can be 100% secure; we work to detect and mitigate incidents promptly.",
+          "title": "12. Security"
+        },
+        "13": {
+          "text": "We update this policy when necessary. The \"Last updated\" date and version appear at the top. For material changes (e.g., new categories of data, new purposes, or new key partners), we will provide a clear notice and, where required, seek consent.",
+          "title": "13. Changes to this policy (versioning)"
+        },
+        "14": {
+          "alternative": "If you prefer, you may also contact SatoshiPay Ltd at its registered address listed above.",
+          "text": "For questions about this policy, data requests, or complaints, contact:",
+          "title": "14. Contact"
+        }
+      },
+      "title": "Vortex Privacy Policy",
+      "version": "Version: 1.0"
     },
     "progress": {
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
@@ -586,6 +949,61 @@
         "tryLargerAmount": "Input amount too low. Please try a larger amount."
       }
     },
+    "termsAndConditions": {
+      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (\"FULL TERMS & CONDITIONS\") is available and applies in full.",
+      "lastUpdated": "Last updated: [●]",
+      "sections": {
+        "1": {
+          "text": "Vortex provides a technical routing and aggregation layer for fiat–crypto and crypto–fiat transactions. Vortex is not a bank, payment institution, exchange, broker, custodian, or wallet provider. Transactions are executed by regulated third-party partners.",
+          "title": "1. Nature of the Service"
+        },
+        "2": {
+          "text": "Vortex never holds customer fiat funds or crypto-assets. Funds move between the user's wallet/bank and the relevant third-party partner.",
+          "title": "2. No Custody"
+        },
+        "3": {
+          "text": "All required KYC, KYB, AML, and transaction monitoring is performed by Vortex's regulated partners and their compliance providers. If verification fails, transactions may be blocked or reversed.",
+          "title": "3. Compliance & KYC"
+        },
+        "4": {
+          "text": "All prices are shown as quotes and may change. A transaction is only final once confirmed by the payment partner and blockchain settlement.",
+          "title": "4. Quotes, Execution & Finality"
+        },
+        "5": {
+          "text": "Fees are displayed before confirmation. Third-party banking, blockchain, or processing fees may apply. Promotional pricing may change at any time.",
+          "title": "5. Fees & Pricing"
+        },
+        "6": {
+          "text": "Crypto-assets and exchange rates are volatile. Blockchain transactions are generally irreversible. Users bear full market, execution, and technical risk.",
+          "title": "6. Technology & Market Risk"
+        },
+        "7": {
+          "text": "Users are solely responsible for determining and paying any applicable taxes. Vortex does not provide tax advice.",
+          "title": "7. Taxes"
+        },
+        "8": {
+          "text": "Vortex may suspend or modify services at any time due to maintenance, compliance, liquidity, or regulatory requirements.",
+          "title": "8. Service Availability"
+        },
+        "9": {
+          "text": "The Services must not be used for illegal activity, sanctions violations, fraud, money laundering, terrorism financing, or other prohibited conduct.",
+          "title": "9. Prohibited Use"
+        },
+        "10": {
+          "text": "To the maximum extent permitted by law, Vortex is not liable for indirect, consequential, or market-related losses.",
+          "title": "10. Limitation of Liability"
+        },
+        "11": {
+          "text": "These Terms are governed by the laws of [●]. Disputes are subject to the courts or arbitration specified in the Full Terms.",
+          "title": "11. Governing Law"
+        },
+        "12": {
+          "text": "These Short Terms are supplemented by the Full Terms of Service, Privacy Policy, and Partner Terms, which apply in full in all cases.",
+          "title": "12. Full Terms"
+        }
+      },
+      "title": "Vortex Finance – Short Terms & Conditions"
+    },
     "widget": {
       "details": {
         "buttons": {
@@ -641,9 +1059,11 @@
       "title": "<0>Save</0> on exchange rate markups"
     },
     "gotQuestions": {
+      "contactSales": "Contact Sales",
       "contactUs": "Contact Us",
       "description": "Get in touch with us for answers and support.",
-      "title": "Got Questions? We're here to help!"
+      "getStartedTitle": "Get Started <br /> <0>with Vortex</0>",
+      "title": "Got Questions? <br /> We're here to help!"
     },
     "howToSell": {
       "steps": {
@@ -652,7 +1072,7 @@
         "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
         "4": "Wait for the funds to arrive in your account."
       },
-      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance"
+      "title": "How to sell crypto <1> with Vortex </1>"
     },
     "pitch": {
       "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market.",
@@ -664,9 +1084,15 @@
         "title": "Supported Networks"
       },
       "tokens": {
-        "description": "Trade these popular stablecoins",
+        "description": "Trade these popular crypto and fiat currencies",
         "title": "Supported Tokens"
       }
+    },
+    "popularTokensPartners": {
+      "circlePartner": "We're an official partner of Circle.",
+      "joinNetwork": "Join our network of official partners",
+      "pendulumPowered": "Our infrastructure is powered by Pendulum.",
+      "title": "Vortex everywhere"
     },
     "trustedBy": {
       "comingSoon": "Coming soon",
@@ -692,8 +1118,14 @@
           "title": "Smart KYC"
         }
       },
-      "title": "Buy & Sell Crypto the secure Way",
-      "withVortexFinance": "with <1>Vortex Finance</1>?"
+      "title": "Buy & Sell Crypto the secure way",
+      "withVortexFinance": "with <1>Vortex</1>?"
+    },
+    "whyVortexWidget": {
+      "copy": "copy",
+      "description": "Our offramp and onramp can be integrated into your app in 5 minutes - see for yourself.",
+      "getStarted": "Get started",
+      "title": "One small snippet of code to help you <0>scale your business quickly</0>"
     }
   },
   "toasts": {

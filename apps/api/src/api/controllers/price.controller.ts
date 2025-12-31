@@ -6,7 +6,8 @@ import {
   Networks,
   PriceProvider,
   RampDirection,
-  TransakPriceResponse
+  TransakPriceResponse,
+  VortexPriceResponse
 } from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
@@ -22,8 +23,9 @@ import { PriceQuery } from "../middlewares/validators";
 import * as alchemyPayService from "../services/alchemypay/alchemypay.service";
 import * as moonpayService from "../services/moonpay/moonpay.service";
 import * as transakService from "../services/transak/transak.service";
+import * as vortexService from "../services/vortex/vortex.service";
 
-type AnyPrice = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse;
+type AnyPrice = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse | VortexPriceResponse;
 
 type PriceHandler = (
   sourceCurrency: Currency,
@@ -39,7 +41,9 @@ const providerHandlers: Record<PriceProvider, PriceHandler> = {
   moonpay: async (sourceCurrency, targetCurrency, amount, direction) =>
     moonpayService.getPriceFor(sourceCurrency, targetCurrency, amount, direction),
   transak: async (sourceCurrency, targetCurrency, amount, direction, network) =>
-    transakService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network)
+    transakService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network),
+  vortex: async (sourceCurrency, targetCurrency, amount, direction, network) =>
+    vortexService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network)
 };
 
 const getPriceFromProvider = async (
@@ -146,7 +150,7 @@ export const getAllPricesBundled: RequestHandler<
   const target = targetCurrency as Currency;
   const networkParam = network && typeof network === "string" ? network : undefined;
 
-  const providersToQuery: PriceProvider[] = ["alchemypay", "moonpay", "transak"];
+  const providersToQuery: PriceProvider[] = ["alchemypay", "moonpay", "transak", "vortex"];
 
   const pricePromises = providersToQuery.map(async provider => {
     try {

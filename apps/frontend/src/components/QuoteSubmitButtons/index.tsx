@@ -1,4 +1,5 @@
 import { useAppKitAccount } from "@reown/appkit/react";
+import { useParams, useRouter } from "@tanstack/react-router";
 import { isNetworkEVM, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC, useMemo } from "react";
@@ -58,8 +59,10 @@ interface QuoteSubmitButtonProps {
 export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disabled, pending }) => {
   const { t } = useTranslation();
   const { getCurrentErrorMessage } = useRampValidation();
-  const rampDirection = useRampDirection(); // XSTATE: maybe move into state.
+  const rampDirection = useRampDirection();
   const rampActor = useRampActor();
+  const router = useRouter();
+  const params = useParams({ strict: false });
 
   const currentErrorMessage = getCurrentErrorMessage();
 
@@ -87,9 +90,16 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
 
     if (quoteId) {
       // Reset the ramp state to make sure that no pending state is loaded on the widget page
-      rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
+      // rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
 
-      window.location.href = `/widget?quoteId=${quoteId}`;
+      // enteredViaForm: true allows the user to go back to the Quote form
+      rampActor.send({ enteredViaForm: true, lock: true, quoteId, type: "SET_QUOTE" });
+
+      router.navigate({
+        params,
+        search: { quoteId },
+        to: "/{-$locale}/widget"
+      });
     }
   };
 

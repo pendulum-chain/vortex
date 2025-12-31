@@ -123,7 +123,7 @@ export const Offramp = () => {
         <LabeledInput htmlFor="fromAmount" Input={WithdrawNumericInput} label={t("components.swap.firstInputLabel.sell")} />
         <div className="my-10" />
         <LabeledInput htmlFor="toAmount" Input={ReceiveNumericInput} label={t("components.swap.secondInputLabel")} />
-        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
+        <p className="mb-6 text-red-800">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="mt-5 flex w-full items-center justify-center">
           <BenefitsList />

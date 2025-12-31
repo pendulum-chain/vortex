@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
@@ -15,8 +16,12 @@ export const AveniaKYCForm = () => {
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
+  console.log(
+    "AveniaKYCForm: kycFormData from aveniaState context before passing to useKYCForm:",
+    aveniaState?.context.kycFormData
+  );
+  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
@@ -145,9 +150,13 @@ export const AveniaKYCForm = () => {
 
   return (
     <>
-      <div className="relative">{content}</div>
+      <div className="relative">
+        <div className="mb-4">
+          <StepBackButton />
+        </div>
+        {content}
+      </div>
       <DetailsStepQuoteSummary quote={quote} />
     </>
   );
 };
-///

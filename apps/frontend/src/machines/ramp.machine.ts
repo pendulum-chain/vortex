@@ -25,6 +25,7 @@ const initialRampContext: RampContext = {
   callbackUrl: undefined,
   chainId: undefined,
   connectedWalletAddress: undefined,
+  enteredViaForm: undefined,
   errorMessage: undefined,
   executionInput: undefined,
   externalSessionId: undefined,
@@ -104,14 +105,15 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
   | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" };
+  | { type: "REFRESH_FAILED" }
+  | { type: "GO_BACK" };
 
 export const rampMachine = setup({
   actions: {
@@ -308,6 +310,7 @@ export const rampMachine = setup({
         },
         SET_QUOTE: {
           actions: assign({
+            enteredViaForm: ({ event }) => event.enteredViaForm,
             quoteId: ({ event }) => event.quoteId,
             quoteLocked: ({ event }) => event.lock
           }),
@@ -331,6 +334,9 @@ export const rampMachine = setup({
         src: "quoteRefresher"
       },
       on: {
+        GO_BACK: {
+          target: "KYC"
+        },
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
         },
@@ -390,6 +396,7 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
+      entry: assign({ rampSigningPhase: undefined }),
       on: {
         // This is the main confirm button.
         CONFIRM: {
@@ -402,6 +409,13 @@ export const rampMachine = setup({
           }),
           guard: ({ context }) => context.quoteId !== undefined,
           target: "RampRequested"
+        },
+        GO_BACK: {
+          actions: assign({
+            quote: undefined,
+            quoteId: undefined
+          }),
+          target: "Idle"
         }
       }
     },

@@ -42,13 +42,13 @@ export const MoneriumAssethubFormStep = ({ className }: MoneriumFormStepProps) =
             {t("components.moneriumFormStep.field.label")}
           </label>
           <Field
-            className={cn("w-full p-2", errors[id] && "border border-red-500")}
+            className={cn("w-full p-2", errors[id] && "border border-red-800")}
             id={id}
             register={register(id, {
               required: t("components.swap.validation.walletAddress.required")
             })}
           />
-          {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
+          {errorMessage && <span className="mt-1 text-red-800 text-sm">{errorMessage}</span>}
           <p className="mt-6 mb-4 text-gray-600 text-sm">
             <Trans
               components={{

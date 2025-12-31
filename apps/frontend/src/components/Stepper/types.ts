@@ -1,6 +1,6 @@
 export interface Step {
   title: string;
-  status: "complete" | "active" | "incomplete";
+  status: "complete" | "active" | "incomplete" | "error";
   Icon: React.ElementType;
 }
 

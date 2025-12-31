@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 interface HamburgerButtonProps {
@@ -11,14 +12,24 @@ export const HamburgerButton = ({ isOpen, onClick }: HamburgerButtonProps) => {
   return (
     <button
       aria-label={t("components.navbar.toggleMobileMenu")}
-      className={`flex h-8 w-8 flex-col items-center justify-center rounded-md transition-colors duration-200 sm:hidden ${
-        isOpen ? "bg-white" : "btn-vortex-secondary"
-      }`}
+      className="group flex h-10 w-10 cursor-pointer flex-col items-center justify-center rounded-md border-pink-600 bg-pink-600 transition-all duration-200 hover:border hover:bg-pink-50"
       onClick={onClick}
     >
-      <span className={`block h-0.5 w-5 transition-colors duration-200 ${isOpen ? "bg-blue-950" : "bg-white"}`} />
-      <span className={`mt-1 block h-0.5 w-5 transition-colors duration-200 ${isOpen ? "bg-blue-950" : "bg-white"}`} />
-      <span className={`mt-1 block h-0.5 w-5 transition-colors duration-200 ${isOpen ? "bg-blue-950" : "bg-white"}`} />
+      <motion.span
+        animate={isOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
+        className="block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
+      />
+      <motion.span
+        animate={isOpen ? { opacity: 0 } : { opacity: 1 }}
+        className="mt-1 block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
+      />
+      <motion.span
+        animate={isOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
+        className="mt-1 block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
+      />
     </button>
   );
 };
