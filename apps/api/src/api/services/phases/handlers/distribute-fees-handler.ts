@@ -7,7 +7,8 @@ import {
   decodeSubmittableExtrinsic,
   RampDirection,
   RampPhase,
-  TransactionTemporarilyBannedError
+  TransactionTemporarilyBannedError,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SUBSCAN_API_KEY } from "../../../../constants/constants";
@@ -76,20 +77,30 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const { api } = await this.apiManager.getApi("pendulum");
 
       const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
-      const transactionHash = decodedTx.hash.toHex();
 
-      // Persist the hash before submitting to avoid duplicate submissions
+      logger.info(`Submitting fee distribution transaction for ramp ${state.id}...`);
+      const actualTxHash = await this.submitTransaction(decodedTx, api);
+
+      logger.info(`Transaction included in block with hash ${actualTxHash}. Persisting hash...`);
+
+      // Persist the hash from the submission result
       const updatedState = await state.update({
         state: {
           ...state.state,
-          distributeFeeHash: transactionHash
+          distributeFeeHash: actualTxHash
         }
       });
 
-      logger.info(`Persisted hash ${transactionHash} for ramp ${state.id}. Submitting to RPC...`);
-      await this.submitTransaction(decodedTx, api);
+      // Wait for extrinsic to succeed using Subscan API
+      await waitUntilTrueWithTimeout(
+        async () => await this.checkExtrinsicStatus(actualTxHash),
+        10000, // Check every 10 seconds
+        180000 // Timeout after 3 minutes
+      ).catch(error => {
+        throw this.createRecoverableError(`Extrinsic status check failed for hash ${actualTxHash}: ${error.message}`);
+      });
 
-      logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}: ${transactionHash}`);
+      logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
       return this.transitionToNextPhase(updatedState, nextPhase);
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -102,14 +113,15 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * Submit a transaction to the blockchain
    * @param tx The transaction to submit
    * @param api The API instance
-   * @returns The transaction hash
+   * @returns The transaction hash when included in block
    */
-  private async submitTransaction(tx: SubmittableExtrinsic, api: ApiPromise): Promise<void> {
+  private async submitTransaction(tx: SubmittableExtrinsic, api: ApiPromise): Promise<string> {
     logger.debug(`Submitting transaction to Pendulum for ${this.getPhaseName()} phase`);
+
     return await new Promise((resolve, reject) =>
       tx
         .send((submissionResult: ISubmittableResult) => {
-          const { status, events, dispatchError } = submissionResult;
+          const { status, events, dispatchError, txHash } = submissionResult;
 
           // Try to find a 'system.ExtrinsicFailed' event
           const systemExtrinsicFailedEvent = events.find(
@@ -120,12 +132,13 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
           }
 
-          if (status.isFinalized) {
-            logger.info(`Transaction to distribute fees finalized: ${status.asFinalized.toString()}`);
-            resolve();
+          if (status.isInBlock) {
+            logger.info(`Transaction included in block: ${status.asInBlock.toString()}`);
+            resolve(txHash.toHex());
           }
         })
         .catch(error => {
+          console.log("Error submitting transaction to distribute fees:", error);
           // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
           if (error?.message.includes("1012:")) {
             reject(new TransactionTemporarilyBannedError("Transaction for transfer is temporarily banned."));
@@ -202,6 +215,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       }
 
       const data = await response.json();
+      logger.info("Subscan response data:", data);
 
       if (data.code !== 0) {
         logger.error(`Subscan API returned error code: ${data.code}, message: ${data.message}`);
