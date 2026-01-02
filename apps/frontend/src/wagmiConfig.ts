@@ -1,30 +1,39 @@
 import { arbitrum, avalanche, base, bsc, mainnet, polygon, polygonAmoy } from "@reown/appkit/networks";
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { http } from "wagmi";
+import { createSmartFallbackTransports } from "@vortexfi/shared";
 
 import { config } from "./config";
 
-// If we have an Alchemy API key, we can use it to fetch data from Polygon, otherwise use the default endpoint
-const transports = config.alchemyApiKey
+const chainRpcConfig = config.alchemyApiKey
   ? {
-      [arbitrum.id]: http(`https://arb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [avalanche.id]: http(`https://avax-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [bsc.id]: http(`https://bnb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
-      [polygonAmoy.id]: http("")
+      [arbitrum.id]: [`https://arb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`, "https://arb1.arbitrum.io/rpc"],
+      [avalanche.id]: [
+        `https://avax-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`,
+        "https://api.avax.network/ext/bc/C/rpc"
+      ],
+      [base.id]: [`https://base-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`, "https://mainnet.base.org"],
+      [bsc.id]: [`https://bnb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`, "https://bsc-dataseed.binance.org"],
+      [mainnet.id]: [`https://eth-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`, "https://eth.llamarpc.com"],
+      [polygon.id]: [`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`, "https://polygon-rpc.com"],
+      [polygonAmoy.id]: ["https://polygon-amoy.api.onfinality.io/public", "https://rpc-amoy.polygon.technology"]
     }
   : {
-      [arbitrum.id]: http(""),
-      [avalanche.id]: http(""),
-      [base.id]: http(""),
-      [bsc.id]: http(""),
-      [mainnet.id]: http(""),
-      [polygon.id]: http(""),
-      [polygonAmoy.id]: http("")
+      [arbitrum.id]: ["https://arb1.arbitrum.io/rpc"],
+      [avalanche.id]: ["https://api.avax.network/ext/bc/C/rpc"],
+      [base.id]: ["https://mainnet.base.org"],
+      [bsc.id]: ["https://bsc-dataseed.binance.org"],
+      [mainnet.id]: ["https://eth.llamarpc.com"],
+      [polygon.id]: ["https://polygon-rpc.com"],
+      [polygonAmoy.id]: ["https://polygon-amoy.api.onfinality.io/public", "https://rpc-amoy.polygon.technology"]
     };
+
+// Create smart fallback transports with automatic retry and RPC switching
+const transports = createSmartFallbackTransports(chainRpcConfig, {
+  initialDelayMs: 1000,
+  maxRetries: 3,
+  timeout: 10_000
+});
 
 const metadata = {
   description: "Vortex",
