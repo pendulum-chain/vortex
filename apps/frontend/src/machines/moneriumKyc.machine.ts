@@ -110,15 +110,20 @@ export const moneriumKycMachine = setup({
         id: "exchangeMoneriumCode",
         input: ({ context }) => context,
         onDone: {
-          actions: assign({
-            authToken: ({ event }) => event.output.authToken
-          }),
+          actions: [
+            assign({
+              authToken: ({ event }) => event.output.authToken
+            })
+          ],
           target: "Done"
         },
         onError: {
-          actions: assign({
-            error: () => new MoneriumKycMachineError("Error exchanging Monerium code", MoneriumKycMachineErrorType.UnknownError)
-          }),
+          actions: [
+            assign({
+              error: () =>
+                new MoneriumKycMachineError("Error exchanging Monerium code", MoneriumKycMachineErrorType.UnknownError)
+            })
+          ],
           target: "Failure"
         },
         src: "exchangeMoneriumCode"
