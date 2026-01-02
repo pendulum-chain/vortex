@@ -10,6 +10,7 @@ import {
   TransactionTemporarilyBannedError
 } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
+import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -46,6 +47,24 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Determine next phase
     const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
 
+    // Check if we already have a hash stored
+    const existingHash = state.state.distributeFeeHash || null;
+
+    if (existingHash) {
+      logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
+
+      const isSuccessful = await this.checkExtrinsicStatus(existingHash).catch(error => {
+        return this.createRecoverableError(`Failed to check extrinsic status:`);
+      });
+
+      if (isSuccessful) {
+        logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
+        return this.transitionToNextPhase(state, nextPhase);
+      } else {
+        logger.info(`Existing distribute fee transaction was not successful, will retry`);
+      }
+    }
+
     try {
       // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
       const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
@@ -57,15 +76,26 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const { api } = await this.apiManager.getApi("pendulum");
 
       const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
+      const transactionHash = decodedTx.hash.toHex();
+
+      // Persist the hash before submitting to avoid duplicate submissions
+      const updatedState = await state.update({
+        state: {
+          ...state.state,
+          distributeFeeHash: transactionHash
+        }
+      });
+
+      logger.info(`Persisted hash ${transactionHash} for ramp ${state.id}. Submitting to RPC...`);
       await this.submitTransaction(decodedTx, api);
-      logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}`);
+
+      logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}: ${transactionHash}`);
+      return this.transitionToNextPhase(updatedState, nextPhase);
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
     }
-
-    return this.transitionToNextPhase(state, nextPhase);
   }
 
   /**
@@ -143,6 +173,46 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
     logger.error(`Encountered some other error:  ${dispatchError?.toString()}, ${JSON.stringify(dispatchError)}`);
     return new Error(`Unknown error during ${extrinsicCalled}`);
+  }
+
+  /**
+   * Check extrinsic status using Subscan API
+   * @param extrinsicHash The extrinsic hash to check
+   * @returns Whether the extrinsic was successful
+   */
+  private async checkExtrinsicStatus(extrinsicHash: string): Promise<boolean> {
+    try {
+      const response = await fetch("https://pendulum.api.subscan.io/api/scan/extrinsic", {
+        body: JSON.stringify({
+          events_limit: 10,
+          hash: extrinsicHash,
+          hide_events: false
+        }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": SUBSCAN_API_KEY || ""
+        },
+        method: "POST"
+      });
+
+      if (!response.ok) {
+        logger.error(`Subscan API error: ${response.status} ${response.statusText}`);
+        // If we can't check, we can't assume anything about the extrinsic status.
+        throw new Error(`Subscan API returned non-OK status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.code !== 0) {
+        logger.error(`Subscan API returned error code: ${data.code}, message: ${data.message}`);
+        throw new Error(`Subscan API returned error code: ${data.code}, message: ${data.message}`);
+      }
+
+      return data.data?.success === true;
+    } catch (error) {
+      logger.error(`Error checking extrinsic status with Subscan: ${error}`);
+      throw new Error(`Failed to check extrinsic status: ${error}`);
+    }
   }
 }
 
