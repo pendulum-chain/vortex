@@ -152,6 +152,46 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   }
 
   /**
+   * Handle dispatch errors from extrinsic submissions
+   * @param api The API instance
+   * @param dispatchError The dispatch error
+   * @param systemExtrinsicFailedEvent The system extrinsic failed event record
+   * @param extrinsicCalled The name of the extrinsic that was called
+   * @returns An error with details about the failure
+   */
+  private async handleDispatchError(
+    api: ApiPromise,
+    dispatchError: DispatchError,
+    systemExtrinsicFailedEvent: EventRecord | undefined,
+    extrinsicCalled: string
+  ): Promise<Error> {
+    if (dispatchError?.isModule) {
+      const decoded = api.registry.findMetaError(dispatchError.asModule);
+      const { name, section, method } = decoded;
+
+      return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
+    }
+
+    if (systemExtrinsicFailedEvent) {
+      const eventName =
+        systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
+          ? systemExtrinsicFailedEvent?.event.data[0].toString()
+          : "Unknown";
+
+      const {
+        phase,
+        event: { method, section }
+      } = systemExtrinsicFailedEvent;
+      logger.error(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
+
+      return new Error(`Failed to dispatch ${extrinsicCalled}`);
+    }
+
+    logger.error(`Encountered some other error:  ${dispatchError?.toString()}, ${JSON.stringify(dispatchError)}`);
+    return new Error(`Unknown error during ${extrinsicCalled}`);
+  }
+
+  /**
    * Submit a transaction to the blockchain
    * @param tx The transaction to submit
    * @param api The API instance
@@ -164,6 +204,15 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       tx
         .send((submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError, txHash } = submissionResult;
+
+          // Try to find a 'system.ExtrinsicFailed' event
+          const systemExtrinsicFailedEvent = events.find(
+            record => record.event.section === "system" && record.event.method === "ExtrinsicFailed"
+          );
+
+          if (dispatchError) {
+            reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
+          }
 
           if (status.isBroadcast) {
             logger.info(`Transaction broadcasted: ${status.asBroadcast.toString()}`);
