@@ -10,7 +10,7 @@ import {
   StartRampRequest,
   StartRampResponse,
   UpdateRampRequest
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**
@@ -131,9 +131,18 @@ export class RampService {
   /**
    * Get transaction history for a wallet address
    * @param walletAddress The wallet address
+   * @param limit The maximum number of records to return
+   * @param offset The offset for pagination
    * @returns The transaction history
    */
-  static async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    return apiRequest<GetRampHistoryResponse>("get", `${this.BASE_PATH}/history/${walletAddress}`);
+  static async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+    const queryParams = new URLSearchParams();
+    if (limit) queryParams.append("limit", limit.toString());
+    if (offset) queryParams.append("offset", offset.toString());
+
+    const queryString = queryParams.toString();
+    const url = `${this.BASE_PATH}/history/${walletAddress}${queryString ? `?${queryString}` : ""}`;
+
+    return apiRequest<GetRampHistoryResponse>("get", url);
   }
 }

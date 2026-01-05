@@ -49,6 +49,12 @@ interface Config {
   swap: {
     deadlineMinutes: number;
   };
+  quote: {
+    discountStateTimeoutMinutes: number;
+    deltaDBasisPoints: number;
+  };
+  supabaseKey: string | undefined;
+  supabaseUrl: string | undefined;
 }
 
 export const config: Config = {
@@ -82,6 +88,10 @@ export const config: Config = {
       partnerApiKey: process.env.TRANSAK_API_KEY
     }
   },
+  quote: {
+    deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
+    discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
+  },
   rateLimitMaxRequests: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
@@ -94,6 +104,8 @@ export const config: Config = {
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
+  supabaseKey: process.env.SUPABASE_SERVICE_KEY,
+  supabaseUrl: process.env.SUPABASE_URL,
   swap: {
     deadlineMinutes: 60 * 24 * 7 // 1 week
   }

@@ -1,0 +1,83 @@
+import { useSelector } from "@xstate/react";
+import { useTranslation } from "react-i18next";
+import { useRampActor } from "../../../contexts/rampState";
+import { cn } from "../../../helpers/cn";
+
+interface ErrorStepProps {
+  className?: string;
+}
+
+function convertCommonErrorToMessage(error: string, t: (key: string) => string): string {
+  if (error.includes("Network Error")) {
+    return t("components.errorStep.errors.networkError");
+  } else if (error.includes("Invalid transaction parameters")) {
+    return t("components.errorStep.errors.invalidTransactionParameters");
+  } else if (error.includes("Server error")) {
+    return t("components.errorStep.errors.serverError");
+  } else if (error.includes("Quote has expired")) {
+    return t("components.errorStep.errors.quoteExpired");
+  } else if (error.includes("Insufficient funds")) {
+    return t("components.errorStep.errors.insufficientFunds");
+  } else {
+    return error; // Return the original error message if no common patterns matched
+  }
+}
+
+export function ErrorStep({ className }: ErrorStepProps) {
+  const { t } = useTranslation();
+  const rampActor = useRampActor();
+
+  const { apiKey, errorMessage } = useSelector(rampActor, state => ({
+    apiKey: state.context.apiKey,
+    errorMessage: state.context.errorMessage
+  }));
+
+  const handleRetry = () => {
+    rampActor.send({ type: "RESET_RAMP" });
+  };
+
+  return (
+    <div className="flex grow-1 flex-col justify-center">
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <svg
+              className="h-8 w-8 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <h2 className="font-semibold text-gray-900 text-xl">{t("components.errorStep.title")}</h2>
+        </div>
+
+        <div className="rounded-lg bg-red-50 p-4">
+          <p className="text-center text-red-800 text-sm">
+            {errorMessage ? convertCommonErrorToMessage(errorMessage, t) : t("components.errorStep.defaultMessage")}
+          </p>
+        </div>
+
+        <div className="mb-4 grid grid-cols-1 gap-4">
+          {apiKey ? (
+            <div className={cn("w-full text-center", className)}>{t("components.errorStep.backToPartner")}</div>
+          ) : (
+            <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleRetry}>
+              {t("components.errorStep.retryButton")}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

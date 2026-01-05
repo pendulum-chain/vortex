@@ -1,4 +1,10 @@
-import { AXL_USDC_MOONBEAM, ERC20_EURE_POLYGON, ERC20_EURE_POLYGON_DECIMALS, Networks, RampDirection } from "@packages/shared";
+import {
+  AXL_USDC_MOONBEAM,
+  ERC20_EURE_POLYGON_DECIMALS,
+  ERC20_EURE_POLYGON_V1,
+  Networks,
+  RampDirection
+} from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
@@ -30,7 +36,7 @@ export class OnRampSquidRouterEurToAssetHubEngine extends BaseSquidRouterEngine 
       data: {
         amountRaw: moneriumMint.outputAmountRaw,
         fromNetwork: Networks.Polygon,
-        fromToken: ERC20_EURE_POLYGON,
+        fromToken: ERC20_EURE_POLYGON_V1,
         inputAmountDecimal: moneriumMint.outputAmountDecimal,
         inputAmountRaw: moneriumMint.outputAmountRaw,
         outputDecimals: ERC20_EURE_POLYGON_DECIMALS,

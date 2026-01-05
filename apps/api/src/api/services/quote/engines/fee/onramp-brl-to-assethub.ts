@@ -1,4 +1,4 @@
-import { getNetworkFromDestination, RampCurrency, RampDirection } from "@packages/shared";
+import { getNetworkFromDestination, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
@@ -10,7 +10,10 @@ export class OnRampAveniaToAssethubFeeEngine extends BaseFeeEngine {
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.aveniaMint) {
-      throw new Error("OnRampFeeAveniaToAssethubEngine requires aveniaMint in context");
+      throw new Error("OnRampAveniaToAssethubFeeEngine requires aveniaMint in context");
+    }
+    if (!ctx.aveniaTransfer) {
+      throw new Error("OnRampAveniaToAssethubFeeEngine requires aveniaTransfer in context");
     }
   }
 
@@ -18,13 +21,14 @@ export class OnRampAveniaToAssethubFeeEngine extends BaseFeeEngine {
     const { request } = ctx;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
-    const computedAnchorFee = ctx.aveniaMint!.fee.toString();
+    const computedAnchorFee = ctx.aveniaMint!.fee.plus(ctx.aveniaTransfer!.fee).toString();
+
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
     const anchorFeeCurrency = ctx.aveniaMint!.currency as RampCurrency;
 
     const toNetwork = getNetworkFromDestination(request.to);
     if (!toNetwork) {
-      throw new Error(`OnRampFeeAveniaToAssethubEngine: invalid network for destination: ${request.to}`);
+      throw new Error(`OnRampAveniaToAssethubFeeEngine: invalid network for destination: ${request.to}`);
     }
 
     const networkFeeUsd = "0.03"; // FIXME We don't have a good estimate for XCM fees yet

@@ -9,7 +9,7 @@ import {
   isEvmTokenDetails,
   Networks,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import {
@@ -56,10 +56,10 @@ export async function prepareAveniaToEvmOnrampTransactions({
   let moonbeamNonce = 0;
 
   // Moonbeam: Initial BRLA transfer to Pendulum
-  if (!quote.metadata.aveniaMint?.outputAmountRaw) {
-    throw new Error("Missing aveniaMint amountOutRaw in quote metadata");
+  if (!quote.metadata.aveniaTransfer?.outputAmountRaw) {
+    throw new Error("Missing aveniaTransfer amountOutRaw in quote metadata");
   }
-  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaMint.outputAmountRaw;
+  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
 
   moonbeamNonce = await addMoonbeamTransactions(
     {
@@ -100,7 +100,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     outputTokenPendulumDetails
   });
 
-  if (!quote.metadata.pendulumToMoonbeamXcm?.inputAmountRaw || !quote.metadata.moonbeamToEvm?.outputAmountRaw) {
+  if (!quote.metadata.pendulumToMoonbeamXcm?.inputAmountRaw || !quote.metadata.moonbeamToEvm?.inputAmountRaw) {
     throw new Error("Missing bridge output amount for Moonbeam");
   }
 
@@ -136,7 +136,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain,
     moonbeamEphemeralStartingNonce: moonbeamNonce,
-    rawAmount: quote.metadata.moonbeamToEvm.outputAmountRaw,
+    rawAmount: quote.metadata.moonbeamToEvm.inputAmountRaw,
     toNetwork: outputTokenDetails.network,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });

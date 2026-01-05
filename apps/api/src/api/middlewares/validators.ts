@@ -17,7 +17,7 @@ import {
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
@@ -387,6 +387,35 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
+  }
+
+  next();
+};
+
+export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (
+  req,
+  res,
+  next
+) => {
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+
+  if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
+    return;
+  }
+
+  if (rampType === RampDirection.BUY && !from) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingFromField });
+    return;
+  }
+
+  if (rampType === RampDirection.SELL && !to) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
   }
 
   next();

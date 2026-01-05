@@ -1,12 +1,12 @@
-import { Networks } from "@packages/shared";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { Networks } from "@vortexfi/shared";
 import { APINotInitializedError } from "../errors";
 import type { NetworkConfig, VortexSdkConfig } from "../types";
 
 const DEFAULT_NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
-    wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
+    wsUrl: "wss://dot-rpc.stakeworld.io/assethub"
   },
   {
     name: "pendulum",
@@ -14,7 +14,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "moonbeam",
-    wsUrl: "wss://moonbeam.public.blastapi.io"
+    wsUrl: "wss://wss.api.moonbeam.network"
   },
   {
     name: "hydration",

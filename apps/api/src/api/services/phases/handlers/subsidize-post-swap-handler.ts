@@ -1,5 +1,12 @@
-import { ApiManager, AssetHubToken, FiatToken, RampDirection, RampPhase } from "@packages/shared";
-import { nativeToDecimal } from "@packages/shared/src/helpers/parseNumbers";
+import {
+  ApiManager,
+  AssetHubToken,
+  FiatToken,
+  nativeToDecimal,
+  RampDirection,
+  RampPhase,
+  waitUntilTrueWithTimeout
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -50,32 +57,71 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
 
-      // Add the (potential) subsidy amount to the expected swap output to get the target balance
-      const expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
+      // Add a default/base expected output amount from the swap
+      let expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw).plus(
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
+      // Try to find the required amount to subsidize on the quote metadata
+      if (state.type === RampDirection.BUY) {
+        if (quote.metadata.pendulumToHydrationXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToHydrationXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToAssethubXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToAssethubXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        }
+      } else {
+        if (quote.metadata.pendulumToMoonbeamXcm) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
+        } else if (quote.metadata.pendulumToStellar) {
+          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToStellar.inputAmountRaw);
+        }
+      }
+
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+
+      const didBalanceReachExpected = async () => {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          quote.metadata.nablaSwap?.outputCurrencyId
+        );
+
+        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+        return requiredAmount.lte(Big(0));
+      };
+
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         logger.info(
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
         const fundingAccountKeypair = getFundingAccount();
-        const txHash = await pendulumNode.api.tx.tokens
-          .transfer(substrateEphemeralAddress, quote.metadata.nablaSwap.outputCurrencyId, requiredAmount.toFixed(0, 0))
-          .signAndSend(fundingAccountKeypair);
+        const result = await apiManager.executeApiCall(
+          api =>
+            api.tx.tokens.transfer(
+              substrateEphemeralAddress,
+              quote.metadata.nablaSwap?.outputCurrencyId,
+              requiredAmount.toFixed(0, 0)
+            ),
+          fundingAccountKeypair,
+          networkName
+        );
 
         const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwap.outputDecimals).toNumber();
         const subsidyToken = quote.metadata.nablaSwap.outputCurrency as unknown as SubsidyToken;
 
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, txHash.toString());
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccountKeypair.address, result.hash);
+
+        // Wait for the balance to update
+        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap:", e);
-      throw new Error("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
+      throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
     }
   }
 

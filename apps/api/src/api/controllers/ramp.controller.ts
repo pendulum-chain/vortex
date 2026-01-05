@@ -10,7 +10,7 @@ import {
   StartRampResponse,
   UpdateRampRequest,
   UpdateRampResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -183,12 +183,19 @@ export const getErrorLogs = async (
  * @public
  */
 export const getRampHistory = async (
-  req: Request<GetRampHistoryRequest>,
+  req: Request<GetRampHistoryRequest, unknown, unknown, { limit?: string; offset?: string }>,
   res: Response<GetRampHistoryResponse>,
   next: NextFunction
 ): Promise<void> => {
   try {
     const { walletAddress } = req.params;
+    let limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const offset = req.query.offset ? parseInt(req.query.offset) : undefined;
+
+    // Cap the limit to a maximum of 100
+    if (limit > 100) {
+      limit = 100;
+    }
 
     if (!walletAddress) {
       throw new APIError({
@@ -197,7 +204,7 @@ export const getRampHistory = async (
       });
     }
 
-    const history = await rampService.getRampHistory(walletAddress);
+    const history = await rampService.getRampHistory(walletAddress, limit, offset);
     res.status(httpStatus.OK).json(history);
   } catch (error) {
     logger.error("Error getting transaction history:", error);

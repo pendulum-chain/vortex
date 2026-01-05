@@ -1,7 +1,8 @@
 {
   "catalog": {
+    "@graphql-typed-document-node/core": "^3.2.0",
     "@pendulum-chain/api": "^1.1.1",
-    "@pendulum-chain/api-solang": "^0.7.2",
+    "@pendulum-chain/api-solang": "^0.7.3",
     "@pendulum-chain/types": "^1.1.1",
     "@polkadot/api": "^16.4.6",
     "@polkadot/api-augment": "^16.4.6",
@@ -19,26 +20,38 @@
     "@polkadot/types-known": "^16.4.6",
     "@polkadot/util": "^13.5.6",
     "@polkadot/util-crypto": "^13.5.6",
+    "@scure/bip39": "2.0.1",
+    "@storybook/react": "^9.1.16",
     "@types/big.js": "^6.0.2",
-    "@types/bun": "latest",
     "@types/node": "^22.7.5",
-    "@wagmi/core": "^2.21.2",
+    "@vortexfi/shared": "workspace:*",
+    "@wagmi/core": "^2.22.1",
+    "@walletconnect/types": "^2.23.0",
+    "@walletconnect/utils": "^2.23.0",
+    "axios": "1.9.0",
+    "bcrypt": "5.1.1",
     "big.js": "^7.0.1",
+    "clsx": "^1.2.1",
+    "concurrently": "^9.1.2",
+    "framer-motion": "^12.23.24",
     "prettier": "^2.8.4",
     "stellar-sdk": "^13.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.2",
     "viem": "^2.37.9",
-    "wagmi": "^2.17.5"
+    "wagmi": "^2.19.1",
+    "web3": "4.16.0",
+    "winston": "3.18.3"
   },
   "dependencies": {
-    "big.js": "^6.2.1",
+    "big.js": "^7.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
-    "concurrently": "^9.1.2",
+    "@types/bun": "^1.3.1",
+    "concurrently": "catalog:",
     "typescript": "catalog:"
   },
   "lint-staged": {
@@ -71,13 +84,15 @@
     "viem": "^2.37.9",
     "wagmi": "^2.17.5"
   },
-  "packageManager": "bun@1.2.19",
+  "packageManager": "bun@1.3.1",
   "private": true,
   "scripts": {
-    "build": "bun run build:frontend && bun run build:backend",
+    "build": "bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:backend",
     "build:backend": "bun run --cwd apps/api build",
     "build:frontend": "bun run --cwd apps/frontend build",
-    "dev": "concurrently -n 'backend,frontend' -c '#007755,#2f6da3,#550077' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
+    "build:sdk": "bun run --cwd packages/sdk build",
+    "build:shared": "bun run --cwd packages/shared build",
+    "dev": "concurrently -n 'shared,backend,frontend' -c '#ffa500,#007755,#2f6da3' 'cd packages/shared && bun run dev' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
     "dev:backend": "bun run --cwd apps/api dev",
     "dev:frontend": "bun run --cwd apps/frontend dev",
     "dev:rebalancer": "bun run --cwd apps/rebalancer dev",

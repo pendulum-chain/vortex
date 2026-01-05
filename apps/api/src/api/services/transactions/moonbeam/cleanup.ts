@@ -1,6 +1,6 @@
-import { ApiManager } from "@packages/shared";
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
+import { ApiManager } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 

@@ -1,4 +1,4 @@
-import { BundledPriceResult, PriceProvider } from "@packages/shared";
+import { BundledPriceResult, PriceProvider } from "@vortexfi/shared";
 import { FeeProviderRow } from "../../FeeProviderRow";
 import { priceProviders } from "../../priceProviders";
 import { useFeeComparisonData } from "../hooks/useFeeComparisonData";

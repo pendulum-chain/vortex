@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, isOnChainToken, OnChainToken, OnChainTokenDetails } from "@packages/shared";
+import { FiatToken, isFiatToken, isOnChainToken, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";

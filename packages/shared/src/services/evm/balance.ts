@@ -1,6 +1,6 @@
-import { EvmAddress, EvmNetworks } from "@packages/shared";
 import Big from "big.js";
 import erc20ABI from "../../contracts/ERC20";
+import { EvmAddress, EvmNetworks } from "../../index";
 import { EvmClientManager } from "../evm/clientManager";
 
 export enum BalanceCheckErrorType {
@@ -53,7 +53,8 @@ export function checkEvmBalancePeriodically(
 
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
-    const intervalId = setInterval(async () => {
+
+    const checkBalance = async () => {
       try {
         const result = await evmClientManager.readContractWithRetry<string>(chain, {
           abi: erc20ABI,
@@ -66,14 +67,14 @@ export function checkEvmBalancePeriodically(
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 
         if (someBalanceBig.gte(amountDesiredUnitsBig)) {
-          clearInterval(intervalId);
           resolve(someBalanceBig);
         } else if (Date.now() - startTime > timeoutMs) {
-          clearInterval(intervalId);
           reject(new BalanceCheckError(BalanceCheckErrorType.Timeout, `Balance did not meet the limit within ${timeoutMs}ms`));
+        } else {
+          // Schedule next check AFTER this one completes to prevent overlapping calls
+          setTimeout(checkBalance, intervalMs);
         }
       } catch (err: unknown) {
-        clearInterval(intervalId);
         reject(
           new BalanceCheckError(
             BalanceCheckErrorType.ReadFailure,
@@ -81,6 +82,9 @@ export function checkEvmBalancePeriodically(
           )
         );
       }
-    }, intervalMs);
+    };
+
+    // Start the first check immediately
+    checkBalance();
   });
 }

@@ -8,7 +8,7 @@ import {
   isNetworkEVM,
   Networks,
   SupportedCryptocurrencyDetails
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
 
 const supportedNetworks = Object.values(Networks)

@@ -1,4 +1,4 @@
-import { RampCurrency, RampDirection } from "@packages/shared";
+import { RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -15,7 +15,10 @@ export interface PartnerAttributes {
   rampType: RampDirection;
   vortexFeeType: "absolute" | "relative" | "none";
   vortexFeeValue: number;
-  discount: number;
+  targetDiscount: number;
+  maxSubsidy: number;
+  minDynamicDifference: number;
+  maxDynamicDifference: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -48,7 +51,13 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare vortexFeeValue: number;
 
-  declare discount: number;
+  declare targetDiscount: number;
+
+  declare maxSubsidy: number;
+
+  declare minDynamicDifference: number;
+
+  declare maxDynamicDifference: number;
 
   declare isActive: boolean;
 
@@ -65,12 +74,6 @@ Partner.init(
       defaultValue: DataTypes.NOW,
       field: "created_at",
       type: DataTypes.DATE
-    },
-    discount: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "discount",
-      type: DataTypes.DECIMAL(10, 4)
     },
     displayName: {
       allowNull: false,
@@ -110,6 +113,24 @@ Partner.init(
       field: "markup_value",
       type: DataTypes.DECIMAL(10, 4)
     },
+    maxDynamicDifference: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "max_dynamic_difference",
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    maxSubsidy: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "max_subsidy",
+      type: DataTypes.DECIMAL(10, 4)
+    },
+    minDynamicDifference: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "min_dynamic_difference",
+      type: DataTypes.DECIMAL(10, 4)
+    },
     name: {
       allowNull: false,
       type: DataTypes.STRING(100)
@@ -123,6 +144,12 @@ Partner.init(
       allowNull: false,
       field: "ramp_type",
       type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
+    },
+    targetDiscount: {
+      allowNull: false,
+      defaultValue: 0,
+      field: "target_discount",
+      type: DataTypes.DECIMAL(10, 4)
     },
     updatedAt: {
       allowNull: false,

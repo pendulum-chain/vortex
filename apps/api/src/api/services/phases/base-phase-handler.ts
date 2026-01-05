@@ -1,5 +1,5 @@
-import { PresignedTx, RampErrorLog, RampPhase } from "@packages/shared";
 import { ReadMessageResult } from "@pendulum-chain/api-solang";
+import { PresignedTx, RampErrorLog, RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
@@ -153,6 +153,18 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     paymentDate: Date = new Date()
   ): Promise<void> {
     try {
+      const existingSubsidy = await Subsidy.findOne({
+        where: {
+          phase: this.getPhaseName(),
+          rampId: state.id
+        }
+      });
+
+      if (existingSubsidy) {
+        logger.info(`Subsidy entry already exists for ramp ${state.id} in phase ${this.getPhaseName()}`);
+        return;
+      }
+
       const subsidy = await Subsidy.create({
         amount,
         payerAccount,

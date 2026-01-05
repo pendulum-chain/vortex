@@ -1,4 +1,4 @@
-import { BrlaApiService, EvmToken, FiatToken, RampCurrency, RampDirection } from "@packages/shared";
+import { BrlaApiService, EvmToken, FiatToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";

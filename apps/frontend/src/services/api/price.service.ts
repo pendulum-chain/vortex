@@ -1,4 +1,4 @@
-import { AllPricesResponse, BundledPriceResult, Currency, PriceProvider, RampDirection } from "@packages/shared";
+import { AllPricesResponse, BundledPriceResult, Currency, PriceProvider, RampDirection } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**

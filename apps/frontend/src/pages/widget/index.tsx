@@ -1,10 +1,11 @@
-import { isValidCnpj } from "@packages/shared";
+import { isValidCnpj } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
+import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
@@ -41,7 +42,8 @@ const WidgetContent = () => {
   const isWidgetMode = useWidgetMode();
   const { providedQuoteId } = useRampUrlParams();
 
-  const { rampState, isRedirectCallback } = useSelector(rampActor, state => ({
+  const { rampState, isRedirectCallback, isError } = useSelector(rampActor, state => ({
+    isError: state.matches("Error"),
     isRedirectCallback: state.matches("RedirectCallback"),
     rampState: state.value
   }));
@@ -60,6 +62,10 @@ const WidgetContent = () => {
 
   if (isWidgetMode && !providedQuoteId) {
     return <QuoteContent />;
+  }
+
+  if (isError) {
+    return <ErrorStep />;
   }
 
   if (isRedirectCallback) {

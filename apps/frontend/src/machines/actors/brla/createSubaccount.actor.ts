@@ -1,4 +1,4 @@
-import { AveniaAccountType, BrlaGetKycStatusResponse, isValidCnpj, KycAttemptStatus } from "@packages/shared";
+import { AveniaAccountType, BrlaGetKycStatusResponse, isValidCnpj, KycAttemptStatus } from "@vortexfi/shared";
 import { fromPromise } from "xstate";
 import { BrlaService, KybLevel1Response } from "../../../services/api";
 import { createSubaccount, fetchKycStatus } from "../../../services/signingService";
@@ -15,7 +15,7 @@ export const createSubaccountActor = fromPromise(
     isCompany: boolean;
     kybUrls?: KybLevel1Response;
   }> => {
-    const { taxId, kycFormData } = input;
+    const { taxId, kycFormData, quoteId } = input;
 
     // Determine if this is a company (CNPJ) or individual (CPF)
     const isCompany = isValidCnpj(taxId);
@@ -28,12 +28,15 @@ export const createSubaccountActor = fromPromise(
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
+    if (!quoteId) {
+      throw new Error("createSubaccountActor: Missing quoteId in input");
+    }
 
     try {
       ({ subAccountId } = await BrlaService.getUser(taxId));
 
       try {
-        maybeKycAttemptStatus = await fetchKycStatus(taxId);
+        maybeKycAttemptStatus = await fetchKycStatus(taxId, quoteId, input.externalSessionId);
       } catch (e) {
         console.log("Debug: could not fetch kyc status", e);
         // It's fine if this fails, we just won't have the status.
@@ -71,6 +74,8 @@ export const createSubaccountActor = fromPromise(
       ({ subAccountId } = await createSubaccount({
         accountType,
         name: nameToUse,
+        quoteId,
+        sessionId: input.externalSessionId,
         taxId
       }));
 

@@ -8,7 +8,7 @@ import type {
   StartRampResponse,
   UpdateRampRequest,
   UpdateRampResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { handleAPIResponse } from "../errors";
 import type { BrlKycResponse } from "../types";
 
@@ -86,9 +86,12 @@ export class ApiService {
     return handleAPIResponse<RampProcess>(response, `/v1/ramp/status?id=${rampId}`);
   }
 
-  async getBrlKycStatus(taxId: string): Promise<BrlKycResponse> {
+  async getBrlKycStatus(taxId: string, quoteId: string): Promise<BrlKycResponse> {
     const url = new URL(`${this.apiBaseUrl}/v1/brla/getUser`);
     url.searchParams.append("taxId", taxId);
+    if (quoteId) {
+      url.searchParams.append("quoteId", quoteId);
+    }
 
     const response = await fetch(url.toString(), {
       headers: {

@@ -1,4 +1,4 @@
-import { PriceProvider } from "@packages/shared";
+import { PriceProvider } from "@vortexfi/shared";
 import { JSX } from "react";
 import vortexIcon from "../../assets/logo/blue.svg";
 import alchemyPayIcon from "../../assets/offramp/alchemypay.svg";

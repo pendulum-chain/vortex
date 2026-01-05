@@ -1,4 +1,4 @@
-import { KycAttemptResult, KycFailureReason } from "@packages/shared";
+import { KycAttemptResult, KycFailureReason } from "@vortexfi/shared";
 import { fromPromise } from "xstate";
 import { fetchKycStatus } from "../../../services/signingService";
 import { AveniaKycContext } from "../../kyc.states";
@@ -18,7 +18,7 @@ export const verifyStatusActor = fromPromise<VerifyStatusActorOutput, AveniaKycC
     let failureCount = 0;
     const interval = setInterval(async () => {
       try {
-        const response = await fetchKycStatus(taxId);
+        const response = await fetchKycStatus(taxId, input.quoteId || "", input.externalSessionId);
         console.log("KYC Status Response:", response);
         failureCount = 0;
 

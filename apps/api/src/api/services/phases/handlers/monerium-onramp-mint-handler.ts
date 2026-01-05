@@ -2,10 +2,10 @@ import {
   BalanceCheckError,
   BalanceCheckErrorType,
   checkEvmBalancePeriodically,
-  ERC20_EURE_POLYGON,
+  ERC20_EURE_POLYGON_V2,
   Networks,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
@@ -43,7 +43,7 @@ export class MoneriumOnrampMintPhaseHandler extends BasePhaseHandler {
       const pollingTimeMs = 1000;
 
       await checkEvmBalancePeriodically(
-        ERC20_EURE_POLYGON,
+        ERC20_EURE_POLYGON_V2,
         walletAddress,
         inputAmountBeforeSwapRaw,
         pollingTimeMs,

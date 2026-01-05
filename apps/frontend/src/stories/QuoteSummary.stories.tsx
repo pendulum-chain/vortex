@@ -1,5 +1,5 @@
-import { AssetHubToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@packages/shared";
 import type { Meta, StoryObj } from "@storybook/react";
+import { AssetHubToken, FiatToken, Networks, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { QuoteSummary } from "../components/QuoteSummary";
 
 const meta: Meta<typeof QuoteSummary> = {
@@ -26,10 +26,11 @@ const sampleQuote: QuoteResponse = {
   anchorFeeUsd: "0.5",
   expiresAt: new Date("2024-12-31T23:59:59Z"),
   feeCurrency: AssetHubToken.USDC,
-  from: Networks.Stellar,
+  from: Networks.Polygon,
   id: "quote_1234567890abcdef",
   inputAmount: "100.00",
   inputCurrency: AssetHubToken.USDC,
+  network: Networks.Polygon,
   networkFeeFiat: "0.1",
   networkFeeUsd: "0.1",
   outputAmount: "99.20",
@@ -56,6 +57,7 @@ const cryptoToFiatQuote: QuoteResponse = {
   id: "quote_eth_to_eur_987654321",
   inputAmount: "0.5",
   inputCurrency: AssetHubToken.USDC,
+  network: Networks.Ethereum,
   networkFeeFiat: "0.05",
   networkFeeUsd: "0.05",
   outputAmount: "1,234.56",
@@ -82,6 +84,7 @@ const fiatToCryptoQuote: QuoteResponse = {
   id: "quote_brl_to_usdc_abcdef123456",
   inputAmount: "500.00",
   inputCurrency: FiatToken.BRL,
+  network: Networks.Ethereum,
   networkFeeFiat: "0.0",
   networkFeeUsd: "0.0",
   outputAmount: "95.45",
@@ -92,7 +95,7 @@ const fiatToCryptoQuote: QuoteResponse = {
   processingFeeFiat: "2.50",
   processingFeeUsd: "2.50",
   rampType: RampDirection.BUY,
-  to: Networks.Stellar,
+  to: Networks.Ethereum,
   totalFeeFiat: "3.50",
   totalFeeUsd: "3.50",
   vortexFeeFiat: "0.0",
@@ -108,6 +111,7 @@ const largeAmountQuote: QuoteResponse = {
   id: "quote_large_amount_xyz789",
   inputAmount: "10,000.00",
   inputCurrency: AssetHubToken.USDC,
+  network: Networks.Polygon,
   networkFeeFiat: "2.5",
   networkFeeUsd: "2.5",
   outputAmount: "9,977.50",

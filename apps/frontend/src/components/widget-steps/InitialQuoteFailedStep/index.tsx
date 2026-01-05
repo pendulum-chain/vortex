@@ -1,5 +1,4 @@
 import { useSelector } from "@xstate/react";
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
@@ -12,28 +11,16 @@ export function InitialQuoteFailedStep({ className }: InitialQuoteFailedStepProp
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { callbackUrl, apiKey, partnerId } = useSelector(rampActor, state => ({
+  const { apiKey, partnerId } = useSelector(rampActor, state => ({
     apiKey: state.context.apiKey,
-    callbackUrl: state.context.callbackUrl,
     partnerId: state.context.partnerId
   }));
-
-  useEffect(() => {
-    if (callbackUrl) {
-      console.log(callbackUrl);
-      const timer = setTimeout(() => {
-        rampActor.send({ type: "RESET_RAMP_CALLBACK" });
-      }, 5000); // 5-second delay
-
-      return () => clearTimeout(timer);
-    }
-  }, [callbackUrl, rampActor.send]);
 
   const handleTryAgain = () => {
     rampActor.send({ type: "RESET_RAMP" });
   };
 
-  if (callbackUrl) {
+  if (apiKey || partnerId) {
     return (
       <div className="flex grow-1 flex-col justify-center">
         <div className="flex flex-grow items-center justify-center text-center">
@@ -48,13 +35,11 @@ export function InitialQuoteFailedStep({ className }: InitialQuoteFailedStepProp
       <div className="flex flex-grow items-center justify-center text-center">
         <p>{t("components.initialQuoteFailed.invalidParametersGeneric")}</p>
       </div>
-      {!partnerId && !apiKey && (
-        <div className="mb-4 grid grid-cols-1 gap-4">
-          <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleTryAgain}>
-            {t("components.initialQuoteFailed.tryAgain")}
-          </button>
-        </div>
-      )}
+      <div className="mt-2 mb-4 grid grid-cols-1 gap-4">
+        <button className={cn("btn-vortex-primary btn w-full rounded-xl", className)} onClick={handleTryAgain}>
+          {t("components.initialQuoteFailed.tryAgain")}
+        </button>
+      </div>
     </div>
   );
 }

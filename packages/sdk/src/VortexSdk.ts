@@ -11,7 +11,7 @@ import {
   RampProcess,
   signUnsignedTransactions,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { TransactionSigningError } from "./errors";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
@@ -29,6 +29,7 @@ import type {
 
 export class VortexSdk {
   private apiService: ApiService;
+  private apiKey: string | undefined;
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private initializationPromise: Promise<void>;
@@ -38,6 +39,7 @@ export class VortexSdk {
     this.apiService = new ApiService(config.apiBaseUrl);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
+    this.apiKey = config.apiKey;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -50,7 +52,8 @@ export class VortexSdk {
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
-    const baseQuote = await this.apiService.createQuote(request);
+    const apiRequest = { ...request, api: true, apiKey: this.apiKey };
+    const baseQuote = await this.apiService.createQuote(apiRequest);
     return baseQuote as ExtendedQuoteResponse<T>;
   }
 
@@ -171,7 +174,7 @@ export class VortexSdk {
     const accountMetas: AccountMeta[] = [];
 
     const stellarEphemeral = createStellarEphemeral();
-    const substrateEphemeral = createPendulumEphemeral();
+    const substrateEphemeral = await createPendulumEphemeral();
     const evmEphemeral = createMoonbeamEphemeral();
 
     accountMetas.push({

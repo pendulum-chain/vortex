@@ -6,7 +6,7 @@ import {
   Networks,
   RampDirection,
   RampPhase
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";

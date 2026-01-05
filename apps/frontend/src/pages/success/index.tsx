@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, RampDirection } from "@packages/shared";
+import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
 import { Box } from "../../components/Box";

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "github": {
+      "args": ["-y", "@anthropic-ai/github-mcp-server"],
+      "command": "npx",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "sentry": {
+      "args": ["-y", "@anthropic-ai/sentry-mcp-server"],
+      "command": "npx",
+      "env": {
+        "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
+        "SENTRY_ORG": "${SENTRY_ORG}"
+      },
+      "type": "stdio"
+    }
+  }
+}

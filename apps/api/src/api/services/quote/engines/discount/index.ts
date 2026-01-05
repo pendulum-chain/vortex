@@ -1,100 +1,55 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import Partner from "../../../../../models/partner.model";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
+import { ActivePartner, buildDiscountSubsidy, formatPartnerNote } from "./helpers";
 
-const DEFAULT_PARTNER_NAME = "vortex";
+export interface DiscountStageConfig {
+  direction: RampDirection;
+  skipNote: string;
+  isOfframp: boolean;
+}
 
-type ActivePartner = Pick<Partner, "id" | "discount" | "name"> | null;
+export interface DiscountComputation {
+  expectedOutputAmountDecimal: Big;
+  expectedOutputAmountRaw: string;
+  actualOutputAmountDecimal: Big;
+  actualOutputAmountRaw: string;
+  targetOutputAmountDecimal: Big;
+  targetOutputAmountRaw: string;
+  idealSubsidyAmountInOutputTokenDecimal: Big;
+  idealSubsidyAmountInOutputTokenRaw: string;
+  subsidyAmountInOutputTokenDecimal: Big;
+  subsidyAmountInOutputTokenRaw: string;
+  partnerId: string | null;
+  subsidyRate: Big;
+  adjustedDifference: Big;
+  adjustedTargetDiscount: Big;
+}
 
 export abstract class BaseDiscountEngine implements Stage {
   abstract readonly config: DiscountStageConfig;
 
   readonly key = StageKey.Discount;
 
+  protected abstract compute(ctx: QuoteContext, partner?: ActivePartner): Promise<DiscountComputation>;
+
+  protected abstract validate(ctx: QuoteContext): void;
+
   async execute(ctx: QuoteContext): Promise<void> {
     const { request } = ctx;
-    const { direction, skipNote, missingContextMessage } = this.config;
+    const { direction, skipNote } = this.config;
 
     if (request.rampType !== direction) {
       ctx.addNote?.(skipNote);
       return;
     }
 
-    const nablaSwap = ctx.nablaSwap;
-    if (!nablaSwap) {
-      throw new Error(missingContextMessage);
-    }
+    this.validate(ctx);
 
-    const partner = await resolveDiscountPartner(ctx, request.rampType);
-    const rate = partner?.discount ?? 0;
+    const computation = await this.compute(ctx);
 
-    ctx.subsidy = buildDiscountSubsidy(rate, partner, {
-      outputAmountDecimal: nablaSwap.outputAmountDecimal,
-      outputAmountRaw: nablaSwap.outputAmountRaw
-    });
+    ctx.subsidy = buildDiscountSubsidy(computation);
 
-    ctx.addNote?.(formatPartnerNote(partner, rate));
+    ctx.addNote?.(formatPartnerNote(ctx, computation));
   }
-}
-
-interface DiscountSubsidyPayload {
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-}
-
-export interface DiscountStageConfig {
-  direction: RampDirection;
-  skipNote: string;
-  missingContextMessage: string;
-}
-
-export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
-  const partnerId = ctx.partner?.id;
-
-  const where = {
-    isActive: true,
-    rampType
-  } as const;
-
-  if (partnerId) {
-    const partner = await Partner.findOne({
-      where: {
-        ...where,
-        id: partnerId
-      }
-    });
-
-    if (partner) {
-      return partner;
-    }
-  }
-
-  return Partner.findOne({
-    where: {
-      ...where,
-      name: DEFAULT_PARTNER_NAME
-    }
-  });
-}
-
-export function buildDiscountSubsidy(
-  rate: number,
-  partner: ActivePartner,
-  payload: DiscountSubsidyPayload
-): QuoteContext["subsidy"] {
-  const subsidyAmountInOutputTokenDecimal = payload.outputAmountDecimal.mul(rate);
-  const subsidyAmountInOutputTokenRaw = new Big(payload.outputAmountRaw).mul(rate).toFixed(0, 0);
-
-  return {
-    applied: rate > 0,
-    partnerId: partner?.id,
-    rate: rate.toString(),
-    subsidyAmountInOutputTokenDecimal,
-    subsidyAmountInOutputTokenRaw
-  };
-}
-
-export function formatPartnerNote(partner: ActivePartner, rate: number): string {
-  return `partner=${partner?.name || DEFAULT_PARTNER_NAME} (${partner?.id || "N/A"}), rate=${rate}`;
 }

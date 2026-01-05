@@ -1,9 +1,9 @@
 import { config } from "../config";
 
 export const PENDULUM_WSS = "wss://rpc-pendulum.prd.pendulumchain.tech";
-export const ASSETHUB_WSS = "wss://polkadot-asset-hub-rpc.polkadot.io";
+export const ASSETHUB_WSS = "wss://dot-rpc.stakeworld.io/assethub";
 export const PASEO_WSS = "wss://asset-hub-paseo-rpc.n.dwellir.com";
-export const MOONBEAM_WSS = "wss://moonbeam.public.blastapi.io";
+export const MOONBEAM_WSS = "wss://wss.api.moonbeam.network";
 export const WALLETCONNECT_ASSETHUB_ID = "polkadot:68d56f15f85d3136970ec16946040bc1";
 
 export const TRANSFER_WAITING_TIME_SECONDS = 6000;

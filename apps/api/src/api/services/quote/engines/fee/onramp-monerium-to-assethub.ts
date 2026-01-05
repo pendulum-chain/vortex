@@ -1,4 +1,4 @@
-import { EvmToken, RampCurrency, RampDirection } from "@packages/shared";
+import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 

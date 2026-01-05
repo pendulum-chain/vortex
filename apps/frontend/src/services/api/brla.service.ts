@@ -9,7 +9,7 @@ import {
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
   RampDirection
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
 
 /**
@@ -39,13 +39,22 @@ export class BrlaService {
   }
 
   /**
+   * Record the initial KYC attempt for a user
+   * @param taxId
+   * @param quoteId
+   * @returns An empty response
+   **/
+  static async recordInitialKycAttempt(taxId: string, quoteId: string, sessionId?: string): Promise<{}> {
+    return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
+  }
+  /**
    * Get the KYC status of a subaccount
    * @param taxId The user's tax ID
    * @returns The KYC status
    */
-  static async getKycStatus(taxId: string): Promise<BrlaGetKycStatusResponse> {
+  static async getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse> {
     return apiRequest<BrlaGetKycStatusResponse>("get", `${this.BASE_PATH}/getKycStatus`, undefined, {
-      params: { taxId }
+      params: { quoteId, sessionId, taxId }
     });
   }
 

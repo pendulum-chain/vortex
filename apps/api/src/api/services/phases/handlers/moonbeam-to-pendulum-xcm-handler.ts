@@ -1,10 +1,13 @@
-import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@packages/shared";
+import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@vortexfi/shared";
 import Big from "big.js";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+const MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION = 1800; // 30 minutes
+const MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID = 60; // 1 minute
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "moonbeamToPendulumXcm";
@@ -17,7 +20,27 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     const apiManager = ApiManager.getInstance();
-    const moonbeamNode = await apiManager.getApi("moonbeam");
+
+    // Check if there's a previous error for this phase to determine if we should use RPC shuffling
+    const hasPreviousError = state.errorLogs.some(log => log.phase === "moonbeamToPendulumXcm");
+
+    // Use shuffling on (a potential) retry when there's a previous error, otherwise use the default RPC
+    // Failure to obtain an RPC handle means we have exhausted all options, we should fail recoverably with larger waits.
+    let moonbeamNode;
+    try {
+      moonbeamNode = hasPreviousError
+        ? await apiManager.getApiWithShuffling("moonbeam", state.id)
+        : await apiManager.getApi("moonbeam");
+    } catch (e) {
+      throw new RecoverablePhaseError(
+        "MoonbeamToPendulumXcmPhaseHandler: All RPC options exhausted.",
+        MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION
+      );
+    }
+
+    // TODO if no node is returned, we fail recoverably but wait a longer amount here. For this phase, and current failure mode
+    // it is known to be at least 30 minues.
+
     const pendulumNode = await apiManager.getApi("pendulum");
 
     const { substrateEphemeralAddress, evmEphemeralAddress } = state.state as StateMetadata;
@@ -56,12 +79,19 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           );
         }
 
-        // TODO verify this works on Moonbeam also. It does not.
         await submitMoonbeamXcm(evmEphemeralAddress, xcmTransaction);
       }
-    } catch (e) {
-      console.error("Error while executing moonbeam-to-pendulum xcm:", e);
-      throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction");
+    } catch (error) {
+      if (error && error instanceof Error) {
+        if (error.message.includes("IsInvalid") || error.message.includes("banned")) {
+          throw new RecoverablePhaseError(
+            "MoonbeamToPendulumXcmPhaseHandler: XCM transaction is invalid or banned, but we assume it can be fixed with resubmission.",
+            MINIMUM_WAIT_SECONDS_FOR_BANNED_OR_INVALID
+          );
+        }
+      }
+      console.error("Error while executing moonbeam-to-pendulum xcm:", error);
+      throw new RecoverablePhaseError("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction", 120);
     }
 
     try {

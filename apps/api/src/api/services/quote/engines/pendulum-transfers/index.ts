@@ -1,4 +1,4 @@
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext, Stage, StageKey, StellarMeta, XcmMeta } from "../../core/types";
 

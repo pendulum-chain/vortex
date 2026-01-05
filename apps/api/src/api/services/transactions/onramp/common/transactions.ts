@@ -13,7 +13,7 @@ import {
   PENDULUM_USDC_AXL,
   PendulumTokenDetails,
   UnsignedTx
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../../config/logger";
 import Partner from "../../../../../models/partner.model";

@@ -1,3 +1,4 @@
+import { Keyring } from "@polkadot/api";
 import {
   ApiManager,
   StellarTokenConfig,
@@ -8,8 +9,7 @@ import {
   SubsidizePreSwapResponse,
   TOKEN_CONFIG,
   XCMTokenConfig
-} from "@packages/shared";
-import { Keyring } from "@polkadot/api";
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";

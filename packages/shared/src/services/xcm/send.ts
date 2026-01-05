@@ -1,3 +1,9 @@
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
+import { KeyringPair } from "@polkadot/keyring/types";
+import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
+import { ISubmittableResult } from "@polkadot/types/types";
+import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
 import {
   logger,
   parseEventMoonbeamXcmSent,
@@ -5,13 +11,7 @@ import {
   parseEventXTokens,
   XcmSentEvent,
   XTokensEvent
-} from "@packages/shared";
-import { ApiPromise } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api-base/types";
-import { KeyringPair } from "@polkadot/keyring/types";
-import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
-import { ISubmittableResult } from "@polkadot/types/types";
-import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
+} from "../../index";
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -187,6 +187,11 @@ export const submitMoonbeamXcm = async (
 ): Promise<{ event: XcmSentEvent; hash: string }> =>
   new Promise((resolve, reject) => {
     logger.current.info(`Submitting XCM transfer for address ${address}`);
+
+    // A helper to track if the extrinsic reached the 'InBlock' state
+    // If it reaches 'InBlock', we expect it to eventually finalize
+    let willFinalize = false;
+
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
@@ -200,11 +205,16 @@ export const submitMoonbeamXcm = async (
 
         if (status.isInvalid) {
           logger.current.error(`XCM transfer failed with status: ${status.type}`);
-          reject(new Error(`XCM transfer failed with status: ${status.type}`));
+
+          if (!willFinalize) {
+            // Only reject if we haven't seen 'InBlock' yet
+            reject(new Error(`XCM transfer rejected with IsInvalid with status: ${status.type}`));
+          }
         }
 
-        if (status.isFinalized) {
-          const hash = status.asFinalized.toString();
+        if (status.isInBlock) {
+          willFinalize = true;
+          const hash = status.asInBlock.toString();
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(

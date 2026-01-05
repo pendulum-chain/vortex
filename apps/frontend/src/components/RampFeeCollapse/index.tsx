@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/20/solid";
-import { RampDirection } from "@packages/shared";
+import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";

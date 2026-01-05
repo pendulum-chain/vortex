@@ -113,16 +113,23 @@ export const aveniaKycMachine = setup({
         },
         FORM_SUBMIT: {
           actions: assign({
+            executionInput: ({ context, event }) => {
+              if (!context.executionInput) return undefined;
+              return {
+                ...context.executionInput,
+                taxId: event.formData.taxId
+              };
+            },
             kycFormData: ({ event }) => {
               console.log("kycFormData", event.formData);
               return event.formData;
-            }
+            },
+            taxId: ({ event }) => event.formData.taxId
           }),
           target: "SubaccountSetup"
         }
       }
     },
-
     KYBFlow: {
       initial: "CompanyVerification",
       on: {
@@ -134,13 +141,21 @@ export const aveniaKycMachine = setup({
         },
         FORM_SUBMIT: {
           actions: assign({
+            executionInput: ({ context, event }) => {
+              if (!context.executionInput) return undefined;
+              return {
+                ...context.executionInput,
+                taxId: event.formData.taxId
+              };
+            },
             kycFormData: ({ event, context }) => {
               console.log("kycFormData", event.formData);
               return {
                 ...context.kycFormData,
                 ...event.formData
               };
-            }
+            },
+            taxId: ({ event }) => event.formData.taxId
           }),
           target: "KYBVerification"
         }
@@ -209,6 +224,9 @@ export const aveniaKycMachine = setup({
       }
     },
     LivenessCheck: {
+      exit: assign({
+        livenessCheckOpened: () => false
+      }),
       on: {
         LIVENESS_DONE: {
           guard: ({ context }) => context.livenessCheckOpened === true,

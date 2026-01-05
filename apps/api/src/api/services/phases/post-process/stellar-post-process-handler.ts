@@ -1,4 +1,4 @@
-import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@packages/shared";
+import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@vortexfi/shared";
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import logger from "../../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";

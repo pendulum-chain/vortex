@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { mock } from 'bun:test';
 import { WebhookService } from '../webhook.service';
 import { APIError } from '../../../errors/api-error';
-import { WebhookEventType, RegisterWebhookRequest, RegisterWebhookResponse } from '@packages/shared';
+import { WebhookEventType, RegisterWebhookRequest, RegisterWebhookResponse } from '@vortexfi/shared';
 import Webhook, { WebhookAttributes } from '../../../../models/webhook.model';
 
 // Mock factory functions

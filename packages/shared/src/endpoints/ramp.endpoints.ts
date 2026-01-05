@@ -1,4 +1,4 @@
-import { DestinationType, EvmAddress, Networks, PaymentMethod, RampDirection } from "../index";
+import { DestinationType, EvmAddress, Networks, PaymentMethod, PermitSignature, RampCurrency, RampDirection } from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
 export type RampPhase =
@@ -127,6 +127,7 @@ export interface UpdateRampRequest {
     squidRouterSwapHash?: string;
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
+    moneriumOnrampPermit?: PermitSignature;
     [key: string]: unknown;
   };
 }
@@ -194,16 +195,19 @@ export interface GetRampHistoryRequest {
 export interface GetRampHistoryTransaction {
   id: string;
   type: RampDirection;
-  fromNetwork: string;
-  toNetwork: string;
+  from: Networks | PaymentMethod;
+  to: Networks | PaymentMethod;
   fromAmount: string;
   toAmount: string;
-  fromCurrency: string;
-  toCurrency: string;
-  status: string;
+  fromCurrency: RampCurrency;
+  toCurrency: RampCurrency;
+  status: TransactionStatus;
   date: string;
+  externalTxHash?: string;
+  externalTxExplorerLink?: string;
 }
 
 export type GetRampHistoryResponse = {
   transactions: GetRampHistoryTransaction[];
+  totalCount: number;
 };

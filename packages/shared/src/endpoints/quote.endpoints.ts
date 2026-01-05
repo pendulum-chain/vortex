@@ -20,9 +20,25 @@ export interface CreateQuoteRequest {
   outputCurrency: RampCurrency;
   partnerId?: string; // Optional partner name for fee markup (not UUID)
   apiKey?: string; // Optional public API key (pk_*) for tracking and discounts
+  api?: boolean; // Optional flag to indicate API usage
   paymentMethod?: PaymentMethod;
   countryCode?: string;
   network: Networks;
+}
+
+// POST /quotes/best
+export interface CreateBestQuoteRequest {
+  rampType: RampDirection;
+  from?: DestinationType;
+  to?: DestinationType;
+  inputAmount: string;
+  inputCurrency: RampCurrency;
+  outputCurrency: RampCurrency;
+  partnerId?: string; // Optional partner name for fee markup (not UUID)
+  apiKey?: string; // Optional public API key (pk_*) for tracking and discounts
+  api?: boolean; // Optional flag to indicate API usage
+  paymentMethod?: PaymentMethod;
+  countryCode?: string;
 }
 
 export interface QuoteResponse {
@@ -34,6 +50,7 @@ export interface QuoteResponse {
   outputAmount: string;
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
+  network: Networks;
 
   // Flattened fees (Fiat)
   networkFeeFiat: string;
@@ -66,6 +83,9 @@ export enum QuoteError {
   // Validation errors
   MissingRequiredFields = "Missing required fields",
   InvalidRampType = 'Invalid ramp type, must be "BUY" or "SELL"',
+
+  MissingToField = "BUY rampType requires 'from' parameter",
+  MissingFromField = "SELL rampType requires 'to' parameter",
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",

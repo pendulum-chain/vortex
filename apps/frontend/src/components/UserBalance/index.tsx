@@ -1,4 +1,4 @@
-import { OnChainTokenDetails } from "@packages/shared";
+import { OnChainTokenDetails } from "@vortexfi/shared";
 import { useAccount } from "wagmi";
 
 import wallet from "../../assets/wallet-bifold-outline.svg";

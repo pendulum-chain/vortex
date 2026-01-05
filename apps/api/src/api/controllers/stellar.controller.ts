@@ -5,7 +5,7 @@ import {
   SignSep10ChallengeRequest,
   SignSep10ChallengeResponse,
   StellarErrorResponse
-} from "@packages/shared";
+} from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Keypair } from "stellar-sdk";

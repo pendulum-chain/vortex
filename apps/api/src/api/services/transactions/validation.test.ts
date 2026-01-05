@@ -1,5 +1,5 @@
 import {describe, expect, it} from "bun:test";
-import {EphemeralAccountType, Networks, PresignedTx, RampDirection} from "@packages/shared";
+import {EphemeralAccountType, Networks, PresignedTx, RampDirection} from "@vortexfi/shared";
 import {validatePresignedTxs} from "./validation";
 import QuoteTicket from "../../../models/quoteTicket.model";
 

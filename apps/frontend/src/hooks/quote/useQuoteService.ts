@@ -1,4 +1,4 @@
-import { FiatToken, OnChainToken } from "@packages/shared";
+import { FiatToken, OnChainToken } from "@vortexfi/shared";
 import Big from "big.js";
 import { useCallback, useEffect } from "react";
 import { useEventsContext } from "../../contexts/events";

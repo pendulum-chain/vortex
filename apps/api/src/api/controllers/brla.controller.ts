@@ -1,4 +1,5 @@
 import {
+  AveniaAccountType,
   AveniaDocumentType,
   AveniaKYCDataUpload,
   AveniaKYCDataUploadRequest,
@@ -15,8 +16,11 @@ import {
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserRequest,
   BrlaGetUserResponse,
+  BrlaPostRecordInitialKycAttemptRequest,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
+  isValidCnpj,
+  isValidCpf,
   KybAttemptStatusResponse,
   KybLevel1Response,
   KycAttemptResult,
@@ -25,12 +29,48 @@ import {
   KycLevel1Payload,
   KycLevel1Response,
   RampDirection
-} from "@packages/shared";
-import { AveniaAccountType, isValidCnpj } from "@packages/shared/src/services";
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import TaxId from "../../models/taxId.model";
+import { Op } from "sequelize";
+import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
+
+// Helper functions for TaxId updates
+
+async function updateTaxIdToAccepted(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  await TaxId.update(
+    {
+      finalQuoteId: quoteId,
+      finalSessionId: sessionId ?? null,
+      finalTimestamp: new Date(),
+      internalStatus: TaxIdInternalStatus.Accepted
+    },
+    {
+      where: {
+        internalStatus: TaxIdInternalStatus.Requested,
+        taxId
+      }
+    }
+  );
+}
+
+async function updateTaxIdToRejected(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  await TaxId.update(
+    {
+      finalQuoteId: quoteId,
+      finalSessionId: sessionId ?? null,
+      finalTimestamp: new Date(),
+      internalStatus: TaxIdInternalStatus.Rejected
+    },
+    {
+      where: {
+        internalStatus: TaxIdInternalStatus.Requested,
+        taxId
+      }
+    }
+  );
+}
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
@@ -106,7 +146,14 @@ export const getAveniaUser = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findOne({
+      where: {
+        internalStatus: {
+          [Op.ne]: TaxIdInternalStatus.Consulted
+        },
+        taxId
+      }
+    });
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
@@ -136,6 +183,49 @@ export const getAveniaUser = async (
       return;
     }
     handleApiError(error, res, "getAveniaUser");
+  }
+};
+
+export const recordInitialKycAttempt = async (
+  req: Request<unknown, unknown, BrlaPostRecordInitialKycAttemptRequest, unknown>,
+  res: Response<{} | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const { taxId, quoteId, sessionId } = req.body;
+
+    if (!taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findOne({
+      where: {
+        taxId
+      }
+    });
+    if (!taxIdRecord) {
+      const accountType = isValidCnpj(taxId)
+        ? AveniaAccountType.COMPANY
+        : isValidCpf(taxId)
+          ? AveniaAccountType.INDIVIDUAL
+          : undefined;
+      // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
+      if (accountType) {
+        await TaxId.create({
+          accountType,
+          initialQuoteId: quoteId,
+          initialSessionId: sessionId ?? null,
+          internalStatus: TaxIdInternalStatus.Consulted,
+          subAccountId: "",
+          taxId
+        });
+      }
+    }
+
+    res.status(httpStatus.OK).json({});
+  } catch (error) {
+    res.status;
+    handleApiError(error, res, "recordInitialKycAttempt");
   }
 };
 
@@ -205,7 +295,7 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse>
 ): Promise<void> => {
   try {
-    const { name, taxId, accountType: requestAccountType } = req.body;
+    const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
 
     const isCnpj = isValidCnpj(taxId);
 
@@ -215,11 +305,28 @@ export const createSubaccount = async (
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
 
-    await TaxId.create({
-      accountType,
-      subAccountId: id,
-      taxId: taxId
-    });
+    const existingTaxId = await TaxId.findByPk(taxId);
+
+    if (existingTaxId) {
+      await existingTaxId.update({
+        accountType,
+        internalStatus: TaxIdInternalStatus.Requested,
+        requestedDate: new Date(),
+        subAccountId: id
+      });
+    } else {
+      // The entry should have been created the very first a new cpf/cnpj is consulted.
+      // We leave this as is for now to avoid breaking changes.
+      await TaxId.create({
+        accountType,
+        initialQuoteId: quoteId,
+        initialSessionId: sessionId ?? null,
+        internalStatus: TaxIdInternalStatus.Requested,
+        requestedDate: new Date(),
+        subAccountId: id,
+        taxId: taxId
+      });
+    }
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
@@ -233,7 +340,7 @@ export const fetchSubaccountKycStatus = async (
   res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId } = req.query;
+    const { taxId, quoteId, sessionId } = req.query;
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
@@ -258,10 +365,21 @@ export const fetchSubaccountKycStatus = async (
           status: KycAttemptStatus.COMPLETED,
           type: "KYC"
         });
-        return;
+
+        // Also try updating in case we missed the attempt
+        await updateTaxIdToAccepted(taxId, quoteId, sessionId);
       }
+
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
+    }
+
+    // Update our internal status based on the KYC result.
+    if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
+      await updateTaxIdToAccepted(taxId, quoteId, sessionId);
+    }
+    if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
+      await updateTaxIdToRejected(taxId, quoteId, sessionId);
     }
 
     res.status(httpStatus.OK).json({

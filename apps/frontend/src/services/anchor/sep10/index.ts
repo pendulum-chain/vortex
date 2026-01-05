@@ -1,4 +1,4 @@
-import { FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import { FiatToken, getTokenDetailsSpacewalk } from "@vortexfi/shared";
 import { Keypair, Memo, MemoType, Operation, Transaction } from "stellar-sdk";
 import { TomlValues } from "../../../types/sep";
 
