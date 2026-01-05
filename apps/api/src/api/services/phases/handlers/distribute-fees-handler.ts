@@ -14,7 +14,17 @@ import logger from "../../../../config/logger";
 import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { PhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
+
+/**
+ * Enum for extrinsic status check results
+ */
+enum ExtrinsicStatus {
+  Success = "success",
+  Fail = "fail",
+  Undefined = "undefined"
+}
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
@@ -54,15 +64,15 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
-      const isSuccessful = await this.checkExtrinsicStatus(existingHash).catch(error => {
-        return this.createRecoverableError(`Failed to check extrinsic status:`);
+      const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
+        return this.createRecoverableError(`Failed to check extrinsic status`);
       });
 
-      if (isSuccessful) {
+      if (status === ExtrinsicStatus.Success) {
         logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
         return this.transitionToNextPhase(state, nextPhase);
       } else {
-        logger.info(`Existing distribute fee transaction was not successful, will retry`);
+        logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
       }
     }
 
@@ -91,28 +101,54 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         }
       });
 
-      // Wait for extrinsic to succeed using Subscan API
-      await waitUntilTrueWithTimeout(
-        async () => await this.checkExtrinsicStatus(actualTxHash),
-        10000, // Check every 10 seconds
-        180000 // Timeout after 3 minutes
-      ).catch((error: unknown) => {
-        // If extrinsic failed, create unrecoverable error. Otherwise, recoverable.
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (errorMsg.includes("Extrinsic failed")) {
-          throw this.createUnrecoverableError(`Extrinsic failed for hash ${actualTxHash}: ${errorMsg}`);
-        } else {
-          throw this.createRecoverableError(`Extrinsic status check failed for hash ${actualTxHash}: ${errorMsg}`);
-        }
-      });
+      // Wait for extrinsic success using Subscan API
+      await this.waitForExtrinsicSuccess(actualTxHash);
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
       return this.transitionToNextPhase(updatedState, nextPhase);
     } catch (e: unknown) {
+      logger.error(`Error distributing fees for ramp ${state.id}:`, e);
+
+      // If the error is already a PhaseError, propagate it
+      if (e instanceof PhaseError) {
+        throw e;
+      }
+
+      // Wrap as recoverable error
       const error = e instanceof Error ? e : new Error(String(e));
-      logger.error(`Error distributing fees for ramp ${state.id}:`, error);
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
     }
+  }
+
+  /**
+   * Wait for extrinsic success using Subscan API
+   * @param extrinsicHash The extrinsic hash to check
+   */
+  private async waitForExtrinsicSuccess(extrinsicHash: string): Promise<void> {
+    const startTime = Date.now();
+    const timeoutMs = 180000; // 3 minutes
+    const pollIntervalMs = 10000; // 10 seconds
+
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const status = await this.checkExtrinsicStatus(extrinsicHash);
+
+        if (status === ExtrinsicStatus.Success) {
+          return;
+        } else if (status === ExtrinsicStatus.Fail) {
+          throw this.createUnrecoverableError(`Extrinsic failed for hash ${extrinsicHash}`);
+        } else if (status === ExtrinsicStatus.Undefined) {
+          await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+          continue;
+        }
+      } catch (error: unknown) {
+        throw this.createRecoverableError(
+          `Extrinsic status check failed for hash ${extrinsicHash}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    throw this.createRecoverableError(`Extrinsic status check timed out for hash ${extrinsicHash}`);
   }
 
   /**
@@ -134,13 +170,13 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             resolve(txHash.toHex());
           }
         })
-        .catch(error => {
+        .catch((error: unknown) => {
           console.log("Error submitting transaction to distribute fees:", error);
           // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-          if (error?.message.includes("1012:")) {
+          if (error instanceof Error && error.message.includes("1012:")) {
             reject(new TransactionTemporarilyBannedError("Transaction for transfer is temporarily banned."));
           }
-          reject(new Error(`Failed to do transfer: ${error}`));
+          reject(new Error(`Failed to do transfer: ${error instanceof Error ? error.message : String(error)}`));
         })
     );
   }
@@ -148,9 +184,9 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   /**
    * Check extrinsic status using Subscan API
    * @param extrinsicHash The extrinsic hash to check
-   * @returns Whether the extrinsic was successful
+   * @returns ExtrinsicStatus: Success, Fail, or Undefined
    */
-  private async checkExtrinsicStatus(extrinsicHash: string): Promise<boolean> {
+  private async checkExtrinsicStatus(extrinsicHash: string): Promise<ExtrinsicStatus> {
     try {
       const response = await fetch("https://pendulum.api.subscan.io/api/scan/extrinsic", {
         body: JSON.stringify({
@@ -167,8 +203,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
       if (!response.ok) {
         logger.error(`Subscan API error: ${response.status} ${response.statusText}`);
-        // If we can't check, we can't assume anything about the extrinsic status.
-        return false;
+        throw new Error(`API response error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -176,17 +211,21 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
       if (data.code !== 0) {
         logger.error(`Subscan API returned error code: ${data.code}, message: ${data.message}`);
-        return false;
+        throw new Error(`Subscan API error code: ${data.code}, message: ${data.message}`);
+      }
+
+      if (data.data?.success === true) {
+        return ExtrinsicStatus.Success;
       }
 
       if (data.data?.success === false) {
-        throw new Error(`Extrinsic failed: ${extrinsicHash}`);
+        return ExtrinsicStatus.Fail;
       }
 
-      return true;
-    } catch (error) {
+      return ExtrinsicStatus.Undefined;
+    } catch (error: unknown) {
       logger.error(`Error checking extrinsic status with Subscan: ${error}`);
-      return false;
+      throw error;
     }
   }
 }
