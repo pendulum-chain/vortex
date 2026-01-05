@@ -1,10 +1,11 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { RampFormValues } from "../../../hooks/ramp/schema";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
@@ -32,6 +33,7 @@ export interface FormData {
   taxId?: string;
   moneriumWalletAddress?: string;
   walletAddress?: string;
+  fiatToken?: FiatToken;
 }
 
 export const DetailsStep = ({ className }: DetailsStepProps) => {
@@ -58,6 +60,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const walletForm = walletLockedFromState || address || undefined;
 
   const { form } = useRampForm({
+    fiatToken: quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken),
     moneriumWalletAddress: evmAddress,
     pixId,
     taxId,
@@ -72,12 +75,31 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
     if (isMoneriumToAssethubRamp && substrateAddress) {
       form.setValue("walletAddress", substrateAddress);
-    } else if (walletLockedFromState) {
-      form.setValue("walletAddress", walletLockedFromState);
     } else if (!isMoneriumToAssethubRamp && address) {
       form.setValue("walletAddress", address);
+    } else if (walletLockedFromState) {
+      form.setValue("walletAddress", walletLockedFromState);
     }
-  }, [form, evmAddress, isMoneriumRamp, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress]);
+
+    const fiatToken = quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken);
+    form.setValue("fiatToken", fiatToken);
+  }, [form, evmAddress, isMoneriumRamp, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress, quote]);
+
+  const previousValues = useRef<RampFormValues>({});
+  const currentValues = form.watch();
+
+  useEffect(() => {
+    const valuesChanged = JSON.stringify(currentValues) !== JSON.stringify(previousValues.current);
+    const hasErrors = Object.keys(form.formState.errors).length > 0;
+
+    if (valuesChanged && hasErrors) {
+      form.clearErrors();
+    }
+
+    if (valuesChanged) {
+      previousValues.current = currentValues;
+    }
+  }, [currentValues, form]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -92,6 +114,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const canSkipConnection = quote?.from === "pix";
 
   const handleFormSubmit = (data: FormData) => {
+    console.log("form errors: ", form.formState.errors);
     rampActor.send({
       address: data.walletAddress,
       type: "SET_ADDRESS"
@@ -118,7 +141,12 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
             </div>
           </div>
         )}
-        <DetailsStepActions forceNetwork={forceNetwork} requiresConnection={!canSkipConnection} signingState={signingState} />
+        <DetailsStepActions
+          forceNetwork={forceNetwork}
+          formErrors={form.formState.errors}
+          requiresConnection={!canSkipConnection}
+          signingState={signingState}
+        />
       </form>
       <DetailsStepQuoteSummary quote={quote} />
     </FormProvider>
