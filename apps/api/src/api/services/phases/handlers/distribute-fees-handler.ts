@@ -91,7 +91,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       logger.info(`Submitting fee distribution transaction for ramp ${state.id}...`);
       const actualTxHash = await this.submitTransaction(decodedTx, api);
 
-      logger.info(`Transaction included in block with hash ${actualTxHash}. Persisting hash...`);
+      logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
 
       // Persist the hash from the submission result
       const updatedState = await state.update({
