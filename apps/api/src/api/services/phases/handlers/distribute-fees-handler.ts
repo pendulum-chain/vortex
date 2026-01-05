@@ -96,8 +96,14 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         async () => await this.checkExtrinsicStatus(actualTxHash),
         10000, // Check every 10 seconds
         180000 // Timeout after 3 minutes
-      ).catch(error => {
-        throw this.createRecoverableError(`Extrinsic status check failed for hash ${actualTxHash}: ${error.message}`);
+      ).catch((error: unknown) => {
+        // If extrinsic failed, create unrecoverable error. Otherwise, recoverable.
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes("Extrinsic failed")) {
+          throw this.createUnrecoverableError(`Extrinsic failed for hash ${actualTxHash}: ${errorMsg}`);
+        } else {
+          throw this.createRecoverableError(`Extrinsic status check failed for hash ${actualTxHash}: ${errorMsg}`);
+        }
       });
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
@@ -173,7 +179,11 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         return false;
       }
 
-      return data.data?.success === true;
+      if (data.data?.success === false) {
+        throw new Error(`Extrinsic failed: ${extrinsicHash}`);
+      }
+
+      return true;
     } catch (error) {
       logger.error(`Error checking extrinsic status with Subscan: ${error}`);
       return false;
