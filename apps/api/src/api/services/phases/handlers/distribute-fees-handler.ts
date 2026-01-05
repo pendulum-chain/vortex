@@ -7,14 +7,13 @@ import {
   decodeSubmittableExtrinsic,
   RampDirection,
   RampPhase,
-  TransactionTemporarilyBannedError,
-  waitUntilTrueWithTimeout
+  TransactionTemporarilyBannedError
 } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { PhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
+import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -65,7 +64,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
       const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-        return this.createRecoverableError(`Failed to check extrinsic status`);
+        throw this.createRecoverableError(`Failed to check extrinsic status`);
       });
 
       if (status === ExtrinsicStatus.Success) {
@@ -142,9 +141,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
           continue;
         }
       } catch (error: unknown) {
-        throw this.createRecoverableError(
-          `Extrinsic status check failed for hash ${extrinsicHash}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw error;
       }
     }
 
@@ -220,10 +217,10 @@ export class DistributeFeesHandler extends BasePhaseHandler {
           }
         })
         .catch((error: unknown) => {
-          console.log("Error submitting transaction to distribute fees:", error);
+          logger.error("Error submitting transaction to distribute fees:", error);
           // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
           if (error instanceof Error && error.message.includes("1012:")) {
-            reject(new TransactionTemporarilyBannedError("Transaction for transfer is temporarily banned."));
+            return reject(new TransactionTemporarilyBannedError("Transaction for transfer is temporarily banned."));
           }
           reject(new Error(`Failed to do transfer: ${error instanceof Error ? error.message : String(error)}`));
         })
