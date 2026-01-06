@@ -1,10 +1,10 @@
 import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
-import { assign, sendTo } from "xstate";
+import { assign, DoneActorEvent, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
-import { RampContext } from "./types";
+import { RampContext, SelectedAveniaData } from "./types";
 
 // Extended context types for child KYC machines
 export interface AveniaKycContext extends RampContext {
@@ -50,8 +50,14 @@ export interface StellarKycContext extends RampContext {
 // The "Verifying" state will invoke child actors based on the particula ramp.
 // The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
 export const kycStateNode = {
+  entry: ({ context }: { context: RampContext }) =>
+    console.log("Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
+    GO_BACK: {
+      actions: [assign({ rampSigningPhase: undefined })],
+      target: "#ramp.QuoteReady"
+    },
     SummaryConfirm: {
       actions: [
         // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
@@ -77,18 +83,26 @@ export const kycStateNode = {
     Avenia: {
       invoke: {
         id: "aveniaKyc",
-        input: ({ context }: { context: RampContext }): AveniaKycContext => ({
-          ...context,
-          taxId: context.executionInput?.taxId!
-        }),
+        input: ({ context }: { context: RampContext }): AveniaKycContext => {
+          console.log("Invoking Avenia KYC actor with RampContext input:", context);
+          return {
+            ...context,
+            kycFormData: context.kycFormData, // Pass kycFormData from parent RampContext to AveniaKycContext
+            taxId: context.executionInput?.taxId!
+          };
+        },
         onDone: [
           {
-            guard: ({ event }: { event: any }) => !event.output.error,
+            actions: assign({
+              kycFormData: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => event.output.context.kycFormData
+            }),
+            guard: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => !event.output.context.error,
             target: "VerificationComplete"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) => event.output.error.message
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) =>
+                (event.output.context.error as AveniaKycMachineError).message
             }),
             target: "#ramp.KycFailure"
           }
@@ -137,7 +151,7 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            actions: [{ type: "showSigningRejectedErrorToast" }],
+            actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
             guard: ({ event }: { event: any }) =>
               (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
             target: "#ramp.QuoteReady"

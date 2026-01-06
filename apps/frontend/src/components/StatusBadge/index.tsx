@@ -1,6 +1,6 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { TransactionStatus } from "@vortexfi/shared";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";

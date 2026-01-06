@@ -12,6 +12,7 @@ export const getStepTitleStyles = (status: Step["status"]): string => {
   const statusStyles = {
     active: "font-medium text-blue-600",
     complete: "font-medium text-green-600",
+    error: "font-medium text-red-600",
     incomplete: "text-gray-500"
   };
 

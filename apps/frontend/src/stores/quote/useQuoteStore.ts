@@ -1,4 +1,12 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteError, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import {
+  DestinationType,
+  EPaymentMethod,
+  FiatToken,
+  OnChainToken,
+  QuoteError,
+  QuoteResponse,
+  RampDirection
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -46,12 +54,12 @@ interface QuoteState {
  */
 const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
-    ARS: "cbu",
-    BRL: "pix",
-    EUR: "sepa"
+    ARS: EPaymentMethod.CBU,
+    BRL: EPaymentMethod.PIX,
+    EUR: EPaymentMethod.SEPA
   };
 
-  return destinationMap[fiatToken] || "sepa";
+  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
 };
 
 const friendlyErrorMessages: Record<QuoteError, string> = {

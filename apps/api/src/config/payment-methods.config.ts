@@ -1,4 +1,4 @@
-import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from "@vortexfi/shared";
+import { EPaymentMethod, FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from "@vortexfi/shared";
 
 const EUR = {
   id: FiatToken.EURC,
@@ -28,19 +28,19 @@ const ARS = {
 };
 
 const SEPA_PAYMENT_METHOD: PaymentMethodConfig = {
-  id: "sepa",
+  id: EPaymentMethod.SEPA,
   name: PaymentMethodName.SEPA,
   supportedFiats: [EUR]
 };
 
 const PIX_PAYMENT_METHOD: PaymentMethodConfig = {
-  id: "pix",
+  id: EPaymentMethod.PIX,
   name: PaymentMethodName.PIX,
   supportedFiats: [BRL]
 };
 
 const CBU_PAYMENT_METHOD: PaymentMethodConfig = {
-  id: "cbu",
+  id: EPaymentMethod.CBU,
   name: PaymentMethodName.CBU,
   supportedFiats: [ARS]
 };

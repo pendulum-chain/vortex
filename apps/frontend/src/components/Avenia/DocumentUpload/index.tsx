@@ -209,19 +209,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           )}
       </div>
 
-      {error && <p className="mt-4 text-center text-red-500">{error}</p>}
+      {error && <p className="mt-4 text-center text-red-800">{error}</p>}
 
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8">
         <button
-          className="btn-vortex-primary-inverse btn flex-1"
-          disabled={loading}
-          onClick={() => aveniaKycActor.send({ type: "DOCUMENTS_BACK" })}
-          type="button"
-        >
-          {t("components.documentUpload.buttons.back")}
-        </button>
-        <button
-          className="btn-vortex-primary btn flex-1"
+          className="btn-vortex-primary btn w-full"
           onClick={handleSubmit}
           type="button"
           {...buttonProps}

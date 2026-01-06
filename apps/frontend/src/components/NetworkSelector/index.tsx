@@ -1,9 +1,10 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, getNetworkId, Networks } from "@vortexfi/shared";
 import { AnimatePresence, motion } from "motion/react";
-import { RefObject, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNetwork } from "../../contexts/network";
 import { cn } from "../../helpers/cn";
+import { useClickOutside } from "../../hooks/useClickOutside";
 import { useNetworkTokenCompatibility } from "../../hooks/useNetworkTokenCompatibility";
 import { NetworkIcon } from "../NetworkIcon";
 
@@ -72,19 +73,6 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
     )}
   </AnimatePresence>
 );
-
-function useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => void) {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        callback();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [callback, ref]);
-}
 
 export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   const { selectedNetwork } = useNetwork();

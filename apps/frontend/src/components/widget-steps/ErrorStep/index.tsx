@@ -19,7 +19,7 @@ function convertCommonErrorToMessage(error: string, t: (key: string) => string):
   } else if (error.includes("Insufficient funds")) {
     return t("components.errorStep.errors.insufficientFunds");
   } else {
-    return error; // Return the original error message if no common patterns matched
+    return error;
   }
 }
 
@@ -42,7 +42,7 @@ export function ErrorStep({ className }: ErrorStepProps) {
         <div className="flex justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
             <svg
-              className="h-8 w-8 text-red-600"
+              className="h-8 w-8 text-red-800"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -62,7 +62,7 @@ export function ErrorStep({ className }: ErrorStepProps) {
           <h2 className="font-semibold text-gray-900 text-xl">{t("components.errorStep.title")}</h2>
         </div>
 
-        <div className="rounded-lg bg-red-50 p-4">
+        <div className="rounded-lg bg-red-100 p-4">
           <p className="text-center text-red-800 text-sm">
             {errorMessage ? convertCommonErrorToMessage(errorMessage, t) : t("components.errorStep.defaultMessage")}
           </p>
