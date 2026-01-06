@@ -17,16 +17,20 @@ export const useStepper = () => {
     isKycActive,
     isKycComplete,
     isKycFailure,
-    isRegisterOrUpdate,
+    isRegister,
+    isUpdate,
     rampPaymentConfirmed,
     rampSummaryVisible,
     rampFollowUp,
-    redirectCallback
+    redirectCallback,
+    isError
   } = useSelector(rampActor, state => ({
+    isError: state.matches("Error"),
     isKycActive: state.matches("KYC"),
     isKycComplete: state.matches("KycComplete"),
     isKycFailure: state.matches("KycFailure"),
-    isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
+    isRegister: state.matches("RegisterRamp"),
+    isUpdate: state.matches("UpdateRamp"),
     rampFollowUp: state.matches("RampFollowUp"),
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampSummaryVisible: state.matches("KycComplete"),
@@ -34,30 +38,31 @@ export const useStepper = () => {
   }));
 
   const secondStepActive = isKycComplete || isKycActive || isKycFailure;
-  const secondStepComplete = rampFollowUp || redirectCallback || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
+  const secondStepComplete =
+    rampFollowUp || redirectCallback || isKycComplete || isRegister || isUpdate || rampPaymentConfirmed;
 
   const thirdStepActive = secondStepComplete && rampSummaryVisible;
-  const thirdStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed;
+  const thirdStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed || isRegister;
 
   const steps = useMemo((): Step[] => {
     return [
       {
         Icon: DetailsIcon,
-        status: secondStepActive || secondStepComplete ? "complete" : "active",
+        status: isError ? "error" : secondStepActive || secondStepComplete ? "complete" : "active",
         title: t("components.stepper.details", "Details")
       },
       {
         Icon: VerificationIcon,
-        status: secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
+        status: isError ? "error" : secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
         title: t("components.stepper.verification", "Verification")
       },
       {
         Icon: ConfirmIcon,
-        status: thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
+        status: isError ? "error" : thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
         title: t("components.stepper.confirm", "Confirm")
       }
     ];
-  }, [t, secondStepActive, secondStepComplete, thirdStepActive, thirdStepComplete]);
+  }, [t, secondStepActive, secondStepComplete, thirdStepActive, thirdStepComplete, isError]);
 
   const currentStep = useMemo(() => {
     return steps.findIndex(step => step.status === "active");

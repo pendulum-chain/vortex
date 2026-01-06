@@ -6,6 +6,8 @@ import {
   AccountMeta,
   API,
   ApiManager,
+  DestinationType,
+  EPaymentMethod,
   EphemeralAccount,
   EphemeralAccountType,
   EvmToken,
@@ -35,7 +37,7 @@ const TEST_INPUT_AMOUNT = "1";
 const TEST_INPUT_CURRENCY = FiatToken.BRL;
 const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
 
-const QUOTE_FROM = "pix";
+const QUOTE_FROM = EPaymentMethod.PIX;
 
 const filePath = path.join(__dirname, "lastRampStateOnramp.json");
 
@@ -184,7 +186,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
       };
 
       const quoteTicket = await quoteService.createQuote({
-        from: QUOTE_FROM,
+        from: QUOTE_FROM as DestinationType,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
         network: Networks.AssetHub, // Onramp to AssetHub network

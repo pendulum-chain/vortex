@@ -9,6 +9,7 @@ export const getStepCircleStyles = (status: Step["status"], isClickable: boolean
   const statusStyles = {
     active: "bg-blue-500 text-white",
     complete: "bg-green-500 text-white",
+    error: "bg-red-100 text-red-800",
     incomplete: "bg-gray-300 text-gray-600"
   };
 

@@ -1,4 +1,4 @@
-import { DestinationType, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { DestinationType, EPaymentMethod, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
 
@@ -19,10 +19,10 @@ export const SUPPORTED_CHAINS: {
       Networks.Ethereum,
       Networks.Polygon
     ],
-    to: ["pix", "sepa", "cbu"]
+    to: [EPaymentMethod.PIX as DestinationType, EPaymentMethod.SEPA as DestinationType, EPaymentMethod.CBU as DestinationType]
   },
   [RampDirection.BUY]: {
-    from: ["pix", "sepa"],
+    from: [EPaymentMethod.PIX as DestinationType, EPaymentMethod.SEPA as DestinationType],
     to: [
       Networks.AssetHub,
       Networks.Avalanche,

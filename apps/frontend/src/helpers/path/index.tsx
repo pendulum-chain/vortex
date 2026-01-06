@@ -9,7 +9,7 @@ const getRampDirectionFromPath = (): RampDirection => {
   }
 
   const params = new URLSearchParams(window.location.search);
-  const rampParam = params.get("ramp")?.toUpperCase();
+  const rampParam = params.get("rampType")?.toUpperCase();
 
   const normalizedRampParam = rampParam?.toUpperCase();
 

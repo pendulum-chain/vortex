@@ -1,6 +1,8 @@
+import { useParams, useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useMoneriumKycActor, useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
+import { navigateToCleanOrigin } from "../../../utils/navigation";
 
 interface MoneriumRedirectStepProps {
   className?: string;
@@ -10,16 +12,15 @@ export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
   const { t } = useTranslation();
   const moneriumKycActor = useMoneriumKycActor();
   const rampActor = useRampActor();
+  const router = useRouter();
+  const params = useParams({ strict: false });
 
   if (!moneriumKycActor) {
     return <div />;
   }
 
   const onCancelClick = () => {
-    // Reset the ramp state and go back to the home page
-    const cleanUrl = window.location.origin;
-    window.history.replaceState({}, "", cleanUrl);
-
+    navigateToCleanOrigin(router, params);
     rampActor.send({ type: "RESET_RAMP" });
   };
 

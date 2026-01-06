@@ -2,6 +2,7 @@
 
 import type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse } from "@vortexfi/shared";
 import {
+  EPaymentMethod,
   EphemeralAccount,
   EphemeralAccountType,
   EvmToken,
@@ -13,7 +14,17 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 
-export { EvmToken, FiatToken, Networks, RampDirection, PaymentMethod, QuoteResponse, CreateQuoteRequest, EvmTransactionData };
+export {
+  EPaymentMethod,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RampDirection,
+  PaymentMethod,
+  QuoteResponse,
+  CreateQuoteRequest,
+  EvmTransactionData
+};
 
 export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
 

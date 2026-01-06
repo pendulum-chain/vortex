@@ -54,18 +54,16 @@ export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, className,
       exit={{ opacity: 0, y: -20 }}
       initial={{ opacity: 0, y: 20 }}
       transition={{
-        damping: 15,
-        delay: index * 0.15,
-        duration: 0.4,
-        stiffness: 300,
-        type: "spring"
+        delay: index * 0.05,
+        duration: 0.15,
+        ease: "easeOut"
       }}
     >
       <label className="mb-1 block" htmlFor={id}>
         {label}
       </label>
       <Field className={cn("w-full p-2", errors[id] && "border border-red-500")} id={id} register={register(id)} {...rest} />
-      {errorMessage && <span className="mt-1 text-red-500 text-sm">{errorMessage}</span>}
+      {errorMessage && <span className="mt-1 text-red-800 text-sm">{errorMessage}</span>}
     </motion.div>
   );
 };

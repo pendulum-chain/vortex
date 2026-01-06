@@ -1,4 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import { useParams, useRouter } from "@tanstack/react-router";
 import {
   FiatToken,
   FiatTokenDetails,
@@ -19,6 +20,7 @@ import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
+import { navigateToCleanOrigin } from "../../utils/navigation";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
@@ -67,7 +69,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled, isBrlFormInvalid }: U
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
-      console.log("quote", quote, "isOnramp", isOnramp);
       if (isOnramp && isAnchorWithoutRedirect) {
         return {
           icon: null,
@@ -188,6 +189,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
+  const router = useRouter();
+  const params = useParams({ strict: false });
 
   const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
@@ -284,10 +287,8 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
   const onSubmit = () => {
     if (isQuoteExpired) {
-      // Reset the ramp state and go back to the home page
       rampActor.send({ type: "RESET_RAMP" });
-      const cleanUrl = window.location.origin;
-      window.history.replaceState({}, "", cleanUrl);
+      navigateToCleanOrigin(router, params);
       return;
     }
 

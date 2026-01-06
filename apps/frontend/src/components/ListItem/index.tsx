@@ -45,7 +45,7 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
           </span>
           <span className="text-neutral-500 text-sm leading-5">
             {isDisabled ? (
-              <span className="text-red-500">{disabledReason || "Unavailable"}</span>
+              <span className="text-red-800">{disabledReason || "Unavailable"}</span>
             ) : (
               <>
                 {token.name && <div>{token.name}</div>}

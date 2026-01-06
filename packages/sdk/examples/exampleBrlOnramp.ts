@@ -1,4 +1,4 @@
-import { CreateQuoteRequest, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
+import { CreateQuoteRequest, EPaymentMethod, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
@@ -24,7 +24,7 @@ async function runBrlOnrampExample() {
 
     console.log("📝 Step 2: Creating quote for BRL onramp...");
     const quoteRequest: CreateQuoteRequest = {
-      from: "pix" as const,
+      from: EPaymentMethod.PIX,
       inputAmount: "100",
       inputCurrency: FiatToken.BRL,
       network: Networks.Polygon,

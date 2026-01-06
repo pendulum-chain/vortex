@@ -7,6 +7,7 @@ import {
   ApiManager,
   BrlaApiService,
   DestinationType,
+  EPaymentMethod,
   EphemeralAccount,
   EphemeralAccountType,
   EvmToken,
@@ -35,7 +36,7 @@ const TEST_INPUT_AMOUNT = "1";
 const TEST_INPUT_CURRENCY = EvmToken.USDC;
 const TEST_OUTPUT_CURRENCY = FiatToken.ARS;
 
-const QUOTE_TO = "sepa";
+const QUOTE_TO = EPaymentMethod.SEPA;
 const QUOTE_FROM = "evm";
 
 const filePath = path.join(__dirname, "lastRampState.json");
@@ -231,7 +232,7 @@ describe("PhaseProcessor Integration Test", () => {
         network: Networks.Ethereum, // Offramp from EVM network
         outputCurrency: TEST_OUTPUT_CURRENCY,
         rampType: RampDirection.SELL,
-        to: QUOTE_TO
+        to: QUOTE_TO as DestinationType
       });
 
       const additionalData: RegisterRampRequest["additionalData"] = {

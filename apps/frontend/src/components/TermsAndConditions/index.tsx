@@ -52,11 +52,11 @@ const TermsText = ({ error }: { error: boolean }) => {
   return (
     <motion.span
       animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
-      className={cn("pl-2", error && "text-red-600")}
+      className={cn("pl-2", error && "text-red-800")}
     >
       {t("components.termsAndConditions.text")}{" "}
       <a
-        className={cn("link link-accent transition-all duration-150", error && "font-bold text-red-600")}
+        className={cn("link link-accent transition-all duration-150", error && "font-bold text-red-800")}
         href="https://www.vortexfinance.co/terms-conditions"
         rel="noreferrer"
         style={{ textDecoration: "underline" }}

@@ -1,13 +1,13 @@
 import { createSdkContext, PoolType, SdkCtx, SubstrateTransaction, Trade } from "@galacticcouncil/sdk";
 import { Builder } from "@paraspell/sdk-pjs";
-import { ApiManager, assethubTokenConfig, multiplyByPowerOfTen, XcmFees } from "@vortexfi/shared";
+import { ApiManager, AssetHubToken, assetHubTokenConfig, multiplyByPowerOfTen, XcmFees } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 
 /// The IDs of the Hydration assets for which the XCM fees are cached
 const CACHED_ASSET_IDS = [
-  assethubTokenConfig.USDC.hydrationId,
-  assethubTokenConfig.DOT.hydrationId,
-  assethubTokenConfig.USDT.hydrationId
+  assetHubTokenConfig[AssetHubToken.USDC].hydrationId,
+  assetHubTokenConfig[AssetHubToken.DOT].hydrationId,
+  assetHubTokenConfig[AssetHubToken.USDT].hydrationId
 ];
 
 export class HydrationRouter {
