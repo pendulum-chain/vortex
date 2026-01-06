@@ -1,6 +1,7 @@
 import { decodeAddress, encodeAddress } from "@polkadot/keyring";
 import { hexToU8a, isHex } from "@polkadot/util";
 import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, Networks, RampDirection } from "@vortexfi/shared";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 import { useFiatToken } from "../../stores/quote/useQuoteFormStore";
@@ -85,5 +86,8 @@ export const useSchema = () => {
   const requiresWalletAddress =
     quote?.rampType === RampDirection.BUY ? (quote?.to === Networks.AssetHub ? "substrate" : "evm") : false;
 
-  return createRampFormSchema(t, rampDirection, requiresWalletAddress, fiatToken);
+  return useMemo(
+    () => createRampFormSchema(t, rampDirection, requiresWalletAddress, fiatToken),
+    [t, rampDirection, requiresWalletAddress, fiatToken]
+  );
 };

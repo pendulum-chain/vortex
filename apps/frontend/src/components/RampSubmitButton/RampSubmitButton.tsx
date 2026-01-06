@@ -10,7 +10,7 @@ import {
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
-import { useFormState, useWatch } from "react-hook-form";
+import { useFormState } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
@@ -193,12 +193,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const { address: accountAddress } = useVortexAccount();
 
   // Access form validation state - will be undefined if not inside FormProvider
-  const { isValid } = useFormState();
-
-  // Watch Avenia form fields
-  const taxId = useWatch({ name: "taxId" });
-  const pixId = useWatch({ name: "pixId" });
-  const walletAddressField = useWatch({ name: "walletAddress" });
+  const formState = useFormState();
 
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
@@ -220,34 +215,11 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
-  // Check if BRL form has validation errors or required fields are empty
+  // Check if BRL form has validation errors
+  // When outside FormProvider (SummaryStep), formState.isValid is undefined - we only disable when explicitly invalid
+  // Yup schema handles all field requirements (taxId, pixId, walletAddress) so we just trust isValid
   const isBrazilTransaction = quote?.from === "pix" || quote?.to === "pix";
-  const isBrlFormInvalid = useMemo(() => {
-    if (!isBrazilTransaction) return false;
-
-    // Check for validation errors - isValid will be false if Yup validation fails
-    if (!isValid) {
-      return true;
-    }
-
-    // Check if required Avenia fields are empty
-    // taxId is always required for BRL transactions
-    if (!taxId) {
-      return true;
-    }
-
-    // For offramps, pixId is required
-    if (isOfframp && !pixId) {
-      return true;
-    }
-
-    // For onramps, walletAddress is required
-    if (isOnramp && !walletAddressField) {
-      return true;
-    }
-
-    return false;
-  }, [isBrazilTransaction, isValid, taxId, isOfframp, pixId, isOnramp, walletAddressField]);
+  const isBrlFormInvalid = isBrazilTransaction && formState?.isValid === false;
 
   const submitButtonDisabled = useMemo(() => {
     if (isBrlFormInvalid) {
