@@ -11,6 +11,7 @@ import {
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
+import { useFormState } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
@@ -25,9 +26,10 @@ import { Spinner } from "../Spinner";
 interface UseButtonContentProps {
   toToken: FiatTokenDetails;
   submitButtonDisabled: boolean;
+  isBrlFormInvalid: boolean;
 }
 
-const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
+const useButtonContent = ({ toToken, submitButtonDisabled, isBrlFormInvalid }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const stellarData = useStellarKycSelector();
@@ -108,7 +110,12 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     //   };
     // }
 
-    console.log("submitButtonDisabled", submitButtonDisabled);
+    if (submitButtonDisabled && isBrlFormInvalid) {
+      return {
+        icon: null,
+        text: t("components.SummaryPage.confirm")
+      };
+    }
 
     if (submitButtonDisabled) {
       return {
@@ -164,6 +171,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     };
   }, [
     submitButtonDisabled,
+    isBrlFormInvalid,
     isQuoteExpired,
     rampState,
     machineState,
@@ -187,6 +195,9 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
+  // Access form validation state - will be undefined if not inside FormProvider
+  const formState = useFormState();
+
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
     executionInput: state.context.executionInput,
     isQuoteExpired: state.context.isQuoteExpired,
@@ -207,7 +218,17 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
+  // Check if BRL form has validation errors
+  // When outside FormProvider (SummaryStep), formState.isValid is undefined - we only disable when explicitly invalid
+  // Yup schema handles all field requirements (taxId, pixId, walletAddress) so we just trust isValid
+  const isBrazilTransaction = quote?.from === "pix" || quote?.to === "pix";
+  const isBrlFormInvalid = isBrazilTransaction && formState?.isValid === false;
+
   const submitButtonDisabled = useMemo(() => {
+    if (isBrlFormInvalid) {
+      return true;
+    }
+
     if (
       walletLocked &&
       (isOfframp || quote?.from === "sepa") &&
@@ -254,10 +275,12 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     moneriumKycActor,
     walletLocked,
     accountAddress,
+    isBrlFormInvalid,
     quote?.from
   ]);
 
   const buttonContent = useButtonContent({
+    isBrlFormInvalid,
     submitButtonDisabled,
     toToken: toToken as FiatTokenDetails
   });
