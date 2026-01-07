@@ -52,11 +52,10 @@ export function Rating() {
       {isConnectedAndIsVisible && (
         <motion.div
           animate={{ y: 0 }}
-          className="toast right-0 left-0 mx-auto w-full transition"
+          className="toast right-0 left-0 z-50 mx-auto w-full transition"
           exit={{ y: 200 }}
           initial={{ y: 200 }}
           key="rating-toast"
-          whileHover={{ scale: 1.02 }}
         >
           <div className="mx-auto w-full md:w-2/3 lg:w-1/2">
             <div className="rounded border border-neutral-200 bg-white shadow-2xl">

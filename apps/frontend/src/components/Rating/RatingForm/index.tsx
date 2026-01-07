@@ -26,7 +26,7 @@ const starVariants = {
   },
   hover: {
     opacity: 1,
-    scale: 1.15,
+    scale: 1,
     transition: {
       duration: 0.2,
       ease: "easeOut" as const
