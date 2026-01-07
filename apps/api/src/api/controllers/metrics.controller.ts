@@ -68,7 +68,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 
   try {
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase.rpc("get_monthly_volumes", { year_param: null });
+    const { data, error } = await supabase.rpc("get_monthly_volumes_by_chain", { year_param: null });
     console.log("raw monthly data:", data, error);
     if (error) throw error;
 
@@ -102,7 +102,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("get_daily_volumes", {
+  const { data, error } = await supabase.rpc("get_daily_volumes_by_chain", {
     end_date: endDate,
     start_date: startDate
   });
