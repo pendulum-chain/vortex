@@ -69,7 +69,6 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase.rpc("get_monthly_volumes_by_chain", { year_param: null });
-    console.log("raw monthly data:", data, error);
     if (error) throw error;
 
     const rawData = (data as MonthlyVolume[]) || [];
@@ -96,9 +95,6 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
     throw new Error("Could not calculate monthly volumes: " + error.message);
   }
 }
-
-// The data from the DB now looks like this:
-// { day: '2026-01-01', chains: [{ chain: 'Eth', total_usd: 100 }, ...] }
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
   const supabase = getSupabaseClient();
