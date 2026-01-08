@@ -241,7 +241,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     // We assume that the error is due to a low input amount
     throw new APIError({
       message: QuoteError.InputAmountTooLow,
-      status: httpStatus.INTERNAL_SERVER_ERROR
+      status: httpStatus.BAD_REQUEST
     });
   }
 }
