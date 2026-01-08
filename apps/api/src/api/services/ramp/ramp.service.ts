@@ -264,6 +264,7 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
+        expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,

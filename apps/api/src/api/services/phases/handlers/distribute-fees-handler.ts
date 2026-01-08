@@ -211,7 +211,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
           }
 
-          if (status.isBroadcast) {
+          if (status.isBroadcast || status.isInBlock) {
             logger.info(`Transaction broadcasted: ${status.asBroadcast.toString()}`);
             resolve(txHash.toHex());
           }
