@@ -308,6 +308,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      this.validateRampStateData(rampState, quote);
+
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
         throw new APIError({
@@ -973,6 +975,31 @@ export class RampService extends BaseRampService {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+    }
+  }
+
+  private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
+    if (rampState.type === RampDirection.SELL) {
+      if (rampState.from === "assethub" && !rampState.state.assethubToPendulumHash) {
+        throw new APIError({
+          message: "Missing required additional data for offramps. Cannot proceed.",
+          status: httpStatus.BAD_REQUEST
+        });
+      } else if (rampState.from !== "assethub" && !rampState.state.squidRouterSwapHash) {
+        throw new APIError({
+          message: "Missing required additional data for offramps. Cannot proceed.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+
+    if (rampState.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
+      if (!rampState.state.moneriumOnrampPermit) {
+        throw new APIError({
+          message: "Missing moneriumOnrampPermit in state. Cannot proceed.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
     }
   }
 
