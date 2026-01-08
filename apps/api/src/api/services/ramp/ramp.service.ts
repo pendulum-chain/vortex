@@ -11,6 +11,7 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
+  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -980,14 +981,14 @@ export class RampService extends BaseRampService {
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
     if (rampState.type === RampDirection.SELL) {
-      if (rampState.from === "assethub" && !rampState.state.assethubToPendulumHash) {
+      if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
-          message: "Missing required additional data for offramps. Cannot proceed.",
+          message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
-      } else if (rampState.from !== "assethub" && !rampState.state.squidRouterSwapHash) {
+      } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
         throw new APIError({
-          message: "Missing required additional data for offramps. Cannot proceed.",
+          message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
       }
