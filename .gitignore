@@ -38,3 +38,7 @@ apps/api/.env
 
 *storybook.log
 storybook-static
+
+
+CLAUDE.local.md
+.claude
