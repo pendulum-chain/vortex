@@ -34,23 +34,9 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, "complete");
     }
 
-    // Check if signed_transactions are present for offramps. If they are not, return early.
-    if (state.type === RampDirection.SELL) {
-      if (state.presignedTxs === null || state.presignedTxs.length === 0) {
-        throw new Error("InitialPhaseHandler: No signed transactions found. Cannot proceed.");
-      } else if (state.from === "assethub" && !state.state.assethubToPendulumHash) {
-        throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
-      } else if (state.from !== "assethub" && !state.state.squidRouterSwapHash) {
-        throw new Error("InitialPhaseHandler: Missing required additional data for offramps. Cannot proceed.");
-      }
-    }
-
     if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, "brlaOnrampMint");
     } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
-      if (!state.state.moneriumOnrampPermit) {
-        throw new Error("InitialPhaseHandler: Missing moneriumOnrampPermit in state. Cannot proceed.");
-      }
       return this.transitionToNextPhase(state, "moneriumOnrampMint");
     }
 
