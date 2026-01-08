@@ -1,5 +1,5 @@
 import { Networks } from "@vortexfi/shared";
-import { FieldErrors } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import { RampFormValues } from "../../../hooks/ramp/schema";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { ConnectWalletSection } from "../../ConnectWalletSection";
@@ -12,7 +12,7 @@ export interface DetailsStepActionsProps {
   requiresConnection: boolean;
   className?: string;
   forceNetwork?: Networks;
-  formErrors?: FieldErrors<RampFormValues>;
+  isBrazilLanding: boolean;
 }
 
 export const DetailsStepActions = ({
@@ -20,10 +20,29 @@ export const DetailsStepActions = ({
   className,
   requiresConnection,
   forceNetwork,
-  formErrors
+  isBrazilLanding
 }: DetailsStepActionsProps) => {
   const { shouldDisplay: signingBoxVisible, signatureState, confirmations } = signingState;
   const { isConnected } = useVortexAccount(forceNetwork);
+
+  const {
+    formState: { errors },
+    watch
+  } = useFormContext<RampFormValues>();
+  const formValues = watch();
+
+  const hasFormErrors = Object.keys(errors).length > 0;
+
+  let hasEmptyForm = false;
+
+  if (isBrazilLanding) {
+    const allRelevantFieldsEmpty = !formValues.taxId || !formValues.walletAddress;
+    hasEmptyForm = allRelevantFieldsEmpty;
+  } else {
+    hasEmptyForm = !formValues.walletAddress;
+  }
+
+  const hasValidationErrors = hasFormErrors || hasEmptyForm;
 
   if (signingBoxVisible) {
     return (
@@ -37,9 +56,7 @@ export const DetailsStepActions = ({
   return (
     <div className={className}>
       {requiresConnection && <ConnectWalletSection forceNetwork={forceNetwork} />}
-      {displayRampSubmitButton && (
-        <RampSubmitButton className="mb-4" hasValidationErrors={!!formErrors && Object.keys(formErrors).length > 0} />
-      )}
+      {displayRampSubmitButton && <RampSubmitButton className="mb-4" hasValidationErrors={hasValidationErrors} />}
     </div>
   );
 };

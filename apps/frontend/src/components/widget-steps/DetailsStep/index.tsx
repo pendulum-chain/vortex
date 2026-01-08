@@ -88,19 +88,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const previousValues = useRef<RampFormValues>({});
   const currentValues = form.watch();
 
-  useEffect(() => {
-    const valuesChanged = JSON.stringify(currentValues) !== JSON.stringify(previousValues.current);
-    const hasErrors = Object.keys(form.formState.errors).length > 0;
-
-    if (valuesChanged && hasErrors) {
-      form.clearErrors();
-    }
-
-    if (valuesChanged) {
-      previousValues.current = currentValues;
-    }
-  }, [currentValues, form]);
-
   const { onRampConfirm } = useRampSubmission();
 
   const signingState: SigningState = {
@@ -114,7 +101,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const canSkipConnection = quote?.from === "pix";
 
   const handleFormSubmit = (data: FormData) => {
-    console.log("form errors: ", form.formState.errors);
     rampActor.send({
       address: data.walletAddress,
       type: "SET_ADDRESS"
@@ -143,7 +129,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
         )}
         <DetailsStepActions
           forceNetwork={forceNetwork}
-          formErrors={form.formState.errors}
+          isBrazilLanding={isBrazilLanding}
           requiresConnection={!canSkipConnection}
           signingState={signingState}
         />
