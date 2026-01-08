@@ -196,11 +196,6 @@ export function Footer() {
             >
               {t("components.footer.buyCrypto.buyEth")}
             </FooterLink>
-            <FooterLink
-              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.NETWORK}=${Networks.AssetHub}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${AssetHubToken.DOT}`}
-            >
-              {t("components.footer.buyCrypto.buyDot")}
-            </FooterLink>
           </FooterSection>
 
           <FooterSection title={t("components.footer.sellCrypto.title")}>
@@ -218,11 +213,6 @@ export function Footer() {
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.ETH}`}
             >
               {t("components.footer.sellCrypto.sellEth")}
-            </FooterLink>
-            <FooterLink
-              href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.NETWORK}=${Networks.AssetHub}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${AssetHubToken.DOT}`}
-            >
-              {t("components.footer.sellCrypto.sellDot")}
             </FooterLink>
           </FooterSection>
         </div>

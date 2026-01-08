@@ -17,7 +17,7 @@ export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
 export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;
 
 export const DEFAULT_BRL_AMOUNT = "100";
-export const DEFAULT_EURC_AMOUNT = "20";
+export const DEFAULT_EURC_AMOUNT = "30";
 export const DEFAULT_ARS_AMOUNT = "20";
 
 export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
