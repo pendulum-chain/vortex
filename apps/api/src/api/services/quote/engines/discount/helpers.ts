@@ -15,7 +15,7 @@ interface PartnerDiscountState {
 const partnerDiscountState = new Map<string, PartnerDiscountState>();
 
 function getDeltaD(): Big {
-  return new Big(config.quote.deltaDBasisPoints).div(100);
+  return new Big(config.quote.deltaDBasisPoints).div(10000);
 }
 
 function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
