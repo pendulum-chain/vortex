@@ -4,6 +4,7 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   OnChainTokenDetails,
+  QuoteError,
   QuoteResponse,
   RampDirection
 } from "@vortexfi/shared";
@@ -162,8 +163,30 @@ export const useRampValidation = () => {
     const tokenAvailabilityError = validateTokenAvailability(t, fiatToken, trackEvent);
     if (tokenAvailabilityError) return tokenAvailabilityError;
 
-    let validationError = null;
+    // For offramps, we must also show a valid error message, when backend refuses to calculate a quote
+    // due to limits.
 
+    const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
+
+    if (quoteError?.includes(QuoteError.BellowLowerLimitSell)) {
+      const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxSellAmountRaw), -toToken.decimals);
+      const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minSellAmountRaw), -toToken.decimals);
+      return t("pages.swap.error.amountOutOfRange.sell", {
+        assetSymbol: toToken.assetSymbol,
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      });
+    } else if (quoteError?.includes(QuoteError.BellowLowerLimitBuy)) {
+      const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxBuyAmountRaw), -fromToken.decimals);
+      const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minBuyAmountRaw), -fromToken.decimals);
+      return t("pages.swap.error.amountOutOfRange.buy", {
+        assetSymbol: fromToken.assetSymbol,
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      });
+    } else if (quoteError) return t(quoteError);
+
+    let validationError = null;
     if (isOnramp) {
       validationError = validateOnramp(t, {
         fromToken: fromToken as FiatTokenDetails,
@@ -182,8 +205,6 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-
-    if (quoteError) return t(quoteError);
 
     return null;
   }, [

@@ -95,6 +95,8 @@ export enum QuoteError {
   InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0",
   InputAmountTooLow = "Input amount too low. Please try a larger amount.",
   InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.",
+  BellowLowerLimitSell = "Output amount below minimum SELL limit of",
+  BellowLowerLimitBuy = "Input amount below minimum BUY limit of",
 
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",
