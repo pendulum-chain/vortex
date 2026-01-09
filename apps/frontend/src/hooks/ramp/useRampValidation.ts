@@ -74,24 +74,6 @@ function validateOfframp(
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  if (typeof userInputTokenBalance === "string") {
-    const isNativeToken = fromToken.isNative;
-    if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-      trackEvent({
-        error_message: "insufficient_balance",
-        event: "form_error",
-        input_amount: inputAmount ? inputAmount.toString() : "0"
-      });
-      return t("pages.swap.error.insufficientFunds", {
-        assetSymbol: fromToken?.assetSymbol,
-        userInputTokenBalance
-      });
-      // If the user chose the max amount, show a warning for native tokens due to gas fees
-    } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
-      return t("pages.swap.error.gasWarning");
-    }
-  }
-
   const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
   const amountOut = quote ? Big(quote.outputAmount) : Big(0);
@@ -110,6 +92,24 @@ function validateOfframp(
       maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
       minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
+  }
+
+  if (typeof userInputTokenBalance === "string") {
+    const isNativeToken = fromToken.isNative;
+    if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
+      trackEvent({
+        error_message: "insufficient_balance",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
+      });
+      return t("pages.swap.error.insufficientFunds", {
+        assetSymbol: fromToken?.assetSymbol,
+        userInputTokenBalance
+      });
+      // If the user chose the max amount, show a warning for native tokens due to gas fees
+    } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
+      return t("pages.swap.error.gasWarning");
+    }
   }
 
   return null;
