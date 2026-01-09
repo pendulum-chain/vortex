@@ -5,6 +5,7 @@ import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampStat
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../QuoteSummary";
+import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
@@ -16,8 +17,8 @@ export const AveniaKYCForm = () => {
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  const { kycForm } = useKYCForm({ cpfApiError: null });
   const { t } = useTranslation();
+  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
@@ -152,10 +153,14 @@ export const AveniaKYCForm = () => {
       style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
     >
       <div className="flex flex-col flex-1">
-        <div className="relative">{content}</div>
+        <div className="relative">
+          <div className="mb-4">
+            <StepBackButton />
+          </div>
+          {content}
+        </div>
       </div>
       {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
     </div>
   );
 };
-///

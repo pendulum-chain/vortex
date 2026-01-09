@@ -154,7 +154,9 @@ export class QuoteService extends BaseRampService {
       partner: partner
         ? {
             id: partner.id,
+            maxDynamicDifference: partner.maxDynamicDifference,
             maxSubsidy: partner.maxSubsidy,
+            minDynamicDifference: partner.minDynamicDifference,
             name: partner.name,
             targetDiscount: partner.targetDiscount
           }
@@ -176,6 +178,13 @@ export class QuoteService extends BaseRampService {
       await orchestrator.run(strategy, ctx);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
+
+      // Preserve validation errors (BAD_REQUEST) - these are user-facing errors
+      if (error instanceof APIError && error.status === httpStatus.BAD_REQUEST) {
+        throw error;
+      }
+
+      // Wrap unexpected errors as generic failure
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 

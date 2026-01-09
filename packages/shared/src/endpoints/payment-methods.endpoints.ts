@@ -13,7 +13,13 @@ export enum PaymentMethodName {
   CBU = "CBU"
 }
 
-export type PaymentMethod = "pix" | "sepa" | "cbu";
+export enum EPaymentMethod {
+  PIX = "pix",
+  SEPA = "sepa",
+  CBU = "cbu"
+}
+
+export type PaymentMethod = EPaymentMethod;
 
 export interface PaymentMethodLimits {
   min: number;

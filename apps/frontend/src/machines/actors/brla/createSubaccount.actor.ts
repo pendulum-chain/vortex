@@ -53,10 +53,7 @@ export const createSubaccountActor = fromPromise(
         console.log("Debug: This is an individual account. Skipping KYB Level 1.");
       }
 
-      if (
-        maybeKycAttemptStatus?.status === KycAttemptStatus.PENDING ||
-        maybeKycAttemptStatus?.status === KycAttemptStatus.PROCESSING
-      ) {
+      if (maybeKycAttemptStatus?.status === KycAttemptStatus.PROCESSING) {
         return { isCompany, kybUrls, maybeKycAttemptStatus, subAccountId };
       }
 

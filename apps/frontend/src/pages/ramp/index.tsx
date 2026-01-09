@@ -9,11 +9,12 @@ import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
+import { Quote } from "../quote";
 import { SuccessPage } from "../success";
 import { Widget } from "../widget";
 
 export const Ramp = () => {
-  const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <Widget />);
+  const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <Widget />, <Quote />);
   const rampActor = useRampActor();
   const stellarKycActor = useStellarKycActor();
   const quote = useQuote();

@@ -74,6 +74,8 @@ export interface PartnerInfo {
   targetDiscount?: number;
   maxSubsidy?: number;
   name?: string | null;
+  maxDynamicDifference?: number;
+  minDynamicDifference?: number;
 }
 
 // Strategy for a specific route/path
@@ -198,6 +200,7 @@ export interface QuoteContext {
       total: string;
     };
     displayFiat?: QuoteFeeStructure;
+    vortexFeePenPercentage?: number;
   };
 
   subsidy?: {

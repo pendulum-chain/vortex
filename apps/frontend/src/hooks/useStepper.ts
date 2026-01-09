@@ -19,17 +19,21 @@ export const useStepper = () => {
     isKycActive,
     isKycComplete,
     isKycFailure,
-    isRegisterOrUpdate,
+    isRegister,
+    isUpdate,
     rampPaymentConfirmed,
     rampSummaryVisible,
     rampFollowUp,
-    redirectCallback
+    redirectCallback,
+    isError
   } = useSelector(rampActor, state => ({
     isAuthenticated: state.context.isAuthenticated,
+    isError: state.matches("Error"),
     isKycActive: state.matches("KYC"),
     isKycComplete: state.matches("KycComplete"),
     isKycFailure: state.matches("KycFailure"),
-    isRegisterOrUpdate: state.matches("RegisterRamp") || state.matches("UpdateRamp"),
+    isRegister: state.matches("RegisterRamp"),
+    isUpdate: state.matches("UpdateRamp"),
     rampFollowUp: state.matches("RampFollowUp"),
     rampPaymentConfirmed: state.context.rampPaymentConfirmed,
     rampSummaryVisible: state.matches("KycComplete"),
@@ -39,7 +43,7 @@ export const useStepper = () => {
   // Step 3: Verification - active during KYC, complete when done
   const verificationStepActive = isKycActive || isKycFailure;
   const verificationStepComplete =
-    rampFollowUp || redirectCallback || isKycComplete || isRegisterOrUpdate || rampPaymentConfirmed;
+    rampFollowUp || redirectCallback || isKycComplete || isRegister || isUpdate || rampPaymentConfirmed;
 
   // Step 4: Confirm - active when verification complete, complete when payment confirmed
   const confirmStepActive = verificationStepComplete && (rampSummaryVisible || isRegisterOrUpdate);
@@ -61,17 +65,17 @@ export const useStepper = () => {
       },
       {
         Icon: DetailsIcon,
-        status: detailsStepComplete ? "complete" : detailsStepActive ? "active" : "incomplete",
+        status: isError ? "error" : detailsStepComplete ? "complete" : detailsStepActive ? "active" : "incomplete",
         title: t("components.stepper.details", "Details")
       },
       {
         Icon: VerificationIcon,
-        status: verificationStepComplete ? "complete" : verificationStepActive ? "active" : "incomplete",
+        status: isError ? "error" : verificationStepComplete ? "complete" : verificationStepActive ? "active" : "incomplete",
         title: t("components.stepper.verification", "Verification")
       },
       {
         Icon: ConfirmIcon,
-        status: confirmStepComplete ? "complete" : confirmStepActive ? "active" : "incomplete",
+        status: isError ? "error" : confirmStepComplete ? "complete" : confirmStepActive ? "active" : "incomplete",
         title: t("components.stepper.confirm", "Confirm")
       }
     ];

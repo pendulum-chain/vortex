@@ -7,7 +7,7 @@ export function HistoryMenuButton() {
   return (
     <>
       <button
-        className={`btn-vortex-accent cursor-pointer px-3.5 py-1.5 ${isActive ? "bg-vortex-accent-hover" : ""}`}
+        className={`btn-vortex-accent cursor-pointer px-3.5 py-1.5 transition-transform duration-200 active:scale-95 ${isActive ? "bg-vortex-accent-hover" : ""}`}
         onClick={actions.toggleHistory}
         type="button"
       >

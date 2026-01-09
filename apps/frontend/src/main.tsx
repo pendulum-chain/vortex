@@ -2,13 +2,18 @@ import "@fontsource/roboto/300.css";
 import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
+import "react-toastify/dist/ReactToastify.css";
+import "../App.css";
 
 import * as Sentry from "@sentry/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
+import i18n from "i18next";
 import { createRoot } from "react-dom/client";
+import { initReactI18next } from "react-i18next";
 import { WagmiProvider } from "wagmi";
 
-import { App } from "./app";
 import { config } from "./config";
 import { EventsProvider } from "./contexts/events";
 import { NetworkProvider } from "./contexts/network";
@@ -17,6 +22,10 @@ import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
 import { PersistentRampStateProvider } from "./contexts/rampState";
+import { routeTree } from "./routeTree.gen";
+import enTranslations from "./translations/en.json";
+import { getBrowserLanguage, Language } from "./translations/helpers";
+import ptTranslations from "./translations/pt.json";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +45,31 @@ Sentry.init({
   tracesSampleRate: 1.0
 });
 
+// Initialize i18n with browser language as default
+// The actual language will be set by the route's beforeLoad
+const lng = getBrowserLanguage();
+
+i18n.use(initReactI18next).init({
+  fallbackLng: "en",
+  lng,
+  resources: {
+    [Language.English]: {
+      translation: enTranslations
+    },
+    [Language.Portuguese_Brazil]: {
+      translation: ptTranslations
+    }
+  }
+});
+
+const router = createRouter({ routeTree, scrollRestoration: true });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
 const root = document.getElementById("app");
 
 if (!root) {
@@ -44,13 +78,14 @@ if (!root) {
 
 createRoot(root).render(
   <QueryClientProvider client={queryClient}>
+    <ReactQueryDevtools initialIsOpen={false} />
     <WagmiProvider config={wagmiConfig}>
       <PersistentRampStateProvider>
         <NetworkProvider>
           <PolkadotNodeProvider>
             <PolkadotWalletStateProvider>
               <EventsProvider>
-                <App />
+                <RouterProvider router={router} />
               </EventsProvider>
             </PolkadotWalletStateProvider>
           </PolkadotNodeProvider>

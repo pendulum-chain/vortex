@@ -45,8 +45,6 @@ export interface BaseFiatTokenDetails {
   maxSellAmountRaw: string;
   minBuyAmountRaw: string;
   maxBuyAmountRaw: string;
-  sellFeesBasisPoints: number;
-  sellFeesFixedComponent?: number;
   buyFeesBasisPoints?: number;
   buyFeesFixedComponent?: number;
 }

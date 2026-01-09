@@ -14,7 +14,7 @@ export const RampErrorMessage = () => {
   return (
     <section className="mt-5 flex w-full justify-center">
       <div className="flex items-center gap-4">
-        <p className="text-red-600">{initializeFailedMessage}</p>
+        <p className="text-red-800">{initializeFailedMessage}</p>
       </div>
     </section>
   );

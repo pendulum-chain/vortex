@@ -16,14 +16,19 @@ export const AveniaKYBForm = () => {
   const aveniaState = useAveniaKycSelector();
   const quote = useQuote();
 
-  const { kycForm } = useKYCForm({ cpfApiError: null });
+  const { t } = useTranslation();
+
+  console.log(
+    "AveniaKYBForm: kycFormData from aveniaState context before passing to useKYCForm:",
+    aveniaState?.context.kycFormData
+  );
+  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   useEffect(() => {
     if (aveniaState?.context.taxId) {
       kycForm.setValue(ExtendedAveniaFieldOptions.TAX_ID, aveniaState.context.taxId);
     }
   }, [aveniaState?.context.taxId, kycForm]);
-  const { t } = useTranslation();
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;

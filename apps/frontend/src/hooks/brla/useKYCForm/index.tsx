@@ -9,6 +9,7 @@ import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/qu
 
 export interface UseKYCFormProps {
   cpfApiError: string | null;
+  initialData?: KYCFormData;
 }
 
 const getEnumInitialValues = (enumType: Record<string, string>): Record<string, unknown> => {
@@ -90,7 +91,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
 export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
-export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
+export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const taxIdFromStore = useTaxId();
   const pixIdFromStore = usePixId();
@@ -99,12 +100,19 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
 
   const kycFormSchema = createKycFormSchema(t);
 
+  console.log("useKYCForm: Received initialData:", initialData);
+
+  const defaultValues = {
+    ...getEnumInitialValues(ExtendedAveniaFieldOptions),
+    ...initialData,
+    [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
+    [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
+  };
+
+  console.log("useKYCForm: Calculated defaultValues:", defaultValues);
+
   const kycForm = useForm<KYCFormData>({
-    defaultValues: {
-      ...getEnumInitialValues(ExtendedAveniaFieldOptions),
-      [ExtendedAveniaFieldOptions.TAX_ID]: taxIdFromStore || "",
-      [ExtendedAveniaFieldOptions.PIX_ID]: pixIdFromStore || ""
-    },
+    defaultValues: defaultValues,
     mode: "onBlur",
     resolver: yupResolver(kycFormSchema)
   });

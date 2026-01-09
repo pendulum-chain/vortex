@@ -26,7 +26,7 @@ export const Widget = ({ className }: WidgetProps) => (
   <motion.div
     animate={{ opacity: 1, scale: 1 }}
     className={cn(
-      "relative mx-6 mt-8 mb-4 flex min-h-[620px] flex-col overflow-hidden rounded-lg px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
+      "relative mx-6 mt-8 mb-4 flex min-h-[620px] flex-col overflow-hidden rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
       className
     )}
     initial={{ opacity: 0, scale: 0.9 }}

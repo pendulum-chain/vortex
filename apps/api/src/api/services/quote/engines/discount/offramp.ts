@@ -38,12 +38,11 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
     // Calculate expected output amount based on oracle price + target discount
-    const expectedOutputAmountDecimal = calculateExpectedOutput(
-      inputAmount,
-      oraclePrice,
-      targetDiscount,
-      this.config.isOfframp
-    );
+    const {
+      expectedOutput: expectedOutputAmountDecimal,
+      adjustedDifference,
+      adjustedTargetDiscount
+    } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
     const expectedOutputAmountRaw = multiplyByPowerOfTen(expectedOutputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const actualOutputAmountDecimal = nablaSwap.outputAmountDecimal;
@@ -70,6 +69,8 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
     return {
       actualOutputAmountDecimal,
       actualOutputAmountRaw,
+      adjustedDifference,
+      adjustedTargetDiscount,
       expectedOutputAmountDecimal,
       expectedOutputAmountRaw,
       idealSubsidyAmountInOutputTokenDecimal: idealSubsidyAmountDecimal,

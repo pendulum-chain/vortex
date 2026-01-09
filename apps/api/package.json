@@ -34,6 +34,7 @@
     "joi": "^17.13.3",
     "method-override": "^3.0.0",
     "morgan": "^1.8.1",
+    "node-cache": "^5.1.2",
     "p-limit": "^6.1.0",
     "pg": "^8.14.1",
     "pg-hstore": "^2.3.4",

@@ -35,6 +35,8 @@ export interface RampContext {
   externalSessionId?: string;
   isSep24Redo?: boolean;
   errorMessage?: string;
+  kycFormData?: KYCFormData;
+  enteredViaForm?: boolean; // True if user navigated from the Quote form, false if entered via direct URL
   // Auth-related fields
   userEmail?: string;
   userId?: string;
@@ -57,7 +59,7 @@ export type RampMachineEvents =
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION" }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean }
+  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
   | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }

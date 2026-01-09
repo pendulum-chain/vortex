@@ -16,15 +16,11 @@ import {
 import Big from "big.js";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
-import {
-  addFeeDistributionTransaction,
-  addMoonbeamTransactions,
-  addNablaSwapTransactions,
-  addPendulumCleanupTx
-} from "../common/transactions";
+import { addMoonbeamTransactions, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
 import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 

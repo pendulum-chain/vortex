@@ -1,5 +1,6 @@
 import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
@@ -93,6 +94,8 @@ export async function assignFeeSummary(ctx: QuoteContext, components: FeeSummary
   const totalUsd = new Big(vortexUsd).plus(anchorUsd).plus(partnerUsd).plus(networkUsd).toFixed(6);
   const totalDisplay = new Big(vortexDisplay).plus(anchorDisplay).plus(partnerDisplay).plus(networkDisplay).toFixed(2);
 
+  const vortexFeePenPercentage = config.vortexFeePenPercentage ?? 0;
+
   ctx.fees = {
     displayFiat: {
       anchor: anchorDisplay,
@@ -108,7 +111,8 @@ export async function assignFeeSummary(ctx: QuoteContext, components: FeeSummary
       partnerMarkup: partnerUsd,
       total: totalUsd,
       vortex: vortexUsd
-    }
+    },
+    vortexFeePenPercentage
   };
 
   const note = `Fees: usd[vortex=${ctx.fees.usd?.vortex ?? "0"}, anchor=${ctx.fees.usd?.anchor ?? "0"}, partner=${ctx.fees.usd?.partnerMarkup ?? "0"}, network=${ctx.fees.usd?.network ?? "0"}] display=${ctx.targetFeeFiatCurrency}`;

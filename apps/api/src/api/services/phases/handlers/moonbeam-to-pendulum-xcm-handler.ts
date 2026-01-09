@@ -91,7 +91,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         }
       }
       console.error("Error while executing moonbeam-to-pendulum xcm:", error);
-      throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction");
+      throw new RecoverablePhaseError("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction", 120);
     }
 
     try {

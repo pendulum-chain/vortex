@@ -56,7 +56,7 @@ export const aveniaKycMachine = setup({
       | { type: "DOCUMENTS_BACK" }
       | { type: "LIVENESS_OPENED" }
       | { type: "REFRESH_LIVENESS_URL" }
-      | { type: "CANCEL" }
+      | { type: "GO_BACK" }
       | { type: "KYB_COMPLETE" }
       | { type: "KYB_COMPANY_DONE" }
       | { type: "KYB_REPRESENTATIVE_DONE" }
@@ -105,44 +105,53 @@ export const aveniaKycMachine = setup({
     },
     FormFilling: {
       on: {
-        CANCEL: {
-          actions: assign({
-            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
-          }),
-          target: "Finish"
-        },
         FORM_SUBMIT: {
           actions: assign({
+            executionInput: ({ context, event }) => {
+              if (!context.executionInput) return undefined;
+              return {
+                ...context.executionInput,
+                taxId: event.formData.taxId
+              };
+            },
             kycFormData: ({ event }) => {
               console.log("kycFormData", event.formData);
               return event.formData;
-            }
+            },
+            taxId: ({ event }) => event.formData.taxId
           }),
           target: "SubaccountSetup"
+        },
+        GO_BACK: {
+          target: "DocumentUpload"
         }
       }
     },
-
     KYBFlow: {
       initial: "CompanyVerification",
       on: {
-        CANCEL: {
-          actions: assign({
-            error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
-          }),
-          target: "Finish"
-        },
         FORM_SUBMIT: {
           actions: assign({
+            executionInput: ({ context, event }) => {
+              if (!context.executionInput) return undefined;
+              return {
+                ...context.executionInput,
+                taxId: event.formData.taxId
+              };
+            },
             kycFormData: ({ event, context }) => {
               console.log("kycFormData", event.formData);
               return {
                 ...context.kycFormData,
                 ...event.formData
               };
-            }
+            },
+            taxId: ({ event }) => event.formData.taxId
           }),
           target: "KYBVerification"
+        },
+        GO_BACK: {
+          target: "#brlaKyc.FormFilling"
         }
       },
       states: {
@@ -200,7 +209,7 @@ export const aveniaKycMachine = setup({
         kycStatus: () => KycStatus.PENDING
       }),
       on: {
-        CANCEL: {
+        GO_BACK: {
           actions: assign({
             error: () => new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
           }),
@@ -209,7 +218,13 @@ export const aveniaKycMachine = setup({
       }
     },
     LivenessCheck: {
+      exit: assign({
+        livenessCheckOpened: () => false
+      }),
       on: {
+        GO_BACK: {
+          target: "DocumentUpload"
+        },
         LIVENESS_DONE: {
           guard: ({ context }) => context.livenessCheckOpened === true,
           target: "Submit"

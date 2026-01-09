@@ -11,6 +11,7 @@ import {
   generateReferenceLabel,
   IbanPaymentData,
   MoneriumErrors,
+  Networks,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -31,10 +32,12 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
+import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -45,6 +48,8 @@ import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validat
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
+
+const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
@@ -118,6 +123,13 @@ export class RampService extends BaseRampService {
 
       await this.consumeQuote(quote.id, transaction);
 
+      let partner: ActivePartner = null;
+      if (quote.partnerId) {
+        partner = await Partner.findByPk(quote.partnerId);
+      }
+
+      handleQuoteConsumptionForDiscountState(partner);
+
       // Create initial ramp state
       const rampState = await this.createRampState({
         currentPhase: "initial" as RampPhase,
@@ -149,6 +161,7 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
+        expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
@@ -253,6 +266,7 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
+        expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
@@ -300,6 +314,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      this.validateRampStateData(rampState, quote);
+
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
         throw new APIError({
@@ -336,7 +352,7 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       // We leave 20% of the time window for to reach the stellar creation operation.
-      if (timeDifferenceSeconds > SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8) {
+      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
         this.cancelRamp(rampState.id);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
@@ -515,8 +531,10 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    const rampStates = await RampState.findAll({
+  public async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+    const { rows: rampStates, count: totalCount } = await RampState.findAndCountAll({
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
       where: {
         [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
@@ -533,23 +551,61 @@ export class RampService extends BaseRampService {
     });
     const quoteMap = new Map(quotes.map(quote => [quote.id, quote]));
 
-    const transactions = rampStates.map(ramp => {
-      const quote = quoteMap.get(ramp.quoteId);
-      return {
-        date: ramp.createdAt.toISOString(),
-        fromAmount: quote?.inputAmount || "",
-        fromCurrency: quote?.inputCurrency || "",
-        fromNetwork: ramp.from,
-        id: ramp.id,
-        status: this.mapPhaseToStatus(ramp.currentPhase),
-        toAmount: quote?.outputAmount || "",
-        toCurrency: quote?.outputCurrency || "",
-        toNetwork: ramp.to,
-        type: ramp.type
-      };
-    });
+    const transactions = await Promise.all(
+      rampStates.map(async ramp => {
+        const quote = quoteMap.get(ramp.quoteId);
 
-    return { transactions };
+        if (!quote) {
+          throw new APIError({
+            message: `Associated quote not found for ramp ${ramp.id}`,
+            status: httpStatus.NOT_FOUND
+          });
+        }
+
+        // Get or compute final transaction hash and explorer link (similar to getRampStatus)
+        let transactionHash = ramp.state.finalTransactionHash;
+        let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
+
+        // If not stored yet and ramp is complete, compute and store them
+        if (
+          ramp.type === RampDirection.BUY &&
+          ramp.currentPhase === "complete" &&
+          (!transactionHash || !transactionExplorerLink)
+        ) {
+          const result = await getFinalTransactionHashForRamp(ramp, quote);
+          transactionHash = result.transactionHash;
+          transactionExplorerLink = result.transactionExplorerLink;
+
+          // Store the computed values in the state for future use
+          if (transactionHash && transactionExplorerLink) {
+            await ramp.update({
+              state: {
+                ...ramp.state,
+                finalTransactionExplorerLink: transactionExplorerLink,
+                finalTransactionHash: transactionHash
+              }
+            });
+          }
+        }
+
+        return {
+          date: ramp.createdAt.toISOString(),
+          externalTxExplorerLink: transactionExplorerLink,
+          externalTxHash: transactionHash,
+          from: ramp.from,
+          fromAmount: quote.inputAmount,
+          fromCurrency: quote.inputCurrency,
+          id: ramp.id,
+          status: this.mapPhaseToStatus(ramp.currentPhase),
+          to: ramp.to,
+          toAmount: quote.outputAmount,
+          toCurrency: quote.outputCurrency,
+          type: ramp.type
+        };
+      })
+    );
+
+    return { totalCount, transactions };
   }
 
   /**
@@ -925,6 +981,31 @@ export class RampService extends BaseRampService {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+    }
+  }
+
+  private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
+    if (rampState.type === RampDirection.SELL) {
+      if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
+        throw new APIError({
+          message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
+          status: httpStatus.BAD_REQUEST
+        });
+      } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
+        throw new APIError({
+          message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+
+    if (rampState.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
+      if (!rampState.state.moneriumOnrampPermit) {
+        throw new APIError({
+          message: "Missing moneriumOnrampPermit in state. Cannot proceed.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
     }
   }
 
