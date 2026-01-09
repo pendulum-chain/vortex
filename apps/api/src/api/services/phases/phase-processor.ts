@@ -12,7 +12,7 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
-  private readonly MAX_EXECUTION_TIME_MS = 60 * 60 * 1000; // 1 hour
+  private readonly MAX_EXECUTION_TIME_MS = 20 * 60 * 1000; // 20 minutes
   private lockedRamps = new Set<string>();
 
   /**
