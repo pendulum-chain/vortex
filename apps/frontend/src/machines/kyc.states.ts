@@ -140,13 +140,10 @@ export const kycStateNode = {
         }),
         onDone: [
           {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
-              console.log("Monerium KYC completed with response:", event.output);
-              return {
-                ...context,
-                authToken: event.output.authToken
-              };
-            }),
+            actions: assign(({ context, event }: { context: RampContext; event: any }) => ({
+              ...context,
+              authToken: event.output.authToken
+            })),
             guard: ({ event }: { event: any }) => !!event.output.authToken,
             target: "VerificationComplete"
           },
@@ -216,13 +213,6 @@ export const kycStateNode = {
     VerificationComplete: {
       always: {
         target: "#ramp.KycComplete"
-      },
-      entry: {
-        actions: [
-          ({ context }: any) => {
-            console.log("KYC verification completed successfully:", context.kycResponse);
-          }
-        ]
       }
     }
   }
