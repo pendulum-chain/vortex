@@ -1,4 +1,3 @@
-import { createBrowserInspector } from "@statelyai/inspect";
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
