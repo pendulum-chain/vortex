@@ -2,7 +2,6 @@ import {
   AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
-  ApiManager,
   addAdditionalTransactionsToMeta,
   createAssethubToPendulumXCM,
   createNablaTransactionsForOfframp,
@@ -11,11 +10,8 @@ import {
   createPendulumToMoonbeamTransfer,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
-  getNetworkFromDestination,
   Networks,
   PaymentData,
-  PENDULUM_USDC_ASSETHUB,
-  PENDULUM_USDC_AXL,
   PendulumTokenDetails,
   StellarTokenDetails,
   UnsignedTx
@@ -23,95 +19,13 @@ import {
 import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";
-import logger from "../../../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../../../constants/constants";
 import erc20ABI from "../../../../../contracts/ERC20";
-import Partner from "../../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { prepareSpacewalkRedeemTransaction } from "../../spacewalk/redeem";
 import { buildPaymentAndMergeTx } from "../../stellar/offrampTransaction";
-
-/**
- * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
- * @param quote The quote ticket
- * @returns The encoded transaction
- */
-export async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  const apiManager = ApiManager.getInstance();
-  const { api } = await apiManager.getApi("pendulum");
-
-  const usdFeeStructure = quote.metadata.fees?.usd;
-  if (!usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
-    return null;
-  }
-
-  const networkFeeUSD = usdFeeStructure.network;
-  const vortexFeeUSD = usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
-
-  // Get payout addresses
-  const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex", rampType: quote.rampType }
-  });
-  if (!vortexPartner || !vortexPartner.payoutAddress) {
-    logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
-    return null;
-  }
-  const vortexPayoutAddress = vortexPartner.payoutAddress;
-
-  let partnerPayoutAddress = null;
-  if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
-    });
-    if (quotePartner && quotePartner.payoutAddress) {
-      partnerPayoutAddress = quotePartner.payoutAddress;
-    }
-  }
-
-  const fromNetwork = getNetworkFromDestination(quote.from);
-  if (!fromNetwork) {
-    logger.warn(`Invalid network for source ${quote.from}, skipping fee distribution transaction`);
-    return null;
-  }
-
-  // Select stablecoin based on source network
-  const isAssetHubSource = fromNetwork === Networks.AssetHub;
-  const stablecoinDetails = isAssetHubSource ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
-  const stablecoinCurrencyId = stablecoinDetails.currencyId;
-  const stablecoinDecimals = stablecoinDetails.decimals;
-
-  // Convert USD fees to stablecoin raw units
-  const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
-  const vortexFeeStablecoinRaw = multiplyByPowerOfTen(vortexFeeUSD, stablecoinDecimals).toFixed(0, 0);
-  const partnerMarkupFeeStablecoinRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, stablecoinDecimals).toFixed(0, 0);
-
-  const transfers = [];
-
-  if (new Big(networkFeeStablecoinRaw).gt(0)) {
-    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw));
-  }
-
-  if (new Big(vortexFeeStablecoinRaw).gt(0)) {
-    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
-  }
-
-  if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
-    transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
-  }
-
-  if (transfers.length > 0) {
-    const batchTx = api.tx.utility.batchAll(transfers);
-    // Create unsigned transaction (don't sign it here)
-    return encodeSubmittableExtrinsic(batchTx);
-  }
-
-  return null;
-}
 
 /**
  * Creates transactions for EVM source networks using Squidrouter or mock transactions in sandbox
@@ -277,37 +191,6 @@ export async function createNablaSwapTransactions(
       nablaSoftMinimumOutputRaw
     }
   };
-}
-
-/**
- * Creates fee distribution transaction
- * @param quote Quote ticket
- * @param account Account metadata
- * @param unsignedTxs Array to add transactions to
- * @param nextNonce Next available nonce
- * @returns Updated nonce
- */
-export async function addFeeDistributionTransaction(
-  quote: QuoteTicketAttributes,
-  account: AccountMeta,
-  unsignedTxs: UnsignedTx[],
-  nextNonce: number
-): Promise<number> {
-  const feeDistributionTx = await createFeeDistributionTransaction(quote);
-
-  if (feeDistributionTx) {
-    unsignedTxs.push({
-      meta: {},
-      network: Networks.Pendulum,
-      nonce: nextNonce,
-      phase: "distributeFees",
-      signer: account.address,
-      txData: feeDistributionTx
-    });
-    nextNonce++;
-  }
-
-  return nextNonce;
 }
 
 /**

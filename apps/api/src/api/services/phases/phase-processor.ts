@@ -12,6 +12,7 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
+  private readonly MAX_EXECUTION_TIME_MS = 20 * 60 * 1000; // 20 minutes
   private lockedRamps = new Set<string>();
 
   /**
@@ -157,8 +158,19 @@ export class PhaseProcessor {
         return;
       }
 
-      // Execute the phase
-      const updatedState = await handler.execute(state);
+      // Execute the phase with a maximum waiting time
+      // If the phase execution exceeds this time, we consider it a timeout and handle it as a recoverable error.
+      const maxExecuteTime = this.MAX_EXECUTION_TIME_MS;
+      let timeoutId: NodeJS.Timeout;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new RecoverablePhaseError("Phase execution timed out"));
+        }, maxExecuteTime);
+      });
+
+      const updatedState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+      });
 
       // If the phase has changed, process the next phase
       // except for complete or fail phases which are terminal.

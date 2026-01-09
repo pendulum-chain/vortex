@@ -139,6 +139,7 @@ export interface RampProcess {
   createdAt: string;
   currentPhase: RampPhase;
   depositQrCode?: string;
+  expiresAt?: string;
   from: DestinationType;
   ibanPaymentData?: IbanPaymentData;
   id: string;
