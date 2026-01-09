@@ -16,7 +16,6 @@ import {
 } from "../machines/types";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
-const { inspect } = createBrowserInspector();
 
 const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
 let restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
@@ -25,7 +24,6 @@ console.log("restored state: ", restoredState);
 restoredState = restoredState?.status === "error" ? undefined : restoredState;
 
 export const RampStateContext = createActorContext(rampMachine, {
-  inspect,
   snapshot: restoredState
 });
 
