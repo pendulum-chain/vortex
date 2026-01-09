@@ -31,6 +31,7 @@ const StandardBrlaFieldOptionsValidationPatterns: Partial<Record<StandardAveniaF
 };
 
 function getValidationPattern(fieldId: StandardAveniaFieldOptions) {
+  console.log("Getting validation pattern for fieldId: ", fieldId);
   return StandardBrlaFieldOptionsValidationPatterns[fieldId] || undefined;
 }
 

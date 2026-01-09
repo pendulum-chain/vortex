@@ -106,7 +106,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   return (
     <div className={className}>
       <button className="btn-vortex-primary btn w-full" disabled={isSubmitButtonDisabled} onClick={onClick}>
-        {(isQuoteOutdated || pending) && <Spinner />}
+        {(isQuoteOutdated || pending) && !currentErrorMessage && <Spinner />}
         {isMaintenanceDisabled ? buttonProps.title : buttonText}
       </button>
     </div>

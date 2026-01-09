@@ -35,30 +35,20 @@ function validateOnramp(
   }
 ): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxBuyAmountRaw), -fromToken.decimals);
-  // Set minimum amount for EURC to 1 unit as an arbitrary limit.
-  const minAmountUnits =
-    fromToken.assetSymbol === "EURC" ? new Big(1) : multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
 
-  if (inputAmount && maxAmountUnits.lt(inputAmount)) {
+  const isTooHigh = inputAmount && maxAmountUnits.lt(inputAmount);
+  const isTooLow = inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount);
+
+  if (isTooHigh || isTooLow) {
     trackEvent({
-      error_message: "more_than_maximum_withdrawal",
+      error_message: isTooHigh ? "more_than_maximum_withdrawal" : "less_than_minimum_withdrawal",
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.moreThanMaximumWithdrawal.buy", {
+    return t("pages.swap.error.amountOutOfRange.buy", {
       assetSymbol: fromToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
-    });
-  }
-
-  if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
-    trackEvent({
-      error_message: "less_than_minimum_withdrawal",
-      event: "form_error",
-      input_amount: inputAmount ? inputAmount.toString() : "0"
-    });
-    return t("pages.swap.error.lessThanMinimumWithdrawal.buy", {
-      assetSymbol: fromToken.fiat.symbol,
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
       minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
   }
@@ -104,34 +94,22 @@ function validateOfframp(
 
   const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
+  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
 
-  if (inputAmount && quote && maxAmountUnits.lt(Big(quote.outputAmount))) {
+  const isTooHigh = inputAmount && quote && maxAmountUnits.lt(amountOut);
+  const isTooLow = !amountOut.eq(0) && !config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut);
+
+  if (isTooHigh || isTooLow) {
     trackEvent({
-      error_message: "more_than_maximum_withdrawal",
+      error_message: isTooHigh ? "more_than_maximum_withdrawal" : "less_than_minimum_withdrawal",
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.moreThanMaximumWithdrawal.sell", {
+    return t("pages.swap.error.amountOutOfRange.sell", {
       assetSymbol: toToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
-  }
-
-  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
-
-  if (!amountOut.eq(0)) {
-    if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-      trackEvent({
-        error_message: "less_than_minimum_withdrawal",
-        event: "form_error",
-        input_amount: inputAmount ? inputAmount.toString() : "0"
-      });
-
-      return t("pages.swap.error.lessThanMinimumWithdrawal.sell", {
-        assetSymbol: toToken.fiat.symbol,
-        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
-      });
-    }
   }
 
   return null;
@@ -178,8 +156,6 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
-    if (quoteError) return t(quoteError);
-
     if (isDisconnected) return;
 
     // First check if the fiat token is enabled
@@ -206,6 +182,8 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
+
+    if (quoteError) return t(quoteError);
 
     return null;
   }, [

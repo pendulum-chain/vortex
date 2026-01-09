@@ -177,7 +177,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   ]);
 };
 
-export const RampSubmitButton = ({ className }: { className?: string }) => {
+export const RampSubmitButton = ({ className, hasValidationErrors }: { className?: string; hasValidationErrors?: boolean }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
@@ -208,6 +208,10 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const submitButtonDisabled = useMemo(() => {
+    if (hasValidationErrors) {
+      return true;
+    }
+
     if (
       walletLocked &&
       (isOfframp || quote?.from === "sepa") &&
@@ -242,6 +246,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
     return false;
   }, [
+    hasValidationErrors,
     executionInput,
     isQuoteExpired,
     isOfframp,
