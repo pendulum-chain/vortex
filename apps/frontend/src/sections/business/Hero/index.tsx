@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import WidgetSnippetImageEUR from "../../../assets/vortex-metamask.png";
+import WidgetSnippetImageEUR from "../../../assets/metawallet-vortex.png";
 import { AnimatedTitle } from "../../../components/AnimatedTitle";
 import { fadeInUp, prefersReducedMotion, staggerContainer } from "../../../constants/animations";
 
