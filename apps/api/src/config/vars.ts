@@ -55,6 +55,7 @@ interface Config {
   };
   supabaseKey: string | undefined;
   supabaseUrl: string | undefined;
+  subscanApiKey: string | undefined;
 }
 
 export const config: Config = {
@@ -104,6 +105,7 @@ export const config: Config = {
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
+  subscanApiKey: process.env.SUBSCAN_API_KEY,
   supabaseKey: process.env.SUPABASE_SERVICE_KEY,
   supabaseUrl: process.env.SUPABASE_URL,
   swap: {
