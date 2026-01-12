@@ -43,6 +43,12 @@ export const Ramp = () => {
     }
   }, [quote, quoteFromState, forceSetQuote]);
 
+  useEffect(() => {
+    if (!quoteFromState && quote && state === "QuoteReady") {
+      rampActor.send({ quote, type: "UPDATE_QUOTE" });
+    }
+  }, [quote, quoteFromState, state, rampActor]);
+
   console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();
 };
