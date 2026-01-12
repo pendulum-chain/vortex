@@ -4,6 +4,7 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   OnChainTokenDetails,
+  QuoteError,
   QuoteResponse,
   RampDirection
 } from "@vortexfi/shared";
@@ -17,7 +18,7 @@ import { TrackableEvent, useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
 import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
-import { useQuote, useQuoteError } from "../../stores/quote/useQuoteStore";
+import { useQuote, useQuoteError, useQuoteLoading } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useOnchainTokenBalance } from "../useOnchainTokenBalance";
 import { useVortexAccount } from "../useVortexAccount";
@@ -35,30 +36,20 @@ function validateOnramp(
   }
 ): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxBuyAmountRaw), -fromToken.decimals);
-  // Set minimum amount for EURC to 1 unit as an arbitrary limit.
-  const minAmountUnits =
-    fromToken.assetSymbol === "EURC" ? new Big(1) : multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
 
-  if (inputAmount && maxAmountUnits.lt(inputAmount)) {
+  const isTooHigh = inputAmount && maxAmountUnits.lt(inputAmount);
+  const isTooLow = inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount);
+
+  if (isTooHigh || isTooLow) {
     trackEvent({
-      error_message: "more_than_maximum_withdrawal",
+      error_message: isTooHigh ? "more_than_maximum_withdrawal" : "less_than_minimum_withdrawal",
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.moreThanMaximumWithdrawal.buy", {
+    return t("pages.swap.error.amountOutOfRange.buy", {
       assetSymbol: fromToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
-    });
-  }
-
-  if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
-    trackEvent({
-      error_message: "less_than_minimum_withdrawal",
-      event: "form_error",
-      input_amount: inputAmount ? inputAmount.toString() : "0"
-    });
-    return t("pages.swap.error.lessThanMinimumWithdrawal.buy", {
-      assetSymbol: fromToken.fiat.symbol,
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
       minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
   }
@@ -74,6 +65,7 @@ function validateOfframp(
     toToken,
     quote,
     userInputTokenBalance,
+    isDisconnected,
     trackEvent
   }: {
     inputAmount: Big;
@@ -81,10 +73,31 @@ function validateOfframp(
     toToken: FiatTokenDetails;
     quote: QuoteResponse;
     userInputTokenBalance: string | null;
+    isDisconnected: boolean;
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  if (typeof userInputTokenBalance === "string") {
+  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
+  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
+
+  const isTooHigh = inputAmount && quote && maxAmountUnits.lt(amountOut);
+  const isTooLow = !amountOut.eq(0) && !config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut);
+
+  if (isTooHigh || isTooLow) {
+    trackEvent({
+      error_message: isTooHigh ? "more_than_maximum_withdrawal" : "less_than_minimum_withdrawal",
+      event: "form_error",
+      input_amount: inputAmount ? inputAmount.toString() : "0"
+    });
+    return t("pages.swap.error.amountOutOfRange.sell", {
+      assetSymbol: toToken.fiat.symbol,
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+    });
+  }
+
+  if (typeof userInputTokenBalance === "string" && !isDisconnected) {
     const isNativeToken = fromToken.isNative;
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
@@ -99,38 +112,6 @@ function validateOfframp(
       // If the user chose the max amount, show a warning for native tokens due to gas fees
     } else if (isNativeToken && Big(userInputTokenBalance).eq(inputAmount)) {
       return t("pages.swap.error.gasWarning");
-    }
-  }
-
-  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
-
-  if (inputAmount && quote && maxAmountUnits.lt(Big(quote.outputAmount))) {
-    trackEvent({
-      error_message: "more_than_maximum_withdrawal",
-      event: "form_error",
-      input_amount: inputAmount ? inputAmount.toString() : "0"
-    });
-    return t("pages.swap.error.moreThanMaximumWithdrawal.sell", {
-      assetSymbol: toToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
-    });
-  }
-
-  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
-
-  if (!amountOut.eq(0)) {
-    if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-      trackEvent({
-        error_message: "less_than_minimum_withdrawal",
-        event: "form_error",
-        input_amount: inputAmount ? inputAmount.toString() : "0"
-      });
-
-      return t("pages.swap.error.lessThanMinimumWithdrawal.sell", {
-        assetSymbol: toToken.fiat.symbol,
-        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
-      });
     }
   }
 
@@ -158,6 +139,7 @@ export const useRampValidation = () => {
 
   const { inputAmount: inputAmountString, onChainToken, fiatToken } = useQuoteFormStore();
   const quote = useQuote();
+  const quoteLoading = useQuoteLoading();
   const quoteError = useQuoteError();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
@@ -178,16 +160,36 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
-    if (quoteError) return t(quoteError);
-
-    if (isDisconnected) return;
+    if (quoteLoading) return null;
 
     // First check if the fiat token is enabled
     const tokenAvailabilityError = validateTokenAvailability(t, fiatToken, trackEvent);
     if (tokenAvailabilityError) return tokenAvailabilityError;
 
-    let validationError = null;
+    // For offramps, we must also show a valid error message, when backend refuses to calculate a quote
+    // due to limits.
 
+    const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
+
+    if (quoteError?.includes(QuoteError.BelowLowerLimitSell)) {
+      const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxSellAmountRaw), -toToken.decimals);
+      const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minSellAmountRaw), -toToken.decimals);
+      return t("pages.swap.error.amountOutOfRange.sell", {
+        assetSymbol: toToken.assetSymbol,
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      });
+    } else if (quoteError?.includes(QuoteError.BelowLowerLimitBuy) || quoteError?.includes(QuoteError.InputAmountTooLow)) {
+      const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxBuyAmountRaw), -fromToken.decimals);
+      const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minBuyAmountRaw), -fromToken.decimals);
+      return t("pages.swap.error.amountOutOfRange.buy", {
+        assetSymbol: fromToken.assetSymbol,
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      });
+    } else if (quoteError) return t(quoteError);
+
+    let validationError = null;
     if (isOnramp) {
       validationError = validateOnramp(t, {
         fromToken: fromToken as FiatTokenDetails,
@@ -198,6 +200,7 @@ export const useRampValidation = () => {
       validationError = validateOfframp(t, {
         fromToken: fromToken as OnChainTokenDetails,
         inputAmount,
+        isDisconnected,
         quote: quote as QuoteResponse,
         toToken: toToken as FiatTokenDetails,
         trackEvent,
@@ -218,6 +221,7 @@ export const useRampValidation = () => {
     trackEvent,
     toToken,
     quote,
+    quoteLoading,
     userInputTokenBalance?.balance,
     fiatToken
   ]);
