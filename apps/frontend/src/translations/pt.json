@@ -11,6 +11,14 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "authEmailStep": {
+      "termsCheckbox": {
+        "and": "e",
+        "prefix": "Eu concordo com os",
+        "privacyPolicy": "Política de Privacidade",
+        "termsAndConditions": "Termos e Condições"
+      }
+    },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
         "instructions": "Como indivíduo legalmente autorizado a agir em nome da empresa, forneça suas informações pessoais e os documentos necessários."

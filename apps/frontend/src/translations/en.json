@@ -11,6 +11,14 @@
       },
       "title": "Special offer until 27 May"
     },
+    "authEmailStep": {
+      "termsCheckbox": {
+        "and": "and",
+        "prefix": "I agree to the",
+        "privacyPolicy": "Privacy Policy",
+        "termsAndConditions": "Terms and Conditions"
+      }
+    },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
         "instructions": "As the individual legally authorized to act on behalf of the company, please provide your personal information and required documents."

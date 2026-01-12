@@ -1,5 +1,6 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
@@ -10,6 +11,7 @@ export interface AuthEmailStepProps {
 }
 
 export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
+  const { t, i18n } = useTranslation();
   const rampActor = useRampActor();
   const { errorMessage, userEmail: contextEmail } = useSelector(rampActor, state => ({
     errorMessage: state.context.errorMessage,
@@ -19,6 +21,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
   const quote = useQuote();
   const [email, setEmail] = useState(contextEmail || "");
   const [localError, setLocalError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isLoading = useSelector(rampActor, state => state.matches("CheckingEmail") || state.matches("RequestingOTP"));
 
@@ -65,6 +68,37 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
               />
               {(localError || errorMessage) && <p className="mt-2 text-red-600 text-sm">{localError || errorMessage}</p>}
             </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                checked={termsAccepted}
+                className="checkbox checkbox-primary checkbox-sm mt-0.5"
+                disabled={isLoading}
+                id="terms"
+                onChange={e => setTermsAccepted(e.target.checked)}
+                type="checkbox"
+              />
+              <label className="cursor-pointer text-gray-600 text-sm" htmlFor="terms">
+                {t("components.authEmailStep.termsCheckbox.prefix")}{" "}
+                <a
+                  className="text-blue-600 underline hover:text-blue-700"
+                  href={`/${i18n.language}/terms-and-conditions`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {t("components.authEmailStep.termsCheckbox.termsAndConditions")}
+                </a>{" "}
+                {t("components.authEmailStep.termsCheckbox.and")}{" "}
+                <a
+                  className="text-blue-600 underline hover:text-blue-700"
+                  href={`/${i18n.language}/privacy-policy`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {t("components.authEmailStep.termsCheckbox.privacyPolicy")}
+                </a>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -75,7 +109,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
           <div className="w-full max-w-md">
             <button
               className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-              disabled={isLoading}
+              disabled={isLoading || !termsAccepted}
               type="submit"
             >
               {isLoading ? "Sending..." : "Continue"}
