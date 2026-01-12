@@ -18,7 +18,7 @@ import { TrackableEvent, useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
 import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
-import { useQuote, useQuoteError } from "../../stores/quote/useQuoteStore";
+import { useQuote, useQuoteError, useQuoteLoading } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { useOnchainTokenBalance } from "../useOnchainTokenBalance";
 import { useVortexAccount } from "../useVortexAccount";
@@ -65,6 +65,7 @@ function validateOfframp(
     toToken,
     quote,
     userInputTokenBalance,
+    isDisconnected,
     trackEvent
   }: {
     inputAmount: Big;
@@ -72,6 +73,7 @@ function validateOfframp(
     toToken: FiatTokenDetails;
     quote: QuoteResponse;
     userInputTokenBalance: string | null;
+    isDisconnected: boolean;
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
@@ -95,7 +97,7 @@ function validateOfframp(
     });
   }
 
-  if (typeof userInputTokenBalance === "string") {
+  if (typeof userInputTokenBalance === "string" && !isDisconnected) {
     const isNativeToken = fromToken.isNative;
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
@@ -137,6 +139,7 @@ export const useRampValidation = () => {
 
   const { inputAmount: inputAmountString, onChainToken, fiatToken } = useQuoteFormStore();
   const quote = useQuote();
+  const quoteLoading = useQuoteLoading();
   const quoteError = useQuoteError();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
@@ -157,7 +160,7 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
-    if (isDisconnected) return;
+    if (quoteLoading) return null;
 
     // First check if the fiat token is enabled
     const tokenAvailabilityError = validateTokenAvailability(t, fiatToken, trackEvent);
@@ -197,6 +200,7 @@ export const useRampValidation = () => {
       validationError = validateOfframp(t, {
         fromToken: fromToken as OnChainTokenDetails,
         inputAmount,
+        isDisconnected,
         quote: quote as QuoteResponse,
         toToken: toToken as FiatTokenDetails,
         trackEvent,
@@ -217,6 +221,7 @@ export const useRampValidation = () => {
     trackEvent,
     toToken,
     quote,
+    quoteLoading,
     userInputTokenBalance?.balance,
     fiatToken
   ]);
