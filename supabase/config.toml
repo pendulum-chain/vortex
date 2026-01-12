@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "pendulum-pay"
+project_id = "vortex"
 
 [api]
 enabled = true
@@ -228,11 +228,11 @@ otp_expiry = 3600
 # Custom email template for OTP/Magic Link
 [auth.email.template.magic_link]
 subject = "Your Vortex Verification Code"
-content_path = "./supabase/templates/magic_link.html"
+content_path = "supabase/templates/magic_link.html"
 
 [auth.email.template.confirmation]
 subject = "Confirm your signup"
-content_path = "./supabase/templates/signup.html"
+content_path = "supabase/templates/signup.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
