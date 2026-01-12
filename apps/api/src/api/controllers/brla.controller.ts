@@ -205,14 +205,6 @@ export const recordInitialKycAttempt = async (
     });
 
     if (!taxIdRecord) {
-      // This is required by the auth middleware, but we double check here.
-      if (!req.userId) {
-        res.status(httpStatus.UNAUTHORIZED).json({
-          error: "Authentication required to record KYC attempt"
-        });
-        return;
-      }
-
       const accountType = isValidCnpj(taxId)
         ? AveniaAccountType.COMPANY
         : isValidCpf(taxId)
@@ -228,7 +220,7 @@ export const recordInitialKycAttempt = async (
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
           taxId,
-          userId: req.userId
+          userId: req.userId ?? null
         });
       }
     }
@@ -329,13 +321,6 @@ export const createSubaccount = async (
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
 
-      if (!req.userId) {
-        throw new APIError({
-          message: "User ID is required to create a new subaccount",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
       await TaxId.create({
         accountType,
         initialQuoteId: quoteId,
@@ -344,7 +329,7 @@ export const createSubaccount = async (
         requestedDate: new Date(),
         subAccountId: id,
         taxId: taxId,
-        userId: req.userId
+        userId: req.userId ?? null
       });
     }
 

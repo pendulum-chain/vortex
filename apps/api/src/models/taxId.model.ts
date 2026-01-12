@@ -1,5 +1,5 @@
-import {AveniaAccountType} from "@vortexfi/shared";
-import {DataTypes, Model, Optional} from "sequelize";
+import { AveniaAccountType } from "@vortexfi/shared";
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export enum TaxIdInternalStatus {
@@ -12,7 +12,7 @@ export enum TaxIdInternalStatus {
 // Define the attributes of the TaxId model
 export interface TaxIdAttributes {
   taxId: string;
-  userId: string; // UUID reference to Supabase Auth user
+  userId: string | null; // UUID reference to Supabase Auth user
   subAccountId: string;
   accountType: AveniaAccountType;
   kycAttempt: string | null;
@@ -45,7 +45,7 @@ type TaxIdCreationAttributes = Optional<
 // Define the TaxId model
 class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements TaxIdAttributes {
   declare taxId: string;
-  declare userId: string;
+  declare userId: string | null;
   declare subAccountId: string;
   declare accountType: AveniaAccountType;
   declare kycAttempt: string | null;
@@ -131,7 +131,7 @@ TaxId.init(
       type: DataTypes.DATE
     },
     userId: {
-      allowNull: false,
+      allowNull: true,
       field: "user_id",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",

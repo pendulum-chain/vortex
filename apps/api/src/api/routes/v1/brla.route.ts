@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
-import { optionalAuth, requireAuth } from "../../middlewares/supabaseAuth";
+import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateStartKyc2, validateSubaccountCreation } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
@@ -25,6 +25,6 @@ router.route("/kyb/new-level-1/web-sdk").post(optionalAuth, brlaController.initi
 
 router.route("/kyb/attempt-status").get(brlaController.getKybAttemptStatus);
 
-router.route("/kyc/record-attempt").post(requireAuth, brlaController.recordInitialKycAttempt);
+router.route("/kyc/record-attempt").post(optionalAuth, brlaController.recordInitialKycAttempt);
 
 export default router;

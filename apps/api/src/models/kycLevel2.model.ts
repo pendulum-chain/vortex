@@ -1,9 +1,9 @@
-import {DataTypes, Model, Optional} from "sequelize";
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export interface KycLevel2Attributes {
   id: string;
-  userId: string;
+  userId: string | null;
   subaccountId: string;
   documentType: "RG" | "CNH";
   uploadData: any;
@@ -17,7 +17,7 @@ type KycLevel2CreationAttributes = Optional<KycLevel2Attributes, "id" | "created
 
 class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> implements KycLevel2Attributes {
   declare id: string;
-  declare userId: string;
+  declare userId: string | null;
   declare subaccountId: string;
   declare documentType: "RG" | "CNH";
   declare uploadData: any;
@@ -74,7 +74,7 @@ KycLevel2.init(
       type: DataTypes.JSONB
     },
     userId: {
-      allowNull: false,
+      allowNull: true,
       field: "user_id",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
