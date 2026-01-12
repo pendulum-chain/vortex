@@ -178,11 +178,14 @@ export class QuoteService extends BaseRampService {
       await orchestrator.run(strategy, ctx);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
-      if (error instanceof APIError) {
+
+      // Preserve validation errors (BAD_REQUEST) - these are user-facing errors
+      if (error instanceof APIError && error.status === httpStatus.BAD_REQUEST) {
         throw error;
-      } else {
-        throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
       }
+
+      // Wrap unexpected errors as generic failure
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
     if (!ctx.builtResponse) {
