@@ -135,7 +135,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         if (status === ExtrinsicStatus.Success) {
           return;
         } else if (status === ExtrinsicStatus.Fail) {
-          throw this.createUnrecoverableError(`Extrinsic failed for hash ${extrinsicHash}`);
+          //throw this.createUnrecoverableError(`Extrinsic failed for hash ${extrinsicHash}`);
+          continue;
         } else if (status === ExtrinsicStatus.Undefined) {
           await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
           continue;
