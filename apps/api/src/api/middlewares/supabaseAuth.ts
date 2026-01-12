@@ -11,8 +11,7 @@ declare global {
 }
 
 /**
- * Middleware to verify Supabase auth token
- * Ready for future use when endpoints need protection
+ * Middleware to verify Supabase auth token and attach userId to request
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {

@@ -205,10 +205,10 @@ export const recordInitialKycAttempt = async (
     });
 
     if (!taxIdRecord) {
-      // Validate that user is authenticated since userId is required in the schema
+      // This is required by the auth middleware, but we double check here.
       if (!req.userId) {
-        res.status(httpStatus.UNAUTHORIZED).json({ 
-          error: "Authentication required to record KYC attempt" 
+        res.status(httpStatus.UNAUTHORIZED).json({
+          error: "Authentication required to record KYC attempt"
         });
         return;
       }
