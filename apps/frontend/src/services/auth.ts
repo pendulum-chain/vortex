@@ -110,6 +110,7 @@ export class AuthService {
       const newTokens: AuthTokens = {
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
+        userEmail: data.user.email,
         userId: data.user.id
       };
 

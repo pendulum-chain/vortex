@@ -35,6 +35,7 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
             const tokens = {
               accessToken: data.session.access_token,
               refreshToken: data.session.refresh_token,
+              userEmail: data.session.user.email,
               userId: data.session.user.id
             };
 
@@ -65,6 +66,7 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
           tokens: {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
+            userEmail: tokens.userEmail,
             userId: tokens.userId
           },
           type: "AUTH_SUCCESS"

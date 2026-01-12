@@ -147,7 +147,7 @@ export type RampMachineEvents =
   | { type: "EMAIL_VERIFIED" }
   | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
-  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string } }
+  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "CHANGE_EMAIL" }
   | { type: "LOGOUT" };
@@ -246,6 +246,7 @@ export const rampMachine = setup({
     AUTH_SUCCESS: {
       actions: assign({
         isAuthenticated: true,
+        userEmail: ({ event }) => event.tokens.userEmail,
         userId: ({ event }) => event.tokens.userId
       })
     },
