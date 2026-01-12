@@ -46,7 +46,7 @@ export const useStepper = () => {
     rampFollowUp || redirectCallback || isKycComplete || isRegister || isUpdate || rampPaymentConfirmed;
 
   // Step 4: Confirm - active when verification complete, complete when payment confirmed
-  const confirmStepActive = verificationStepComplete && (rampSummaryVisible || isRegisterOrUpdate);
+  const confirmStepActive = verificationStepComplete && (rampSummaryVisible || isRegister || isUpdate);
   const confirmStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed;
 
   // Step 2: Details - active after login, complete when KYC starts
@@ -80,14 +80,15 @@ export const useStepper = () => {
       }
     ];
   }, [
-    t,
-    loginStepComplete,
+    confirmStepActive,
+    confirmStepComplete,
     detailsStepActive,
     detailsStepComplete,
+    isError,
+    loginStepComplete,
+    t,
     verificationStepActive,
-    verificationStepComplete,
-    confirmStepActive,
-    confirmStepComplete
+    verificationStepComplete
   ]);
 
   const currentStep = useMemo(() => {

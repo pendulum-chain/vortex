@@ -45,13 +45,13 @@ let supabaseClient: SupabaseClient | null = null;
 
 function getSupabaseClient() {
   if (!supabaseClient) {
-    if (!config.supabaseUrl) {
+    if (!config.supabase.url) {
       throw new Error("Missing Supabase URL in configuration.");
     }
-    if (!config.supabaseKey) {
+    if (!config.supabase.anonKey) {
       throw new Error("Missing Supabase Key in configuration.");
     }
-    supabaseClient = createClient(config.supabaseUrl, config.supabaseKey);
+    supabaseClient = createClient(config.supabase.url, config.supabase.anonKey);
   }
   return supabaseClient;
 }
