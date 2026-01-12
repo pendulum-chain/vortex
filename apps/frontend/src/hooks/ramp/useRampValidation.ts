@@ -171,7 +171,7 @@ export const useRampValidation = () => {
 
     const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
 
-    if (quoteError?.includes(QuoteError.BellowLowerLimitSell)) {
+    if (quoteError?.includes(QuoteError.BelowLowerLimitSell)) {
       const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxSellAmountRaw), -toToken.decimals);
       const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minSellAmountRaw), -toToken.decimals);
       return t("pages.swap.error.amountOutOfRange.sell", {
@@ -179,7 +179,7 @@ export const useRampValidation = () => {
         maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
         minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
       });
-    } else if (quoteError?.includes(QuoteError.BellowLowerLimitBuy) || quoteError?.includes(QuoteError.InputAmountTooLow)) {
+    } else if (quoteError?.includes(QuoteError.BelowLowerLimitBuy) || quoteError?.includes(QuoteError.InputAmountTooLow)) {
       const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxBuyAmountRaw), -fromToken.decimals);
       const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minBuyAmountRaw), -fromToken.decimals);
       return t("pages.swap.error.amountOutOfRange.buy", {
