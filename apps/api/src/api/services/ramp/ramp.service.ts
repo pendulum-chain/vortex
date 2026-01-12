@@ -49,6 +49,8 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
 
+const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
+
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
@@ -158,6 +160,7 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
+        expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
@@ -262,6 +265,7 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
+        expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
         ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
@@ -347,7 +351,7 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       // We leave 20% of the time window for to reach the stellar creation operation.
-      if (timeDifferenceSeconds > SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8) {
+      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
         this.cancelRamp(rampState.id);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",

@@ -12,6 +12,7 @@ export interface StateMetadata {
     stellarTokenDetails: StellarTokenDetails;
   };
   executeSpacewalkNonce: number;
+  distributeFeeHash: string;
   // Only used in onramp - brla
   aveniaTicketId: string;
   taxId: string;
