@@ -22,14 +22,14 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: "idx_kyc_level_2_user_id"
   });
 
-  // Add user_id to quote_tickets (Merged from 023: nullable, no dummy user)
+  // Add user_id to quote_tickets
   await queryInterface.addColumn("quote_tickets", "user_id", {
     allowNull: true,
     type: DataTypes.UUID
   });
 
   await queryInterface.changeColumn("quote_tickets", "user_id", {
-    allowNull: true, // Merged from 023: Keep nullable
+    allowNull: true,
     onDelete: "CASCADE",
     onUpdate: "CASCADE",
     references: {
