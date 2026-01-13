@@ -12,12 +12,37 @@
       "title": "Oferta especial até 27 Maio"
     },
     "authEmailStep": {
+      "buttons": {
+        "continue": "Continuar",
+        "sending": "Enviando..."
+      },
+      "description": "Enviaremos um código único para verificar sua identidade",
+      "fields": {
+        "email": {
+          "label": "Endereço de e-mail",
+          "placeholder": "voce@exemplo.com"
+        }
+      },
       "termsCheckbox": {
         "and": "e",
         "prefix": "Eu concordo com os",
         "privacyPolicy": "Política de Privacidade",
         "termsAndConditions": "Termos e Condições"
+      },
+      "title": "Digite seu e-mail",
+      "validation": {
+        "invalidEmail": "Por favor, insira um endereço de e-mail válido"
       }
+    },
+    "authOTPStep": {
+      "buttons": {
+        "useDifferentEmail": "Usar um e-mail diferente"
+      },
+      "description": "Enviamos um código de 6 dígitos para <1>{{email}}</1>",
+      "status": {
+        "verifying": "Verificando..."
+      },
+      "title": "Digite o código de verificação"
     },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
@@ -443,6 +468,7 @@
     "stepper": {
       "confirm": "Confirmar",
       "details": "Detalhes",
+      "login": "Login",
       "verification": "Verificação"
     },
     "swap": {
@@ -536,6 +562,7 @@
         "support": "Apoiar",
         "termsAndConditions": "Termos e Condições"
       },
+      "signOut": "Sair",
       "title": "Configurações"
     }
   },

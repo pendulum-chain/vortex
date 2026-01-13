@@ -29,7 +29,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     e.preventDefault();
 
     if (!email || !email.includes("@")) {
-      setLocalError("Please enter a valid email address");
+      setLocalError(t("components.authEmailStep.validation.invalidEmail"));
       return;
     }
 
@@ -46,15 +46,15 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     >
       <form className="flex flex-1 flex-col pb-36" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Your Email</h1>
-          <p className="mb-6 text-gray-600">We'll send you a one-time code to verify your identity</p>
+          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authEmailStep.title")}</h1>
+          <p className="mb-6 text-gray-600">{t("components.authEmailStep.description")}</p>
         </div>
 
         <div className="flex flex-col items-center">
           <div className="w-full max-w-md space-y-4">
             <div>
               <label className="mb-2 block font-medium text-gray-700 text-sm" htmlFor="email">
-                Email Address
+                {t("components.authEmailStep.fields.email.label")}
               </label>
               <input
                 autoFocus
@@ -62,7 +62,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
                 disabled={isLoading}
                 id="email"
                 onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("components.authEmailStep.fields.email.placeholder")}
                 type="email"
                 value={email}
               />
@@ -112,7 +112,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
               disabled={isLoading || !termsAccepted}
               type="submit"
             >
-              {isLoading ? "Sending..." : "Continue"}
+              {isLoading ? t("components.authEmailStep.buttons.sending") : t("components.authEmailStep.buttons.continue")}
             </button>
           </div>
         </div>

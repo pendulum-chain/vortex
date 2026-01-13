@@ -1,5 +1,6 @@
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
@@ -11,6 +12,7 @@ export interface AuthOTPStepProps {
 
 export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
   const rampActor = useRampActor();
+  const { t } = useTranslation();
   const { errorMessage, userEmail } = useSelector(rampActor, state => ({
     errorMessage: state.context.errorMessage,
     userEmail: state.context.userEmail
@@ -80,9 +82,11 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
     >
       <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">Enter Verification Code</h1>
+          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authOTPStep.title")}</h1>
           <p className="text-gray-600 mb-6">
-            We sent a 6-digit code to <strong>{userEmail}</strong>
+            <Trans i18nKey="components.authOTPStep.description" values={{ email: userEmail }}>
+              We sent a 6-digit code to <strong>{userEmail}</strong>
+            </Trans>
           </p>
         </div>
 
@@ -111,14 +115,16 @@ export const AuthOTPStep = ({ className }: AuthOTPStepProps) => {
 
             {errorMessage && <p className="text-sm text-red-600 text-center mb-4">{errorMessage}</p>}
 
-            {isVerifying && <p className="text-sm text-blue-600 text-center mb-4">Verifying...</p>}
+            {isVerifying && (
+              <p className="text-sm text-blue-600 text-center mb-4">{t("components.authOTPStep.status.verifying")}</p>
+            )}
 
             <button
               className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium underline disabled:text-gray-400 disabled:no-underline"
               disabled={isVerifying}
               onClick={() => rampActor.send({ type: "CHANGE_EMAIL" })}
             >
-              Use a different email
+              {t("components.authOTPStep.buttons.useDifferentEmail")}
             </button>
           </div>
         </div>

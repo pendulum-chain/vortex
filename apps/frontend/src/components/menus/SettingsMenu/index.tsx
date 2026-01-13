@@ -86,7 +86,7 @@ export const SettingsMenu = () => {
               type="button"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              {t("menus.settings.signOut", "Sign Out")}
+              {t("menus.settings.signOut")}
             </button>
           </div>
           <div className="border-t border-gray-200 mb-4" />

@@ -12,12 +12,37 @@
       "title": "Special offer until 27 May"
     },
     "authEmailStep": {
+      "buttons": {
+        "continue": "Continue",
+        "sending": "Sending..."
+      },
+      "description": "We'll send you a one-time code to verify your identity",
+      "fields": {
+        "email": {
+          "label": "Email Address",
+          "placeholder": "you@example.com"
+        }
+      },
       "termsCheckbox": {
         "and": "and",
         "prefix": "I agree to the",
         "privacyPolicy": "Privacy Policy",
         "termsAndConditions": "Terms and Conditions"
+      },
+      "title": "Enter Your Email",
+      "validation": {
+        "invalidEmail": "Please enter a valid email address"
       }
+    },
+    "authOTPStep": {
+      "buttons": {
+        "useDifferentEmail": "Use a different email"
+      },
+      "description": "We sent a 6-digit code to <1>{{email}}</1>",
+      "status": {
+        "verifying": "Verifying..."
+      },
+      "title": "Enter Verification Code"
     },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
@@ -443,6 +468,7 @@
     "stepper": {
       "confirm": "Confirm",
       "details": "Details",
+      "login": "Login",
       "verification": "Verification"
     },
     "swap": {
@@ -536,6 +562,7 @@
         "support": "Support",
         "termsAndConditions": "Terms & Conditions"
       },
+      "signOut": "Sign Out",
       "title": "Settings"
     }
   },
