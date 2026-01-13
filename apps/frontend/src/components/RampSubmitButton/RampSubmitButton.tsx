@@ -185,7 +185,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled, isBrlFormInvalid }: U
   ]);
 };
 
-export const RampSubmitButton = ({ className }: { className?: string }) => {
+export const RampSubmitButton = ({ className, hasValidationErrors }: { className?: string; hasValidationErrors?: boolean }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
   const stellarData = useStellarKycSelector();
@@ -225,7 +225,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
   const isBrlFormInvalid = isBrazilTransaction && formState?.isValid === false;
 
   const submitButtonDisabled = useMemo(() => {
-    if (isBrlFormInvalid) {
+    if (hasValidationErrors) {
       return true;
     }
 
@@ -263,6 +263,7 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
 
     return false;
   }, [
+    hasValidationErrors,
     executionInput,
     isQuoteExpired,
     isOfframp,
@@ -275,7 +276,6 @@ export const RampSubmitButton = ({ className }: { className?: string }) => {
     moneriumKycActor,
     walletLocked,
     accountAddress,
-    isBrlFormInvalid,
     quote?.from
   ]);
 

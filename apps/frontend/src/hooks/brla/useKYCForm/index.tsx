@@ -60,12 +60,19 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
       [ExtendedAveniaFieldOptions.BIRTHDATE]: yup
         .date()
-        .transform((value, originalValue) => {
+        .transform((value: Date | undefined, originalValue: any) => {
           return originalValue === "" ? undefined : value;
         })
         .required(t("components.brlaExtendedForm.validation.birthdate.required"))
         .max(new Date(), t("components.brlaExtendedForm.validation.birthdate.future"))
-        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.birthdate.tooOld")),
+        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.birthdate.tooOld"))
+        .test("is-18-or-older", t("components.brlaExtendedForm.validation.birthdate.tooYoung"), value => {
+          if (!value) return true;
+          const birthDate = new Date(value);
+          const ageDate = new Date(birthDate);
+          ageDate.setFullYear(ageDate.getFullYear() + 18);
+          return ageDate <= new Date();
+        }),
 
       [ExtendedAveniaFieldOptions.COMPANY_NAME]: yup
         .string()
@@ -73,7 +80,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
       [ExtendedAveniaFieldOptions.START_DATE]: yup
         .date()
-        .transform((value, originalValue) => {
+        .transform((value: Date | undefined, originalValue: any) => {
           return originalValue === "" ? undefined : value;
         })
         .max(new Date(), t("components.brlaExtendedForm.validation.startDate.future"))

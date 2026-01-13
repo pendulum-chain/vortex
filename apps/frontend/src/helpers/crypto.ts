@@ -66,7 +66,7 @@ export async function signERC2612Permit(
       nonce,
       owner,
       spender,
-      value
+      value: value.toFixed(0, 0)
     };
     console.log("DEBUG: Signing ERC2612 Permit with message:", message);
 

@@ -161,11 +161,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     label: string,
     onChange: React.ChangeEventHandler<HTMLInputElement> | undefined,
     valid: boolean,
-    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>,
+    fileName?: string
   ) => (
     <label className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-blue-500">
       <Icon className="mb-2 h-12 w-12 text-gray-400" />
       <span className="mb-1 text-gray-600">{label}</span>
+      <span className="text-gray-400 text-sm">{fileName || t("components.documentUpload.helperText")}</span>
       <input accept=".png,.jpeg,.jpg,.pdf" className="hidden" onChange={onChange} type="file" />
       {valid && <CheckCircleIcon className="absolute top-2 right-2 h-6 w-6 text-green-500" />}
     </label>
@@ -190,13 +192,15 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
               t("components.documentUpload.fields.rgFront"),
               e => handleFileChange(e, setFront, setFrontValid),
               frontValid,
-              DocumentTextIcon
+              DocumentTextIcon,
+              front?.name
             )}
             {renderField(
               t("components.documentUpload.fields.rgBack"),
               e => handleFileChange(e, setBack, setBackValid),
               backValid,
-              DocumentTextIcon
+              DocumentTextIcon,
+              back?.name
             )}
           </>
         )}
@@ -205,7 +209,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
             t("components.documentUpload.fields.cnhDocument"),
             e => handleFileChange(e, setFront, setFrontValid),
             frontValid,
-            DocumentTextIcon
+            DocumentTextIcon,
+            front?.name
           )}
       </div>
 

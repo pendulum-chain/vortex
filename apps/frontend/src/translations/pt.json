@@ -107,7 +107,8 @@
         "birthdate": {
           "future": "Data de nascimento não pode ser no futuro",
           "required": "Data de nascimento é obrigatória",
-          "tooOld": "Data de nascimento inválida"
+          "tooOld": "Data de nascimento inválida",
+          "tooYoung": "Você deve ter pelo menos 18 anos de idade"
         },
         "cep": {
           "minLength": "CEP deve ter pelo menos 3 caracteres",
@@ -220,6 +221,7 @@
         "rgFront": "Frente do RG",
         "uploadSelfie": "Enviar selfie"
       },
+      "helperText": "Clique aqui para enviar",
       "title": "Verificação Rápida",
       "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
       "uploadFailed": "Falha no envio. Por favor, tente novamente.",
@@ -912,6 +914,10 @@
       "developedBy": "Desenvolvido por",
       "error": {
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
+        "amountOutOfRange": {
+          "buy": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}",
+          "sell": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}"
+        },
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
         "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
@@ -944,7 +950,7 @@
     },
     "termsAndConditions": {
       "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (\"TERMOS E CONDIÇÕES COMPLETOS\") está disponível e se aplica integralmente.",
-      "lastUpdated": "Última atualização: [●]",
+      "lastUpdated": "Última atualização: 7 de Janeiro de 2026",
       "sections": {
         "1": {
           "text": "A Vortex fornece uma camada técnica de roteamento e agregação para transações fiat–cripto e cripto–fiat. A Vortex não é um banco, instituição de pagamento, exchange, corretora, custodiante ou provedor de carteira. As transações são executadas por parceiros terceirizados regulamentados.",

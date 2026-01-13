@@ -39,6 +39,6 @@ apps/api/.env
 *storybook.log
 storybook-static
 
-# Claude Code local memory
+
 CLAUDE.local.md
-.env
+.claude
