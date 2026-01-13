@@ -546,9 +546,12 @@ export const rampMachine = setup({
             executionInput: ({ event }) => event.input.executionInput,
             // Also reset any error from a previous attempt
             initializeFailedMessage: undefined,
+            // Restore quote and quoteId if missing
+            quote: ({ context, event }) => context.quote || event.input.executionInput.quote,
+            quoteId: ({ context, event }) => context.quoteId || event.input.executionInput.quote.id,
             rampDirection: ({ event }) => event.input.rampDirection
           }),
-          guard: ({ context }) => context.quoteId !== undefined,
+          guard: ({ context, event }) => context.quoteId !== undefined || event.input.executionInput.quote !== undefined,
           target: "RampRequested"
         },
         GO_BACK: {
