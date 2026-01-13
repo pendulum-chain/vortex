@@ -114,7 +114,8 @@
         "birthdate": {
           "future": "Birthdate cannot be in the future",
           "required": "Birthdate is required",
-          "tooOld": "Invalid birthdate"
+          "tooOld": "Invalid birthdate",
+          "tooYoung": "You must be at least 18 years old"
         },
         "cep": {
           "minLength": "CEP must be at least 3 characters",
@@ -227,6 +228,7 @@
         "rgFront": "RG Front",
         "uploadSelfie": "Upload Selfie"
       },
+      "helperText": "Click here to upload",
       "title": "Fast-Track Verification",
       "uploadBug": "There was an error uploading the files for verification. Please try again later.",
       "uploadFailed": "Upload failed. Please try again.",
@@ -550,7 +552,6 @@
         "titlePart2": "inside your APP",
         "widgetIntegration": "Widget integration"
       },
-
       "whyVortexApi": {
         "cta": {
           "npmPackage": "NPM package",
@@ -927,6 +928,10 @@
       "developedBy": "Developed by",
       "error": {
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "amountOutOfRange": {
+          "buy": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}",
+          "sell": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}"
+        },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
