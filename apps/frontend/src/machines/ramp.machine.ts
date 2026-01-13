@@ -468,7 +468,7 @@ export const rampMachine = setup({
       },
       on: {
         GO_BACK: {
-          target: "KYC"
+          target: "QuoteReady"
         },
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
