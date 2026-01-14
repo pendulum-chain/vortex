@@ -955,7 +955,7 @@
       }
     },
     "termsAndConditions": {
-      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (\"FULL TERMS & CONDITIONS\") is available and applies in full.",
+      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (<1>\"FULL TERMS & CONDITIONS\"</1>) is available and applies in full.",
       "lastUpdated": "Last updated: 7th January 2026",
       "sections": {
         "1": {
@@ -1003,7 +1003,7 @@
           "title": "11. Governing Law"
         },
         "12": {
-          "text": "These Short Terms are supplemented by the Full Terms of Service, Privacy Policy, and Partner Terms, which apply in full in all cases.",
+          "text": "These Short Terms are supplemented by the <1>Full Terms of Service</1>, Privacy Policy, and Partner Terms, which apply in full in all cases.",
           "title": "12. Full Terms"
         }
       },
