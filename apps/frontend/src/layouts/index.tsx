@@ -4,6 +4,7 @@ import { MaintenanceBanner } from "../components/MaintenanceBanner";
 import { Navbar } from "../components/Navbar";
 import Stepper from "../components/Stepper";
 import { useIsQuoteComponentDisplayed } from "../hooks/ramp/useIsQuoteComponentDisplayed";
+import { useRampUrlParams } from "../hooks/useRampUrlParams";
 import { useStepper } from "../hooks/useStepper";
 import { useWidgetMode } from "../hooks/useWidgetMode";
 import { useFetchMaintenanceStatus } from "../stores/maintenanceStore";
