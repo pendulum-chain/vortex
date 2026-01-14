@@ -2,7 +2,11 @@ import { createTransport, type HttpTransportConfig, http, type Transport } from 
 import logger from "../../logger";
 
 export interface SmartFallbackConfig {
+  /** Maximum number of retry attempts. Defaults to the number of RPC URLs provided. */
+  maxRetries?: number;
+  /** Initial delay in ms before first retry. Uses exponential backoff. Default: 1000 */
   initialDelayMs?: number;
+  /** Request timeout in ms. Default: 10000 */
   timeout?: number;
   httpConfig?: Omit<HttpTransportConfig, "timeout">;
   onRetry?: (info: { rpcUrl: string; attempt: number; maxRetries: number; error: Error }) => void;
@@ -25,6 +29,9 @@ export function createSmartFallbackTransport(rpcUrls: string[], config: SmartFal
     throw new Error("createSmartFallbackTransport requires at least one RPC URL");
   }
 
+  // Default maxRetries to number of RPC URLs if not specified
+  const maxRetries = config.maxRetries ?? rpcUrls.length;
+
   const key = "smartFallback";
   const name = "Smart Fallback";
 
@@ -46,8 +53,10 @@ export function createSmartFallbackTransport(rpcUrls: string[], config: SmartFal
     const request = async ({ method, params }: { method: string; params?: any }): Promise<any> => {
       let lastError: Error | undefined;
 
-      for (let i = 0; i < transports.length; i++) {
-        const transport = transports[i];
+      // Cycle through RPCs up to maxRetries times
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const transportIndex = attempt % transports.length;
+        const transport = transports[transportIndex];
 
         try {
           const result = await transport.request({ method, params });
@@ -56,10 +65,10 @@ export function createSmartFallbackTransport(rpcUrls: string[], config: SmartFal
           lastError = error instanceof Error ? error : new Error(String(error));
 
           const retryInfo = {
-            attempt: i + 1,
+            attempt: attempt + 1,
             error: lastError,
-            maxRetries: transports.length,
-            rpcUrl: transport.url || `transport-${i}`
+            maxRetries,
+            rpcUrl: transport.url || `transport-${transportIndex}`
           };
 
           if (onRetry) {
@@ -70,8 +79,8 @@ export function createSmartFallbackTransport(rpcUrls: string[], config: SmartFal
             );
           }
 
-          if (i < transports.length - 1) {
-            const delayMs = initialDelayMs * Math.pow(2, i);
+          if (attempt < maxRetries - 1) {
+            const delayMs = initialDelayMs * Math.pow(2, attempt);
             await sleep(delayMs);
           }
         }
