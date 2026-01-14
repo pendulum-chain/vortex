@@ -43,12 +43,8 @@ async function getApiWithTimeout(
       setTimeout(() => reject(new Error(`Connection to ${network} timed out after ${timeoutMs}ms`)), timeoutMs);
     });
 
-    try {
-      const api = await Promise.race([apiManager.getApiWithShuffling(network, uuid), timeoutPromise]);
-      return api;
-    } catch (error) {
-      throw error;
-    }
+    const api = await Promise.race([apiManager.getApiWithShuffling(network, uuid), timeoutPromise]);
+    return api;
   };
 
   for (let attempt = 1; attempt <= 3; attempt++) {
