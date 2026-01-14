@@ -106,7 +106,8 @@
         "birthdate": {
           "future": "Birthdate cannot be in the future",
           "required": "Birthdate is required",
-          "tooOld": "Invalid birthdate"
+          "tooOld": "Invalid birthdate",
+          "tooYoung": "You must be at least 18 years old"
         },
         "cep": {
           "minLength": "CEP must be at least 3 characters",
@@ -219,6 +220,7 @@
         "rgFront": "RG Front",
         "uploadSelfie": "Upload Selfie"
       },
+      "helperText": "Click here to upload",
       "title": "Fast-Track Verification",
       "uploadBug": "There was an error uploading the files for verification. Please try again later.",
       "uploadFailed": "Upload failed. Please try again.",
@@ -542,7 +544,6 @@
         "titlePart2": "inside your APP",
         "widgetIntegration": "Widget integration"
       },
-
       "whyVortexApi": {
         "cta": {
           "npmPackage": "NPM package",
@@ -877,7 +878,7 @@
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
       "brlaOnrampMint": "Your payment is being processed. This can take up to 5 minutes.",
-      "closeProgressScreenText": "💡 You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
+      "closeProgressScreenText": "You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
       "createStellarAccount": "Creating Stellar account",
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
@@ -919,6 +920,10 @@
       "developedBy": "Developed by",
       "error": {
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "amountOutOfRange": {
+          "buy": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}",
+          "sell": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}"
+        },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
@@ -950,7 +955,7 @@
       }
     },
     "termsAndConditions": {
-      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (\"FULL TERMS & CONDITIONS\") is available and applies in full.",
+      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (<1>\"FULL TERMS & CONDITIONS\"</1>) is available and applies in full.",
       "lastUpdated": "Last updated: 7th January 2026",
       "sections": {
         "1": {
@@ -998,7 +1003,7 @@
           "title": "11. Governing Law"
         },
         "12": {
-          "text": "These Short Terms are supplemented by the Full Terms of Service, Privacy Policy, and Partner Terms, which apply in full in all cases.",
+          "text": "These Short Terms are supplemented by the <1>Full Terms of Service</1>, Privacy Policy, and Partner Terms, which apply in full in all cases.",
           "title": "12. Full Terms"
         }
       },
