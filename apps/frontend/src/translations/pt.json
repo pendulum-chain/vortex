@@ -949,7 +949,7 @@
       }
     },
     "termsAndConditions": {
-      "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (\"TERMOS E CONDIÇÕES COMPLETOS\") está disponível e se aplica integralmente.",
+      "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (<1>\"TERMOS E CONDIÇÕES COMPLETOS\"</1>) está disponível e se aplica integralmente.",
       "lastUpdated": "Última atualização: 7 de Janeiro de 2026",
       "sections": {
         "1": {
@@ -997,7 +997,7 @@
           "title": "11. Lei Aplicável"
         },
         "12": {
-          "text": "Estes Termos Curtos são complementados pelos Termos de Serviço Completos, Política de Privacidade e Termos do Parceiro, que se aplicam integralmente em todos os casos.",
+          "text": "Estes Termos Curtos são complementados pelos <1>Termos de Serviço Completos</1>, Política de Privacidade e Termos do Parceiro, que se aplicam integralmente em todos os casos.",
           "title": "12. Termos Completos"
         }
       },

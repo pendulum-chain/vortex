@@ -1,4 +1,4 @@
-export function TermsAndConditionsPage() {
+export function TermsAndConditionsFullPage() {
   return (
     <main className="container mx-auto max-w-4xl px-4 py-20 md:px-10">
       <h1 className="mb-4 font-bold text-3xl">VORTEX FINANCE - TERMS OF USE</h1>
