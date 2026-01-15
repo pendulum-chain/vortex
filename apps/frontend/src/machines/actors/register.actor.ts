@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  API,
   ApiManager,
   EphemeralAccountType,
   FiatToken,
@@ -7,6 +8,7 @@ import {
   Networks,
   RampDirection,
   RegisterRampRequest,
+  SubstrateApiNetwork,
   signUnsignedTransactions
 } from "@vortexfi/shared";
 import { config } from "../../config";
@@ -15,7 +17,8 @@ import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
 
 export enum RegisterRampErrorType {
-  InvalidInput = "INVALID_INPUT"
+  InvalidInput = "INVALID_INPUT",
+  ConnectionFailed = "CONNECTION_FAILED"
 }
 
 export class RegisterRampError extends Error {
@@ -24,6 +27,37 @@ export class RegisterRampError extends Error {
     super(message);
     this.type = type;
   }
+}
+
+const API_CONNECTION_TIMEOUT = 15000; // 15 seconds
+
+async function getApiWithTimeout(
+  apiManager: ApiManager,
+  network: SubstrateApiNetwork,
+  timeoutMs: number = API_CONNECTION_TIMEOUT
+): Promise<API> {
+  const uuid = crypto.randomUUID();
+
+  const tryConnect = async (): Promise<API> => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Connection to ${network} timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+
+    const api = await Promise.race([apiManager.getApiWithShuffling(network, uuid), timeoutPromise]);
+    return api;
+  };
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await tryConnect();
+    } catch {
+      if (attempt === 3) {
+        throw new RegisterRampError(`Failed to connect to ${network} after 3 attempts`, RegisterRampErrorType.ConnectionFailed);
+      }
+    }
+  }
+
+  throw new RegisterRampError(`Failed to connect to ${network}`, RegisterRampErrorType.ConnectionFailed);
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
@@ -39,9 +73,10 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   }
 
   const apiManager = ApiManager.getInstance();
-  const pendulumApiComponents = await apiManager.getApi(Networks.Pendulum);
-  const moonbeamApiComponents = await apiManager.getApi(Networks.Moonbeam);
-  const hydrationApiComponents = await apiManager.getApi(Networks.Hydration);
+
+  const pendulumApiComponents = await getApiWithTimeout(apiManager, Networks.Pendulum);
+  const moonbeamApiComponents = await getApiWithTimeout(apiManager, Networks.Moonbeam);
+  const hydrationApiComponents = await getApiWithTimeout(apiManager, Networks.Hydration);
 
   if (!chainId) {
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
