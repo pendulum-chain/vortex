@@ -2,7 +2,6 @@ import {
   assetHubTokenConfig,
   doesNetworkSupportRamp,
   EvmNetworks,
-  evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
   getEnumKeyByStringValue,
@@ -16,6 +15,7 @@ import {
   stellarTokenConfig
 } from "@vortexfi/shared";
 import { useMemo } from "react";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
@@ -69,15 +69,20 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
       type: key as OnChainToken
     }));
   } else if (isNetworkEVM(selectedNetwork)) {
-    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-      assetIcon: value.networkAssetIcon,
-      assetSymbol: value.assetSymbol,
+    const evmConfig = getEvmTokenConfig();
+    const networkConfig = evmConfig[selectedNetwork as EvmNetworks] ?? {};
+    return Object.entries(networkConfig).map(([key, value]) => ({
+      assetIcon: value?.logoURI ?? value?.networkAssetIcon ?? "",
+      assetSymbol: value?.assetSymbol ?? key,
       details: value as OnChainTokenDetails,
+      logoURI: value?.logoURI,
       network: selectedNetwork,
       networkDisplayName: getNetworkDisplayName(selectedNetwork),
       type: key as OnChainToken
     }));
-  } else throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
+  } else {
+    throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
+  }
 }
 
 function getAllOnChainTokens(): ExtendedTokenDefinition[] {
@@ -86,8 +91,9 @@ function getAllOnChainTokens(): ExtendedTokenDefinition[] {
   allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
 
   const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
+  const evmConfig = getEvmTokenConfig();
   for (const network of evmNetworks) {
-    if (evmTokenConfig[network]) {
+    if (evmConfig[network]) {
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
     }
   }

@@ -10,6 +10,7 @@ import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -54,7 +55,10 @@ export const Offramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  console.log("Offramp render: ", { fiatToken, inputAmount, onChainToken, toAmount });
+
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
+  console.log("fromToken: ", fromToken);
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
   useEffect(() => {

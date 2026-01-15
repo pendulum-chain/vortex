@@ -14,7 +14,7 @@ interface ListItemProps {
 
 export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
   const { t } = useTranslation();
-  const tokenIcon = useGetAssetIcon(token.assetIcon);
+  const tokenIcon = token.logoURI ? token.logoURI : useGetAssetIcon(token.assetIcon);
 
   const showBalance = isOnChainToken(token.type);
 

@@ -13,8 +13,8 @@ export const SelectionTokenList = () => {
   const selectedNetworkFilter = useSelectedNetworkFilter();
   const { selectedNetwork } = useNetwork();
   const { filteredDefinitions } = useTokenDefinitions(searchFilter, selectedNetworkFilter);
-  const sortedDefinitions = useTokensSortedByBalance(filteredDefinitions);
 
+  const sortedDefinitions = useTokensSortedByBalance(filteredDefinitions);
   const currentDefinitions = isFiatDirection ? filteredDefinitions : sortedDefinitions;
   const { handleTokenSelect, selectedToken } = useTokenSelection();
 
