@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth } from "../../middlewares/apiKeyAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
+import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
@@ -42,6 +43,7 @@ const router: Router = Router({ mergeParams: true });
  */
 router.route("/").post(
   validateCreateQuoteInput,
+  optionalAuth, // Extract userId from Bearer token if provided (optional)
   validatePublicKey(), // Validate public key if provided (optional)
   apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
   // enforcePartnerAuth(), // Enforce secret key auth if partnerId present // We don't enforce this for now and allow passing a partnerId without secret key
@@ -100,6 +102,7 @@ router.route("/").post(
  */
 router.route("/best").post(
   validateCreateBestQuoteInput,
+  optionalAuth, // Extract userId from Bearer token if provided (optional)
   validatePublicKey(), // Validate public key if provided (optional)
   apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
   createBestQuote

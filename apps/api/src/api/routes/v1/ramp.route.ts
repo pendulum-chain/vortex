@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as rampController from "../../controllers/ramp.controller";
+import { optionalAuth } from "../../middlewares/supabaseAuth";
 
 const router = Router();
 
@@ -29,7 +30,7 @@ const router = Router();
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
 
-router.post("/register", rampController.registerRamp);
+router.post("/register", optionalAuth, rampController.registerRamp);
 
 /**
  * @api {post} v1/ramp/update Update ramping process

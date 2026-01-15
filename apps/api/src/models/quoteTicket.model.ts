@@ -1,11 +1,19 @@
-import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@vortexfi/shared";
-import { DataTypes, Model, Optional } from "sequelize";
-import { QuoteTicketMetadata } from "../api/services/quote/core/types";
+import {
+  DestinationType,
+  Networks,
+  PaymentMethod,
+  QuoteFeeStructure,
+  RampCurrency,
+  RampDirection
+} from "@vortexfi/shared";
+import {DataTypes, Model, Optional} from "sequelize";
+import {QuoteTicketMetadata} from "../api/services/quote/core/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
+  userId: string | null; // UUID reference to Supabase Auth user (nullable for unauthenticated quotes)
   rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
@@ -32,6 +40,8 @@ export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id"
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
+
+  declare userId: string | null;
 
   declare rampType: RampDirection;
 
@@ -171,6 +181,17 @@ QuoteTicket.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    userId: {
+      allowNull: true,
+      field: "user_id",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "profiles"
+      },
+      type: DataTypes.UUID
     }
   },
   {

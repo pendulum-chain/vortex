@@ -1,11 +1,12 @@
 import { isValidCnpj } from "@vortexfi/shared";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
+import { QuoteSummary } from "../QuoteSummary";
 import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
-import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 import { DocumentUpload } from "./DocumentUpload";
@@ -17,10 +18,6 @@ export const AveniaKYCForm = () => {
   const quote = useQuote();
 
   const { t } = useTranslation();
-  console.log(
-    "AveniaKYCForm: kycFormData from aveniaState context before passing to useKYCForm:",
-    aveniaState?.context.kycFormData
-  );
   const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
@@ -148,15 +145,22 @@ export const AveniaKYCForm = () => {
     );
   }
 
+  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
+
   return (
-    <>
-      <div className="relative">
-        <div className="mb-4">
-          <StepBackButton />
+    <div
+      className="relative flex h-full grow flex-col"
+      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+    >
+      <div className="flex flex-col flex-1">
+        <div className="relative">
+          <div className="mb-4">
+            <StepBackButton />
+          </div>
+          {content}
         </div>
-        {content}
       </div>
-      <DetailsStepQuoteSummary quote={quote} />
-    </>
+      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+    </div>
   );
 };
