@@ -6,6 +6,7 @@ import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
 import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
+import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
 import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
@@ -32,32 +33,11 @@ export function getOnChainTokenDetails(
     } else {
       if (isNetworkEVM(network)) {
         const evmNetwork = network as EvmNetworks;
-        const networkTokens = (dynamicEvmTokenConfig?.[evmNetwork] ?? evmTokenConfig[evmNetwork]) as Record<
-          string,
-          EvmTokenDetails
-        >;
+        // Use provided config, or get dynamic config, or fallback to static config
+        // TODO what is best... pass it on the context or use directly this all the time?
+        const configToUse = dynamicEvmTokenConfig ?? getEvmTokenConfig();
+        const networkTokens = configToUse[evmNetwork] as Record<string, EvmTokenDetails>;
         return networkTokens[normalizedOnChainToken];
-      } else throw new Error(`Network ${network} is not a valid EVM origin network`);
-    }
-  } catch (error) {
-    logger.current.error(`Error getting input token details: ${error}`);
-    throw error;
-  }
-}
-
-/**
- * Legacy version - uses static evmTokenConfig only
- * @deprecated Use the version with dynamicEvmTokenConfig parameter
- */
-export function getOnChainTokenDetailsStatic(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
-  const normalizedOnChainToken = normalizeTokenSymbol(onChainToken);
-
-  try {
-    if (network === Networks.AssetHub) {
-      return assetHubTokenConfig[normalizedOnChainToken as AssetHubToken];
-    } else {
-      if (isNetworkEVM(network)) {
-        return evmTokenConfig[network][normalizedOnChainToken as EvmToken];
       } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {

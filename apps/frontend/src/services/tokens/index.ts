@@ -10,4 +10,4 @@ export {
   initializeEvmTokens,
   isTokensLoaded,
   usedFallbackConfig
-} from "./dynamicEvmTokens";
+} from "@vortexfi/shared";

@@ -32,6 +32,7 @@ export interface EvmTokenDetails extends BaseTokenDetails {
   pendulumRepresentative: PendulumTokenDetails;
   /// URL to the token's logo image from external sources (e.g., Squid Router)
   logoURI?: string;
+  usdPrice?: number;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

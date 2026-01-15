@@ -55,10 +55,7 @@ export const Offramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
-  console.log("Offramp render: ", { fiatToken, inputAmount, onChainToken, toAmount });
-
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
-  console.log("fromToken: ", fromToken);
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
   useEffect(() => {

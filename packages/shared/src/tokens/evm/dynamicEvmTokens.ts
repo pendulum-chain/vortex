@@ -1,26 +1,10 @@
-/**
- * Dynamic EVM Tokens Service
- *
- * This module loads EVM token configurations dynamically from SquidRouter API at app initialization.
- * It falls back to the static evmTokenConfig on failure.
- *
- * Usage:
- * 1. Call initializeEvmTokens() once at app startup (before React renders)
- * 2. Use getEvmTokenConfig() or getEvmTokensForNetwork() to access tokens
- */
-
-import {
-  EvmNetworks,
-  EvmTokenDetails,
-  evmTokenConfig,
-  getNetworkId,
-  isNetworkEVM,
-  Networks,
-  PENDULUM_USDC_AXL,
-  squidRouterConfigBase,
-  TokenType
-} from "@vortexfi/shared";
 import axios from "axios";
+import { EvmNetworks, getNetworkId, isNetworkEVM, Networks } from "../../helpers/networks";
+import { squidRouterConfigBase } from "../../services/squidrouter/config";
+import { PENDULUM_USDC_AXL } from "../pendulum/config";
+import { TokenType } from "../types/base";
+import { EvmTokenDetails } from "../types/evm";
+import { evmTokenConfig } from "./config";
 
 interface SquidRouterToken {
   symbol: string;
@@ -92,7 +76,8 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     network,
     networkAssetIcon: getNetworkAssetIcon(network, token.symbol),
     pendulumRepresentative: PENDULUM_USDC_AXL,
-    type: TokenType.Evm
+    type: TokenType.Evm,
+    usdPrice: token.usdPrice
   };
 }
 
@@ -121,6 +106,20 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
         grouped[network] = {};
       }
       grouped[network][token.assetSymbol] = token;
+    }
+  }
+
+  // Merge. Precedence to static config.
+  for (const network of Object.values(Networks)) {
+    if (isNetworkEVM(network)) {
+      const evmNetwork = network as EvmNetworks;
+      const networkTokenConfig = evmTokenConfig[evmNetwork];
+      if (networkTokenConfig) {
+        grouped[evmNetwork] = {
+          ...grouped[evmNetwork],
+          ...networkTokenConfig
+        };
+      }
     }
   }
 
@@ -165,7 +164,8 @@ export async function initializeEvmTokens(): Promise<void> {
     const squidTokens = await fetchSquidRouterTokens();
     const evmTokens = squidTokens
       .map(mapSquidTokenToEvmTokenDetails)
-      .filter((token): token is EvmTokenDetails => token !== null);
+      .filter((token): token is EvmTokenDetails => token !== null)
+      .slice(0, 500); // TODO TESTING Limit to first 500 tokens to avoid overload
 
     state.tokens = evmTokens;
     state.tokensByNetwork = groupTokensByNetwork(evmTokens);
@@ -240,4 +240,24 @@ export function usedFallbackConfig(): boolean {
  */
 export function getLoadingError(): Error | null {
   return state.error;
+}
+
+/**
+ * Get the USD price for a token by its symbol.
+ * Returns undefined if the token is not found or has no price.
+ *
+ * @param symbol - The token symbol (e.g., 'ETH', 'USDC', 'MATIC')
+ * @returns The USD price or undefined if not available
+ */
+export function getTokenUsdPrice(symbol: string): number | undefined {
+  if (!state.isLoaded) {
+    return undefined;
+  }
+
+  const normalizedSymbol = symbol.toUpperCase();
+
+  // Search through all tokens to find matching symbol
+  const token = state.tokens.find(t => t.assetSymbol.toUpperCase() === normalizedSymbol);
+
+  return token?.usdPrice;
 }
