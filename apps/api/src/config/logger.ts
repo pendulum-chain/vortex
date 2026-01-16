@@ -1,9 +1,12 @@
 import { StreamOptions } from "morgan";
 import winston, { format } from "winston";
+import { getRampId } from "./ramp-context";
 
-const customFormat = winston.format.printf(
-  ({ timestamp, level, message, label = "" }) => `[${timestamp}] ${level}\t ${label} ${message}`
-);
+const customFormat = winston.format.printf(({ timestamp, level, message, label = "" }) => {
+  const rampId = getRampId();
+  const rampPrefix = rampId ? `[rampId: ${rampId}] ` : "";
+  return `[${timestamp}] ${level}\t ${label} ${rampPrefix}${message}`;
+});
 
 const logger = winston.createLogger({
   level: "info",
