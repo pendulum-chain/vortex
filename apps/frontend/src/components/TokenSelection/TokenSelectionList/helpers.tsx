@@ -28,6 +28,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
     () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection),
     [tokenSelectModalType, rampDirection]
   );
+  console.log("All Definitions fetched");
 
   const availableNetworks = useMemo(() => {
     const networks = new Set(allDefinitions.map(token => token.network));
@@ -43,6 +44,8 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 
   const filteredDefinitions = useMemo(() => {
     const searchTerm = filter.toLowerCase();
+    console.log("Filtered Definitions computed");
+
     return networkFilteredDefinitions.filter(
       ({ assetSymbol, name, networkDisplayName }) =>
         assetSymbol.toLowerCase().includes(searchTerm) ||

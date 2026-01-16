@@ -56,6 +56,7 @@
     "react-hook-form": "^7.65.0",
     "react-i18next": "^15.4.1",
     "react-toastify": "^11.0.5",
+    "react-window": "^2.2.5",
     "stellar-sdk": "catalog:",
     "tailwind-merge": "^3.1.0",
     "tailwindcss": "^4.0.3",

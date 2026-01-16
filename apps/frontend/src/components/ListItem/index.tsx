@@ -33,7 +33,13 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
       <span className="relative">
         <div className="text-xs">
           <div className="w-10">
-            <img alt={token.assetSymbol} className="h-full w-full object-contain" src={tokenIcon} />
+            <img
+              alt={token.assetSymbol}
+              className="h-full w-full object-contain"
+              decoding="async"
+              loading="lazy"
+              src={tokenIcon}
+            />
           </div>
         </div>
         {isSelected && <CheckIcon className="-right-1 -top-1 absolute h-5 w-5 rounded-full bg-green-600 p-[3px] text-white" />}

@@ -164,8 +164,8 @@ export async function initializeEvmTokens(): Promise<void> {
     const squidTokens = await fetchSquidRouterTokens();
     const evmTokens = squidTokens
       .map(mapSquidTokenToEvmTokenDetails)
-      .filter((token): token is EvmTokenDetails => token !== null)
-      .slice(0, 500); // TODO TESTING Limit to first 500 tokens to avoid overload
+      .filter((token): token is EvmTokenDetails => token !== null);
+    //.slice(0, 500); // TODO TESTING Limit to first 500 tokens to avoid overload
 
     state.tokens = evmTokens;
     state.tokensByNetwork = groupTokensByNetwork(evmTokens);
