@@ -6,7 +6,7 @@ const customFormat = winston.format.printf(({ timestamp, level, message, label =
   const rampId = getRampId();
   const rampPrefix = rampId ? `[${rampId}] ` : "";
   const timestampPrefix = timestamp ? `[${timestamp}]` : "";
-  return `${timestampPrefix} ${level} ${label} ${rampPrefix}${message}`;
+  return `${timestampPrefix} ${level}${label ? ` ${label}` : ""} ${rampPrefix}${message}`;
 });
 
 const logger = winston.createLogger({
