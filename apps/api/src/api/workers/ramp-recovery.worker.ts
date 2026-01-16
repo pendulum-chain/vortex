@@ -2,7 +2,6 @@ import { RampErrorLog } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
-import { runWithRampContext } from "../../config/ramp-context";
 import RampState from "../../models/rampState.model";
 import phaseProcessor from "../services/phases/phase-processor";
 import rampService from "../services/ramp/ramp.service";
@@ -75,40 +74,38 @@ class RampRecoveryWorker {
 
       // Process each stale state concurrently
       const recoveryPromises = staleStates.map(async state => {
-        return runWithRampContext(state.id, async () => {
+        try {
+          logger.info(`Attempting recovery in phase ${state.currentPhase} for ramp ${state.id}`);
+          // Process the state (processRamp already wraps execution with runWithRampContext)
+          await phaseProcessor.processRamp(state.id);
+          logger.info(`Successfully processed ramp state ${state.id}`);
+          return { stateId: state.id, status: "fulfilled" };
+        } catch (e: unknown) {
+          const error = e as Error;
+
+          logger.error(`Error recovering ramp state ${state.id}:`, error);
+
+          // Prepare error log entry
+          const errorLogEntry: RampErrorLog = {
+            details: error.stack || "No stack trace available",
+            error: error.message || "Unknown error during recovery",
+            phase: state.currentPhase,
+            timestamp: new Date().toISOString()
+          };
+
+          // Attempt to update the state with the error log
           try {
-            logger.info(`Attempting recovery in phase ${state.currentPhase}`);
-            // Process the state
-            await phaseProcessor.processRamp(state.id);
-            logger.info(`Successfully processed ramp state`);
-            return { stateId: state.id, status: "fulfilled" };
-          } catch (e: unknown) {
-            const error = e as Error;
-
-            logger.error(`Error recovering ramp state:`, error);
-
-            // Prepare error log entry
-            const errorLogEntry: RampErrorLog = {
-              details: error.stack || "No stack trace available",
-              error: error.message || "Unknown error during recovery",
-              phase: state.currentPhase,
-              timestamp: new Date().toISOString()
-            };
-
-            // Attempt to update the state with the error log
-            try {
-              await rampService.appendErrorLog(state.id, errorLogEntry);
-              logger.info(`Updated ramp state with error log.`);
-            } catch (updateE: unknown) {
-              const updateError = updateE as Error;
-              logger.error(`Failed to update ramp state with error log:`, updateError);
-              // Log the original error as well if the update fails
-              logger.error(`Original recovery error:`, error);
-            }
-            // Return a rejected status for Promise.allSettled
-            return { reason: error, stateId: state.id, status: "rejected" };
+            await rampService.appendErrorLog(state.id, errorLogEntry);
+            logger.info(`Updated ramp state ${state.id} with error log.`);
+          } catch (updateE: unknown) {
+            const updateError = updateE as Error;
+            logger.error(`Failed to update ramp state ${state.id} with error log:`, updateError);
+            // Log the original error as well if the update fails
+            logger.error(`Original recovery error for ${state.id}:`, error);
           }
-        });
+          // Return a rejected status for Promise.allSettled
+          return { reason: error, stateId: state.id, status: "rejected" };
+        }
       });
 
       // Wait for all recovery attempts to settle
