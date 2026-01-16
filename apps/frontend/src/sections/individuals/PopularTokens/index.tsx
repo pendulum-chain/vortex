@@ -1,10 +1,8 @@
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import {
   AssetHubToken,
   assetHubTokenConfig,
   doesNetworkSupportRamp,
   EvmToken,
-  evmTokenConfig,
   FiatToken,
   getNetworkDisplayName,
   Networks
@@ -12,15 +10,14 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import VORTEX from "../../../assets/logo/vortex_x.svg";
-import CIRCLE from "../../../assets/trusted-by/circle.svg";
-import PENDULUM from "../../../assets/trusted-by/pendulum-icon.svg";
 import { cn } from "../../../helpers/cn";
 import { isValidAssetIcon, useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../../hooks/useGetNetworkIcon";
+import { getEvmTokenConfig } from "../../../services/tokens";
 
 const getEvmTokenIcon = (token: EvmToken): string => {
-  for (const networkConfig of Object.values(evmTokenConfig)) {
+  const evmConfig = getEvmTokenConfig();
+  for (const networkConfig of Object.values(evmConfig)) {
     const tokenConfig = networkConfig[token];
     if (tokenConfig?.networkAssetIcon) {
       return tokenConfig.networkAssetIcon;

@@ -68,6 +68,7 @@ export const useTokensSortedByBalance = (
           assetIcon: details.networkAssetIcon,
           assetSymbol: details.assetSymbol,
           details: details,
+          logoURI: (details as any).logoURI,
           network: details.network,
           networkDisplayName: getNetworkDisplayName(details.network),
           type: details.assetSymbol as OnChainToken

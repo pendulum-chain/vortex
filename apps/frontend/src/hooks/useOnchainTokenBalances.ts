@@ -4,7 +4,6 @@ import {
   assetHubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
-  evmTokenConfig,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
@@ -22,6 +21,7 @@ import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
 import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
+import { getEvmTokensForNetwork } from "../services/tokens";
 import { useVortexAccount } from "./useVortexAccount";
 
 export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
@@ -31,7 +31,7 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
 
   const tokensForNetwork: EvmTokenDetails[] = useMemo(() => {
     if (isNetworkEVM(selectedNetwork)) {
-      return Object.values(evmTokenConfig[selectedNetwork] ?? {});
+      return getEvmTokensForNetwork(selectedNetwork);
     } else return [];
   }, [selectedNetwork]);
 

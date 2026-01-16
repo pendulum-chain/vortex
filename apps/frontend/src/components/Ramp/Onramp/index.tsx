@@ -9,6 +9,7 @@ import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -50,7 +51,7 @@ export const Onramp = () => {
   const { openTokenSelectModal } = useTokenSelectionActions();
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);
-  const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
 
   useEffect(() => {
     if (!fromAmountFieldTouched || !inputAmount) return;

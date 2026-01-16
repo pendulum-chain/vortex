@@ -5,7 +5,7 @@ dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
 });
 
-import { ApiManager, EvmClientManager, setLogger } from "@vortexfi/shared";
+import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import { config, testDatabaseConnection } from "./config";
 import cryptoService from "./config/crypto";
 import app from "./config/express";
@@ -52,6 +52,9 @@ const initializeApp = async () => {
 
     // Initialize RSA keys for webhook signing
     cryptoService.initializeKeys();
+
+    // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
+    await initializeEvmTokens();
 
     // Test database connection
     await testDatabaseConnection();

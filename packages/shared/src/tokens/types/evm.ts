@@ -30,6 +30,9 @@ export interface EvmTokenDetails extends BaseTokenDetails {
   /// The metadata about the token when it's used in Pendulum.
   /// For now, all EVM tokens are represented by axlUSDC on Pendulum.
   pendulumRepresentative: PendulumTokenDetails;
+  /// URL to the token's logo image from external sources (e.g., Squid Router)
+  logoURI?: string;
+  usdPrice?: number;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

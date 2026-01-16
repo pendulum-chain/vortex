@@ -7,6 +7,8 @@ export * from "./constants/misc";
 // Constants
 // Configurations
 export * from "./evm/config";
+// Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
+export * from "./evm/dynamicEvmTokens";
 export * from "./moonbeam/config";
 export * from "./pendulum/config";
 export * from "./stellar/config";
