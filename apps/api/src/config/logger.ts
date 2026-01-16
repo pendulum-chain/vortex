@@ -5,7 +5,8 @@ import { getRampId } from "./ramp-context";
 const customFormat = winston.format.printf(({ timestamp, level, message, label = "" }) => {
   const rampId = getRampId();
   const rampPrefix = rampId ? `[${rampId}] ` : "";
-  return `[${timestamp}] ${level} ${label} ${rampPrefix}${message}`;
+  const timestampPrefix = timestamp ? `[${timestamp}]` : "";
+  return `${timestampPrefix} ${level} ${label} ${rampPrefix}${message}`;
 });
 
 const logger = winston.createLogger({
@@ -21,7 +22,7 @@ const logger = winston.createLogger({
       format: format.combine(format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }), format.prettyPrint(), customFormat)
     }),
     new winston.transports.Console({
-      format: format.combine(format.colorize(), format.timestamp({ format: "MMM D, YYYY HH:mm:ss" }), customFormat)
+      format: format.combine(format.colorize(), format.prettyPrint(), customFormat)
     })
   ]
 });
