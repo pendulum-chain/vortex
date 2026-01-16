@@ -18,8 +18,8 @@ import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
+import { navigateToCleanOrigin } from "../../lib/navigation";
 import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormStore";
-import { navigateToCleanOrigin } from "../../utils/navigation";
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
