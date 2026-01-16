@@ -53,12 +53,17 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         <div className="flex flex-col items-center">
           <div className="w-full max-w-md space-y-4">
             <div>
-              <label className="mb-2 block font-medium text-gray-700 text-sm" htmlFor="email">
+              <label className="mb-1 block" htmlFor="email">
                 {t("components.authEmailStep.fields.email.label")}
               </label>
               <input
+                aria-describedby={localError || errorMessage ? "email-error" : undefined}
+                aria-invalid={!!(localError || errorMessage)}
                 autoFocus
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={cn(
+                  "input-vortex-primary input-ghost w-full rounded-lg border-1 border-neutral-300 p-2",
+                  (localError || errorMessage) && "border-red-800"
+                )}
                 disabled={isLoading}
                 id="email"
                 onChange={e => setEmail(e.target.value)}
@@ -66,7 +71,11 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
                 type="email"
                 value={email}
               />
-              {(localError || errorMessage) && <p className="mt-2 text-red-600 text-sm">{localError || errorMessage}</p>}
+              {(localError || errorMessage) && (
+                <span className="mt-1 block text-red-800 text-sm" id="email-error">
+                  {localError || errorMessage}
+                </span>
+              )}
             </div>
 
             <div className="flex items-start gap-3">
@@ -104,14 +113,10 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
         <div
           className="absolute right-0 left-0 z-[5] mb-4 flex flex-col items-center"
-          style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+          style={{ bottom: "calc(var(--quote-summary-height, 100px) + 2rem)" }}
         >
           <div className="w-full max-w-md">
-            <button
-              className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-              disabled={isLoading || !termsAccepted}
-              type="submit"
-            >
+            <button className="btn-vortex-primary btn w-full" disabled={isLoading || !termsAccepted} type="submit">
               {isLoading ? t("components.authEmailStep.buttons.sending") : t("components.authEmailStep.buttons.continue")}
             </button>
           </div>
