@@ -36,7 +36,7 @@ export const Hero = () => {
             <Trans i18nKey="pages.main.hero.subtitle" />
           </motion.p>
           <div className="mt-2 flex w-full justify-center gap-x-4 lg:justify-start">
-            <Link className="w-1/3" to="/{-$locale}/widget">
+            <Link className="w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5" to="/{-$locale}/widget">
               <motion.div
                 animate="visible"
                 aria-label={t("pages.main.hero.buyAndSellCrypto")}
@@ -49,7 +49,7 @@ export const Hero = () => {
                 {t("pages.main.hero.buyAndSellCrypto")}
               </motion.div>
             </Link>
-            <Link className="w-1/3" to="/{-$locale}/business">
+            <Link className="w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5" to="/{-$locale}/business">
               <motion.div
                 animate="visible"
                 aria-label={t("pages.main.hero.partnerWithUs")}
