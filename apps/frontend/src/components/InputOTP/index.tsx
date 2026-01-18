@@ -30,8 +30,7 @@ function InputOTPSlot({ index, className, ...props }: React.ComponentProps<"div"
   return (
     <div
       className={cn(
-        "relative flex h-14 w-12 items-center justify-center border-2 border-gray-300 font-semibold text-2xl transition-all",
-        "first:rounded-l-lg first:border-l last:rounded-r-lg",
+        "relative flex h-14 w-12 items-center justify-center rounded-sm border-2 border-gray-300 font-semibold text-2xl transition-all",
         "data-[active=true]:z-10 data-[active=true]:border-blue-500 data-[active=true]:ring-2 data-[active=true]:ring-blue-500/30",
         className
       )}

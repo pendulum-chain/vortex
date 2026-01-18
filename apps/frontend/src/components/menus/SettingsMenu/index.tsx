@@ -81,7 +81,7 @@ export const SettingsMenu = () => {
               <span className="text-sm font-medium text-gray-900 truncate">{userEmail}</span>
             </div>
             <button
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all"
               onClick={handleSignOut}
               type="button"
             >
