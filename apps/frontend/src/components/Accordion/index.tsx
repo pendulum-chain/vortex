@@ -90,7 +90,7 @@ const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = "",
     <motion.div className="flex" layout>
       <motion.button
         className={cn(
-          "w-full px-6 py-4 text-left font-medium text-base text-gray-900 transition-all cursor-pointer duration-200 hover:text-blue-700 focus:outline-none md:text-lg",
+          "w-full cursor-pointer px-6 py-4 text-left font-medium text-base text-gray-900 transition-all duration-200 hover:text-blue-700 focus:outline-none md:text-lg",
           className
         )}
         onClick={() => toggleValue(value)}

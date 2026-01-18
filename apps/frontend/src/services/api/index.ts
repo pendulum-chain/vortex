@@ -1,5 +1,6 @@
 export * from "./api-client";
 export * from "./brla.service";
+export * from "./contact.service";
 export * from "./email.service";
 export * from "./maintenance.service";
 export * from "./moonbeam.service";

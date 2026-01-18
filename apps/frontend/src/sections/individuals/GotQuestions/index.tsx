@@ -7,7 +7,9 @@ export const GotQuestions = () => {
   return (
     <CallToActionSection
       buttonText={t("sections.gotQuestions.contactUs")}
+      buttonUrl="https://forms.gle/dKh8ckXheRPdRa398"
       description={t("sections.gotQuestions.description")}
+      isExternal={true}
       title={
         <Trans i18nKey="sections.gotQuestions.title">
           Got Questions? <br /> We're here to help!
