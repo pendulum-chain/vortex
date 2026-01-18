@@ -1,10 +1,13 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../../QuoteSummary";
+
+const emailSchema = yup.string().email().required();
 
 export interface AuthEmailStepProps {
   className?: string;
@@ -25,19 +28,11 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
   const isLoading = useSelector(rampActor, state => state.matches("CheckingEmail") || state.matches("RequestingOTP"));
 
-  const validateEmail = (email: string): boolean => {
-    const trimmed = email.trim();
-    if (!trimmed) return false;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(trimmed);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedEmail = email.trim();
-    if (!validateEmail(trimmedEmail)) {
+    if (!emailSchema.isValidSync(trimmedEmail)) {
       setLocalError(t("components.authEmailStep.validation.invalidEmail"));
       return;
     }
