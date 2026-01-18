@@ -62,20 +62,20 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
 
   return (
     <div
-      className={`relative h-full overflow-hidden select-none group touch-none ${className}`}
+      className={`group relative h-full touch-none select-none overflow-hidden ${className}`}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       ref={containerRef}
     >
       <img
         alt={beforeAlt}
-        className="absolute top-0 left-0 w-full h-full object-contain pointer-events-none select-none"
+        className="pointer-events-none absolute top-0 left-0 h-full w-full select-none object-contain"
         draggable={false}
         src={beforeImage}
       />
       <img
         alt={afterAlt}
-        className="absolute top-0 left-0 w-full h-full object-contain pointer-events-none select-none"
+        className="pointer-events-none absolute top-0 left-0 h-full w-full select-none object-contain"
         draggable={false}
         src={afterImage}
         style={{
@@ -83,10 +83,10 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
         }}
       />
       <div
-        className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize z-20 group-hover:scale-110 transition-transform"
+        className="absolute top-0 bottom-0 z-20 w-1 cursor-ew-resize bg-white transition-transform group-hover:scale-110"
         style={{ left: `${sliderPosition}%` }}
       >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+        <div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-lg">
           <svg
             className="text-gray-600"
             fill="none"

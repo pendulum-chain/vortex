@@ -1,4 +1,5 @@
 import { PlayCircleIcon } from "@heroicons/react/20/solid";
+import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ReactNode } from "react";
 import PLANET from "../../assets/planet.svg";
@@ -8,22 +9,24 @@ interface CallToActionSectionProps {
   description: string;
   buttonText: string;
   buttonUrl?: string;
+  isExternal?: boolean;
 }
 
-/**
- * CallToActionSection - Reusable CTA section with animated planet background
- * Features:
- * - Animated planet image with hover effects
- * - Flexible title (string or ReactNode for custom styling)
- * - Responsive layout
- * - Configurable button text and URL
- */
 export const CallToActionSection = ({
   title,
   description,
   buttonText,
-  buttonUrl = "https://forms.gle/dKh8ckXheRPdRa398"
+  buttonUrl = "",
+  isExternal = true
 }: CallToActionSectionProps) => {
+  const buttonClassName = "btn btn-vortex-secondary mx-auto flex items-center gap-2 rounded-3xl px-6 md:mx-0";
+  const buttonContent = (
+    <>
+      <span>{buttonText}</span>
+      <PlayCircleIcon aria-hidden="true" className="w-5 group-hover:text-pink-600" />
+    </>
+  );
+
   return (
     <section className="overflow-hidden bg-blue-900 px-4 py-32 text-white md:px-10">
       <div className="relative mx-auto flex flex-col justify-between sm:container md:flex-row">
@@ -45,15 +48,15 @@ export const CallToActionSection = ({
         </div>
         <div className="z-10 flex flex-col justify-center md:w-1/2 md:items-end">
           <p className="mt-3 mb-4 text-center text-body-lg md:mt-0 md:text-end">{description}</p>
-          <a
-            className="btn btn-vortex-secondary mx-auto flex items-center gap-2 rounded-3xl px-6 md:mx-0"
-            href={buttonUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <span>{buttonText}</span>
-            <PlayCircleIcon aria-hidden="true" className="w-5 group-hover:text-pink-600" />
-          </a>
+          {isExternal ? (
+            <a className={buttonClassName} href={buttonUrl} rel="noopener noreferrer" target="_blank">
+              {buttonContent}
+            </a>
+          ) : (
+            <Link className={buttonClassName} to={buttonUrl}>
+              {buttonContent}
+            </Link>
+          )}
         </div>
       </div>
     </section>
