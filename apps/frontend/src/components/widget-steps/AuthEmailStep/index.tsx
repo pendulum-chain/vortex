@@ -25,16 +25,25 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
   const isLoading = useSelector(rampActor, state => state.matches("CheckingEmail") || state.matches("RequestingOTP"));
 
+  const validateEmail = (email: string): boolean => {
+    const trimmed = email.trim();
+    if (!trimmed) return false;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(trimmed);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !email.includes("@")) {
+    const trimmedEmail = email.trim();
+    if (!validateEmail(trimmedEmail)) {
       setLocalError(t("components.authEmailStep.validation.invalidEmail"));
       return;
     }
 
     setLocalError("");
-    rampActor.send({ email, type: "ENTER_EMAIL" });
+    rampActor.send({ email: trimmedEmail, type: "ENTER_EMAIL" });
   };
 
   const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
@@ -81,7 +90,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
             <div className="flex items-start gap-3">
               <input
                 checked={termsAccepted}
-                className="checkbox checkbox-primary checkbox-sm mt-0.5"
+                className="checkbox checkbox-primary checkbox-sm mt-0.5 rounded-sm p-1"
                 disabled={isLoading}
                 id="terms"
                 onChange={e => setTermsAccepted(e.target.checked)}
