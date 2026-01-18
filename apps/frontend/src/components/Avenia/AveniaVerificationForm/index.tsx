@@ -31,7 +31,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
-        className="mt-8 mb-4 flex min-h-[506px] w-full flex-col h-full"
+        className="mt-8 mb-4 flex h-full min-h-[506px] w-full flex-col"
         initial={{ opacity: 0.8, scale: 0.9 }}
         onSubmit={handleSubmit(onSubmit)}
         transition={{ duration: 0.3 }}
@@ -77,7 +77,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
         </div>
         <div
           className="absolute right-0 left-0 z-[5] mb-4"
-          style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+          style={{ bottom: "calc(var(--quote-summary-height, 100px) + 2rem)" }}
         >
           <div className="mt-8 grid gap-3">
             <button
