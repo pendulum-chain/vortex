@@ -12,7 +12,7 @@ import {
   SquidRouterPayResponse
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
+import { encodeFunctionData, Hash } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
@@ -32,22 +32,6 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculat
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
-  private moonbeamPublicClient: PublicClient;
-  private polygonPublicClient: PublicClient;
-  private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
-  private polygonWalletClient: ReturnType<typeof createWalletClient>;
-
-  constructor() {
-    super();
-    const evmClientManager = EvmClientManager.getInstance();
-    this.moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
-    this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
-
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-    this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
-    this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
-  }
-
   /**
    * Get the phase name
    */
@@ -141,12 +125,16 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
           payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
+          const evmClientManager = EvmClientManager.getInstance();
+          const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+
           const isPolygon = quote.inputCurrency !== FiatToken.BRL;
           const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
           const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber(); // Both MATIC and GLMR have 18 decimals
-          const payerAccount = isPolygon
-            ? this.polygonWalletClient.account?.address
-            : this.moonbeamWalletClient.account?.address;
+          const payerAccount = evmClientManager.getWalletClient(
+            isPolygon ? Networks.Polygon : Networks.Moonbeam,
+            moonbeamExecutorAccount
+          ).account?.address;
 
           if (payerAccount) {
             await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
@@ -205,8 +193,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     swapHash: `0x${string}`,
     logIndex: number
   ): Promise<Hash> {
+    const evmClientManager = EvmClientManager.getInstance();
     try {
-      const walletClientAccount = this.moonbeamWalletClient.account;
+      const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
+      const moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
+
+      const walletClientAccount = moonbeamWalletClient.account;
 
       if (!walletClientAccount) {
         throw new Error("SquidRouterPayPhaseHandler: Moonbeam wallet client account not found.");
@@ -218,9 +211,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         functionName: "addNativeGas"
       });
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await this.moonbeamPublicClient.estimateFeesPerGas();
+      const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamPublicClient.estimateFeesPerGas();
 
-      const gasPaymentHash = await this.moonbeamWalletClient.sendTransaction({
+      const gasPaymentHash = await moonbeamWalletClient.sendTransaction({
         account: walletClientAccount,
         chain: moonbeam,
         data: transactionData,
@@ -250,8 +243,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     swapHash: `0x${string}`,
     logIndex: number
   ): Promise<Hash> {
+    const evmClientManager = EvmClientManager.getInstance();
     try {
-      const walletClientAccount = this.polygonWalletClient.account;
+      const polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
+      const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
+
+      const walletClientAccount = polygonWalletClient.account;
 
       if (!walletClientAccount) {
         throw new Error("SquidRouterPayPhaseHandler: Polygon wallet client account not found.");
@@ -264,9 +262,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         functionName: "addNativeGas"
       });
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await this.polygonPublicClient.estimateFeesPerGas();
+      const { maxFeePerGas, maxPriorityFeePerGas } = await polygonPublicClient.estimateFeesPerGas();
 
-      const gasPaymentHash = await this.polygonWalletClient.sendTransaction({
+      const gasPaymentHash = await polygonWalletClient.sendTransaction({
         account: walletClientAccount,
         chain: polygon,
         data: transactionData,

@@ -17,16 +17,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
  * Handler for the squidRouter phase
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
-  private moonbeamClient: PublicClient;
-  private polygonClient: PublicClient;
-
-  constructor() {
-    super();
-    const evmClientManager = EvmClientManager.getInstance();
-    this.moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
-    this.polygonClient = evmClientManager.getClient(Networks.Polygon);
-  }
-
   /**
    * Get the phase name
    */
@@ -120,6 +110,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * @returns The appropriate public client
    */
   private async getPublicClient(state: RampState): Promise<PublicClient> {
+    const evmClientManager = EvmClientManager.getInstance();
+
     try {
       const quote = await QuoteTicket.findByPk(state.quoteId);
       if (!quote) {
@@ -127,18 +119,18 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
 
       if (quote.inputCurrency === FiatToken.EURC) {
-        return this.polygonClient;
+        return evmClientManager.getClient(Networks.Polygon);
       } else if (quote.inputCurrency === FiatToken.BRL) {
-        return this.moonbeamClient;
+        return evmClientManager.getClient(Networks.Moonbeam);
       } else {
         logger.info(
           `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
         );
-        return this.moonbeamClient;
+        return evmClientManager.getClient(Networks.Moonbeam);
       }
     } catch (error) {
       logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
-      return this.moonbeamClient;
+      return evmClientManager.getClient(Networks.Moonbeam);
     }
   }
 

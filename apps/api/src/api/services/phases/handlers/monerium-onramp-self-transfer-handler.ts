@@ -7,7 +7,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, PublicClient } from "viem";
+import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
@@ -20,15 +20,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
  * Handler for the monerium self-transfer phase
  */
 export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
-  private polygonClient: PublicClient;
-  private evmClientManager: EvmClientManager;
-
-  constructor() {
-    super();
-    this.evmClientManager = EvmClientManager.getInstance();
-    this.polygonClient = this.evmClientManager.getClient(Networks.Polygon);
-  }
-
   /**
    * Get the phase name
    */
@@ -112,7 +103,8 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
           ],
           functionName: "permit"
         });
-        permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
+        const evmClientManager = EvmClientManager.getInstance();
+        permitHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
           data: permitData,
           to: ERC20_EURE_POLYGON_V2
         });
@@ -174,8 +166,10 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    * @param chainId The chain ID
    */
   private async waitForTransactionConfirmation(txHash: string): Promise<void> {
+    const evmClientManager = EvmClientManager.getInstance();
     try {
-      const receipt = await this.polygonClient.waitForTransactionReceipt({
+      const polygonClient = evmClientManager.getClient(Networks.Polygon);
+      const receipt = await polygonClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`
       });
       if (!receipt || receipt.status !== "success") {
