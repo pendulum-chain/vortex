@@ -1,4 +1,4 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, isEvmTokenDetails } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
@@ -83,6 +83,8 @@ export const Onramp = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange]
   );
 
+  const logoURI = isEvmTokenDetails(toToken) ? toToken.logoURI : undefined;
+
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
@@ -90,6 +92,7 @@ export const Onramp = () => {
         disabled={!toAmount}
         id="outputAmount"
         loading={quoteLoading}
+        logoURI={logoURI}
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
         registerInput={form.register("outputAmount")}
