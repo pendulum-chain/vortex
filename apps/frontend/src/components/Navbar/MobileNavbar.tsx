@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
 import { cn } from "../../helpers/cn";
@@ -12,8 +13,12 @@ export const MobileNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isWidgetMode = useWidgetMode();
   const navbarRef = useRef<HTMLDivElement>(null);
+  const routerState = useRouterState();
 
   const { resetRampAndNavigateHome } = useNavbarHandlers();
+
+  const isBusinessPage = routerState.location.pathname.includes("/business");
+  const useTransparentStyle = isWidgetMode || isBusinessPage;
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -27,13 +32,13 @@ export const MobileNavbar = () => {
 
   return (
     <div className="relative" ref={navbarRef}>
-      <div className={cn("relative z-20 px-4 py-4", isWidgetMode ? "bg-transparent" : "bg-blue-950")}>
+      <div className={cn("relative z-20 px-4 py-4", useTransparentStyle ? "bg-transparent" : "bg-blue-950")}>
         <div className="flex items-center justify-between">
           {isWidgetMode ? (
-            <LogoButton onClick={resetRampAndNavigateHome} />
+            <LogoButton onClick={resetRampAndNavigateHome} variant="blue" />
           ) : (
             <div className="flex grow items-center justify-between">
-              <LogoButton onClick={resetRampAndNavigateHome} />
+              <LogoButton onClick={resetRampAndNavigateHome} variant={isBusinessPage ? "blue" : "white"} />
               <HamburgerButton isOpen={isMobileMenuOpen} onClick={toggleMobileMenu} />
             </div>
           )}
