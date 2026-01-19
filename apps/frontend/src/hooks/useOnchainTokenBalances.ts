@@ -16,7 +16,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
-import { Abi } from "viem";
+import { Abi, hexToBigInt } from "viem";
 import { useBalance, useReadContracts } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
@@ -25,19 +25,19 @@ import { multiplyByPowerOfTen } from "../helpers/contracts";
 import { getEvmTokensForNetwork } from "../services/tokens";
 import { useVortexAccount } from "./useVortexAccount";
 
-interface AlchemyResponse {
-  jsonrpc: string;
-  id: number;
-  result: {
-    address: string;
-    tokenBalances: {
-      contractAddress: string;
+interface AlchemyTokenBalancesResponse {
+  data: {
+    tokens: {
+      network: string;
+      address: string;
+      tokenAddress: string | null;
       tokenBalance: string;
     }[];
+    pageKey?: string;
   };
 }
 
-const getAlchemyEndpoint = (network: Networks): string | null => {
+const getAlchemyNetworkName = (network: Networks): string | null => {
   if (!ALCHEMY_API_KEY) return null;
 
   const networkMap: Partial<Record<Networks, string>> = {
@@ -50,28 +50,29 @@ const getAlchemyEndpoint = (network: Networks): string | null => {
     [Networks.Polygon]: "polygon-mainnet"
   };
 
-  const subdomain = networkMap[network];
-  console.log("Alchemy subdomain", subdomain);
-  return subdomain ? `https://${subdomain}.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : null;
+  const networkName = networkMap[network];
+  return networkName || null;
 };
 
-const fetchAlchemyTokenBalances = async (
-  address: string,
-  tokenAddresses: string[],
-  network: Networks
-): Promise<Map<string, string>> => {
-  const endpoint = getAlchemyEndpoint(network);
-  if (!endpoint || tokenAddresses.length === 0) {
+const fetchAlchemyTokenBalances = async (address: string, network: Networks): Promise<Map<string, string>> => {
+  const networkName = getAlchemyNetworkName(network);
+  if (!networkName) {
     return new Map();
   }
 
   try {
+    const endpoint = `https://api.g.alchemy.com/data/v1/${ALCHEMY_API_KEY}/assets/tokens/balances/by-address`;
+
     const response = await fetch(endpoint, {
       body: JSON.stringify({
-        id: 1,
-        jsonrpc: "2.0",
-        method: "alchemy_getTokenBalances",
-        params: [address, tokenAddresses]
+        addresses: [
+          {
+            address,
+            networks: [networkName]
+          }
+        ],
+        includeErc20Tokens: true,
+        includeNativeTokens: true
       }),
       headers: {
         "Content-Type": "application/json"
@@ -79,14 +80,16 @@ const fetchAlchemyTokenBalances = async (
       method: "POST"
     });
 
-    const data: AlchemyResponse = await response.json();
+    const data: AlchemyTokenBalancesResponse = await response.json();
 
     const balanceMap = new Map<string, string>();
-    if (data.result?.tokenBalances) {
-      data.result.tokenBalances.forEach(tokenBalance => {
-        // Key includes network to avoid collisions across chains
-        const key = `${network}-${tokenBalance.contractAddress.toLowerCase()}`;
-        balanceMap.set(key, Number(tokenBalance.tokenBalance as `0x${string}`).toString());
+    if (data.data?.tokens) {
+      data.data.tokens.forEach(token => {
+        const tokenAddress = token.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+        const key = `${network}-${tokenAddress.toLowerCase()}`;
+        // Convert hex balance to decimal string using Big.js
+        const decimalBalance = hexToBigInt(token.tokenBalance as `0x${string}`).toString();
+        balanceMap.set(key, decimalBalance);
       });
     }
 
@@ -216,20 +219,17 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
         const networkTokens = tokensByNetwork[network];
         if (!networkTokens?.length) continue;
 
-        const tokenAddresses = networkTokens.map(token => token.erc20AddressSourceChain).filter(addr => addr);
+        // The new API fetches all token balances (including native) for the address/network
+        try {
+          const balances = await fetchAlchemyTokenBalances(address, network);
+          console.log(`[${network}] Balances:`, Object.fromEntries(balances));
 
-        if (tokenAddresses.length > 0) {
-          try {
-            const balances = await fetchAlchemyTokenBalances(address, tokenAddresses, network);
-            console.log(`[${network}] Balances:`, Object.fromEntries(balances));
-
-            // Merge balances into the allBalances map
-            balances.forEach((value, key) => {
-              allBalances.set(key, value);
-            });
-          } catch (error) {
-            console.error(`Failed to fetch ${network} balances:`, error);
-          }
+          // Merge balances into the allBalances map
+          balances.forEach((value, key) => {
+            allBalances.set(key, value);
+          });
+        } catch (error) {
+          console.error(`Failed to fetch ${network} balances:`, error);
         }
       }
 
@@ -242,13 +242,10 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
   // Create a flat list of all tokens with their balances
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
     const key = `${curr.network}-${curr.erc20AddressSourceChain?.toLowerCase()}`;
-    const tokenBalance = balanceMap.get(key);
+    const tokenBalance = balanceMap.get(key); // If we are dealing with a stablecoin, we show 2 decimals, otherwise 6
+    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
 
-    // If we are dealing with a stablecoin, we show 2 decimals, otherwise 4
-    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 4;
-    const balance = tokenBalance
-      ? multiplyByPowerOfTen(Big(tokenBalance.toString()), -curr.decimals).toFixed(showDecimals, 0)
-      : "0.00";
+    const balance = tokenBalance ? multiplyByPowerOfTen(Big(tokenBalance), -curr.decimals).toFixed(showDecimals, 0) : "0.00";
 
     prev.push({
       ...curr,
