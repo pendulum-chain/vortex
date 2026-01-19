@@ -1,4 +1,5 @@
 import {
+  ALCHEMY_API_KEY,
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
   assetHubTokenConfig,
@@ -23,6 +24,78 @@ import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
 import { getEvmTokensForNetwork } from "../services/tokens";
 import { useVortexAccount } from "./useVortexAccount";
+
+interface AlchemyResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    address: string;
+    tokenBalances: {
+      contractAddress: string;
+      tokenBalance: string;
+    }[];
+  };
+}
+
+const getAlchemyEndpoint = (network: Networks): string | null => {
+  if (!ALCHEMY_API_KEY) return null;
+
+  const networkMap: Partial<Record<Networks, string>> = {
+    [Networks.Arbitrum]: "arb-mainnet",
+    [Networks.Avalanche]: "avax-mainnet",
+    [Networks.Base]: "base-mainnet",
+    [Networks.BSC]: "bsc-mainnet",
+    [Networks.Ethereum]: "eth-mainnet",
+    [Networks.Moonbeam]: "moonbeam-mainnet",
+    [Networks.Polygon]: "polygon-mainnet"
+  };
+
+  const subdomain = networkMap[network];
+  console.log("Alchemy subdomain", subdomain);
+  return subdomain ? `https://${subdomain}.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : null;
+};
+
+const fetchAlchemyTokenBalances = async (
+  address: string,
+  tokenAddresses: string[],
+  network: Networks
+): Promise<Map<string, string>> => {
+  const endpoint = getAlchemyEndpoint(network);
+  if (!endpoint || tokenAddresses.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "alchemy_getTokenBalances",
+        params: [address, tokenAddresses]
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    const data: AlchemyResponse = await response.json();
+
+    const balanceMap = new Map<string, string>();
+    if (data.result?.tokenBalances) {
+      data.result.tokenBalances.forEach(tokenBalance => {
+        // Key includes network to avoid collisions across chains
+        const key = `${network}-${tokenBalance.contractAddress.toLowerCase()}`;
+        balanceMap.set(key, Number(tokenBalance.tokenBalance as `0x${string}`).toString());
+      });
+    }
+
+    return balanceMap;
+  } catch (error) {
+    console.error(`Error fetching balances for ${network}:`, error);
+    return new Map();
+  }
+};
 
 export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
   const { evmAddress: address } = useVortexAccount();
@@ -125,34 +198,51 @@ const groupTokensByNetwork = (tokens: EvmTokenDetails[]): Record<string, EvmToke
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { evmAddress: address } = useVortexAccount();
+  const [balanceMap, setBalanceMap] = useState<Map<string, string>>(new Map());
 
   const tokensByNetwork = useMemo(() => groupTokensByNetwork(tokens), [tokens]);
 
-  // Create contract calls for all networks
-  const contractCalls = useMemo(() => {
-    return Object.entries(tokensByNetwork).flatMap(([network, networkTokens]) => {
-      const chainId = getNetworkId(network as Networks);
-      return networkTokens.map(token => ({
-        abi: erc20ABI as Abi,
-        address: token.erc20AddressSourceChain,
-        args: [address],
-        chainId,
-        functionName: "balanceOf"
-      }));
-    });
-  }, [tokensByNetwork, address]);
+  // Fetch balances from Alchemy for all EVM networks once on component mount
+  useEffect(() => {
+    if (!address) return;
 
-  const { data: balances } = useReadContracts({
-    contracts: contractCalls ?? []
-  });
+    const fetchAllBalances = async () => {
+      // Get all EVM networks from the tokens passed
+      const evmNetworks = Object.keys(tokensByNetwork).filter(network => isNetworkEVM(network as Networks)) as Networks[];
 
-  if (!tokens.length || !balances) {
-    return [];
-  }
+      const allBalances = new Map<string, string>();
+
+      for (const network of evmNetworks) {
+        const networkTokens = tokensByNetwork[network];
+        if (!networkTokens?.length) continue;
+
+        const tokenAddresses = networkTokens.map(token => token.erc20AddressSourceChain).filter(addr => addr);
+
+        if (tokenAddresses.length > 0) {
+          try {
+            const balances = await fetchAlchemyTokenBalances(address, tokenAddresses, network);
+            console.log(`[${network}] Balances:`, Object.fromEntries(balances));
+
+            // Merge balances into the allBalances map
+            balances.forEach((value, key) => {
+              allBalances.set(key, value);
+            });
+          } catch (error) {
+            console.error(`Failed to fetch ${network} balances:`, error);
+          }
+        }
+      }
+
+      setBalanceMap(allBalances);
+    };
+
+    fetchAllBalances();
+  }, [address, tokensByNetwork]); // - run when address or tokens change
 
   // Create a flat list of all tokens with their balances
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
-    const tokenBalance = balances[index]?.result;
+    const key = `${curr.network}-${curr.erc20AddressSourceChain?.toLowerCase()}`;
+    const tokenBalance = balanceMap.get(key);
 
     // If we are dealing with a stablecoin, we show 2 decimals, otherwise 4
     const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 4;

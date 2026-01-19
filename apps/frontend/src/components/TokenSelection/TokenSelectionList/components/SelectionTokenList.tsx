@@ -42,8 +42,8 @@ export const SelectionTokenList = () => {
   const { selectedNetwork } = useNetwork();
   const { filteredDefinitions } = useTokenDefinitions(searchFilter, selectedNetworkFilter);
 
-  //const sortedDefinitions = useTokensSortedByBalance(filteredDefinitions);
-  const currentDefinitions = isFiatDirection ? filteredDefinitions : filteredDefinitions;
+  const sortedDefinitions = useTokensSortedByBalance(filteredDefinitions);
+  const currentDefinitions = isFiatDirection ? filteredDefinitions : sortedDefinitions;
   const { handleTokenSelect, selectedToken } = useTokenSelection();
 
   const parentRef = useRef<HTMLDivElement>(null);
