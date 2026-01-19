@@ -93,7 +93,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
       // rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
 
       // enteredViaForm: true allows the user to go back to the Quote form
-      rampActor.send({ enteredViaForm: true, lock: true, quoteId, type: "SET_QUOTE" });
+      rampActor.send({ enteredViaForm: true, lock: false, quoteId, type: "SET_QUOTE" });
 
       router.navigate({
         params,
