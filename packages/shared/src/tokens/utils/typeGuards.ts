@@ -15,6 +15,7 @@ export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails;
 
 export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & {
   balance: string;
+  balanceUsd: string;
 };
 
 /**

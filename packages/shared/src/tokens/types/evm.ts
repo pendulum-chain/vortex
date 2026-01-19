@@ -37,4 +37,5 @@ export interface EvmTokenDetails extends BaseTokenDetails {
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {
   balance: string;
+  balanceUsd?: string;
 }

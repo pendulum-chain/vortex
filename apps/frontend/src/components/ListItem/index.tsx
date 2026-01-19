@@ -16,7 +16,7 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
   const { t } = useTranslation();
   const tokenIcon = token.logoURI ? token.logoURI : useGetAssetIcon(token.assetIcon);
 
-  const showBalance = isOnChainToken(token.type);
+  const showBalance = (token.details as any).balance !== "0.00";
 
   const isDisabled = isFiatToken(token.type) && isFiatTokenDisabled(token.type);
   const disabledReason = isFiatToken(token.type) && isDisabled ? t(getTokenDisabledReason(token.type)) : undefined;

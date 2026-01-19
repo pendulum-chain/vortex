@@ -5,6 +5,7 @@ import {
   assetHubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
+  getAllEvmTokens,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
@@ -124,9 +125,22 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
   return useMemo(() => {
     if (!nativeToken || !balance || !isNetworkEVM(selectedNetwork)) return null;
 
+    const formattedBalance = multiplyByPowerOfTen(Big(balance.value.toString()), -balance.decimals).toFixed(4, 0);
+
+    // Calculate balanceUsd by finding matching token in getAllEvmTokens by address and network
+    const allEvmTokens = getAllEvmTokens();
+    const matchingToken = allEvmTokens.find(
+      token =>
+        token.erc20AddressSourceChain?.toLowerCase() === nativeToken.erc20AddressSourceChain?.toLowerCase() &&
+        token.network === nativeToken.network
+    );
+    const usdPrice = matchingToken?.usdPrice ?? 0;
+    const balanceUsd = usdPrice > 0 ? Big(formattedBalance).times(usdPrice).toFixed(2, 0) : "0.00";
+
     return {
       ...nativeToken,
-      balance: multiplyByPowerOfTen(Big(balance.value.toString()), -balance.decimals).toFixed(4, 0)
+      balance: formattedBalance,
+      balanceUsd
     };
   }, [balance, selectedNetwork, nativeToken]);
 };
@@ -153,7 +167,8 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     if (!substrateAddress || !assethubNode) {
       setNativeBalance({
         ...nativeToken,
-        balance: "0.0000"
+        balance: "0.0000",
+        balanceUsd: "0.00"
       });
       return;
     }
@@ -175,7 +190,8 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
         setNativeBalance({
           ...nativeToken,
-          balance: formattedBalance
+          balance: formattedBalance,
+          balanceUsd: "0.00"
         });
       } catch (error) {
         console.error("Error fetching AssetHub native balance:", error);
@@ -247,9 +263,20 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 
     const balance = tokenBalance ? multiplyByPowerOfTen(Big(tokenBalance), -curr.decimals).toFixed(showDecimals, 0) : "0.00";
 
+    // Calculate balanceUsd by finding matching token in getAllEvmTokens by address and network
+    const allEvmTokens = getAllEvmTokens();
+    const matchingToken = allEvmTokens.find(
+      token =>
+        token.erc20AddressSourceChain?.toLowerCase() === curr.erc20AddressSourceChain?.toLowerCase() &&
+        token.network === curr.network
+    );
+    const usdPrice = matchingToken?.usdPrice ?? 0;
+    const balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
+
     prev.push({
       ...curr,
-      balance
+      balance,
+      balanceUsd
     });
 
     return prev;
@@ -276,7 +303,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     // If substrate wallet is not connected or node is not available,
     // still show the tokens with zero balances
     if (!substrateAddress || !assethubNode) {
-      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00" })));
+      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00", balanceUsd: "0.00" })));
       return;
     }
 
@@ -313,7 +340,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
           balance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
         }
 
-        return { ...token, balance };
+        return { ...token, balance, balanceUsd: "0.00" };
       });
 
       setBalances(tokensWithBalances);
