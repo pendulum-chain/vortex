@@ -1,6 +1,6 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { FiatToken, OnChainToken } from "@vortexfi/shared";
-import { CSSProperties, useEffect, useRef, useState } from "react";
-import { List as WindowedList } from "react-window";
+import { useRef } from "react";
 import { useNetwork } from "../../../../contexts/network";
 import { cn } from "../../../../helpers/cn";
 import { useTokensSortedByBalance } from "../../../../hooks/useTokensSortedByBalance";
@@ -9,31 +9,8 @@ import { ListItem } from "../../../ListItem";
 import { useIsFiatDirection, useTokenDefinitions } from "../helpers";
 import { ExtendedTokenDefinition, useTokenSelection } from "../hooks/useTokenSelection";
 
-interface SelectionListData {
-  tokens: ExtendedTokenDefinition[];
-  selectedToken: any;
-  selectedNetwork: any;
-  handleTokenSelect: (type: OnChainToken | FiatToken, token: ExtendedTokenDefinition) => void;
-}
+const ROW_HEIGHT = 80;
 
-type RowComponentProps = SelectionListData & {
-  index: number;
-  style: CSSProperties;
-};
-
-const RowComponent = ({ index, style, tokens, selectedToken, selectedNetwork, handleTokenSelect }: RowComponentProps) => {
-  //
-  const token = tokens[index];
-  const isSelected = selectedToken === token.type && selectedNetwork === token.network;
-
-  return (
-    <div style={style}>
-      <div className="pb-2">
-        <ListItem isSelected={isSelected} onSelect={tokenType => handleTokenSelect(tokenType, token)} token={token} />
-      </div>
-    </div>
-  );
-};
 export const SelectionTokenList = () => {
   const isFiatDirection = useIsFiatDirection();
   const isNetworkDropdownOpen = useIsNetworkDropdownOpen();
@@ -47,49 +24,55 @@ export const SelectionTokenList = () => {
   const { handleTokenSelect, selectedToken } = useTokenSelection();
 
   const parentRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ height: 0, width: 0 });
 
-  useEffect(() => {
-    if (!parentRef.current) return;
+  const rowVirtualizer = useVirtualizer({
+    count: currentDefinitions.length,
+    estimateSize: () => ROW_HEIGHT,
+    getScrollElement: () => parentRef.current
+  });
 
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setDimensions({
-          height: entry.contentRect.height,
-          width: entry.contentRect.width
-        });
-      }
-    });
-
-    resizeObserver.observe(parentRef.current);
-
-    return () => resizeObserver.disconnect();
-  }, []);
+  const handleSelect = (tokenType: OnChainToken | FiatToken, token: ExtendedTokenDefinition) => {
+    handleTokenSelect(tokenType, token);
+  };
 
   return (
     <div
       className={cn(
-        "no-scrollbar mt-3 flex-1 overflow-hidden border-gray-200 border-t pb-10",
+        "no-scrollbar mt-3 flex-1 overflow-auto border-gray-200 border-t pb-10",
         isNetworkDropdownOpen ? "pointer-events-none opacity-0" : "opacity-100"
       )}
       ref={parentRef}
     >
-      {}
-      {dimensions.height > 0 && (
-        <WindowedList
-          rowComponent={RowComponent}
-          rowCount={currentDefinitions.length}
-          rowHeight={80}
-          rowProps={{
-            handleTokenSelect,
-            selectedNetwork,
-            selectedToken,
-            tokens: currentDefinitions
-          }}
-          // TODO fix types
-          style={{ height: dimensions.height, width: dimensions.width }}
-        />
-      )}
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          position: "relative",
+          width: "100%"
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map(virtualItem => {
+          const token = currentDefinitions[virtualItem.index];
+          const isSelected = selectedToken === token.type && selectedNetwork === token.network;
+
+          return (
+            <div
+              key={virtualItem.key}
+              style={{
+                height: `${virtualItem.size}px`,
+                left: 0,
+                position: "absolute",
+                top: 0,
+                transform: `translateY(${virtualItem.start}px)`,
+                width: "100%"
+              }}
+            >
+              <div className="pb-2">
+                <ListItem isSelected={isSelected} onSelect={tokenType => handleSelect(tokenType, token)} token={token} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
