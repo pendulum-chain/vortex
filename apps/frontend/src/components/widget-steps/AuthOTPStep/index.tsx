@@ -6,7 +6,7 @@ import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../../InputOTP";
-import { QuoteSummary } from "../../QuoteSummary";
+import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
 
 export interface AuthOTPStepProps {
   className?: string;
@@ -39,12 +39,10 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
     }
   }, [errorMessage]);
 
-  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
-
   return (
     <div
       className={cn("relative flex min-h-[506px] grow flex-col", className)}
-      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
     >
       <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
@@ -100,7 +98,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
         </div>
       </div>
 
-      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+      {quote && <QuoteSummary quote={quote} />}
     </div>
   );
 }

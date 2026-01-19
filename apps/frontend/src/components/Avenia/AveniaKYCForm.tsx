@@ -1,10 +1,9 @@
 import { isValidCnpj } from "@vortexfi/shared";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../QuoteSummary";
+import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../QuoteSummary";
 import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
@@ -145,12 +144,10 @@ export const AveniaKYCForm = () => {
     );
   }
 
-  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
-
   return (
     <div
       className="relative flex h-full grow flex-col"
-      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
     >
       <div className="flex flex-col flex-1">
         <div className="relative">
@@ -160,7 +157,7 @@ export const AveniaKYCForm = () => {
           {content}
         </div>
       </div>
-      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+      {quote && <QuoteSummary quote={quote} />}
     </div>
   );
 };

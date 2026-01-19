@@ -5,7 +5,7 @@ import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../../QuoteSummary";
+import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
 
 const emailSchema = yup.string().email().required();
 
@@ -41,12 +41,10 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     rampActor.send({ email: trimmedEmail, type: "ENTER_EMAIL" });
   };
 
-  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
-
   return (
     <div
       className={cn("relative flex min-h-[506px] grow flex-col", className)}
-      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
     >
       <form className="flex flex-1 flex-col pb-36" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
@@ -127,7 +125,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         </div>
       </form>
 
-      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+      {quote && <QuoteSummary quote={quote} />}
     </div>
   );
 };

@@ -1,8 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
-import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../../QuoteSummary";
+import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
 
 interface AveniaKYBVerifyStepProps {
   titleKey: string;
@@ -31,12 +30,11 @@ export const AveniaKYBVerifyStep = ({
 }: AveniaKYBVerifyStepProps) => {
   const quote = useQuote();
   const { t } = useTranslation();
-  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
 
   return (
     <div
       className="relative flex min-h-[506px] w-full grow flex-col"
-      style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
     >
       <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
@@ -104,7 +102,7 @@ export const AveniaKYBVerifyStep = ({
           )}
         </div>
       </div>
-      {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+      {quote && <QuoteSummary quote={quote} />}
     </div>
   );
 };

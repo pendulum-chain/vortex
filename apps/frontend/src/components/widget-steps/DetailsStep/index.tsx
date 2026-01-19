@@ -1,7 +1,7 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
@@ -13,7 +13,7 @@ import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../../QuoteSummary";
+import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
 import { DetailsStepActions } from "./DetailsStepActions";
 import { DetailsStepForm } from "./DetailsStepForm";
 import { DetailsStepHeader } from "./DetailsStepHeader";
@@ -110,13 +110,11 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     onRampConfirm(data);
   };
 
-  const [quoteSummaryHeight, setQuoteSummaryHeight] = useState(100);
-
   return (
     <FormProvider {...form}>
       <div
         className="relative flex max-h-full min-h-[506px] grow flex-col"
-        style={{ "--quote-summary-height": `${quoteSummaryHeight}px` } as React.CSSProperties}
+        style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
       >
         <form className={cn("flex h-full flex-col", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
           <div className="flex-1 pb-36">
@@ -148,7 +146,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
             />
           </div>
         </form>
-        {quote && <QuoteSummary onHeightChange={setQuoteSummaryHeight} quote={quote} />}
+        {quote && <QuoteSummary quote={quote} />}
       </div>
     </FormProvider>
   );
