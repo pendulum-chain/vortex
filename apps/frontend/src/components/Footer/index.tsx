@@ -149,7 +149,7 @@ export function Footer() {
           </FooterSection>
 
           <FooterSection title={t("components.footer.business.title")}>
-            <FooterLink href="mailto:business@vortexfinance.co">{t("components.footer.business.contactSales")}</FooterLink>
+            <FooterLink href={`/${i18n.language}/contact`}>{t("components.footer.business.contactSales")}</FooterLink>
             <FooterLink href="mailto:support@vortexfinance.co">{t("components.footer.business.contactSupport")}</FooterLink>
           </FooterSection>
 

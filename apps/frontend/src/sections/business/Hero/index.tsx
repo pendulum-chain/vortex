@@ -1,4 +1,5 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import WidgetSnippetImageEUR from "../../../assets/metawallet-vortex.png";
@@ -37,19 +38,18 @@ export function Hero() {
             </motion.p>
 
             <div className="mt-2 flex justify-center gap-x-4 lg:justify-start">
-              <motion.a
-                animate="visible"
-                aria-label={t("pages.business.hero.contactUs")}
-                className="btn btn-vortex-primary w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5"
-                custom={0.55}
-                href="mailto:business@vortexfinance.co"
-                initial={reducedMotion ? "visible" : "hidden"}
-                rel="noopener noreferrer"
-                target="_blank"
-                variants={fadeInUp}
-              >
-                {t("pages.business.hero.contactUs")} <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-4 w-4" />
-              </motion.a>
+              <Link className="w-1/2 sm:w-1/3 lg:w-1/2 xl:w-2/5" to="/{-$locale}/contact">
+                <motion.div
+                  animate="visible"
+                  aria-label={t("pages.business.hero.contactUs")}
+                  className="btn btn-vortex-primary w-full"
+                  custom={0.55}
+                  initial={reducedMotion ? "visible" : "hidden"}
+                  variants={fadeInUp}
+                >
+                  {t("pages.business.hero.contactUs")} <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-4 w-4" />
+                </motion.div>
+              </Link>
               <motion.a
                 animate="visible"
                 aria-label={t("pages.business.hero.readDocs")}

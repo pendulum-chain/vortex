@@ -20,6 +20,7 @@ import {
 } from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
+import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
@@ -261,6 +262,7 @@ const validateRequestBodyValues =
   };
 
 export const validateStorageInput = validateRequestBodyValuesForTransactionStore();
+export const validateContactInput = validateRequestBodyValues(CONTACT_SHEET_HEADER_VALUES);
 export const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 export const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 export const validateExecuteXCM = validateRequestBodyValues(["id", "payload"]);
