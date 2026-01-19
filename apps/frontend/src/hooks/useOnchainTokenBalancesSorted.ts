@@ -16,8 +16,7 @@ export const useOnchainTokenBalancesSorted = (tokens: OnChainTokenDetails[]): On
         return bBalance - aBalance;
       }
 
-      // Secondary sort: symbol ascending (alphabetically)
-      return a.assetSymbol.localeCompare(b.assetSymbol);
+      return 1;
     });
   }, [tokenBalances]);
 };

@@ -9,7 +9,7 @@ import { ListItem } from "../../../ListItem";
 import { useIsFiatDirection, useTokenDefinitions } from "../helpers";
 import { ExtendedTokenDefinition, useTokenSelection } from "../hooks/useTokenSelection";
 
-const ROW_HEIGHT = 80;
+const ROW_HEIGHT = 56;
 
 export const SelectionTokenList = () => {
   const isFiatDirection = useIsFiatDirection();
@@ -38,7 +38,7 @@ export const SelectionTokenList = () => {
   return (
     <div
       className={cn(
-        "no-scrollbar mt-3 flex-1 overflow-auto border-gray-200 border-t pb-10",
+        "no-scrollbar mt-3 flex-1 overflow-auto border-gray-200 border-t pt-3 pb-10",
         isNetworkDropdownOpen ? "pointer-events-none opacity-0" : "opacity-100"
       )}
       ref={parentRef}
@@ -66,9 +66,7 @@ export const SelectionTokenList = () => {
                 width: "100%"
               }}
             >
-              <div className="pb-2">
-                <ListItem isSelected={isSelected} onSelect={tokenType => handleSelect(tokenType, token)} token={token} />
-              </div>
+              <ListItem isSelected={isSelected} onSelect={tokenType => handleSelect(tokenType, token)} token={token} />
             </div>
           );
         })}

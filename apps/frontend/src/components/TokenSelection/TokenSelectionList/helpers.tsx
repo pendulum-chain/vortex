@@ -14,37 +14,55 @@ import {
   RampDirection,
   stellarTokenConfig
 } from "@vortexfi/shared";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
 
+function useDeepStableReference<T>(value: T[]): T[] {
+  const ref = useRef<T[]>(value);
+
+  const isChanged = useMemo(() => {
+    if (ref.current.length !== value.length) return true;
+
+    return JSON.stringify(ref.current) !== JSON.stringify(value);
+  }, [value]);
+
+  if (isChanged) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
+
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
 
-  const allDefinitions = useMemo(
+  const rawDefinitions = useMemo(
     () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection),
     [tokenSelectModalType, rampDirection]
   );
-  console.log("All Definitions fetched");
+
+  const allDefinitions = useDeepStableReference(rawDefinitions);
 
   const availableNetworks = useMemo(() => {
     const networks = new Set(allDefinitions.map(token => token.network));
     return Array.from(networks).sort();
   }, [allDefinitions]);
 
-  const networkFilteredDefinitions = useMemo(() => {
+  const rawNetworkFiltered = useMemo(() => {
     if (selectedNetworkFilter === "all") {
       return allDefinitions;
     }
     return allDefinitions.filter(token => token.network === selectedNetworkFilter);
   }, [allDefinitions, selectedNetworkFilter]);
 
+  const networkFilteredDefinitions = useDeepStableReference(rawNetworkFiltered);
+
   const filteredDefinitions = useMemo(() => {
     const searchTerm = filter.toLowerCase();
-    console.log("Filtered Definitions computed");
 
     return networkFilteredDefinitions.filter(
       ({ assetSymbol, name, networkDisplayName }) =>
@@ -90,9 +108,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
 
 function getAllOnChainTokens(): ExtendedTokenDefinition[] {
   const allTokens: ExtendedTokenDefinition[] = [];
-
   allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
-
   const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
   const evmConfig = getEvmTokenConfig();
   for (const network of evmNetworks) {
@@ -100,7 +116,6 @@ function getAllOnChainTokens(): ExtendedTokenDefinition[] {
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
     }
   }
-
   return allTokens;
 }
 
@@ -123,11 +138,7 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
 }
 
 function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  const isBuy = direction === RampDirection.BUY;
-  if (isBuy && type === "from") {
-    return true;
-  }
-  return false;
+  return direction === RampDirection.BUY && type === "from";
 }
 
 export function useIsFiatDirection() {
@@ -138,12 +149,7 @@ export function useIsFiatDirection() {
 
 function isFiatDirection(type: "from" | "to", direction: RampDirection) {
   const isBuy = direction === RampDirection.BUY;
-
-  if ((isBuy && type === "from") || (!isBuy && type === "to")) {
-    return true;
-  }
-
-  return false;
+  return (isBuy && type === "from") || (!isBuy && type === "to");
 }
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {

@@ -20,6 +20,7 @@ interface AssetNumericInputProps {
   disabled?: boolean;
   readOnly?: boolean;
   loading?: boolean;
+  logoURI?: string;
   registerInput: UseFormRegisterReturn<keyof QuoteFormValues>;
   id: string;
 }
@@ -39,7 +40,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
     )}
   >
     <div className="flex items-center">
-      <AssetButton assetIcon={assetIcon} onClick={onClick} tokenSymbol={tokenSymbol} />
+      <AssetButton assetIcon={assetIcon} logoURI={rest.logoURI} onClick={onClick} tokenSymbol={tokenSymbol} />
     </div>
 
     {loading ? (

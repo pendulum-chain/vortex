@@ -109,15 +109,15 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
     }
   }
 
-  // Merge. Precedence to static config.
+  // Merge with evmTokenConfig. Static config tokens first in list. Precedence to dynamic tokens.
   for (const network of Object.values(Networks)) {
     if (isNetworkEVM(network)) {
       const evmNetwork = network as EvmNetworks;
       const networkTokenConfig = evmTokenConfig[evmNetwork];
       if (networkTokenConfig) {
         grouped[evmNetwork] = {
-          ...grouped[evmNetwork],
-          ...networkTokenConfig
+          ...networkTokenConfig,
+          ...grouped[evmNetwork]
         };
       }
     }
@@ -172,8 +172,6 @@ export async function initializeEvmTokens(): Promise<void> {
     state.error = null;
     state.usedFallback = false;
     state.isLoaded = true;
-
-    console.log(`[DynamicEvmTokens] Loaded ${evmTokens.length} tokens from SquidRouter`);
   } catch (err) {
     console.error("[DynamicEvmTokens] Failed to fetch tokens from SquidRouter, using fallback:", err);
 
@@ -192,7 +190,6 @@ export async function initializeEvmTokens(): Promise<void> {
  */
 export function getEvmTokenConfig(): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
   if (!state.isLoaded) {
-    console.warn("[DynamicEvmTokens] Tokens not yet loaded, returning static config");
     return evmTokenConfig as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
   }
   return state.tokensByNetwork;
@@ -203,7 +200,6 @@ export function getEvmTokenConfig(): Record<EvmNetworks, Partial<Record<string, 
  */
 export function getEvmTokensForNetwork(network: EvmNetworks): EvmTokenDetails[] {
   if (!state.isLoaded) {
-    console.warn("[DynamicEvmTokens] Tokens not yet loaded, returning static config for network");
     return Object.values(evmTokenConfig[network] ?? {}).filter((token): token is EvmTokenDetails => token !== undefined);
   }
   return Object.values(state.tokensByNetwork[network] ?? {}).filter((token): token is EvmTokenDetails => token !== undefined);
@@ -214,7 +210,6 @@ export function getEvmTokensForNetwork(network: EvmNetworks): EvmTokenDetails[] 
  */
 export function getAllEvmTokens(): EvmTokenDetails[] {
   if (!state.isLoaded) {
-    console.warn("[DynamicEvmTokens] Tokens not yet loaded, returning static config tokens");
     const fallback = buildFallbackFromStaticConfig();
     return fallback.tokens;
   }

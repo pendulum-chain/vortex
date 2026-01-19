@@ -18,6 +18,10 @@ import {
 import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
 import { Abi, hexToBigInt } from "viem";
+
+// Global cache to persist balances across hook instances and app lifecycle
+const globalBalanceCache = new Map<string, Map<string, string>>();
+
 import { useBalance, useReadContracts } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
@@ -235,18 +239,26 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
         const networkTokens = tokensByNetwork[network];
         if (!networkTokens?.length) continue;
 
-        // The new API fetches all token balances (including native) for the address/network
-        try {
-          const balances = await fetchAlchemyTokenBalances(address, network);
-          console.log(`[${network}] Balances:`, Object.fromEntries(balances));
+        const cacheKey = `${address}-${network}`;
+        let balances: Map<string, string>;
 
-          // Merge balances into the allBalances map
-          balances.forEach((value, key) => {
-            allBalances.set(key, value);
-          });
-        } catch (error) {
-          console.error(`Failed to fetch ${network} balances:`, error);
+        if (globalBalanceCache.has(cacheKey)) {
+          balances = globalBalanceCache.get(cacheKey)!;
+        } else {
+          try {
+            balances = await fetchAlchemyTokenBalances(address, network);
+            console.log(`[${network}] Balances:`, Object.fromEntries(balances));
+
+            globalBalanceCache.set(cacheKey, balances);
+          } catch (error) {
+            console.error(`Failed to fetch ${network} balances:`, error);
+            balances = new Map();
+          }
         }
+
+        balances.forEach((value, key) => {
+          allBalances.set(key, value);
+        });
       }
 
       setBalanceMap(allBalances);

@@ -5,12 +5,13 @@ import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
 interface AssetButtonProps {
   assetIcon: string;
   tokenSymbol: string;
+  logoURI?: string;
   onClick: () => void;
   disabled?: boolean;
 }
 
-export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled }: AssetButtonProps) {
-  const icon = useGetAssetIcon(assetIcon);
+export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled, logoURI }: AssetButtonProps) {
+  const icon = logoURI ? logoURI : useGetAssetIcon(assetIcon);
 
   return (
     <button
