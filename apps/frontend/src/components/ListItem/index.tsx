@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, isOnChainToken, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
+import { FiatToken, isFiatToken, OnChainToken, OnChainTokenDetails, TokenType } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
@@ -55,7 +55,7 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
             ) : (
               <>
                 {token.name && <div>{token.name}</div>}
-                {isOnChainToken(token.type) && <div>({token.networkDisplayName})</div>}
+                {<div>({token.networkDisplayName})</div>}
               </>
             )}
           </span>
