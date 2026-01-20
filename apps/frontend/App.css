@@ -29,6 +29,9 @@
 
   /* Base radius for components */
   --radius: 0.625rem;
+
+  /* QuoteSummary layout */
+  --quote-summary-height: 88px;
 }
 
 @layer base {
@@ -220,6 +223,10 @@
 }
 
 @layer utilities {
+  .bottom-above-quote {
+    bottom: calc(var(--quote-summary-height) + 2rem);
+  }
+
   .shadow-custom {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
   }

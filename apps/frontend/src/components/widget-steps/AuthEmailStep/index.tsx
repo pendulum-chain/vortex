@@ -5,7 +5,7 @@ import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
+import { QuoteSummary } from "../../QuoteSummary";
 
 const emailSchema = yup.string().email().required();
 
@@ -42,10 +42,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
   };
 
   return (
-    <div
-      className={cn("relative flex min-h-[506px] grow flex-col", className)}
-      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
-    >
+    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
       <form className="flex flex-1 flex-col pb-36" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authEmailStep.title")}</h1>
@@ -113,10 +110,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
           </div>
         </div>
 
-        <div
-          className="absolute right-0 left-0 z-[5] mb-4 flex flex-col items-center"
-          style={{ bottom: "calc(var(--quote-summary-height, 100px) + 2rem)" }}
-        >
+        <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4 flex flex-col items-center">
           <div className="w-full max-w-md">
             <button className="btn-vortex-primary btn w-full" disabled={isLoading || !termsAccepted} type="submit">
               {isLoading ? t("components.authEmailStep.buttons.sending") : t("components.authEmailStep.buttons.continue")}

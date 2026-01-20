@@ -75,10 +75,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <div
-          className="absolute right-0 left-0 z-[5] mb-4"
-          style={{ bottom: "calc(var(--quote-summary-height, 100px) + 2rem)" }}
-        >
+        <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
           <div className="mt-8 grid gap-3">
             <button
               className="btn-vortex-primary btn w-full"

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
-import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../QuoteSummary";
+import { QuoteSummary } from "../QuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 
@@ -57,10 +57,7 @@ export const AveniaKYBForm = () => {
   ];
 
   return (
-    <div
-      className="relative flex h-full grow flex-col"
-      style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
-    >
+    <div className="relative flex h-full grow flex-col">
       <div className="flex flex-col flex-1">
         <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
       </div>

@@ -87,7 +87,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
         )}
       </motion.div>
 
-      <div className="absolute right-0 left-0 z-[5] mb-4" style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}>
+      <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
         <div className="flex w-full gap-x-4">
           {livenessCheckOpened ? (
             <motion.button
