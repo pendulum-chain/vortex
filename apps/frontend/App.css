@@ -31,7 +31,7 @@
   --radius: 0.625rem;
 
   /* QuoteSummary layout */
-  --quote-summary-height: 88px;
+  --quote-summary-height: 70px;
 }
 
 @layer base {
