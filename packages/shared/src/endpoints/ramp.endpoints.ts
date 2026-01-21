@@ -10,6 +10,7 @@ export type RampPhase =
   | "squidRouterSwap"
   | "squidRouterPay"
   | "fundEphemeral"
+  | "destinationTransfer"
   | "nablaApprove"
   | "nablaSwap"
   | "hydrationSwap"
@@ -29,6 +30,8 @@ export type RampPhase =
   | "brlaPayoutOnMoonbeam"
   | "failed"
   | "timedOut"
+  | "finalSettlementSubsidy"
+  | "destinationTransfer"
   | "complete";
 
 export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";

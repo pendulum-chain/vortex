@@ -86,7 +86,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       if (state.to === Networks.AssetHub) {
         return this.transitionToNextPhase(state, "moonbeamToPendulum");
       } else {
-        return this.transitionToNextPhase(state, "complete");
+        return this.transitionToNextPhase(state, "finalSettlementSubsidy");
       }
     } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);

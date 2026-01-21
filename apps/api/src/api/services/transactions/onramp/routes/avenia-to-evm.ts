@@ -2,18 +2,25 @@ import {
   AXL_USDC_MOONBEAM_DETAILS,
   createOnrampSquidrouterTransactionsFromMoonbeamToEvm,
   createPendulumToMoonbeamTransfer,
+  EvmNetworks,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkId,
   getPendulumDetails,
   isEvmTokenDetails,
+  multiplyByPowerOfTen,
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
-import { addMoonbeamTransactions, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
+import {
+  addMoonbeamTransactions,
+  addNablaSwapTransactions,
+  addOnrampDestinationChainTransactions,
+  addPendulumCleanupTx
+} from "../common/transactions";
 import { AveniaOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateAveniaOnramp } from "../common/validation";
 
@@ -156,6 +163,23 @@ export async function prepareAveniaToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
   moonbeamNonce++;
+
+  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+  const finalSettlementTransaction = await addOnrampDestinationChainTransactions({
+    amountRaw: finalAmountRaw.toString(),
+    destinationNetwork: toNetwork as EvmNetworks,
+    toAddress: evmEphemeralEntry.address,
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: 0,
+    phase: "destinationTransfer",
+    signer: evmEphemeralEntry.address,
+    txData: finalSettlementTransaction
+  });
 
   return { stateMeta, unsignedTxs };
 }
