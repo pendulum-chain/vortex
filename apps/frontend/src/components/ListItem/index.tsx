@@ -20,8 +20,6 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: 
   const tokenIcon = token.logoURI ?? fiatIcon;
   const isFiat = isFiatToken(token.type);
 
-  const showBalance = (token.details as any).balance !== "0.00";
-
   const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
   const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;
 
@@ -62,7 +60,7 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: 
           </span>
         </span>
         <span className="text-base">
-          {showBalance && <UserBalance className="font-bold" token={token.details as OnChainTokenDetails} />}
+          {!isFiat && <UserBalance className="font-bold" token={token.details as OnChainTokenDetails} />}
         </span>
       </div>
     </button>
