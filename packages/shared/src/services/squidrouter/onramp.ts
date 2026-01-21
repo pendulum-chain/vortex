@@ -12,7 +12,7 @@ import {
   getSquidRouterConfig,
   Networks,
   SquidrouterRoute
-} from "../../index";
+} from "../..";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { createGenericRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
 
