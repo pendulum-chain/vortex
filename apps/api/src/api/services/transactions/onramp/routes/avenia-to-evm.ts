@@ -135,7 +135,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   }
 
   const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromMoonbeamToEvm({
-    destinationAddress,
+    destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
     fromToken: AXL_USDC_MOONBEAM_DETAILS.erc20AddressSourceChain,
     moonbeamEphemeralStartingNonce: moonbeamNonce,
@@ -175,7 +175,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
-    nonce: 0,
+    nonce: 0, // TODO nonce is NOT 0 if destination is Moonbeam itself, fix this.
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
     txData: finalSettlementTransaction
