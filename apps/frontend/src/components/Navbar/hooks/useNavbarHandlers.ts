@@ -9,11 +9,14 @@ export const useNavbarHandlers = () => {
   const resetRampAndNavigateHome = () => {
     rampActor.send({ type: "RESET_RAMP" });
 
+    // Check if currently on widget route - if so, stay on widget to restart the flow
+    const isOnWidget = router.state.location.pathname.includes("/widget");
+
     router.navigate({
       params: params,
       replace: true,
       search: {},
-      to: "/{-$locale}"
+      to: isOnWidget ? "/{-$locale}/widget" : "/{-$locale}"
     });
   };
 

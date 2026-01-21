@@ -1,5 +1,6 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ReactNode } from "react";
+import { durations, easings } from "../../../../constants/animations";
 
 interface SelectionDropdownMotionProps {
   isOpen: boolean;
@@ -8,39 +9,36 @@ interface SelectionDropdownMotionProps {
 }
 
 export const SelectionDropdownMotion = ({ isOpen, children, className }: SelectionDropdownMotionProps) => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          animate={{
-            height: "auto",
-            transition: {
-              damping: 50,
-              delay: 0.15,
-              duration: 0.15,
-              ease: "easeOut",
-              stiffness: 600,
-              type: "spring"
-            }
-          }}
-          className={className}
-          exit={{
-            height: 0,
-            transition: {
-              damping: 50,
-              delay: 0,
-              duration: 0.15,
-              ease: "easeOut",
-              stiffness: 600,
-              type: "spring"
-            }
-          }}
-          initial={{ height: 0 }}
-          key="dropdown-content"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      className={`grid transition-[grid-template-rows] duration-150 ease-out ${className || ""}`}
+      style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+    >
+      <div className="overflow-hidden">
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              initial={shouldReduceMotion ? false : { opacity: 0 }}
+              key="dropdown-content"
+              transition={
+                shouldReduceMotion
+                  ? { duration: 0 }
+                  : {
+                      delay: isOpen ? durations.fast : 0,
+                      duration: durations.fast,
+                      ease: easings.easeOutCubic
+                    }
+              }
+            >
+              {children}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 };
