@@ -1,6 +1,7 @@
 import logger from "../../../config/logger";
 import brlaOnrampMintHandler from "./handlers/brla-onramp-mint-handler";
 import brlaPayoutMoonbeamHandler from "./handlers/brla-payout-moonbeam-handler";
+import destinationTransferHandler from "./handlers/destination-transfer-handler";
 import distributeFeesHandler from "./handlers/distribute-fees-handler";
 import finalSettlementSubsidy from "./handlers/final-settlement-subsidy";
 import fundEphemeralHandler from "./handlers/fund-ephemeral-handler";
@@ -54,6 +55,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(hydrationToAssethubXcmPhaseHandler);
   phaseRegistry.registerHandler(hydrationSwapHandler);
   phaseRegistry.registerHandler(finalSettlementSubsidy);
+  phaseRegistry.registerHandler(destinationTransferHandler);
 
   logger.info("Phase handlers registered");
 }

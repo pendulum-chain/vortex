@@ -175,7 +175,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
-    nonce: 0, // TODO nonce is NOT 0 if destination is Moonbeam itself, fix this.
+    nonce: 0,
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
     txData: finalSettlementTransaction
