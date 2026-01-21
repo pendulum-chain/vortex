@@ -2,3 +2,4 @@
 /api/staging/*  https://api-staging.vortexfinance.co/:splat 200
 /api/sandbox/*  https://api-sandbox.vortexfinance.co/:splat 200
 /* /index.html 200
+https://vortexfinance.co/* https://www.vortexfinance.co/:splat 301!
