@@ -151,6 +151,7 @@
         "i18next": "^24.2.3",
         "lottie-react": "^2.4.1",
         "motion": "^12.0.3",
+        "numora-react": "^3.0.2",
         "qrcode.react": "^4.2.0",
         "react": "=19.2.0",
         "react-dom": "=19.2.0",
@@ -3167,6 +3168,8 @@
     "npmlog": ["npmlog@5.0.1", "", { "dependencies": { "are-we-there-yet": "^2.0.0", "console-control-strings": "^1.1.0", "gauge": "^3.0.0", "set-blocking": "^2.0.0" } }, "sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw=="],
 
     "nullthrows": ["nullthrows@1.1.1", "", {}, "sha512-2vPPEi+Z7WqML2jZYddDIfy5Dqb0r2fze2zTxNNknZaFpVHU3mFB3R+DWeJWGVx0ecvttSGlJTI+WG+8Z4cDWw=="],
+
+    "numora-react": ["numora-react@3.0.2", "", {}, "sha512-PsWjhFsvk1AxB4C2jA8Lj4pNJ5fvCEIjJtop48gxJjZyPjfOZBqLzdt4UwA6+rogOc/gYeMhCzS9uyjGKQBpjA=="],
 
     "obj-multiplex": ["obj-multiplex@1.0.0", "", { "dependencies": { "end-of-stream": "^1.4.0", "once": "^1.4.0", "readable-stream": "^2.3.3" } }, "sha512-0GNJAOsHoBHeNTvl5Vt6IWnpUEcc3uSRxzBri7EDyIcMgYvnY2JL2qdeV5zTMjWQX5OHcD5amcW2HFfDh0gjIA=="],
 

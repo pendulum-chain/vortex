@@ -50,6 +50,7 @@
     "i18next": "^24.2.3",
     "lottie-react": "^2.4.1",
     "motion": "^12.0.3",
+    "numora-react": "^3.0.2",
     "qrcode.react": "^4.2.0",
     "react": "=19.2.0",
     "react-dom": "=19.2.0",
