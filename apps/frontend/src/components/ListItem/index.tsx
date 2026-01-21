@@ -1,8 +1,10 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, OnChainToken, OnChainTokenDetails, TokenType } from "@vortexfi/shared";
+import { FiatToken, isFiatToken, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
 import { UserBalance } from "../UserBalance";
 
@@ -12,14 +14,16 @@ interface ListItemProps {
   token: ExtendedTokenDefinition;
 }
 
-export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
+export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: ListItemProps) {
   const { t } = useTranslation();
-  const tokenIcon = token.logoURI ? token.logoURI : useGetAssetIcon(token.assetIcon);
+  const fiatIcon = useGetAssetIcon(token.assetIcon);
+  const tokenIcon = token.logoURI ?? fiatIcon;
+  const isFiat = isFiatToken(token.type);
 
   const showBalance = (token.details as any).balance !== "0.00";
 
-  const isDisabled = isFiatToken(token.type) && isFiatTokenDisabled(token.type);
-  const disabledReason = isFiatToken(token.type) && isDisabled ? t(getTokenDisabledReason(token.type)) : undefined;
+  const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
+  const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;
 
   return (
     <button
@@ -32,15 +36,12 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
     >
       <span className="relative">
         <div className="text-xs">
-          <div className="w-10">
-            <img
-              alt={token.assetSymbol}
-              className="h-full w-full object-contain"
-              decoding="async"
-              loading="lazy"
-              src={tokenIcon}
-            />
-          </div>
+          <TokenIconWithNetwork
+            className="w-10"
+            iconSrc={tokenIcon}
+            network={isFiat ? undefined : token.network}
+            tokenSymbol={token.assetSymbol}
+          />
         </div>
         {isSelected && <CheckIcon className="-right-1 -top-1 absolute h-5 w-5 rounded-full bg-green-600 p-[3px] text-white" />}
       </span>
@@ -55,7 +56,7 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
             ) : (
               <>
                 {token.name && <div>{token.name}</div>}
-                {<div>({token.networkDisplayName})</div>}
+                {!isFiat && <div>({token.networkDisplayName})</div>}
               </>
             )}
           </span>
@@ -66,4 +67,4 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
       </div>
     </button>
   );
-}
+});

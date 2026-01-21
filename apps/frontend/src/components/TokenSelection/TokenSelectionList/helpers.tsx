@@ -1,4 +1,5 @@
 import {
+  AssetHubToken,
   assetHubTokenConfig,
   doesNetworkSupportRamp,
   EvmNetworks,
@@ -14,6 +15,13 @@ import {
   RampDirection,
   stellarTokenConfig
 } from "@vortexfi/shared";
+
+const ASSETHUB_ICON_URLS: Record<AssetHubToken, string> = {
+  [AssetHubToken.USDC]: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg",
+  [AssetHubToken.USDT]: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdt.svg",
+  [AssetHubToken.DOT]: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/dot.svg"
+};
+
 import { useMemo, useRef } from "react";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
@@ -85,6 +93,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
       assetIcon: value.networkAssetIcon,
       assetSymbol: value.assetSymbol,
       details: value as OnChainTokenDetails,
+      logoURI: ASSETHUB_ICON_URLS[key as AssetHubToken],
       network: selectedNetwork,
       networkDisplayName: getNetworkDisplayName(selectedNetwork),
       type: key as OnChainToken
