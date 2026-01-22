@@ -14,6 +14,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
@@ -46,6 +47,17 @@ export function isStellarNetworkError(error: unknown): error is NetworkError {
 function isOnramp(state: RampState): boolean {
   return state.type === RampDirection.BUY;
 }
+
+const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [Networks.Ethereum]: "0.0001", // ~0.3 USD @ 3000
+  [Networks.Arbitrum]: "0.00001", // ~0.03 USD @ 3000
+  [Networks.Base]: "0.00001", // ~0.03 USD @ 3000
+  [Networks.Polygon]: "0.06", // ~0.03 USD @ 0.50
+  [Networks.BSC]: "0.00005", // ~0.03 USD @ 600
+  [Networks.Avalanche]: "0.001", // ~0.03 USD @ 30
+  [Networks.Moonbeam]: "0.1", // ~0.03 USD @ 0.30
+  [Networks.PolygonAmoy]: "0.06" // ~0.03 USD @ 0.50
+};
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -317,10 +329,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       const ephemeralAddress = state.state.evmEphemeralAddress;
-      const fundingAmountRaw = multiplyByPowerOfTen(
-        POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, //TOOD better estimate for each chain.
-        chain.nativeCurrency.decimals
-      ).toFixed();
+      const fundingAmountUnits = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
+      const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed();
 
       const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
