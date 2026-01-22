@@ -172,7 +172,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
 
   // Destination Chain: Squidrouter swap from AXLUSDC to target EVM token
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
-    destinationAddress: destinationAddress,
+    destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
     fromToken: destinationAxlUsdcDetails.erc20AddressSourceChain,
     network: toNetwork as EvmNetworks,
