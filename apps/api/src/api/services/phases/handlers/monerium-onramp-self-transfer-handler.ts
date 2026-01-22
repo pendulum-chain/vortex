@@ -112,7 +112,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
           ],
           functionName: "permit"
         });
-        permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
+        permitHash = await this.evmClientManager.sendTransaction(Networks.Polygon, account, {
           data: permitData,
           to: ERC20_EURE_POLYGON_V2
         });
@@ -160,7 +160,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   private async executeTransaction(txData: string): Promise<string> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(Networks.Polygon, txData as `0x${string}`);
+      const txHash = await evmClientManager.sendRawTransaction(Networks.Polygon, txData as `0x${string}`);
       return txHash;
     } catch (error) {
       logger.error("Error sending raw transaction", error);

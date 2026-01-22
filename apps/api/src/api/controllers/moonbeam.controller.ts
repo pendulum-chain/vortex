@@ -50,7 +50,7 @@ export const executeXcmController = async (
     try {
       const { maxFeePerGas, maxPriorityFeePerGas } = await moonbeamClient.estimateFeesPerGas();
       // Safe to send multiple times. Idempotent.
-      const hash = (await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
+      const hash = (await evmClientManager.sendTransaction(Networks.Moonbeam, moonbeamExecutorAccount, {
         data,
         maxFeePerGas,
         maxPriorityFeePerGas,

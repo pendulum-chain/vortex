@@ -63,7 +63,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Moonbeam, {
+      const result = await evmClientManager.readContract<bigint>(Networks.Moonbeam, {
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
@@ -99,7 +99,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           let attempt = 0;
           while (attempt < 5 && (!receipt || receipt.status !== "success")) {
             // blind retry for transaction submission
-            obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
+            obtainedHash = await evmClientManager.sendTransaction(Networks.Moonbeam, moonbeamExecutorAccount, {
               data,
               maxFeePerGas,
               maxPriorityFeePerGas,

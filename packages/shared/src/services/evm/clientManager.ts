@@ -188,25 +188,6 @@ export class EvmClientManager {
   }
 
   /**
-   * @deprecated Use readContract instead. Retry logic is now handled at transport level.
-   */
-  public async readContractWithRetry<T = unknown>(
-    networkName: EvmNetworks,
-    contractParams: {
-      // biome-ignore lint/suspicious/noExplicitAny: ABI types are complex
-      abi: any;
-      address: `0x${string}`;
-      functionName: string;
-      // biome-ignore lint/suspicious/noExplicitAny: Contract args can be any type
-      args?: any[];
-    },
-    _maxRetries = 3,
-    _initialDelayMs = 1000
-  ): Promise<T> {
-    return this.readContract<T>(networkName, contractParams);
-  }
-
-  /**
    * Sends a transaction. Retry and fallback are handled automatically by the smart fallback transport.
    * This method should be used for idempotent operations where retrying is safe.
    *
@@ -233,27 +214,6 @@ export class EvmClientManager {
   }
 
   /**
-   * @deprecated Use sendTransaction instead. Retry logic is now handled at transport level.
-   */
-  public async sendTransactionWithBlindRetry(
-    networkName: EvmNetworks,
-    account: Account,
-    transactionParams: {
-      data?: `0x${string}`;
-      to: `0x${string}`;
-      value?: bigint;
-      maxFeePerGas?: bigint;
-      maxPriorityFeePerGas?: bigint;
-      gas?: bigint;
-      nonce?: number;
-    },
-    _maxRetries = 3,
-    _initialDelayMs = 1000
-  ): Promise<`0x${string}`> {
-    return this.sendTransaction(networkName, account, transactionParams);
-  }
-
-  /**
    * Sends a raw transaction. Retry and fallback are handled automatically by the smart fallback transport.
    *
    * @param networkName - The EVM network to send the transaction on
@@ -263,17 +223,5 @@ export class EvmClientManager {
   public async sendRawTransaction(networkName: EvmNetworks, serializedTransaction: `0x${string}`): Promise<string> {
     const publicClient = this.getClient(networkName);
     return await publicClient.sendRawTransaction({ serializedTransaction });
-  }
-
-  /**
-   * @deprecated Use sendRawTransaction instead. Retry logic is now handled at transport level.
-   */
-  public async sendRawTransactionWithRetry(
-    networkName: EvmNetworks,
-    serializedTransaction: `0x${string}`,
-    _maxRetries = 3,
-    _initialDelayMs = 1000
-  ): Promise<string> {
-    return this.sendRawTransaction(networkName, serializedTransaction);
   }
 }

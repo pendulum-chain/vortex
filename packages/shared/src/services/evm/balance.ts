@@ -28,7 +28,7 @@ export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: 
   try {
     const evmClientManager = EvmClientManager.getInstance();
 
-    const balanceResult = await evmClientManager.readContractWithRetry<string>(chain, {
+    const balanceResult = await evmClientManager.readContract<string>(chain, {
       abi: erc20ABI,
       address: tokenAddress,
       args: [ownerAddress],
@@ -56,7 +56,7 @@ export function checkEvmBalancePeriodically(
 
     const checkBalance = async () => {
       try {
-        const result = await evmClientManager.readContractWithRetry<string>(chain, {
+        const result = await evmClientManager.readContract<string>(chain, {
           abi: erc20ABI,
           address: tokenAddress as EvmAddress,
           args: [brlaEvmAddress],

@@ -130,39 +130,4 @@ export class PriceService {
       }
     });
   }
-
-  /**
-   * @deprecated Use getAllPricesBundled instead for better error handling and performance
-   * Get price information from all providers
-   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
-   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
-   * @param amount The amount to convert
-   * @param direction The direction of the conversion (onramp or offramp)
-   * @param network Optional network name
-   * @returns Price information from all providers
-   */
-  static async getAllPrices(
-    sourceCurrency: Currency,
-    targetCurrency: Currency,
-    amount: string,
-    direction: RampDirection,
-    network?: string
-  ): Promise<Record<PriceProvider, BundledPriceResult>> {
-    const providers: PriceProvider[] = ["alchemypay", "moonpay", "transak"];
-
-    const results = await Promise.allSettled(
-      providers.map(provider => this.getPrice(provider, sourceCurrency, targetCurrency, amount, direction, network))
-    );
-
-    return results.reduce(
-      (acc, result, index) => {
-        const provider = providers[index];
-        if (result.status === "fulfilled") {
-          acc[provider] = result.value;
-        }
-        return acc;
-      },
-      {} as Record<PriceProvider, BundledPriceResult>
-    );
-  }
 }
