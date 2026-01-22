@@ -52,7 +52,6 @@ export function HoldButton({
     <button
       className={cn(
         "relative flex h-12 w-full cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-lg bg-blue-100 font-medium text-gray-500 transition-transform duration-150 ease-out active:scale-[0.98]",
-        error && "ring-2 ring-red-800",
         disabled && "cursor-not-allowed bg-gray-100 text-gray-300",
         className
       )}
