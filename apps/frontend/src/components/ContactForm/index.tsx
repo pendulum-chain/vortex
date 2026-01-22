@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useContactForm } from "../../hooks/useContactForm";
 import { submitContactForm } from "../../services/api/contact.service";
+import { Field } from "../Field";
 import { HoldButton } from "../HoldButton";
+import { TextArea } from "../TextArea";
 
-const EASE_OUT = [0.25, 0.46, 0.45, 0.94] as const;
+type ButtonState = "idle" | "loading" | "success" | "error";
 
 export function ContactForm() {
   const { t, i18n } = useTranslation();
@@ -22,21 +24,31 @@ export function ContactForm() {
     reset
   } = form;
 
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [buttonState, setButtonState] = useState<ButtonState>("idle");
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: submitContactForm,
+    onError: () => {
+      setButtonState("error");
+    },
     onSuccess: () => {
       reset();
-      setShowSuccess(true);
+      setButtonState("success");
     }
   });
 
   useEffect(() => {
-    if (!showSuccess) return;
-    const timeout = setTimeout(() => setShowSuccess(false), 5000);
-    return () => clearTimeout(timeout);
-  }, [showSuccess]);
+    if (buttonState === "success" || buttonState === "error") {
+      const timeout = setTimeout(() => setButtonState("idle"), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [buttonState]);
+
+  useEffect(() => {
+    if (isPending || isSubmitting) {
+      setButtonState("loading");
+    }
+  }, [isPending, isSubmitting]);
 
   const onSubmit = handleSubmit(data => {
     mutate({
@@ -61,30 +73,36 @@ export function ContactForm() {
   );
 
   const loading = isPending || isSubmitting;
-
   const formId = useId();
 
+  const buttonCopy: Record<ButtonState, string> = {
+    error: t("pages.contact.error"),
+    idle: t("pages.contact.form.holdToSubmit"),
+    loading: "Sending…",
+    success: t("pages.contact.success")
+  };
+
+  const getButtonClassName = () => {
+    if (buttonState === "success") return "bg-green-500 text-white";
+    if (buttonState === "error") return "bg-red-300 text-red-800";
+    if (loading) return "bg-primary text-white";
+    return "";
+  };
+
   return (
-    <form className="space-y-4" onKeyDown={handleKeyDown} onSubmit={e => e.preventDefault()} ref={formRef}>
+    <form className="space-y-2" onKeyDown={handleKeyDown} onSubmit={e => e.preventDefault()} ref={formRef}>
       <FormField
         error={touchedFields.fullName ? errors.fullName?.message : undefined}
         htmlFor={`${formId}-fullName`}
         label={t("pages.contact.form.fullName")}
       >
-        <input
-          {...register("fullName")}
+        <Field
           autoComplete="name"
-          className={cn(
-            "w-full rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 outline-none",
-            "transition-[border-color,box-shadow] duration-150 ease-out",
-            "placeholder:text-gray-400",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
-            touchedFields.fullName && errors.fullName ? "border-red-500" : "border-gray-200"
-          )}
           disabled={loading}
+          error={touchedFields.fullName && !!errors.fullName}
           id={`${formId}-fullName`}
           placeholder={t("pages.contact.form.fullNamePlaceholder")}
+          register={register("fullName")}
           spellCheck={false}
         />
       </FormField>
@@ -94,20 +112,13 @@ export function ContactForm() {
         htmlFor={`${formId}-email`}
         label={t("pages.contact.form.email")}
       >
-        <input
-          {...register("email")}
+        <Field
           autoComplete="email"
-          className={cn(
-            "w-full rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 outline-none",
-            "transition-[border-color,box-shadow] duration-150 ease-out",
-            "placeholder:text-gray-400",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
-            touchedFields.email && errors.email ? "border-red-500" : "border-gray-200"
-          )}
           disabled={loading}
+          error={touchedFields.email && !!errors.email}
           id={`${formId}-email`}
           placeholder={t("pages.contact.form.emailPlaceholder")}
+          register={register("email")}
           type="email"
         />
       </FormField>
@@ -117,20 +128,13 @@ export function ContactForm() {
         htmlFor={`${formId}-projectName`}
         label={t("pages.contact.form.projectName")}
       >
-        <input
-          {...register("projectName")}
+        <Field
           autoComplete="organization"
-          className={cn(
-            "w-full rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 outline-none",
-            "transition-[border-color,box-shadow] duration-150 ease-out",
-            "placeholder:text-gray-400",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
-            touchedFields.projectName && errors.projectName ? "border-red-500" : "border-gray-200"
-          )}
           disabled={loading}
+          error={touchedFields.projectName && !!errors.projectName}
           id={`${formId}-projectName`}
           placeholder={t("pages.contact.form.projectNamePlaceholder")}
+          register={register("projectName")}
           spellCheck={false}
         />
       </FormField>
@@ -140,139 +144,93 @@ export function ContactForm() {
         htmlFor={`${formId}-inquiry`}
         label={t("pages.contact.form.inquiry")}
       >
-        <textarea
-          {...register("inquiry")}
-          className={cn(
-            "w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 outline-none",
-            "transition-[border-color,box-shadow] duration-150 ease-out",
-            "placeholder:text-gray-400",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
-            touchedFields.inquiry && errors.inquiry ? "border-red-500" : "border-gray-200"
-          )}
+        <TextArea
           disabled={loading}
+          error={touchedFields.inquiry && !!errors.inquiry}
           id={`${formId}-inquiry`}
           placeholder={t("pages.contact.form.inquiryPlaceholder")}
+          register={register("inquiry")}
           rows={4}
         />
       </FormField>
 
-      <label className="flex cursor-pointer select-none items-start gap-3 py-1">
-        <span className="relative mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center">
-          <input
-            {...register("privacyPolicyAccepted")}
-            className="peer sr-only"
-            disabled={loading}
-            id={`${formId}-privacy`}
-            type="checkbox"
-          />
-          <span
-            className={cn(
-              "flex h-5 w-5 items-center justify-center rounded border-2 transition-colors duration-150 ease-out",
-              "peer-checked:border-blue-600 peer-checked:bg-blue-600",
-              "peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/20 peer-focus-visible:ring-offset-1",
-              "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-              touchedFields.privacyPolicyAccepted && errors.privacyPolicyAccepted ? "border-red-500" : "border-gray-300"
-            )}
-          >
-            <svg
-              aria-hidden="true"
-              className="h-3 w-3 text-white opacity-0 transition-opacity duration-100 peer-checked:opacity-100"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={3}
-              viewBox="0 0 24 24"
-            >
-              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-        </span>
-        <span className="text-gray-600 text-sm leading-tight">
+      <div className="flex items-start gap-2 pt-1">
+        <input
+          {...register("privacyPolicyAccepted")}
+          className="checkbox checkbox-primary checkbox-sm mt-0.5"
+          disabled={loading}
+          id={`${formId}-privacy`}
+          type="checkbox"
+        />
+        <label className="text-gray-500 text-sm" htmlFor={`${formId}-privacy`}>
           {t("pages.contact.form.privacyPolicy")}{" "}
           <a
-            className="text-blue-600 underline decoration-blue-600/30 underline-offset-2 transition-colors duration-150 ease-out hover:text-blue-700 hover:decoration-blue-700/50"
+            className="text-blue-600 underline hover:text-blue-800"
             href={`/${i18n.language}/privacy-policy`}
-            onClick={e => e.stopPropagation()}
             rel="noopener noreferrer"
             target="_blank"
           >
             {t("pages.contact.form.privacyPolicyLink")}
           </a>
-        </span>
-      </label>
+        </label>
+      </div>
 
-      <div className="pt-2">
+      <div className="border-gray-200 border-b pt-2 pb-4">
         <HoldButton
-          className={cn("touch-manipulation", loading && "bg-primary text-white")}
-          disabled={loading || !isValid}
+          className={cn("touch-manipulation", getButtonClassName())}
+          disabled={loading || !isValid || buttonState === "success"}
+          error={buttonState === "error"}
           holdClassName="bg-primary text-white"
           onComplete={onSubmit}
         >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg aria-hidden="true" className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path
-                  className="opacity-75"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  fill="currentColor"
-                />
-              </svg>
-              <span>Sending...</span>
-            </span>
-          ) : (
-            t("pages.contact.form.holdToSubmit")
-          )}
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.span
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-center gap-2"
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 25 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -25 }}
+              key={buttonState}
+              transition={{ bounce: 0, duration: 0.3, type: "spring" }}
+            >
+              {buttonState === "loading" && (
+                <svg aria-hidden="true" className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path
+                    className="opacity-75"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    fill="currentColor"
+                  />
+                </svg>
+              )}
+              {buttonState === "success" && (
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {buttonState === "error" && (
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {buttonCopy[buttonState]}
+            </motion.span>
+          </AnimatePresence>
         </HoldButton>
       </div>
-
-      <AnimatePresence mode="wait">
-        {showSuccess && (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 rounded-lg bg-green-50 p-3 text-green-800 text-sm shadow-[0_0_0_1px_rgba(34,197,94,0.2)]"
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            role="status"
-            transition={{ duration: 0.2, ease: EASE_OUT }}
-          >
-            <svg
-              aria-hidden="true"
-              className="h-5 w-5 flex-shrink-0 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>{t("pages.contact.success")}</span>
-          </motion.div>
-        )}
-
-        {isError && (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 rounded-lg bg-red-50 p-3 text-red-800 text-sm shadow-[0_0_0_1px_rgba(239,68,68,0.2)]"
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            role="alert"
-            transition={{ duration: 0.2, ease: EASE_OUT }}
-          >
-            <svg
-              aria-hidden="true"
-              className="h-5 w-5 flex-shrink-0 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>{t("pages.contact.error")}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </form>
   );
 }
@@ -284,12 +242,14 @@ interface FormFieldProps {
   error?: string;
 }
 
+const EASE_OUT = [0.25, 0.46, 0.45, 0.94] as const;
+
 function FormField({ label, htmlFor, children, error }: FormFieldProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
     <div>
-      <label className="mb-1.5 block font-medium text-gray-700 text-sm" htmlFor={htmlFor}>
+      <label className="mb-1 block font-medium text-gray-600 text-xs" htmlFor={htmlFor}>
         {label}
       </label>
       {children}
@@ -297,10 +257,9 @@ function FormField({ label, htmlFor, children, error }: FormFieldProps) {
         {error && (
           <motion.p
             animate={{ height: "auto", opacity: 1 }}
-            className="mt-1 text-red-600 text-xs"
+            className="mt-1 overflow-hidden text-red-600 text-xs"
             exit={{ height: 0, opacity: 0 }}
             initial={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            role="alert"
             transition={{ duration: 0.15, ease: EASE_OUT }}
           >
             {error}
