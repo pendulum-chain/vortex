@@ -77,7 +77,8 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
     if (!substrateAddress || !assethubNode) {
       setNativeBalance({
         ...nativeToken,
-        balance: "0.0000"
+        balance: "0.0000",
+        balanceUsd: "0.00"
       });
       return;
     }
@@ -99,7 +100,8 @@ export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | nu
 
         setNativeBalance({
           ...nativeToken,
-          balance: formattedBalance
+          balance: formattedBalance,
+          balanceUsd: "0.00"
         });
       } catch (error) {
         console.error("Error fetching AssetHub native balance:", error);
@@ -189,7 +191,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     // If substrate wallet is not connected or node is not available,
     // still show the tokens with zero balances
     if (!substrateAddress || !assethubNode) {
-      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00" })));
+      setBalances(assetTokens.map(token => ({ ...token, balance: "0.00", balanceUsd: "0.00" })));
       return;
     }
 
@@ -226,7 +228,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
           balance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
         }
 
-        return { ...token, balance };
+        return { ...token, balance, balanceUsd: "0.00" };
       });
 
       setBalances(tokensWithBalances);

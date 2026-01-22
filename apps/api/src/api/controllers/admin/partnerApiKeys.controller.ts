@@ -10,7 +10,7 @@ import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiK
  * Create a new API key pair (public + secret) for a partner
  * POST /v1/admin/partners/:partnerName/api-keys
  */
-export async function createApiKey(req: Request, res: Response): Promise<void> {
+export async function createApiKey(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
     const { partnerName } = req.params;
     const { name, expiresAt } = req.body;
@@ -110,7 +110,7 @@ export async function createApiKey(req: Request, res: Response): Promise<void> {
  * List all API keys for a partner (by name)
  * GET /v1/admin/partners/:partnerName/api-keys
  */
-export async function listApiKeys(req: Request, res: Response): Promise<void> {
+export async function listApiKeys(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
     const { partnerName } = req.params;
 
@@ -180,7 +180,7 @@ export async function listApiKeys(req: Request, res: Response): Promise<void> {
  * Revoke (soft delete) an API key
  * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
-export async function revokeApiKey(req: Request, res: Response): Promise<void> {
+export async function revokeApiKey(req: Request<{ partnerName: string; keyId: string }>, res: Response): Promise<void> {
   try {
     const { partnerName, keyId } = req.params;
 

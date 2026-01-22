@@ -19,4 +19,5 @@ export interface AssetHubTokenDetails extends BaseTokenDetails {
 
 export interface AssetHubTokenDetailsWithBalance extends AssetHubTokenDetails {
   balance: string;
+  balanceUsd: string;
 }
