@@ -236,7 +236,9 @@ export async function signUnsignedTransactions(
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
   const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
-  const destinationNetworkTxs = unsignedTxs.filter(tx => tx.phase === "destinationTransfer");
+  const destinationNetworkTxs = unsignedTxs.filter(
+    tx => tx.phase === "destinationTransfer" || tx.phase === "backupSquidRouterApprove" || tx.phase === "backupSquidRouterSwap"
+  );
 
   try {
     const stellarTxs = unsignedTxs.filter(tx => tx.network === "stellar").sort((a, b) => a.nonce - b.nonce);

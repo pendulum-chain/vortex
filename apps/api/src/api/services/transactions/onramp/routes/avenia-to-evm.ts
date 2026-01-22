@@ -1,11 +1,15 @@
 import {
   AXL_USDC_MOONBEAM_DETAILS,
   createOnrampSquidrouterTransactionsFromMoonbeamToEvm,
+  createOnrampSquidrouterTransactionsOnDestinationChain,
   createPendulumToMoonbeamTransfer,
   EvmNetworks,
+  EvmToken,
+  EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkId,
+  getOnChainTokenDetailsOrDefault,
   getPendulumDetails,
   isEvmTokenDetails,
   multiplyByPowerOfTen,
@@ -134,6 +138,8 @@ export async function prepareAveniaToEvmOnrampTransactions({
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
 
+  const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
+
   const { approveData, swapData } = await createOnrampSquidrouterTransactionsFromMoonbeamToEvm({
     destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
@@ -164,6 +170,18 @@ export async function prepareAveniaToEvmOnrampTransactions({
   });
   moonbeamNonce++;
 
+  // Destination Chain: Squidrouter swap from AXLUSDC to target EVM token
+  const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
+    destinationAddress: destinationAddress,
+    fromAddress: evmEphemeralEntry.address,
+    fromToken: destinationAxlUsdcDetails.erc20AddressSourceChain,
+    network: toNetwork as EvmNetworks,
+    rawAmount: quote.metadata.moonbeamToEvm.inputAmountRaw,
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  });
+
+  let destinationNonce = 0;
+
   const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
   const finalSettlementTransaction = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
@@ -175,10 +193,31 @@ export async function prepareAveniaToEvmOnrampTransactions({
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
-    nonce: 0,
+    nonce: destinationNonce,
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
     txData: finalSettlementTransaction
+  });
+
+  destinationNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterApprove",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destApproveData) as EvmTransactionData
+  });
+  destinationNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterSwap",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destSwapData) as EvmTransactionData
   });
 
   return { stateMeta, unsignedTxs };
