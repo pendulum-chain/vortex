@@ -34,6 +34,7 @@ export type RampPhase =
   | "destinationTransfer"
   | "backupSquidRouterApprove"
   | "backupSquidRouterSwap"
+  | "backupApprove"
   | "complete";
 
 export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";

@@ -215,3 +215,39 @@ export async function addOnrampDestinationChainTransactions(params: {
 
   return txData;
 }
+
+/**
+ * Creates an approval transaction on the destination chain
+ * @param params Transaction parameters
+ * @returns EvmTransactionData
+ */
+export async function addDestinationChainApprovalTransaction(params: {
+  amountRaw: string;
+  spenderAddress: string;
+  tokenAddress: `0x${string}`;
+  destinationNetwork: EvmNetworks;
+}): Promise<EvmTransactionData> {
+  const { amountRaw, spenderAddress, tokenAddress, destinationNetwork } = params;
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient(destinationNetwork);
+
+  const approveCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [spenderAddress, amountRaw],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: approveCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: tokenAddress,
+    value: "0"
+  };
+
+  return txData;
+}

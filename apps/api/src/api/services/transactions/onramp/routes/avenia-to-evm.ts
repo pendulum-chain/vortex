@@ -8,6 +8,7 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
+  evmTokenConfig,
   getNetworkId,
   getOnChainTokenDetailsOrDefault,
   getPendulumDetails,
@@ -16,10 +17,13 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import { privateKeyToAccount } from "viem/accounts";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import {
+  addDestinationChainApprovalTransaction,
   addMoonbeamTransactions,
   addNablaSwapTransactions,
   addOnrampDestinationChainTransactions,
@@ -170,11 +174,16 @@ export async function prepareAveniaToEvmOnrampTransactions({
   });
   moonbeamNonce++;
 
-  // Destination Chain: Squidrouter swap from AXLUSDC to target EVM token
+  // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
+  const bridgedTokenForFallback =
+    toNetwork === Networks.Ethereum
+      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
+      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
     destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
-    fromToken: destinationAxlUsdcDetails.erc20AddressSourceChain,
+    fromToken: bridgedTokenForFallback,
     network: toNetwork as EvmNetworks,
     rawAmount: quote.metadata.moonbeamToEvm.inputAmountRaw,
     toToken: outputTokenDetails.erc20AddressSourceChain
@@ -218,6 +227,26 @@ export async function prepareAveniaToEvmOnrampTransactions({
     phase: "backupSquidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(destSwapData) as EvmTransactionData
+  });
+  destinationNonce++;
+
+  const maxUint256 = 2n ** 256n - 1n;
+  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+
+  const backupApproveTransaction = await addDestinationChainApprovalTransaction({
+    amountRaw: maxUint256.toString(),
+    destinationNetwork: toNetwork as EvmNetworks,
+    spenderAddress: fundingAccount.address,
+    tokenAddress: bridgedTokenForFallback
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupApprove",
+    signer: evmEphemeralEntry.address,
+    txData: backupApproveTransaction
   });
 
   return { stateMeta, unsignedTxs };
