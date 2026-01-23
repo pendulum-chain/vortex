@@ -45,7 +45,24 @@ export class DestinationTransferHandler extends BasePhaseHandler {
     const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
-    // TODO: Idempotency check
+    const { destinationTransferTxHash } = state.state;
+    if (destinationTransferTxHash) {
+      try {
+        const client = evmClientManager.getClient(destinationNetwork);
+        const receipt = await client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` });
+
+        if (receipt.status === "success") {
+          return this.transitionToNextPhase(state, "complete");
+        } else {
+          throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name !== "TransactionReceiptNotFoundError") {
+          throw error;
+        }
+        // If receipt not found, proceed to normal flow
+      }
+    }
 
     // main phase execution loop:
     try {

@@ -182,7 +182,6 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       });
 
       const { route: swapRoute } = swapRouteResult.data;
-      console.log("Swap route:", swapRoute);
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       const txHashIdx = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {

@@ -237,7 +237,11 @@ export async function signUnsignedTransactions(
   const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
   const destinationNetworkTxs = unsignedTxs.filter(
-    tx => tx.phase === "destinationTransfer" || tx.phase === "backupSquidRouterApprove" || tx.phase === "backupSquidRouterSwap"
+    tx =>
+      tx.phase === "destinationTransfer" ||
+      tx.phase === "backupSquidRouterApprove" ||
+      tx.phase === "backupSquidRouterSwap" ||
+      tx.phase === "backupApprove"
   );
 
   try {
