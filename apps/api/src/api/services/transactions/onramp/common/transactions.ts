@@ -1,9 +1,11 @@
+import { EvmClientManager, EvmTransactionData } from "@packages/shared";
 import {
   AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
+  EvmNetworks,
   encodeSubmittableExtrinsic,
   getNetworkId,
   Networks,
@@ -11,6 +13,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeFunctionData } from "viem/utils";
+import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { prepareMoonbeamCleanupTransaction } from "../../moonbeam/cleanup";
@@ -172,4 +176,78 @@ export async function addPendulumCleanupTx(params: {
     signer: account.address,
     txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction)
   };
+}
+
+/**
+ * Creates transactions to handle the ephemeral account on the destination chain
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce
+ */
+export async function addOnrampDestinationChainTransactions(params: {
+  toAddress: string;
+  toToken: `0x${string}`;
+  amountRaw: string;
+  destinationNetwork: EvmNetworks;
+}): Promise<EvmTransactionData> {
+  const { toAddress, amountRaw, destinationNetwork, toToken } = params;
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient(destinationNetwork);
+
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [toAddress, amountRaw],
+    functionName: "transfer"
+  });
+
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: toToken,
+    value: "0"
+  };
+
+  return txData;
+}
+
+/**
+ * Creates an approval transaction on the destination chain
+ * @param params Transaction parameters
+ * @returns EvmTransactionData
+ */
+export async function addDestinationChainApprovalTransaction(params: {
+  amountRaw: string;
+  spenderAddress: string;
+  tokenAddress: `0x${string}`;
+  destinationNetwork: EvmNetworks;
+}): Promise<EvmTransactionData> {
+  const { amountRaw, spenderAddress, tokenAddress, destinationNetwork } = params;
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient(destinationNetwork);
+
+  const approveCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [spenderAddress, amountRaw],
+    functionName: "approve"
+  });
+
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: approveCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxFeePerGas),
+    to: tokenAddress,
+    value: "0"
+  };
+
+  return txData;
 }
