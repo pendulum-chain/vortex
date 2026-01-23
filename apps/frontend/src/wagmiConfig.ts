@@ -30,8 +30,7 @@ const chainRpcConfig = config.alchemyApiKey
 
 // Create smart fallback transports with automatic retry and RPC switching
 const transports = createSmartFallbackTransports(chainRpcConfig, {
-  initialDelayMs: 1000,
-  maxRetries: 3,
+  initialDelayMs: 500,
   timeout: 10_000
 });
 
