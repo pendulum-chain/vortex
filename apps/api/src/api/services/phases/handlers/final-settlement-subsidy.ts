@@ -17,7 +17,7 @@ import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
@@ -151,6 +151,20 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info(
         `FinalSettlementSubsidyHandler: Swapping ${requiredNativeRaw} native units (approx. rate ${rate}) to get required subsidy.`
       );
+
+      // Check the amount of native is not higher than cap, cap specidied in units of usd.
+      const requiredNative = new Big(requiredNativeRaw).div(new Big(10).pow(nativeToken.decimals));
+      const requiredNativeInUsd = await priceFeedService.convertCurrency(
+        requiredNative.toString(),
+        nativeToken.symbol as RampCurrency,
+        "USD" as RampCurrency
+      );
+
+      if (new Big(requiredNativeInUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
+        this.createUnrecoverableError(
+          `FinalSettlementSubsidyHandler: Required subsidy swap amount $${requiredNativeInUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+        );
+      }
 
       const swapRouteResult = await getRoute({
         bypassGuardrails: true,

@@ -49,14 +49,14 @@ function isOnramp(state: RampState): boolean {
 }
 
 const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
-  [Networks.Ethereum]: "0.0001", // ~0.3 USD @ 3000
-  [Networks.Arbitrum]: "0.00001", // ~0.03 USD @ 3000
-  [Networks.Base]: "0.00001", // ~0.03 USD @ 3000
-  [Networks.Polygon]: "0.06", // ~0.03 USD @ 0.50
-  [Networks.BSC]: "0.00005", // ~0.03 USD @ 600
-  [Networks.Avalanche]: "0.001", // ~0.03 USD @ 30
-  [Networks.Moonbeam]: "0.1", // ~0.03 USD @ 0.30
-  [Networks.PolygonAmoy]: "0.06" // ~0.03 USD @ 0.50
+  [Networks.Ethereum]: "0.000034", // ~0.1 USD @ 3000
+  [Networks.Arbitrum]: "0.000034", // ~0.1 USD @ 3000
+  [Networks.Base]: "0.000034", // ~0.1 USD @ 3000
+  [Networks.Polygon]: "0.2", // ~0.1 USD @ 0.50
+  [Networks.BSC]: "0.000115", // ~0.1 USD @ 889
+  [Networks.Avalanche]: "0.0034", // ~0.1 USD @ 30
+  [Networks.Moonbeam]: "0.34", // ~0.1 USD @ 0.30
+  [Networks.PolygonAmoy]: "0.2" // ~0.1 USD @ 0.50
 };
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
