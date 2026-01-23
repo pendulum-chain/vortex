@@ -49,7 +49,7 @@ function isOnramp(state: RampState): boolean {
 }
 
 const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
-  [Networks.Ethereum]: "0.000034", // ~0.1 USD @ 3000
+  [Networks.Ethereum]: "0.00016", // ~0.5 USD @ 3000
   [Networks.Arbitrum]: "0.000034", // ~0.1 USD @ 3000
   [Networks.Base]: "0.000034", // ~0.1 USD @ 3000
   [Networks.Polygon]: "0.2", // ~0.1 USD @ 0.50
