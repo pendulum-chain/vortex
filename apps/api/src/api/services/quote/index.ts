@@ -131,6 +131,10 @@ export class QuoteService extends BaseRampService {
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
+    if (request.rampType === RampDirection.BUY && request.to === Networks.Avalanche) {
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
+
     let partner = null;
     const partnerNameToUse = request.partnerId || request.partnerName;
 
@@ -189,6 +193,11 @@ export class QuoteService extends BaseRampService {
     }
 
     if (!ctx.builtResponse) {
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
+    }
+
+    // Temporary safeguard: Reject on-ramp quotes with output amount > 5000 units
+    if (ctx.isOnRamp && new Big(ctx.builtResponse.outputAmount).gt(5000)) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
