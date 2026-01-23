@@ -232,7 +232,7 @@
     },
     "packages/sdk": {
       "name": "@vortexfi/sdk",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "dependencies": {
         "@vortexfi/shared": "workspace:*",
       },
@@ -248,7 +248,7 @@
     },
     "packages/shared": {
       "name": "@vortexfi/shared",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@paraspell/sdk-pjs": "^11.8.5",
         "@pendulum-chain/api-solang": "catalog:",
