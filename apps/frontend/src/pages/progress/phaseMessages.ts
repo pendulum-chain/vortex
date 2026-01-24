@@ -47,16 +47,22 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     });
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");
+  const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
 
   const messages: Record<RampPhase, string> = {
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
     }),
+    backupApprove: "",
+    backupSquidRouterApprove: "",
+    backupSquidRouterSwap: "",
     brlaOnrampMint: t("pages.progress.brlaOnrampMint"),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
     complete: "",
+    destinationTransfer: getDestinationTransferMessage(),
     distributeFees: getSwappingMessage(),
     failed: "",
+    finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
     hydrationSwap: t("pages.progress.hydrationSwap", {
       inputAssetSymbol: "USDC",
@@ -80,17 +86,17 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     }),
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
-    }),
+    }), // Not relevant for progress page
     spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {
       assetSymbol: outputAssetSymbol
-    }),
+    }), // Not relevant for progress page
     squidRouterApprove: getSquidrouterSwapMessage(),
     squidRouterPay: getSquidrouterSwapMessage(),
     squidRouterSwap: getSquidrouterSwapMessage(),
-    stellarCreateAccount: t("pages.progress.createStellarAccount"), // Not relevant for progress page
+    stellarCreateAccount: t("pages.progress.createStellarAccount"),
     stellarPayment: t("pages.progress.stellarPayment", {
       assetSymbol: outputAssetSymbol
-    }), // Not relevant for progress page
+    }),
     subsidizePostSwap: getSwappingMessage(),
     subsidizePreSwap: getSwappingMessage(),
     timedOut: "" // Not relevant for progress page

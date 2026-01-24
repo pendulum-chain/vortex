@@ -874,6 +874,7 @@
       "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
       "closeProgressScreenText": "Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
       "createStellarAccount": "Criando conta Stellar",
+      "destinationTransfer": "Transferindo {{assetSymbol}} para sua carteira",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
