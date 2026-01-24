@@ -131,7 +131,10 @@ export class QuoteService extends BaseRampService {
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
-    if (request.rampType === RampDirection.BUY && request.to === Networks.Avalanche) {
+    if (
+      request.rampType === RampDirection.BUY &&
+      (request.to === Networks.Avalanche || request.to === Networks.Ethereum || request.to === Networks.Arbitrum)
+    ) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
