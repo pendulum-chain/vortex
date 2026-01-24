@@ -53,15 +53,15 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
     }),
-    backupApprove: "",
-    backupSquidRouterApprove: "",
-    backupSquidRouterSwap: "",
+    backupApprove: "", // Not relevant for progress page
+    backupSquidRouterApprove: "", // Not relevant for progress page
+    backupSquidRouterSwap: "", // Not relevant for progress page
     brlaOnrampMint: t("pages.progress.brlaOnrampMint"),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
-    complete: "",
+    complete: "", // Not relevant for progress page
     destinationTransfer: getDestinationTransferMessage(),
     distributeFees: getSwappingMessage(),
-    failed: "",
+    failed: "", // Not relevant for progress page
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
     hydrationSwap: t("pages.progress.hydrationSwap", {
@@ -86,10 +86,10 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     }),
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
-    }), // Not relevant for progress page
+    }),
     spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {
       assetSymbol: outputAssetSymbol
-    }), // Not relevant for progress page
+    }),
     squidRouterApprove: getSquidrouterSwapMessage(),
     squidRouterPay: getSquidrouterSwapMessage(),
     squidRouterSwap: getSquidrouterSwapMessage(),
