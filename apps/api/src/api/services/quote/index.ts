@@ -12,6 +12,7 @@ import httpStatus from "http-status";
 import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
+import QuoteTicket from "../../../models/quoteTicket.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
 import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
@@ -201,6 +202,18 @@ export class QuoteService extends BaseRampService {
 
     // Temporary safeguard: Reject on-ramp quotes with output amount > 5000 units
     if (ctx.isOnRamp && new Big(ctx.builtResponse.outputAmount).gt(5000)) {
+      // Try to delete created quote as it shouldn't be used
+      const quoteId = ctx.builtResponse.id;
+      QuoteTicket.findByPk(quoteId).then(quoteTicket => {
+        if (quoteTicket) {
+          quoteTicket.destroy().catch(err => {
+            logger.error(
+              `Failed to delete quote ticket with ID ${quoteId}: ${err instanceof Error ? err.message : String(err)}`
+            );
+          });
+        }
+      });
+
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
