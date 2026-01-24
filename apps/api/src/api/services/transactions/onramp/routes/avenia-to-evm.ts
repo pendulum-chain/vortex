@@ -240,10 +240,12 @@ export async function prepareAveniaToEvmOnrampTransactions({
     tokenAddress: bridgedTokenForFallback
   });
 
+  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = 0;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
-    nonce: destinationNonce,
+    nonce: backupApproveNonce,
     phase: "backupApprove",
     signer: evmEphemeralEntry.address,
     txData: backupApproveTransaction
