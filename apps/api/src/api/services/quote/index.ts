@@ -197,8 +197,8 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    // Temporary safeguard: Reject on-ramp quotes with output amount > 5000 units
-    if (ctx.isOnRamp && new Big(ctx.builtResponse.outputAmount).gt(8000)) {
+    // Temporary safeguard: Reject on-ramp quotes with output amount > 13000 units
+    if (ctx.isOnRamp && new Big(ctx.builtResponse.outputAmount).gt(13000)) {
       // Try to delete created quote as it shouldn't be used
       const quoteId = ctx.builtResponse.id;
       QuoteTicket.findByPk(quoteId).then(quoteTicket => {
