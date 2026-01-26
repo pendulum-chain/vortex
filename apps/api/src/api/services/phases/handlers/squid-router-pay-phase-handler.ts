@@ -1,5 +1,7 @@
 import {
   AxelarScanStatusFees,
+  BalanceCheckError,
+  BalanceCheckErrorType,
   checkEvmBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
@@ -32,6 +34,11 @@ const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
 const BALANCE_POLLING_TIME_MS = 10000;
+// NOTE: This timeout is intentionally longer (15 minutes) than the 3–5 minute balance
+// checks in other handlers. For SquidRouter/Axelar bridge flows we wait for cross-chain
+// settlement and gas payment on the destination chain, which can legitimately take longer
+// under network congestion or bridge delays. Reducing this timeout risks premature failure
+// of otherwise successful bridge operations.
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
@@ -101,18 +108,36 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   /**
+   * Type guard to determine whether a given network is an EVM network.
+   * This prevents using EVM-specific utilities with non-EVM destinations (e.g., AssetHub).
+   */
+  private isEvmNetwork(network: Networks | string): network is EvmNetworks {
+    return Object.values(EvmNetworks).includes(network as EvmNetworks);
+  }
+
+  /**
    * Checks the status of the Axelar bridge and balances in parallel.
    * If a balance arrived, we consider it a success.
    * If the bridge reports success, we consider it a success.
-   * Only if both fail (timeout)  we throw.
+   * Only if both fail (timeout) we throw.
    */
   private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+    // If the destination is not an EVM network, skip the EVM balance optimization and rely on bridge status only.
+    if (!this.isEvmNetwork(quote.to as Networks | string)) {
+      logger.info(
+        "SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.",
+        { toNetwork: quote.to }
+      );
+      await this.checkBridgeStatus(state, swapHash, quote);
+      return;
+    }
+
     const toChain = quote.to as EvmNetworks;
 
-    let balanceCheckPromise: Promise<any>;
+    let balanceCheckPromise: Promise<Big>;
 
     try {
-      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as any) as EvmTokenDetails;
+      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as FiatToken) as EvmTokenDetails;
       const ephemeralAddress = state.state.evmEphemeralAddress;
 
       if (outTokenDetails && ephemeralAddress) {
@@ -128,23 +153,48 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         logger.warn(
           "SquidRouterPayPhaseHandler: Cannot perform balance check optimization (missing expected token details or address)."
         );
-        balanceCheckPromise = Promise.reject("Skipped balance check");
+        balanceCheckPromise = Promise.reject(new Error("Skipped balance check"));
       }
     } catch (err) {
       logger.warn(`SquidRouterPayPhaseHandler: Error preparing balance check: ${err}`);
       balanceCheckPromise = Promise.reject(err);
     }
 
+    // Wrap both promises to prevent unhandled rejections after one succeeds
+    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote).catch(err => {
+      // Re-throw to preserve the error for Promise.any
+      throw err;
+    });
+
+    const balanceCheckWithErrorHandling = balanceCheckPromise.catch(err => {
+      // Re-throw to preserve the error for Promise.any
+      throw err;
+    });
+
     try {
-      await Promise.any([this.checkBridgeStatus(state, swapHash, quote), balanceCheckPromise]);
+      await Promise.any([bridgeCheckPromise, balanceCheckWithErrorHandling]);
     } catch (error) {
       // Both failed.
       if (error instanceof AggregateError) {
-        throw new Error(
-          `SquidRouterPayPhaseHandler: Both bridge status check and balance check failed. Errors: ${error.errors
-            .map(e => (e instanceof Error ? e.message : String(e)))
-            .join(", ")}`
-        );
+        // Distinguish between balance check timeout and read failure
+        const balanceError = error.errors.find(e => e instanceof BalanceCheckError);
+        const bridgeError = error.errors.find(e => !(e instanceof BalanceCheckError));
+
+        let errorMessage = "SquidRouterPayPhaseHandler: Both bridge status check and balance check failed.";
+
+        if (balanceError instanceof BalanceCheckError) {
+          if (balanceError.type === BalanceCheckErrorType.Timeout) {
+            errorMessage += ` Balance check timed out after ${EVM_BALANCE_CHECK_TIMEOUT_MS}ms.`;
+          } else if (balanceError.type === BalanceCheckErrorType.ReadFailure) {
+            errorMessage += ` Balance check read failure (unexpected infrastructure issue): ${balanceError.message}.`;
+          }
+        }
+
+        if (bridgeError) {
+          errorMessage += ` Bridge check error: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}.`;
+        }
+
+        throw new Error(errorMessage);
       }
       throw error;
     }
