@@ -1,12 +1,8 @@
 import {
   AxelarScanStatusFees,
-  checkEvmBalancePeriodically,
   EvmClientManager,
-  EvmNetworks,
-  EvmTokenDetails,
   FiatToken,
   getNetworkId,
-  getOnChainTokenDetails,
   getStatus,
   getStatusAxelarScan,
   Networks,
@@ -31,8 +27,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
-const BALANCE_POLLING_TIME_MS = 10000;
-const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
@@ -101,60 +95,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Checks the status of the Axelar bridge and balances in parallel.
-   * If a balance arrived, we consider it a success.
-   * If the bridge reports success, we consider it a success.
-   * Only if both fail (timeout)  we throw.
-   */
-  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
-    const toChain = quote.to as EvmNetworks;
-
-    let balanceCheckPromise: Promise<any>;
-
-    try {
-      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as any) as EvmTokenDetails;
-      const ephemeralAddress = state.state.evmEphemeralAddress;
-
-      if (outTokenDetails && ephemeralAddress) {
-        balanceCheckPromise = checkEvmBalancePeriodically(
-          outTokenDetails.erc20AddressSourceChain,
-          ephemeralAddress,
-          "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-          BALANCE_POLLING_TIME_MS,
-          EVM_BALANCE_CHECK_TIMEOUT_MS,
-          toChain
-        );
-      } else {
-        logger.warn(
-          "SquidRouterPayPhaseHandler: Cannot perform balance check optimization (missing expected token details or address)."
-        );
-        balanceCheckPromise = Promise.reject("Skipped balance check");
-      }
-    } catch (err) {
-      logger.warn(`SquidRouterPayPhaseHandler: Error preparing balance check: ${err}`);
-      balanceCheckPromise = Promise.reject(err);
-    }
-
-    try {
-      await Promise.any([this.checkBridgeStatus(state, swapHash, quote), balanceCheckPromise]);
-    } catch (error) {
-      // Both failed.
-      if (error instanceof AggregateError) {
-        throw new Error(
-          `SquidRouterPayPhaseHandler: Both bridge status check and balance check failed. Errors: ${error.errors
-            .map(e => (e instanceof Error ? e.message : String(e)))
-            .join(", ")}`
-        );
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Gets the status of the Axelar bridge
    * @param txHash The swap (bridgeCall) transaction hash
    */
-  private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
     try {
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
