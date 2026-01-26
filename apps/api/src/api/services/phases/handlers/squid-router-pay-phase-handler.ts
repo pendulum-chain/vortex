@@ -13,6 +13,7 @@ import {
   getStatusAxelarScan,
   Networks,
   nativeToDecimal,
+  OnChainToken,
   RampDirection,
   RampPhase,
   SquidRouterPayResponse
@@ -108,14 +109,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Type guard to determine whether a given network is an EVM network.
-   * This prevents using EVM-specific utilities with non-EVM destinations (e.g., AssetHub).
-   */
-  private isEvmNetwork(network: Networks | string): network is EvmNetworks {
-    return Object.values(EvmNetworks).includes(network as EvmNetworks);
-  }
-
-  /**
    * Checks the status of the Axelar bridge and balances in parallel.
    * If a balance arrived, we consider it a success.
    * If the bridge reports success, we consider it a success.
@@ -123,11 +116,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
     // If the destination is not an EVM network, skip the EVM balance optimization and rely on bridge status only.
-    if (!this.isEvmNetwork(quote.to as Networks | string)) {
-      logger.info(
-        "SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.",
-        { toNetwork: quote.to }
-      );
+    if (quote.to === Networks.AssetHub) {
+      logger.info("SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.", {
+        toNetwork: quote.to
+      });
       await this.checkBridgeStatus(state, swapHash, quote);
       return;
     }
@@ -137,7 +129,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     let balanceCheckPromise: Promise<Big>;
 
     try {
-      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as FiatToken) as EvmTokenDetails;
+      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as OnChainToken) as EvmTokenDetails;
       const ephemeralAddress = state.state.evmEphemeralAddress;
 
       if (outTokenDetails && ephemeralAddress) {
