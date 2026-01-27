@@ -200,34 +200,34 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     let isExecuted = false;
     let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
 
-    // Initial delay to allow for API indexing.
     await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
 
     while (!isExecuted) {
       try {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
-        if (squidRouterStatus?.status === "success") {
+        if (!squidRouterStatus) {
+          logger.warn(`SquidRouterPayPhaseHandler: No squidRouter status found for swap hash ${swapHash}.`);
+        } else if (squidRouterStatus.status === "success") {
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
           isExecuted = true;
           break;
         }
 
-        const axelarScanStatus = await getStatusAxelarScan(swapHash);
+        const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
 
-        if (!axelarScanStatus) {
-          logger.info(
-            `SquidRouterPayPhaseHandler: Status not found yet for hash ${swapHash}. Retrying in ${AXELAR_POLLING_INTERVAL_MS}ms...`
-          );
-        } else if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
-          logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
-          isExecuted = true;
-          break;
-        } else {
-          // Status found but not finished (e.g., 'pending', 'called').
-          // Check if we need to fund the gas service.
-          if (!payTxHash) {
-            logger.info(`SquidRouterPayPhaseHandler: Bridge transaction detected. Proceeding to fund gas.`);
+        if (isGmp) {
+          const axelarScanStatus = await getStatusAxelarScan(swapHash);
+
+          if (!axelarScanStatus) {
+            logger.info(`SquidRouterPayPhaseHandler: Axelar status not found yet for hash ${swapHash}.`);
+          } else if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
+            logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
+            isExecuted = true;
+            break;
+          } else if (!payTxHash) {
+            logger.info(`SquidRouterPayPhaseHandler: Bridge transaction detected on Axelar. Proceeding to fund gas.`);
+
             const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
             const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
@@ -245,18 +245,16 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             }
 
             await state.update({
-              state: {
-                ...state.state,
-                squidRouterPayTxHash: payTxHash
-              }
+              state: { ...state.state, squidRouterPayTxHash: payTxHash }
             });
           }
+        } else {
+          logger.info(`SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.`);
         }
       } catch (error) {
-        logger.warn(`SquidRouterPayPhaseHandler: Error during bridge status poll for ${swapHash}:`, error);
+        logger.error(`SquidRouterPayPhaseHandler: Error in bridge status loop for ${swapHash}:`, error);
       }
 
-      // Wait before the next iteration
       await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
     }
   }
