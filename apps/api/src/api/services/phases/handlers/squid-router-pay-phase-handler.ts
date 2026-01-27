@@ -197,74 +197,67 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * @param txHash The swap (bridgeCall) transaction hash
    */
   private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
-    try {
-      let isExecuted = false;
-      let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
-      // initial delay to allow for API indexing.
-      await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
-      while (!isExecuted) {
+    let isExecuted = false;
+    let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
+
+    // Initial delay to allow for API indexing.
+    await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
+
+    while (!isExecuted) {
+      try {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
-        if (squidRouterStatus.status === "success") {
-          isExecuted = true;
+        if (squidRouterStatus?.status === "success") {
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
+          isExecuted = true;
           break;
-        }
-        if (!squidRouterStatus) {
-          logger.warn(`SquidRouterPayPhaseHandler: No squidRouter status found for swap hash ${swapHash}.`);
-          throw this.createRecoverableError("No squidRouter status found for swap hash.");
-        }
-
-        // If route is on the same chain, we must skip the Axelar check.
-        if (!squidRouterStatus.isGMPTransaction) {
-          await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
         }
 
         const axelarScanStatus = await getStatusAxelarScan(swapHash);
 
-        //no status found is considered a recoverable error.
         if (!axelarScanStatus) {
-          logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
-          throw this.createRecoverableError("No status found for swap hash.");
-        }
-        if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
-          isExecuted = true;
+          logger.info(
+            `SquidRouterPayPhaseHandler: Status not found yet for hash ${swapHash}. Retrying in ${AXELAR_POLLING_INTERVAL_MS}ms...`
+          );
+        } else if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
+          isExecuted = true;
           break;
-        }
+        } else {
+          // Status found but not finished (e.g., 'pending', 'called').
+          // Check if we need to fund the gas service.
+          if (!payTxHash) {
+            logger.info(`SquidRouterPayPhaseHandler: Bridge transaction detected. Proceeding to fund gas.`);
+            const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+            const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
-        if (!payTxHash) {
-          const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
-          const logIndex = Number(axelarScanStatus.id.split("_")[2]);
+            payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
-          payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
+            const isPolygon = quote.inputCurrency !== FiatToken.BRL;
+            const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
+            const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber();
+            const payerAccount = isPolygon
+              ? this.polygonWalletClient.account?.address
+              : this.moonbeamWalletClient.account?.address;
 
-          const isPolygon = quote.inputCurrency !== FiatToken.BRL;
-          const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
-          const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber(); // Both MATIC and GLMR have 18 decimals
-          const payerAccount = isPolygon
-            ? this.polygonWalletClient.account?.address
-            : this.moonbeamWalletClient.account?.address;
-
-          if (payerAccount) {
-            await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
-          }
-
-          await state.update({
-            state: {
-              ...state.state,
-              squidRouterPayTxHash: payTxHash
+            if (payerAccount) {
+              await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
             }
-          });
-        }
 
-        await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+            await state.update({
+              state: {
+                ...state.state,
+                squidRouterPayTxHash: payTxHash
+              }
+            });
+          }
+        }
+      } catch (error) {
+        logger.warn(`SquidRouterPayPhaseHandler: Error during bridge status poll for ${swapHash}:`, error);
       }
-    } catch (error) {
-      if (error && error instanceof PhaseError && error.isRecoverable) {
-        throw error;
-      }
-      throw new Error(`SquidRouterPayPhaseHandler: Error waiting checking for Axelar bridge transaction: ${error}`);
+
+      // Wait before the next iteration
+      await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
     }
   }
 
