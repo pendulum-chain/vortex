@@ -4,6 +4,7 @@ import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
 import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
+import { useAuthTokens } from "../../hooks/useAuthTokens";
 import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
@@ -20,6 +21,7 @@ export const Ramp = () => {
   const { forceSetQuote } = useQuoteActions();
   useMoneriumFlow();
   useSiweSignature(stellarKycActor);
+  useAuthTokens(rampActor);
 
   const { showToast } = useToastMessage();
 
@@ -40,6 +42,12 @@ export const Ramp = () => {
       forceSetQuote(quoteFromState);
     }
   }, [quote, quoteFromState, forceSetQuote]);
+
+  useEffect(() => {
+    if (!quoteFromState && quote && state === "QuoteReady") {
+      rampActor.send({ quote, type: "UPDATE_QUOTE" });
+    }
+  }, [quote, quoteFromState, state, rampActor]);
 
   console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();

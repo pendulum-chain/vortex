@@ -4,7 +4,9 @@ import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
+import { AuthService } from "../services/auth";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
+import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
@@ -19,6 +21,28 @@ const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
+// Restore session from localStorage if available
+const getInitialAuthState = () => {
+  if (typeof window === "undefined") {
+    return { isAuthenticated: false, userEmail: undefined, userId: undefined };
+  }
+
+  const tokens = AuthService.getTokens();
+
+  if (tokens) {
+    const authState = {
+      isAuthenticated: true,
+      userEmail: tokens.userEmail,
+      userId: tokens.userId
+    };
+    return authState;
+  }
+
+  return { isAuthenticated: false, userEmail: undefined, userId: undefined };
+};
+
+const authState = getInitialAuthState();
+
 const initialRampContext: RampContext = {
   apiKey: undefined,
   authToken: undefined,
@@ -31,6 +55,7 @@ const initialRampContext: RampContext = {
   externalSessionId: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
+  isAuthenticated: authState.isAuthenticated,
   isQuoteExpired: false,
   isSep24Redo: false,
   partnerId: undefined,
@@ -43,6 +68,9 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   substrateWalletAccount: undefined,
+  // Auth fields - restore from localStorage if available
+  userEmail: authState.userEmail,
+  userId: authState.userId,
   walletLocked: undefined
 };
 
@@ -113,7 +141,16 @@ export type RampMachineEvents =
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
   | { type: "REFRESH_FAILED" }
-  | { type: "GO_BACK" };
+  | { type: "GO_BACK" }
+  // Auth events
+  | { type: "ENTER_EMAIL"; email: string }
+  | { type: "EMAIL_VERIFIED" }
+  | { type: "OTP_SENT" }
+  | { type: "VERIFY_OTP"; code: string }
+  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
+  | { type: "AUTH_ERROR"; error: string }
+  | { type: "CHANGE_EMAIL" }
+  | { type: "LOGOUT" };
 
 export const rampMachine = setup({
   actions: {
@@ -148,6 +185,7 @@ export const rampMachine = setup({
   },
   actors: {
     aveniaKyc: aveniaKycMachine,
+    checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
       if (!input.quoteId) {
         throw new Error("Quote ID is required to load quote.");
@@ -175,6 +213,7 @@ export const rampMachine = setup({
       return () => clearInterval(timer);
     }),
     registerRamp: fromPromise(registerRampActor),
+    requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
     stellarKyc: stellarKycMachine,
@@ -190,7 +229,8 @@ export const rampMachine = setup({
           }, 1);
         })
     ),
-    validateKyc: fromPromise(validateKycActor)
+    validateKyc: fromPromise(validateKycActor),
+    verifyOTP: fromPromise(verifyOTPActor)
   },
   types: {
     context: {} as RampContext,
@@ -198,15 +238,30 @@ export const rampMachine = setup({
     events: {} as RampMachineEvents
   }
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QCcCGBbADgYgMoFEAVAfVwEkB1fYgYQHkA5Q-ADUIG0AGAXUVEwD2sAJYAXYQIB2fEAA9EARgBMAdgUA6TgFZOKg3pU6VAGhABPRAEZNAnYt36zVq0BfGvWboM2PAIIAItEASvi4uFy8SCCCIuJSMvIIyu7qbgpunCVavgrlela2CEql6i6ceg7F3oZGbkEhGDgEJADiEQCyibiRQ6RkAwyRhACqCSkyGWIS0mm5ykou6krFZkp++i7ldjWKnGaFWnaVut7GCsrdIKF9EZEACmS0dMNfRj4JjJHgrIRrbKbRRKVzqcxaBTOEouQ5mao2GGvd7qMgQAA2YGwAGMpAAzYTIdDLNKrLIbUBbBzqHTeK4qLR6FpuFRuC4INwuJTqMwqfTlXnNNx6MzY3rqADSAE0aNgIFIwOphJIAG4CADWmpxypoCG1euJqHpKRp-Ah9JyiBcCl2xk5xR5Yu8Cn5LV2Kh2dnqLS0KhcKjlWHUcV6cTAAEcAK5wUSQNUarW6g1G+UxrBxpMpyBmrOW608W3pe3rR0CvQaEp6WEtTiw558zEC06NMPGXk7MynWXBN652MJ5OwVMQdOSTXm7PqHF5zAFyfTksWq3rG0KVJ2zI16F1hvNZsONvFX12f2B4POMMRkfL8eFqdpsDIZACZDqTD4q0yR-dAlzHfMJyLCBNwEMsdwrMFaWrKFGUQaVTybTkL0RK9O3MYUeRcOwVDsMwij0VEFEjTBozAKBhHfZAV1necs0NUCozjOiGJXaDYKkG0EIPSEGTkRQeS0EVTA9F03DsWSO1qHk7BFfxWy8QizlMKiaK41NGN6bBP2-X9-0A4D2Oozj6L0niFz4yQBP3KtD2Q0S8nEyS1DcIp3DkuTfUFdQ7lhcxeX0SotG03BRFQZBRCY9U50zPU2JxaLYvi3peO3fj4KcukjxQuoiM4TQjiItx0URThnH5SrhU5J5BQ8fwumfeV0ripijJ-P8ANEICqQs9ROsyrBsvLbhKwK1zciOFRStbY5KoMLxas7W5FowpozCRW4FECdqo3mTAICtMAEozBdUvlE6ztTWzSxyhy8vBFyRK2CpChlNQ7maAxQzq4iVL0NTOA03wtNeSQBAgOAZHeN7hNrABaH1OxItwRWUUGlDMRxSg8bSADFUGEfFE2QMAkYdY9YVklkIrUIVeXrALrmCwxOeaJFtLxQkacKtyeX5RE9CCrQfO0OSkUI7STUF2bEA5CT6juLxylcIpfUqPYdlhW4-TDQ6eg43piYEfF8QEAB3E7FY+xB6eUxEtFDF1VDQurdpZJsAd0bDOW0lc10gh3ayUQKikbBRzAcMw3ZUOqhRFSXVC5IiFF2lxg9o6zPxXcPjxx4UdhlbzY4DNnOxW32ngW+tymMKKYq63oi6K-ZeUKFxe7cPGzwOrQgeFYKWmUWS1A5bS7vOwvEPe2sDtMQoz3B-ZKpcAwR6CnHgsn2PIqCAIgA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QCcCGBbADgYgMoFEAVAfVwEkB1fYgYQHkA5Q-ADUIG0AGAXUVEwD2sAJYAXYQIB2fEAA9EARgBMAdgUA6TgFZOKg3pU6VAGhABPRAEZNAnYt36zVq0BfGvWboM2PAIIAItEASvi4uFy8SCCCIuJSMvIIyu7qbgpunCVavgrlela2CEql6i6ceg7F3oZGbkEhGDgEJADiEQCyibiRQ6RkAwyRhACqCSkyGWIS0mm5ykou6krFZkp++i7ldjWKnGaFWnaRut7GCsrdIKF9EZEACmS0dMNfRj4JjJHgrIRrbKbRRKVzqcxaBTOEouQ5mao2GGvd7qMgQAA2YGwAGMpAAzYTIdDLNKrLIbUBbBzqHTeK4qLR6FpuFRuC4INwuJTqMwqfTlXnNNx6MzY3rqADSAE0aNgIFIwOphJIAG4CADWmpxypoCG1euJqHpKRp-Ah9JyiBcCl2xk5xR5Yu8Cn5LV2Kh2dnqLS0KhcKjlWHUcV6cTAAEcAK5wUSYNUarW6g1G+UxrBxpMpyBmrOWs08W3pe3rR0CvQaEp6WEtTiw558zEC06NMPGXk7MynWXBN652MJ5OwVMQdOSTXm7PqHF5zAFyfTksWq3rG0KVJ2zI16F1hvNZsONvFX12f2B4POMMRkfL8eFqdpsDIZACZDqTD4q0yR-dAlzHfMJyLCBNwEMsdwrMFaWrKFGUQaVTybTkL0RK9O3MYUeRcOwVDsMwij0VEFEjTBozAKBhHfZAV1necs0NUCozjOiGJXaDYKkG0EIPSEGTkRQeS0EVTA9F03DsWSO1qHk7BFfxWy8QizlMKiaK41NGN6bBP2-X9-0A4D2Oozj6L0niFz4yQBP3KtD2Q0S8nEyS1DcIp3DkuTfUFdQ7lhcxeX0SotG03BRFQZBRCY1U50zPU2JxaLYvi3peO3fj4KcukjxQuoiM4TQjiItx0URThnH5SrhU5J5BQ8fwumfeV0ripijJ-P8ANEICqQs9ROsyrBsvLbhKwK1zciOFRStbY5KoMLxas7W5FowpozCRW4FECdqo3mTAICtMAEozBdUvlE6ztTWzSxyhy8vBFyRK2CpChlNQ7maAxQzq4iVL0NTOA03wtNeSQBAgOAZHeN7hNrABaH1OxItwRWUUGlDMRxSg8bSADFUGEfFE2QMAkYdY9YVklkIrUIVeXrALrmGwxOeaJFtLxQkacKtyeX5RE9CCrQfO0OSkUI7STUF2bEA5CT6juLxylcIpfUqPYdlhW4-TDQ6eg43piYEfF8QEAB3E7FY+xB6eUxEtFDF1VDQurdpZJsAd0bDOW0lc10gh3ayUQKikbBRjAcMw3ZUOqhRFSXVC5IiFF2lxg9o6zPxXcPjxx4UdhlbzY4DNzOxW32ngW+tymMKKYq63oi6K-ZeUKFxe7cPGzwOrQgeFYKWmUWS1A5bS7vOwvEPe2sDtMQoz3B-ZKpcAwR6CnHgsn2PIqCAIgA */
   context: initialRampContext,
   id: "ramp",
   initial: "Idle",
   on: {
+    AUTH_SUCCESS: {
+      actions: assign({
+        isAuthenticated: true,
+        userEmail: ({ event }) => event.tokens.userEmail,
+        userId: ({ event }) => event.tokens.userId
+      })
+    },
     EXPIRE_QUOTE: {
       actions: assign({
         isQuoteExpired: true
       })
+    },
+    LOGOUT: {
+      actions: assign({
+        isAuthenticated: false,
+        userEmail: undefined,
+        userId: undefined
+      }),
+      target: "#ramp.EnterEmail"
     },
     RESET_RAMP: [
       {
@@ -280,6 +335,78 @@ export const rampMachine = setup({
     }
   },
   states: {
+    CheckAuth: {
+      always: [
+        {
+          guard: ({ context }) => context.isAuthenticated,
+          target: "QuoteReady"
+        },
+        {
+          target: "EnterEmail"
+        }
+      ]
+    },
+    CheckingEmail: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        onDone: {
+          target: "RequestingOTP"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Failed to check email. Please try again."
+          }),
+          target: "EnterEmail"
+        },
+        src: "checkEmail"
+      }
+    },
+    EnterEmail: {
+      on: {
+        ENTER_EMAIL: {
+          actions: assign({
+            userEmail: ({ event }) => event.email
+          }),
+          target: "CheckingEmail"
+        },
+        SET_QUOTE: {
+          actions: assign({
+            quoteId: ({ event }) => event.quoteId,
+            quoteLocked: ({ event }) => event.lock
+          })
+        },
+        SET_QUOTE_PARAMS: {
+          actions: assign({
+            apiKey: ({ event }) => event.apiKey,
+            callbackUrl: ({ event }) => event.callbackUrl,
+            partnerId: ({ event }) => event.partnerId,
+            walletLocked: ({ event }) => event.walletLocked
+          })
+        }
+      }
+    },
+    EnterOTP: {
+      on: {
+        CHANGE_EMAIL: {
+          actions: assign({
+            errorMessage: undefined,
+            userEmail: undefined
+          }),
+          target: "EnterEmail"
+        },
+        ENTER_EMAIL: {
+          actions: assign({
+            errorMessage: undefined,
+            userEmail: ({ event }) => event.email
+          }),
+          target: "CheckingEmail"
+        },
+        VERIFY_OTP: {
+          actions: assign({ errorMessage: undefined }),
+          target: "VerifyingOTP"
+        }
+      }
+    },
     Error: {
       entry: assign(({ context }) => ({
         ...context,
@@ -304,6 +431,12 @@ export const rampMachine = setup({
       }
     },
     Idle: {
+      always: [
+        {
+          guard: ({ context }) => !context.isAuthenticated,
+          target: "CheckAuth"
+        }
+      ],
       on: {
         INITIAL_QUOTE_FETCH_FAILED: {
           target: "InitialFetchFailed"
@@ -335,7 +468,7 @@ export const rampMachine = setup({
       },
       on: {
         GO_BACK: {
-          target: "KYC"
+          target: "QuoteReady"
         },
         PROCEED_TO_REGISTRATION: {
           target: "RegisterRamp"
@@ -377,7 +510,9 @@ export const rampMachine = setup({
     LoadingQuote: {
       invoke: {
         id: "loadQuote",
-        input: ({ event }) => ({ quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId }),
+        input: ({ event, context }) => ({
+          quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId || context.quoteId!
+        }),
         onDone: {
           actions: assign({
             isQuoteExpired: ({ event }) => event.output.isExpired,
@@ -396,6 +531,12 @@ export const rampMachine = setup({
       }
     },
     QuoteReady: {
+      always: [
+        {
+          guard: ({ context }) => context.quoteId !== undefined && context.quote === undefined,
+          target: "LoadingQuote"
+        }
+      ],
       entry: assign({ rampSigningPhase: undefined }),
       on: {
         // This is the main confirm button.
@@ -405,9 +546,12 @@ export const rampMachine = setup({
             executionInput: ({ event }) => event.input.executionInput,
             // Also reset any error from a previous attempt
             initializeFailedMessage: undefined,
+            // Restore quote and quoteId if missing
+            quote: ({ context, event }) => context.quote || event.input.executionInput.quote,
+            quoteId: ({ context, event }) => context.quoteId || event.input.executionInput.quote.id,
             rampDirection: ({ event }) => event.input.rampDirection
           }),
-          guard: ({ context }) => context.quoteId !== undefined,
+          guard: ({ context, event }) => context.quoteId !== undefined || event.input.executionInput.quote !== undefined,
           target: "RampRequested"
         },
         GO_BACK: {
@@ -483,6 +627,21 @@ export const rampMachine = setup({
         src: "registerRamp"
       }
     },
+    RequestingOTP: {
+      invoke: {
+        input: ({ context }) => ({ context }),
+        onDone: {
+          target: "EnterOTP"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Failed to send OTP. Please try again."
+          }),
+          target: "EnterEmail"
+        },
+        src: "requestOTP"
+      }
+    },
     Resetting: {
       entry: "resetRamp",
       invoke: {
@@ -552,6 +711,40 @@ export const rampMachine = setup({
           }),
           target: "StartRamp"
         }
+      }
+    },
+    VerifyingOTP: {
+      invoke: {
+        input: ({ context, event }) => ({
+          code: (event as any).code,
+          email: context.userEmail!
+        }),
+        onDone: {
+          actions: [
+            assign({
+              errorMessage: undefined,
+              isAuthenticated: true,
+              userId: ({ event }) => event.output.userId
+            }),
+            ({ event, context }) => {
+              // Store tokens in localStorage for session persistence
+              AuthService.storeTokens({
+                accessToken: event.output.accessToken,
+                refreshToken: event.output.refreshToken,
+                userEmail: context.userEmail,
+                userId: event.output.userId
+              });
+            }
+          ],
+          target: "QuoteReady"
+        },
+        onError: {
+          actions: assign({
+            errorMessage: "Invalid OTP code. Please try again."
+          }),
+          target: "EnterOTP"
+        },
+        src: "verifyOTP"
       }
     }
   }

@@ -12,6 +12,7 @@ import { useEventsContext } from "../../contexts/events";
 import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
 import { useQuoteFormStore, useQuoteFormStoreActions } from "../../stores/quote/useQuoteFormStore";
+import { useQuote } from "../../stores/quote/useQuoteStore";
 import { useRampDirectionStore } from "../../stores/rampDirectionStore";
 import { RampExecutionInput } from "../../types/phases";
 
@@ -35,10 +36,13 @@ export const useRampSubmission = () => {
 
   const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
-  const { connectedWalletAddress, quote } = useSelector(rampActor, state => ({
+  const { connectedWalletAddress, quote: contextQuote } = useSelector(rampActor, state => ({
     connectedWalletAddress: state.context.connectedWalletAddress,
     quote: state.context.quote
   }));
+
+  const storeQuote = useQuote();
+  const quote = contextQuote || storeQuote;
 
   const { inputAmount, fiatToken, onChainToken } = useQuoteFormStore();
   const network = quote

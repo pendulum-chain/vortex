@@ -2,7 +2,7 @@ import { useParams, useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useMoneriumKycActor, useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
-import { navigateToCleanOrigin } from "../../../utils/navigation";
+import { navigateToCleanOrigin } from "../../../lib/navigation";
 
 interface MoneriumRedirectStepProps {
   className?: string;

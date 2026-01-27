@@ -1,14 +1,17 @@
 import { QuoteResponse } from "@vortexfi/shared";
-import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
 import { TransactionId } from "../TransactionId";
 
+export const QUOTE_SUMMARY_COLLAPSED_HEIGHT = 88;
+
 interface QuoteSummaryProps {
   quote: QuoteResponse;
+  className?: string;
 }
 
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
@@ -73,29 +76,17 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
-export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleToggle = (isExpanded: boolean) => {
-    if (isExpanded && cardRef.current) {
-      // Wait for the animation to complete (300ms) before scrolling
-      setTimeout(() => {
-        cardRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end"
-        });
-      }, 300);
-    }
-  };
-
+export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
   return (
-    <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
-      <CollapsibleSummary>
-        <QuoteSummaryCore quote={quote} />
-      </CollapsibleSummary>
-      <CollapsibleDetails>
-        <QuoteSummaryDetails quote={quote} />
-      </CollapsibleDetails>
-    </CollapsibleCard>
+    <div className={cn("absolute right-0 bottom-2 left-0 z-10", className)}>
+      <CollapsibleCard>
+        <CollapsibleSummary>
+          <QuoteSummaryCore quote={quote} />
+        </CollapsibleSummary>
+        <CollapsibleDetails>
+          <QuoteSummaryDetails quote={quote} />
+        </CollapsibleDetails>
+      </CollapsibleCard>
+    </div>
   );
 };

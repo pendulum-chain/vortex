@@ -56,7 +56,7 @@ export const DetailsStepActions = ({
   return (
     <div className={className}>
       {requiresConnection && <ConnectWalletSection forceNetwork={forceNetwork} />}
-      {displayRampSubmitButton && <RampSubmitButton className="mb-4" hasValidationErrors={hasValidationErrors} />}
+      {displayRampSubmitButton && <RampSubmitButton hasValidationErrors={hasValidationErrors} />}
     </div>
   );
 };

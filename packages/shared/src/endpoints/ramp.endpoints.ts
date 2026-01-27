@@ -102,6 +102,7 @@ export interface IbanPaymentData {
 export interface RegisterRampRequest {
   quoteId: string;
   signingAccounts: AccountMeta[];
+  userId?: string;
   additionalData?: {
     walletAddress?: string;
     destinationAddress?: string;
