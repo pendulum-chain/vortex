@@ -12,6 +12,9 @@ import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFoll
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
+import { useRampUrlParams } from "../../hooks/useRampUrlParams";
+import { useWidgetMode } from "../../hooks/useWidgetMode";
+import { QuoteContent } from "../quote";
 
 export interface WidgetProps {
   className?: string;
@@ -36,6 +39,8 @@ const WidgetContent = () => {
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
+  const isWidgetMode = useWidgetMode();
+  const { providedQuoteId } = useRampUrlParams();
 
   const { rampState, isRedirectCallback, isError } = useSelector(rampActor, state => ({
     isError: state.matches("Error"),
@@ -54,6 +59,10 @@ const WidgetContent = () => {
   });
 
   const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
+
+  if (isWidgetMode && !providedQuoteId) {
+    return <QuoteContent />;
+  }
 
   if (isError) {
     return <ErrorStep />;
