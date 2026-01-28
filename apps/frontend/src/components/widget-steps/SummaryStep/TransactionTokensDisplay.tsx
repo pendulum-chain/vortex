@@ -1,5 +1,6 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
 import {
+  AssetHubTokenDetails,
   BaseFiatTokenDetails,
   EvmTokenDetails,
   FiatToken,
@@ -7,6 +8,8 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAssetHubTokenDetails,
+  isEvmTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
@@ -35,8 +38,14 @@ interface TransactionTokensDisplayProps {
   rampDirection: RampDirection;
 }
 
-function getOnChainTokenIcon(tokenDetails: OnChainTokenDetails): string | undefined {
-  return (tokenDetails as EvmTokenDetails).logoURI;
+function getOnChainTokenIcon(tokenDetails: OnChainTokenDetails): { primary?: string; fallback?: string } {
+  if (isEvmTokenDetails(tokenDetails)) {
+    return { fallback: tokenDetails.fallbackLogoURI, primary: tokenDetails.logoURI };
+  }
+  if (isAssetHubTokenDetails(tokenDetails)) {
+    return { primary: tokenDetails.logoURI };
+  }
+  return {};
 }
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ executionInput, isOnramp, rampDirection }) => {
@@ -107,8 +116,13 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const fromFiatIcon = useGetAssetIcon(isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : "");
   const toFiatIcon = useGetAssetIcon(!isOnramp ? (toToken as BaseFiatTokenDetails).fiat.assetIcon : "");
 
-  const fromIcon = isOnramp ? fromFiatIcon : (getOnChainTokenIcon(fromToken as OnChainTokenDetails) ?? fromFiatIcon);
-  const toIcon = !isOnramp ? toFiatIcon : (getOnChainTokenIcon(toToken as OnChainTokenDetails) ?? toFiatIcon);
+  const fromTokenIcons = isOnramp ? { primary: fromFiatIcon } : getOnChainTokenIcon(fromToken as OnChainTokenDetails);
+  const toTokenIcons = !isOnramp ? { primary: toFiatIcon } : getOnChainTokenIcon(toToken as OnChainTokenDetails);
+
+  const fromIcon = fromTokenIcons.primary ?? fromFiatIcon;
+  const toIcon = toTokenIcons.primary ?? toFiatIcon;
+  const fromFallbackIcon = fromTokenIcons.fallback;
+  const toFallbackIcon = toTokenIcons.fallback;
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
@@ -132,6 +146,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     <div className="flex flex-col justify-center">
       <AssetDisplay
         amount={quote.inputAmount}
+        fallbackIconSrc={fromFallbackIcon}
         iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIcon}
         symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
@@ -139,6 +154,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={quote.outputAmount}
+        fallbackIconSrc={toFallbackIcon}
         iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
         iconSrc={toIcon}
         symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
