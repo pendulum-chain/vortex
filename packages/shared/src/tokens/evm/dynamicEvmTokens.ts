@@ -142,10 +142,15 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
       
       // If there's already a token with this symbol, keep the better one
       if (existingToken) {
-        // Priority: native > higher USD price > existing
+        // Priority: native > higher USD price > lower address (deterministic)
+        const tokenPrice = token.usdPrice ?? 0;
+        const existingPrice = existingToken.usdPrice ?? 0;
+        
         const shouldReplace =
           (token.isNative && !existingToken.isNative) ||
-          (!token.isNative && !existingToken.isNative && (token.usdPrice ?? 0) > (existingToken.usdPrice ?? 0));
+          (!token.isNative && !existingToken.isNative && tokenPrice > existingPrice) ||
+          (!token.isNative && !existingToken.isNative && tokenPrice === existingPrice && 
+           token.erc20AddressSourceChain.toLowerCase() < existingToken.erc20AddressSourceChain.toLowerCase());
         
         if (shouldReplace) {
           grouped[network][symbolKey] = token;
