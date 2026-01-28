@@ -46,3 +46,98 @@ export interface GetKycSubmissionResponse {
   submissionId: string;
   createdAt: string;
 }
+
+export enum AlfredpayOnChainCurrency {
+  USDC = "USDC",
+  USDT = "USDT"
+}
+
+export enum AlfredpayFiatCurrency {
+  HK_USD = "HK_USD",
+  GTQ = "GTQ",
+  HKD = "HKD",
+  MXN = "MXN",
+  ARS = "ARS",
+  BRL = "BRL",
+  COP = "COP",
+  USD = "USD",
+  DOP = "DOP",
+  CNY = "CNY",
+  CLP = "CLP",
+  BOB = "BOB"
+}
+
+export type AlfredpayCurrency = AlfredpayOnChainCurrency | AlfredpayFiatCurrency;
+
+export enum AlfredpayChain {
+  ETH = "ETH",
+  MATIC = "MATIC",
+  XLM = "XLM",
+  OP = "OP",
+  ARB = "ARB",
+  BASE = "BASE",
+  TRX = "TRX",
+  SOL = "SOL",
+  CELO = "CELO",
+  AVAX = "AVAX",
+  BNB = "BNB"
+}
+
+export enum AlfredpayPaymentMethodType {
+  BANK = "BANK",
+  ATM = "ATM",
+  RETAIL = "RETAIL",
+  SPEI = "SPEI",
+  PIX = "PIX",
+  BANK_CN = "BANK_CN"
+}
+
+export interface AlfredpayQuoteMetadata {
+  businessId: string;
+  customerId: string;
+  [key: string]: unknown;
+}
+
+interface AlfredpayBaseQuoteRequest<FromCurrency, ToCurrency> {
+  fromCurrency: FromCurrency;
+  toCurrency: ToCurrency;
+  fromAmount?: string;
+  toAmount?: string;
+  chain?: AlfredpayChain;
+  paymentMethodType: AlfredpayPaymentMethodType;
+  metadata: AlfredpayQuoteMetadata;
+}
+
+export type CreateAlfredpayOnrampQuoteRequest = AlfredpayBaseQuoteRequest<AlfredpayFiatCurrency, AlfredpayOnChainCurrency>;
+
+export type CreateAlfredpayOfframpQuoteRequest = AlfredpayBaseQuoteRequest<AlfredpayOnChainCurrency, AlfredpayFiatCurrency>;
+
+export enum AlfredpayFeeType {
+  COMMISSION_FEE = "commissionFee",
+  PROCESSING_FEE = "processingFee",
+  TAX_FEE = "taxFee",
+  NETWORK_FEE = "networkFee"
+}
+
+export interface AlfredpayFee {
+  type: AlfredpayFeeType;
+  amount: string;
+  currency: string;
+}
+
+interface AlfredpayBaseQuoteResponse<FromCurrency, ToCurrency> {
+  quoteId: string;
+  fromCurrency: FromCurrency;
+  toCurrency: ToCurrency;
+  fromAmount: string;
+  toAmount: string;
+  chain?: AlfredpayChain;
+  paymentMethodType: AlfredpayPaymentMethodType;
+  expiration: string;
+  fees: AlfredpayFee[];
+  rate: string;
+  metadata: Record<string, unknown>;
+}
+
+export type AlfredpayOnrampQuote = AlfredpayBaseQuoteResponse<AlfredpayFiatCurrency, AlfredpayOnChainCurrency>;
+export type AlfredpayOfframpQuote = AlfredpayBaseQuoteResponse<AlfredpayOnChainCurrency, AlfredpayFiatCurrency>;
