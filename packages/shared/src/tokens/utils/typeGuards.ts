@@ -92,6 +92,11 @@ export function isEvmToken(token: string): token is EvmToken {
   return Object.values(EvmToken).includes(normalized as EvmToken);
 }
 
+/**
+ * Type guard for on-chain tokens.
+ * Uses inverse logic: if it's not a fiat token, it's an on-chain token.
+ * This handles dynamic tokens from external sources (e.g., SquidRouter).
+ */
 export function isOnChainToken(token: string): token is OnChainToken {
-  return isEvmToken(token) || isAssetHubToken(token);
+  return !isFiatToken(token);
 }
