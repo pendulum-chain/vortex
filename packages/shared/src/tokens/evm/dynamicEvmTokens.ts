@@ -6,6 +6,33 @@ import { TokenType } from "../types/base";
 import { EvmTokenDetails } from "../types/evm";
 import { evmTokenConfig } from "./config";
 
+// Token filtering configuration to exclude irrelevant tokens from EVM chains
+const TOKEN_FILTER_CONFIG = {
+  // Bridged token patterns to exclude (Cosmos tokens bridged via Axelar)
+  // Allows major axl* tokens (axlUSDC, axlUSDT, axlETH, axlWBTC) but blocks others
+  excludedBridgedPatterns: [/^axl(?!USDC|USDT|ETH|WETH|WBTC|DAI)/i],
+  // Explicit symbol blocklist - Cosmos/non-EVM native tokens that shouldn't appear on EVM chains
+  symbolBlocklist: new Set(["HUAHUA", "OSMO", "ATOM", "LUNA", "UST", "SCRT", "JUNO", "STARS", "AKT", "REGEN", "KUJI", "INJ"])
+};
+
+function shouldIncludeToken(token: SquidRouterToken): boolean {
+  const symbol = token.symbol.toUpperCase();
+
+  // Exclude blocklisted tokens (Cosmos native tokens)
+  if (TOKEN_FILTER_CONFIG.symbolBlocklist.has(symbol)) {
+    return false;
+  }
+
+  // Exclude most bridged Axelar tokens except major stablecoins
+  for (const pattern of TOKEN_FILTER_CONFIG.excludedBridgedPatterns) {
+    if (pattern.test(token.symbol)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 interface SquidRouterToken {
   symbol: string;
   address: string;
@@ -61,6 +88,10 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     return null;
   }
 
+  if (!shouldIncludeToken(token)) {
+    return null;
+  }
+
   const isNative = isNativeToken(token.address);
 
   const erc20Address: `0x${string}` = isNative
@@ -110,7 +141,6 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
     }
   }
 
-  // Merge with evmTokenConfig. Static config tokens first in list. Precedence to dynamic tokens.
   for (const network of Object.values(Networks)) {
     if (isNetworkEVM(network)) {
       const evmNetwork = network as EvmNetworks;
