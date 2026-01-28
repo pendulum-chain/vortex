@@ -1,3 +1,4 @@
+/* prettier-ignore-start */
 /**
  * Token configuration index
  */
@@ -23,3 +24,5 @@ export * from "./utils/helpers";
 export * from "./utils/normalization";
 // Utils
 export * from "./utils/typeGuards";
+// Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
+export * from "./evm/dynamicEvmTokens";

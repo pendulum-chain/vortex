@@ -64,7 +64,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
       const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-        throw this.createRecoverableError(`Failed to check extrinsic status`);
+        throw this.createRecoverableError("Failed to check extrinsic status");
       });
 
       if (status === ExtrinsicStatus.Success) {

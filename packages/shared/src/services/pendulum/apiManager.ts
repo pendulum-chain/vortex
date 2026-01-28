@@ -128,7 +128,7 @@ export class ApiManager {
     const usedIndices = uuid ? this.usedRpcIndices.get(uuid) || new Set<number>() : null;
 
     // Get available indices: all if no UUID, unused ones if UUID provided
-    let availableIndices = uuid
+    const availableIndices = uuid
       ? network.wsUrls.map((_, index) => index).filter(index => !usedIndices!.has(index))
       : network.wsUrls.map((_, index) => index);
 

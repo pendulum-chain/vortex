@@ -16,6 +16,8 @@ export interface TokenDefinition {
 export interface ExtendedTokenDefinition extends TokenDefinition {
   network: Networks;
   networkDisplayName: string;
+  logoURI?: string;
+  fallbackLogoURI?: string;
 }
 
 export const useTokenSelection = () => {

@@ -1,11 +1,15 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
 import {
+  AssetHubTokenDetails,
   BaseFiatTokenDetails,
+  EvmTokenDetails,
   FiatToken,
   FiatTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAssetHubTokenDetails,
+  isEvmTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
@@ -26,13 +30,22 @@ import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
 
-// Default expiry time for quotes is 10 minutes
 const QUOTE_EXPIRY_TIME = 10;
 
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
   isOnramp: boolean;
   rampDirection: RampDirection;
+}
+
+function getOnChainTokenIcon(tokenDetails: OnChainTokenDetails): { primary?: string; fallback?: string } {
+  if (isEvmTokenDetails(tokenDetails)) {
+    return { fallback: tokenDetails.fallbackLogoURI, primary: tokenDetails.logoURI };
+  }
+  if (isAssetHubTokenDetails(tokenDetails)) {
+    return { primary: tokenDetails.logoURI };
+  }
+  return {};
 }
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ executionInput, isOnramp, rampDirection }) => {
@@ -59,7 +72,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   useEffect(() => {
     let targetTimestamp: number | null = null;
-    if (!quote) return; // Quote must exist
+    if (!quote) return;
 
     const expiresAt = quote.expiresAt;
     targetTimestamp = new Date(expiresAt).getTime();
@@ -67,7 +80,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     setTargetTimestamp(targetTimestamp);
 
     if (targetTimestamp === null) {
-      // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
       return;
     }
@@ -101,18 +113,19 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken)
     : getAnyFiatTokenDetails(executionInput.fiatToken);
 
-  const fromIcon = useGetAssetIcon(
-    isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : (fromToken as OnChainTokenDetails).networkAssetIcon
-  );
+  const fromFiatIcon = useGetAssetIcon(isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : "");
+  const toFiatIcon = useGetAssetIcon(!isOnramp ? (toToken as BaseFiatTokenDetails).fiat.assetIcon : "");
 
-  const toIcon = useGetAssetIcon(
-    isOnramp ? (toToken as OnChainTokenDetails).networkAssetIcon : (toToken as BaseFiatTokenDetails).fiat.assetIcon
-  );
+  const fromTokenIcons = isOnramp ? { primary: fromFiatIcon } : getOnChainTokenIcon(fromToken as OnChainTokenDetails);
+  const toTokenIcons = !isOnramp ? { primary: toFiatIcon } : getOnChainTokenIcon(toToken as OnChainTokenDetails);
+
+  const fromIcon = fromTokenIcons.primary ?? fromFiatIcon;
+  const toIcon = toTokenIcons.primary ?? toFiatIcon;
+  const fromFallbackIcon = fromTokenIcons.fallback;
+  const toFallbackIcon = toTokenIcons.fallback;
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    // Conditionally return Monerium's URL.
-    // TODO to be improved when adding the EUR.e as a token config.
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
@@ -133,6 +146,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     <div className="flex flex-col justify-center">
       <AssetDisplay
         amount={quote.inputAmount}
+        fallbackIconSrc={fromFallbackIcon}
         iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIcon}
         symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
@@ -140,6 +154,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={quote.outputAmount}
+        fallbackIconSrc={toFallbackIcon}
         iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
         iconSrc={toIcon}
         symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
