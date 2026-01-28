@@ -1,4 +1,9 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, isEvmTokenDetails } from "@vortexfi/shared";
+import {
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  isAssetHubTokenDetails,
+  isEvmTokenDetails
+} from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
@@ -83,13 +88,15 @@ export const Onramp = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange]
   );
 
-  const logoURI = isEvmTokenDetails(toToken) ? toToken.logoURI : undefined;
+  const logoURI = isEvmTokenDetails(toToken) || isAssetHubTokenDetails(toToken) ? toToken.logoURI : undefined;
+  const fallbackLogoURI = isEvmTokenDetails(toToken) ? toToken.fallbackLogoURI : undefined;
 
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
         assetIcon={toToken.networkAssetIcon}
         disabled={!toAmount}
+        fallbackLogoURI={fallbackLogoURI}
         id="outputAmount"
         loading={quoteLoading}
         logoURI={logoURI}
@@ -99,7 +106,16 @@ export const Onramp = () => {
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal]
+    [
+      toToken.networkAssetIcon,
+      toToken.assetSymbol,
+      form,
+      quoteLoading,
+      toAmount,
+      openTokenSelectModal,
+      logoURI,
+      fallbackLogoURI
+    ]
   );
 
   const handleConfirm = useCallback(() => {
