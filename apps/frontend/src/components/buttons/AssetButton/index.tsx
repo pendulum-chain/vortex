@@ -1,7 +1,8 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import { Networks } from "@vortexfi/shared";
 import { cn } from "../../../helpers/cn";
-import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
-import { TokenImage } from "../../TokenImage";
+import { useTokenIcon } from "../../../hooks/useTokenIcon";
+import { TokenIconWithNetwork } from "../../TokenIconWithNetwork";
 
 interface AssetButtonProps {
   assetIcon: string;
@@ -10,11 +11,21 @@ interface AssetButtonProps {
   fallbackLogoURI?: string;
   onClick: () => void;
   disabled?: boolean;
+  network?: Networks;
 }
 
-export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled, logoURI, fallbackLogoURI }: AssetButtonProps) {
-  const localIcon = useGetAssetIcon(assetIcon);
-  const primaryIcon = logoURI ?? localIcon;
+export function AssetButton({
+  assetIcon,
+  tokenSymbol,
+  onClick,
+  disabled,
+  logoURI,
+  fallbackLogoURI,
+  network
+}: AssetButtonProps) {
+  // Use assetIcon for fiat fallback lookup (e.g., "eur", "brl")
+  const fallbackIcon = useTokenIcon(assetIcon);
+  const primaryIcon = logoURI ?? fallbackIcon.iconSrc;
 
   return (
     <button
@@ -26,7 +37,14 @@ export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled, logoURI
       onClick={onClick}
       type="button"
     >
-      <TokenImage alt={assetIcon} className="mr-1 h-5 w-5" fallbackSrc={fallbackLogoURI} src={primaryIcon} />
+      <TokenIconWithNetwork
+        className="mr-1 h-5 w-5"
+        fallbackIconSrc={fallbackLogoURI}
+        iconSrc={primaryIcon}
+        network={network}
+        showNetworkOverlay={!!network}
+        tokenSymbol={assetIcon}
+      />
       <strong className="font-bold text-black">{tokenSymbol}</strong>
       <ChevronDownIcon className="w-6" />
     </button>
