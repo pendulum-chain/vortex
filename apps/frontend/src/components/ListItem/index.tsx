@@ -36,6 +36,7 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: 
         <div className="text-xs">
           <TokenIconWithNetwork
             className="w-10"
+            fallbackIconSrc={token.fallbackLogoURI}
             iconSrc={tokenIcon}
             network={isFiat ? undefined : token.network}
             tokenSymbol={token.assetSymbol}
