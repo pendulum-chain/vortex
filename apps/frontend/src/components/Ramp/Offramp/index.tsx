@@ -1,15 +1,11 @@
-import {
-  getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
-  isAssetHubTokenDetails,
-  isEvmTokenDetails
-} from "@vortexfi/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
+import { getTokenLogoURIs } from "../../../helpers/tokenHelpers";
 import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
@@ -79,8 +75,7 @@ export const Offramp = () => {
 
   const handleBalanceClick = useCallback((amount: string) => form.setValue("inputAmount", amount), [form]);
 
-  const logoURI = isEvmTokenDetails(fromToken) || isAssetHubTokenDetails(fromToken) ? fromToken.logoURI : undefined;
-  const fallbackLogoURI = isEvmTokenDetails(fromToken) ? fromToken.fallbackLogoURI : undefined;
+  const { logoURI, fallbackLogoURI } = getTokenLogoURIs(fromToken);
 
   const WithdrawNumericInput = useMemo(
     () => (

@@ -1,15 +1,11 @@
-import {
-  getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
-  isAssetHubTokenDetails,
-  isEvmTokenDetails
-} from "@vortexfi/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
+import { getTokenLogoURIs } from "../../../helpers/tokenHelpers";
 import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
@@ -88,8 +84,7 @@ export const Onramp = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange]
   );
 
-  const logoURI = isEvmTokenDetails(toToken) || isAssetHubTokenDetails(toToken) ? toToken.logoURI : undefined;
-  const fallbackLogoURI = isEvmTokenDetails(toToken) ? toToken.fallbackLogoURI : undefined;
+  const { logoURI, fallbackLogoURI } = getTokenLogoURIs(toToken);
 
   const ReceiveNumericInput = useMemo(
     () => (
