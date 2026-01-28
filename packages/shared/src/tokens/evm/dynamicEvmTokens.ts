@@ -71,6 +71,7 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     assetSymbol: token.symbol,
     decimals: token.decimals,
     erc20AddressSourceChain: erc20Address,
+    fallbackLogoURI: `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${token.chainId}_${token.address.toLowerCase()}.webp`,
     isNative,
     logoURI: token.logoURI,
     network,
@@ -105,7 +106,7 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
       if (!grouped[network]) {
         grouped[network] = {};
       }
-      grouped[network][token.assetSymbol] = token;
+      grouped[network][token.assetSymbol.toUpperCase()] = token;
     }
   }
 
