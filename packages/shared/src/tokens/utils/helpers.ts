@@ -10,7 +10,7 @@ import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
 import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
-import { EvmToken, EvmTokenDetails } from "../types/evm";
+import { EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
 import { StellarTokenDetails } from "../types/stellar";

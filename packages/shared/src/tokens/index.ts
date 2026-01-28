@@ -26,3 +26,4 @@ export * from "./utils/normalization";
 export * from "./utils/typeGuards";
 // Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
 export * from "./evm/dynamicEvmTokens";
+/* prettier-ignore-end */

@@ -17,18 +17,16 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
-import { Abi, hexToBigInt } from "viem";
-
-// Global cache to persist balances across hook instances and app lifecycle
-const globalBalanceCache = new Map<string, Map<string, string>>();
-
-import { useBalance, useReadContracts } from "wagmi";
+import { hexToBigInt } from "viem";
+import { useBalance } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
-import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
 import { getEvmTokensForNetwork } from "../services/tokens";
 import { useVortexAccount } from "./useVortexAccount";
+
+// Global cache to persist balances across hook instances and app lifecycle
+const globalBalanceCache = new Map<string, Map<string, string>>();
 
 interface AlchemyTokenBalancesResponse {
   data: {
