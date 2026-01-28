@@ -84,12 +84,7 @@ export enum AlfredpayChain {
 }
 
 export enum AlfredpayPaymentMethodType {
-  BANK = "BANK",
-  ATM = "ATM",
-  RETAIL = "RETAIL",
-  SPEI = "SPEI",
-  PIX = "PIX",
-  BANK_CN = "BANK_CN"
+  BANK = "BANK"
 }
 
 export interface AlfredpayQuoteMetadata {
@@ -141,3 +136,81 @@ interface AlfredpayBaseQuoteResponse<FromCurrency, ToCurrency> {
 
 export type AlfredpayOnrampQuote = AlfredpayBaseQuoteResponse<AlfredpayFiatCurrency, AlfredpayOnChainCurrency>;
 export type AlfredpayOfframpQuote = AlfredpayBaseQuoteResponse<AlfredpayOnChainCurrency, AlfredpayFiatCurrency>;
+
+export interface CreateAlfredpayOnrampRequest {
+  customerId: string;
+  quoteId: string;
+  fromCurrency: AlfredpayFiatCurrency;
+  toCurrency: AlfredpayOnChainCurrency;
+  amount: string;
+  chain: AlfredpayChain;
+  paymentMethodType: AlfredpayPaymentMethodType;
+  depositAddress: string;
+}
+
+export interface CreateAlfredpayOfframpRequest {
+  customerId: string;
+  quoteId: string;
+  fromCurrency: AlfredpayOnChainCurrency;
+  toCurrency: AlfredpayFiatCurrency;
+  amount: string;
+  chain: AlfredpayChain;
+  fiatAccountId: string;
+  memo?: string;
+  originAddress: string;
+}
+
+export enum AlfredpayTransactionStatus {
+  CREATED = "CREATED",
+  PENDING = "PENDING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  EXPIRED = "EXPIRED"
+}
+
+interface AlfredpayBaseTransaction {
+  transactionId: string;
+  customerId: string;
+  createdAt: string;
+  updatedAt: string;
+  quoteId: string;
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmount: string;
+  toAmount: string;
+  status: AlfredpayTransactionStatus;
+  chain: string;
+  depositAddress: string;
+}
+
+export interface AlfredpayOnrampTransaction extends AlfredpayBaseTransaction {
+  paymentMethodType: AlfredpayPaymentMethodType;
+  txHash: string | null;
+  quote: AlfredpayOnrampQuote;
+}
+
+export interface AlfredpayOfframpTransaction extends AlfredpayBaseTransaction {
+  fiatAccountId: string;
+  memo?: string;
+  originAddress: string;
+  expiration: string;
+  externalId?: string;
+  metadata?: Record<string, unknown> | null;
+  quote: AlfredpayOfframpQuote;
+}
+
+export interface AlfredpayFiatPaymentInstructions {
+  paymentType: string;
+  clabe?: string;
+  reference?: string;
+  expirationDate?: string;
+  bankName?: string;
+  accountHolderName?: string;
+}
+
+export interface CreateAlfredpayOnrampResponse {
+  transaction: AlfredpayOnrampTransaction;
+  fiatPaymentInstructions: AlfredpayFiatPaymentInstructions;
+}
+
+export type CreateAlfredpayOfframpResponse = AlfredpayOfframpTransaction;

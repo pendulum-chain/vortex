@@ -6,7 +6,11 @@ import {
   AlfredpayOnrampQuote,
   CreateAlfredpayCustomerResponse,
   CreateAlfredpayOfframpQuoteRequest,
+  CreateAlfredpayOfframpRequest,
+  CreateAlfredpayOfframpResponse,
   CreateAlfredpayOnrampQuoteRequest,
+  CreateAlfredpayOnrampRequest,
+  CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
@@ -124,8 +128,18 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "POST", request)) as AlfredpayOfframpQuote;
   }
 
-  public async getQuote(quoteId: string): Promise<AlfredpayOnrampQuote> {
+  public async getQuote(quoteId: string): Promise<AlfredpayOnrampQuote | AlfredpayOfframpQuote> {
     const path = `/api/v1/third-party-service/penny/quotes/${quoteId}`;
-    return (await this.executeRequest(path, "GET")) as AlfredpayOnrampQuote;
+    return (await this.executeRequest(path, "GET")) as AlfredpayOnrampQuote | AlfredpayOfframpQuote;
+  }
+
+  public async createOnramp(request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> {
+    const path = "/api/v1/third-party-service/penny/onramp";
+    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOnrampResponse;
+  }
+
+  public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
+    const path = "/api/v1/third-party-service/penny/offramp";
+    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOfframpResponse;
   }
 }
