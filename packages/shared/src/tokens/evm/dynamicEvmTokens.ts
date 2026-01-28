@@ -137,7 +137,23 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
       if (!grouped[network]) {
         grouped[network] = {};
       }
-      grouped[network][token.assetSymbol.toUpperCase()] = token;
+      const symbolKey = token.assetSymbol.toUpperCase();
+      const existingToken = grouped[network][symbolKey];
+      
+      // If there's already a token with this symbol, keep the better one
+      if (existingToken) {
+        // Priority: native > higher USD price > existing
+        const shouldReplace =
+          (token.isNative && !existingToken.isNative) ||
+          (!token.isNative && !existingToken.isNative && (token.usdPrice ?? 0) > (existingToken.usdPrice ?? 0));
+        
+        if (shouldReplace) {
+          grouped[network][symbolKey] = token;
+        }
+        // Otherwise keep the existing token
+      } else {
+        grouped[network][symbolKey] = token;
+      }
     }
   }
 
