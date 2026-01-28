@@ -214,3 +214,42 @@ export interface CreateAlfredpayOnrampResponse {
 }
 
 export type CreateAlfredpayOfframpResponse = AlfredpayOfframpTransaction;
+
+export enum AlfredpayFiatAccountType {
+  SPEI = "SPEI",
+  PIX = "PIX",
+  COELSA = "COELSA",
+  ACH = "ACH",
+  ACH_DOM = "ACH_DOM",
+  BANK_CN = "BANK_CN",
+  BANK_USA = "BANK_USA",
+  ACH_CHL = "ACH_CHL",
+  ACH_BOL = "ACH_BOL",
+  B89 = "B89"
+}
+
+export interface AlfredpayFiatAccountFields {
+  accountNumber: string;
+  accountType: string;
+  accountName: string;
+  accountBankCode: string;
+  accountAlias: string;
+  networkIdentifier: string;
+  bankStreet?: string;
+  bankCity?: string;
+  bankState?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+  routingNumber?: string;
+  isExternal?: boolean;
+}
+
+export interface CreateAlfredpayFiatAccountRequest {
+  customerId: string;
+  type: AlfredpayFiatAccountType;
+  fiatAccountFields: AlfredpayFiatAccountFields;
+}
+
+export interface CreateAlfredpayFiatAccountResponse {
+  fiatAccountId: string;
+}

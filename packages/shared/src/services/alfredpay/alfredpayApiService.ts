@@ -2,9 +2,13 @@ import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../
 import logger from "../../logger";
 import {
   AlfredpayCustomerType,
+  AlfredpayFiatAccountFields,
+  AlfredpayFiatAccountType,
   AlfredpayOfframpQuote,
   AlfredpayOnrampQuote,
   CreateAlfredpayCustomerResponse,
+  CreateAlfredpayFiatAccountRequest,
+  CreateAlfredpayFiatAccountResponse,
   CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOfframpRequest,
   CreateAlfredpayOfframpResponse,
@@ -138,8 +142,31 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOnrampResponse;
   }
 
+  public async getOnrampTransaction(transactionId: string): Promise<CreateAlfredpayOnrampResponse> {
+    const path = `/api/v1/third-party-service/penny/onramp/${transactionId}`;
+    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOnrampResponse;
+  }
+
   public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
     const path = "/api/v1/third-party-service/penny/offramp";
     return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOfframpResponse;
+  }
+
+  public async getOfframpTransaction(transactionId: string): Promise<CreateAlfredpayOfframpResponse> {
+    const path = `/api/v1/third-party-service/penny/offramp/${transactionId}`;
+    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
+  }
+
+  public async createAchFiatAccount(
+    customerId: string,
+    fiatAccountFields: AlfredpayFiatAccountFields
+  ): Promise<CreateAlfredpayFiatAccountResponse> {
+    const payload: CreateAlfredpayFiatAccountRequest = {
+      customerId,
+      fiatAccountFields,
+      type: AlfredpayFiatAccountType.ACH
+    };
+    const path = "/api/v1/third-party-service/penny/fiatAccounts";
+    return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
   }
 }
