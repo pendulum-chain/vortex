@@ -35,8 +35,8 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     }
 
     try {
-      const { evmAddress: brlaEvmAddress, subAccountId } = await BrlaService.getUser(taxId);
-      console.log("existing subaccunt: ", subAccountId);
+      const { evmAddress: brlaEvmAddress, subAccountId, identityStatus } = await BrlaService.getUser(taxId);
+      console.log("existing subaccount: ", subAccountId, "identityStatus:", identityStatus);
       const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId, rampDirection);
 
       console.log("Remaining limit response from BRLA:", remainingLimitResponse);
@@ -50,6 +50,12 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
         // Avenia-Migration: this must be changed. No more levels. TOAST?
         // We don't know of a possibility to increase limits so far.
         throw new Error("Insufficient remaining limit for this transaction.");
+      }
+
+      // Only skip KYC if identity is confirmed - handles case where user created subaccount but didn't complete KYC
+      if (identityStatus !== "CONFIRMED") {
+        console.log("User exists but KYC not confirmed. Needs KYC.");
+        return { brlaEvmAddress, kycNeeded: true };
       }
 
       return { brlaEvmAddress, kycNeeded: false };

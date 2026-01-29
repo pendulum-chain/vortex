@@ -1,5 +1,6 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useSelector } from "@xstate/react";
+import { useEffect } from "react";
 import { useAveniaKycActor, useAveniaKycSelector, useRampActor } from "../contexts/rampState";
 
 export const useStepBackNavigation = () => {
@@ -11,9 +12,23 @@ export const useStepBackNavigation = () => {
   const rampState = useSelector(rampActor, state => state.value);
   const enteredViaForm = useSelector(rampActor, state => state.context.enteredViaForm);
 
-  // Hide back button when in RampFollowUp/RedirectCallback, or when in QuoteReady but user entered via URL (not form)
+  const searchParams = useSearch({ strict: false });
+  const isExternalProviderEntry = !!searchParams.externalSessionId;
+  const hasQuoteIdInUrl = !!searchParams.quoteId;
+
+  // When user removes quoteId from URL while in QuoteReady state (and they entered via form),
+  // send GO_BACK to return to Idle/Quote form
+  useEffect(() => {
+    if (!hasQuoteIdInUrl) {
+      rampActor.send({ type: "GO_BACK" });
+    }
+  }, [rampActor, hasQuoteIdInUrl]);
+
   const shouldHide =
-    rampState === "RampFollowUp" || rampState === "RedirectCallback" || (rampState === "QuoteReady" && !enteredViaForm);
+    rampState === "RampFollowUp" ||
+    rampState === "RedirectCallback" ||
+    isExternalProviderEntry ||
+    (rampState === "QuoteReady" && !enteredViaForm);
 
   const handleBack = () => {
     if (aveniaKycActor && aveniaState) {
