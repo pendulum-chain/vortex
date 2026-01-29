@@ -199,7 +199,7 @@
         "title": "Conectar wallet"
       },
       "polkadotWalletSelectorDialogLoading": {
-        "description": "Por favor, aprove {selectedWallet} e aprove a transação.",
+        "description": "Por favor, aprove {{selectedWallet}} e aprove a transação.",
         "title": "Conectando wallet"
       },
       "selectionModal": {

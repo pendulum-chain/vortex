@@ -198,7 +198,7 @@
         "title": "Connect wallet"
       },
       "polkadotWalletSelectorDialogLoading": {
-        "description": "Please approve {selectedWallet} and approve the transaction.",
+        "description": "Please approve {{selectedWallet}} and approve the transaction.",
         "title": "Connecting wallet"
       },
       "selectionModal": {
