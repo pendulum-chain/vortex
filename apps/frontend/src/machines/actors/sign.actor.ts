@@ -48,15 +48,23 @@ export const signTransactionsActor = async ({
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
-    // If a monerium wallet address is provided in the execution input, we use that as the signer address.
-    const signerAddress = executionInput?.moneriumWalletAddress || connectedWalletAddress;
+    // For substrate networks (Pendulum/AssetHub), always use connectedWalletAddress.
+    // moneriumWalletAddress is only for Monerium flows with EVM transactions.
+    const isSubstrateTransaction = tx.network === Networks.Pendulum || tx.network === Networks.AssetHub;
+    const signerAddress = isSubstrateTransaction
+      ? connectedWalletAddress
+      : executionInput?.moneriumWalletAddress || connectedWalletAddress;
+
     if (!signerAddress) {
       return false;
     }
 
-    return chainId < 0 && (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub)
+    const isSubstrateNetwork = chainId < 0 && isSubstrateTransaction;
+    const match = isSubstrateNetwork
       ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(signerAddress, 0)
       : tx.signer.toLowerCase() === signerAddress.toLowerCase();
+
+    return match;
   });
 
   // Add userTx for monerium onramp. Signature is required, which is created in this process.
