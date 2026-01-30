@@ -1,10 +1,11 @@
 import {
+  ALCHEMY_API_KEY,
   AssetHubTokenDetails,
   AssetHubTokenDetailsWithBalance,
   assetHubTokenConfig,
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
-  evmTokenConfig,
+  getAllEvmTokens,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
@@ -16,13 +17,93 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { useEffect, useMemo, useState } from "react";
-import { Abi } from "viem";
+import { Abi, hexToBigInt } from "viem";
+
+// Global cache to persist balances across hook instances and app lifecycle
+const globalBalanceCache = new Map<string, Map<string, string>>();
+
 import { useBalance, useReadContracts } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { useAssetHubNode } from "../contexts/polkadotNode";
 import erc20ABI from "../contracts/ERC20";
 import { multiplyByPowerOfTen } from "../helpers/contracts";
+import { getEvmTokensForNetwork } from "../services/tokens";
 import { useVortexAccount } from "./useVortexAccount";
+
+interface AlchemyTokenBalancesResponse {
+  data: {
+    tokens: {
+      network: string;
+      address: string;
+      tokenAddress: string | null;
+      tokenBalance: string;
+    }[];
+    pageKey?: string;
+  };
+}
+
+const getAlchemyNetworkName = (network: Networks): string | null => {
+  if (!ALCHEMY_API_KEY) return null;
+
+  const networkMap: Partial<Record<Networks, string>> = {
+    [Networks.Arbitrum]: "arb-mainnet",
+    [Networks.Avalanche]: "avax-mainnet",
+    [Networks.Base]: "base-mainnet",
+    [Networks.BSC]: "bsc-mainnet",
+    [Networks.Ethereum]: "eth-mainnet",
+    [Networks.Moonbeam]: "moonbeam-mainnet",
+    [Networks.Polygon]: "polygon-mainnet"
+  };
+
+  const networkName = networkMap[network];
+  return networkName || null;
+};
+
+const fetchAlchemyTokenBalances = async (address: string, network: Networks): Promise<Map<string, string>> => {
+  const networkName = getAlchemyNetworkName(network);
+  if (!networkName) {
+    return new Map();
+  }
+
+  try {
+    const endpoint = `https://api.g.alchemy.com/data/v1/${ALCHEMY_API_KEY}/assets/tokens/balances/by-address`;
+
+    const response = await fetch(endpoint, {
+      body: JSON.stringify({
+        addresses: [
+          {
+            address,
+            networks: [networkName]
+          }
+        ],
+        includeErc20Tokens: true,
+        includeNativeTokens: true
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    const data: AlchemyTokenBalancesResponse = await response.json();
+
+    const balanceMap = new Map<string, string>();
+    if (data.data?.tokens) {
+      data.data.tokens.forEach(token => {
+        const tokenAddress = token.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+        const key = `${network}-${tokenAddress.toLowerCase()}`;
+        // Convert hex balance to decimal string using Big.js
+        const decimalBalance = hexToBigInt(token.tokenBalance as `0x${string}`).toString();
+        balanceMap.set(key, decimalBalance);
+      });
+    }
+
+    return balanceMap;
+  } catch (error) {
+    console.error(`Error fetching balances for ${network}:`, error);
+    return new Map();
+  }
+};
 
 export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
   const { evmAddress: address } = useVortexAccount();
@@ -31,7 +112,7 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
 
   const tokensForNetwork: EvmTokenDetails[] = useMemo(() => {
     if (isNetworkEVM(selectedNetwork)) {
-      return Object.values(evmTokenConfig[selectedNetwork] ?? {});
+      return getEvmTokensForNetwork(selectedNetwork);
     } else return [];
   }, [selectedNetwork]);
 
@@ -48,9 +129,22 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
   return useMemo(() => {
     if (!nativeToken || !balance || !isNetworkEVM(selectedNetwork)) return null;
 
+    const formattedBalance = multiplyByPowerOfTen(Big(balance.value.toString()), -balance.decimals).toFixed(4, 0);
+
+    // Calculate balanceUsd by finding matching token in getAllEvmTokens by address and network
+    const allEvmTokens = getAllEvmTokens();
+    const matchingToken = allEvmTokens.find(
+      token =>
+        token.erc20AddressSourceChain?.toLowerCase() === nativeToken.erc20AddressSourceChain?.toLowerCase() &&
+        token.network === nativeToken.network
+    );
+    const usdPrice = matchingToken?.usdPrice ?? 0;
+    const balanceUsd = usdPrice > 0 ? Big(formattedBalance).times(usdPrice).toFixed(2, 0) : "0.00";
+
     return {
       ...nativeToken,
-      balance: multiplyByPowerOfTen(Big(balance.value.toString()), -balance.decimals).toFixed(4, 0)
+      balance: formattedBalance,
+      balanceUsd
     };
   }, [balance, selectedNetwork, nativeToken]);
 };
@@ -127,44 +221,74 @@ const groupTokensByNetwork = (tokens: EvmTokenDetails[]): Record<string, EvmToke
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { evmAddress: address } = useVortexAccount();
+  const [balanceMap, setBalanceMap] = useState<Map<string, string>>(new Map());
 
   const tokensByNetwork = useMemo(() => groupTokensByNetwork(tokens), [tokens]);
 
-  // Create contract calls for all networks
-  const contractCalls = useMemo(() => {
-    return Object.entries(tokensByNetwork).flatMap(([network, networkTokens]) => {
-      const chainId = getNetworkId(network as Networks);
-      return networkTokens.map(token => ({
-        abi: erc20ABI as Abi,
-        address: token.erc20AddressSourceChain,
-        args: [address],
-        chainId,
-        functionName: "balanceOf"
-      }));
-    });
-  }, [tokensByNetwork, address]);
+  // Fetch balances from Alchemy for all EVM networks once on component mount
+  useEffect(() => {
+    if (!address) return;
 
-  const { data: balances } = useReadContracts({
-    contracts: contractCalls ?? []
-  });
+    const fetchAllBalances = async () => {
+      // Get all EVM networks from the tokens passed
+      const evmNetworks = Object.keys(tokensByNetwork).filter(network => isNetworkEVM(network as Networks)) as Networks[];
 
-  if (!tokens.length || !balances) {
-    return [];
-  }
+      const allBalances = new Map<string, string>();
+
+      for (const network of evmNetworks) {
+        const networkTokens = tokensByNetwork[network];
+        if (!networkTokens?.length) continue;
+
+        const cacheKey = `${address}-${network}`;
+        let balances: Map<string, string>;
+
+        if (globalBalanceCache.has(cacheKey)) {
+          balances = globalBalanceCache.get(cacheKey)!;
+        } else {
+          try {
+            balances = await fetchAlchemyTokenBalances(address, network);
+            console.log(`[${network}] Balances:`, Object.fromEntries(balances));
+
+            globalBalanceCache.set(cacheKey, balances);
+          } catch (error) {
+            console.error(`Failed to fetch ${network} balances:`, error);
+            balances = new Map();
+          }
+        }
+
+        balances.forEach((value, key) => {
+          allBalances.set(key, value);
+        });
+      }
+
+      setBalanceMap(allBalances);
+    };
+
+    fetchAllBalances();
+  }, [address, tokensByNetwork]); // - run when address or tokens change
 
   // Create a flat list of all tokens with their balances
   const tokensWithBalances = tokens.reduce<Array<EvmTokenDetailsWithBalance>>((prev, curr, index) => {
-    const tokenBalance = balances[index]?.result;
+    const key = `${curr.network}-${curr.erc20AddressSourceChain?.toLowerCase()}`;
+    const tokenBalance = balanceMap.get(key); // If we are dealing with a stablecoin, we show 2 decimals, otherwise 6
+    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
 
-    // If we are dealing with a stablecoin, we show 2 decimals, otherwise 4
-    const showDecimals = curr.assetSymbol.toLowerCase().includes("usd") ? 2 : 4;
-    const balance = tokenBalance
-      ? multiplyByPowerOfTen(Big(tokenBalance.toString()), -curr.decimals).toFixed(showDecimals, 0)
-      : "0.00";
+    const balance = tokenBalance ? multiplyByPowerOfTen(Big(tokenBalance), -curr.decimals).toFixed(showDecimals, 0) : "0.00";
+
+    // Calculate balanceUsd by finding matching token in getAllEvmTokens by address and network
+    const allEvmTokens = getAllEvmTokens();
+    const matchingToken = allEvmTokens.find(
+      token =>
+        token.erc20AddressSourceChain?.toLowerCase() === curr.erc20AddressSourceChain?.toLowerCase() &&
+        token.network === curr.network
+    );
+    const usdPrice = matchingToken?.usdPrice ?? 0;
+    const balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
 
     prev.push({
       ...curr,
-      balance
+      balance,
+      balanceUsd
     });
 
     return prev;

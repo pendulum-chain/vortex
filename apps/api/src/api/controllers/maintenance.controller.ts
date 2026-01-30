@@ -63,7 +63,7 @@ export const getAllMaintenanceSchedules: RequestHandler = async (_, res) => {
  */
 export const updateScheduleActiveStatus: RequestHandler<{ id: string }> = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { isActive } = req.body;
 
     if (typeof isActive !== "boolean") {

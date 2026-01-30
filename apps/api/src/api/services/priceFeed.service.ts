@@ -3,6 +3,7 @@ import {
   EvmToken,
   getPendulumDetails,
   getTokenOutAmount,
+  getTokenUsdPrice,
   isFiatToken,
   normalizeTokenSymbol,
   PENDULUM_USDC_AXL,
@@ -453,7 +454,7 @@ export class PriceFeedService {
       ETH: "ethereum",
       GLMR: "moonbeam",
       HDX: "hydradx",
-      MATIC: "matic-network"
+      MATIC: "polygon-ecosystem-token"
     };
 
     return tokenIdMap[currency.toUpperCase()] || null;
@@ -488,6 +489,16 @@ export class PriceFeedService {
   }
 
   private async convertUsdToCrypto(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
+    // Try dynamic token price first
+    const dynamicPrice = getTokenUsdPrice(toCurrency);
+    if (dynamicPrice !== undefined && dynamicPrice > 0) {
+      const result = new Big(amount).div(dynamicPrice).toFixed(decimals);
+      logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using dynamic price: ${dynamicPrice}`);
+      return result;
+    }
+
+    // Fall back to CoinGecko
+    logger.debug(`No dynamic price for ${toCurrency}, falling back to CoinGecko`);
     const tokenId = this.getCoinGeckoTokenId(toCurrency);
     if (!tokenId) {
       throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
@@ -499,11 +510,21 @@ export class PriceFeedService {
     }
 
     const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
-    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
+    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using CoinGecko price: ${cryptoPriceUSD}`);
     return result;
   }
 
   private async convertCryptoToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
+    // Try dynamic token price first
+    const dynamicPrice = getTokenUsdPrice(fromCurrency);
+    if (dynamicPrice !== undefined && dynamicPrice > 0) {
+      const result = new Big(amount).mul(dynamicPrice).toFixed(decimals);
+      logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using dynamic price: ${dynamicPrice}`);
+      return result;
+    }
+
+    // Fall back to CoinGecko
+    logger.debug(`No dynamic price for ${fromCurrency}, falling back to CoinGecko`);
     const tokenId = this.getCoinGeckoTokenId(fromCurrency);
     if (!tokenId) {
       throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
@@ -511,7 +532,7 @@ export class PriceFeedService {
 
     const cryptoPriceUSD = await this.getCryptoPrice(tokenId, "usd");
     const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
-    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using price: ${cryptoPriceUSD}`);
+    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using CoinGecko price: ${cryptoPriceUSD}`);
     return result;
   }
 }

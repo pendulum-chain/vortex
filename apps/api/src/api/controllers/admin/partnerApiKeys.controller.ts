@@ -12,7 +12,7 @@ import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiK
  */
 export async function createApiKey(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
-    const { partnerName } = req.params;
+    const partnerName = req.params.partnerName as string;
     const { name, expiresAt } = req.body;
 
     // Verify at least one partner with this name exists and is active
@@ -112,7 +112,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
  */
 export async function listApiKeys(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
-    const { partnerName } = req.params;
+    const partnerName = req.params.partnerName as string;
 
     // Verify partner exists
     const partners = await Partner.findAll({

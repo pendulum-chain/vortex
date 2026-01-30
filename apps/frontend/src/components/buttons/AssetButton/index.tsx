@@ -1,16 +1,20 @@
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { cn } from "../../../helpers/cn";
 import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
+import { TokenImage } from "../../TokenImage";
 
 interface AssetButtonProps {
   assetIcon: string;
   tokenSymbol: string;
+  logoURI?: string;
+  fallbackLogoURI?: string;
   onClick: () => void;
   disabled?: boolean;
 }
 
-export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled }: AssetButtonProps) {
-  const icon = useGetAssetIcon(assetIcon);
+export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled, logoURI, fallbackLogoURI }: AssetButtonProps) {
+  const localIcon = useGetAssetIcon(assetIcon);
+  const primaryIcon = logoURI ?? localIcon;
 
   return (
     <button
@@ -22,9 +26,7 @@ export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled }: Asset
       onClick={onClick}
       type="button"
     >
-      <span className="mr-1 h-full rounded-full p-px">
-        <img alt={assetIcon} className="h-full min-h-5 max-w-min" src={icon} />
-      </span>
+      <TokenImage alt={assetIcon} className="mr-1 h-5 w-5" fallbackSrc={fallbackLogoURI} src={primaryIcon} />
       <strong className="font-bold text-black">{tokenSymbol}</strong>
       <ChevronDownIcon className="w-6" />
     </button>

@@ -64,6 +64,8 @@ export function getTokenDetailsForEvmDestination(
     });
   }
 
+  console.log("Getting token details for:", finalOutputCurrency, "on network:", network);
+
   const tokenDetails = getOnChainTokenDetails(network, finalOutputCurrency);
 
   if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {

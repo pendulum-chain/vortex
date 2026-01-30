@@ -5,11 +5,13 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
+import { getTokenLogoURIs } from "../../../helpers/tokenHelpers";
 import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -54,7 +56,7 @@ export const Offramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
   useEffect(() => {
@@ -73,12 +75,16 @@ export const Offramp = () => {
 
   const handleBalanceClick = useCallback((amount: string) => form.setValue("inputAmount", amount), [form]);
 
+  const { logoURI, fallbackLogoURI } = getTokenLogoURIs(fromToken);
+
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
           assetIcon={fromToken.networkAssetIcon}
+          fallbackLogoURI={fallbackLogoURI}
           id="inputAmount"
+          logoURI={logoURI}
           onChange={handleInputChange}
           onClick={() => openTokenSelectModal("from")}
           registerInput={form.register("inputAmount")}
@@ -90,7 +96,7 @@ export const Offramp = () => {
         </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected]
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, logoURI, fallbackLogoURI]
   );
 
   const ReceiveNumericInput = useMemo(
