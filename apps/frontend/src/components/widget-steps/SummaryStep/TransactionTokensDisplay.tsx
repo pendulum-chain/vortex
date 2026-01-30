@@ -125,16 +125,16 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <AssetDisplay
         amount={quote.inputAmount}
         fallbackIconSrc={fromIconInfo.fallbackIconSrc}
-        iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
         iconSrc={fromIconInfo.iconSrc}
+        network={fromIconInfo.network}
         symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
       />
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={quote.outputAmount}
         fallbackIconSrc={toIconInfo.fallbackIconSrc}
-        iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
         iconSrc={toIconInfo.iconSrc}
+        network={toIconInfo.network}
         symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
       />
       <FeeDetails
