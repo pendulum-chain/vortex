@@ -5,11 +5,11 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
-import { getTokenLogoURIs } from "../../../helpers/tokenHelpers";
 import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
@@ -84,33 +84,25 @@ export const Onramp = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange]
   );
 
-  const { logoURI, fallbackLogoURI } = getTokenLogoURIs(toToken);
+  const toIconInfo = useTokenIcon(toToken);
 
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
         assetIcon={toToken.networkAssetIcon}
         disabled={!toAmount}
-        fallbackLogoURI={fallbackLogoURI}
+        fallbackLogoURI={toIconInfo.fallbackIconSrc}
         id="outputAmount"
         loading={quoteLoading}
-        logoURI={logoURI}
+        logoURI={toIconInfo.iconSrc}
+        network={toIconInfo.network}
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
         registerInput={form.register("outputAmount")}
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [
-      toToken.networkAssetIcon,
-      toToken.assetSymbol,
-      form,
-      quoteLoading,
-      toAmount,
-      openTokenSelectModal,
-      logoURI,
-      fallbackLogoURI
-    ]
+    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo]
   );
 
   const handleConfirm = useCallback(() => {

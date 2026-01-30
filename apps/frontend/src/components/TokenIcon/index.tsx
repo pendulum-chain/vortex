@@ -1,15 +1,15 @@
-import { FC, memo, useEffect, useState } from "react";
+import { FC, memo, useState } from "react";
 import placeholderIcon from "../../assets/coins/placeholder.svg";
 import { cn } from "../../helpers/cn";
 
-interface TokenImageProps {
+interface TokenIconProps {
   src: string;
   fallbackSrc?: string;
   alt: string;
   className?: string;
 }
 
-export const TokenImage: FC<TokenImageProps> = memo(function TokenImage({ src, fallbackSrc, alt, className }) {
+export const TokenIcon: FC<TokenIconProps> = memo(function TokenIcon({ src, fallbackSrc, alt, className }) {
   const [isLoading, setIsLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [fallbackError, setFallbackError] = useState(false);
