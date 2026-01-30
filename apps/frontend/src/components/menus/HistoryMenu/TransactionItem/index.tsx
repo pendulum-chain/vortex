@@ -1,5 +1,11 @@
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
-import { getNetworkDisplayName, Networks, PaymentMethod, roundDownToSignificantDecimals } from "@vortexfi/shared";
+import {
+  EPaymentMethod,
+  getNetworkDisplayName,
+  Networks,
+  PaymentMethod,
+  roundDownToSignificantDecimals
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { FC, useState } from "react";
 import { useTokenIcon } from "../../../../hooks/useTokenIcon";
@@ -28,7 +34,7 @@ const formatTooltipDate = (date: Date) =>
     year: "numeric"
   });
 
-const PAYMENT_METHODS: PaymentMethod[] = ["pix", "sepa", "cbu"];
+const PAYMENT_METHODS: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU];
 
 function isNetwork(destination: TransactionDestination): destination is Networks {
   return !PAYMENT_METHODS.includes(destination as PaymentMethod);
