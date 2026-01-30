@@ -23,7 +23,6 @@ export function AssetButton({
   fallbackLogoURI,
   network
 }: AssetButtonProps) {
-  // Use assetIcon for fiat fallback lookup (e.g., "eur", "brl")
   const fallbackIcon = useTokenIcon(assetIcon);
   const primaryIcon = logoURI ?? fallbackIcon.iconSrc;
 

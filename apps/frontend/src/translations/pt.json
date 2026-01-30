@@ -937,6 +937,7 @@
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
+        "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
