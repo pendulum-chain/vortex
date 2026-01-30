@@ -71,7 +71,7 @@ const CollapsibleDetails = ({ children, className = "" }: CollapsibleDetailsProp
 
   return (
     <div
-      className={`grid transition-[grid-template-rows] duration-300 ease-out ${className}`}
+      className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${className}`}
       style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
     >
       <div className="overflow-hidden">

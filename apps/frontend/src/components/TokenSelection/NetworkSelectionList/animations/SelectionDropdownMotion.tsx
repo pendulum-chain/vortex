@@ -13,7 +13,7 @@ export const SelectionDropdownMotion = ({ isOpen, children, className }: Selecti
 
   return (
     <div
-      className={`grid transition-[grid-template-rows] duration-150 ease-out ${className || ""}`}
+      className={`grid transition-[grid-template-rows] duration-150 ease-out motion-reduce:transition-none ${className || ""}`}
       style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
     >
       <div className="overflow-hidden">
@@ -28,7 +28,7 @@ export const SelectionDropdownMotion = ({ isOpen, children, className }: Selecti
                 shouldReduceMotion
                   ? { duration: 0 }
                   : {
-                      delay: isOpen ? durations.fast : 0,
+                      delay: durations.fast,
                       duration: durations.fast,
                       ease: easings.easeOutCubic
                     }
