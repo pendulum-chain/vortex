@@ -1,5 +1,6 @@
 import axios from "axios";
 import { EvmNetworks, getNetworkId, isNetworkEVM, Networks } from "../../helpers/networks";
+import logger from "../../logger";
 import { squidRouterConfigBase } from "../../services/squidrouter/config";
 import { PENDULUM_USDC_AXL } from "../pendulum/config";
 import { TokenType } from "../types/base";
@@ -83,6 +84,10 @@ function getNetworkAssetIcon(network: Networks, symbol: string): string {
   return `${networkName}${cleanSymbol}`;
 }
 
+function generateFallbackLogoURI(chainId: number, address: string): string {
+  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
+}
+
 function shouldIncludeToken(token: SquidRouterToken): boolean {
   const symbol = token.symbol.toUpperCase();
 
@@ -119,7 +124,7 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     assetSymbol: token.symbol,
     decimals: token.decimals,
     erc20AddressSourceChain: erc20Address,
-    fallbackLogoURI: `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${token.chainId}_${token.address.toLowerCase()}.webp`,
+    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), erc20Address),
     isNative,
     logoURI: token.logoURI,
     network,
@@ -168,6 +173,13 @@ function mergeWithStaticConfig(
       const dynamicToken = dynamicTokens[network][normalizedSymbol];
 
       if (dynamicToken) {
+        // Warning if addresses point to different contracts (possible configuration drift or scam token)
+        if (staticToken.erc20AddressSourceChain.toLowerCase() !== dynamicToken.erc20AddressSourceChain.toLowerCase()) {
+          logger.current.warn(
+            `[DynamicEvmTokens] Address mismatch for ${symbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
+          );
+        }
+
         // Static token exists and dynamic token exists - merge, static takes priority
         merged[network][normalizedSymbol] = {
           ...staticToken,
