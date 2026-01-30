@@ -8,8 +8,6 @@ export * from "./constants/misc";
 // Constants
 // Configurations
 export * from "./evm/config";
-// Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
-export * from "./evm/dynamicEvmTokens";
 export * from "./moonbeam/config";
 export * from "./pendulum/config";
 export * from "./stellar/config";
@@ -26,3 +24,6 @@ export * from "./utils/helpers";
 export * from "./utils/normalization";
 // Utils
 export * from "./utils/typeGuards";
+// Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
+export * from "./evm/dynamicEvmTokens";
+/* prettier-ignore-end */
