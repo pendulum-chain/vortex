@@ -75,8 +75,8 @@ class RampRecoveryWorker {
       // Process each stale state concurrently
       const recoveryPromises = staleStates.map(async state => {
         try {
-          logger.info(`Attempting recovery for ramp state ${state.id} in phase ${state.currentPhase}`);
-          // Process the state
+          logger.info(`Attempting recovery in phase ${state.currentPhase} for ramp ${state.id}`);
+          // Process the state (processRamp already wraps execution with runWithRampContext)
           await phaseProcessor.processRamp(state.id);
           logger.info(`Successfully processed ramp state ${state.id}`);
           return { stateId: state.id, status: "fulfilled" };
@@ -101,7 +101,7 @@ class RampRecoveryWorker {
             const updateError = updateE as Error;
             logger.error(`Failed to update ramp state ${state.id} with error log:`, updateError);
             // Log the original error as well if the update fails
-            logger.error(`Original recovery error for state ${state.id}:`, error);
+            logger.error(`Original recovery error for ${state.id}:`, error);
           }
           // Return a rejected status for Promise.allSettled
           return { reason: error, stateId: state.id, status: "rejected" };

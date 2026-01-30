@@ -7,6 +7,7 @@ import {
   createSquidRouterHash,
   ERC20_EURE_POLYGON_V1,
   EvmClientManager,
+  EvmNetworks,
   EvmTransactionData,
   encodePayload,
   getSquidRouterConfig,
@@ -32,6 +33,15 @@ export interface OnrampSquidrouterParamsFromPolygon {
   fromToken: `0x${string}`;
   toToken: `0x${string}`;
   toNetwork: Networks;
+  destinationAddress: string;
+}
+
+export interface OnrampSquidrouterParamsOnDestinationChain {
+  fromAddress: string;
+  rawAmount: string;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
+  network: EvmNetworks;
   destinationAddress: string;
 }
 
@@ -154,6 +164,41 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
       squidRouterQuoteId,
       squidRouterReceiverHash,
       squidRouterReceiverId,
+      swapData
+    };
+  } catch (e) {
+    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+  }
+}
+
+export async function createOnrampSquidrouterTransactionsOnDestinationChain(
+  params: OnrampSquidrouterParamsOnDestinationChain
+): Promise<OnrampTransactionData> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const client = evmClientManager.getClient(params.network);
+
+  const routeParams = createGenericRouteParams({
+    ...params,
+    amount: params.rawAmount,
+    fromNetwork: params.network,
+    toNetwork: params.network
+  });
+
+  try {
+    const routeResult = await getRoute(routeParams);
+    const { route } = routeResult.data;
+
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
+      inputTokenErc20Address: params.fromToken,
+      publicClient: client,
+      rawAmount: params.rawAmount,
+      route
+    });
+
+    return {
+      approveData,
+      route,
+      squidRouterQuoteId,
       swapData
     };
   } catch (e) {

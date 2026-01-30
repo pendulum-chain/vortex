@@ -6,8 +6,5 @@ export {
   getAllEvmTokens,
   getEvmTokenConfig,
   getEvmTokensForNetwork,
-  getLoadingError,
-  initializeEvmTokens,
-  isTokensLoaded,
-  usedFallbackConfig
+  initializeEvmTokens
 } from "@vortexfi/shared";

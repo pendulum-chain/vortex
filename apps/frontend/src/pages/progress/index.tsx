@@ -16,11 +16,16 @@ import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
   assethubToPendulum: 24,
+  backupApprove: 0,
+  backupSquidRouterApprove: 0,
+  backupSquidRouterSwap: 0,
   brlaOnrampMint: 5 * 60,
   brlaPayoutOnMoonbeam: 30,
   complete: 0,
+  destinationTransfer: 12,
   distributeFees: 24,
   failed: 0,
+  finalSettlementSubsidy: 30,
   fundEphemeral: 20,
   hydrationSwap: 30,
   hydrationToAssethubXcm: 30,
