@@ -2,7 +2,7 @@ import { DesktopNavbar } from "./DesktopNavbar";
 import { MobileNavbar } from "./MobileNavbar";
 
 export const Navbar = () => (
-  <header className="relative z-60">
+  <header className="relative z-50">
     <div className="hidden sm:block">
       <DesktopNavbar />
     </div>

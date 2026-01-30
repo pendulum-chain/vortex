@@ -58,7 +58,7 @@ const AccordionWrapper = ({ defaultValue = [], itemCount = 3 }: StoryArgs) => {
 };
 
 const InteractiveDemo = () => {
-  const [openItems, setOpenItems] = useState<string[]>(["item-1"]);
+  const [openItems] = useState<string[]>(["item-1"]);
 
   return (
     <div className="w-full max-w-2xl space-y-4">
