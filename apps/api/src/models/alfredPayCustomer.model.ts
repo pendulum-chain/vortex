@@ -1,33 +1,6 @@
+import { AlfredPayCountry, AlfredPayStatus, AlfredPayType } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-
-export enum AlfredPayStatus {
-  Consulted = "CONSULTED",
-  LinkOpened = "LINK_OPENED",
-  UserCompleted = "USER_COMPLETED",
-  Verifying = "VERIFYING",
-  Failed = "FAILED",
-  Success = "SUCCESS"
-}
-
-export enum AlfredPayCountry {
-  MX = "MX", // Mexico
-  AR = "AR", // Argentina
-  BR = "BR", // Brazil
-  CO = "CO", // Colombia
-  DO = "DO", // Dominican Republic
-  US = "US", // United States
-  CN = "CN", // China
-  HK = "HK", // Hong Kong
-  CL = "CL", // Chile
-  PE = "PE", // Peru
-  BO = "BO" // Bolivia
-}
-
-export enum AlfredPayType {
-  Individual = "INDIVIDUAL",
-  Business = "BUSINESS"
-}
 
 export interface AlfredPayCustomerAttributes {
   id: string; // Internal PK

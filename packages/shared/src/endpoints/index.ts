@@ -1,4 +1,5 @@
 // Export all endpoint types
+export * from "./alfredpay.endpoints";
 export * from "./brla.endpoints";
 export * from "./email.endpoints";
 export * from "./monerium";

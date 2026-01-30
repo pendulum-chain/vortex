@@ -1,6 +1,32 @@
 export enum AlfredpayCustomerType {
   INDIVIDUAL = "INDIVIDUAL",
-  COMPANY = "COMPANY" // Assuming COMPANY might exist based on INDIVIDUAL presence
+  COMPANY = "COMPANY"
+}
+
+export type AlfredPayType = AlfredpayCustomerType;
+export const AlfredPayType = AlfredpayCustomerType;
+
+export enum AlfredPayStatus {
+  Consulted = "CONSULTED",
+  LinkOpened = "LINK_OPENED",
+  UserCompleted = "USER_COMPLETED",
+  Verifying = "VERIFYING",
+  Failed = "FAILED",
+  Success = "SUCCESS"
+}
+
+export enum AlfredPayCountry {
+  MX = "MX", // Mexico
+  AR = "AR", // Argentina
+  BR = "BR", // Brazil
+  CO = "CO", // Colombia
+  DO = "DO", // Dominican Republic
+  US = "US", // United States
+  CN = "CN", // China
+  HK = "HK", // Hong Kong
+  CL = "CL", // Chile
+  PE = "PE", // Peru
+  BO = "BO" // Bolivia
 }
 
 export interface CreateAlfredpayCustomerRequest {
