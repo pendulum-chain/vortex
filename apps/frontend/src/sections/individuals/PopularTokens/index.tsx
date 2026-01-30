@@ -1,56 +1,18 @@
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
-import {
-  AssetHubToken,
-  assetHubTokenConfig,
-  doesNetworkSupportRamp,
-  EvmToken,
-  evmTokenConfig,
-  FiatToken,
-  getNetworkDisplayName,
-  Networks
-} from "@vortexfi/shared";
+import { doesNetworkSupportRamp, FiatToken, getNetworkDisplayName, Networks } from "@vortexfi/shared";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import VORTEX from "../../../assets/logo/vortex_x.svg";
-import CIRCLE from "../../../assets/trusted-by/circle.svg";
-import PENDULUM from "../../../assets/trusted-by/pendulum-icon.svg";
 import { cn } from "../../../helpers/cn";
-import { isValidAssetIcon, useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
+import { isValidFiatIcon } from "../../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../../hooks/useGetNetworkIcon";
+import { useTokenIcon } from "../../../hooks/useTokenIcon";
 
-const getEvmTokenIcon = (token: EvmToken): string => {
-  for (const networkConfig of Object.values(evmTokenConfig)) {
-    const tokenConfig = networkConfig[token];
-    if (tokenConfig?.networkAssetIcon) {
-      return tokenConfig.networkAssetIcon;
-    }
-  }
-  return token.toLowerCase();
-};
-
-const getTokenIcon = (name: string): string => {
-  if (Object.values(EvmToken).includes(name as EvmToken)) {
-    return getEvmTokenIcon(name as EvmToken);
-  }
-  if (Object.values(AssetHubToken).includes(name as AssetHubToken)) {
-    const config = assetHubTokenConfig[name as AssetHubToken];
-    return config?.networkAssetIcon || name.toLowerCase() || "";
-  }
-
-  return name.toLowerCase() || "";
-};
-
-const allCurrencies = Array.from(
-  new Set([...Object.values(FiatToken), ...Object.values(AssetHubToken), ...Object.values(EvmToken)])
-);
-
-const tokens: Array<{ name: string; assetIcon: string }> = allCurrencies
+const fiatTokens: Array<{ name: string; assetIcon: string }> = Object.values(FiatToken)
   .map(name => ({
-    assetIcon: getTokenIcon(name),
+    assetIcon: name.toLowerCase(),
     name
   }))
-  .filter(token => isValidAssetIcon(token.assetIcon));
+  .filter(token => isValidFiatIcon(token.assetIcon));
 
 const networks = Object.values(Networks).filter(doesNetworkSupportRamp);
 
@@ -99,8 +61,8 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
 };
 
 const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
-  const icon = useGetAssetIcon(token.assetIcon);
-  return <Badge icon={icon} isAnimating={isAnimating} label={token.name} rotationDuration={0.3} />;
+  const { iconSrc } = useTokenIcon(token.assetIcon);
+  return <Badge icon={iconSrc} isAnimating={isAnimating} label={token.name} rotationDuration={0.3} />;
 };
 
 export function PopularTokens() {
@@ -117,7 +79,7 @@ export function PopularTokens() {
   useEffect(() => {
     const interval = setInterval(() => {
       const isNetwork = Math.random() < 0.5;
-      const maxIndex = isNetwork ? networks.length : tokens.length;
+      const maxIndex = isNetwork ? networks.length : fiatTokens.length;
       const newIndex = Math.floor(Math.random() * maxIndex);
 
       setAnimatingIndex({
@@ -157,7 +119,7 @@ export function PopularTokens() {
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5 }}
           >
-            {tokens.map((token, index) => (
+            {fiatTokens.map((token, index) => (
               <TokenBadge
                 isAnimating={animatingIndex.type === "token" && index === animatingIndex.index}
                 key={index}

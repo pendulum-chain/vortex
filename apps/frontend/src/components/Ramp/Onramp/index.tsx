@@ -9,6 +9,8 @@ import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { useTokenIcon } from "../../../hooks/useTokenIcon";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../../../stores/quote/useQuoteFormStore";
 import { useQuoteLoading } from "../../../stores/quote/useQuoteStore";
@@ -50,7 +52,7 @@ export const Onramp = () => {
   const { openTokenSelectModal } = useTokenSelectionActions();
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);
-  const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
 
   useEffect(() => {
     if (!fromAmountFieldTouched || !inputAmount) return;
@@ -82,20 +84,25 @@ export const Onramp = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange]
   );
 
+  const toIconInfo = useTokenIcon(toToken);
+
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
         assetIcon={toToken.networkAssetIcon}
         disabled={!toAmount}
+        fallbackLogoURI={toIconInfo.fallbackIconSrc}
         id="outputAmount"
         loading={quoteLoading}
+        logoURI={toIconInfo.iconSrc}
+        network={toIconInfo.network}
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
         registerInput={form.register("outputAmount")}
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal]
+    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo]
   );
 
   const handleConfirm = useCallback(() => {

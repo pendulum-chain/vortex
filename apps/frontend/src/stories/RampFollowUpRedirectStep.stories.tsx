@@ -3,7 +3,7 @@ import { RampFollowUpRedirectStep } from "../components/widget-steps/RampFollowU
 import { RampStateContext } from "../contexts/rampState";
 
 // Helper to create a complete snapshot
-const createSnapshot = (callbackUrl: string = "https://example.com/callback") => ({
+const createSnapshot = (callbackUrl = "https://example.com/callback") => ({
   children: {},
   context: {
     apiKey: undefined,

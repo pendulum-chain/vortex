@@ -1,6 +1,7 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dispatch } from "react";
 import { useTranslation } from "react-i18next";
+import { durations, easings } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 
 interface TermsAndConditionsProps {
@@ -14,7 +15,7 @@ interface TermsAndConditionsProps {
 const fadeOutAnimation = {
   opacity: [1, 1, 0],
   scale: [1, 1.05, 0],
-  transition: { duration: 0.3 }
+  transition: { duration: durations.slow, ease: easings.easeOutCubic }
 };
 
 export const TermsAndConditions = (props: TermsAndConditionsProps) => {
@@ -48,15 +49,19 @@ const TermsAndConditionsContent = ({
 
 const TermsText = ({ error }: { error: boolean }) => {
   const { t } = useTranslation();
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <motion.span
-      animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
+      animate={shouldReduceMotion ? {} : { scale: [1, 1.02, 1], transition: { duration: durations.normal } }}
       className={cn("pl-2", error && "text-red-800")}
     >
       {t("components.termsAndConditions.text")}{" "}
       <a
-        className={cn("link link-accent transition-all duration-150", error && "font-bold text-red-800")}
+        className={cn(
+          "link link-accent transition-colors duration-150 motion-reduce:transition-none",
+          error && "font-bold text-red-800"
+        )}
         href="https://www.vortexfinance.co/terms-conditions"
         rel="noreferrer"
         style={{ textDecoration: "underline" }}
