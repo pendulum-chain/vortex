@@ -944,6 +944,7 @@
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
+        "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",

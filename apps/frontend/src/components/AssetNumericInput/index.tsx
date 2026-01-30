@@ -1,4 +1,4 @@
-import { EvmToken } from "@vortexfi/shared";
+import { EvmToken, Networks } from "@vortexfi/shared";
 import type { ChangeEvent, FC } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { cn } from "../../helpers/cn";
@@ -24,6 +24,7 @@ interface AssetNumericInputProps {
   fallbackLogoURI?: string;
   registerInput: UseFormRegisterReturn<keyof QuoteFormValues>;
   id: string;
+  network?: Networks;
 }
 
 export const AssetNumericInput: FC<AssetNumericInputProps> = ({
@@ -45,6 +46,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
         assetIcon={assetIcon}
         fallbackLogoURI={rest.fallbackLogoURI}
         logoURI={rest.logoURI}
+        network={rest.network}
         onClick={onClick}
         tokenSymbol={tokenSymbol}
       />

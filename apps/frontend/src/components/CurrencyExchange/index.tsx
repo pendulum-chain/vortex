@@ -1,5 +1,7 @@
+import { Networks } from "@vortexfi/shared";
 import Arrow from "../../assets/arrow.svg";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 
 interface CurrencyExchangeProps {
   inputAmount: string;
@@ -10,6 +12,12 @@ interface CurrencyExchangeProps {
   layout?: "horizontal" | "vertical";
   className?: string;
   showApproximation?: boolean;
+  inputNetwork?: Networks;
+  outputNetwork?: Networks;
+  inputIcon?: string;
+  outputIcon?: string;
+  inputFallbackIcon?: string;
+  outputFallbackIcon?: string;
 }
 
 export const CurrencyExchange = ({
@@ -20,10 +28,20 @@ export const CurrencyExchange = ({
   showIcons = false,
   layout = "horizontal",
   className = "",
-  showApproximation = false
+  showApproximation = false,
+  inputNetwork,
+  outputNetwork,
+  inputIcon: inputIconProp,
+  outputIcon: outputIconProp,
+  inputFallbackIcon,
+  outputFallbackIcon
 }: CurrencyExchangeProps) => {
-  const inputIcon = useGetAssetIcon(inputCurrency.toLowerCase());
-  const outputIcon = useGetAssetIcon(outputCurrency.toLowerCase());
+  // Use useTokenIcon for fallback icons when explicit icon props aren't provided
+  const inputIconFallback = useTokenIcon(inputCurrency, inputNetwork);
+  const outputIconFallback = useTokenIcon(outputCurrency, outputNetwork);
+
+  const inputIcon = inputIconProp ?? inputIconFallback.iconSrc;
+  const outputIcon = outputIconProp ?? outputIconFallback.iconSrc;
 
   if (layout === "vertical") {
     return (
@@ -31,14 +49,32 @@ export const CurrencyExchange = ({
         <div className="flex flex-col">
           <div className="text-gray-500">You send</div>
           <div className="flex grow items-center font-bold">
-            {showIcons && <img alt={inputCurrency} className="mr-2 h-6 w-6" src={inputIcon} />}
+            {showIcons && (
+              <TokenIconWithNetwork
+                className="mr-2 h-6 w-6"
+                fallbackIconSrc={inputFallbackIcon}
+                iconSrc={inputIcon}
+                network={inputNetwork}
+                showNetworkOverlay={!!inputNetwork}
+                tokenSymbol={inputCurrency}
+              />
+            )}
             {inputAmount} {inputCurrency.toUpperCase()}
           </div>
         </div>
         <div className="flex flex-col">
           <div className="text-gray-500">You get</div>
           <div className="flex grow items-center justify-end font-bold">
-            {showIcons && <img alt={outputCurrency} className="mr-2 h-6 w-6" src={outputIcon} />}
+            {showIcons && (
+              <TokenIconWithNetwork
+                className="mr-2 h-6 w-6"
+                fallbackIconSrc={outputFallbackIcon}
+                iconSrc={outputIcon}
+                network={outputNetwork}
+                showNetworkOverlay={!!outputNetwork}
+                tokenSymbol={outputCurrency}
+              />
+            )}
             {showApproximation && "~ "}
             {outputAmount} {outputCurrency.toUpperCase()}
           </div>
