@@ -5,11 +5,11 @@ import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
 import { useNetwork } from "../../../contexts/network";
+import { getTokenLogoURIs } from "../../../helpers/tokenHelpers";
 import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
-import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
@@ -75,17 +75,16 @@ export const Offramp = () => {
 
   const handleBalanceClick = useCallback((amount: string) => form.setValue("inputAmount", amount), [form]);
 
-  const fromIconInfo = useTokenIcon(fromToken);
+  const { logoURI, fallbackLogoURI } = getTokenLogoURIs(fromToken);
 
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
           assetIcon={fromToken.networkAssetIcon}
-          fallbackLogoURI={fromIconInfo.fallbackIconSrc}
+          fallbackLogoURI={fallbackLogoURI}
           id="inputAmount"
-          logoURI={fromIconInfo.iconSrc}
-          network={fromIconInfo.network}
+          logoURI={logoURI}
           onChange={handleInputChange}
           onClick={() => openTokenSelectModal("from")}
           registerInput={form.register("inputAmount")}
@@ -97,7 +96,7 @@ export const Offramp = () => {
         </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, fromIconInfo]
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, logoURI, fallbackLogoURI]
   );
 
   const ReceiveNumericInput = useMemo(

@@ -23,7 +23,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    if (state.type !== RampDirection.SELL || this.getPresignedTransaction(state, "stellarCleanup") === undefined) {
+    if (state.type !== RampDirection.SELL) {
       return false;
     }
 

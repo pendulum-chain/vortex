@@ -47,22 +47,16 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     });
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");
-  const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
 
   const messages: Record<RampPhase, string> = {
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
     }),
-    backupApprove: "", // Not relevant for progress page
-    backupSquidRouterApprove: "", // Not relevant for progress page
-    backupSquidRouterSwap: "", // Not relevant for progress page
     brlaOnrampMint: t("pages.progress.brlaOnrampMint"),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
-    complete: "", // Not relevant for progress page
-    destinationTransfer: getDestinationTransferMessage(),
+    complete: "",
     distributeFees: getSwappingMessage(),
-    failed: "", // Not relevant for progress page
-    finalSettlementSubsidy: getDestinationTransferMessage(),
+    failed: "",
     fundEphemeral: t("pages.progress.fundEphemeral"),
     hydrationSwap: t("pages.progress.hydrationSwap", {
       inputAssetSymbol: "USDC",
@@ -93,10 +87,10 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterApprove: getSquidrouterSwapMessage(),
     squidRouterPay: getSquidrouterSwapMessage(),
     squidRouterSwap: getSquidrouterSwapMessage(),
-    stellarCreateAccount: t("pages.progress.createStellarAccount"),
+    stellarCreateAccount: t("pages.progress.createStellarAccount"), // Not relevant for progress page
     stellarPayment: t("pages.progress.stellarPayment", {
       assetSymbol: outputAssetSymbol
-    }),
+    }), // Not relevant for progress page
     subsidizePostSwap: getSwappingMessage(),
     subsidizePreSwap: getSwappingMessage(),
     timedOut: "" // Not relevant for progress page

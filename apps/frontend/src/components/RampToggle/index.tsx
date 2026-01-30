@@ -1,5 +1,5 @@
 import { RampDirection } from "@vortexfi/shared";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 interface RampToggleProps {
@@ -9,12 +9,11 @@ interface RampToggleProps {
 
 export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
   const { t } = useTranslation();
-  const shouldReduceMotion = useReducedMotion();
 
   return (
     <div className="relative mb-6 flex justify-center">
       <button
-        className={`relative z-10 flex-1 cursor-pointer px-4 py-2 text-center font-bold text-2xl transition-colors duration-150 ${
+        className={`relative z-10 flex-1 cursor-pointer px-4 py-2 text-center font-bold text-2xl transition-all duration-150 ${
           activeDirection === RampDirection.BUY ? "text-blue-700" : "text-gray-500 hover:text-gray-700"
         }`}
         onClick={() => onToggle(RampDirection.BUY)}
@@ -22,7 +21,7 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
         {t("components.swap.buyButton")}
       </button>
       <button
-        className={`relative z-10 flex-1 cursor-pointer px-4 py-2 text-center font-bold text-2xl transition-colors duration-150 ${
+        className={`relative z-10 flex-1 cursor-pointer px-4 py-2 text-center font-bold text-2xl transition-all duration-150 ${
           activeDirection === RampDirection.SELL ? "text-blue-700" : "text-gray-500 hover:text-gray-700"
         }`}
         onClick={() => onToggle(RampDirection.SELL)}
@@ -37,15 +36,11 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
           left: activeDirection === RampDirection.BUY ? "0%" : "50%",
           width: "50%"
         }}
-        transition={
-          shouldReduceMotion
-            ? { duration: 0 }
-            : {
-                bounce: 0.2,
-                duration: 0.6,
-                type: "spring"
-              }
-        }
+        transition={{
+          bounce: 0.2,
+          duration: 0.6,
+          type: "spring"
+        }}
       />
     </div>
   );

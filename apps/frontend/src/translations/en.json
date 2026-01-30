@@ -198,7 +198,7 @@
         "title": "Connect wallet"
       },
       "polkadotWalletSelectorDialogLoading": {
-        "description": "Please approve {{selectedWallet}} and approve the transaction.",
+        "description": "Please approve {selectedWallet} and approve the transaction.",
         "title": "Connecting wallet"
       },
       "selectionModal": {
@@ -880,7 +880,6 @@
       "brlaOnrampMint": "Your payment is being processed. This can take up to 5 minutes.",
       "closeProgressScreenText": "You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
       "createStellarAccount": "Creating Stellar account",
-      "destinationTransfer": "Transferring {{assetSymbol}} to your wallet",
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
@@ -944,7 +943,6 @@
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",

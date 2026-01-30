@@ -1,17 +1,10 @@
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
-import {
-  EPaymentMethod,
-  getNetworkDisplayName,
-  Networks,
-  PaymentMethod,
-  roundDownToSignificantDecimals
-} from "@vortexfi/shared";
+import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC, useState } from "react";
-import { useTokenIcon } from "../../../../hooks/useTokenIcon";
+import { useGetAssetIcon } from "../../../../hooks/useGetAssetIcon";
 import { StatusBadge } from "../../../StatusBadge";
-import { TokenIconWithNetwork } from "../../../TokenIconWithNetwork";
-import { Transaction, TransactionDestination } from "../types";
+import { Transaction } from "../types";
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -34,28 +27,17 @@ const formatTooltipDate = (date: Date) =>
     year: "numeric"
   });
 
-const PAYMENT_METHODS: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU];
-
-function isNetwork(destination: TransactionDestination): destination is Networks {
-  return !PAYMENT_METHODS.includes(destination as PaymentMethod);
-}
-
-const getNetworkName = (network: TransactionDestination) => {
-  if (!isNetwork(network)) {
+const getNetworkName = (network: Transaction["from"] | Transaction["to"]) => {
+  if (typeof network === "string" && ["pix", "sepa", "cbu"].includes(network)) {
     return network.toUpperCase();
   }
-  return getNetworkDisplayName(network);
+  return getNetworkDisplayName(network as Networks);
 };
 
 export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
   const [isHovered, setIsHovered] = useState(false);
-
-  // Determine network for each currency (only on-chain tokens have networks)
-  const fromNetwork = isNetwork(transaction.from) ? transaction.from : undefined;
-  const toNetwork = isNetwork(transaction.to) ? transaction.to : undefined;
-
-  const fromIcon = useTokenIcon(transaction.fromCurrency, fromNetwork);
-  const toIcon = useTokenIcon(transaction.toCurrency, toNetwork);
+  const fromIcon = useGetAssetIcon(transaction.fromCurrency.toLowerCase());
+  const toIcon = useGetAssetIcon(transaction.toCurrency.toLowerCase());
 
   return (
     <div
@@ -66,22 +48,8 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
       <div className="flex items-center space-x-2">
         <div>
           <div className="relative h-8 w-16">
-            <TokenIconWithNetwork
-              className="absolute top-0 left-0 h-8 w-8"
-              fallbackIconSrc={fromIcon.fallbackIconSrc}
-              iconSrc={fromIcon.iconSrc}
-              network={fromIcon.network}
-              showNetworkOverlay={!!fromIcon.network}
-              tokenSymbol={transaction.fromCurrency}
-            />
-            <TokenIconWithNetwork
-              className="absolute top-0 left-5 h-8 w-8"
-              fallbackIconSrc={toIcon.fallbackIconSrc}
-              iconSrc={toIcon.iconSrc}
-              network={toIcon.network}
-              showNetworkOverlay={!!toIcon.network}
-              tokenSymbol={transaction.toCurrency}
-            />
+            <img alt={transaction.fromCurrency} className="absolute top-0 left-0 h-8 w-8" src={fromIcon} />
+            <img alt={transaction.toCurrency} className="absolute top-0 left-5 h-8 w-8" src={toIcon} />
           </div>
         </div>
         <div>

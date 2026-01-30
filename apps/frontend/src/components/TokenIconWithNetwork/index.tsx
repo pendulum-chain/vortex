@@ -2,7 +2,7 @@ import { Networks } from "@vortexfi/shared";
 import { FC, memo } from "react";
 import { cn } from "../../helpers/cn";
 import { NETWORK_ICONS } from "../../hooks/useGetNetworkIcon";
-import { TokenIcon } from "../TokenIcon";
+import { TokenImage } from "../TokenImage";
 
 interface TokenIconWithNetworkProps {
   iconSrc: string;
@@ -26,11 +26,11 @@ export const TokenIconWithNetwork: FC<TokenIconWithNetworkProps> = memo(function
 
   return (
     <div className={cn("relative", className)}>
-      <TokenIcon alt={tokenSymbol} className="h-full w-full" fallbackSrc={fallbackIconSrc} src={iconSrc} />
+      <TokenImage alt={tokenSymbol} className="h-full w-full" fallbackSrc={fallbackIconSrc} src={iconSrc} />
       {shouldShowOverlay && (
         <img
           alt={`${network} network`}
-          className="-bottom-0.5 -right-0.5 absolute h-[50%] w-[50%] rounded-full object-contain"
+          className="-bottom-0.5 -right-0.5 absolute h-[40%] w-[40%] rounded-full object-contain"
           decoding="async"
           loading="lazy"
           src={networkIcon}

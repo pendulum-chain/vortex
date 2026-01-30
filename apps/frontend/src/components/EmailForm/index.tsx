@@ -56,7 +56,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
           </div>
           {!isPending && !isSuccess && (
             <button
-              className="h-12! min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center font-medium text-white transition-[background-color,transform] duration-200 ease-out hover:bg-blue-700 active:scale-95 motion-reduce:transition-none"
+              className="h-12! min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center font-medium text-white transition-all duration-200 hover:bg-blue-700 active:scale-95"
               disabled={isPending}
               type="submit"
             >

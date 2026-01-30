@@ -1,11 +1,4 @@
-import {
-  API,
-  EvmClientManager,
-  EvmNetworks,
-  HORIZON_URL,
-  StellarTokenDetails,
-  Networks as VortexNetworks
-} from "@vortexfi/shared";
+import { API, EvmClientManager, HORIZON_URL, StellarTokenDetails, Networks as VortexNetworks } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { polygon } from "viem/chains";
@@ -68,28 +61,6 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   });
   const fundingAmountRaw = new Big(
     multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed()
-  );
-
-  return Big(balance.toString()).gte(fundingAmountRaw);
-}
-
-export async function isDestinationEvmEphemeralFunded(
-  evmEphemeralAddress: string,
-  destinationNetwork: EvmNetworks
-): Promise<boolean> {
-  const evmClientManager = EvmClientManager.getInstance();
-  const destinationClient = evmClientManager.getClient(destinationNetwork);
-  const chain = destinationClient.chain;
-
-  if (!chain) {
-    return false;
-  }
-
-  const balance = await destinationClient.getBalance({
-    address: evmEphemeralAddress as `0x${string}`
-  });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, chain.nativeCurrency.decimals).toFixed()
   );
 
   return Big(balance.toString()).gte(fundingAmountRaw);

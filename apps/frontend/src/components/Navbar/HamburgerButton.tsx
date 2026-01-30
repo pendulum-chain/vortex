@@ -10,25 +10,26 @@ export const HamburgerButton = ({ isOpen, onClick }: HamburgerButtonProps) => {
   const { t } = useTranslation();
 
   return (
-    <motion.button
-      aria-expanded={isOpen}
+    <button
       aria-label={t("components.navbar.toggleMobileMenu")}
-      className="group flex h-10 w-10 cursor-pointer flex-col items-center justify-center gap-[5px] rounded-md bg-pink-600 transition-colors duration-200 hover:bg-pink-500"
+      className="group flex h-10 w-10 cursor-pointer flex-col items-center justify-center rounded-md border-pink-600 bg-pink-600 transition-all duration-200 hover:border hover:bg-pink-50"
       onClick={onClick}
-      whileTap={{ scale: 0.95 }}
     >
       <motion.span
-        animate={isOpen ? { rotate: 45, y: 7 } : { rotate: 0, y: 0 }}
-        className="block h-0.5 w-5 origin-center rounded-full bg-white"
+        animate={isOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
+        className="block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
       />
       <motion.span
-        animate={isOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
-        className="block h-0.5 w-5 origin-center rounded-full bg-white"
+        animate={isOpen ? { opacity: 0 } : { opacity: 1 }}
+        className="mt-1 block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
       />
       <motion.span
-        animate={isOpen ? { rotate: -45, y: -7 } : { rotate: 0, y: 0 }}
-        className="block h-0.5 w-5 origin-center rounded-full bg-white"
+        animate={isOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
+        className="mt-1 block h-0.5 w-5 bg-pink-50 group-hover:bg-pink-600"
+        transition={{ damping: 30, stiffness: 300, type: "spring" }}
       />
-    </motion.button>
+    </button>
   );
 };

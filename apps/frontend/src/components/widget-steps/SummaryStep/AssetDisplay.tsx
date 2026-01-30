@@ -1,26 +1,19 @@
-import { Networks } from "@vortexfi/shared";
 import { FC } from "react";
-import { TokenIconWithNetwork } from "../../TokenIconWithNetwork";
+import { TokenImage } from "../../TokenImage";
 
 interface AssetDisplayProps {
   amount: string;
   symbol: string;
   iconSrc: string;
+  iconAlt: string;
   fallbackIconSrc?: string;
-  network?: Networks;
 }
 
-export const AssetDisplay: FC<AssetDisplayProps> = ({ amount, symbol, iconSrc, fallbackIconSrc, network }) => (
+export const AssetDisplay: FC<AssetDisplayProps> = ({ amount, symbol, iconSrc, iconAlt, fallbackIconSrc }) => (
   <div className="flex w-full items-center justify-between">
     <span className="font-bold text-lg">
       {amount} {symbol}
     </span>
-    <TokenIconWithNetwork
-      className="h-8 w-8"
-      fallbackIconSrc={fallbackIconSrc}
-      iconSrc={iconSrc}
-      network={network}
-      tokenSymbol={symbol}
-    />
+    <TokenImage alt={iconAlt} className="h-8 w-8" fallbackSrc={fallbackIconSrc} src={iconSrc} />
   </div>
 );

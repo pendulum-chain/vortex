@@ -1,6 +1,5 @@
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { ReactNode } from "react";
-import { durations, easings } from "../../../../constants/animations";
 
 interface SelectionButtonMotionProps {
   isExpanded: boolean;
@@ -10,8 +9,6 @@ interface SelectionButtonMotionProps {
 }
 
 export const SelectionButtonMotion = ({ isExpanded, children, onClick, className }: SelectionButtonMotionProps) => {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <motion.button
       animate={{
@@ -19,16 +16,12 @@ export const SelectionButtonMotion = ({ isExpanded, children, onClick, className
       }}
       className={className}
       onClick={onClick}
-      transition={
-        shouldReduceMotion
-          ? { duration: 0 }
-          : {
-              delay: isExpanded ? 0 : 0.25,
-              duration: durations.fast,
-              ease: easings.easeOutCubic
-            }
-      }
-      whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
+      transition={{
+        delay: isExpanded ? 0 : 0.25,
+        duration: 0.15,
+        ease: "easeOut"
+      }}
+      whileHover={{ scale: 1.01 }}
     >
       {children}
     </motion.button>

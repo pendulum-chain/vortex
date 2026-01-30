@@ -38,16 +38,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       networkAssetIcon: "ethereumETH",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      isNative: false,
-      network: Networks.Ethereum,
-      networkAssetIcon: "ethereumUSDC",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
     }
   },
   [Networks.Polygon]: {
@@ -78,16 +68,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       isNative: false,
       network: Networks.Polygon,
       networkAssetIcon: "polygonUSDT",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0x750e4c4984a9e0f12978ea6742bc1c5d248f40ed",
-      isNative: false,
-      network: Networks.Polygon,
-      networkAssetIcon: "polygonUSDC",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
     }
@@ -134,16 +114,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       networkAssetIcon: "bscETH",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0x4268B8F0B87b6Eae5d897996E6b845ddbD99Adf3",
-      isNative: false,
-      network: Networks.BSC,
-      networkAssetIcon: "bscUSDC",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
     }
   },
   [Networks.Arbitrum]: {
@@ -186,16 +156,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       networkAssetIcon: "arbitrumETH",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0xEB466342C4d449BC9f53A865D5Cb90586f405215",
-      isNative: false,
-      network: Networks.Arbitrum,
-      networkAssetIcon: "arbitrumUSDC",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
     }
   },
   [Networks.Base]: {
@@ -228,16 +188,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       networkAssetIcon: "baseETH",
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0xEB466342C4d449BC9f53A865D5Cb90586f405215",
-      isNative: false,
-      network: Networks.Base,
-      networkAssetIcon: "baseUSDC",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
     }
   },
   [Networks.Avalanche]: {
@@ -265,16 +215,6 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       assetSymbol: "USDC.e",
       decimals: 6, // USDC.e on Avalanche
       erc20AddressSourceChain: "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664",
-      isNative: false,
-      network: Networks.Avalanche,
-      networkAssetIcon: "avalancheUSDC",
-      pendulumRepresentative: PENDULUM_USDC_AXL,
-      type: TokenType.Evm
-    },
-    [EvmToken.AXLUSDC]: {
-      assetSymbol: "axlUSDC",
-      decimals: 6,
-      erc20AddressSourceChain: "0xfaB550568C688d5D8A52C7d794cb93Edc26eC0eC",
       isNative: false,
       network: Networks.Avalanche,
       networkAssetIcon: "avalancheUSDC",

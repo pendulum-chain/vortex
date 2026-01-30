@@ -203,6 +203,13 @@ export interface AveniaPayoutTicket extends BaseTicket {
     walletAddress: string;
     txHash: string;
   };
+  brlPixOutputInfo: {
+    id: string;
+    ticketId: string;
+    pixMessage: string;
+    senderAccountBankName: string;
+    senderAccountNumber: string;
+  };
   blockchainInputInfo: {
     id: string;
     ticketId: string;

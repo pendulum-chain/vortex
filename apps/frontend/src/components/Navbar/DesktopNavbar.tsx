@@ -1,4 +1,4 @@
-import { Link, useParams, useRouterState } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useWidgetMode } from "../../hooks/useWidgetMode";
@@ -10,31 +10,21 @@ export const DesktopNavbar = () => {
   const isWidgetMode = useWidgetMode();
   const { resetRampAndNavigateHome } = useNavbarHandlers();
   const params = useParams({ strict: false });
-  const routerState = useRouterState();
-
-  const isBusinessPage = routerState.location.pathname.includes("/business");
-  const useTransparentStyle = isWidgetMode || isBusinessPage;
 
   return (
-    <div className={cn("relative px-4 py-4 md:px-10 md:py-5", useTransparentStyle ? "bg-transparent" : "bg-blue-950")}>
+    <div className={cn("relative px-4 py-4 md:px-10 md:py-5", isWidgetMode ? "bg-transparent" : "bg-blue-950")}>
       <div className="mx-6 flex items-center justify-between sm:container sm:mx-auto">
         {isWidgetMode ? (
-          <LogoButton onClick={resetRampAndNavigateHome} variant="blue" />
+          <LogoButton onClick={resetRampAndNavigateHome} />
         ) : (
           <>
             <div className="group flex grow items-center gap-10">
-              <LogoButton onClick={resetRampAndNavigateHome} variant={isBusinessPage ? "blue" : "white"} />
+              <LogoButton onClick={resetRampAndNavigateHome} />
               <Link
                 activeProps={{
-                  className: cn(
-                    "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
-                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
-                  )
+                  className: "text-white transition-colors hover:text-white group-hover:[&:not(:hover)]:text-gray-400"
                 }}
-                className={cn(
-                  "text-xl transition-colors",
-                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
-                )}
+                className="text-gray-400 text-xl transition-colors hover:text-white"
                 params={params}
                 to="/{-$locale}"
               >
@@ -42,15 +32,9 @@ export const DesktopNavbar = () => {
               </Link>
               <Link
                 activeProps={{
-                  className: cn(
-                    "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
-                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
-                  )
+                  className: "text-white transition-colors hover:text-white group-hover:[&:not(:hover)]:text-gray-400"
                 }}
-                className={cn(
-                  "text-xl transition-colors",
-                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
-                )}
+                className="text-gray-400 text-xl transition-colors hover:text-white"
                 params={params}
                 to="/{-$locale}/business"
               >

@@ -85,57 +85,16 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       return balance.gte(expectedOutputAmountRaw);
     };
 
-    const waitForMoonbeamArrival = async (timeoutMs: number = 120000): Promise<boolean> => {
-      const startTime = Date.now();
-      const pollIntervalMs = 5000;
-
-      while (Date.now() - startTime < timeoutMs) {
-        if (await didTokensArriveOnMoonbeam()) {
-          return true;
-        }
-        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-      }
-      return false;
-    };
-
     try {
-      // Check if we already have a stored XCM hash (XCM was submitted in a previous attempt)
-      if (state.state.pendulumToMoonbeamXcmHash) {
+      // We have to check if the input token already arrived on Moonbeam and if it left Pendulum.
+      // If we'd only check if it arrived on Moonbeam, we might miss transferring them if the target account already has some tokens.
+      if ((await didTokensLeavePendulum()) && (await didTokensArriveOnMoonbeam())) {
         logger.info(
-          `PendulumToMoonbeamPhaseHandler: XCM already submitted (hash: ${state.state.pendulumToMoonbeamXcmHash}) for ramp ${state.id}. Waiting for arrival on Moonbeam...`
+          `PendulumToMoonbeamPhaseHandler: Input token already arrived on Moonbeam, skipping XCM transfer for ramp ${state.id}.`
         );
-
-        if (await didTokensArriveOnMoonbeam()) {
-          logger.info(`PendulumToMoonbeamPhaseHandler: Tokens already arrived on Moonbeam for ramp ${state.id}.`);
-          return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
-        }
-
-        const arrived = await waitForMoonbeamArrival();
-        if (!arrived) {
-          throw this.createRecoverableError("Timeout waiting for tokens to arrive on Moonbeam after XCM was already submitted");
-        }
         return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
       }
 
-      // Check if tokens already left Pendulum (XCM was submitted but hash wasn't stored due to crash)
-      if (await didTokensLeavePendulum()) {
-        logger.info(
-          `PendulumToMoonbeamPhaseHandler: Tokens already left Pendulum for ramp ${state.id}. XCM likely submitted but hash not stored. Waiting for arrival on Moonbeam...`
-        );
-
-        if (await didTokensArriveOnMoonbeam()) {
-          logger.info(`PendulumToMoonbeamPhaseHandler: Tokens already arrived on Moonbeam for ramp ${state.id}.`);
-          return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
-        }
-
-        const arrived = await waitForMoonbeamArrival();
-        if (!arrived) {
-          throw this.createRecoverableError("Timeout waiting for tokens to arrive on Moonbeam after tokens left Pendulum");
-        }
-        return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
-      }
-
-      // No previous XCM submission detected, proceed with transfer
       const { txData: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, "pendulumToMoonbeamXcm");
 
       if (typeof pendulumToMoonbeamTransaction !== "string") {
@@ -152,23 +111,18 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       logger.info(
         `PendulumToMoonbeamPhaseHandler: XCM transfer submitted with hash ${hash} for ramp ${state.id}. Waiting for the token to arrive on Moonbeam...`
       );
-
-      // Store the hash immediately after submission to minimize crash window
-      state.state = {
-        ...state.state,
-        pendulumToMoonbeamXcmHash: hash
-      };
-      await state.update({ state: state.state });
-
-      const arrived = await waitForMoonbeamArrival();
-      if (!arrived) {
-        throw this.createRecoverableError("Timeout waiting for tokens to arrive on Moonbeam after XCM submission");
-      }
+      await didTokensArriveOnMoonbeam();
 
       // XCM is payed by the ephemeral, in GLMR, with a fixed value of MOONBEAM_XCM_FEE_GLMR
       const subsidyAmount = nativeToDecimal(MOONBEAM_XCM_FEE_GLMR, 18).toNumber();
       const hashToStore = hash ?? "0x";
       await this.createSubsidy(state, subsidyAmount, SubsidyToken.GLMR, substrateEphemeralAddress, hashToStore);
+
+      state.state = {
+        ...state.state,
+        pendulumToMoonbeamXcmHash: hash
+      };
+      await state.update({ state: state.state });
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {

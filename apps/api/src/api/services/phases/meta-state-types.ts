@@ -53,6 +53,4 @@ export interface StateMetadata {
   // Final transaction hash and explorer link (computed once when ramp is complete)
   finalTransactionHash?: string;
   finalTransactionExplorerLink?: string;
-  destinationTransferTxHash?: string;
-  finalSettlementSubsidyTxHash?: string;
 }

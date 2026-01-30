@@ -3,7 +3,7 @@ import { FiatToken, isFiatToken, OnChainToken, OnChainTokenDetails } from "@vort
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
-import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
 import { UserBalance } from "../UserBalance";
@@ -16,10 +16,9 @@ interface ListItemProps {
 
 export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: ListItemProps) {
   const { t } = useTranslation();
+  const fiatIcon = useGetAssetIcon(token.assetIcon);
+  const tokenIcon = token.logoURI ?? fiatIcon;
   const isFiat = isFiatToken(token.type);
-  // Use assetIcon for fiat lookup, with network for on-chain tokens
-  const iconInfo = useTokenIcon(token.assetIcon, isFiat ? undefined : token.network);
-  const tokenIcon = token.logoURI ?? iconInfo.iconSrc;
 
   const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
   const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;

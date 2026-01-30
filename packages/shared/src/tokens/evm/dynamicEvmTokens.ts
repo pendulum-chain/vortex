@@ -1,13 +1,10 @@
 import axios from "axios";
 import { EvmNetworks, getNetworkId, isNetworkEVM, Networks } from "../../helpers/networks";
-import logger from "../../logger";
 import { squidRouterConfigBase } from "../../services/squidrouter/config";
 import { PENDULUM_USDC_AXL } from "../pendulum/config";
 import { TokenType } from "../types/base";
 import { EvmTokenDetails } from "../types/evm";
 import { evmTokenConfig } from "./config";
-
-const SQUID_ROUTER_API_URL = "https://v2.api.squidrouter.com/v2/tokens";
 
 // Token filtering configuration to exclude irrelevant tokens from EVM chains
 const TOKEN_FILTER_CONFIG = {
@@ -17,76 +14,6 @@ const TOKEN_FILTER_CONFIG = {
   // Explicit symbol blocklist - Cosmos/non-EVM native tokens that shouldn't appear on EVM chains
   symbolBlocklist: new Set(["HUAHUA", "OSMO", "ATOM", "LUNA", "UST", "SCRT", "JUNO", "STARS", "AKT", "REGEN", "KUJI", "INJ"])
 };
-
-interface SquidRouterToken {
-  symbol: string;
-  address: string;
-  chainId: string;
-  name: string;
-  decimals: number;
-  coingeckoId: string;
-  type: string;
-  logoURI: string;
-  subGraphOnly: boolean;
-  subGraphIds: string[];
-  isTestnet: boolean;
-  usdPrice: number;
-}
-
-interface DynamicEvmTokensState {
-  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
-  priceBySymbol: Map<string, number>;
-  isLoaded: boolean;
-}
-
-const state: DynamicEvmTokensState = {
-  isLoaded: false,
-  priceBySymbol: new Map(),
-  tokensByNetwork: {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
-};
-
-/**
- * Iterates over all EVM networks and calls the callback for each.
- */
-function forEachEvmNetwork(callback: (network: EvmNetworks) => void): void {
-  for (const network of Object.values(Networks)) {
-    if (isNetworkEVM(network)) {
-      callback(network as EvmNetworks);
-    }
-  }
-}
-
-function createEmptyNetworkBuckets(): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
-  const buckets = {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
-  forEachEvmNetwork(network => {
-    buckets[network] = {};
-  });
-  return buckets;
-}
-
-const NATIVE_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
-
-function isNativeToken(address: string): boolean {
-  return address.toLowerCase() === NATIVE_TOKEN_ADDRESS;
-}
-
-function getNetworkFromChainId(chainId: string): Networks | null {
-  const chainIdNum = parseInt(chainId, 10);
-  const networkEntries = Object.entries(Networks).filter(
-    ([_, network]) => typeof network === "string" && getNetworkId(network as Networks) === chainIdNum
-  );
-  return networkEntries.length > 0 ? (networkEntries[0][1] as Networks) : null;
-}
-
-function getNetworkAssetIcon(network: Networks, symbol: string): string {
-  const networkName = network.toLowerCase();
-  const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-  return `${networkName}${cleanSymbol}`;
-}
-
-function generateFallbackLogoURI(chainId: number, address: string): string {
-  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
-}
 
 function shouldIncludeToken(token: SquidRouterToken): boolean {
   const symbol = token.symbol.toUpperCase();
@@ -106,6 +33,55 @@ function shouldIncludeToken(token: SquidRouterToken): boolean {
   return true;
 }
 
+interface SquidRouterToken {
+  symbol: string;
+  address: string;
+  chainId: string;
+  name: string;
+  decimals: number;
+  coingeckoId: string;
+  type: string;
+  logoURI: string;
+  subGraphOnly: boolean;
+  subGraphIds: string[];
+  isTestnet: boolean;
+  usdPrice: number;
+}
+
+interface DynamicEvmTokensState {
+  tokens: EvmTokenDetails[];
+  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
+  isLoaded: boolean;
+  error: Error | null;
+  usedFallback: boolean;
+}
+
+const state: DynamicEvmTokensState = {
+  error: null,
+  isLoaded: false,
+  tokens: [],
+  tokensByNetwork: {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>,
+  usedFallback: false
+};
+
+function getNetworkFromChainId(chainId: string): Networks | null {
+  const chainIdNum = parseInt(chainId, 10);
+  const networkEntries = Object.entries(Networks).filter(
+    ([_, network]) => typeof network === "string" && getNetworkId(network as Networks) === chainIdNum
+  );
+  return networkEntries.length > 0 ? (networkEntries[0][1] as Networks) : null;
+}
+
+function isNativeToken(address: string): boolean {
+  return address === "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+}
+
+function getNetworkAssetIcon(network: Networks, symbol: string): string {
+  const networkName = network.toLowerCase();
+  const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  return `${networkName}${cleanSymbol}`;
+}
+
 function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetails | null {
   const network = getNetworkFromChainId(token.chainId);
   if (!network || !isNetworkEVM(network)) {
@@ -118,13 +94,15 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
 
   const isNative = isNativeToken(token.address);
 
-  const erc20Address = token.address as `0x${string}`;
+  const erc20Address: `0x${string}` = isNative
+    ? ("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as `0x${string}`)
+    : (token.address as `0x${string}`);
 
   return {
     assetSymbol: token.symbol,
     decimals: token.decimals,
     erc20AddressSourceChain: erc20Address,
-    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), erc20Address),
+    fallbackLogoURI: `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${token.chainId}_${token.address.toLowerCase()}.webp`,
     isNative,
     logoURI: token.logoURI,
     network,
@@ -135,108 +113,8 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
   };
 }
 
-/**
- * Groups tokens by their network into a record keyed by EvmNetworks.
- * This function only groups - it does not merge with static config.
- */
-function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
-  const grouped = createEmptyNetworkBuckets();
-
-  for (const token of tokens) {
-    const network = token.network as EvmNetworks;
-    const symbolKey = token.assetSymbol.toUpperCase();
-    const existingToken = grouped[network][symbolKey];
-
-    // If there's already a token with this symbol, keep the better one
-    if (existingToken) {
-      // Priority: native > higher USD price > lower address (deterministic)
-      const tokenPrice = token.usdPrice ?? 0;
-      const existingPrice = existingToken.usdPrice ?? 0;
-
-      const shouldReplace =
-        (token.isNative && !existingToken.isNative) ||
-        (!token.isNative &&
-          !existingToken.isNative &&
-          (tokenPrice > existingPrice ||
-            (tokenPrice === existingPrice &&
-              token.erc20AddressSourceChain.toLowerCase() < existingToken.erc20AddressSourceChain.toLowerCase())));
-
-      if (shouldReplace) {
-        grouped[network][symbolKey] = token;
-      }
-      // Otherwise keep the existing token
-    } else {
-      grouped[network][symbolKey] = token;
-    }
-  }
-
-  return grouped;
-}
-
-/**
- * Merges dynamic tokens with static config.
- * Static config takes priority for contract addresses, but preserves useful metadata
- * (logoURI, usdPrice) from dynamic tokens.
- */
-function mergeWithStaticConfig(
-  dynamicTokens: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
-): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
-  const merged = createEmptyNetworkBuckets();
-
-  forEachEvmNetwork(network => {
-    merged[network] = { ...dynamicTokens[network] };
-
-    const networkTokenConfig = evmTokenConfig[network];
-    if (!networkTokenConfig) return;
-
-    for (const [symbol, staticToken] of Object.entries(networkTokenConfig)) {
-      if (!staticToken) continue;
-
-      const normalizedSymbol = symbol.toUpperCase();
-      const dynamicToken = dynamicTokens[network][normalizedSymbol];
-
-      if (dynamicToken) {
-        // Warning if addresses point to different contracts (possible configuration drift or scam token)
-        if (staticToken.erc20AddressSourceChain.toLowerCase() !== dynamicToken.erc20AddressSourceChain.toLowerCase()) {
-          logger.current.warn(
-            `[DynamicEvmTokens] Address mismatch for ${symbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
-          );
-        }
-
-        // Static token exists and dynamic token exists - merge, static takes priority
-        merged[network][normalizedSymbol] = {
-          ...staticToken,
-          fallbackLogoURI: staticToken.fallbackLogoURI ?? dynamicToken.fallbackLogoURI,
-          logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
-          usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
-        };
-      } else {
-        // Static token exists but no dynamic token - use static as-is
-        merged[network][normalizedSymbol] = staticToken;
-      }
-    }
-  });
-
-  return merged;
-}
-
-function buildPriceLookup(tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>): Map<string, number> {
-  const priceMap = new Map<string, number>();
-
-  forEachEvmNetwork(network => {
-    const networkTokens = tokensByNetwork[network];
-    for (const token of Object.values(networkTokens)) {
-      if (token?.usdPrice !== undefined) {
-        priceMap.set(token.assetSymbol.toUpperCase(), token.usdPrice);
-      }
-    }
-  });
-
-  return priceMap;
-}
-
 async function fetchSquidRouterTokens(): Promise<SquidRouterToken[]> {
-  const result = await axios.get(SQUID_ROUTER_API_URL, {
+  const result = await axios.get("https://v2.api.squidrouter.com/v2/tokens", {
     headers: {
       "x-integrator-id": squidRouterConfigBase.integratorId
     }
@@ -244,27 +122,84 @@ async function fetchSquidRouterTokens(): Promise<SquidRouterToken[]> {
   return result.data.tokens;
 }
 
-function buildFallbackFromStaticConfig(): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
-  const tokensByNetwork = createEmptyNetworkBuckets();
+function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
+  const grouped = {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
 
-  forEachEvmNetwork(network => {
-    const networkTokenConfig = evmTokenConfig[network];
-    if (networkTokenConfig) {
-      tokensByNetwork[network] = { ...networkTokenConfig };
+  for (const network of Object.values(Networks)) {
+    if (isNetworkEVM(network)) {
+      grouped[network as EvmNetworks] = {};
     }
-  });
+  }
 
-  return tokensByNetwork;
+  for (const token of tokens) {
+    if (isNetworkEVM(token.network)) {
+      const network = token.network as EvmNetworks;
+      if (!grouped[network]) {
+        grouped[network] = {};
+      }
+      const symbolKey = token.assetSymbol.toUpperCase();
+      const existingToken = grouped[network][symbolKey];
+      
+      // If there's already a token with this symbol, keep the better one
+      if (existingToken) {
+        // Priority: native > higher USD price > lower address (deterministic)
+        const tokenPrice = token.usdPrice ?? 0;
+        const existingPrice = existingToken.usdPrice ?? 0;
+        
+        const shouldReplace =
+          (token.isNative && !existingToken.isNative) ||
+          (!token.isNative && !existingToken.isNative && tokenPrice > existingPrice) ||
+          (!token.isNative && !existingToken.isNative && tokenPrice === existingPrice && 
+           token.erc20AddressSourceChain.toLowerCase() < existingToken.erc20AddressSourceChain.toLowerCase());
+        
+        if (shouldReplace) {
+          grouped[network][symbolKey] = token;
+        }
+        // Otherwise keep the existing token
+      } else {
+        grouped[network][symbolKey] = token;
+      }
+    }
+  }
+
+  for (const network of Object.values(Networks)) {
+    if (isNetworkEVM(network)) {
+      const evmNetwork = network as EvmNetworks;
+      const networkTokenConfig = evmTokenConfig[evmNetwork];
+      if (networkTokenConfig) {
+        grouped[evmNetwork] = {
+          ...networkTokenConfig,
+          ...grouped[evmNetwork]
+        };
+      }
+    }
+  }
+
+  return grouped;
 }
 
-/**
- * Derives a flat array of all tokens from the tokensByNetwork structure.
- * Use this instead of storing a separate tokens array.
- */
-function deriveAllTokens(tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>): EvmTokenDetails[] {
-  return Object.values(tokensByNetwork)
-    .flatMap(networkTokens => Object.values(networkTokens))
-    .filter((token): token is EvmTokenDetails => token !== undefined);
+function buildFallbackFromStaticConfig(): {
+  tokens: EvmTokenDetails[];
+  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
+} {
+  const tokens: EvmTokenDetails[] = [];
+  const tokensByNetwork = {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
+
+  for (const network of Object.values(Networks)) {
+    if (isNetworkEVM(network)) {
+      const evmNetwork = network as EvmNetworks;
+      const networkTokenConfig = evmTokenConfig[evmNetwork];
+      if (networkTokenConfig) {
+        tokensByNetwork[evmNetwork] = networkTokenConfig;
+        const networkTokens = Object.values(networkTokenConfig).filter(
+          (token): token is EvmTokenDetails => token !== undefined
+        );
+        tokens.push(...networkTokens);
+      }
+    }
+  }
+
+  return { tokens, tokensByNetwork };
 }
 
 /**
@@ -282,16 +217,21 @@ export async function initializeEvmTokens(): Promise<void> {
     const evmTokens = squidTokens
       .map(mapSquidTokenToEvmTokenDetails)
       .filter((token): token is EvmTokenDetails => token !== null);
+    //.slice(0, 500); // TODO TESTING Limit to first 500 tokens to avoid overload
 
-    const groupedTokens = groupTokensByNetwork(evmTokens);
-    state.tokensByNetwork = mergeWithStaticConfig(groupedTokens);
-    state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
+    state.tokens = evmTokens;
+    state.tokensByNetwork = groupTokensByNetwork(evmTokens);
+    state.error = null;
+    state.usedFallback = false;
     state.isLoaded = true;
   } catch (err) {
     console.error("[DynamicEvmTokens] Failed to fetch tokens from SquidRouter, using fallback:", err);
 
-    state.tokensByNetwork = buildFallbackFromStaticConfig();
-    state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
+    const fallback = buildFallbackFromStaticConfig();
+    state.tokens = fallback.tokens;
+    state.tokensByNetwork = fallback.tokensByNetwork;
+    state.error = err instanceof Error ? err : new Error("Failed to fetch tokens");
+    state.usedFallback = true;
     state.isLoaded = true;
   }
 }
@@ -322,9 +262,31 @@ export function getEvmTokensForNetwork(network: EvmNetworks): EvmTokenDetails[] 
  */
 export function getAllEvmTokens(): EvmTokenDetails[] {
   if (!state.isLoaded) {
-    return deriveAllTokens(buildFallbackFromStaticConfig());
+    const fallback = buildFallbackFromStaticConfig();
+    return fallback.tokens;
   }
-  return deriveAllTokens(state.tokensByNetwork);
+  return state.tokens;
+}
+
+/**
+ * Check if tokens have been loaded.
+ */
+export function isTokensLoaded(): boolean {
+  return state.isLoaded;
+}
+
+/**
+ * Check if the service used the fallback static config.
+ */
+export function usedFallbackConfig(): boolean {
+  return state.usedFallback;
+}
+
+/**
+ * Get the error if token loading failed.
+ */
+export function getLoadingError(): Error | null {
+  return state.error;
 }
 
 /**
@@ -339,5 +301,10 @@ export function getTokenUsdPrice(symbol: string): number | undefined {
     return undefined;
   }
 
-  return state.priceBySymbol.get(symbol.toUpperCase());
+  const normalizedSymbol = symbol.toUpperCase();
+
+  // Search through all tokens to find matching symbol
+  const token = state.tokens.find(t => t.assetSymbol.toUpperCase() === normalizedSymbol);
+
+  return token?.usdPrice;
 }

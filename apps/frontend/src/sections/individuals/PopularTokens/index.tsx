@@ -3,9 +3,8 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../../helpers/cn";
-import { isValidFiatIcon } from "../../../hooks/useGetAssetIcon";
+import { isValidFiatIcon, useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../../hooks/useGetNetworkIcon";
-import { useTokenIcon } from "../../../hooks/useTokenIcon";
 
 const fiatTokens: Array<{ name: string; assetIcon: string }> = Object.values(FiatToken)
   .map(name => ({
@@ -61,8 +60,8 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
 };
 
 const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
-  const { iconSrc } = useTokenIcon(token.assetIcon);
-  return <Badge icon={iconSrc} isAnimating={isAnimating} label={token.name} rotationDuration={0.3} />;
+  const icon = useGetAssetIcon(token.assetIcon);
+  return <Badge icon={icon} isAnimating={isAnimating} label={token.name} rotationDuration={0.3} />;
 };
 
 export function PopularTokens() {

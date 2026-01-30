@@ -1,7 +1,6 @@
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
-import { runWithRampContext } from "../../config/ramp-context";
 import RampState from "../../models/rampState.model";
 import { postProcessHandlers } from "../services/phases/post-process";
 import { BaseRampService } from "../services/ramp/base.service";
@@ -171,16 +170,14 @@ class CleanupWorker {
       logger.info(`Found ${states.length} completed RampStates that need post-processing`);
 
       const processPromises = states.map(async state => {
-        return runWithRampContext(state.id, async () => {
-          try {
-            await this.processCleanup(state);
-            return { stateId: state.id, status: "fulfilled" };
-          } catch (error) {
-            logger.error(`Error processing cleanup:`, error);
-            // Don't update the state here, processCleanup handles its own updates
-            return { reason: error, stateId: state.id, status: "rejected" };
-          }
-        });
+        try {
+          await this.processCleanup(state);
+          return { stateId: state.id, status: "fulfilled" };
+        } catch (error) {
+          logger.error(`Error processing cleanup for state ${state.id}:`, error);
+          // Don't update the state here, processCleanup handles its own updates
+          return { reason: error, stateId: state.id, status: "rejected" };
+        }
       });
 
       // Use allSettled to allow individual state processing to fail without stopping others

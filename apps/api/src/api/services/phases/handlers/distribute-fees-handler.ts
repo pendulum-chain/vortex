@@ -135,7 +135,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         if (status === ExtrinsicStatus.Success) {
           return;
         } else if (status === ExtrinsicStatus.Fail) {
-          await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+          //throw this.createUnrecoverableError(`Extrinsic failed for hash ${extrinsicHash}`);
           continue;
         } else if (status === ExtrinsicStatus.Undefined) {
           await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
@@ -212,12 +212,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
           }
 
-          if (status.isBroadcast) {
+          if (status.isBroadcast || status.isInBlock) {
             logger.info(`Transaction broadcasted: ${status.asBroadcast.toString()}`);
-            resolve(txHash.toHex());
-          }
-          if (status.isInBlock) {
-            logger.info(`Transaction in block: ${status.asInBlock.toString()}`);
             resolve(txHash.toHex());
           }
         })

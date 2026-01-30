@@ -3,13 +3,14 @@ import { AddressOrPair } from "@polkadot/api/types";
 import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
-import { createWalletClient, fallback, http, WalletClient } from "viem";
+import { createWalletClient, http, WalletClient, webSocket } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
+import { moonbeam, polygon } from "viem/chains";
 import {
   decodeSubmittableExtrinsic,
   EphemeralAccount,
   isEvmTransactionData,
+  MOONBEAM_WSS,
   Networks,
   PresignedTx,
   SANDBOX_ENABLED,
@@ -43,6 +44,12 @@ export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSig
 
 /**
  * Signs multiple Stellar transactions with increasing sequence numbers
+ *
+ * @param tx - The original backend-signed transaction. Can contain meta field with multiple-nonce transactions.
+ * @param keypair - The Stellar keypair to sign with
+ * @param networkPassphrase - The Stellar network passphrase
+ * @param startingNonce - The starting nonce/sequence number value
+ * @returns - Multi-nonce presigned transaction object.
  */
 async function signMultipleStellarTransactions(
   tx: UnsignedTx,
@@ -73,7 +80,13 @@ async function signMultipleStellarTransactions(
 }
 
 /**
- * Signs multiple Substrate transactions with increasing nonces
+ * Signs multiple Substrate (Pendulum) transactions with increasing nonces
+ *
+ * @param tx - The original unsigned transaction
+ * @param keypair - The keypair to sign with
+ * @param api - The Polkadot API instance
+ * @param startingNonce - The starting nonce value
+ * @returns - Array of signed transactions with increasing nonces
  */
 async function signMultipleSubstrateTransactions(
   tx: UnsignedTx,
@@ -103,73 +116,41 @@ async function signMultipleSubstrateTransactions(
 }
 
 /**
- * Creates a wallet client for a specific EVM network using the ephemeral secret
+ * Creates wallet clients for both Moonbeam and Polygon networks using the same ephemeral secret
  *
- * @param network - The network enum to create the client for
- * @param evmEphemeral - The ephemeral account containing the secret
- * @param apiKey - Optional Alchemy API key
- * @returns WalletClient for the specified network
+ * @param moonbeamEphemeral - The ephemeral account containing the secret
+ * @param alchemyApiKey - Optional Alchemy API key for Polygon transport
+ * @returns Object containing both wallet clients
  */
-function createEvmClient(
-  network: string, // Accept string to match UnsignedTx.network type usually being string/enum
-  evmEphemeral: EphemeralAccount,
-  apiKey?: string
-): WalletClient {
-  const privateKey = evmEphemeral.secret as `0x${string}`;
+function createEvmWalletClients(
+  moonbeamEphemeral: EphemeralAccount,
+  alchemyApiKey?: string
+): { moonbeamClient: WalletClient; polygonClient: WalletClient } {
+  const privateKey = moonbeamEphemeral.secret as `0x${string}`;
   const evmAccount = privateKeyToAccount(privateKey);
-
-  let chain;
-  let rpcUrls: string[] = [];
-
-  switch (network) {
-    case Networks.Polygon:
-      chain = polygon;
-      rpcUrls = apiKey ? [`https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    case Networks.PolygonAmoy:
-      chain = polygonAmoy;
-      rpcUrls = ["https://polygon-amoy.api.onfinality.io/public"];
-      break;
-    case Networks.Moonbeam:
-      chain = moonbeam;
-      rpcUrls = ["https://rpc.api.moonbeam.network", "https://moonbeam-rpc.publicnode.com"];
-      break;
-    case Networks.Arbitrum:
-      chain = arbitrum;
-      rpcUrls = apiKey ? [`https://arb-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    case Networks.Avalanche:
-      chain = avalanche;
-      rpcUrls = apiKey ? [`https://avax-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    case Networks.Base:
-      chain = base;
-      rpcUrls = apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    case Networks.BSC:
-      chain = bsc;
-      rpcUrls = apiKey ? [`https://bnb-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    case Networks.Ethereum:
-      chain = mainnet;
-      rpcUrls = apiKey ? [`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
-      break;
-    default:
-      throw new Error(`Unsupported or unconfigured EVM network: ${network}`);
-  }
-
-  const transports = rpcUrls.filter(url => url !== "").map(url => http(url));
-  transports.push(http()); //  add default viem transport as last resort
-
-  return createWalletClient({
+  const moonbeamClient = createWalletClient({
     account: evmAccount,
-    chain: chain,
-    transport: fallback(transports)
+    chain: moonbeam,
+    transport: alchemyApiKey ? http(`https://moonbeam-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : webSocket(MOONBEAM_WSS)
   });
+
+  const polygonTransport = alchemyApiKey ? http(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) : http();
+  const polygonClient = createWalletClient({
+    account: evmAccount,
+    chain: polygon,
+    transport: polygonTransport
+  });
+
+  return { moonbeamClient, polygonClient };
 }
 
 /**
- * Signs multiple EVM transactions with increasing nonces
+ * Signs multiple EVM (Moonbeam) transactions with increasing nonces
+ *
+ * @param tx - The original unsigned transaction
+ * @param walletClient - The viem wallet client
+ * @param startingNonce - The starting nonce value
+ * @returns - Array of signed transactions with increasing nonces
  */
 async function signMultipleEvmTransactions(
   tx: UnsignedTx,
@@ -184,6 +165,8 @@ async function signMultipleEvmTransactions(
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
     const currentNonce = startingNonce + i;
+
+    // Ensure the transaction data is in the correct format
 
     if (!walletClient.account) {
       throw new Error("Wallet client account is undefined");
@@ -215,6 +198,43 @@ async function signMultipleEvmTransactions(
   return signedTxs;
 }
 
+/**
+ * Signs an array of unsigned transactions using network-specific methods.
+ * It signs multiple transactions with increasing nonces and includes them in the meta field.
+ *
+ * The signUnsignedTransactions function receives:
+ * - unsignedTxs: an array of UnsignedTx
+ * - ephemerals: an object mapping networks to EphemeralAccount for Stellar, Pendulum (substrate),
+ *   and EVM (Moonbeam) transactions.
+ *
+ * For each unsigned transaction, the function selects the appropriate signing method:
+ *
+ * • Stellar:
+ *   - Uses stellar-sdk to create a Transaction from the provided XDR (tx_data).
+ *   - Signs using the ephemeral key (assumed to be passed).
+ *   - Signs NUMBER_OF_PRESIGNED_TXS transactions with increasing nonces.
+ *
+ * • Pendulum (substrate):
+ *   - Uses @polkadot/api Keyring to generate a keypair from the ephemeral secret.
+ *   - Simulates signing via extrinsic.signAsync with options { nonce, era }.
+ *   - Signs NUMBER_OF_PRESIGNED_TXS transactions with increasing nonces.
+ *
+ * • Moonbeam (EVM):
+ *   - Uses the viem client to create a wallet client for EVM transactions.
+ *   - Signs the transaction via walletClient.signTransaction.
+ *   - Signs NUMBER_OF_PRESIGNED_TXS transactions with increasing nonces.
+ *
+ * For each transaction, signed transactions with nonces > n (where n is the original specified nonce)
+ * are stored in the meta.additionalTxs field of the first transaction. Each transaction is named
+ * by its phase property appended with the nonce offset (e.g., "phase1", "phase2" for nonce+1, nonce+2).
+ *
+ * @param unsignedTxs - Array of transactions to be signed.
+ * @param ephemerals - Mapping from network to its corresponding EphemeralAccount.
+ *                     Expected keys: stellar, pendulum, evm.
+ * @param pendulumApi - ApiPromise instance for Pendulum transactions.
+ * @param moonbeamApi - ApiPromise instance for Moonbeam transactions.
+ * @returns Promise resolving to an array of SignedTx with additional signed transactions in meta fields.
+ */
 export async function signUnsignedTransactions(
   unsignedTxs: UnsignedTx[],
   ephemerals: {
@@ -232,17 +252,15 @@ export async function signUnsignedTransactions(
 
   const signedTxs: PresignedTx[] = [];
 
-  // Group transactions
+  // Create EVM wallet clients once at the beginning if needed
+  let evmClients: { moonbeamClient: WalletClient; polygonClient: WalletClient } | null = null;
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
   const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
-  const destinationNetworkTxs = unsignedTxs.filter(
-    tx =>
-      tx.phase === "destinationTransfer" ||
-      tx.phase === "backupSquidRouterApprove" ||
-      tx.phase === "backupSquidRouterSwap" ||
-      tx.phase === "backupApprove"
-  );
+
+  if ((moonbeamTxs.length > 0 || polygonTxs.length > 0) && ephemerals.evmEphemeral) {
+    evmClients = createEvmWalletClients(ephemerals.evmEphemeral, alchemyApiKey);
+  }
 
   try {
     const stellarTxs = unsignedTxs.filter(tx => tx.network === "stellar").sort((a, b) => a.nonce - b.nonce);
@@ -284,13 +302,14 @@ export async function signUnsignedTransactions(
       const keypair = keyring.addFromUri(ephemerals.substrateEphemeral.secret);
 
       const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, hydrationApi, tx.nonce);
+
       const primaryTx = multiSignedTxs[0];
+
       const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 
       signedTxs.push(txWithMeta);
     }
 
-    //  Process Pendulum transactions
     for (const tx of pendulumTxs) {
       if (!ephemerals.substrateEphemeral) {
         throw new Error("Missing Pendulum ephemeral account");
@@ -308,7 +327,9 @@ export async function signUnsignedTransactions(
       const keypair = keyring.addFromUri(ephemerals.substrateEphemeral.secret);
 
       const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, pendulumApi, tx.nonce);
+
       const primaryTx = multiSignedTxs[0];
+
       const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 
       signedTxs.push(txWithMeta);
@@ -320,21 +341,28 @@ export async function signUnsignedTransactions(
         throw new Error("Missing EVM ephemeral account");
       }
 
+      if (!evmClients) {
+        throw new Error("EVM clients not initialized");
+      }
+
       if (isEvmTransactionData(tx.txData)) {
-        const client = createEvmClient(Networks.Moonbeam, ephemerals.evmEphemeral, alchemyApiKey);
-        const multiSignedTxs = await signMultipleEvmTransactions(tx, client, tx.nonce);
+        const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.moonbeamClient, tx.nonce);
+
         const primaryTx = multiSignedTxs[0];
+
         const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 
         signedTxs.push(txWithMeta);
       } else {
-        // Handle Moonbeam Substrate transactions
         const keyring = new Keyring({ type: "ethereum" });
+
         const privateKey = ephemerals.evmEphemeral.secret as `0x${string}`;
         const keypair = keyring.addFromSeed(hexToU8a(privateKey));
 
         const multiSignedTxs = await signMultipleSubstrateTransactions(tx, keypair, moonbeamApi, tx.nonce);
+
         const primaryTx = multiSignedTxs[0];
+
         const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 
         signedTxs.push(txWithMeta);
@@ -347,26 +375,11 @@ export async function signUnsignedTransactions(
         throw new Error("Missing EVM ephemeral account");
       }
 
-      const client = createEvmClient(tx.network, ephemerals.evmEphemeral, alchemyApiKey);
-      const multiSignedTxs = await signMultipleEvmTransactions(tx, client, tx.nonce);
-      const primaryTx = multiSignedTxs[0];
-      const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
-
-      signedTxs.push(txWithMeta);
-    }
-
-    // Process Destination Network (EVM) transactions
-    for (const tx of destinationNetworkTxs) {
-      if (!ephemerals.evmEphemeral) {
-        throw new Error("Missing EVM ephemeral account");
+      if (!evmClients) {
+        throw new Error("EVM clients not initialized");
       }
 
-      // Check if already signed to avoid duplication
-      const alreadySigned = signedTxs.some(st => st === tx || (st.txData === tx.txData && st.nonce === tx.nonce));
-      if (alreadySigned) continue;
-
-      const client = createEvmClient(tx.network, ephemerals.evmEphemeral, alchemyApiKey);
-      const multiSignedTxs = await signMultipleEvmTransactions(tx, client, tx.nonce);
+      const multiSignedTxs = await signMultipleEvmTransactions(tx, evmClients.polygonClient, tx.nonce);
       const primaryTx = multiSignedTxs[0];
       const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 

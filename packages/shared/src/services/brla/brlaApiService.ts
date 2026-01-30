@@ -289,7 +289,7 @@ export class BrlaApiService {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
 
-    if ("ticket" in aveniaTicketsQueryResponse && "brazilianFiatReceiverInfo" in aveniaTicketsQueryResponse.ticket) {
+    if ("ticket" in aveniaTicketsQueryResponse && "brlPixOutputInfo" in aveniaTicketsQueryResponse.ticket) {
       return aveniaTicketsQueryResponse.ticket;
     }
     throw new Error("Invalid response from Avenia API for getAveniaPayoutTicket");

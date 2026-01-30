@@ -1,19 +1,12 @@
 import {
   AxelarScanStatusFees,
-  BalanceCheckError,
-  BalanceCheckErrorType,
-  checkEvmBalancePeriodically,
   EvmClientManager,
-  EvmNetworks,
-  EvmTokenDetails,
   FiatToken,
   getNetworkId,
-  getOnChainTokenDetails,
   getStatus,
   getStatusAxelarScan,
   Networks,
   nativeToDecimal,
-  OnChainToken,
   RampDirection,
   RampPhase,
   SquidRouterPayResponse
@@ -34,13 +27,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
-const BALANCE_POLLING_TIME_MS = 10000;
-// NOTE: This timeout is intentionally longer (15 minutes) than the 3–5 minute balance
-// checks in other handlers. For SquidRouter/Axelar bridge flows we wait for cross-chain
-// settlement and gas payment on the destination chain, which can legitimately take longer
-// under network congestion or bridge delays. Reducing this timeout risks premature failure
-// of otherwise successful bridge operations.
-const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
@@ -100,7 +86,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       if (state.to === Networks.AssetHub) {
         return this.transitionToNextPhase(state, "moonbeamToPendulum");
       } else {
-        return this.transitionToNextPhase(state, "finalSettlementSubsidy");
+        return this.transitionToNextPhase(state, "complete");
       }
     } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
@@ -109,153 +95,78 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   }
 
   /**
-   * Checks the status of the Axelar bridge and balances in parallel.
-   * If a balance arrived, we consider it a success.
-   * If the bridge reports success, we consider it a success.
-   * Only if both fail (timeout) we throw.
-   */
-  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
-    // If the destination is not an EVM network, skip the EVM balance optimization and rely on bridge status only.
-    if (quote.to === Networks.AssetHub) {
-      logger.info("SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.", {
-        toNetwork: quote.to
-      });
-      await this.checkBridgeStatus(state, swapHash, quote);
-      return;
-    }
-
-    const toChain = quote.to as EvmNetworks;
-
-    let balanceCheckPromise: Promise<Big>;
-
-    try {
-      const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as OnChainToken) as EvmTokenDetails;
-      const ephemeralAddress = state.state.evmEphemeralAddress;
-
-      if (outTokenDetails && ephemeralAddress) {
-        balanceCheckPromise = checkEvmBalancePeriodically(
-          outTokenDetails.erc20AddressSourceChain,
-          ephemeralAddress,
-          "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-          BALANCE_POLLING_TIME_MS,
-          EVM_BALANCE_CHECK_TIMEOUT_MS,
-          toChain
-        );
-      } else {
-        logger.warn(
-          "SquidRouterPayPhaseHandler: Cannot perform balance check optimization (missing expected token details or address)."
-        );
-        balanceCheckPromise = Promise.reject(new Error("Skipped balance check"));
-      }
-    } catch (err) {
-      logger.warn(`SquidRouterPayPhaseHandler: Error preparing balance check: ${err}`);
-      balanceCheckPromise = Promise.reject(err);
-    }
-
-    // Wrap both promises to prevent unhandled rejections after one succeeds
-    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote).catch(err => {
-      // Re-throw to preserve the error for Promise.any
-      throw err;
-    });
-
-    const balanceCheckWithErrorHandling = balanceCheckPromise.catch(err => {
-      // Re-throw to preserve the error for Promise.any
-      throw err;
-    });
-
-    try {
-      await Promise.any([bridgeCheckPromise, balanceCheckWithErrorHandling]);
-    } catch (error) {
-      // Both failed.
-      if (error instanceof AggregateError) {
-        // Distinguish between balance check timeout and read failure
-        const balanceError = error.errors.find(e => e instanceof BalanceCheckError);
-        const bridgeError = error.errors.find(e => !(e instanceof BalanceCheckError));
-
-        let errorMessage = "SquidRouterPayPhaseHandler: Both bridge status check and balance check failed.";
-
-        if (balanceError instanceof BalanceCheckError) {
-          if (balanceError.type === BalanceCheckErrorType.Timeout) {
-            errorMessage += ` Balance check timed out after ${EVM_BALANCE_CHECK_TIMEOUT_MS}ms.`;
-          } else if (balanceError.type === BalanceCheckErrorType.ReadFailure) {
-            errorMessage += ` Balance check read failure (unexpected infrastructure issue): ${balanceError.message}.`;
-          }
-        }
-
-        if (bridgeError) {
-          errorMessage += ` Bridge check error: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}.`;
-        }
-
-        throw new Error(errorMessage);
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Gets the status of the Axelar bridge
    * @param txHash The swap (bridgeCall) transaction hash
    */
-  private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
-    let isExecuted = false;
-    let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
-
-    await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
-
-    while (!isExecuted) {
-      try {
+  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+    try {
+      let isExecuted = false;
+      let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
+      // initial delay to allow for API indexing.
+      await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
+      while (!isExecuted) {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
+        if (squidRouterStatus.status === "success") {
+          isExecuted = true;
+          logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
+          break;
+        }
         if (!squidRouterStatus) {
           logger.warn(`SquidRouterPayPhaseHandler: No squidRouter status found for swap hash ${swapHash}.`);
-        } else if (squidRouterStatus.status === "success") {
-          logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Squidrouter.`);
+          throw this.createRecoverableError("No squidRouter status found for swap hash.");
+        }
+
+        // If route is on the same chain, we must skip the Axelar check.
+        if (!squidRouterStatus.isGMPTransaction) {
+          await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+        }
+
+        const axelarScanStatus = await getStatusAxelarScan(swapHash);
+
+        //no status found is considered a recoverable error.
+        if (!axelarScanStatus) {
+          logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
+          throw this.createRecoverableError("No status found for swap hash.");
+        }
+        if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
           isExecuted = true;
+          logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
           break;
         }
 
-        const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
+        if (!payTxHash) {
+          const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+          const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
-        if (isGmp) {
-          const axelarScanStatus = await getStatusAxelarScan(swapHash);
+          payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
-          if (!axelarScanStatus) {
-            logger.info(`SquidRouterPayPhaseHandler: Axelar status not found yet for hash ${swapHash}.`);
-          } else if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
-            logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
-            isExecuted = true;
-            break;
-          } else if (!payTxHash) {
-            logger.info(`SquidRouterPayPhaseHandler: Bridge transaction detected on Axelar. Proceeding to fund gas.`);
+          const isPolygon = quote.inputCurrency !== FiatToken.BRL;
+          const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
+          const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber(); // Both MATIC and GLMR have 18 decimals
+          const payerAccount = isPolygon
+            ? this.polygonWalletClient.account?.address
+            : this.moonbeamWalletClient.account?.address;
 
-            const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
-            const logIndex = Number(axelarScanStatus.id.split("_")[2]);
-
-            payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
-
-            const isPolygon = quote.inputCurrency !== FiatToken.BRL;
-            const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
-            const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber();
-            const payerAccount = isPolygon
-              ? this.polygonWalletClient.account?.address
-              : this.moonbeamWalletClient.account?.address;
-
-            if (payerAccount) {
-              await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
-            }
-
-            await state.update({
-              state: { ...state.state, squidRouterPayTxHash: payTxHash }
-            });
+          if (payerAccount) {
+            await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
           }
-        } else {
-          logger.info(`SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.`);
-        }
-      } catch (error) {
-        logger.error(`SquidRouterPayPhaseHandler: Error in bridge status loop for ${swapHash}:`, error);
-      }
 
-      await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+          await state.update({
+            state: {
+              ...state.state,
+              squidRouterPayTxHash: payTxHash
+            }
+          });
+        }
+
+        await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+      }
+    } catch (error) {
+      if (error && error instanceof PhaseError && error.isRecoverable) {
+        throw error;
+      }
+      throw new Error(`SquidRouterPayPhaseHandler: Error waiting checking for Axelar bridge transaction: ${error}`);
     }
   }
 
