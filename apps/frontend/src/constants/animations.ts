@@ -16,8 +16,8 @@ export const easings = {
  * Duration guidelines for different interaction types
  */
 export const durations = {
-  fast: 0.15, // 100ms - micro-interactions (hover states)
-  micro: 0.1, // 150ms - tooltips, dropdowns
+  fast: 0.15, // 150ms - tooltips, dropdowns
+  micro: 0.1, // 100ms - micro-interactions (hover states)
   normal: 0.2, // 200ms - standard UI animations
   slow: 0.3 // 300ms - modals, drawers, complex transitions
 };
