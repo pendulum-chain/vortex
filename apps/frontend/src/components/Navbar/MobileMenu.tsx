@@ -1,6 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { motion, type Variants } from "motion/react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { durations, easings } from "../../constants/animations";
 
 interface MobileMenuProps {
   onMenuItemClick: () => void;
@@ -10,8 +11,8 @@ const menuVariants: Variants = {
   closed: {
     opacity: 0,
     transition: {
-      duration: 0.2,
-      ease: [0.4, 0, 1, 1],
+      duration: durations.normal,
+      ease: easings.easeOutCubic,
       staggerChildren: 0.05,
       staggerDirection: -1,
       when: "afterChildren"
@@ -21,8 +22,8 @@ const menuVariants: Variants = {
   open: {
     opacity: 1,
     transition: {
-      duration: 0.3,
-      ease: [0, 0, 0.2, 1],
+      duration: durations.slow,
+      ease: easings.easeOutCubic,
       staggerChildren: 0.07,
       when: "beforeChildren"
     },
@@ -33,12 +34,12 @@ const menuVariants: Variants = {
 const menuItemVariants: Variants = {
   closed: {
     opacity: 0,
-    transition: { duration: 0.15, ease: "easeIn" },
+    transition: { duration: durations.fast, ease: easings.easeOutCubic },
     x: -16
   },
   open: {
     opacity: 1,
-    transition: { duration: 0.25, ease: "easeOut" },
+    transition: { duration: durations.normal, ease: easings.easeOutCubic },
     x: 0
   }
 };
@@ -47,7 +48,7 @@ const buttonVariants: Variants = {
   closed: {
     opacity: 0,
     scale: 0.95,
-    transition: { duration: 0.15 }
+    transition: { duration: durations.fast, ease: easings.easeOutCubic }
   },
   open: {
     opacity: 1,
@@ -56,9 +57,15 @@ const buttonVariants: Variants = {
   }
 };
 
+const reducedMotionVariants: Variants = {
+  closed: { opacity: 0 },
+  open: { opacity: 1, transition: { duration: 0 } }
+};
+
 export const MobileMenu = ({ onMenuItemClick }: MobileMenuProps) => {
   const { t } = useTranslation();
   const params = useParams({ strict: false });
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <motion.div
@@ -66,7 +73,7 @@ export const MobileMenu = ({ onMenuItemClick }: MobileMenuProps) => {
       className="absolute top-full right-0 left-0 z-50 bg-blue-950 shadow-lg"
       exit="closed"
       initial="closed"
-      variants={menuVariants}
+      variants={shouldReduceMotion ? reducedMotionVariants : menuVariants}
     >
       <nav className="group flex flex-col px-6 py-4">
         <motion.div variants={menuItemVariants}>

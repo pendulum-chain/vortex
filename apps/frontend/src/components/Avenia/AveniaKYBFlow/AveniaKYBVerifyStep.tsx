@@ -37,7 +37,11 @@ export const AveniaKYBVerifyStep = ({
         <div>
           <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
 
-          <img alt="Business Check" className="mx-auto mt-16 w-[170px] transition-all duration-300" src={imageSrc} />
+          <img
+            alt="Business Check"
+            className="mx-auto mt-16 w-[170px] transition-opacity duration-300 motion-reduce:transition-none"
+            src={imageSrc}
+          />
 
           {!isVerificationStarted && (
             <p className="mx-1 mt-6 mb-4 text-center">
