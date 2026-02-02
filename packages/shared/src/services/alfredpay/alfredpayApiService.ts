@@ -51,8 +51,8 @@ export class AlfredpayApiService {
   ): Promise<T | undefined> {
     const headers = {
       Accept: "application/json",
-      apiKey: this.apiKey,
-      apiSecret: this.apiSecret,
+      "api-key": this.apiKey,
+      "api-secret": this.apiSecret,
       "Content-Type": "application/json"
     };
 
@@ -89,9 +89,14 @@ export class AlfredpayApiService {
     }
   }
 
-  public async createCustomer(type: AlfredpayCustomerType, country: string): Promise<CreateAlfredpayCustomerResponse> {
+  public async createCustomer(
+    email: string,
+    type: AlfredpayCustomerType,
+    country: string
+  ): Promise<CreateAlfredpayCustomerResponse> {
     const payload = {
       country,
+      email,
       type
     };
     return (await this.executeRequest(

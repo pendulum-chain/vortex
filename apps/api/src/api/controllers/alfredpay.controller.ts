@@ -10,6 +10,7 @@ import {
   AlfredpayGetKycStatusResponse,
   AlfredpayKycRedirectFinishedRequest,
   AlfredpayKycRedirectOpenedRequest,
+  AlfredpayKycStatus,
   AlfredpayStatusRequest,
   AlfredpayStatusResponse
 } from "@vortexfi/shared";
@@ -67,7 +68,7 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(type, country);
+      const newCustomer = await alfredpayService.createCustomer(user.email, type, country);
       const customerId = newCustomer.customerId;
 
       await AlfredPayCustomer.create({
@@ -193,10 +194,49 @@ export class AlfredpayController {
       const alfredpayService = AlfredpayApiService.getInstance();
       const statusResponse = await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, submissionId);
 
-      res.json(statusResponse as AlfredpayGetKycStatusResponse);
+      const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
+      const updateData: Partial<AlfredPayCustomer> = {};
+
+      if (newStatus && newStatus !== alfredPayCustomer.status) {
+        updateData.status = newStatus;
+      }
+
+      if (newStatus === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason) {
+        updateData.lastFailureReasons = [statusResponse.metadata.failureReason];
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await alfredPayCustomer.update(updateData);
+      }
+
+      const response: AlfredpayGetKycStatusResponse = {
+        alfred_pay_id: alfredPayCustomer.alfredPayId,
+        country: alfredPayCustomer.country,
+        email: alfredPayCustomer.email,
+        lastFailure: updateData.lastFailureReasons?.[0] || alfredPayCustomer.lastFailureReasons?.[0], // Get the latest failure reason
+        status: (newStatus || alfredPayCustomer.status) as AlfredPayStatus,
+        updated_at: alfredPayCustomer.updatedAt.toISOString()
+      };
+
+      res.json(response);
     } catch (error) {
       logger.error("Error getting KYC status:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  private static mapKycStatus(status: AlfredpayKycStatus): AlfredPayStatus | null {
+    switch (status) {
+      case AlfredpayKycStatus.IN_REVIEW:
+        return AlfredPayStatus.Verifying;
+      case AlfredpayKycStatus.FAILED:
+        return AlfredPayStatus.Failed;
+      case AlfredpayKycStatus.COMPLETED:
+        return AlfredPayStatus.Success;
+      case AlfredpayKycStatus.CREATED:
+      default:
+        return null; // Do nothing
+      // TODO how do we map their UPDATE_REQUIRED required? what does it mean in terms of flow, for our user?
     }
   }
 }
