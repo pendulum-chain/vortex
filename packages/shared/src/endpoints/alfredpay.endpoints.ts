@@ -58,4 +58,11 @@ export interface AlfredpayGetKycStatusRequest {
   country: string;
 }
 
-export type AlfredpayGetKycStatusResponse = GetKycStatusResponse;
+export interface AlfredpayGetKycStatusResponse {
+  status: AlfredPayStatus;
+  lastFailure?: string;
+  updated_at: string;
+  email: string;
+  alfred_pay_id: string;
+  country: string;
+}

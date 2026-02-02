@@ -2,11 +2,19 @@ import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
+import { AlfredpayKycMachineError } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext, SelectedAveniaData } from "./types";
 
 // Extended context types for child KYC machines
+export interface AlfredpayKycContext extends RampContext {
+  verificationUrl?: string;
+  submissionId?: string;
+  country?: string;
+  error?: AlfredpayKycMachineError;
+}
+
 export interface AveniaKycContext extends RampContext {
   taxId: string;
   subAccountId?: string;
@@ -80,6 +88,38 @@ export const kycStateNode = {
     }
   },
   states: {
+    Alfredpay: {
+      invoke: {
+        id: "alfredpayKyc",
+        input: ({ context }: { context: RampContext }): AlfredpayKycContext => ({
+          ...context
+        }),
+        onDone: [
+          {
+            actions: assign(({ context }: { context: RampContext }) => {
+              return {
+                ...context
+              };
+            }),
+            target: "VerificationComplete"
+          },
+          {
+            actions: assign({
+              initializeFailedMessage: ({ event }: { event: any }) =>
+                (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
+            }),
+            target: "#ramp.KycFailure"
+          }
+        ],
+        onError: {
+          actions: assign({
+            initializeFailedMessage: "Alfredpay KYC verification failed. Please retry."
+          }),
+          target: "#ramp.KycFailure"
+        },
+        src: "alfredpayKyc"
+      }
+    },
     Avenia: {
       invoke: {
         id: "aveniaKyc",
@@ -118,6 +158,10 @@ export const kycStateNode = {
     },
     Deciding: {
       always: [
+        {
+          guard: ({ context }: { context: RampContext }) => !!context.alfredpayCustomer,
+          target: "Alfredpay"
+        },
         {
           guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
           target: "Avenia"
