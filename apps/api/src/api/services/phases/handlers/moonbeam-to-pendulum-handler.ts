@@ -16,6 +16,7 @@ import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -80,7 +81,10 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       logger.error(e);
-      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.");
+      throw new RecoverablePhaseError(
+        "MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.",
+        30
+      );
     }
 
     let obtainedHash: `0x${string}` | undefined = moonbeamXcmTransactionHash;
@@ -129,14 +133,14 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       console.error("Error while executing moonbeam split contract transaction:", e);
-      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction");
+      throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction", 30);
     }
 
     try {
       await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
       console.error("Error while waiting for transaction receipt:", e);
-      throw new Error("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
+      throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.", 30);
     }
 
     return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
