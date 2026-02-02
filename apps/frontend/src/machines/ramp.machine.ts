@@ -471,9 +471,11 @@ export const rampMachine = setup({
       invoke: {
         input: ({ context }) => context,
         onDone: {
-          actions: assign({
-            rampState: ({ event }) => event.output
-          }),
+          actions: [
+            assign({
+              rampState: ({ event }) => event.output
+            })
+          ],
           target: "UpdateRamp"
         },
         onError: {
