@@ -14,63 +14,44 @@ import {
   RampDirection,
   stellarTokenConfig
 } from "@vortexfi/shared";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
 
-function useDeepStableReference<T>(value: T[]): T[] {
-  const ref = useRef<T[]>(value);
-
-  const isChanged = useMemo(() => {
-    if (ref.current.length !== value.length) return true;
-
-    return JSON.stringify(ref.current) !== JSON.stringify(value);
-  }, [value]);
-
-  if (isChanged) {
-    ref.current = value;
-  }
-
-  return ref.current;
-}
-
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
 
-  const rawDefinitions = useMemo(
+  const allDefinitions = useMemo(
     () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection),
     [tokenSelectModalType, rampDirection]
   );
-
-  const allDefinitions = useDeepStableReference(rawDefinitions);
 
   const availableNetworks = useMemo(() => {
     const networks = new Set(allDefinitions.map(token => token.network));
     return Array.from(networks).sort();
   }, [allDefinitions]);
 
-  const rawNetworkFiltered = useMemo(() => {
+  const networkFiltered = useMemo(() => {
     if (selectedNetworkFilter === "all") {
       return allDefinitions;
     }
     return allDefinitions.filter(token => token.network === selectedNetworkFilter);
   }, [allDefinitions, selectedNetworkFilter]);
 
-  const networkFilteredDefinitions = useDeepStableReference(rawNetworkFiltered);
-
   const filteredDefinitions = useMemo(() => {
-    const searchTerm = filter.toLowerCase();
+    if (!filter) return networkFiltered;
 
-    return networkFilteredDefinitions.filter(
+    const searchTerm = filter.toLowerCase();
+    return networkFiltered.filter(
       ({ assetSymbol, name, networkDisplayName }) =>
         assetSymbol.toLowerCase().includes(searchTerm) ||
         (name && name.toLowerCase().includes(searchTerm)) ||
         networkDisplayName.toLowerCase().includes(searchTerm)
     );
-  }, [networkFilteredDefinitions, filter]);
+  }, [networkFiltered, filter]);
 
   return {
     availableNetworks,
@@ -108,17 +89,33 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
   }
 }
 
+let cachedOnChainTokens: ExtendedTokenDefinition[] | null = null;
+let cachedEvmConfigRef: ReturnType<typeof getEvmTokenConfig> | null = null;
+
 function getAllOnChainTokens(): ExtendedTokenDefinition[] {
+  const currentEvmConfig = getEvmTokenConfig();
+
+  if (cachedOnChainTokens && cachedEvmConfigRef === currentEvmConfig) {
+    return cachedOnChainTokens;
+  }
+
   const allTokens: ExtendedTokenDefinition[] = [];
   allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
   const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
-  const evmConfig = getEvmTokenConfig();
   for (const network of evmNetworks) {
-    if (evmConfig[network]) {
+    if (currentEvmConfig[network]) {
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
     }
   }
+
+  cachedOnChainTokens = allTokens;
+  cachedEvmConfigRef = currentEvmConfig;
   return allTokens;
+}
+
+export function invalidateOnChainTokensCache(): void {
+  cachedOnChainTokens = null;
+  cachedEvmConfigRef = null;
 }
 
 function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {

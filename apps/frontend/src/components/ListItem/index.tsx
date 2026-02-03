@@ -1,20 +1,32 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
+import { FiatToken, isFiatToken, OnChainToken } from "@vortexfi/shared";
+import Big from "big.js";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
+import { stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
 import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
-import { UserBalance } from "../UserBalance";
 
 interface ListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
   token: ExtendedTokenDefinition;
+  balance?: string;
 }
 
-export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: ListItemProps) {
+function formatBalance(balance: string): string {
+  try {
+    const big = new Big(balance);
+    if (big.eq(0)) return "";
+    return stringifyBigWithSignificantDecimals(big, 2);
+  } catch {
+    return "";
+  }
+}
+
+export const ListItem = memo(function ListItem({ token, isSelected, onSelect, balance }: ListItemProps) {
   const { t } = useTranslation();
   const fiatIcon = useGetAssetIcon(token.assetIcon);
   const tokenIcon = token.logoURI ?? fiatIcon;
@@ -22,6 +34,8 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: 
 
   const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
   const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;
+
+  const formattedBalance = balance ? formatBalance(balance) : "";
 
   return (
     <button
@@ -60,9 +74,11 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect }: 
             )}
           </span>
         </span>
-        <span className="text-base">
-          {!isFiat && <UserBalance className="font-bold" token={token.details as OnChainTokenDetails} />}
-        </span>
+        {formattedBalance && (
+          <span className="font-bold text-base">
+            {formattedBalance} {token.assetSymbol}
+          </span>
+        )}
       </div>
     </button>
   );
