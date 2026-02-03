@@ -1,11 +1,10 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, OnChainToken } from "@vortexfi/shared";
+import { FiatToken, isFiatToken, OnChainToken, stringifyBigWithSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
-import { stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../hooks/useTokenIcon";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
 
@@ -28,9 +27,10 @@ function formatBalance(balance: string): string {
 
 export const ListItem = memo(function ListItem({ token, isSelected, onSelect, balance }: ListItemProps) {
   const { t } = useTranslation();
-  const fiatIcon = useGetAssetIcon(token.assetIcon);
-  const tokenIcon = token.logoURI ?? fiatIcon;
   const isFiat = isFiatToken(token.type);
+  // Use assetIcon for fiat lookup, with network for on-chain tokens
+  const iconInfo = useTokenIcon(token.assetIcon, isFiat ? undefined : token.network);
+  const tokenIcon = token.logoURI ?? iconInfo.iconSrc;
 
   const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
   const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;

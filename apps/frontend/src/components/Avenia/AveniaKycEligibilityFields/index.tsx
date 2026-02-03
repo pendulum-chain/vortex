@@ -1,16 +1,10 @@
 import { CNPJ_REGEX, CPF_REGEX, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
-import { AnimatePresence, type MotionProps, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { durations, easings } from "../../../constants/animations";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { AveniaField, AveniaFieldValidationPattern, StandardAveniaFieldOptions } from "../AveniaField";
-
-const containerAnimation: MotionProps = {
-  animate: { height: "auto", opacity: 1 },
-  exit: { height: 0, opacity: 0 },
-  initial: { height: 0, opacity: 0 },
-  transition: { duration: 0.3 }
-};
 
 const OFFRAMP_FIELDS = [
   { id: StandardAveniaFieldOptions.TAX_ID, index: 0, label: "cpfOrCnpj" },
@@ -46,12 +40,18 @@ export const AveniaKycEligibilityFields: FC<{ isWalletAddressDisabled?: boolean 
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.BUY;
+  const shouldReduceMotion = useReducedMotion();
 
   const FIELDS = isOnramp ? ONRAMP_FIELDS : OFFRAMP_FIELDS;
 
   return (
     <AnimatePresence>
-      <motion.div {...containerAnimation}>
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+        transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
+      >
         {FIELDS.map(field => (
           <AveniaField
             className="mt-2"
