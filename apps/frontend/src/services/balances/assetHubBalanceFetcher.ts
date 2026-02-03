@@ -1,6 +1,15 @@
 import { ApiPromise } from "@polkadot/api";
-import { AssetHubTokenDetails, assetHubTokenConfig, Networks, nativeToDecimal } from "@vortexfi/shared";
+import { AssetHubTokenDetails, assetHubTokenConfig, getTokenUsdPrice, Networks, nativeToDecimal } from "@vortexfi/shared";
+import Big from "big.js";
 import { BalanceMap, getBalanceKey, TokenBalance } from "./types";
+
+function calculateBalanceUsd(balance: string, symbol: string): string {
+  const usdPrice = getTokenUsdPrice(symbol);
+  if (!usdPrice || usdPrice === 0) {
+    return "0.00";
+  }
+  return Big(balance).times(usdPrice).toFixed(2, 0);
+}
 
 function getAllSupportedAssetHubTokens(): AssetHubTokenDetails[] {
   return Object.values(assetHubTokenConfig);
@@ -17,7 +26,7 @@ async function fetchNativeBalance(
     const freeBalance = accountData.data.free || 0;
     const balance = nativeToDecimal(freeBalance, nativeToken.decimals).toFixed(4, 0).toString();
 
-    return { balance, balanceUsd: "0.00" };
+    return { balance, balanceUsd: calculateBalanceUsd(balance, nativeToken.assetSymbol) };
   } catch (error) {
     console.error("Error fetching AssetHub native balance:", error);
     return { balance: "0.00", balanceUsd: "0.00" };
@@ -63,7 +72,7 @@ async function fetchAssetBalances(
 
       balances.set(getBalanceKey(Networks.AssetHub, token.assetSymbol), {
         balance,
-        balanceUsd: "0.00"
+        balanceUsd: calculateBalanceUsd(balance, token.assetSymbol)
       });
     }
   } catch (error) {

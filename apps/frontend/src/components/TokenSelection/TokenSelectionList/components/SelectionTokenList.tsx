@@ -29,6 +29,15 @@ function sortByBalance(
     if (usdA !== usdB) {
       return usdB - usdA;
     }
+
+    // When USD values are equal (e.g., both 0), sort by raw balance
+    const rawBalanceA = parseFloat(balanceA?.balance ?? "0");
+    const rawBalanceB = parseFloat(balanceB?.balance ?? "0");
+
+    if (rawBalanceA !== rawBalanceB) {
+      return rawBalanceB - rawBalanceA;
+    }
+
     return a.assetSymbol.localeCompare(b.assetSymbol);
   });
 }
