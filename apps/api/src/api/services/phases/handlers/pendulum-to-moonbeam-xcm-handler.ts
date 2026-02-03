@@ -85,7 +85,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       return balance.gte(expectedOutputAmountRaw);
     };
 
-    const waitForMoonbeamArrival = async (timeoutMs: number = 120000): Promise<boolean> => {
+    const waitForMoonbeamArrival = async (timeoutMs = 120000): Promise<boolean> => {
       const startTime = Date.now();
       const pollIntervalMs = 5000;
 
