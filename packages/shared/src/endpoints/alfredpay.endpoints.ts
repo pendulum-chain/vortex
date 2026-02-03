@@ -52,9 +52,8 @@ export interface AlfredpayKycRedirectFinishedResponse {
   success: boolean;
 }
 
-// GET /alfredpay/getKycStatus?submissionId=:submissionId&country=:country
+// GET /alfredpay/getKycStatus?country=:country
 export interface AlfredpayGetKycStatusRequest {
-  submissionId: string;
   country: string;
 }
 

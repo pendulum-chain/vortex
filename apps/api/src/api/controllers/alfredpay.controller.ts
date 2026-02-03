@@ -34,6 +34,36 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
 
+      const alfredpayService = AlfredpayApiService.getInstance();
+
+      try {
+        const lastSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+
+        if (lastSubmission && lastSubmission.submissionId) {
+          const statusResponse = await alfredpayService.getKycStatus(
+            alfredPayCustomer.alfredPayId,
+            lastSubmission.submissionId
+          );
+
+          const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
+          const updateData: Partial<AlfredPayCustomer> = {};
+
+          if (newStatus && newStatus !== alfredPayCustomer.status) {
+            updateData.status = newStatus;
+          }
+
+          if (newStatus === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason) {
+            updateData.lastFailureReasons = [statusResponse.metadata.failureReason];
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            await alfredPayCustomer.update(updateData);
+          }
+        }
+      } catch (error) {
+        logger.error("Error refreshing Alfredpay status:", error);
+      }
+
       const response: AlfredpayStatusResponse = {
         country: alfredPayCustomer.country,
         creationTime: alfredPayCustomer.createdAt.toISOString(),
@@ -52,10 +82,13 @@ export class AlfredpayController {
       const { country, type } = req.body as AlfredpayCreateCustomerRequest;
       const userId = req.userId!;
 
-      const user = await SupabaseAuthService.getUserProfile(userId);
-      if (!user || !user.email) {
-        return res.status(404).json({ error: "User not found or email missing" });
-      }
+      // const user = await SupabaseAuthService.getUserProfile(userId);
+      // if (!user || !user.email) {
+      //   return res.status(404).json({ error: "User not found or email missing" });
+      // }
+      const user = {
+        email: "gianni3@gmail.com"
+      };
 
       // Check if customer already exists in our DB
       const existingDbCustomer = await AlfredPayCustomer.findOne({
@@ -122,7 +155,7 @@ export class AlfredpayController {
         logger.info("No previous KYC submission found or error fetching it, proceeding.");
       }
 
-      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
+      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, "MEX");
 
       res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
     } catch (error) {
@@ -179,7 +212,7 @@ export class AlfredpayController {
 
   static async getKycStatus(req: Request, res: Response) {
     try {
-      const { submissionId, country } = req.query as unknown as AlfredpayGetKycStatusRequest;
+      const { country } = req.query as unknown as AlfredpayGetKycStatusRequest;
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -192,11 +225,20 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      const statusResponse = await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, submissionId);
+
+      const lastSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+
+      if (!lastSubmission || !lastSubmission.submissionId) {
+        return res.status(404).json({ error: "No KYC attempt found" });
+      }
+
+      const statusResponse = await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
 
       const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
+      console.log("newStatus", newStatus);
       const updateData: Partial<AlfredPayCustomer> = {};
 
+      console.log("our status", alfredPayCustomer.status);
       if (newStatus && newStatus !== alfredPayCustomer.status) {
         updateData.status = newStatus;
       }

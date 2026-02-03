@@ -96,19 +96,20 @@ export const kycStateNode = {
         }),
         onDone: [
           {
+            actions: assign({
+              initializeFailedMessage: ({ event }: { event: any }) =>
+                (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
+            }),
+            guard: ({ event }: { event: any }) => !!event.output.error,
+            target: "#ramp.KycFailure"
+          },
+          {
             actions: assign(({ context }: { context: RampContext }) => {
               return {
                 ...context
               };
             }),
             target: "VerificationComplete"
-          },
-          {
-            actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) =>
-                (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
-            }),
-            target: "#ramp.KycFailure"
           }
         ],
         onError: {
@@ -159,7 +160,7 @@ export const kycStateNode = {
     Deciding: {
       always: [
         {
-          guard: ({ context }: { context: RampContext }) => !!context.alfredpayCustomer,
+          //guard: ({ context }: { context: RampContext }) => !!context.alfredpayCustomer,
           target: "Alfredpay"
         },
         {

@@ -25,34 +25,37 @@ export class AlfredpayKycMachineError extends Error {
 export const alfredpayKycMachine = setup({
   actors: {
     checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      console.log("Checking alfredpay status");
+
+      const country = input.country || "MX";
 
       const status = await AlfredpayService.getAlfredpayStatus(country);
       return status;
     }),
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      const country = input.country || "MX";
       return AlfredpayService.createCustomer(country, "INDIVIDUAL");
     }),
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      const country = input.country || "MX";
       return AlfredpayService.getKycRedirectLink(country);
     }),
     notifyFinished: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      const country = input.country || "MX";
       return AlfredpayService.notifyKycRedirectFinished(country);
     }),
     notifyOpened: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      const country = input.country || "MX";
       return AlfredpayService.notifyKycRedirectOpened(country);
     }),
     pollStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
-      if (!input.submissionId) throw new Error("No submission ID");
+      console.log("Polling status for country", input.country);
+      const country = input.country || "MX";
+      // Submission ID check removed as backend handles it
 
       while (true) {
         try {
-          const response = await AlfredpayService.getKycStatus(input.submissionId, country);
+          const response = await AlfredpayService.getKycStatus(country);
           if (response.status === AlfredPayStatus.Success || response.status === AlfredPayStatus.Failed) {
             return response;
           }
@@ -63,10 +66,12 @@ export const alfredpayKycMachine = setup({
       }
     }),
     waitForValidation: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
+      const country = input.country || "MX";
+      // Submission ID check removed as backend handles it
+
       while (true) {
         try {
-          const status = await AlfredpayService.getAlfredpayStatus(country);
+          const status = await AlfredpayService.getKycStatus(country);
           if (
             status.status === AlfredPayStatus.Verifying ||
             status.status === AlfredPayStatus.Success ||
@@ -93,7 +98,7 @@ export const alfredpayKycMachine = setup({
     output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
   }
 }).createMachine({
-  context: ({ input }) => ({ ...input, country: input.country || "US" }),
+  context: ({ input }) => ({ ...input, country: input.country || "MX" }),
   id: "alfredpayKyc",
   initial: "CheckingStatus",
   output: ({ context }) => ({
