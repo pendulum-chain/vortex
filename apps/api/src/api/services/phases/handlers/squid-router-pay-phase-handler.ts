@@ -226,7 +226,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             isExecuted = true;
             break;
           } else if (!payTxHash) {
-            logger.info(`SquidRouterPayPhaseHandler: Bridge transaction detected on Axelar. Proceeding to fund gas.`);
+            logger.info("SquidRouterPayPhaseHandler: Bridge transaction detected on Axelar. Proceeding to fund gas.");
 
             const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
             const logIndex = Number(axelarScanStatus.id.split("_")[2]);
@@ -249,7 +249,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             });
           }
         } else {
-          logger.info(`SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.`);
+          logger.info("SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.");
         }
       } catch (error) {
         logger.error(`SquidRouterPayPhaseHandler: Error in bridge status loop for ${swapHash}:`, error);
