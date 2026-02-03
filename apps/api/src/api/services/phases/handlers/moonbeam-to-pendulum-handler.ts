@@ -31,8 +31,11 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
+    const evmClientManager = EvmClientManager.getInstance();
+
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
+    const moonbeamNode = evmClientManager.getClient(Networks.Moonbeam);
 
     const { substrateEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
       state.state as StateMetadata;
@@ -60,11 +63,10 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     };
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const evmClientManager = EvmClientManager.getInstance();
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
     const isHashRegisteredInSplitReceiver = async () => {
-      const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Moonbeam, {
+      const result = await publicClient.readContract({
         abi: splitReceiverABI,
         address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         args: [squidRouterReceiverHash],
