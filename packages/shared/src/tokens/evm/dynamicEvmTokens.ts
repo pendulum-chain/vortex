@@ -134,22 +134,40 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
   for (const token of tokens) {
     if (isNetworkEVM(token.network)) {
       const network = token.network as EvmNetworks;
-      if (!grouped[network]) {
-        grouped[network] = {};
-      }
       grouped[network][token.assetSymbol.toUpperCase()] = token;
     }
   }
 
+  // Merge with static config - static takes priority for addresses, dynamic provides metadata
   for (const network of Object.values(Networks)) {
-    if (isNetworkEVM(network)) {
-      const evmNetwork = network as EvmNetworks;
-      const networkTokenConfig = evmTokenConfig[evmNetwork];
-      if (networkTokenConfig) {
-        grouped[evmNetwork] = {
-          ...networkTokenConfig,
-          ...grouped[evmNetwork]
+    if (!isNetworkEVM(network)) continue;
+
+    const evmNetwork = network as EvmNetworks;
+    const networkTokenConfig = evmTokenConfig[evmNetwork];
+    if (!networkTokenConfig) continue;
+
+    for (const [symbol, staticToken] of Object.entries(networkTokenConfig)) {
+      if (!staticToken) continue;
+
+      const normalizedSymbol = symbol.toUpperCase();
+      const dynamicToken = grouped[evmNetwork][normalizedSymbol];
+
+      if (dynamicToken) {
+        if (staticToken.erc20AddressSourceChain.toLowerCase() !== dynamicToken.erc20AddressSourceChain.toLowerCase()) {
+          console.warn(
+            `[DynamicEvmTokens] Address mismatch for ${symbol} on ${evmNetwork}. ` +
+              `Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using config.`
+          );
+        }
+        grouped[evmNetwork][normalizedSymbol] = {
+          ...staticToken,
+          fallbackLogoURI: staticToken.fallbackLogoURI ?? dynamicToken.fallbackLogoURI,
+          logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
+          usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
         };
+      } else {
+        // Static token has no dynamic counterpart - use as-is
+        grouped[evmNetwork][normalizedSymbol] = staticToken;
       }
     }
   }
@@ -196,7 +214,6 @@ export async function initializeEvmTokens(): Promise<void> {
     const evmTokens = squidTokens
       .map(mapSquidTokenToEvmTokenDetails)
       .filter((token): token is EvmTokenDetails => token !== null);
-    //.slice(0, 500); // TODO TESTING Limit to first 500 tokens to avoid overload
 
     state.tokens = evmTokens;
     state.tokensByNetwork = groupTokensByNetwork(evmTokens);
