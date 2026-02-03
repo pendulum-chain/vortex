@@ -35,7 +35,6 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
 
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
-    const moonbeamNode = evmClientManager.getClient(Networks.Moonbeam);
 
     const { substrateEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
       state.state as StateMetadata;
