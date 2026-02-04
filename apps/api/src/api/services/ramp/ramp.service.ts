@@ -1,8 +1,14 @@
 import {
   AccountMeta,
+  AlfredpayApiService,
+  AlfredpayChain,
+  AlfredpayFiatCurrency,
+  AlfredpayOnChainCurrency,
+  AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   EvmNetworks,
   FiatToken,
@@ -29,7 +35,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
@@ -38,6 +44,7 @@ import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import { SupabaseAuthService } from "../auth/supabase.service";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -358,6 +365,11 @@ export class RampService extends BaseRampService {
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
         });
+      }
+
+      // Alfredpay Onramp creation
+      if (quote.inputCurrency === FiatToken.USD) {
+        await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
       console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
@@ -862,6 +874,30 @@ export class RampService extends BaseRampService {
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
+  private async prepareAlfredpayOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+  }> {
+    if (!additionalData || !additionalData.destinationAddress) {
+      throw new APIError({
+        message: "Parameter destinationAddress is required for Alfredpay onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    });
+
+    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
   private async prepareMoneriumOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -979,6 +1015,8 @@ export class RampService extends BaseRampService {
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+      } else if (quote.inputCurrency === FiatToken.USD) {
+        return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
@@ -1054,6 +1092,72 @@ export class RampService extends BaseRampService {
     if (oldPhase !== newPhase) {
       await this.notifyStatusChangeIfNeeded(rampState, oldPhase, newPhase);
     }
+  }
+
+  private async processAlfredpayOnrampStart(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<void> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const alfredpayQuoteId = quote.metadata.alfredpayMint?.quoteId;
+
+    if (!alfredpayQuoteId) {
+      throw new APIError({
+        message: "Missing Alfredpay quote ID in metadata",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.userId) {
+      throw new APIError({
+        message: "Missing user ID in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.destinationAddress) {
+      throw new APIError({
+        message: "Destination address not found in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const userProfile = await SupabaseAuthService.getUserProfile(rampState.userId);
+    if (!userProfile || !userProfile.email) {
+      throw new APIError({
+        message: "User profile or email not found",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    const customer = await alfredpayService.findCustomer(userProfile.email, "US");
+    if (!customer || !customer.customerId) {
+      throw new APIError({
+        message: `Alfredpay customer not found for email ${userProfile.email}`,
+        status: httpStatus.NOT_FOUND
+      });
+    }
+
+    const orderRequest: CreateAlfredpayOnrampRequest = {
+      amount: quote.inputAmount,
+      chain: AlfredpayChain.MATIC,
+      customerId: customer.customerId,
+      depositAddress: rampState.state.destinationAddress,
+      fromCurrency: AlfredpayFiatCurrency.USD,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      quoteId: alfredpayQuoteId,
+      toCurrency: AlfredpayOnChainCurrency.USDC
+    };
+
+    const order = await alfredpayService.createOnramp(orderRequest);
+
+    await rampState.update(
+      {
+        state: {
+          ...rampState.state,
+          alfredpayTransactionId: order.transaction.transactionId,
+          fiatPaymentInstructions: order.fiatPaymentInstructions
+        }
+      },
+      { transaction }
+    );
   }
 }
 

@@ -1,6 +1,6 @@
 import {
-  ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_V1,
+  ERC20_USDC_POLYGON,
+  ERC20_USDC_POLYGON_DECIMALS,
   getNetworkFromDestination,
   Networks,
   OnChainToken,
@@ -12,22 +12,22 @@ import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
-export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
+export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
     direction: RampDirection.BUY,
-    skipNote: "OnRampSquidRouterEurToEvmEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
+    skipNote: "OnRampSquidRouterUsdToEvmEngine: Skipped because rampType is SELL, this engine handles BUY operations only"
   };
 
   protected validate(ctx: QuoteContext): void {
     if (ctx.request.to === "assethub") {
       throw new Error(
-        "OnRampSquidRouterEurToEvmEngine: Skipped because destination is assethub, this engine handles EVM destinations only"
+        "OnRampSquidRouterUsdToEvmEngine: Skipped because destination is assethub, this engine handles EVM destinations only"
       );
     }
 
     if (!ctx.moneriumMint?.outputAmountDecimal) {
       throw new Error(
-        "OnRampSquidRouterEurToEvmEngine: Missing moneriumMint.amountOut in context - ensure initialize stage ran successfully"
+        "OnRampSquidRouterUsdToEvmEngine: Missing moneriumMint.amountOut in context - ensure initialize stage ran successfully"
       );
     }
   }
@@ -44,16 +44,16 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const moneriumMint = ctx.moneriumMint!;
+    const alfredpayMint = ctx.alfredpayMint!;
 
     return {
       data: {
-        amountRaw: moneriumMint.outputAmountRaw,
+        amountRaw: alfredpayMint.outputAmountRaw,
         fromNetwork: Networks.Polygon,
-        fromToken: ERC20_EURE_POLYGON_V1,
-        inputAmountDecimal: moneriumMint.outputAmountDecimal,
-        inputAmountRaw: moneriumMint.outputAmountRaw,
-        outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
+        fromToken: ERC20_USDC_POLYGON,
+        inputAmountDecimal: alfredpayMint.outputAmountDecimal,
+        inputAmountRaw: alfredpayMint.outputAmountRaw,
+        outputDecimals: ERC20_USDC_POLYGON_DECIMALS,
         toNetwork,
         toToken
       },

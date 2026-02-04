@@ -15,7 +15,7 @@ import { StateMetadata } from "../../../phases/meta-state-types";
 import { getOutToken } from "../../../sep10/helpers";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
-import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
+import { MoneriumOnrampTransactionParams, OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
 /**
@@ -26,7 +26,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   quote,
   signingAccounts,
   destinationAddress
-}: MoneriumOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
+}: OnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 

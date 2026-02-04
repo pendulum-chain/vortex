@@ -1,12 +1,18 @@
 import { FiatToken, Networks } from "@vortexfi/shared";
-import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "./common/types";
+import {
+  AveniaOnrampTransactionParams,
+  MoneriumOnrampTransactionParams,
+  OnrampTransactionParams,
+  OnrampTransactionsWithMeta
+} from "./common/types";
+import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactions } from "./routes/avenia-to-evm";
 import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
 import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
 export async function prepareOnrampTransactions(
-  params: AveniaOnrampTransactionParams | MoneriumOnrampTransactionParams
+  params: AveniaOnrampTransactionParams | MoneriumOnrampTransactionParams | OnrampTransactionParams
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
@@ -33,8 +39,12 @@ export async function prepareOnrampTransactions(
     } else {
       return prepareMoneriumToEvmOnrampTransactions(params);
     }
-
-    // TODO TODO prepareAlfredpayToEvmOnrampTransactions
+  } else if (quote.inputCurrency === FiatToken.USD) {
+    if (quote.to !== Networks.AssetHub) {
+      return prepareAlfredpayToEvmOnrampTransactions(params);
+    } else {
+      throw new Error(`Unsupported destination network for Alfredpay onramp: ${quote.to}`);
+    }
   } else {
     throw new Error(`Unsupported input currency: ${quote.inputCurrency}`);
   }
