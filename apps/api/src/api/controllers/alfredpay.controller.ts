@@ -87,7 +87,7 @@ export class AlfredpayController {
       //   return res.status(404).json({ error: "User not found or email missing" });
       // }
       const user = {
-        email: "gianni3@gmail.com"
+        email: "gianni4@gmail.com"
       };
 
       // Check if customer already exists in our DB
@@ -155,7 +155,7 @@ export class AlfredpayController {
         logger.info("No previous KYC submission found or error fetching it, proceeding.");
       }
 
-      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, "MEX");
+      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
 
       res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
     } catch (error) {
