@@ -12,6 +12,8 @@ import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
+// TODO decide, duplicate or make generic for Alfredpay's phase
+
 export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
     direction: RampDirection.BUY,

@@ -505,6 +505,7 @@ export const rampMachine = setup({
       }
     },
     KycFailure: {
+      // TODO alfredpay failure ends up here. We should handle a retry on it's own kyc state machine. Get the link again !
       always: {
         target: "Resetting"
       }
