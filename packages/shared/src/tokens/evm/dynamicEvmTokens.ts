@@ -78,16 +78,6 @@ function getNetworkFromChainId(chainId: string): Networks | null {
   return networkEntries.length > 0 ? (networkEntries[0][1] as Networks) : null;
 }
 
-function getNetworkAssetIcon(network: Networks, symbol: string): string {
-  const networkName = network.toLowerCase();
-  const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-  return `${networkName}${cleanSymbol}`;
-}
-
-function generateFallbackLogoURI(chainId: number, address: string): string {
-  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
-}
-
 function shouldIncludeToken(token: SquidRouterToken): boolean {
   const symbol = token.symbol.toUpperCase();
 
@@ -104,6 +94,10 @@ function shouldIncludeToken(token: SquidRouterToken): boolean {
   }
 
   return true;
+}
+
+function generateFallbackLogoURI(chainId: number, address: string): string {
+  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
 }
 
 function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetails | null {
@@ -124,11 +118,10 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     assetSymbol: token.symbol,
     decimals: token.decimals,
     erc20AddressSourceChain: erc20Address,
-    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), erc20Address),
+    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), token.address),
     isNative,
     logoURI: token.logoURI,
     network,
-    networkAssetIcon: getNetworkAssetIcon(network, token.symbol),
     pendulumRepresentative: PENDULUM_USDC_AXL,
     type: TokenType.Evm,
     usdPrice: token.usdPrice
@@ -180,16 +173,20 @@ function mergeWithStaticConfig(
           );
         }
 
-        // Static token exists and dynamic token exists - merge, static takes priority
+        // Static token exists and dynamic token exists - merge, static takes priority, mark as static
         merged[network][normalizedSymbol] = {
           ...staticToken,
-          fallbackLogoURI: staticToken.fallbackLogoURI ?? dynamicToken.fallbackLogoURI,
+          fallbackLogoURI: dynamicToken.fallbackLogoURI ?? staticToken.fallbackLogoURI,
+          isFromStaticConfig: true,
           logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
           usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
         };
       } else {
-        // Static token exists but no dynamic token - use static as-is
-        merged[network][normalizedSymbol] = staticToken;
+        // Static token exists but no dynamic token - use static as-is, mark as static
+        merged[network][normalizedSymbol] = {
+          ...staticToken,
+          isFromStaticConfig: true
+        };
       }
     }
   });

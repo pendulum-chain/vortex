@@ -89,7 +89,7 @@ export const Onramp = () => {
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
-        assetIcon={toToken.networkAssetIcon}
+        assetIcon={toToken.assetSymbol}
         disabled={!toAmount}
         fallbackLogoURI={toIconInfo.fallbackIconSrc}
         id="outputAmount"
@@ -102,7 +102,7 @@ export const Onramp = () => {
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo]
+    [toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo]
   );
 
   const handleConfirm = useCallback(() => {

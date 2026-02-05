@@ -63,7 +63,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
   if (selectedNetwork === Networks.AssetHub) {
     return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
-      assetIcon: value.networkAssetIcon,
+      assetIcon: value.assetSymbol,
       assetSymbol: value.assetSymbol,
       details: value as OnChainTokenDetails,
       logoURI: value.logoURI,
@@ -75,7 +75,7 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
     const evmConfig = getEvmTokenConfig();
     const networkConfig = evmConfig[selectedNetwork as EvmNetworks] ?? {};
     return Object.entries(networkConfig).map(([key, value]) => ({
-      assetIcon: value?.logoURI ?? value?.networkAssetIcon ?? "",
+      assetIcon: value?.assetSymbol ?? key,
       assetSymbol: value?.assetSymbol ?? key,
       details: value as OnChainTokenDetails,
       fallbackLogoURI: value?.fallbackLogoURI,
