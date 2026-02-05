@@ -238,7 +238,8 @@ export class RampService extends BaseRampService {
 
       presignedTxs.forEach((newTx: UnsignedTx) => {
         const existingIndex = updatedTxs.findIndex(
-          tx => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer
+          tx =>
+            tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer && tx.nonce === newTx.nonce
         );
         if (existingIndex >= 0) {
           updatedTxs[existingIndex] = newTx;
