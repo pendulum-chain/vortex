@@ -48,7 +48,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
+    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
 
     if (
       walletLocked &&
@@ -240,7 +240,8 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "UpdateRamp") {
-      const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
+      const isDepositQrCodeReady =
+        Boolean(isOnramp && rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
       if (isOnramp && !isDepositQrCodeReady) return true;
     }
 

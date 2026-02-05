@@ -91,9 +91,12 @@ export const kycStateNode = {
     Alfredpay: {
       invoke: {
         id: "alfredpayKyc",
-        input: ({ context }: { context: RampContext }): AlfredpayKycContext => ({
-          ...context
-        }),
+        input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
+          console.log("Invoking Alfredpay KYC actor with RampContext input:", context);
+          return {
+            ...context
+          };
+        },
         onDone: [
           {
             actions: assign({
@@ -160,7 +163,7 @@ export const kycStateNode = {
     Deciding: {
       always: [
         {
-          //guard: ({ context }: { context: RampContext }) => !!context.alfredpayCustomer,
+          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.USD,
           target: "Alfredpay"
         },
         {

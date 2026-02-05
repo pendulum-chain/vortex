@@ -453,6 +453,13 @@
       "quoteExpired": "Quote expired. Go back and try again.",
       "source": "Source Account",
       "tryAgain": "Try again",
+      "USOnrampDetails": {
+        "copyCode": "or copy the ACH code below and paste it in your bank app",
+        "qrCode": "Select ACH in your bank's app and scan the QR code below.",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "timerLabel": "Quote expires in:",
+        "title": "Pay with ACH"
+      },
       "verifyWallet": "Verify Wallet"
     },
     "searchInput": {

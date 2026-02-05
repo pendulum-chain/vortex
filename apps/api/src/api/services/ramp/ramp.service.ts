@@ -3,6 +3,7 @@ import {
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
+  AlfredpayFiatPaymentInstructions,
   AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
@@ -269,12 +270,14 @@ export class RampService extends BaseRampService {
         { transaction }
       );
 
+      let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
       if (quote.inputCurrency === FiatToken.USD) {
-        await this.processAlfredpayOnrampStart(rampState, quote, transaction);
+        achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
       // Create response
       const response: UpdateRampResponse = {
+        achPaymentData,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
@@ -1100,7 +1103,11 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private async processAlfredpayOnrampStart(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<void> {
+  private async processAlfredpayOnrampStart(
+    rampState: RampState,
+    quote: QuoteTicket,
+    transaction: Transaction
+  ): Promise<AlfredpayFiatPaymentInstructions> {
     if (!this.validateAllPresignedTransactionsSigned(rampState)) {
       return;
     }
@@ -1163,6 +1170,8 @@ export class RampService extends BaseRampService {
       },
       { transaction }
     );
+
+    return order.fiatPaymentInstructions;
   }
 }
 

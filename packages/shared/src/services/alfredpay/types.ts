@@ -232,6 +232,8 @@ export interface AlfredpayFiatPaymentInstructions {
   expirationDate?: string;
   bankName?: string;
   accountHolderName?: string;
+  //wildcard
+  [key: string]: unknown;
 }
 
 export interface CreateAlfredpayOnrampResponse {

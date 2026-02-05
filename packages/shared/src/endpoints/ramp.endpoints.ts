@@ -1,4 +1,13 @@
-import { DestinationType, EvmAddress, Networks, PaymentMethod, PermitSignature, RampCurrency, RampDirection } from "../index";
+import {
+  AlfredpayFiatPaymentInstructions,
+  DestinationType,
+  EvmAddress,
+  Networks,
+  PaymentMethod,
+  PermitSignature,
+  RampCurrency,
+  RampDirection
+} from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
 export type RampPhase =
@@ -143,6 +152,7 @@ export interface RampProcess {
   expiresAt?: string;
   from: DestinationType;
   ibanPaymentData?: IbanPaymentData;
+  achPaymentData?: AlfredpayFiatPaymentInstructions;
   id: string;
   inputAmount: string;
   inputCurrency: string;

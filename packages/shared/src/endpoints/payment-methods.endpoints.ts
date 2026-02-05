@@ -10,7 +10,8 @@ export enum PaymentMethodTypes {
 export enum PaymentMethodName {
   SEPA = "SEPA",
   PIX = "PIX",
-  CBU = "CBU"
+  CBU = "CBU",
+  ACH = "ACH"
 }
 
 export enum EPaymentMethod {

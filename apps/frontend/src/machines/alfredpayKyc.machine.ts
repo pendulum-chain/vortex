@@ -27,30 +27,30 @@ export const alfredpayKycMachine = setup({
     checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       console.log("Checking alfredpay status");
 
-      const country = input.country || "MX";
+      const country = input.country || "US";
 
       const status = await AlfredpayService.getAlfredpayStatus(country);
       return status;
     }),
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "MX";
+      const country = input.country || "US";
       return AlfredpayService.createCustomer(country, "INDIVIDUAL");
     }),
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "MX";
+      const country = input.country || "US";
       return AlfredpayService.getKycRedirectLink(country);
     }),
     notifyFinished: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "MX";
+      const country = input.country || "US";
       return AlfredpayService.notifyKycRedirectFinished(country);
     }),
     notifyOpened: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "MX";
+      const country = input.country || "US";
       return AlfredpayService.notifyKycRedirectOpened(country);
     }),
     pollStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       console.log("Polling status for country", input.country);
-      const country = input.country || "MX";
+      const country = input.country || "US";
       // Submission ID check removed as backend handles it
 
       while (true) {
@@ -66,7 +66,7 @@ export const alfredpayKycMachine = setup({
       }
     }),
     waitForValidation: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "MX";
+      const country = input.country || "US";
       // Submission ID check removed as backend handles it
 
       while (true) {
@@ -98,7 +98,7 @@ export const alfredpayKycMachine = setup({
     output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
   }
 }).createMachine({
-  context: ({ input }) => ({ ...input, country: input.country || "MX" }),
+  context: ({ input }) => ({ ...input, country: input.country || "US" }),
   id: "alfredpayKyc",
   initial: "CheckingStatus",
   output: ({ context }) => ({
