@@ -125,7 +125,8 @@ export class RampService extends BaseRampService {
         quote,
         normalizedSigningAccounts,
         additionalData,
-        signingAccounts
+        signingAccounts,
+        request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
       await this.consumeQuote(quote.id, transaction);
@@ -268,6 +269,10 @@ export class RampService extends BaseRampService {
         { transaction }
       );
 
+      if (quote.inputCurrency === FiatToken.USD) {
+        await this.processAlfredpayOnrampStart(rampState, quote, transaction);
+      }
+
       // Create response
       const response: UpdateRampResponse = {
         createdAt: rampState.createdAt.toISOString(),
@@ -339,15 +344,7 @@ export class RampService extends BaseRampService {
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals);
 
-      // Find ephemeral transactions in unsigned transactions
-      const ephemeralTransactions = rampState.unsignedTxs.filter(
-        tx =>
-          tx.signer === rampState.state.substrateEphemeralAddress ||
-          tx.signer === rampState.state.evmEphemeralAddress ||
-          tx.signer === rampState.state.stellarEphemeralAccountId
-      );
-      // Ensure all unsigned transactions have a corresponding presigned transaction
-      if (!areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs)) {
+      if (!this.validateAllPresignedTransactionsSigned(rampState)) {
         throw new APIError({
           message: "Not all unsigned transactions have a corresponding presigned transaction.",
           status: httpStatus.BAD_REQUEST
@@ -365,11 +362,6 @@ export class RampService extends BaseRampService {
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
         });
-      }
-
-      // Alfredpay Onramp creation
-      if (quote.inputCurrency === FiatToken.USD) {
-        await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
       console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
@@ -877,7 +869,8 @@ export class RampService extends BaseRampService {
   private async prepareAlfredpayOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -892,7 +885,8 @@ export class RampService extends BaseRampService {
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
       quote,
-      signingAccounts: normalizedSigningAccounts
+      signingAccounts: normalizedSigningAccounts,
+      userId: userId!
     });
 
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
@@ -993,7 +987,8 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[]
+    signingAccounts: AccountMeta[],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1016,10 +1011,21 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       } else if (quote.inputCurrency === FiatToken.USD) {
-        return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+        return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
+  }
+
+  private validateAllPresignedTransactionsSigned(rampState: RampState): boolean {
+    const ephemeralTransactions = rampState.unsignedTxs.filter(
+      tx =>
+        tx.signer === rampState.state.substrateEphemeralAddress ||
+        tx.signer === rampState.state.evmEphemeralAddress ||
+        tx.signer === rampState.state.stellarEphemeralAccountId
+    );
+
+    return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
@@ -1095,6 +1101,14 @@ export class RampService extends BaseRampService {
   }
 
   private async processAlfredpayOnrampStart(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<void> {
+    if (!this.validateAllPresignedTransactionsSigned(rampState)) {
+      return;
+    }
+
+    if (rampState.state.alfredpayTransactionId) {
+      return;
+    }
+
     const alfredpayService = AlfredpayApiService.getInstance();
     const alfredpayQuoteId = quote.metadata.alfredpayMint?.quoteId;
 
@@ -1119,26 +1133,17 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const userProfile = await SupabaseAuthService.getUserProfile(rampState.userId);
-    if (!userProfile || !userProfile.email) {
+    if (!rampState.state.alfredpayUserId) {
       throw new APIError({
-        message: "User profile or email not found",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    const customer = await alfredpayService.findCustomer(userProfile.email, "US");
-    if (!customer || !customer.customerId) {
-      throw new APIError({
-        message: `Alfredpay customer not found for email ${userProfile.email}`,
-        status: httpStatus.NOT_FOUND
+        message: "Missing Alfredpay user ID in ramp state",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     const orderRequest: CreateAlfredpayOnrampRequest = {
       amount: quote.inputAmount,
       chain: AlfredpayChain.MATIC,
-      customerId: customer.customerId,
+      customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.destinationAddress,
       fromCurrency: AlfredpayFiatCurrency.USD,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,

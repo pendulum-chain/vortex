@@ -25,9 +25,9 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
       );
     }
 
-    if (!ctx.moneriumMint?.outputAmountDecimal) {
+    if (!ctx.alfredpayMint?.outputAmountDecimal) {
       throw new Error(
-        "OnRampSquidRouterUsdToEvmEngine: Missing moneriumMint.amountOut in context - ensure initialize stage ran successfully"
+        "OnRampSquidRouterUsdToEvmEngine: Missing alfredpayMint.amountOut in context - ensure initialize stage ran successfully"
       );
     }
   }

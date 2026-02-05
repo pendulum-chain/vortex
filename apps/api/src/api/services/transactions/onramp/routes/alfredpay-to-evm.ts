@@ -1,4 +1,5 @@
 import {
+  AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_USDC_POLYGON,
   EvmToken,
@@ -11,11 +12,11 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { getOutToken } from "../../../sep10/helpers";
 import { encodeEvmTransactionData } from "../../index";
-import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
-import { MoneriumOnrampTransactionParams, OnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
+import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
 /**
@@ -25,8 +26,9 @@ import { validateMoneriumOnramp } from "../common/validation";
 export async function prepareAlfredpayToEvmOnrampTransactions({
   quote,
   signingAccounts,
-  destinationAddress
-}: OnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
+  destinationAddress,
+  userId
+}: AlfredpayOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -53,8 +55,21 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
+  const customer = await AlfredPayCustomer.findOne({
+    where: { userId }
+  });
+
+  if (!customer) {
+    throw new Error(`Alfredpay customer not found for userId ${userId}`);
+  }
+
+  if (customer.status !== AlfredPayStatus.Success) {
+    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
+  }
+
   // Setup state metadata
   stateMeta = {
+    alfredpayUserId: customer.alfredPayId,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address
   };

@@ -7,6 +7,7 @@ export * from "./constants/misc";
 // Constants
 // Configurations
 export * from "./evm/config";
+export * from "./freeTokens/config";
 export * from "./moonbeam/config";
 export * from "./pendulum/config";
 export * from "./stellar/config";

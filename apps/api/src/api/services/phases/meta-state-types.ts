@@ -60,6 +60,7 @@ export interface StateMetadata {
   finalTransactionHash?: string;
   finalTransactionExplorerLink?: string;
   // Alfredpay
+  alfredpayUserId?: string;
   alfredpayTransactionId?: string;
   fiatPaymentInstructions?: AlfredpayFiatPaymentInstructions;
 }

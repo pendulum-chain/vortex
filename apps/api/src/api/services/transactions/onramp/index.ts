@@ -1,5 +1,6 @@
 import { FiatToken, Networks } from "@vortexfi/shared";
 import {
+  AlfredpayOnrampTransactionParams,
   AveniaOnrampTransactionParams,
   MoneriumOnrampTransactionParams,
   OnrampTransactionParams,
@@ -12,7 +13,11 @@ import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-t
 import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
 export async function prepareOnrampTransactions(
-  params: AveniaOnrampTransactionParams | MoneriumOnrampTransactionParams | OnrampTransactionParams
+  params:
+    | AveniaOnrampTransactionParams
+    | MoneriumOnrampTransactionParams
+    | AlfredpayOnrampTransactionParams
+    | OnrampTransactionParams
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
@@ -40,6 +45,10 @@ export async function prepareOnrampTransactions(
       return prepareMoneriumToEvmOnrampTransactions(params);
     }
   } else if (quote.inputCurrency === FiatToken.USD) {
+    if (!("userId" in params)) {
+      throw new Error("Alfredpay onramps requires logged in user");
+    }
+
     if (quote.to !== Networks.AssetHub) {
       return prepareAlfredpayToEvmOnrampTransactions(params);
     } else {

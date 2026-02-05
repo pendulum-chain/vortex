@@ -5,6 +5,7 @@ import {
   evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
+  freeTokenConfig,
   getEnumKeyByStringValue,
   getNetworkDisplayName,
   isNetworkEVM,
@@ -97,11 +98,12 @@ function getAllOnChainTokens(): ExtendedTokenDefinition[] {
 
 function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
   const moonbeamEntries = Object.entries(moonbeamTokenConfig);
+  const freeFiatCurrencyEntries = Object.entries(freeTokenConfig);
   const stellarEntries = filterEurcOnly
     ? Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
     : Object.entries(stellarTokenConfig);
 
-  return [...moonbeamEntries, ...stellarEntries].map(([key, value]) => ({
+  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => ({
     assetIcon: value.fiat.assetIcon,
     assetSymbol: value.fiat.symbol,
     details: value as FiatTokenDetails,

@@ -2,7 +2,7 @@ import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../c
 import { OnRampAlfredpayToEvmFeeEngine } from "../../engines/fee/onramp-alfredpay-to-evm";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
 import { OnRampInitializeAlfredpayEngine } from "../../engines/initialize/onramp-alfredpay";
-import { OnRampSquidRouterEurToEvmEngine } from "../../engines/squidrouter/onramp-polygon-to-evm";
+import { OnRampSquidRouterUsdToEvmEngine } from "../../engines/squidrouter/onramp-polygon-to-evm-alfredpay";
 
 export class OnrampAlfredpayToEvmStrategy implements IRouteStrategy {
   readonly name = "OnrampAlfredpayToEvm";
@@ -15,7 +15,7 @@ export class OnrampAlfredpayToEvmStrategy implements IRouteStrategy {
     return {
       [StageKey.Initialize]: new OnRampInitializeAlfredpayEngine(),
       [StageKey.Fee]: new OnRampAlfredpayToEvmFeeEngine(),
-      [StageKey.SquidRouter]: new OnRampSquidRouterEurToEvmEngine(), // Uses same engine as monerium's. (Polygon ephemeral -> destination)
+      [StageKey.SquidRouter]: new OnRampSquidRouterUsdToEvmEngine(), // Uses same engine as monerium's. (Polygon ephemeral -> destination)
       [StageKey.Finalize]: new OnRampFinalizeEngine()
     };
   }
