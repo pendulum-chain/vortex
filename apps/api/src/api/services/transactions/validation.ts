@@ -157,6 +157,12 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
 
   if (tx.phase === "moonbeamToPendulumXcm" || tx.phase === "moonbeamCleanup") {
     // Moonbeam uses EVM addresses but the transactions are Substrate-based
+    if (!expectedSignerEvm) {
+      throw new APIError({
+        message: `Expected EVM signer for Substrate transaction is not provided for phase ${tx.phase}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
     if (signer.toLowerCase() !== expectedSignerEvm.toLowerCase()) {
       throw new APIError({
         message: `Substrate transaction signer ${signer} does not match the expected signer ${expectedSignerEvm} for phase ${tx.phase}.`,
