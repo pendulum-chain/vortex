@@ -28,7 +28,8 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
         setTx.phase === subsetTx.phase &&
         setTx.network === subsetTx.network &&
         setTx.nonce === subsetTx.nonce &&
-        setTx.signer === subsetTx.signer
+        setTx.signer === subsetTx.signer &&
+        setTx.txData === subsetTx.txData
     );
 
     if (!match) {
