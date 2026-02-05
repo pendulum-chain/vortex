@@ -21,6 +21,56 @@ import QuoteTicket from "../../../models/quoteTicket.model";
 import { APIError } from "../../errors/api-error";
 
 /// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
+function isEvmTransactionLike(
+  data: unknown
+): data is {
+  to: string;
+  data: string;
+  value: string;
+  gas: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  nonce?: number;
+} {
+  return typeof data === "object" && data !== null && "to" in data && "data" in data;
+}
+
+function txDataMatches(setTxData: PresignedTx["txData"], subsetTxData: PresignedTx["txData"]): boolean {
+  if (setTxData === subsetTxData) {
+    return true;
+  }
+
+  if (typeof setTxData === "string" && typeof subsetTxData === "string") {
+    return setTxData === subsetTxData;
+  }
+
+  if (isEvmTransactionLike(setTxData) && isEvmTransactionLike(subsetTxData)) {
+    return JSON.stringify(setTxData) === JSON.stringify(subsetTxData);
+  }
+
+  const signed = typeof setTxData === "string" ? setTxData : typeof subsetTxData === "string" ? subsetTxData : null;
+  const unsigned = isEvmTransactionLike(setTxData) ? setTxData : isEvmTransactionLike(subsetTxData) ? subsetTxData : null;
+
+  if (signed && unsigned) {
+    try {
+      const parsed = EvmTransaction.from(signed);
+      return (
+        parsed.to?.toLowerCase() === unsigned.to.toLowerCase() &&
+        parsed.data === unsigned.data &&
+        parsed.value?.toString() === unsigned.value &&
+        parsed.gasLimit?.toString() === unsigned.gas &&
+        parsed.maxFeePerGas?.toString() === unsigned.maxFeePerGas &&
+        parsed.maxPriorityFeePerGas?.toString() === unsigned.maxPriorityFeePerGas &&
+        parsed.nonce === unsigned.nonce
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
   for (const subsetTx of subset) {
     const match = set.find(
@@ -29,7 +79,7 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
         setTx.network === subsetTx.network &&
         setTx.nonce === subsetTx.nonce &&
         setTx.signer === subsetTx.signer &&
-        setTx.txData === subsetTx.txData
+        txDataMatches(setTx.txData, subsetTx.txData)
     );
 
     if (!match) {
