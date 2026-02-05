@@ -95,7 +95,11 @@ export const signTransactionsActor = async ({
   // Monerium onramp
   if (rampDirection === RampDirection.SELL && quote?.from === "sepa") {
     if (!getMessageSignature) throw new Error("getMessageSignature not available");
-    const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
+    const iban = rampState.ramp?.ibanPaymentData?.iban;
+    if (!iban) {
+      throw new Error("Missing IBAN for Monerium offramp signature");
+    }
+    const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, iban);
     moneriumOfframpSignature = await getMessageSignature(offrampMessage);
   }
 
