@@ -122,7 +122,15 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
     });
   }
 
-  const transactionMeta = EvmTransaction.from(txData);
+  let transactionMeta: EvmTransaction;
+  try {
+    transactionMeta = EvmTransaction.from(txData);
+  } catch (error) {
+    throw new APIError({
+      message: `Invalid EVM transaction data: ${(error as Error).message}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
   if (!transactionMeta.from) {
     throw new APIError({
       message: "EVM transaction data must be signed and include a 'from' address",
