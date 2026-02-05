@@ -33,15 +33,16 @@ export const CurrencyExchange = ({
   outputNetwork,
   inputIcon: inputIconProp,
   outputIcon: outputIconProp,
-  inputFallbackIcon,
-  outputFallbackIcon
+  inputFallbackIcon: inputFallbackIconProp,
+  outputFallbackIcon: outputFallbackIconProp
 }: CurrencyExchangeProps) => {
-  // Use useTokenIcon for fallback icons when explicit icon props aren't provided
   const inputIconFallback = useTokenIcon(inputCurrency, inputNetwork);
   const outputIconFallback = useTokenIcon(outputCurrency, outputNetwork);
 
   const inputIcon = inputIconProp ?? inputIconFallback.iconSrc;
   const outputIcon = outputIconProp ?? outputIconFallback.iconSrc;
+  const inputFallbackIcon = inputFallbackIconProp ?? inputIconFallback.fallbackIconSrc;
+  const outputFallbackIcon = outputFallbackIconProp ?? outputIconFallback.fallbackIconSrc;
 
   if (layout === "vertical") {
     return (

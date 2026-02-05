@@ -17,7 +17,6 @@ export const AXL_USDC_MOONBEAM_DETAILS: EvmTokenDetails = {
   erc20AddressSourceChain: AXL_USDC_MOONBEAM,
   isNative: false,
   network: Networks.Moonbeam,
-  networkAssetIcon: "moonbeamUSDC",
   pendulumRepresentative: PENDULUM_USDC_AXL,
   type: TokenType.Evm
 };
