@@ -68,7 +68,7 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
     return null;
   } catch (error) {
     logger.error("Failed to fetch address:", error);
-    return null;
+    throw error;
   }
 };
 
