@@ -10,7 +10,7 @@ import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
 import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
-import { EvmTokenDetails } from "../types/evm";
+import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
 import { StellarTokenDetails } from "../types/stellar";
@@ -57,6 +57,14 @@ export function getOnChainTokenDetailsOrDefault(
   const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken, dynamicEvmTokenConfig);
   if (maybeOnChainTokenDetails) {
     return maybeOnChainTokenDetails;
+  }
+
+  // AXLUSDC doesn't exist on all networks (e.g. Ethereum). Fall back to native USDC.
+  if (onChainToken === EvmToken.AXLUSDC) {
+    const usdcDetails = getOnChainTokenDetails(network, EvmToken.USDC, dynamicEvmTokenConfig);
+    if (usdcDetails) {
+      return usdcDetails;
+    }
   }
 
   logger.current.error(`Invalid input token type: ${onChainToken}`);

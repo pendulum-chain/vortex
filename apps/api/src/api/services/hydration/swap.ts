@@ -18,7 +18,9 @@ export class HydrationRouter {
     const apiManager = ApiManager.getInstance();
     this.cachedXcmFees = {};
     this.sdk = apiManager.getApi("hydration").then(async ({ api }) => {
-      return createSdkContext(api, { router: { includeOnly: [PoolType.Omni, PoolType.Stable] } });
+      return createSdkContext(api, {
+        router: { includeOnly: [PoolType.XYK] }
+      });
     });
 
     // Refresh transaction fees every hour
