@@ -14,26 +14,26 @@ export const TokenIcon: FC<TokenIconProps> = memo(function TokenIcon({ src, fall
   const [imgError, setImgError] = useState(false);
   const [fallbackError, setFallbackError] = useState(false);
 
-  const getImageSrc = () => {
-    if (!imgError) return src;
-    if (fallbackSrc && !fallbackError) return fallbackSrc;
-    return placeholderIcon;
-  };
-
   const handleError = () => {
     if (!imgError) {
       setImgError(true);
-      setIsLoading(true);
-    } else if (fallbackSrc && !fallbackError) {
-      setFallbackError(true);
-      setIsLoading(true);
+      if (!fallbackSrc) {
+        setIsLoading(false);
+      }
     } else {
+      setFallbackError(true);
       setIsLoading(false);
     }
   };
 
   const handleLoad = () => {
     setIsLoading(false);
+  };
+
+  const getImageSrc = () => {
+    if (!imgError) return src;
+    if (fallbackSrc && !fallbackError) return fallbackSrc;
+    return placeholderIcon;
   };
 
   return (

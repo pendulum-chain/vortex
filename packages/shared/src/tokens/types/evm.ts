@@ -23,7 +23,6 @@ export enum UsdLikeEvmToken {
 export interface EvmTokenDetails extends BaseTokenDetails {
   type: TokenType.Evm;
   assetSymbol: string;
-  networkAssetIcon: string;
   network: Networks;
   erc20AddressSourceChain: EvmAddress;
   isNative: boolean;
@@ -35,6 +34,8 @@ export interface EvmTokenDetails extends BaseTokenDetails {
   /// Fallback URL for the token's logo image (constructed from chainId and address)
   fallbackLogoURI?: string;
   usdPrice?: number;
+  /// True for tokens defined in the static evmTokenConfig (used for sorting priority)
+  isFromStaticConfig?: boolean;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {

@@ -38,7 +38,7 @@ export function AssetButton({
     >
       <TokenIconWithNetwork
         className="mr-1 h-5 w-5"
-        fallbackIconSrc={fallbackLogoURI}
+        fallbackIconSrc={fallbackLogoURI ?? fallbackIcon.fallbackIconSrc}
         iconSrc={primaryIcon}
         network={network}
         showNetworkOverlay={!!network}
