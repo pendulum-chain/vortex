@@ -59,8 +59,8 @@ export function getOnChainTokenDetailsOrDefault(
     return maybeOnChainTokenDetails;
   }
 
-  // AXLUSDC doesn't exist on all networks (e.g. Ethereum). Fall back to native USDC.
-  if (onChainToken === EvmToken.AXLUSDC) {
+  // AXLUSDC doesn't exist Ethereum
+  if (onChainToken === EvmToken.AXLUSDC && network === Networks.Ethereum) {
     const usdcDetails = getOnChainTokenDetails(network, EvmToken.USDC, dynamicEvmTokenConfig);
     if (usdcDetails) {
       return usdcDetails;
