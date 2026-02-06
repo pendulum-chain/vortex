@@ -183,10 +183,10 @@ function mergeWithStaticConfig(
           logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
           usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
         };
-        
+
         // Store under the static config key (enum value) for proper enum-based lookups
         merged[network][staticTokenKey] = mergedToken;
-        
+
         // Also store under normalized symbol if different from the key, for symbol-based lookups
         if (normalizedSymbol !== staticTokenKey) {
           merged[network][normalizedSymbol] = mergedToken;
@@ -197,10 +197,10 @@ function mergeWithStaticConfig(
           ...staticToken,
           isFromStaticConfig: true
         };
-        
+
         // Store under the static config key (enum value)
         merged[network][staticTokenKey] = staticTokenWithFlag;
-        
+
         // Also store under normalized symbol if different from the key
         if (normalizedSymbol !== staticTokenKey) {
           merged[network][normalizedSymbol] = staticTokenWithFlag;
