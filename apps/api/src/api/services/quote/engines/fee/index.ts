@@ -43,6 +43,13 @@ export abstract class BaseFeeEngine implements Stage {
 
     this.validate(ctx);
 
+    if (request.rampType === RampDirection.SELL && !ctx.nablaSwap) {
+      throw new APIError({
+        message: "Missing nabla swap output amount for off-ramp fee calculation",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
       from: request.from,
       inputAmount: request.inputAmount,
