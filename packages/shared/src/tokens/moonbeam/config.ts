@@ -12,7 +12,7 @@ export const AXL_USDC_MOONBEAM: `0x${string}` = "0xca01a1d0993565291051daff39089
 export const MOONBEAM_XCM_FEE_GLMR = "50000000000000000";
 
 export const AXL_USDC_MOONBEAM_DETAILS: EvmTokenDetails = {
-  assetSymbol: "axlUSDC",
+  assetSymbol: "USDC.axl",
   decimals: 6,
   erc20AddressSourceChain: AXL_USDC_MOONBEAM,
   isNative: false,

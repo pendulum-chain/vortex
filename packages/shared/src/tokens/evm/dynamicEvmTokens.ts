@@ -159,17 +159,17 @@ function mergeWithStaticConfig(
     const networkTokenConfig = evmTokenConfig[network];
     if (!networkTokenConfig) return;
 
-    for (const [symbol, staticToken] of Object.entries(networkTokenConfig)) {
+    for (const staticToken of Object.values(networkTokenConfig)) {
       if (!staticToken) continue;
 
-      const normalizedSymbol = symbol.toUpperCase();
+      const normalizedSymbol = staticToken.assetSymbol.toUpperCase();
       const dynamicToken = dynamicTokens[network][normalizedSymbol];
 
       if (dynamicToken) {
         // Warning if addresses point to different contracts (possible configuration drift or scam token)
         if (staticToken.erc20AddressSourceChain.toLowerCase() !== dynamicToken.erc20AddressSourceChain.toLowerCase()) {
           logger.current.warn(
-            `[DynamicEvmTokens] Address mismatch for ${symbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
+            `[DynamicEvmTokens] Address mismatch for ${normalizedSymbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
           );
         }
 
