@@ -43,6 +43,7 @@
     "winston": "3.18.3"
   },
   "dependencies": {
+    "@galacticcouncil/sdk": "^10.6.2",
     "big.js": "^7.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0"
