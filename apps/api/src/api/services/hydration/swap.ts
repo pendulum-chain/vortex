@@ -19,7 +19,7 @@ export class HydrationRouter {
     this.cachedXcmFees = {};
     this.sdk = apiManager.getApi("hydration").then(async ({ api }) => {
       return createSdkContext(api, {
-        router: { includeOnly: [PoolType.XYK] }
+        router: { includeOnly: [PoolType.Omni, PoolType.Stable, PoolType.Aave] }
       });
     });
 
