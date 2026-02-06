@@ -6,6 +6,7 @@ import {
   FiatTokenDetails,
   getEnumKeyByStringValue,
   getNetworkDisplayName,
+  isEvmTokenDetails,
   isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
@@ -63,7 +64,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
   if (selectedNetwork === Networks.AssetHub) {
     return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
-      assetIcon: value.networkAssetIcon,
+      assetIcon: value.assetSymbol,
       assetSymbol: value.assetSymbol,
       details: value as OnChainTokenDetails,
       logoURI: value.logoURI,
@@ -74,12 +75,30 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): Exten
   } else if (isNetworkEVM(selectedNetwork)) {
     const evmConfig = getEvmTokenConfig();
     const networkConfig = evmConfig[selectedNetwork as EvmNetworks] ?? {};
-    return Object.entries(networkConfig).map(([key, value]) => ({
-      assetIcon: value?.logoURI ?? value?.networkAssetIcon ?? "",
-      assetSymbol: value?.assetSymbol ?? key,
-      details: value as OnChainTokenDetails,
-      fallbackLogoURI: value?.fallbackLogoURI,
-      logoURI: value?.logoURI,
+    const byToken = new Map<OnChainTokenDetails, string>();
+
+    for (const [key, value] of Object.entries(networkConfig)) {
+      if (!value) continue;
+      const token = value as OnChainTokenDetails;
+      const existingKey = byToken.get(token);
+
+      if (!existingKey) {
+        byToken.set(token, key);
+        continue;
+      }
+
+      // Prefer enum-like keys without dots (e.g., "AXLUSDC" over "USDC.AXL")
+      if (existingKey.includes(".") && !key.includes(".")) {
+        byToken.set(token, key);
+      }
+    }
+
+    return Array.from(byToken.entries()).map(([details, key]) => ({
+      assetIcon: details.assetSymbol ?? key,
+      assetSymbol: details.assetSymbol ?? key,
+      details,
+      fallbackLogoURI: isEvmTokenDetails(details) ? details.fallbackLogoURI : undefined,
+      logoURI: details.logoURI,
       network: selectedNetwork,
       networkDisplayName: getNetworkDisplayName(selectedNetwork),
       type: key as OnChainToken

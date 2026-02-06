@@ -1,4 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { isNetworkEVM } from "@vortexfi/shared";
 import { useMemo, useRef } from "react";
 import { useNetwork } from "../../../../contexts/network";
 import { cn } from "../../../../helpers/cn";
@@ -16,7 +17,20 @@ function getBalanceKey(network: string, symbol: string): string {
   return `${network}-${symbol}`;
 }
 
-function sortByBalance(
+/**
+ * Sorts the given token definitions for optimal UX in the token selection list.
+ *
+ * Sort priority:
+ *   1. Tokens with higher USD balance come first.
+ *   2. For equal USD value, tokens with higher raw balance come first.
+ *   3. Tokens from "static config" (see isFromStaticConfig) or non-EVM networks come before dynamic/discovered tokens.
+ *   4. Fallback to asset symbol alphabetical sort.
+ *
+ * @param definitions - Array of tokens to display in the modal.
+ * @param balances - Map keyed by 'network-symbol', containing balance and balanceUsd for each token.
+ * @returns Sorted array of ExtendedTokenDefinition.
+ */
+function sortTokens(
   definitions: ExtendedTokenDefinition[],
   balances: Map<string, { balance: string; balanceUsd: string }>
 ): ExtendedTokenDefinition[] {
@@ -30,12 +44,17 @@ function sortByBalance(
       return usdB - usdA;
     }
 
-    // When USD values are equal (e.g., both 0), sort by raw balance
     const rawBalanceA = parseFloat(balanceA?.balance ?? "0");
     const rawBalanceB = parseFloat(balanceB?.balance ?? "0");
 
     if (rawBalanceA !== rawBalanceB) {
       return rawBalanceB - rawBalanceA;
+    }
+
+    const isStaticA = !isNetworkEVM(a.network) || (a.details as { isFromStaticConfig?: boolean }).isFromStaticConfig;
+    const isStaticB = !isNetworkEVM(b.network) || (b.details as { isFromStaticConfig?: boolean }).isFromStaticConfig;
+    if (isStaticA !== isStaticB) {
+      return isStaticA ? -1 : 1;
     }
 
     return a.assetSymbol.localeCompare(b.assetSymbol);
@@ -54,7 +73,7 @@ export const SelectionTokenList = () => {
   const balances = useTokenBalances();
 
   const currentDefinitions = useMemo(
-    () => (isFiatDirection ? filteredDefinitions : sortByBalance(filteredDefinitions, balances)),
+    () => (isFiatDirection ? filteredDefinitions : sortTokens(filteredDefinitions, balances)),
     [isFiatDirection, filteredDefinitions, balances]
   );
 

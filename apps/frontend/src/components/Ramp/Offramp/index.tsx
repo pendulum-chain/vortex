@@ -81,7 +81,7 @@ export const Offramp = () => {
     () => (
       <>
         <AssetNumericInput
-          assetIcon={fromToken.networkAssetIcon}
+          assetIcon={fromToken.assetSymbol}
           fallbackLogoURI={fromIconInfo.fallbackIconSrc}
           id="inputAmount"
           logoURI={fromIconInfo.iconSrc}

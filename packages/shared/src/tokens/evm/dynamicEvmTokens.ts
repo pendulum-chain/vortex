@@ -78,16 +78,6 @@ function getNetworkFromChainId(chainId: string): Networks | null {
   return networkEntries.length > 0 ? (networkEntries[0][1] as Networks) : null;
 }
 
-function getNetworkAssetIcon(network: Networks, symbol: string): string {
-  const networkName = network.toLowerCase();
-  const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-  return `${networkName}${cleanSymbol}`;
-}
-
-function generateFallbackLogoURI(chainId: number, address: string): string {
-  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
-}
-
 function shouldIncludeToken(token: SquidRouterToken): boolean {
   const symbol = token.symbol.toUpperCase();
 
@@ -104,6 +94,10 @@ function shouldIncludeToken(token: SquidRouterToken): boolean {
   }
 
   return true;
+}
+
+function generateFallbackLogoURI(chainId: number, address: string): string {
+  return `https://raw.githubusercontent.com/0xsquid/assets/main/images/migration/webp/${chainId}_${address.toLowerCase()}.webp`;
 }
 
 function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetails | null {
@@ -124,11 +118,10 @@ function mapSquidTokenToEvmTokenDetails(token: SquidRouterToken): EvmTokenDetail
     assetSymbol: token.symbol,
     decimals: token.decimals,
     erc20AddressSourceChain: erc20Address,
-    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), erc20Address),
+    fallbackLogoURI: generateFallbackLogoURI(parseInt(token.chainId, 10), token.address),
     isNative,
     logoURI: token.logoURI,
     network,
-    networkAssetIcon: getNetworkAssetIcon(network, token.symbol),
     pendulumRepresentative: PENDULUM_USDC_AXL,
     type: TokenType.Evm,
     usdPrice: token.usdPrice
@@ -154,6 +147,11 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
  * Merges dynamic tokens with static config.
  * Static config takes priority for contract addresses, but preserves useful metadata
  * (logoURI, usdPrice) from dynamic tokens.
+ * Preserves the static config keys (enum values) for proper lookups.
+ *
+ * Note: Tokens are stored under both the enum key (e.g., "AXLUSDC") and normalized symbol
+ * (e.g., "USDC.AXL") as aliases pointing to the same object reference, enabling lookups by
+ * either method without object duplication.
  */
 function mergeWithStaticConfig(
   dynamicTokens: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
@@ -166,30 +164,51 @@ function mergeWithStaticConfig(
     const networkTokenConfig = evmTokenConfig[network];
     if (!networkTokenConfig) return;
 
-    for (const [symbol, staticToken] of Object.entries(networkTokenConfig)) {
+    // Iterate over entries to preserve the static config key (enum value)
+    for (const [staticTokenKey, staticToken] of Object.entries(networkTokenConfig)) {
       if (!staticToken) continue;
 
-      const normalizedSymbol = symbol.toUpperCase();
+      const normalizedSymbol = staticToken.assetSymbol.toUpperCase();
       const dynamicToken = dynamicTokens[network][normalizedSymbol];
 
       if (dynamicToken) {
         // Warning if addresses point to different contracts (possible configuration drift or scam token)
         if (staticToken.erc20AddressSourceChain.toLowerCase() !== dynamicToken.erc20AddressSourceChain.toLowerCase()) {
           logger.current.warn(
-            `[DynamicEvmTokens] Address mismatch for ${symbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
+            `[DynamicEvmTokens] Address mismatch for ${normalizedSymbol} on ${network}. Config: ${staticToken.erc20AddressSourceChain}, Dynamic: ${dynamicToken.erc20AddressSourceChain}. Using Config preference.`
           );
         }
 
-        // Static token exists and dynamic token exists - merge, static takes priority
-        merged[network][normalizedSymbol] = {
+        // Static token exists and dynamic token exists - merge, static takes priority, mark as static
+        const mergedToken = {
           ...staticToken,
-          fallbackLogoURI: staticToken.fallbackLogoURI ?? dynamicToken.fallbackLogoURI,
+          fallbackLogoURI: dynamicToken.fallbackLogoURI ?? staticToken.fallbackLogoURI,
+          isFromStaticConfig: true,
           logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
           usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
         };
+
+        // Store under the static config key (enum value) for proper enum-based lookups
+        merged[network][staticTokenKey] = mergedToken;
+
+        // Also store under normalized symbol if different from the key, for symbol-based lookups
+        if (normalizedSymbol !== staticTokenKey) {
+          merged[network][normalizedSymbol] = mergedToken;
+        }
       } else {
-        // Static token exists but no dynamic token - use static as-is
-        merged[network][normalizedSymbol] = staticToken;
+        // Static token exists but no dynamic token - use static as-is, mark as static
+        const staticTokenWithFlag = {
+          ...staticToken,
+          isFromStaticConfig: true
+        };
+
+        // Store under the static config key (enum value)
+        merged[network][staticTokenKey] = staticTokenWithFlag;
+
+        // Also store under normalized symbol if different from the key
+        if (normalizedSymbol !== staticTokenKey) {
+          merged[network][normalizedSymbol] = staticTokenWithFlag;
+        }
       }
     }
   });

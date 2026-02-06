@@ -22,19 +22,14 @@ export interface TokenIconInfo {
 
 /**
  * Get logo URIs from on-chain token details.
- * Supports both EVM tokens (with fallback) and AssetHub tokens.
+ * Supports both EVM tokens (with fallbackLogoURI) and AssetHub tokens.
  */
 function getTokenLogoURIs(token: OnChainTokenDetails): { logoURI?: string; fallbackLogoURI?: string } {
   if (isEvmTokenDetails(token)) {
-    return {
-      fallbackLogoURI: token.fallbackLogoURI,
-      logoURI: token.logoURI
-    };
+    return { fallbackLogoURI: token.fallbackLogoURI, logoURI: token.logoURI };
   }
   if (isAssetHubTokenDetails(token)) {
-    return {
-      logoURI: token.logoURI
-    };
+    return { logoURI: token.logoURI };
   }
   return {};
 }
