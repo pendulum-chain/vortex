@@ -148,6 +148,10 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
  * Static config takes priority for contract addresses, but preserves useful metadata
  * (logoURI, usdPrice) from dynamic tokens.
  * Preserves the static config keys (enum values) for proper lookups.
+ *
+ * Note: Tokens are stored under both the enum key (e.g., "AXLUSDC") and normalized symbol
+ * (e.g., "USDC.AXL") as aliases pointing to the same object reference, enabling lookups by
+ * either method without object duplication.
  */
 function mergeWithStaticConfig(
   dynamicTokens: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
