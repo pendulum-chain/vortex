@@ -54,17 +54,17 @@ export function getOnChainTokenDetailsOrDefault(
   onChainToken: OnChainToken,
   dynamicEvmTokenConfig?: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 ): OnChainTokenDetails {
-  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken, dynamicEvmTokenConfig);
-  if (maybeOnChainTokenDetails) {
-    return maybeOnChainTokenDetails;
-  }
-
   // AXLUSDC doesn't exist Ethereum
   if (onChainToken === EvmToken.AXLUSDC && network === Networks.Ethereum) {
     const usdcDetails = getOnChainTokenDetails(network, EvmToken.USDC, dynamicEvmTokenConfig);
     if (usdcDetails) {
       return usdcDetails;
     }
+  }
+
+  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken, dynamicEvmTokenConfig);
+  if (maybeOnChainTokenDetails) {
+    return maybeOnChainTokenDetails;
   }
 
   logger.current.error(`Invalid input token type: ${onChainToken}`);
