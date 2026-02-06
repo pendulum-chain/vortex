@@ -147,6 +147,7 @@ function groupTokensByNetwork(tokens: EvmTokenDetails[]): Record<EvmNetworks, Pa
  * Merges dynamic tokens with static config.
  * Static config takes priority for contract addresses, but preserves useful metadata
  * (logoURI, usdPrice) from dynamic tokens.
+ * Preserves the static config keys (enum values) for proper lookups.
  */
 function mergeWithStaticConfig(
   dynamicTokens: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
@@ -159,7 +160,8 @@ function mergeWithStaticConfig(
     const networkTokenConfig = evmTokenConfig[network];
     if (!networkTokenConfig) return;
 
-    for (const staticToken of Object.values(networkTokenConfig)) {
+    // Iterate over entries to preserve the static config key (enum value)
+    for (const [staticTokenKey, staticToken] of Object.entries(networkTokenConfig)) {
       if (!staticToken) continue;
 
       const normalizedSymbol = staticToken.assetSymbol.toUpperCase();
@@ -174,19 +176,35 @@ function mergeWithStaticConfig(
         }
 
         // Static token exists and dynamic token exists - merge, static takes priority, mark as static
-        merged[network][normalizedSymbol] = {
+        const mergedToken = {
           ...staticToken,
           fallbackLogoURI: dynamicToken.fallbackLogoURI ?? staticToken.fallbackLogoURI,
           isFromStaticConfig: true,
           logoURI: staticToken.logoURI ?? dynamicToken.logoURI,
           usdPrice: dynamicToken.usdPrice ?? staticToken.usdPrice
         };
+        
+        // Store under the static config key (enum value) for proper enum-based lookups
+        merged[network][staticTokenKey] = mergedToken;
+        
+        // Also store under normalized symbol if different from the key, for symbol-based lookups
+        if (normalizedSymbol !== staticTokenKey) {
+          merged[network][normalizedSymbol] = mergedToken;
+        }
       } else {
         // Static token exists but no dynamic token - use static as-is, mark as static
-        merged[network][normalizedSymbol] = {
+        const staticTokenWithFlag = {
           ...staticToken,
           isFromStaticConfig: true
         };
+        
+        // Store under the static config key (enum value)
+        merged[network][staticTokenKey] = staticTokenWithFlag;
+        
+        // Also store under normalized symbol if different from the key
+        if (normalizedSymbol !== staticTokenKey) {
+          merged[network][normalizedSymbol] = staticTokenWithFlag;
+        }
       }
     }
   });
