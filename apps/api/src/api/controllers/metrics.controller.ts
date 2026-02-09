@@ -62,7 +62,7 @@ const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
 });
 
 async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
-  const cacheKey = `monthly`;
+  const cacheKey = "monthly";
   const cached = cache.get<MonthlyVolume[]>(cacheKey);
   if (cached) return cached;
 

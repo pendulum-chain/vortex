@@ -176,7 +176,7 @@ class CleanupWorker {
             await this.processCleanup(state);
             return { stateId: state.id, status: "fulfilled" };
           } catch (error) {
-            logger.error(`Error processing cleanup:`, error);
+            logger.error("Error processing cleanup:", error);
             // Don't update the state here, processCleanup handles its own updates
             return { reason: error, stateId: state.id, status: "rejected" };
           }

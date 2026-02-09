@@ -237,8 +237,18 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
       outputTokenDecimals
     };
   } catch (error) {
-    logger.error(`Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`);
-    // We assume that the error is due to a low input amount
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error calculating EVM bridge and network fee: ${errorMessage}`);
+
+    // Check for specific SquidRouter error types
+    if (errorMessage.toLowerCase().includes("low liquidity") || errorMessage.toLowerCase().includes("reduce swap amount")) {
+      throw new APIError({
+        message: QuoteError.LowLiquidity,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    // Default to generic error for other cases
     throw new APIError({
       message: QuoteError.InputAmountTooLow,
       status: httpStatus.BAD_REQUEST
