@@ -8,7 +8,6 @@ interface NumericInputProps {
   readOnly?: boolean;
   additionalStyle?: string;
   maxDecimals?: number;
-  defaultValue?: string;
   autoFocus?: boolean;
   disabled?: boolean;
   loading?: boolean;
@@ -31,14 +30,12 @@ export const NumericInput = ({
   disabled = false
 }: NumericInputProps) => {
   const { setValue } = useFormContext();
-  const fieldName = register.name;
+  const { name: fieldName, ref, onBlur } = register;
   const inputValue = useWatch({ name: fieldName });
   const prevMaxDecimals = useRef(maxDecimals);
 
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
-    const value = e.target.value;
-    setValue(fieldName, value, { shouldDirty: true, shouldValidate: true });
-    register.onChange(e);
+    setValue(fieldName, e.target.value, { shouldDirty: true, shouldValidate: true });
     if (onChange) onChange(e);
   }
 
@@ -48,12 +45,10 @@ export const NumericInput = ({
       const trimmed = trimToMaxDecimals(inputValue, maxDecimals);
       if (trimmed !== inputValue) {
         setValue(fieldName, trimmed, { shouldDirty: true, shouldValidate: true });
-        const syntheticEvent = { target: { value: trimmed } } as ChangeEvent<HTMLInputElement>;
-        register.onChange(syntheticEvent);
       }
     }
     prevMaxDecimals.current = maxDecimals;
-  }, [maxDecimals, inputValue, setValue, fieldName, register]);
+  }, [maxDecimals, inputValue, setValue, fieldName]);
 
   return (
     <div className="relative flex-grow">
@@ -70,9 +65,11 @@ export const NumericInput = ({
         disabled={disabled}
         maxDecimals={maxDecimals}
         name={fieldName}
+        onBlur={onBlur}
         onChange={handleChange}
         placeholder="0.0"
         readOnly={readOnly}
+        ref={ref}
         spellCheck={false}
         value={inputValue ?? ""}
       />
