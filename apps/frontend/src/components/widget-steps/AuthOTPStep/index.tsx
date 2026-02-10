@@ -60,6 +60,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
                 maxLength={6}
                 onChange={handleChange}
                 pattern={REGEXP_ONLY_DIGITS}
+                pushPasswordManagerStrategy="none"
                 ref={inputRef}
                 value={otp}
               >
@@ -77,7 +78,9 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
               </InputOTP>
             </div>
 
-            {errorMessage && <p className="mb-4 text-center text-red-600 text-sm">{errorMessage}</p>}
+            <p className={cn("mb-4 text-center text-red-600 text-sm", !errorMessage && "invisible")}>
+              {errorMessage || "\u00A0"}
+            </p>
 
             {isVerifying && (
               <p className="mb-4 text-center text-blue-600 text-sm">{t("components.authOTPStep.status.verifying")}</p>
