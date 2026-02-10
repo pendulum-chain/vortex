@@ -1,5 +1,5 @@
 import { NumoraInput } from "numora-react";
-import { ChangeEvent, useEffect, useRef } from "react";
+import { ChangeEvent } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
 import { cn } from "../../helpers/cn";
 
@@ -12,11 +12,6 @@ interface NumericInputProps {
   disabled?: boolean;
   loading?: boolean;
   onChange?: (e: ChangeEvent) => void;
-}
-
-function trimToMaxDecimals(value: string, maxDecimals: number): string {
-  const [integer, decimal] = value.split(".");
-  return decimal ? `${integer}.${decimal.slice(0, maxDecimals)}` : value;
 }
 
 export const NumericInput = ({
@@ -32,23 +27,11 @@ export const NumericInput = ({
   const { setValue } = useFormContext();
   const { name: fieldName, ref, onBlur } = register;
   const inputValue = useWatch({ name: fieldName });
-  const prevMaxDecimals = useRef(maxDecimals);
 
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
     setValue(fieldName, e.target.value, { shouldDirty: true, shouldValidate: true });
     if (onChange) onChange(e);
   }
-
-  // Watch for maxDecimals changes and trim value if needed
-  useEffect(() => {
-    if (prevMaxDecimals.current > maxDecimals && inputValue) {
-      const trimmed = trimToMaxDecimals(inputValue, maxDecimals);
-      if (trimmed !== inputValue) {
-        setValue(fieldName, trimmed, { shouldDirty: true, shouldValidate: true });
-      }
-    }
-    prevMaxDecimals.current = maxDecimals;
-  }, [maxDecimals, inputValue, setValue, fieldName]);
 
   return (
     <div className="relative flex-grow">
