@@ -8,15 +8,15 @@ export const useOnchainTokenBalancesSorted = (tokens: OnChainTokenDetails[]): On
   return useMemo(() => {
     // Sort by balance (highest to lowest), then by symbol (alphabetically)
     return [...tokenBalances].sort((a, b) => {
-      const aBalance = parseFloat(a.balance);
-      const bBalance = parseFloat(b.balance);
+      const aBalance = parseFloat(a.balanceUsd ?? "0");
+      const bBalance = parseFloat(b.balanceUsd ?? "0");
 
       // Primary sort: balance descending (highest to lowest)
       if (aBalance !== bBalance) {
         return bBalance - aBalance;
       }
 
-      // Secondary sort: symbol ascending (alphabetically)
+      // Tie-breaker: sort by symbol alphabetically
       return a.assetSymbol.localeCompare(b.assetSymbol);
     });
   }, [tokenBalances]);

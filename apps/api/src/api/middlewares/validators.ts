@@ -379,6 +379,11 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
 };
 
 export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
+  if (req.body) {
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+  }
+
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
@@ -399,6 +404,11 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   res,
   next
 ) => {
+  if (req.body) {
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+  }
+
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
@@ -421,6 +431,12 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   }
 
   next();
+};
+
+const normalizeAxlUsdcCurrency = (value: unknown): unknown => {
+  if (typeof value !== "string") return value;
+
+  return value.toLowerCase() === "axlusdc" ? "USDC.axl" : value;
 };
 
 export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (

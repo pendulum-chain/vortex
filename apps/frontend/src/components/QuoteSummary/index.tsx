@@ -1,19 +1,36 @@
-import { QuoteResponse } from "@vortexfi/shared";
+import { QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../hooks/useTokenIcon";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
+import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { TransactionId } from "../TransactionId";
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
 }
 
+/**
+ * Hook to get token icons for both currencies in a quote.
+ * Determines which currency is on-chain based on ramp type.
+ */
+function useQuoteTokenIcons(quote: QuoteResponse) {
+  const isOfframp = quote.rampType === RampDirection.SELL;
+
+  // For offramp: input is on-chain (has network), output is fiat (no network)
+  // For onramp: input is fiat (no network), output is on-chain (has network)
+  const inputIcon = useTokenIcon(quote.inputCurrency, isOfframp ? quote.network : undefined);
+  const outputIcon = useTokenIcon(quote.outputCurrency, !isOfframp ? quote.network : undefined);
+
+  return { inputIcon, outputIcon };
+}
+
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { toggle, isExpanded, detailsId } = useCollapsibleCard();
+  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
 
   return (
     <>
@@ -24,8 +41,14 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
       <CurrencyExchange
         inputAmount={quote.inputAmount}
         inputCurrency={quote.inputCurrency}
+        inputFallbackIcon={inputIcon.fallbackIconSrc}
+        inputIcon={inputIcon.iconSrc}
+        inputNetwork={inputIcon.network}
         outputAmount={quote.outputAmount}
         outputCurrency={quote.outputCurrency}
+        outputFallbackIcon={outputIcon.fallbackIconSrc}
+        outputIcon={outputIcon.iconSrc}
+        outputNetwork={outputIcon.network}
       />
       <ToggleButton
         ariaControls={detailsId}
@@ -42,8 +65,7 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
 
 const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
-  const inputIcon = useGetAssetIcon(quote.inputCurrency.toLowerCase());
-  const outputIcon = useGetAssetIcon(quote.outputCurrency.toLowerCase());
+  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
 
   return (
     <section className="overflow-hidden">
@@ -53,15 +75,29 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youSend")}</div>
             <div className="flex items-center font-bold">
-              <img alt={quote.inputCurrency} className="mr-2 h-5 w-5" src={inputIcon} />
+              <TokenIconWithNetwork
+                className="mr-2 h-5 w-5"
+                fallbackIconSrc={inputIcon.fallbackIconSrc}
+                iconSrc={inputIcon.iconSrc}
+                network={inputIcon.network}
+                showNetworkOverlay={!!inputIcon.network}
+                tokenSymbol={quote.inputCurrency}
+              />
               {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
             </div>
           </div>
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youReceive")}</div>
             <div className="flex items-center font-bold">
-              <img alt={quote.outputCurrency} className="mr-2 h-5 w-5" src={outputIcon} />~ {quote.outputAmount}{" "}
-              {quote.outputCurrency.toUpperCase()}
+              <TokenIconWithNetwork
+                className="mr-2 h-5 w-5"
+                fallbackIconSrc={outputIcon.fallbackIconSrc}
+                iconSrc={outputIcon.iconSrc}
+                network={outputIcon.network}
+                showNetworkOverlay={!!outputIcon.network}
+                tokenSymbol={quote.outputCurrency}
+              />
+              ~ {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
             </div>
           </div>
         </div>

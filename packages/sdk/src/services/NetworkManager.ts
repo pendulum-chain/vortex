@@ -59,7 +59,7 @@ export class NetworkManager {
   }
 
   getAlchemyApiKey(): string | undefined {
-    return this.config.alchemyApiKey;
+    return "9nk8Nf7Eaz_4smCzIcPUk";
   }
 
   private async initializeApis(): Promise<void> {

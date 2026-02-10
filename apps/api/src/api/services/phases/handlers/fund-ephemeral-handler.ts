@@ -1,8 +1,10 @@
 import {
   ApiManager,
   EvmClientManager,
+  EvmNetworks,
   FiatToken,
   getNetworkFromDestination,
+  isNetworkEVM,
   Networks,
   RampDirection,
   RampPhase
@@ -12,6 +14,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
@@ -23,6 +26,7 @@ import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequenc
 import { StateMetadata } from "../meta-state-types";
 import {
   horizonServer,
+  isDestinationEvmEphemeralFunded,
   isMoonbeamEphemeralFunded,
   isPendulumEphemeralFunded,
   isPolygonEphemeralFunded,
@@ -43,6 +47,17 @@ export function isStellarNetworkError(error: unknown): error is NetworkError {
 function isOnramp(state: RampState): boolean {
   return state.type === RampDirection.BUY;
 }
+
+const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [Networks.Ethereum]: "0.00016", // ~0.5 USD @ 3000
+  [Networks.Arbitrum]: "0.000045", // ~0.1 USD @ 2300
+  [Networks.Base]: "0.000034", // ~0.1 USD @ 3000
+  [Networks.Polygon]: "0.6", // ~0.06 USD @ 0.13
+  [Networks.BSC]: "0.000115", // ~0.1 USD @ 889
+  [Networks.Avalanche]: "0.0034", // ~0.1 USD @ 30
+  [Networks.Moonbeam]: "0.34", // ~0.1 USD @ 0.30
+  [Networks.PolygonAmoy]: "0.2" // ~0.1 USD @ 0.50
+};
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -73,6 +88,17 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return false;
   }
 
+  protected getRequiresDestinationEvmFunding(state: RampState): boolean {
+    // Required for onramps where the destination is an EVM network (not AssetHub)
+    if (isOnramp(state) && state.to !== Networks.AssetHub) {
+      const destinationNetwork = getNetworkFromDestination(state.to);
+      if (destinationNetwork && isNetworkEVM(destinationNetwork)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
@@ -87,6 +113,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state, quote.inputCurrency);
     const requiresPolygonEphemeralAddress = this.getRequiresPolygonEphemeralAddress(state, quote.inputCurrency);
     const requiresMoonbeamEphemeralAddress = this.getRequiresMoonbeamEphemeralAddress(state, quote.inputCurrency);
+    const requiresDestinationEvmFunding = this.getRequiresDestinationEvmFunding(state);
 
     // Ephemeral checks.
     if (!substrateEphemeralAddress && requiresPendulumEphemeralAddress) {
@@ -110,6 +137,12 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       const isPolygonFunded = requiresPolygonEphemeralAddress ? await isPolygonEphemeralFunded(evmEphemeralAddress) : true;
 
+      const destinationNetwork = getNetworkFromDestination(state.to);
+      const isDestinationEvmFunded =
+        requiresDestinationEvmFunding && destinationNetwork && isNetworkEVM(destinationNetwork) // for type safety
+          ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork)
+          : true;
+
       if (state.state.stellarTarget) {
         const isFunded = await isStellarEphemeralFunded(
           state.state.stellarEphemeralAccountId,
@@ -129,7 +162,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         } else {
           await fundEphemeralAccount("pendulum", substrateEphemeralAddress, false);
         }
-      } else {
+      } else if (requiresPendulumEphemeralAddress) {
         logger.info("Pendulum ephemeral address already funded.");
       }
 
@@ -148,8 +181,15 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       if (isOnramp(state) && !isPolygonFunded) {
         logger.info(`Funding polygon ephemeral account ${evmEphemeralAddress}`);
         await this.fundPolygonEphemeralAccount(state);
-      } else {
+      } else if (requiresPolygonEphemeralAddress) {
         logger.info("Polygon ephemeral address already funded.");
+      }
+
+      if (isOnramp(state) && !isDestinationEvmFunded && destinationNetwork && isNetworkEVM(destinationNetwork)) {
+        logger.info(`Funding destination EVM ephemeral account ${evmEphemeralAddress} on ${destinationNetwork}`);
+        await this.fundDestinationEvmEphemeralAccount(state, destinationNetwork);
+      } else if (requiresDestinationEvmFunding) {
+        logger.info(`Destination EVM ephemeral address already funded on ${destinationNetwork}.`);
       }
     } catch (e) {
       console.error("Error in FundEphemeralPhaseHandler:", e);
@@ -275,6 +315,41 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       console.error("FundEphemeralPhaseHandler: Error during funding Polygon ephemeral:", error);
       throw new Error("FundEphemeralPhaseHandler: Error during funding Polygon ephemeral: " + error);
+    }
+  }
+
+  protected async fundDestinationEvmEphemeralAccount(state: RampState, destinationNetwork: EvmNetworks): Promise<void> {
+    try {
+      const evmClientManager = EvmClientManager.getInstance();
+      const destinationClient = evmClientManager.getClient(destinationNetwork);
+      const chain = destinationClient.chain;
+
+      if (!chain) {
+        throw new Error(`FundEphemeralPhaseHandler: Could not get chain info for ${destinationNetwork}`);
+      }
+
+      const ephemeralAddress = state.state.evmEphemeralAddress;
+      const fundingAmountUnits = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
+      const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed();
+
+      const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
+
+      const txHash = await walletClient.sendTransaction({
+        to: ephemeralAddress as `0x${string}`,
+        value: BigInt(fundingAmountRaw)
+      });
+
+      const receipt = await destinationClient.waitForTransactionReceipt({
+        hash: txHash as `0x${string}`
+      });
+
+      if (!receipt || receipt.status !== "success") {
+        throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found on ${destinationNetwork}`);
+      }
+    } catch (error) {
+      console.error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral:`, error);
+      throw new Error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral: ` + error);
     }
   }
 }
