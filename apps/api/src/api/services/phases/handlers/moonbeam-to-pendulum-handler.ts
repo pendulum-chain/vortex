@@ -39,7 +39,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const { substrateEphemeralAddress, moonbeamXcmTransactionHash, squidRouterReceiverId, squidRouterReceiverHash } =
       state.state as StateMetadata;
 
-    if (!substrateEphemeralAddress || !squidRouterReceiverId || !squidRouterReceiverId || !squidRouterReceiverHash) {
+    if (!substrateEphemeralAddress || !squidRouterReceiverId || !squidRouterReceiverHash) {
       throw new Error("MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
