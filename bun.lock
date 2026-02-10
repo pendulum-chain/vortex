@@ -153,6 +153,7 @@
         "i18next": "^24.2.3",
         "lottie-react": "^2.4.1",
         "motion": "^12.0.3",
+        "numora": "^3.0.2",
         "numora-react": "3.0.3",
         "qrcode.react": "^4.2.0",
         "react": "=19.2.0",
@@ -3182,6 +3183,8 @@
     "npmlog": ["npmlog@5.0.1", "", { "dependencies": { "are-we-there-yet": "^2.0.0", "console-control-strings": "^1.1.0", "gauge": "^3.0.0", "set-blocking": "^2.0.0" } }, "sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw=="],
 
     "nullthrows": ["nullthrows@1.1.1", "", {}, "sha512-2vPPEi+Z7WqML2jZYddDIfy5Dqb0r2fze2zTxNNknZaFpVHU3mFB3R+DWeJWGVx0ecvttSGlJTI+WG+8Z4cDWw=="],
+
+    "numora": ["numora@3.0.2", "", {}, "sha512-L1EQPudBSbX1G1v4vWtbdTaZrhJhexwffslc8TtcKXaN0ZNzo/+oPPyRNtVx3HWlDmRccTxlAiE+A4K5BGsuCQ=="],
 
     "numora-react": ["numora-react@3.0.3", "", {}, "sha512-42wqglFsDZNsYUwy09yBS5Kd1U0ZmBiKFpJDmdzAPnXZd4MmZfRA7NyTMO7uTrpQYCTkc5URJ/l56K1f5ISJWg=="],
 
