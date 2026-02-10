@@ -232,7 +232,7 @@
         "title": "Conectar wallet"
       },
       "polkadotWalletSelectorDialogLoading": {
-        "description": "Por favor, aprove {selectedWallet} e aprove a transação.",
+        "description": "Por favor, aprove {{selectedWallet}} e aprove a transação.",
         "title": "Conectando wallet"
       },
       "selectionModal": {
@@ -907,8 +907,9 @@
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
-      "closeProgressScreenText": "💡 Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
+      "closeProgressScreenText": "Tudo pronto! Você já pode fechar esta aba ou pegar um café enquanto finalizamos o processo em segundo plano.",
       "createStellarAccount": "Criando conta Stellar",
+      "destinationTransfer": "Transferindo {{assetSymbol}} para sua carteira",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
@@ -972,6 +973,7 @@
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
+        "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
@@ -984,7 +986,7 @@
       }
     },
     "termsAndConditions": {
-      "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (\"TERMOS E CONDIÇÕES COMPLETOS\") está disponível e se aplica integralmente.",
+      "intro": "Estes Termos Curtos fornecem um resumo de alto nível de como a Vortex opera. Eles são juridicamente vinculativos. Uma versão detalhada dos Termos (<1>\"TERMOS E CONDIÇÕES COMPLETOS\"</1>) está disponível e se aplica integralmente.",
       "lastUpdated": "Última atualização: 7 de Janeiro de 2026",
       "sections": {
         "1": {
@@ -1032,7 +1034,7 @@
           "title": "11. Lei Aplicável"
         },
         "12": {
-          "text": "Estes Termos Curtos são complementados pelos Termos de Serviço Completos, Política de Privacidade e Termos do Parceiro, que se aplicam integralmente em todos os casos.",
+          "text": "Estes Termos Curtos são complementados pelos <1>Termos de Serviço Completos</1>, Política de Privacidade e Termos do Parceiro, que se aplicam integralmente em todos os casos.",
           "title": "12. Termos Completos"
         }
       },

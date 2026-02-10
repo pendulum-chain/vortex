@@ -14,8 +14,8 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
     foreignAssetId: 1337,
     hydrationId: "22",
     isNative: false,
+    logoURI: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg",
     network: Networks.AssetHub,
-    networkAssetIcon: "assethubUSDC",
     pendulumRepresentative: PENDULUM_USDC_ASSETHUB,
     type: TokenType.AssetHub
   },
@@ -25,8 +25,8 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
     foreignAssetId: 1984,
     hydrationId: "10",
     isNative: false,
+    logoURI: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdt.svg",
     network: Networks.AssetHub,
-    networkAssetIcon: "assethubUSDT",
     pendulumRepresentative: PENDULUM_USDC_ASSETHUB, // This is because USDC is used by Nabla
     type: TokenType.AssetHub
   },
@@ -35,8 +35,8 @@ export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = 
     decimals: 10,
     hydrationId: "5",
     isNative: true,
+    logoURI: "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/dot.svg",
     network: Networks.AssetHub,
-    networkAssetIcon: "assethubDOT",
     pendulumRepresentative: PENDULUM_USDC_ASSETHUB, // This is because USDC is used by Nabla
     type: TokenType.AssetHub
   }

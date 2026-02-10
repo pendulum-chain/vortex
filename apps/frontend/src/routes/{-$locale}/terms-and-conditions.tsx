@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BaseLayout } from "../../layouts";
-import { TermsAndConditionsPage } from "../../pages/terms";
+import { TermsAndConditionsShortPage } from "../../pages/terms/short";
 
 export const Route = createFileRoute("/{-$locale}/terms-and-conditions")({
-  component: TermsAndConditionsRouteComponent
+  component: TermsAndConditionsShortRouteComponent
 });
 
-function TermsAndConditionsRouteComponent() {
-  return <BaseLayout main={<TermsAndConditionsPage />} />;
+function TermsAndConditionsShortRouteComponent() {
+  return <BaseLayout main={<TermsAndConditionsShortPage />} />;
 }

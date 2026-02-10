@@ -77,6 +77,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
   [QuoteError.BelowLowerLimitSell]: QuoteError.BelowLowerLimitSell, // We leave this as-is, as the replacement string depends on the context
   [QuoteError.BelowLowerLimitBuy]: QuoteError.BelowLowerLimitBuy, // We leave this as-is, as the replacement string depends on the context
+  [QuoteError.LowLiquidity]: "pages.swap.error.lowLiquidity",
   // Calculation failures - suggest different amount
   [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",

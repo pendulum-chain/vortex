@@ -25,10 +25,6 @@ export const useRampNavigation = (
   const shouldSkipQuoteForm = useMemo(() => searchParams.quoteId || hasAllQuoteRefreshParams(searchParams), [searchParams]);
 
   const getCurrentComponent = useCallback(() => {
-    if (shouldSkipQuoteForm) {
-      return formComponent;
-    }
-
     if (rampState?.ramp?.currentPhase === "complete") {
       return successComponent;
     }
@@ -41,19 +37,23 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
+    if (shouldSkipQuoteForm) {
+      return formComponent;
+    }
+
     if (rampMachineState.value === "Idle") {
       return quoteComponent;
     }
 
     return formComponent;
   }, [
-    shouldSkipQuoteForm,
     rampState,
-    formComponent,
+    rampMachineState.value,
+    shouldSkipQuoteForm,
     successComponent,
     failureComponent,
     progressComponent,
-    rampMachineState.value,
+    formComponent,
     quoteComponent
   ]);
 

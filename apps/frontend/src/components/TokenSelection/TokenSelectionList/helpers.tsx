@@ -2,11 +2,11 @@ import {
   assetHubTokenConfig,
   doesNetworkSupportRamp,
   EvmNetworks,
-  evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
   getEnumKeyByStringValue,
   getNetworkDisplayName,
+  isEvmTokenDetails,
   isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
@@ -16,6 +16,7 @@ import {
   stellarTokenConfig
 } from "@vortexfi/shared";
 import { useMemo } from "react";
+import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
@@ -34,7 +35,7 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
     return Array.from(networks).sort();
   }, [allDefinitions]);
 
-  const networkFilteredDefinitions = useMemo(() => {
+  const networkFiltered = useMemo(() => {
     if (selectedNetworkFilter === "all") {
       return allDefinitions;
     }
@@ -42,14 +43,16 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
   }, [allDefinitions, selectedNetworkFilter]);
 
   const filteredDefinitions = useMemo(() => {
+    if (!filter) return networkFiltered;
+
     const searchTerm = filter.toLowerCase();
-    return networkFilteredDefinitions.filter(
+    return networkFiltered.filter(
       ({ assetSymbol, name, networkDisplayName }) =>
         assetSymbol.toLowerCase().includes(searchTerm) ||
         (name && name.toLowerCase().includes(searchTerm)) ||
         networkDisplayName.toLowerCase().includes(searchTerm)
     );
-  }, [networkFilteredDefinitions, filter]);
+  }, [networkFiltered, filter]);
 
   return {
     availableNetworks,
@@ -61,38 +64,77 @@ export function useTokenDefinitions(filter: string, selectedNetworkFilter: Netwo
 function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks): ExtendedTokenDefinition[] {
   if (selectedNetwork === Networks.AssetHub) {
     return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
-      assetIcon: value.networkAssetIcon,
+      assetIcon: value.assetSymbol,
       assetSymbol: value.assetSymbol,
       details: value as OnChainTokenDetails,
+      logoURI: value.logoURI,
       network: selectedNetwork,
       networkDisplayName: getNetworkDisplayName(selectedNetwork),
       type: key as OnChainToken
     }));
   } else if (isNetworkEVM(selectedNetwork)) {
-    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-      assetIcon: value.networkAssetIcon,
-      assetSymbol: value.assetSymbol,
-      details: value as OnChainTokenDetails,
+    const evmConfig = getEvmTokenConfig();
+    const networkConfig = evmConfig[selectedNetwork as EvmNetworks] ?? {};
+    const byToken = new Map<OnChainTokenDetails, string>();
+
+    for (const [key, value] of Object.entries(networkConfig)) {
+      if (!value) continue;
+      const token = value as OnChainTokenDetails;
+      const existingKey = byToken.get(token);
+
+      if (!existingKey) {
+        byToken.set(token, key);
+        continue;
+      }
+
+      // Prefer enum-like keys without dots (e.g., "AXLUSDC" over "USDC.AXL")
+      if (existingKey.includes(".") && !key.includes(".")) {
+        byToken.set(token, key);
+      }
+    }
+
+    return Array.from(byToken.entries()).map(([details, key]) => ({
+      assetIcon: details.assetSymbol ?? key,
+      assetSymbol: details.assetSymbol ?? key,
+      details,
+      fallbackLogoURI: isEvmTokenDetails(details) ? details.fallbackLogoURI : undefined,
+      logoURI: details.logoURI,
       network: selectedNetwork,
       networkDisplayName: getNetworkDisplayName(selectedNetwork),
       type: key as OnChainToken
     }));
-  } else throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
+  } else {
+    throw new Error(`Network ${selectedNetwork} is not a valid origin network`);
+  }
 }
 
+let cachedOnChainTokens: ExtendedTokenDefinition[] | null = null;
+let cachedEvmConfigRef: ReturnType<typeof getEvmTokenConfig> | null = null;
+
 function getAllOnChainTokens(): ExtendedTokenDefinition[] {
+  const currentEvmConfig = getEvmTokenConfig();
+
+  if (cachedOnChainTokens && cachedEvmConfigRef === currentEvmConfig) {
+    return cachedOnChainTokens;
+  }
+
   const allTokens: ExtendedTokenDefinition[] = [];
-
   allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
-
   const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
   for (const network of evmNetworks) {
-    if (evmTokenConfig[network]) {
+    if (currentEvmConfig[network]) {
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
     }
   }
 
+  cachedOnChainTokens = allTokens;
+  cachedEvmConfigRef = currentEvmConfig;
   return allTokens;
+}
+
+export function invalidateOnChainTokensCache(): void {
+  cachedOnChainTokens = null;
+  cachedEvmConfigRef = null;
 }
 
 function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
@@ -114,11 +156,7 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
 }
 
 function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  const isBuy = direction === RampDirection.BUY;
-  if (isBuy && type === "from") {
-    return true;
-  }
-  return false;
+  return direction === RampDirection.BUY && type === "from";
 }
 
 export function useIsFiatDirection() {
@@ -129,12 +167,7 @@ export function useIsFiatDirection() {
 
 function isFiatDirection(type: "from" | "to", direction: RampDirection) {
   const isBuy = direction === RampDirection.BUY;
-
-  if ((isBuy && type === "from") || (!isBuy && type === "to")) {
-    return true;
-  }
-
-  return false;
+  return (isBuy && type === "from") || (!isBuy && type === "to");
 }
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
