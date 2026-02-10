@@ -1,4 +1,8 @@
+import { ArrowRightOnRectangleIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
+import { useRampActor } from "../../../contexts/rampState";
+import { AuthService } from "../../../services/auth";
 import { useSettingsMenuActions, useSettingsMenuState } from "../../../stores/settingsMenuStore";
 import { LanguageSelector } from "../../LanguageSelector";
 import { Menu, MenuAnimationDirection } from "../Menu";
@@ -33,9 +37,22 @@ export const SettingsMenu = () => {
   const { t } = useTranslation();
   const isOpen = useSettingsMenuState();
   const { closeMenu } = useSettingsMenuActions();
+  const rampActor = useRampActor();
+
+  const { userEmail, isAuthenticated } = useSelector(rampActor, state => ({
+    isAuthenticated: state.context.isAuthenticated,
+    userEmail: state.context.userEmail
+  }));
 
   const handleExternalLink = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
+    closeMenu();
+  };
+
+  const handleSignOut = () => {
+    AuthService.clearTokens();
+    rampActor.send({ type: "LOGOUT" });
+
     closeMenu();
   };
 
@@ -56,6 +73,26 @@ export const SettingsMenu = () => {
 
   const renderContent = () => (
     <div className="space-y-2 pt-4">
+      {isAuthenticated && userEmail && (
+        <>
+          <div className="mb-4 px-3 py-2 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <UserCircleIcon className="h-5 w-5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-900 truncate">{userEmail}</span>
+            </div>
+            <button
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all"
+              onClick={handleSignOut}
+              type="button"
+            >
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              {t("menus.settings.signOut")}
+            </button>
+          </div>
+          <div className="border-t border-gray-200 mb-4" />
+        </>
+      )}
+
       <div className="space-y-1">
         {menuItems.map((item, index) => (
           <MenuItem key={index} label={item.label} onClick={item.onClick} />

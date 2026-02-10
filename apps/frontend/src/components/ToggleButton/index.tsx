@@ -24,7 +24,7 @@ export const ToggleButton = ({
       onClick={onToggle}
       type="button"
     >
-      {isExpanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+      {isExpanded ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronUpIcon className="h-4 w-4" />}
     </button>
   );
 };

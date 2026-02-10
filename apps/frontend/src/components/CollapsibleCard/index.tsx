@@ -49,7 +49,7 @@ const CollapsibleCard = forwardRef<HTMLDivElement, CollapsibleCardProps>(
     return (
       <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
         <div
-          className={`rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}
+          className={`flex flex-col-reverse rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}
           ref={ref}
         >
           {children}
@@ -79,10 +79,10 @@ const CollapsibleDetails = ({ children, className = "" }: CollapsibleDetailsProp
           {isExpanded && (
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="mt-4 border-gray-200 border-t pt-4"
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+              className="mb-4 border-gray-200 border-b pb-4"
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
               id={detailsId}
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
               transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
             >
               {children}

@@ -31,12 +31,12 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
     <FormProvider {...form}>
       <motion.form
         animate={{ opacity: 1, scale: 1 }}
-        className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between"
+        className="mt-8 mb-4 flex h-full min-h-[506px] w-full flex-col"
         initial={{ opacity: 0.8, scale: 0.9 }}
         onSubmit={handleSubmit(onSubmit)}
         transition={{ duration: 0.3 }}
       >
-        <div>
+        <div className="flex-1 pb-36">
           <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">
             {isCompany ? t("components.aveniaKYB.title.default") : t("components.aveniaKYC.title")}
           </h1>
@@ -75,23 +75,25 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <div className="mt-8">
-          <button
-            className="btn-vortex-primary btn w-full"
-            disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
-            onClick={() => {
-              const formData = form.getValues();
-              aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
-            }}
-            title={buttonProps.title}
-            type="button"
-          >
-            {isMaintenanceDisabled
-              ? buttonProps.title
-              : isCompany
-                ? t("components.aveniaKYB.buttons.next")
-                : t("components.aveniaKYC.buttons.next")}
-          </button>
+        <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
+          <div className="mt-8 grid gap-3">
+            <button
+              className="btn-vortex-primary btn w-full"
+              disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
+              onClick={() => {
+                const formData = form.getValues();
+                aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
+              }}
+              title={buttonProps.title}
+              type="button"
+            >
+              {isMaintenanceDisabled
+                ? buttonProps.title
+                : isCompany
+                  ? t("components.aveniaKYB.buttons.next")
+                  : t("components.aveniaKYC.buttons.next")}
+            </button>
+          </div>
         </div>
       </motion.form>
     </FormProvider>

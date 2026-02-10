@@ -203,12 +203,14 @@ export const recordInitialKycAttempt = async (
         taxId
       }
     });
+
     if (!taxIdRecord) {
       const accountType = isValidCnpj(taxId)
         ? AveniaAccountType.COMPANY
         : isValidCpf(taxId)
           ? AveniaAccountType.INDIVIDUAL
           : undefined;
+
       // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
       if (accountType) {
         await TaxId.create({
@@ -217,7 +219,8 @@ export const recordInitialKycAttempt = async (
           initialSessionId: sessionId ?? null,
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
-          taxId
+          taxId,
+          userId: req.userId ?? null
         });
       }
     }
@@ -317,6 +320,7 @@ export const createSubaccount = async (
     } else {
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
+
       await TaxId.create({
         accountType,
         initialQuoteId: quoteId,
@@ -324,7 +328,8 @@ export const createSubaccount = async (
         internalStatus: TaxIdInternalStatus.Requested,
         requestedDate: new Date(),
         subAccountId: id,
-        taxId: taxId
+        taxId: taxId,
+        userId: req.userId ?? null
       });
     }
 

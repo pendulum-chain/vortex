@@ -27,7 +27,7 @@ export class RegisterRampError extends Error {
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote } = input;
+  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote, userId } = input;
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
@@ -97,7 +97,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   }
 
-  const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
+  const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData, userId);
 
   const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx => {
     if (!connectedWalletAddress) {

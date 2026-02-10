@@ -50,13 +50,13 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
               {isPending || isSuccess ? (
                 <LoadingProgressBar isSuccess={isSuccess} key="loading" successMessage={t("components.emailForm.success")} />
               ) : (
-                <TextInput additionalStyle="h-12!" placeholder="example@mail.com" register={register("email")} type="email" />
+                <TextInput placeholder="example@mail.com" register={register("email")} type="email" />
               )}
             </AnimatePresence>
           </div>
           {!isPending && !isSuccess && (
             <button
-              className="h-12! min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center font-medium text-white transition-[background-color,transform] duration-200 ease-out hover:bg-blue-700 active:scale-95 motion-reduce:transition-none"
+              className="min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center text-white transition-[background-color,transform] duration-200 ease-out hover:bg-blue-700 active:scale-95 motion-reduce:transition-none"
               disabled={isPending}
               type="submit"
             >
