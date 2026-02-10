@@ -3,6 +3,7 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
 import countriesRoutes from "./countries.route";
@@ -156,6 +157,12 @@ router.use("/maintenance", maintenanceRoutes);
  * POST /v1/auth/verify
  */
 router.use("/auth", authRoutes);
+
+/**
+ * GET v1/alfredpay
+ * POST v1/alfredpay
+ */
+router.use("/alfredpay", alfredpayRoutes);
 
 /**
  * GET v1/monerium

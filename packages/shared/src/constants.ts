@@ -11,3 +11,7 @@ export const BRLA_API_KEY = getEnvVar("BRLA_API_KEY");
 export const BRLA_PRIVATE_KEY = getEnvVar("BRLA_PRIVATE_KEY");
 
 export const ALCHEMY_API_KEY = getEnvVar("ALCHEMY_API_KEY");
+
+export const ALFREDPAY_BASE_URL = getEnvVar("ALFREDPAY_BASE_URL") || "https://penny-api-restricted-dev.alfredpay.io";
+export const ALFREDPAY_API_KEY = getEnvVar("ALFREDPAY_API_KEY");
+export const ALFREDPAY_API_SECRET = getEnvVar("ALFREDPAY_API_SECRET");

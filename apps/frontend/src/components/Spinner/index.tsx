@@ -3,7 +3,15 @@ import { cn } from "../../helpers/cn";
 export type SpinnerSize = "sm" | "md" | "lg";
 export type SpinnerTheme = "light" | "dark";
 
-export function Spinner({ size = "sm", theme = "light" }: { size?: SpinnerSize; theme?: SpinnerTheme }) {
+export function Spinner({
+  size = "sm",
+  theme = "light",
+  className
+}: {
+  size?: SpinnerSize;
+  theme?: SpinnerTheme;
+  className?: string;
+}) {
   const sizeClasses = {
     lg: "w-10 h-10",
     md: "w-8 h-8",
@@ -17,7 +25,12 @@ export function Spinner({ size = "sm", theme = "light" }: { size?: SpinnerSize; 
 
   return (
     <div
-      className={cn(themeClasses[theme], "animate-spin rounded-full border-[2.5px] border-t-transparent", sizeClasses[size])}
+      className={cn(
+        themeClasses[theme],
+        "animate-spin rounded-full border-[2.5px] border-t-transparent",
+        sizeClasses[size],
+        className
+      )}
     />
   );
 }
