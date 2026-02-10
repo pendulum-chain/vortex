@@ -45,7 +45,8 @@
   "dependencies": {
     "big.js": "^7.0.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.0"
+    "lint-staged": "^16.1.0",
+    "numora-react": "^3.0.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
