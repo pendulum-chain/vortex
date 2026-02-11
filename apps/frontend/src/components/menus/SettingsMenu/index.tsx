@@ -63,7 +63,7 @@ export const SettingsMenu = () => {
     },
     {
       label: t("menus.settings.item.termsAndConditions"),
-      onClick: () => handleExternalLink(`/${i18n.language}/terms-and-conditions`)
+      onClick: () => handleExternalLink(`https://www.vortexfinance.co/${i18n.language}/terms-and-conditions`)
     },
     {
       label: t("menus.settings.item.imprint"),
