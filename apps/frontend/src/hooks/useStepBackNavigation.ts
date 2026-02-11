@@ -24,12 +24,12 @@ export const useStepBackNavigation = () => {
     rampState === "VerifyingOTP";
 
   // When user removes quoteId from URL while in QuoteReady state (and they entered via form),
-  // send GO_BACK to return to Idle/Quote form
+  // send GO_BACK to return to Idle/Quote form.
   useEffect(() => {
-    if (!hasQuoteIdInUrl) {
+    if (!hasQuoteIdInUrl && rampState === "QuoteReady" && enteredViaForm) {
       rampActor.send({ type: "GO_BACK" });
     }
-  }, [rampActor, hasQuoteIdInUrl]);
+  }, [rampActor, hasQuoteIdInUrl, rampState, enteredViaForm]);
 
   const shouldHide =
     rampState === "RampFollowUp" ||
