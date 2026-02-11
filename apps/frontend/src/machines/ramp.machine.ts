@@ -363,12 +363,16 @@ export const rampMachine = setup({
       on: {
         GO_BACK: [
           {
+            actions: assign({
+              errorMessage: undefined
+            }),
             guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
             target: "KycComplete"
           },
           {
             actions: assign({
               enteredViaForm: undefined,
+              errorMessage: undefined,
               postAuthTarget: undefined,
               quote: undefined,
               quoteId: undefined
