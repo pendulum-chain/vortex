@@ -13,7 +13,8 @@ This document maps how the top-level XState machine (`ramp.machine.ts`) drives w
 ```mermaid
 flowchart TD
   A[Idle] -->|SET_QUOTE| B[LoadingQuote]
-  B -->|quote loaded| C[QuoteReady]
+  B -->|quote loaded + unauth + enteredViaForm| AA[CheckAuth]
+  B -->|quote loaded otherwise| C[QuoteReady]
   C -->|CONFIRM| D[RampRequested]
 
   D -->|kycNeeded = true| E[KYC]
@@ -23,7 +24,8 @@ flowchart TD
   E -->|child KYC error| X[KycFailure]
   X --> R[Resetting]
 
-  F -->|PROCEED_TO_REGISTRATION| G[RegisterRamp]
+  F -->|PROCEED_TO_REGISTRATION + authenticated| G[RegisterRamp]
+  F -->|PROCEED_TO_REGISTRATION + unauthenticated| AA[CheckAuth]
   F -->|GO_BACK| C
 
   G --> H[UpdateRamp]
@@ -43,14 +45,16 @@ flowchart TD
 
   R -->|urlCleaner done| A
 
-  A --> AA[CheckAuth]
+  AA -->|authenticated + postAuthTarget=RegisterRamp| G
+  AA -->|authenticated + postAuthTarget=QuoteReady| C
   AA -->|authenticated| C
   AA -->|not authenticated| AB[EnterEmail]
   AB --> AC[CheckingEmail]
   AC --> AD[RequestingOTP]
   AD --> AE[EnterOTP]
   AE --> AF[VerifyingOTP]
-  AF -->|success| C
+  AF -->|success + postAuthTarget=RegisterRamp| G
+  AF -->|success otherwise| C
   AF -->|error| AE
 
   G -->|error| Z[Error]
@@ -123,7 +127,7 @@ flowchart TD
   - in `UpdateRamp` on onramp -> `PAYMENT_CONFIRMED`
   - if quote expired -> `RESET_RAMP`
 - `AuthEmailStep` -> `ENTER_EMAIL`
-- `AuthOTPStep` -> `VERIFY_OTP`, `CHANGE_EMAIL`
+- `AuthOTPStep` -> `VERIFY_OTP`
 - Error/initial-failure/retry actions -> `RESET_RAMP`
 - Back button (`StepBackButton`) primarily sends `GO_BACK` (with Avenia-specific child events in document/liveness/KYB sub-steps)
 
@@ -135,6 +139,15 @@ flowchart TD
 - `INITIAL_QUOTE_FETCH_FAILED` on quote fetch failure
 
 This is why many sessions start in `LoadingQuote`/`QuoteReady` rather than plain `Idle`.
+
+## Auth gating change
+- The initial `Idle -> CheckAuth` auto-transition was removed.
+- For `/widget` entry coming from Quote form (`enteredViaForm`), auth can happen directly after `LoadingQuote` and before `QuoteReady`.
+- Auth is also deferred to `KycComplete -> PROCEED_TO_REGISTRATION` when needed.
+- `postAuthTarget` tracks whether post-auth continuation should be `QuoteReady` or `RegisterRamp`.
+- `GO_BACK` behavior in auth states:
+  - `CheckAuth`, `EnterEmail`, `CheckingEmail`, `RequestingOTP`: back to `KycComplete` when `postAuthTarget=RegisterRamp`, otherwise reset to `Idle` (Quote form path).
+  - `EnterOTP`, `VerifyingOTP`: back to `EnterEmail`.
 
 ## Practical reading model
 When debugging what card should show, check in this order:
