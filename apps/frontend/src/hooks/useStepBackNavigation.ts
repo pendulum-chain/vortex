@@ -15,6 +15,13 @@ export const useStepBackNavigation = () => {
   const searchParams = useSearch({ strict: false });
   const isExternalProviderEntry = !!searchParams.externalSessionId;
   const hasQuoteIdInUrl = !!searchParams.quoteId;
+  const isAuthStep =
+    rampState === "CheckAuth" ||
+    rampState === "EnterEmail" ||
+    rampState === "CheckingEmail" ||
+    rampState === "RequestingOTP" ||
+    rampState === "EnterOTP" ||
+    rampState === "VerifyingOTP";
 
   // When user removes quoteId from URL while in QuoteReady state (and they entered via form),
   // send GO_BACK to return to Idle/Quote form
@@ -50,7 +57,7 @@ export const useStepBackNavigation = () => {
     const isQuoteReady = rampState === "QuoteReady";
     const isIdle = rampState === "Idle";
 
-    if (isQuoteReady || isIdle) {
+    if (isQuoteReady || isIdle || isAuthStep) {
       navigate({ replace: true, search: {}, to: "." });
     }
 

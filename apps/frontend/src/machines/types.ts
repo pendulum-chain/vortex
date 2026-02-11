@@ -41,6 +41,7 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
+  postAuthTarget?: "QuoteReady" | "RegisterRamp";
 }
 
 export type RampMachineEvents =
