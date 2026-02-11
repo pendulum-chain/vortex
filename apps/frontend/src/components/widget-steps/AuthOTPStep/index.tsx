@@ -6,6 +6,7 @@ import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../../InputOTP";
+import { MenuButtons } from "../../MenuButtons";
 import { QuoteSummary } from "../../QuoteSummary";
 
 export interface AuthOTPStepProps {
@@ -41,6 +42,10 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
 
   return (
     <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
+      <div className="flex items-center justify-between">
+        <MenuButtons />
+      </div>
+
       <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authOTPStep.title")}</h1>
@@ -85,15 +90,6 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
             {isVerifying && (
               <p className="mb-4 text-center text-blue-600 text-sm">{t("components.authOTPStep.status.verifying")}</p>
             )}
-
-            <button
-              className="w-full font-medium text-blue-600 text-sm underline hover:text-blue-800 disabled:text-gray-400 disabled:no-underline"
-              disabled={isVerifying}
-              onClick={() => rampActor.send({ type: "CHANGE_EMAIL" })}
-              type="button"
-            >
-              {t("components.authOTPStep.buttons.useDifferentEmail")}
-            </button>
           </div>
         </div>
       </div>

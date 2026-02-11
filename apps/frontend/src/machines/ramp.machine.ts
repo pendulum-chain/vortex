@@ -478,18 +478,7 @@ export const rampMachine = setup({
             actions: assign({
               errorMessage: undefined
             }),
-            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
-            target: "KycComplete"
-          },
-          {
-            actions: assign({
-              enteredViaForm: undefined,
-              errorMessage: undefined,
-              postAuthTarget: undefined,
-              quote: undefined,
-              quoteId: undefined
-            }),
-            target: "Idle"
+            target: "EnterEmail"
           }
         ],
         VERIFY_OTP: {
@@ -900,25 +889,12 @@ export const rampMachine = setup({
         src: "verifyOTP"
       },
       on: {
-        GO_BACK: [
-          {
-            actions: assign({
-              errorMessage: undefined
-            }),
-            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
-            target: "KycComplete"
-          },
-          {
-            actions: assign({
-              enteredViaForm: undefined,
-              errorMessage: undefined,
-              postAuthTarget: undefined,
-              quote: undefined,
-              quoteId: undefined
-            }),
-            target: "Idle"
-          }
-        ]
+        GO_BACK: {
+          actions: assign({
+            errorMessage: undefined
+          }),
+          target: "EnterEmail"
+        }
       }
     }
   }
