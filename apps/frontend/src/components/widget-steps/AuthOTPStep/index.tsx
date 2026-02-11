@@ -61,6 +61,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
             <div className="mb-4 flex justify-center">
               <InputOTP
                 autoFocus
+                containerClassName="justify-center gap-x-2 gap-y-3 max-[420px]:flex-wrap"
                 disabled={isVerifying}
                 maxLength={6}
                 onChange={handleChange}
@@ -69,13 +70,13 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
                 ref={inputRef}
                 value={otp}
               >
-                <InputOTPGroup className="gap-2">
+                <InputOTPGroup className="justify-center gap-2">
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
                   <InputOTPSlot index={2} />
                 </InputOTPGroup>
-                <span className="mx-2 text-gray-400">-</span>
-                <InputOTPGroup className="gap-2">
+                <span className="text-gray-400 max-[420px]:hidden">-</span>
+                <InputOTPGroup className="w-auto justify-center gap-2 max-[420px]:w-full">
                   <InputOTPSlot index={3} />
                   <InputOTPSlot index={4} />
                   <InputOTPSlot index={5} />
