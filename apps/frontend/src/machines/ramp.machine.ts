@@ -827,6 +827,15 @@ export const rampMachine = setup({
         src: "signTransactions"
       },
       on: {
+        GO_BACK: {
+          actions: assign({
+            enteredViaForm: undefined,
+            errorMessage: undefined,
+            rampPaymentConfirmed: false,
+            rampSigningPhase: undefined
+          }),
+          target: "QuoteReady"
+        },
         PAYMENT_CONFIRMED: {
           actions: assign({
             rampPaymentConfirmed: true
