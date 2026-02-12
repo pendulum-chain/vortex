@@ -1,22 +1,28 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { ToastContainer, ToastContainerProps, ToastItem, toast } from "react-toastify";
 import { Popover } from "../Popover";
 
-export function useHasActiveToasts() {
-  const [activeToasts, setActiveToasts] = useState<ToastItem[]>([]);
-  useEffect(() => {
-    const unsubscribe = toast.onChange((payload: ToastItem) => {
-      if (payload.status === "added") {
-        setActiveToasts(prev => [...prev, payload]);
-      }
-      if (payload.status === "removed") {
-        setActiveToasts(prev => prev.filter(t => t.id !== payload.id));
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+const activeToastIds = new Set<ToastItem["id"]>();
 
-  return activeToasts.length > 0;
+function subscribe(callback: () => void) {
+  return toast.onChange((payload: ToastItem) => {
+    if (payload.status === "added" && !activeToastIds.has(payload.id)) {
+      activeToastIds.add(payload.id);
+      callback();
+    }
+    if (payload.status === "removed" && activeToastIds.has(payload.id)) {
+      activeToastIds.delete(payload.id);
+      callback();
+    }
+  });
+}
+
+function getSnapshot() {
+  return activeToastIds.size;
+}
+
+export function useHasActiveToasts() {
+  return useSyncExternalStore(subscribe, getSnapshot) > 0;
 }
 
 export const ToastPopover = (props: ToastContainerProps) => {
