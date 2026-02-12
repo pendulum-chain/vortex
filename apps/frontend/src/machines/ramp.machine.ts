@@ -60,6 +60,7 @@ const initialRampContext: RampContext = {
   isSep24Redo: false,
   partnerId: undefined,
   paymentData: undefined,
+  postAuthTarget: undefined,
   quote: undefined,
   quoteId: undefined,
   quoteLocked: undefined,
@@ -338,13 +339,48 @@ export const rampMachine = setup({
     CheckAuth: {
       always: [
         {
+          actions: assign({
+            postAuthTarget: undefined
+          }),
+          guard: ({ context }) => context.isAuthenticated && context.postAuthTarget === "RegisterRamp",
+          target: "RegisterRamp"
+        },
+        {
+          actions: assign({
+            postAuthTarget: undefined
+          }),
+          guard: ({ context }) => context.isAuthenticated && context.postAuthTarget === "QuoteReady",
+          target: "QuoteReady"
+        },
+        {
           guard: ({ context }) => context.isAuthenticated,
           target: "QuoteReady"
         },
         {
           target: "EnterEmail"
         }
-      ]
+      ],
+      on: {
+        GO_BACK: [
+          {
+            actions: assign({
+              errorMessage: undefined
+            }),
+            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+            target: "KycComplete"
+          },
+          {
+            actions: assign({
+              enteredViaForm: undefined,
+              errorMessage: undefined,
+              postAuthTarget: undefined,
+              quote: undefined,
+              quoteId: undefined
+            }),
+            target: "Idle"
+          }
+        ]
+      }
     },
     CheckingEmail: {
       invoke: {
@@ -359,6 +395,27 @@ export const rampMachine = setup({
           target: "EnterEmail"
         },
         src: "checkEmail"
+      },
+      on: {
+        GO_BACK: [
+          {
+            actions: assign({
+              errorMessage: undefined
+            }),
+            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+            target: "KycComplete"
+          },
+          {
+            actions: assign({
+              enteredViaForm: undefined,
+              errorMessage: undefined,
+              postAuthTarget: undefined,
+              quote: undefined,
+              quoteId: undefined
+            }),
+            target: "Idle"
+          }
+        ]
       }
     },
     EnterEmail: {
@@ -369,6 +426,25 @@ export const rampMachine = setup({
           }),
           target: "CheckingEmail"
         },
+        GO_BACK: [
+          {
+            actions: assign({
+              errorMessage: undefined
+            }),
+            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+            target: "KycComplete"
+          },
+          {
+            actions: assign({
+              enteredViaForm: undefined,
+              errorMessage: undefined,
+              postAuthTarget: undefined,
+              quote: undefined,
+              quoteId: undefined
+            }),
+            target: "Idle"
+          }
+        ],
         SET_QUOTE: {
           actions: assign({
             quoteId: ({ event }) => event.quoteId,
@@ -401,6 +477,14 @@ export const rampMachine = setup({
           }),
           target: "CheckingEmail"
         },
+        GO_BACK: [
+          {
+            actions: assign({
+              errorMessage: undefined
+            }),
+            target: "EnterEmail"
+          }
+        ],
         VERIFY_OTP: {
           actions: assign({ errorMessage: undefined }),
           target: "VerifyingOTP"
@@ -431,12 +515,6 @@ export const rampMachine = setup({
       }
     },
     Idle: {
-      always: [
-        {
-          guard: ({ context }) => !context.isAuthenticated,
-          target: "CheckAuth"
-        }
-      ],
       on: {
         INITIAL_QUOTE_FETCH_FAILED: {
           target: "InitialFetchFailed"
@@ -470,9 +548,21 @@ export const rampMachine = setup({
         GO_BACK: {
           target: "QuoteReady"
         },
-        PROCEED_TO_REGISTRATION: {
-          target: "RegisterRamp"
-        },
+        PROCEED_TO_REGISTRATION: [
+          {
+            actions: assign({
+              postAuthTarget: () => "RegisterRamp"
+            }),
+            guard: ({ context }) => !context.isAuthenticated,
+            target: "CheckAuth"
+          },
+          {
+            actions: assign({
+              postAuthTarget: undefined
+            }),
+            target: "RegisterRamp"
+          }
+        ],
         // This will trigger a quoteRefresher after some seconds
         REFRESH_FAILED: {
           actions: [{ type: "refreshQuoteActionWithDelay" }]
@@ -513,13 +603,24 @@ export const rampMachine = setup({
         input: ({ event, context }) => ({
           quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId || context.quoteId!
         }),
-        onDone: {
-          actions: assign({
-            isQuoteExpired: ({ event }) => event.output.isExpired,
-            quote: ({ event }) => event.output.quote
-          }),
-          target: "QuoteReady"
-        },
+        onDone: [
+          {
+            actions: assign({
+              isQuoteExpired: ({ event }) => event.output.isExpired,
+              postAuthTarget: () => "QuoteReady",
+              quote: ({ event }) => event.output.quote
+            }),
+            guard: ({ context }) => !context.isAuthenticated && context.enteredViaForm === true,
+            target: "CheckAuth"
+          },
+          {
+            actions: assign({
+              isQuoteExpired: ({ event }) => event.output.isExpired,
+              quote: ({ event }) => event.output.quote
+            }),
+            target: "QuoteReady"
+          }
+        ],
         onError: {
           actions: assign({
             isQuoteExpired: true,
@@ -640,6 +741,27 @@ export const rampMachine = setup({
           target: "EnterEmail"
         },
         src: "requestOTP"
+      },
+      on: {
+        GO_BACK: [
+          {
+            actions: assign({
+              errorMessage: undefined
+            }),
+            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+            target: "KycComplete"
+          },
+          {
+            actions: assign({
+              enteredViaForm: undefined,
+              errorMessage: undefined,
+              postAuthTarget: undefined,
+              quote: undefined,
+              quoteId: undefined
+            }),
+            target: "Idle"
+          }
+        ]
       }
     },
     Resetting: {
@@ -719,25 +841,49 @@ export const rampMachine = setup({
           code: (event as any).code,
           email: context.userEmail!
         }),
-        onDone: {
-          actions: [
-            assign({
-              errorMessage: undefined,
-              isAuthenticated: true,
-              userId: ({ event }) => event.output.userId
-            }),
-            ({ event, context }) => {
-              // Store tokens in localStorage for session persistence
-              AuthService.storeTokens({
-                accessToken: event.output.accessToken,
-                refreshToken: event.output.refreshToken,
-                userEmail: context.userEmail,
-                userId: event.output.userId
-              });
-            }
-          ],
-          target: "QuoteReady"
-        },
+        onDone: [
+          {
+            actions: [
+              assign({
+                errorMessage: undefined,
+                isAuthenticated: true,
+                postAuthTarget: undefined,
+                userId: ({ event }) => event.output.userId
+              }),
+              ({ event, context }) => {
+                // Store tokens in localStorage for session persistence
+                AuthService.storeTokens({
+                  accessToken: event.output.accessToken,
+                  refreshToken: event.output.refreshToken,
+                  userEmail: context.userEmail,
+                  userId: event.output.userId
+                });
+              }
+            ],
+            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+            target: "RegisterRamp"
+          },
+          {
+            actions: [
+              assign({
+                errorMessage: undefined,
+                isAuthenticated: true,
+                postAuthTarget: undefined,
+                userId: ({ event }) => event.output.userId
+              }),
+              ({ event, context }) => {
+                // Store tokens in localStorage for session persistence
+                AuthService.storeTokens({
+                  accessToken: event.output.accessToken,
+                  refreshToken: event.output.refreshToken,
+                  userEmail: context.userEmail,
+                  userId: event.output.userId
+                });
+              }
+            ],
+            target: "QuoteReady"
+          }
+        ],
         onError: {
           actions: assign({
             errorMessage: "Invalid OTP code. Please try again."
@@ -745,6 +891,14 @@ export const rampMachine = setup({
           target: "EnterOTP"
         },
         src: "verifyOTP"
+      },
+      on: {
+        GO_BACK: {
+          actions: assign({
+            errorMessage: undefined
+          }),
+          target: "EnterEmail"
+        }
       }
     }
   }
