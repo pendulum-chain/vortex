@@ -223,7 +223,7 @@ export const rampMachine = setup({
         new Promise<void>(resolve => {
           setTimeout(() => {
             console.log("Clearing URL parameters");
-            const cleanUrl = window.location.origin;
+            const cleanUrl = window.location.pathname;
             window.history.replaceState({}, "", cleanUrl);
             window.location.reload();
             resolve();
