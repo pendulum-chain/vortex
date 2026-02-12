@@ -81,14 +81,6 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const [_, tokenValue] = matchedToken;
     return tokenValue as unknown as OnChainToken;
   } else {
-    const evmTokenEntries = Object.entries(EvmToken);
-    const matchedStaticToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
-
-    if (matchedStaticToken) {
-      const [_, tokenValue] = matchedStaticToken;
-      return tokenValue as OnChainToken;
-    }
-
     if (isNetworkEVM(networkType as Networks)) {
       const dynamicConfig = getEvmTokenConfig();
       const networkTokens = dynamicConfig[networkType as EvmNetworks];
