@@ -45,6 +45,19 @@ const state: DynamicEvmTokensState = {
   tokensByNetwork: {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 };
 
+const evmTokenListeners = new Set<() => void>();
+
+export function subscribeEvmTokensLoaded(onStoreChange: () => void): () => void {
+  evmTokenListeners.add(onStoreChange);
+  return () => {
+    evmTokenListeners.delete(onStoreChange);
+  };
+}
+
+export function getEvmTokensLoadedSnapshot(): boolean {
+  return state.isLoaded;
+}
+
 /**
  * Iterates over all EVM networks and calls the callback for each.
  */
@@ -283,12 +296,14 @@ export async function initializeEvmTokens(): Promise<void> {
     state.tokensByNetwork = mergeWithStaticConfig(groupedTokens);
     state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
     state.isLoaded = true;
+    for (const listener of evmTokenListeners) listener();
   } catch (err) {
     console.error("[DynamicEvmTokens] Failed to fetch tokens from SquidRouter, using fallback:", err);
 
     state.tokensByNetwork = buildFallbackFromStaticConfig();
     state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
     state.isLoaded = true;
+    for (const listener of evmTokenListeners) listener();
   }
 }
 

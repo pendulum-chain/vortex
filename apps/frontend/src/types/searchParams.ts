@@ -1,4 +1,3 @@
-import { EPaymentMethod, RampDirection } from "@vortexfi/shared";
 import { z } from "zod";
 
 /**
@@ -22,15 +21,9 @@ export const rampSearchSchema = z.object({
   inputAmount: stringOrNumberParam,
   network: z.string().optional(),
   partnerId: z.string().optional(),
-  paymentMethod: z
-    .preprocess(val => (typeof val === "string" ? val.toLowerCase() : val), z.nativeEnum(EPaymentMethod))
-    .optional()
-    .catch(undefined),
+  paymentMethod: z.string().optional(),
   quoteId: z.string().optional(),
-  rampType: z
-    .preprocess(val => (typeof val === "string" ? val.toUpperCase() : val), z.nativeEnum(RampDirection))
-    .optional()
-    .catch(undefined),
+  rampType: z.string().optional(),
   walletAddressLocked: z.string().optional()
 });
 

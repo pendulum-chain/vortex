@@ -19,7 +19,6 @@ import { NetworkProvider } from "./contexts/network";
 import { PolkadotNodeProvider } from "./contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
 import { initializeEvmTokens } from "./services/tokens";
-import { useEvmTokensStore } from "./stores/evmTokensStore";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
 import { PersistentRampStateProvider } from "./contexts/rampState";
@@ -78,9 +77,7 @@ if (!root) {
 }
 
 // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
-initializeEvmTokens().then(() => {
-  useEvmTokensStore.getState().setLoaded();
-});
+initializeEvmTokens();
 
 createRoot(root).render(
   <QueryClientProvider client={queryClient}>

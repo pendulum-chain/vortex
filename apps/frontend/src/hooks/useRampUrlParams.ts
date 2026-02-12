@@ -6,21 +6,22 @@ import {
   EvmToken,
   FiatToken,
   getEvmTokenConfig,
+  getEvmTokensLoadedSnapshot,
   isNetworkEVM,
   Networks,
   OnChainToken,
   PaymentMethod,
   QuoteResponse,
-  RampDirection
+  RampDirection,
+  subscribeEvmTokensLoaded
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { QuoteService } from "../services/api";
-import { useEvmTokensLoaded } from "../stores/evmTokensStore";
 import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
@@ -183,23 +184,25 @@ export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
-  const evmTokensLoaded = useEvmTokensLoaded();
+  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
 
   const urlParams = useMemo(() => {
     const rampDirectionParam = params.get(RampUrlParamsKeys.RAMP_TYPE)?.toUpperCase();
+    const fiatParam = params.get(RampUrlParamsKeys.FIAT)?.toUpperCase();
+    const cryptoLockedParam = params.get(RampUrlParamsKeys.CRYPTO_LOCKED)?.toUpperCase();
+    const countryCodeParam = params.get(RampUrlParamsKeys.COUNTRY_CODE)?.toUpperCase();
+
+    const moneriumCode = params.get(RampUrlParamsKeys.MONERIUM_CODE)?.toLowerCase();
     const networkParam = params.get(RampUrlParamsKeys.NETWORK)?.toLowerCase();
+    const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
+    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD)?.toLowerCase() as PaymentMethod | undefined;
+
     const inputAmountParam = params.get(RampUrlParamsKeys.INPUT_AMOUNT);
     const partnerIdParam = params.get(RampUrlParamsKeys.PARTNER_ID);
     const apiKeyParam = params.get(RampUrlParamsKeys.API_KEY);
-    const moneriumCode = params.get(RampUrlParamsKeys.MONERIUM_CODE)?.toLowerCase();
-    const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
-    const fiatParam = params.get(RampUrlParamsKeys.FIAT)?.toUpperCase();
-    const cryptoLockedParam = params.get(RampUrlParamsKeys.CRYPTO_LOCKED)?.toUpperCase();
-    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD)?.toLowerCase() as PaymentMethod | undefined;
     const walletLockedParam = params.get(RampUrlParamsKeys.WALLET_LOCKED);
     const callbackUrlParam = params.get(RampUrlParamsKeys.CALLBACK_URL);
     const externalSessionIdParam = params.get(RampUrlParamsKeys.EXTERNAL_SESSION_ID);
-    const countryCodeParam = params.get(RampUrlParamsKeys.COUNTRY_CODE)?.toUpperCase();
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
