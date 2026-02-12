@@ -2,8 +2,11 @@ import {
   AssetHubToken,
   DestinationType,
   EPaymentMethod,
+  type EvmNetworks,
   EvmToken,
   FiatToken,
+  getEvmTokenConfig,
+  isNetworkEVM,
   Networks,
   OnChainToken,
   PaymentMethod,
@@ -17,6 +20,7 @@ import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
 import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { QuoteService } from "../services/api";
+import { useEvmTokensLoaded } from "../stores/evmTokensStore";
 import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
@@ -77,14 +81,22 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     return tokenValue as unknown as OnChainToken;
   } else {
     const evmTokenEntries = Object.entries(EvmToken);
-    const matchedToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
+    const matchedStaticToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
 
-    if (!matchedToken) {
-      return EvmToken.USDC;
+    if (matchedStaticToken) {
+      const [_, tokenValue] = matchedStaticToken;
+      return tokenValue as OnChainToken;
     }
 
-    const [_, tokenValue] = matchedToken;
-    return tokenValue as OnChainToken;
+    if (isNetworkEVM(networkType as Networks)) {
+      const dynamicConfig = getEvmTokenConfig();
+      const networkTokens = dynamicConfig[networkType as EvmNetworks];
+      if (networkTokens && tokenStr in networkTokens) {
+        return tokenStr as OnChainToken;
+      }
+    }
+
+    return EvmToken.USDC;
   }
 }
 
@@ -171,6 +183,7 @@ export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
+  const evmTokensLoaded = useEvmTokensLoaded();
 
   const urlParams = useMemo(() => {
     const rampDirectionParam = params.get(RampUrlParamsKeys.RAMP_TYPE)?.toUpperCase();
@@ -182,7 +195,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
     const fiatParam = params.get(RampUrlParamsKeys.FIAT)?.toUpperCase();
     const cryptoLockedParam = params.get(RampUrlParamsKeys.CRYPTO_LOCKED)?.toUpperCase();
-    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD) as PaymentMethod | undefined;
+    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD)?.toLowerCase() as PaymentMethod | undefined;
     const walletLockedParam = params.get(RampUrlParamsKeys.WALLET_LOCKED);
     const callbackUrlParam = params.get(RampUrlParamsKeys.CALLBACK_URL);
     const externalSessionIdParam = params.get(RampUrlParamsKeys.EXTERNAL_SESSION_ID);
@@ -202,6 +215,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       callbackUrl: callbackUrlParam || undefined,
       countryCode: countryCodeParam || undefined,
       cryptoLocked,
+      evmTokensLoaded,
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
@@ -213,7 +227,8 @@ export const useRampUrlParams = (): RampUrlParams => {
       rampDirection,
       walletLocked: walletLockedParam || undefined
     };
-  }, [params, rampDirectionStore, selectedNetwork]);
+    // evmTokensLoaded: triggers re-evaluation of cryptoLocked when dynamic tokens (e.g. WETH, WBTC) finish loading from SquidRouter
+  }, [params, rampDirectionStore, selectedNetwork, evmTokensLoaded]);
 
   return urlParams;
 };
@@ -411,4 +426,10 @@ export const useSetRampUrlParams = () => {
     handleFiatToken,
     moneriumCode
   ]);
+
+  useEffect(() => {
+    if (cryptoLocked) {
+      setOnChainToken(cryptoLocked);
+    }
+  }, [cryptoLocked, setOnChainToken]);
 };

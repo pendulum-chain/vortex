@@ -22,9 +22,15 @@ export const rampSearchSchema = z.object({
   inputAmount: stringOrNumberParam,
   network: z.string().optional(),
   partnerId: z.string().optional(),
-  paymentMethod: z.nativeEnum(EPaymentMethod).optional().catch(undefined),
+  paymentMethod: z
+    .preprocess(val => (typeof val === "string" ? val.toLowerCase() : val), z.nativeEnum(EPaymentMethod))
+    .optional()
+    .catch(undefined),
   quoteId: z.string().optional(),
-  rampType: z.nativeEnum(RampDirection).optional().catch(undefined),
+  rampType: z
+    .preprocess(val => (typeof val === "string" ? val.toUpperCase() : val), z.nativeEnum(RampDirection))
+    .optional()
+    .catch(undefined),
   walletAddressLocked: z.string().optional()
 });
 
