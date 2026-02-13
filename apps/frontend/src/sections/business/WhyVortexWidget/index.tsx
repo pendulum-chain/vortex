@@ -105,12 +105,14 @@ export const WhyVortexWidget = () => {
 
           <div className="flex justify-center">
             <div className="relative mt-12">
-              <div className="badge absolute top-[-10px] right-[-20px] z-20 bg-blue-700 text-white">
-                {t("pages.business.hero.comingSoon")}
-              </div>
-              <button className="btn btn-vortex-primary-inverse" disabled>
+              <a
+                className="btn btn-vortex-primary"
+                href="https://api-docs.vortexfinance.co/generate-a-widget-url-with-quote-refresh-21452254e0"
+                rel="noreferrer"
+                target="_blank"
+              >
                 Get started <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-              </button>
+              </a>
             </div>
           </div>
         </div>

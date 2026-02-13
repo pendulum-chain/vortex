@@ -10,6 +10,7 @@ import {
   isNetworkEVM,
   Networks,
   OnChainToken,
+  OnChainTokenSymbol,
   PaymentMethod,
   QuoteResponse,
   RampDirection,
@@ -38,7 +39,7 @@ interface RampUrlParams {
   moneriumCode?: string;
   fiat?: FiatToken;
   countryCode?: string;
-  cryptoLocked?: OnChainToken;
+  cryptoLocked?: OnChainTokenSymbol;
   paymentMethod?: PaymentMethod;
   walletLocked?: string;
   callbackUrl?: string;
@@ -63,7 +64,7 @@ function findFiatToken(fiatToken?: string): FiatToken | undefined {
   return foundToken;
 }
 
-function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainToken | undefined {
+function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainTokenSymbol | undefined {
   if (!tokenStr || !networkType) {
     return undefined;
   }
@@ -85,7 +86,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
       const dynamicConfig = getEvmTokenConfig();
       const networkTokens = dynamicConfig[networkType as EvmNetworks];
       if (networkTokens && tokenStr in networkTokens) {
-        return tokenStr as OnChainToken;
+        return tokenStr;
       }
     }
 
@@ -113,7 +114,7 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 
 interface QuoteParams {
   inputAmount?: Big;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
@@ -124,8 +125,8 @@ interface QuotePayload {
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
-  inputCurrency: OnChainToken | FiatToken;
-  outputCurrency: OnChainToken | FiatToken;
+  inputCurrency: OnChainTokenSymbol | FiatToken;
+  outputCurrency: OnChainTokenSymbol | FiatToken;
 }
 
 const createQuotePayload = (params: QuoteParams): QuotePayload => {

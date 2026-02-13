@@ -2,7 +2,7 @@ import {
   EphemeralAccount,
   FiatToken,
   Networks,
-  OnChainToken,
+  OnChainTokenSymbol,
   PaymentData,
   PresignedTx,
   QuoteResponse,
@@ -24,7 +24,7 @@ export interface RampState {
 
 export interface RampExecutionInput {
   quote: QuoteResponse;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   sourceOrDestinationAddress: string; // The source address for offramps, destination address for onramps
   moneriumWalletAddress?: string; // Only needed for Monerium offramps to non-EVM chains (e.g. Monerium -> Assethub)

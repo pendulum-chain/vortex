@@ -125,7 +125,11 @@
 }
 
 .btn-vortex-primary {
-  @apply bg-blue-700 text-white rounded-[var(--radius-field)] border border-blue-700 cursor-pointer;
+  @apply bg-blue-700 text-white rounded-[var(--radius-field)] border border-blue-700 cursor-pointer transition-transform;
+}
+
+.btn-vortex-primary:active {
+  transform: scale(0.98);
 }
 
 .btn-vortex-primary:hover {
