@@ -296,14 +296,25 @@ export async function initializeEvmTokens(): Promise<void> {
     state.tokensByNetwork = mergeWithStaticConfig(groupedTokens);
     state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
     state.isLoaded = true;
-    for (const listener of evmTokenListeners) listener();
+    for (const listener of evmTokenListeners) {
+      try {
+        listener();
+      } catch (listenerErr) {
+        console.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
+      }
+    }
   } catch (err) {
     console.error("[DynamicEvmTokens] Failed to fetch tokens from SquidRouter, using fallback:", err);
-
     state.tokensByNetwork = buildFallbackFromStaticConfig();
     state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
     state.isLoaded = true;
-    for (const listener of evmTokenListeners) listener();
+  }
+  for (const listener of evmTokenListeners) {
+    try {
+      listener();
+    } catch (listenerErr) {
+      console.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
+    }
   }
 }
 
