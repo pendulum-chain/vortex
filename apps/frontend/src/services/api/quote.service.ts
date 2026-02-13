@@ -3,9 +3,10 @@ import {
   DestinationType,
   FiatToken,
   getNetworkFromDestination,
-  OnChainToken,
+  OnChainTokenSymbol,
   PaymentMethod,
   QuoteResponse,
+  RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
@@ -35,8 +36,8 @@ export class QuoteService {
     from: DestinationType,
     to: DestinationType,
     inputAmount: string,
-    inputCurrency: OnChainToken | FiatToken,
-    outputCurrency: OnChainToken | FiatToken,
+    inputCurrency: OnChainTokenSymbol | FiatToken,
+    outputCurrency: OnChainTokenSymbol | FiatToken,
     apiKey?: string,
     partnerId?: string,
     paymentMethod?: PaymentMethod,
@@ -52,9 +53,9 @@ export class QuoteService {
       countryCode,
       from,
       inputAmount,
-      inputCurrency,
+      inputCurrency: inputCurrency as RampCurrency,
       network,
-      outputCurrency,
+      outputCurrency: outputCurrency as RampCurrency,
       paymentMethod,
       rampType,
       to

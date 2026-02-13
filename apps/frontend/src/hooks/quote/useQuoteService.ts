@@ -1,4 +1,4 @@
-import { FiatToken, OnChainToken } from "@vortexfi/shared";
+import { FiatToken, OnChainTokenSymbol } from "@vortexfi/shared";
 import Big from "big.js";
 import { useCallback, useEffect } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -13,7 +13,7 @@ import { useRampDirection } from "../../stores/rampDirectionStore";
 // if you don't want to get a new quote - you get outputAmount through useQuoteStore
 // This is not optimal, and introduce too much cognitive load
 
-export const useQuoteService = (inputAmount: string | undefined, onChainToken: OnChainToken, fiatToken: FiatToken) => {
+export const useQuoteService = (inputAmount: string | undefined, onChainToken: OnChainTokenSymbol, fiatToken: FiatToken) => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
   const rampType = useRampDirection();

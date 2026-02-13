@@ -20,9 +20,6 @@ interface SignerServiceSep10Response {
   masterClientPublic: string;
 }
 
-type BrlaOfframpState = "BURN" | "MONEY-TRANSFER";
-type OfframpStatus = "QUEUED" | "POSTED" | "SUCCESS" | "FAILED";
-
 export enum KycStatus {
   PENDING = "PENDING",
   REJECTED = "REJECTED",
@@ -30,11 +27,6 @@ export enum KycStatus {
 }
 
 export type KycStatusType = keyof typeof KycStatus;
-
-interface BrlaOfframpStatus {
-  type: BrlaOfframpState;
-  status: OfframpStatus;
-}
 
 type TaxIdType = "CPF" | "CNPJ";
 

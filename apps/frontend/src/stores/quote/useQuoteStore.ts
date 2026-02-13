@@ -3,6 +3,7 @@ import {
   EPaymentMethod,
   FiatToken,
   OnChainToken,
+  OnChainTokenSymbol,
   QuoteError,
   QuoteResponse,
   RampDirection
@@ -14,7 +15,7 @@ import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
   inputAmount?: Big;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
@@ -27,8 +28,8 @@ interface QuotePayload {
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
-  inputCurrency: OnChainToken | FiatToken;
-  outputCurrency: OnChainToken | FiatToken;
+  inputCurrency: OnChainTokenSymbol | FiatToken;
+  outputCurrency: OnChainTokenSymbol | FiatToken;
 }
 
 interface QuoteActions {

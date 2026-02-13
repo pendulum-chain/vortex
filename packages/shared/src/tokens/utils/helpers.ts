@@ -9,7 +9,7 @@ import { evmTokenConfig } from "../evm/config";
 import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
-import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
+import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
@@ -22,7 +22,7 @@ import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
  */
 export function getOnChainTokenDetails(
   network: Networks,
-  onChainToken: OnChainToken,
+  onChainToken: OnChainTokenSymbol,
   dynamicEvmTokenConfig?: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 ): OnChainTokenDetails | undefined {
   const normalizedOnChainToken = normalizeTokenSymbol(onChainToken);
@@ -51,7 +51,7 @@ export function getOnChainTokenDetails(
  */
 export function getOnChainTokenDetailsOrDefault(
   network: Networks,
-  onChainToken: OnChainToken,
+  onChainToken: OnChainTokenSymbol,
   dynamicEvmTokenConfig?: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 ): OnChainTokenDetails {
   // AXLUSDC doesn't exist Ethereum
