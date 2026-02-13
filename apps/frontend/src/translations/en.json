@@ -626,6 +626,43 @@
         "title2": " Everything handled."
       }
     },
+    "contact": {
+      "emailUs": "You can also email us at",
+      "error": "Something went wrong. Please try again.",
+      "form": {
+        "email": "Email",
+        "emailPlaceholder": "your@email.com",
+        "fullName": "Full name",
+        "fullNamePlaceholder": "Enter your full name",
+        "holdToSubmit": "Hold to submit",
+        "inquiry": "Tell us more about your inquiry",
+        "inquiryPlaceholder": "Describe your project and how we can help...",
+        "privacyPolicy": "I agree to Vortex",
+        "privacyPolicyLink": "Privacy Policy",
+        "projectName": "Project name",
+        "projectNamePlaceholder": "Enter your project name",
+        "submit": "Submit"
+      },
+      "info": {
+        "integrationHelp": "Get integration help",
+        "onboardingHelp": "Get onboarding help",
+        "requestDemo": "Request a demo",
+        "supportLink": "Contact support",
+        "technicalQuestions": "Technical issues or product questions?",
+        "title": "Contact sales"
+      },
+      "success": "Thank you! We'll be in touch soon.",
+      "title": "Tell us how to help",
+      "validation": {
+        "emailFormat": "Please enter a valid email address",
+        "emailRequired": "Email is required",
+        "fullNameRequired": "Full name is required",
+        "inquiryMinLength": "Please provide more details (at least 10 characters)",
+        "inquiryRequired": "Please tell us about your inquiry",
+        "privacyPolicyRequired": "You must accept the privacy policy",
+        "projectNameRequired": "Project name is required"
+      }
+    },
     "failure": {
       "contactedSupport": "Ready to try again?",
       "contactSupport": {

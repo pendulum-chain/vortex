@@ -18,6 +18,7 @@ interface SpreadsheetConfig {
   googleCredentials: GoogleCredentials;
   storageSheetId: string | undefined;
   emailSheetId: string | undefined;
+  contactSheetId: string | undefined;
   ratingSheetId: string | undefined;
 }
 
@@ -101,6 +102,7 @@ export const config: Config = {
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
   spreadsheet: {
+    contactSheetId: process.env.GOOGLE_CONTACT_SPREADSHEET_ID,
     emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
     googleCredentials: {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,

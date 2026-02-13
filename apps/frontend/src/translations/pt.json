@@ -622,6 +622,43 @@
         "title": "Uma integração. Tudo resolvido."
       }
     },
+    "contact": {
+      "emailUs": "Você também pode nos enviar um e-mail para",
+      "error": "Algo deu errado. Por favor, tente novamente.",
+      "form": {
+        "email": "E-mail",
+        "emailPlaceholder": "seu@email.com",
+        "fullName": "Nome completo",
+        "fullNamePlaceholder": "Digite seu nome completo",
+        "holdToSubmit": "Segure para enviar",
+        "inquiry": "Conte-nos mais sobre sua consulta",
+        "inquiryPlaceholder": "Descreva seu projeto e como podemos ajudar...",
+        "privacyPolicy": "Eu concordo com a",
+        "privacyPolicyLink": "Política de Privacidade",
+        "projectName": "Nome do projeto",
+        "projectNamePlaceholder": "Digite o nome do seu projeto",
+        "submit": "Enviar"
+      },
+      "info": {
+        "integrationHelp": "Obter ajuda de integração",
+        "onboardingHelp": "Obter ajuda de onboarding",
+        "requestDemo": "Solicitar uma demonstração",
+        "supportLink": "Contatar suporte",
+        "technicalQuestions": "Problemas técnicos ou dúvidas sobre o produto?",
+        "title": "Fale com vendas"
+      },
+      "success": "Obrigado! Entraremos em contato em breve.",
+      "title": "Conte-nos como podemos ajudar",
+      "validation": {
+        "emailFormat": "Por favor, insira um e-mail válido",
+        "emailRequired": "E-mail é obrigatório",
+        "fullNameRequired": "Nome completo é obrigatório",
+        "inquiryMinLength": "Por favor, forneça mais detalhes (pelo menos 10 caracteres)",
+        "inquiryRequired": "Por favor, conte-nos sobre sua consulta",
+        "privacyPolicyRequired": "Você deve aceitar a política de privacidade",
+        "projectNameRequired": "Nome do projeto é obrigatório"
+      }
+    },
     "failure": {
       "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
       "contactSupport": {

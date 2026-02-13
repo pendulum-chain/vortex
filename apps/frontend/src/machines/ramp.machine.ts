@@ -114,7 +114,6 @@ const handleCallbackUrlRedirect = (callbackUrl: string | undefined) => {
     console.log("No callback URL provided, cleaning URL parameters instead.");
     const cleanUrl = window.location.origin;
     window.history.replaceState({}, "", cleanUrl);
-    window.location.reload();
   }
 };
 
@@ -163,13 +162,19 @@ export const rampMachine = setup({
       await new Promise(resolve => setTimeout(resolve, 30000));
       await refetchQuote(quote, apiKey, partnerId, event => self.send(event));
     },
-    reloadKeepingParams: () => {
-      window.location.reload();
-    },
+
     resetRamp: assign(({ context }) => ({
       ...initialRampContext,
+      apiKey: context.apiKey,
+      callbackUrl: context.callbackUrl,
       connectedWalletAddress: context.connectedWalletAddress,
-      initializeFailedMessage: context.initializeFailedMessage
+      externalSessionId: context.externalSessionId,
+      initializeFailedMessage: context.initializeFailedMessage,
+      isAuthenticated: context.isAuthenticated,
+      partnerId: context.partnerId,
+      userEmail: context.userEmail,
+      userId: context.userId,
+      walletLocked: context.walletLocked
     })),
     setErrorMessage: assign({
       errorMessage: ({ event }: { event: any }) => {
@@ -221,13 +226,10 @@ export const rampMachine = setup({
     urlCleaner: fromPromise(
       () =>
         new Promise<void>(resolve => {
-          setTimeout(() => {
-            console.log("Clearing URL parameters");
-            const cleanUrl = window.location.origin;
-            window.history.replaceState({}, "", cleanUrl);
-            window.location.reload();
-            resolve();
-          }, 1);
+          console.log("Clearing URL parameters");
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, "", cleanUrl);
+          resolve();
         })
     ),
     validateKyc: fromPromise(validateKycActor),
@@ -264,16 +266,9 @@ export const rampMachine = setup({
       }),
       target: "#ramp.EnterEmail"
     },
-    RESET_RAMP: [
-      {
-        actions: [{ type: "resetRamp" }],
-        guard: ({ event }) => event.skipUrlCleaner === true,
-        target: ".Idle"
-      },
-      {
-        target: ".Resetting"
-      }
-    ],
+    RESET_RAMP: {
+      target: ".Resetting"
+    },
     RESET_RAMP_CALLBACK: {
       actions: [{ type: "resetRamp" }, { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }]
     },
@@ -827,6 +822,15 @@ export const rampMachine = setup({
         src: "signTransactions"
       },
       on: {
+        GO_BACK: {
+          actions: assign({
+            enteredViaForm: undefined,
+            errorMessage: undefined,
+            rampPaymentConfirmed: false,
+            rampSigningPhase: undefined
+          }),
+          target: "QuoteReady"
+        },
         PAYMENT_CONFIRMED: {
           actions: assign({
             rampPaymentConfirmed: true
