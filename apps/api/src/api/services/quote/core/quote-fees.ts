@@ -78,6 +78,7 @@ async function calculatePartnerAndVortexFees(
 ): Promise<{ partnerMarkupFee: Big; vortexFee: Big }> {
   let totalPartnerMarkupInFeeCurrency = new Big(0);
   let totalVortexFeeInFeeCurrency = new Big(0);
+  let shouldApplyDefaultVortexFees = !partnerId;
 
   // 1. Fetch and process partner-specific configurations if partnerName is provided
   if (partnerId) {
@@ -142,15 +143,17 @@ async function calculatePartnerAndVortexFees(
       // Log warning if partner found but no applicable custom fees
       if (!hasApplicableFees) {
         logger.warn(`Partner with name '${partnerId}' found, but no active markup defined. Proceeding with default fees.`);
+        shouldApplyDefaultVortexFees = true;
       }
     } else {
       // No specific partner records found, will use default Vortex fee below
       logger.warn(`No fee configuration found for partner with name '${partnerId}'. Proceeding with default fees.`);
+      shouldApplyDefaultVortexFees = true;
     }
   }
 
   // 2. If no partner was provided initially, use default Vortex fees
-  if (!partnerId) {
+  if (shouldApplyDefaultVortexFees) {
     // Query all vortex records for this ramp type
     const vortexFoundationPartners = await Partner.findAll({
       where: {
