@@ -300,7 +300,7 @@ export async function initializeEvmTokens(): Promise<void> {
       try {
         listener();
       } catch (listenerErr) {
-        console.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
+        logger.current.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
       }
     }
   } catch (err) {
@@ -313,7 +313,7 @@ export async function initializeEvmTokens(): Promise<void> {
     try {
       listener();
     } catch (listenerErr) {
-      console.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
+      logger.current.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
     }
   }
 }
