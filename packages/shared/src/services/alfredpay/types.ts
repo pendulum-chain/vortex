@@ -186,12 +186,25 @@ export interface CreateAlfredpayOfframpRequest {
   originAddress: string;
 }
 
-export enum AlfredpayTransactionStatus {
-  CREATED = "CREATED",
+// TODO: Define actual offramp statuses when the offramp flow is implemented
+export enum AlfredpayOfframpStatus {
   PENDING = "PENDING",
   COMPLETED = "COMPLETED",
-  FAILED = "FAILED",
-  EXPIRED = "EXPIRED"
+  FAILED = "FAILED"
+}
+
+export enum AlfredpayOnrampStatus {
+  CREATED = "CREATED",
+  FIAT_DEPOSIT_RECEIVED = "FIAT_DEPOSIT_RECEIVED",
+  TRADE_COMPLETED = "TRADE_COMPLETED",
+  ON_CHAIN_INITIATED = "ON_CHAIN_INITIATED",
+  ON_CHAIN_COMPLETED = "ON_CHAIN_COMPLETED",
+  FAILED = "FAILED"
+}
+
+export interface AlfredpayOnrampStatusMetadata {
+  txHash?: string;
+  failureReason?: string;
 }
 
 interface AlfredpayBaseTransaction {
@@ -204,18 +217,23 @@ interface AlfredpayBaseTransaction {
   toCurrency: string;
   fromAmount: string;
   toAmount: string;
-  status: AlfredpayTransactionStatus;
   chain: string;
   depositAddress: string;
 }
 
 export interface AlfredpayOnrampTransaction extends AlfredpayBaseTransaction {
+  status: AlfredpayOnrampStatus;
+  email: string;
   paymentMethodType: AlfredpayPaymentMethodType;
   txHash: string | null;
+  externalId: string;
+  memo: string;
+  metadata?: AlfredpayOnrampStatusMetadata | null;
   quote: AlfredpayOnrampQuote;
 }
 
 export interface AlfredpayOfframpTransaction extends AlfredpayBaseTransaction {
+  status: AlfredpayOfframpStatus;
   fiatAccountId: string;
   memo?: string;
   originAddress: string;
@@ -234,6 +252,10 @@ export interface AlfredpayFiatPaymentInstructions {
   accountHolderName?: string;
   //wildcard
   [key: string]: unknown;
+}
+
+export interface GetAlfredpayOnrampTransactionResponse extends AlfredpayOnrampTransaction {
+  fiatPaymentInstructions: AlfredpayFiatPaymentInstructions;
 }
 
 export interface CreateAlfredpayOnrampResponse {

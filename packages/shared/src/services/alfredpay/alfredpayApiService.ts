@@ -16,6 +16,7 @@ import {
   CreateAlfredpayOnrampRequest,
   CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
+  GetAlfredpayOnrampTransactionResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
   GetKycSubmissionResponse
@@ -147,9 +148,9 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOnrampResponse;
   }
 
-  public async getOnrampTransaction(transactionId: string): Promise<CreateAlfredpayOnrampResponse> {
+  public async getOnrampTransaction(transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> {
     const path = `/api/v1/third-party-service/penny/onramp/${transactionId}`;
-    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOnrampResponse;
+    return (await this.executeRequest(path, "GET")) as GetAlfredpayOnrampTransactionResponse;
   }
 
   public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
