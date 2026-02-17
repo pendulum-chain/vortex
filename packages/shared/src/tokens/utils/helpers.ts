@@ -67,7 +67,6 @@ export function getOnChainTokenDetailsOrDefault(
     return maybeOnChainTokenDetails;
   }
 
-  logger.current.error(`Invalid input token type: ${onChainToken}`);
   if (network === Networks.AssetHub) {
     const firstAvailableToken = Object.values(assetHubTokenConfig)[0];
     if (!firstAvailableToken) {

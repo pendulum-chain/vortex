@@ -102,6 +102,12 @@ function getNetworkFromParam(param?: string): Networks | undefined {
   return undefined;
 }
 
+function stripSurroundingQuotes(str?: string | null): string | null {
+  // TanStack Router JSON-serializes strings, so inputAmount=%22100%22 decodes to "100"
+  // with literal quote chars via raw URLSearchParams.
+  return str?.replace(/^["']|["']$/g, "") || null;
+}
+
 const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     ARS: EPaymentMethod.CBU,
@@ -174,6 +180,7 @@ export enum RampUrlParamsKeys {
 }
 
 export const useRampUrlParams = (): RampUrlParams => {
+  console.log("useRampUrlParams");
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
@@ -190,7 +197,9 @@ export const useRampUrlParams = (): RampUrlParams => {
     const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
     const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD)?.toLowerCase() as PaymentMethod | undefined;
 
-    const inputAmountParam = params.get(RampUrlParamsKeys.INPUT_AMOUNT);
+    const rawInputAmount = params.get(RampUrlParamsKeys.INPUT_AMOUNT);
+    const inputAmountParam = stripSurroundingQuotes(rawInputAmount);
+
     const partnerIdParam = params.get(RampUrlParamsKeys.PARTNER_ID);
     const apiKeyParam = params.get(RampUrlParamsKeys.API_KEY);
     const walletLockedParam = params.get(RampUrlParamsKeys.WALLET_LOCKED);
