@@ -41,7 +41,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
   }, [errorMessage]);
 
   return (
-    <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
+    <div className={cn("relative flex min-h-(--widget-min-height) grow flex-col", className)}>
       <div className="flex items-center justify-between">
         <MenuButtons />
       </div>

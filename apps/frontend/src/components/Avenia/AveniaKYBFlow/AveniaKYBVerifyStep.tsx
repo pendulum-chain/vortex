@@ -32,7 +32,7 @@ export const AveniaKYBVerifyStep = ({
   const { t } = useTranslation();
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col">
+    <div className="relative flex min-h-(--widget-min-height) w-full grow flex-col">
       <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
           <div>

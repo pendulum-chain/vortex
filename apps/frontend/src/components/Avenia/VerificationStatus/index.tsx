@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
+
 import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
 
@@ -16,7 +17,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[506px] flex-col items-center justify-center px-4 py-4 md:mx-auto"
+      className="mx-4 mt-8 mb-4 flex min-h-(--widget-min-height) flex-col items-center justify-center px-4 py-4 md:mx-auto"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >

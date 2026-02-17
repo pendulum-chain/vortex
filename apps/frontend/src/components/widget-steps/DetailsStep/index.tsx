@@ -13,7 +13,7 @@ import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QUOTE_SUMMARY_COLLAPSED_HEIGHT, QuoteSummary } from "../../QuoteSummary";
+import { QuoteSummary } from "../../QuoteSummary";
 import { DetailsStepActions } from "./DetailsStepActions";
 import { DetailsStepForm } from "./DetailsStepForm";
 import { DetailsStepHeader } from "./DetailsStepHeader";
@@ -112,10 +112,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   return (
     <FormProvider {...form}>
-      <div
-        className="relative flex max-h-full min-h-[506px] grow flex-col"
-        style={{ "--quote-summary-height": `${QUOTE_SUMMARY_COLLAPSED_HEIGHT}px` } as React.CSSProperties}
-      >
+      <div className="relative flex max-h-full min-h-(--widget-min-height) grow flex-col">
         <form className={cn("flex h-full flex-col", className)} onSubmit={form.handleSubmit(handleFormSubmit)}>
           <div className="flex-1 pb-36">
             <DetailsStepHeader />
@@ -134,10 +131,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               </div>
             )}
           </div>
-          <div
-            className="absolute right-0 left-0 z-[5] mb-4"
-            style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
-          >
+          <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
             <DetailsStepActions
               forceNetwork={forceNetwork}
               isBrazilLanding={isBrazilLanding}

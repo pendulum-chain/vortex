@@ -57,8 +57,8 @@ export const AveniaKYBForm = () => {
   ];
 
   return (
-    <div className="relative flex h-full grow flex-col">
-      <div className="flex flex-col flex-1">
+    <div className="relative flex min-h-(--widget-min-height) grow flex-col">
+      <div className="flex flex-1 flex-col">
         <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
       </div>
       {quote && <QuoteSummary quote={quote} />}

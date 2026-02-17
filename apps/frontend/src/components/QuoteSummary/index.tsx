@@ -8,8 +8,6 @@ import { ToggleButton } from "../ToggleButton";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { TransactionId } from "../TransactionId";
 
-export const QUOTE_SUMMARY_COLLAPSED_HEIGHT = 88;
-
 interface QuoteSummaryProps {
   quote: QuoteResponse;
   className?: string;
@@ -86,7 +84,8 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
+              {new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(Number(quote.inputAmount))}{" "}
+              {quote.inputCurrency.toUpperCase()}
             </div>
           </div>
           <div className="flex flex-col">
@@ -100,14 +99,13 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              ~ {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
+              ~ {new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(Number(quote.outputAmount))}{" "}
+              {quote.outputCurrency.toUpperCase()}
             </div>
           </div>
         </div>
       </div>
-      <div>
-        <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
-      </div>
+      <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
     </section>
   );
 };

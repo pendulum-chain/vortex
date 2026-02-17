@@ -24,7 +24,13 @@ export const TransactionId = ({
   return (
     <div className={className}>
       <div className="text-gray-500 text-sm">{displayLabel}</div>
-      <CopyablePublicKey inline={inline} publicKey={id} variant={variant} wrap={wrap} />
+      <CopyablePublicKey
+        className="w-full text-left text-[13px]"
+        inline={inline}
+        publicKey={id}
+        variant={variant}
+        wrap={wrap}
+      />
     </div>
   );
 };

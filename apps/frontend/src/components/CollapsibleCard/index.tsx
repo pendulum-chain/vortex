@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createContext, forwardRef, ReactNode, useContext, useId, useState } from "react";
 import { durations, easings } from "../../constants/animations";
+import { cn } from "../../helpers/cn";
 
 interface CollapsibleCardProps {
   children: ReactNode;
@@ -71,8 +72,12 @@ const CollapsibleDetails = ({ children, className = "" }: CollapsibleDetailsProp
 
   return (
     <div
-      className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${className}`}
-      style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+      className={cn(
+        "grid",
+        isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        "transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+        className
+      )}
     >
       <div className="overflow-hidden">
         <AnimatePresence>
@@ -83,7 +88,7 @@ const CollapsibleDetails = ({ children, className = "" }: CollapsibleDetailsProp
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
               id={detailsId}
               initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.normal, ease: easings.easeOutCubic }}
             >
               {children}
             </motion.div>

@@ -114,11 +114,11 @@ export const SummaryStep: FC = () => {
   );
 
   return (
-    <div className="flex grow-1 flex-col justify-center">
+    <div className="relative flex grow-1 flex-col justify-center">
       <MenuButtons />
       <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
-      {content}
-      <div className="my-4 mt-auto flex">{actions}</div>
+      <div className="pb-20">{content}</div>
+      <div className="absolute right-0 bottom-2 left-0 z-[5]">{actions}</div>
     </div>
   );
 };

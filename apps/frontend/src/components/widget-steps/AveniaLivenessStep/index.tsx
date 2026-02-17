@@ -39,7 +39,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
   };
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col">
+    <div className="relative flex min-h-(--widget-min-height) w-full grow flex-col">
       <motion.div
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 flex flex-1 flex-col items-center justify-center px-4 py-4 pb-36 md:mx-auto"
