@@ -13,7 +13,7 @@ import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { usePixId, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../../QuoteSummary";
+import { StepFooter } from "../../StepFooter";
 import { DetailsStepActions } from "./DetailsStepActions";
 import { DetailsStepForm } from "./DetailsStepForm";
 import { DetailsStepHeader } from "./DetailsStepHeader";
@@ -131,16 +131,15 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               </div>
             )}
           </div>
-          <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
+          <StepFooter quote={quote}>
             <DetailsStepActions
               forceNetwork={forceNetwork}
               isBrazilLanding={isBrazilLanding}
               requiresConnection={!canSkipConnection}
               signingState={signingState}
             />
-          </div>
+          </StepFooter>
         </form>
-        {quote && <QuoteSummary quote={quote} />}
       </div>
     </FormProvider>
   );

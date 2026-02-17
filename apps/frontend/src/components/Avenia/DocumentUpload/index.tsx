@@ -9,6 +9,7 @@ import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
 import { BrlaService } from "../../../services/api";
 import { KycLevel2Toggle } from "../../KycLevel2Toggle";
+import { StepFooter } from "../../StepFooter";
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
@@ -268,7 +269,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
         </AnimatePresence>
       </div>
 
-      <div className="absolute right-0 bottom-above-quote left-0 z-[5]">
+      <StepFooter aboveQuote>
         <button
           className="btn-vortex-primary btn w-full"
           disabled={isMaintenanceDisabled || buttonProps.disabled || isSubmitDisabled}
@@ -281,7 +282,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
               ? t("components.documentUpload.buttons.uploading")
               : t("components.documentUpload.buttons.finish")}
         </button>
-      </div>
+      </StepFooter>
     </motion.form>
   );
 };

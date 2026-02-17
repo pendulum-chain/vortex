@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
 import { Trans, useTranslation } from "react-i18next";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { QuoteSummary } from "../../QuoteSummary";
+import { StepFooter } from "../../StepFooter";
 
 interface AveniaKYBVerifyStepProps {
   titleKey: string;
@@ -79,7 +79,7 @@ export const AveniaKYBVerifyStep = ({
         </div>
       </div>
 
-      <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
+      <StepFooter quote={quote}>
         <div className="mt-8 flex gap-4">
           <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
             {t(cancelButtonKey)}
@@ -102,8 +102,7 @@ export const AveniaKYBVerifyStep = ({
             </a>
           )}
         </div>
-      </div>
-      {quote && <QuoteSummary quote={quote} />}
+      </StepFooter>
     </div>
   );
 };

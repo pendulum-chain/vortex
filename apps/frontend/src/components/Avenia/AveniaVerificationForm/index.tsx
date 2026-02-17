@@ -6,6 +6,7 @@ import { KYCFormData } from "../../../hooks/brla/useKYCForm";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
 
+import { StepFooter } from "../../StepFooter";
 import { AveniaField, AveniaFieldProps, ExtendedAveniaFieldOptions } from "../AveniaField";
 
 interface AveniaVerificationFormProps {
@@ -76,7 +77,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <div className="absolute right-0 bottom-above-quote left-0 z-[5]">
+        <StepFooter aboveQuote>
           <button
             className="btn-vortex-primary btn w-full"
             disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
@@ -93,7 +94,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
                 ? t("components.aveniaKYB.buttons.next")
                 : t("components.aveniaKYC.buttons.next")}
           </button>
-        </div>
+        </StepFooter>
       </motion.form>
     </FormProvider>
   );

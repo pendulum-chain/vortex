@@ -10,6 +10,7 @@ import { useRampSummaryActions } from "../../../stores/rampSummary";
 import { MenuButtons } from "../../MenuButtons";
 import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
 import { SigningBoxButton, SigningBoxContent } from "../../SigningBox/SigningBoxContent";
+import { StepFooter } from "../../StepFooter";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const SummaryStep: FC = () => {
@@ -114,11 +115,13 @@ export const SummaryStep: FC = () => {
   );
 
   return (
-    <div className="relative flex grow-1 flex-col justify-center">
+    <div className="relative flex grow-1 flex-col">
       <MenuButtons />
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
-      <div className="pb-20">{content}</div>
-      <div className="absolute right-0 bottom-2 left-0 z-[5]">{actions}</div>
+      <div>
+        <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
+        <div className="pb-20">{content}</div>
+      </div>
+      <StepFooter>{actions}</StepFooter>
     </div>
   );
 };

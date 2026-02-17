@@ -6,7 +6,7 @@ import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { MenuButtons } from "../../MenuButtons";
-import { QuoteSummary } from "../../QuoteSummary";
+import { StepFooter } from "../../StepFooter";
 
 const emailSchema = yup.string().email().required();
 
@@ -115,7 +115,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         </div>
       </form>
 
-      <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
+      <StepFooter quote={quote}>
         <button
           className="btn-vortex-primary btn w-full"
           disabled={isLoading || !termsAccepted}
@@ -124,9 +124,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         >
           {isLoading ? t("components.authEmailStep.buttons.sending") : t("components.authEmailStep.buttons.continue")}
         </button>
-      </div>
-
-      {quote && <QuoteSummary quote={quote} />}
+      </StepFooter>
     </div>
   );
 };
