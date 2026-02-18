@@ -1151,7 +1151,7 @@ export class RampService extends BaseRampService {
       amount: quote.inputAmount,
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
-      depositAddress: rampState.state.destinationAddress,
+      depositAddress: rampState.state.evmEphemeralAddress,
       fromCurrency: AlfredpayFiatCurrency.USD,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       quoteId: alfredpayQuoteId,

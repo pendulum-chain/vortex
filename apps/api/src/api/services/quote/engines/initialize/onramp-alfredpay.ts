@@ -38,7 +38,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
         customerId: req.userId || "unknown"
       }, // Mints hardcoded to Polygon.
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      toCurrency: req.outputCurrency as unknown as AlfredpayOnChainCurrency
+      toCurrency: AlfredpayOnChainCurrency.USDC // Mints hardcoded to USDC, on Polygon.
     };
 
     const quote = await alfredpayService.createOnrampQuote(quoteRequest);
