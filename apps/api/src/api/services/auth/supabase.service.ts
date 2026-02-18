@@ -30,7 +30,7 @@ export class SupabaseAuthService {
   static async sendOTP(email: string, locale?: string): Promise<void> {
     const options = {
       data: {
-        locale: locale ? locale : "en-US"
+        locale: locale ?? "en-US"
       },
       shouldCreateUser: true
     };
