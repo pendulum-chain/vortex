@@ -82,13 +82,10 @@ export class AlfredpayController {
       const { country, type } = req.body as AlfredpayCreateCustomerRequest;
       const userId = req.userId!;
 
-      // const user = await SupabaseAuthService.getUserProfile(userId);
-      // if (!user || !user.email) {
-      //   return res.status(404).json({ error: "User not found or email missing" });
-      // }
-      const user = {
-        email: "gianni4@gmail.com"
-      };
+      const user = await SupabaseAuthService.getUserProfile(userId);
+      if (!user || !user.email) {
+        return res.status(404).json({ error: "User not found or email missing" });
+      }
 
       // Check if customer already exists in our DB
       const existingDbCustomer = await AlfredPayCustomer.findOne({
@@ -279,6 +276,47 @@ export class AlfredpayController {
       default:
         return null; // Do nothing
       // TODO how do we map their UPDATE_REQUIRED required? what does it mean in terms of flow, for our user?
+    }
+  }
+
+  static async retryKyc(req: Request, res: Response) {
+    try {
+      const { country } = req.body as { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+
+      const lastSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+
+      if (!lastSubmission || !lastSubmission.submissionId) {
+        return res.status(400).json({ error: "No KYC submission found to retry" });
+      }
+
+      const statusRes = await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+
+      if (statusRes.status !== AlfredpayKycStatus.FAILED) {
+        return res.status(400).json({ error: `Cannot retry KYC. Current status is ${statusRes.status}` });
+      }
+
+      await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+
+      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
+
+      await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+
+      res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
+    } catch (error) {
+      logger.error("Error retrying KYC:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 }

@@ -73,6 +73,10 @@ export interface GetKycSubmissionResponse {
   createdAt: string;
 }
 
+export interface RetryKycSubmissionResponse {
+  message: string;
+}
+
 export enum AlfredpayOnChainCurrency {
   USDC = "USDC",
   USDT = "USDT"

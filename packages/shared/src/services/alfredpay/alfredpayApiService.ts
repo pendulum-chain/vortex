@@ -19,7 +19,8 @@ import {
   GetAlfredpayOnrampTransactionResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
-  GetKycSubmissionResponse
+  GetKycSubmissionResponse,
+  RetryKycSubmissionResponse
 } from "./types";
 
 export class AlfredpayApiService {
@@ -126,6 +127,11 @@ export class AlfredpayApiService {
   public async getLastKycSubmission(customerId: string): Promise<GetKycSubmissionResponse> {
     const path = `/api/v1/third-party-service/penny/customers/kyc/${customerId}`;
     return (await this.executeRequest(path, "GET")) as GetKycSubmissionResponse;
+  }
+
+  public async retryKycSubmission(customerId: string, submissionId: string): Promise<RetryKycSubmissionResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/retry`;
+    return (await this.executeRequest(path, "POST")) as RetryKycSubmissionResponse;
   }
 
   public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {

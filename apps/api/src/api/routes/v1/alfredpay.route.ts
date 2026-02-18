@@ -11,5 +11,6 @@ router.get("/getKycRedirectLink", requireAuth, validateResultCountry, AlfredpayC
 router.post("/kycRedirectOpened", requireAuth, validateResultCountry, AlfredpayController.kycRedirectOpened);
 router.post("/kycRedirectFinished", requireAuth, validateResultCountry, AlfredpayController.kycRedirectFinished);
 router.get("/getKycStatus", requireAuth, validateResultCountry, AlfredpayController.getKycStatus);
+router.post("/retryKyc", requireAuth, validateResultCountry, AlfredpayController.retryKyc);
 
 export default router;
