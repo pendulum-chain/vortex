@@ -6,7 +6,7 @@
   {{ $locale := index .Data "locale" }}
   {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
   {{ if $isBrazil }}
-  <title>Seu codigo de verificacao Vortex</title>
+  <title>Seu código de verificação Vortex</title>
   {{ else }}
   <title>Your Vortex Verification Code</title>
   {{ end }}
@@ -124,7 +124,7 @@
     <div class="header">
       <h1 class="brand-name">VORTEX</h1>
       {{ if $isBrazil }}
-      <p class="header-title">Codigo de verificacao</p>
+      <p class="header-title">Código de verificação</p>
       {{ else }}
       <p class="header-title">Verification Code</p>
       {{ end }}
@@ -135,8 +135,8 @@
       {{ if $isBrazil }}
       <p class="greeting">Bem-vindo(a) de volta!</p>
       <p class="message">
-        Voce solicitou um codigo de verificacao para entrar na sua conta Vortex.
-        Digite o codigo abaixo para concluir o login:
+        Você solicitou um código de verificação para entrar na sua conta Vortex.
+        Digite o código abaixo para concluir o login:
       </p>
       {{ else }}
       <p class="greeting">Welcome back!</p>
@@ -149,13 +149,13 @@
       <!-- OTP Code Box -->
       <div class="otp-container">
         {{ if $isBrazil }}
-        <div class="otp-label">Seu codigo de verificacao</div>
+        <div class="otp-label">Seu código de verificação</div>
         {{ else }}
         <div class="otp-label">Your Verification Code</div>
         {{ end }}
         <p class="otp-code">{{ .Token }}</p>
         {{ if $isBrazil }}
-        <div class="expiry-notice">Este codigo expira em 1 hora</div>
+        <div class="expiry-notice">Este código expira em 1 hora</div>
         {{ else }}
         <div class="expiry-notice">This code expires in 1 hour</div>
         {{ end }}
@@ -163,7 +163,7 @@
 
       {{ if $isBrazil }}
       <p class="message">
-        Se voce nao solicitou este codigo, pode ignorar este email com seguranca.
+        Se você não solicitou este código, pode ignorar este email com segurança.
       </p>
       {{ else }}
       <p class="message">
@@ -176,8 +176,8 @@
     <div class="footer">
       <div class="footer-links">
         {{ if $isBrazil }}
-        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Servico</a>
-        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Politica de Privacidade</a>
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Serviço</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Política de Privacidade</a>
         {{ else }}
         <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Terms of Service</a>
         <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Privacy Policy</a>
@@ -187,7 +187,7 @@
       {{ if $isBrazil }}
       <p class="footer-text">
         Este email foi enviado por <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
-        Duvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+        Dúvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
       </p>
       {{ else }}
       <p class="footer-text">
