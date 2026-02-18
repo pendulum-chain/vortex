@@ -135,7 +135,7 @@
       {{ if $isBrazil }}
       <h2 class="greeting">Confirme seu endereço de email</h2>
       <p class="message">
-        Obrigado por se cadastrar na Vortex! Estamos felizes em ter voce com a gente.
+        Obrigado por se cadastrar na Vortex! Estamos felizes em ter você com a gente.
       </p>
       <p class="message">
         Para concluir seu cadastro e verificar sua conta, digite o código abaixo:
@@ -153,13 +153,13 @@
       <!-- OTP Code Box -->
       <div class="otp-container">
         {{ if $isBrazil }}
-        <div class="otp-label">Seu codigo de confirmação</div>
+        <div class="otp-label">Seu código de confirmação</div>
         {{ else }}
         <div class="otp-label">Your Confirmation Code</div>
         {{ end }}
         <p class="otp-code">{{ .Token }}</p>
         {{ if $isBrazil }}
-        <div class="expiry-notice">Este codigo expira em 1 hora</div>
+        <div class="expiry-notice">Este código expira em 1 hora</div>
         {{ else }}
         <div class="expiry-notice">This code expires in 1 hour</div>
         {{ end }}
@@ -167,7 +167,7 @@
 
       {{ if $isBrazil }}
       <p class="message" style="font-size: 14px; color: #6b7280;">
-        Se voce nao criou uma conta na Vortex, pode ignorar e excluir este email com seguranca.
+        Se você não criou uma conta na Vortex, pode ignorar e excluir este email com segurança.
       </p>
       {{ else }}
       <p class="message" style="font-size: 14px; color: #6b7280;">
