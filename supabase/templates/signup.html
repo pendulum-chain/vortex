@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   {{ $locale := index .Data "locale" }}
-  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
+  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt") }}
   {{ if $isBrazil }}
   <title>Bem-vindo(a) a Vortex - Verifique seu email</title>
   {{ else }}
@@ -133,12 +133,12 @@
     <!-- Main Content -->
     <div class="content">
       {{ if $isBrazil }}
-      <h2 class="greeting">Confirme seu endereco de email</h2>
+      <h2 class="greeting">Confirme seu endereço de email</h2>
       <p class="message">
         Obrigado por se cadastrar na Vortex! Estamos felizes em ter voce com a gente.
       </p>
       <p class="message">
-        Para concluir seu cadastro e verificar sua conta, digite o codigo abaixo:
+        Para concluir seu cadastro e verificar sua conta, digite o código abaixo:
       </p>
       {{ else }}
       <h2 class="greeting">Confirm your email address</h2>
@@ -153,7 +153,7 @@
       <!-- OTP Code Box -->
       <div class="otp-container">
         {{ if $isBrazil }}
-        <div class="otp-label">Seu codigo de confirmacao</div>
+        <div class="otp-label">Seu codigo de confirmação</div>
         {{ else }}
         <div class="otp-label">Your Confirmation Code</div>
         {{ end }}
@@ -180,8 +180,8 @@
     <div class="footer">
       <div class="footer-links">
         {{ if $isBrazil }}
-        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Servico</a>
-        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Politica de Privacidade</a>
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Serviço</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Política de Privacidade</a>
         {{ else }}
         <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Terms of Service</a>
         <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Privacy Policy</a>
@@ -191,7 +191,7 @@
       {{ if $isBrazil }}
       <p class="footer-text">
         Este email foi enviado por <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
-        Duvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+        Dúvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
       </p>
       {{ else }}
       <p class="footer-text">

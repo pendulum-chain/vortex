@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   {{ $locale := index .Data "locale" }}
-  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
+  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt") }}
   {{ if $isBrazil }}
-  <title>Seu codigo de verificacao Vortex</title>
+  <title>Seu código de verificação Vortex</title>
   {{ else }}
   <title>Your Vortex Verification Code</title>
   {{ end }}
@@ -176,8 +176,8 @@
     <div class="footer">
       <div class="footer-links">
         {{ if $isBrazil }}
-        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Servico</a>
-        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Politica de Privacidade</a>
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Serviço</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Política de Privacidade</a>
         {{ else }}
         <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Terms of Service</a>
         <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Privacy Policy</a>
@@ -187,7 +187,7 @@
       {{ if $isBrazil }}
       <p class="footer-text">
         Este email foi enviado por <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
-        Duvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+        Dúvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
       </p>
       {{ else }}
       <p class="footer-text">
