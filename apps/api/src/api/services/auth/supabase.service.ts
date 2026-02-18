@@ -7,11 +7,7 @@ export class SupabaseAuthService {
   static async checkUserExists(email: string): Promise<boolean> {
     try {
       // Query the profiles table directly for better performance
-      const { data, error } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
+      const { data, error } = await supabaseAdmin.from("profiles").select("id").eq("email", email).single();
 
       if (error) {
         // If error is "PGRST116" (no rows returned), user doesn't exist
@@ -31,12 +27,17 @@ export class SupabaseAuthService {
   /**
    * Send OTP to email
    */
-  static async sendOTP(email: string): Promise<void> {
+  static async sendOTP(email: string, locale?: string): Promise<void> {
+    const options = {
+      data: {
+        locale: locale ? locale : "en-US"
+      },
+      shouldCreateUser: true
+    };
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        shouldCreateUser: true
-      }
+      options
     });
 
     if (error) {

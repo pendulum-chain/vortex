@@ -1,3 +1,4 @@
+import { FiatToken } from "@vortexfi/shared";
 import { AuthAPI } from "../../services/api/auth.api";
 import { RampContext } from "../types";
 
@@ -15,7 +16,12 @@ export const requestOTPActor = async ({ input }: { input: { context: RampContext
     throw new Error("Email is required");
   }
 
-  await AuthAPI.requestOTP(input.context.userEmail);
+  const activeQuote = input.context.quote ?? input.context.executionInput?.quote;
+  const isBrazilQuote =
+    activeQuote && (activeQuote.inputCurrency === FiatToken.BRL || activeQuote.outputCurrency === FiatToken.BRL);
+  const locale = isBrazilQuote ? "pt-BR" : undefined;
+
+  await AuthAPI.requestOTP(input.context.userEmail, locale);
   return { success: true };
 };
 

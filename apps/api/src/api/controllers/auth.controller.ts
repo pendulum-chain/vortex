@@ -37,7 +37,7 @@ export class AuthController {
    */
   static async requestOTP(req: Request, res: Response) {
     try {
-      const { email } = req.body;
+      const { email, locale } = req.body;
 
       if (!email) {
         return res.status(400).json({
@@ -45,7 +45,13 @@ export class AuthController {
         });
       }
 
-      await SupabaseAuthService.sendOTP(email);
+      if (locale !== undefined && typeof locale !== "string") {
+        return res.status(400).json({
+          error: "Locale must be a string"
+        });
+      }
+
+      await SupabaseAuthService.sendOTP(email, locale);
 
       return res.json({
         message: "OTP sent to email",
