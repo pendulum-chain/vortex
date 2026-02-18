@@ -18,7 +18,12 @@ export const AlfredpayKycFlow = () => {
 
   const { stateValue, context } = state;
 
-  if (stateValue === "CheckingStatus" || stateValue === "CreatingCustomer" || stateValue === "GettingKycLink") {
+  if (
+    stateValue === "CheckingStatus" ||
+    stateValue === "CreatingCustomer" ||
+    stateValue === "GettingKycLink" ||
+    stateValue === "Retrying"
+  ) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
@@ -94,9 +99,14 @@ export const AlfredpayKycFlow = () => {
       <div className="flex flex-col items-center space-y-4 py-4">
         <p className="text-red-600 font-bold text-lg">KYC Failed</p>
         <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
-        <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "RETRY" })}>
-          Retry
-        </button>
+        <div className="flex w-full flex-col gap-2">
+          <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "USER_RETRY" })}>
+            Retry
+          </button>
+          <button className="btn-vortex-secondary btn w-full rounded-xl" onClick={() => actor.send({ type: "USER_CANCEL" })}>
+            Cancel
+          </button>
+        </div>
       </div>
     );
   }

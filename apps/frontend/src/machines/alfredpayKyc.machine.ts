@@ -65,6 +65,10 @@ export const alfredpayKycMachine = setup({
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }),
+    retryKyc: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+      const country = input.country || "US";
+      return AlfredpayService.retryKyc(country);
+    }),
     waitForValidation: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
       // Submission ID check removed as backend handles it
@@ -93,7 +97,9 @@ export const alfredpayKycMachine = setup({
       | { type: "COMPLETED_FILLING" }
       | { type: "RETRY" }
       | { type: "CONFIRM_SUCCESS" }
-      | { type: "CHECK_STATUS" },
+      | { type: "CHECK_STATUS" }
+      | { type: "USER_RETRY" }
+      | { type: "USER_CANCEL" },
     input: {} as AlfredpayKycContext,
     output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
   }
@@ -168,7 +174,14 @@ export const alfredpayKycMachine = setup({
       type: "final"
     },
     Failure: {
-      type: "final"
+      on: {
+        USER_CANCEL: {
+          target: "Done"
+        },
+        USER_RETRY: {
+          target: "Retrying"
+        }
+      }
     },
     FillingKyc: {
       invoke: {
@@ -262,6 +275,22 @@ export const alfredpayKycMachine = setup({
           }
         ],
         src: "pollStatus"
+      }
+    },
+    Retrying: {
+      invoke: {
+        id: "retryKyc",
+        input: ({ context }) => context,
+        onDone: {
+          target: "GettingKycLink"
+        },
+        onError: {
+          actions: assign({
+            error: () => new AlfredpayKycMachineError("Failed to retry KYC", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "retryKyc"
       }
     }
   }

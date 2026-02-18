@@ -70,5 +70,15 @@ export const AlfredpayService = {
       country
     });
     return response.data;
+  },
+
+  /**
+   * Retry the KYC process.
+   */
+  async retryKyc(country: string): Promise<AlfredpayGetKycRedirectLinkResponse> {
+    const response = await apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", {
+      country
+    });
+    return response.data;
   }
 };
