@@ -9,7 +9,7 @@ import { BaseTokenDetails, TokenType } from "./base";
 export interface AssetHubTokenDetails extends BaseTokenDetails {
   type: TokenType.AssetHub;
   assetSymbol: string;
-  networkAssetIcon: string;
+  logoURI: string;
   network: Networks;
   foreignAssetId?: number; // The identifier of this token in AssetHub's assets registry
   hydrationId: string; // The identifier of this token in Hydration's assets registry
@@ -19,4 +19,5 @@ export interface AssetHubTokenDetails extends BaseTokenDetails {
 
 export interface AssetHubTokenDetailsWithBalance extends AssetHubTokenDetails {
   balance: string;
+  balanceUsd: string;
 }

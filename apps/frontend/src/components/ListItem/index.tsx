@@ -1,25 +1,41 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isFiatToken, isOnChainToken, OnChainToken, OnChainTokenDetails } from "@vortexfi/shared";
+import { FiatToken, isFiatToken, OnChainToken, stringifyBigWithSignificantDecimals } from "@vortexfi/shared";
+import Big from "big.js";
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
-import { UserBalance } from "../UserBalance";
 
 interface ListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
   token: ExtendedTokenDefinition;
+  balance?: string;
 }
 
-export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
+function formatBalance(balance: string): string {
+  try {
+    const big = new Big(balance);
+    if (big.eq(0)) return "";
+    return stringifyBigWithSignificantDecimals(big, 2);
+  } catch {
+    return "";
+  }
+}
+
+export const ListItem = memo(function ListItem({ token, isSelected, onSelect, balance }: ListItemProps) {
   const { t } = useTranslation();
-  const tokenIcon = useGetAssetIcon(token.assetIcon);
+  const isFiat = isFiatToken(token.type);
+  // Use assetIcon for fiat lookup, with network for on-chain tokens
+  const iconInfo = useTokenIcon(token.assetIcon, isFiat ? undefined : token.network);
+  const tokenIcon = token.logoURI ?? iconInfo.iconSrc;
 
-  const showBalance = isOnChainToken(token.type);
+  const isDisabled = isFiat && isFiatTokenDisabled(token.type as FiatToken);
+  const disabledReason = isFiat && isDisabled ? t(getTokenDisabledReason(token.type as FiatToken)) : undefined;
 
-  const isDisabled = isFiatToken(token.type) && isFiatTokenDisabled(token.type);
-  const disabledReason = isFiatToken(token.type) && isDisabled ? t(getTokenDisabledReason(token.type)) : undefined;
+  const formattedBalance = balance ? formatBalance(balance) : "";
 
   return (
     <button
@@ -32,9 +48,13 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
     >
       <span className="relative">
         <div className="text-xs">
-          <div className="w-10">
-            <img alt={token.assetSymbol} className="h-full w-full object-contain" src={tokenIcon} />
-          </div>
+          <TokenIconWithNetwork
+            className="w-10"
+            fallbackIconSrc={token.fallbackLogoURI}
+            iconSrc={tokenIcon}
+            network={isFiat ? undefined : token.network}
+            tokenSymbol={token.assetSymbol}
+          />
         </div>
         {isSelected && <CheckIcon className="-right-1 -top-1 absolute h-5 w-5 rounded-full bg-green-600 p-[3px] text-white" />}
       </span>
@@ -49,15 +69,17 @@ export function ListItem({ token, isSelected, onSelect }: ListItemProps) {
             ) : (
               <>
                 {token.name && <div>{token.name}</div>}
-                {isOnChainToken(token.type) && <div>({token.networkDisplayName})</div>}
+                {!isFiat && <div>({token.networkDisplayName})</div>}
               </>
             )}
           </span>
         </span>
-        <span className="text-base">
-          {showBalance && <UserBalance className="font-bold" token={token.details as OnChainTokenDetails} />}
-        </span>
+        {formattedBalance && (
+          <span className="font-bold text-base">
+            {formattedBalance} {token.assetSymbol}
+          </span>
+        )}
       </div>
     </button>
   );
-}
+});

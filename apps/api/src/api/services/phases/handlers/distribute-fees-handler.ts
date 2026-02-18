@@ -64,7 +64,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
       const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-        throw this.createRecoverableError(`Failed to check extrinsic status`);
+        throw this.createRecoverableError("Failed to check extrinsic status");
       });
 
       if (status === ExtrinsicStatus.Success) {
@@ -135,7 +135,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         if (status === ExtrinsicStatus.Success) {
           return;
         } else if (status === ExtrinsicStatus.Fail) {
-          //throw this.createUnrecoverableError(`Extrinsic failed for hash ${extrinsicHash}`);
+          await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
           continue;
         } else if (status === ExtrinsicStatus.Undefined) {
           await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
@@ -212,8 +212,12 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
           }
 
-          if (status.isBroadcast || status.isInBlock) {
+          if (status.isBroadcast) {
             logger.info(`Transaction broadcasted: ${status.asBroadcast.toString()}`);
+            resolve(txHash.toHex());
+          }
+          if (status.isInBlock) {
+            logger.info(`Transaction in block: ${status.asInBlock.toString()}`);
             resolve(txHash.toHex());
           }
         })

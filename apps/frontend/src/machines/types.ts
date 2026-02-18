@@ -43,6 +43,7 @@ export interface RampContext {
   userId?: string;
   isAuthenticated: boolean;
   alfredpayCustomer?: any;
+  postAuthTarget?: "QuoteReady" | "RegisterRamp";
 }
 
 export type RampMachineEvents =

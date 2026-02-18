@@ -1,0 +1,19 @@
+{
+  "background_color": "#f5f9fa",
+  "display": "standalone",
+  "icons": [
+    {
+      "sizes": "192x192",
+      "src": "/frontend/android-chrome-192x192.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "512x512",
+      "src": "/frontend/android-chrome-512x512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Vortex",
+  "short_name": "Vortex",
+  "theme_color": "#0f4dc0"
+}

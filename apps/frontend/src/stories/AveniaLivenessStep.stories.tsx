@@ -2,14 +2,14 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { AveniaLivenessStep } from "../components/widget-steps/AveniaLivenessStep";
 
 // Create mock Avenia KYC actor
-const createMockAveniaKycActor = (livenessCheckOpened: boolean = false) => ({
+const createMockAveniaKycActor = (livenessCheckOpened = false) => ({
   send: (event: any) => {
     console.log("Avenia KYC event:", event);
   }
 });
 
 // Create mock Avenia state
-const createMockAveniaState = (livenessCheckOpened: boolean = false, livenessUrl: string = "https://example.com/liveness") => ({
+const createMockAveniaState = (livenessCheckOpened = false, livenessUrl = "https://example.com/liveness") => ({
   context: {
     documentUploadIds: {
       livenessUrl: livenessUrl

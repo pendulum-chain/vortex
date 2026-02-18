@@ -61,9 +61,9 @@ export const getAllMaintenanceSchedules: RequestHandler = async (_, res) => {
  * @returns {Object} 404 - Schedule not found
  * @returns {Object} 500 - Internal server error
  */
-export const updateScheduleActiveStatus: RequestHandler = async (req, res) => {
+export const updateScheduleActiveStatus: RequestHandler<{ id: string }> = async (req, res) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = req.params.id;
     const { isActive } = req.body;
 
     if (typeof isActive !== "boolean") {

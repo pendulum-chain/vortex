@@ -73,7 +73,7 @@ export const AveniaField: FC<AveniaFieldProps> = ({ id, label, index, validation
       <div className="relative">
         <Field className={cn("w-full p-2", errors[id] && "border border-red-800")} id={id} register={register(id)} {...rest} />
         {id === ExtendedAveniaFieldOptions.BIRTHDATE && (
-          <CalendarDaysIcon className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-600 pointer-events-none" />
+          <CalendarDaysIcon className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-3 h-5 w-5 text-gray-600" />
         )}
       </div>
       {errorMessage && <span className="mt-1 text-red-800 text-sm">{errorMessage}</span>}

@@ -34,7 +34,7 @@ const MenuItem = ({ label, onClick, icon, disabled }: MenuItemProps) => {
 };
 
 export const SettingsMenu = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isOpen = useSettingsMenuState();
   const { closeMenu } = useSettingsMenuActions();
   const rampActor = useRampActor();
@@ -63,7 +63,7 @@ export const SettingsMenu = () => {
     },
     {
       label: t("menus.settings.item.termsAndConditions"),
-      onClick: () => handleExternalLink("https://www.vortexfinance.co/terms-conditions")
+      onClick: () => handleExternalLink(`https://www.vortexfinance.co/${i18n.language}/terms-and-conditions`)
     },
     {
       label: t("menus.settings.item.imprint"),

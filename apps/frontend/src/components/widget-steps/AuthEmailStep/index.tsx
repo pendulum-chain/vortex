@@ -5,6 +5,7 @@ import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { MenuButtons } from "../../MenuButtons";
 import { QuoteSummary } from "../../QuoteSummary";
 
 const emailSchema = yup.string().email().required();
@@ -43,6 +44,9 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
 
   return (
     <div className={cn("relative flex min-h-[506px] grow flex-col", className)}>
+      <div className="flex items-center justify-between">
+        <MenuButtons />
+      </div>
       <form className="flex flex-1 flex-col pb-36" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
           <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authEmailStep.title")}</h1>

@@ -1,5 +1,6 @@
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import { runWithRampContext } from "../../../config/ramp-context";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
@@ -12,7 +13,7 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
-  private readonly MAX_EXECUTION_TIME_MS = 20 * 60 * 1000; // 20 minutes
+  private readonly MAX_EXECUTION_TIME_MS = 10 * 60 * 1000; // 10 minutes
   private lockedRamps = new Set<string>();
 
   /**
@@ -30,41 +31,43 @@ export class PhaseProcessor {
    * @param rampId The ID of the ramping process
    */
   public async processRamp(rampId: string): Promise<void> {
-    const state = await RampState.findByPk(rampId);
-    if (!state) {
-      throw new APIError({
-        message: `Ramp with ID ${rampId} not found`,
-        status: httpStatus.NOT_FOUND
-      });
-    }
+    return runWithRampContext(rampId, async () => {
+      const state = await RampState.findByPk(rampId);
+      if (!state) {
+        throw new APIError({
+          message: `Ramp with ID ${rampId} not found`,
+          status: httpStatus.NOT_FOUND
+        });
+      }
 
-    // Try to acquire the lock
-    let lockAcquired = await this.acquireLock(state);
-    if (!lockAcquired) {
-      if (this.isLockExpired(state)) {
-        logger.info(`Lock for ramp ${rampId} has expired. Ignoring previous lock and continue processing...`);
-        // Force release the expired lock and try to acquire it again
-        await this.releaseLock(state);
-        lockAcquired = await this.acquireLock(state);
-        if (!lockAcquired) {
-          logger.warn(`Failed to acquire lock for ramp ${rampId} even after clearing expired lock`);
+      // Try to acquire the lock
+      let lockAcquired = await this.acquireLock(state);
+      if (!lockAcquired) {
+        if (this.isLockExpired(state)) {
+          logger.info(`Lock for ramp ${rampId} has expired. Ignoring previous lock and continue processing...`);
+          // Force release the expired lock and try to acquire it again
+          await this.releaseLock(state);
+          lockAcquired = await this.acquireLock(state);
+          if (!lockAcquired) {
+            logger.warn(`Failed to acquire lock for ramp ${rampId} even after clearing expired lock`);
+            return;
+          }
+        } else {
+          logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
           return;
         }
-      } else {
-        logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
-        return;
       }
-    }
 
-    try {
-      await this.processPhase(state);
-      // We just return, since the error management should be handled in the processPhase method.
-      // We do not want to crash the whole process if one ramp fails.
-    } catch (error) {
-      logger.error(`Error processing ramp ${rampId}: ${error}`);
-    } finally {
-      await this.releaseLock(state);
-    }
+      try {
+        await this.processPhase(state);
+        // We just return, since the error management should be handled in the processPhase method.
+        // We do not want to crash the whole process if one ramp fails.
+      } catch (error) {
+        logger.error(`Error processing ramp ${rampId}: ${error}`);
+      } finally {
+        await this.releaseLock(state);
+      }
+    });
   }
 
   /**

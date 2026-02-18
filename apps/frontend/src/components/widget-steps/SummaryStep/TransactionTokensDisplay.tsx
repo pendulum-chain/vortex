@@ -18,7 +18,7 @@ import { useNetwork } from "../../../contexts/network";
 import { useAssetHubNode } from "../../../contexts/polkadotNode";
 import { useRampActor } from "../../../contexts/rampState";
 import { trimAddress } from "../../../helpers/addressFormatter";
-import { useGetAssetIcon } from "../../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { RampExecutionInput } from "../../../types/phases";
 import { AssetDisplay } from "./AssetDisplay";
@@ -27,7 +27,6 @@ import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
 import { USOnrampDetails } from "./USOnrampDetails";
 
-// Default expiry time for quotes is 10 minutes
 const QUOTE_EXPIRY_TIME = 10;
 
 interface TransactionTokensDisplayProps {
@@ -60,7 +59,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   useEffect(() => {
     let targetTimestamp: number | null = null;
-    if (!quote) return; // Quote must exist
+    if (!quote) return;
 
     const expiresAt = quote.expiresAt;
     targetTimestamp = new Date(expiresAt).getTime();
@@ -68,7 +67,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     setTargetTimestamp(targetTimestamp);
 
     if (targetTimestamp === null) {
-      // If no valid timestamp, mark as expired immediately
       setTimeLeft({ minutes: 0, seconds: 0 });
       return;
     }
@@ -102,18 +100,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken)
     : getAnyFiatTokenDetails(executionInput.fiatToken);
 
-  const fromIcon = useGetAssetIcon(
-    isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.assetIcon : (fromToken as OnChainTokenDetails).networkAssetIcon
-  );
-
-  const toIcon = useGetAssetIcon(
-    isOnramp ? (toToken as OnChainTokenDetails).networkAssetIcon : (toToken as BaseFiatTokenDetails).fiat.assetIcon
-  );
+  const fromIconInfo = useTokenIcon(fromToken);
+  const toIconInfo = useTokenIcon(toToken);
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    // Conditionally return Monerium's URL.
-    // TODO to be improved when adding the EUR.e as a token config.
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
@@ -134,15 +125,17 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     <div className="flex flex-col justify-center">
       <AssetDisplay
         amount={quote.inputAmount}
-        iconAlt={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
-        iconSrc={fromIcon}
+        fallbackIconSrc={fromIconInfo.fallbackIconSrc}
+        iconSrc={fromIconInfo.iconSrc}
+        network={fromIconInfo.network}
         symbol={isOnramp ? (fromToken as BaseFiatTokenDetails).fiat.symbol : (fromToken as OnChainTokenDetails).assetSymbol}
       />
       <ArrowDownIcon className="my-2 h-4 w-4" />
       <AssetDisplay
         amount={quote.outputAmount}
-        iconAlt={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
-        iconSrc={toIcon}
+        fallbackIconSrc={toIconInfo.fallbackIconSrc}
+        iconSrc={toIconInfo.iconSrc}
+        network={toIconInfo.network}
         symbol={isOnramp ? (toToken as OnChainTokenDetails).assetSymbol : (toToken as BaseFiatTokenDetails).fiat.symbol}
       />
       <FeeDetails

@@ -17,6 +17,7 @@ import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenA
 import { TrackableEvent, useEventsContext } from "../../contexts/events";
 import { useNetwork } from "../../contexts/network";
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
+import { getEvmTokenConfig } from "../../services/tokens";
 import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
 import { useQuote, useQuoteError, useQuoteLoading } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -151,9 +152,11 @@ export const useRampValidation = () => {
 
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(fiatToken)
-    : getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+    : getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
 
-  const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
+  const toToken = isOnramp
+    ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig())
+    : getAnyFiatTokenDetails(fiatToken);
 
   const userInputTokenBalance = useOnchainTokenBalance({
     token: (isOnramp ? toToken : fromToken) as OnChainTokenDetails
