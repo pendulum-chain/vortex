@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{ $locale := index .Data "locale" }}
+  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
+  {{ if $isBrazil }}
+  <title>Bem-vindo(a) a Vortex - Verifique seu email</title>
+  {{ else }}
   <title>Welcome to Vortex - Verify Your Email</title>
+  {{ end }}
   <style>
     body {
       margin: 0;
@@ -113,8 +119,6 @@
   </style>
 </head>
 <body>
-  {{ $locale := index .Data "locale" }}
-  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
   <div class="email-container">
     <!-- Header with Brand Name -->
     <div class="header">
