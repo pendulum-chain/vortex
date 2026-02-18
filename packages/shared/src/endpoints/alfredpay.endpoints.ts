@@ -2,6 +2,7 @@ import {
   AlfredPayStatus,
   AlfredpayCustomerType,
   CreateAlfredpayCustomerResponse,
+  GetKybRedirectLinkResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse
 } from "../services/alfredpay/types";
@@ -34,6 +35,8 @@ export interface AlfredpayGetKycRedirectLinkRequest {
 
 export type AlfredpayGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;
 
+export type AlfredpayGetKybRedirectLinkResponse = GetKybRedirectLinkResponse;
+
 // POST /alfredpay/kycRedirectOpened
 export interface AlfredpayKycRedirectOpenedRequest {
   country: string;
@@ -65,3 +68,6 @@ export interface AlfredpayGetKycStatusResponse {
   alfred_pay_id: string;
   country: string;
 }
+
+export type AlfredpayGetKybStatusRequest = AlfredpayGetKycStatusRequest;
+export type AlfredpayGetKybStatusResponse = AlfredpayGetKycStatusResponse;

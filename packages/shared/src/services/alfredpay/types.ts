@@ -1,6 +1,6 @@
 export enum AlfredpayCustomerType {
   INDIVIDUAL = "INDIVIDUAL",
-  COMPANY = "COMPANY"
+  BUSINESS = "BUSINESS"
 }
 
 export type AlfredPayType = AlfredpayCustomerType;
@@ -51,6 +51,8 @@ export interface GetKycRedirectLinkResponse {
   submissionId: string;
 }
 
+export type GetKybRedirectLinkResponse = GetKycRedirectLinkResponse;
+
 export enum AlfredpayKycStatus {
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
@@ -59,8 +61,20 @@ export enum AlfredpayKycStatus {
   CREATED = "CREATED"
 }
 
+export type AlfredpayKybStatus = AlfredpayKycStatus;
+export const AlfredpayKybStatus = AlfredpayKycStatus;
+
 export interface GetKycStatusResponse {
   status: AlfredpayKycStatus;
+  updatedAt: string;
+  metadata?: {
+    failureReason?: string;
+    requiredFields?: string[];
+  } | null;
+}
+
+export interface GetKybStatusResponse {
+  status: AlfredpayKybStatus;
   updatedAt: string;
   metadata?: {
     failureReason?: string;
@@ -73,9 +87,13 @@ export interface GetKycSubmissionResponse {
   createdAt: string;
 }
 
+export type GetKybSubmissionResponse = GetKycSubmissionResponse;
+
 export interface RetryKycSubmissionResponse {
   message: string;
 }
+
+export type RetryKybSubmissionResponse = RetryKycSubmissionResponse;
 
 export enum AlfredpayOnChainCurrency {
   USDC = "USDC",

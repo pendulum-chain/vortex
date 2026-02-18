@@ -17,9 +17,13 @@ import {
   CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
   GetAlfredpayOnrampTransactionResponse,
+  GetKybRedirectLinkResponse,
+  GetKybStatusResponse,
+  GetKybSubmissionResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
   GetKycSubmissionResponse,
+  RetryKybSubmissionResponse,
   RetryKycSubmissionResponse
 } from "./types";
 
@@ -132,6 +136,26 @@ export class AlfredpayApiService {
   public async retryKycSubmission(customerId: string, submissionId: string): Promise<RetryKycSubmissionResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/retry`;
     return (await this.executeRequest(path, "POST")) as RetryKycSubmissionResponse;
+  }
+
+  public async getKybRedirectLink(customerId: string): Promise<GetKybRedirectLinkResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/kyb/${customerId}/verification/url`;
+    return (await this.executeRequest(path, "GET")) as GetKybRedirectLinkResponse;
+  }
+
+  public async getKybStatus(customerId: string, submissionId: string): Promise<GetKybStatusResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/status`;
+    return (await this.executeRequest(path, "GET")) as GetKybStatusResponse;
+  }
+
+  public async getLastKybSubmission(customerId: string): Promise<GetKybSubmissionResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/kyb/${customerId}`;
+    return (await this.executeRequest(path, "GET")) as GetKybSubmissionResponse;
+  }
+
+  public async retryKybSubmission(customerId: string, submissionId: string): Promise<RetryKybSubmissionResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/retry`;
+    return (await this.executeRequest(path, "POST")) as RetryKybSubmissionResponse;
   }
 
   public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {

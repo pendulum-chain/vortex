@@ -12,5 +12,11 @@ router.post("/kycRedirectOpened", requireAuth, validateResultCountry, AlfredpayC
 router.post("/kycRedirectFinished", requireAuth, validateResultCountry, AlfredpayController.kycRedirectFinished);
 router.get("/getKycStatus", requireAuth, validateResultCountry, AlfredpayController.getKycStatus);
 router.post("/retryKyc", requireAuth, validateResultCountry, AlfredpayController.retryKyc);
+router.post("/createBusinessCustomer", requireAuth, validateResultCountry, AlfredpayController.createBusinessCustomer);
+router.get("/getKybRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKybRedirectLink);
+router.post("/kybRedirectOpened", requireAuth, validateResultCountry, AlfredpayController.kybRedirectOpened);
+router.post("/kybRedirectFinished", requireAuth, validateResultCountry, AlfredpayController.kybRedirectFinished);
+router.get("/getKybStatus", requireAuth, validateResultCountry, AlfredpayController.getKybStatus);
+router.post("/retryKyb", requireAuth, validateResultCountry, AlfredpayController.retryKyb);
 
 export default router;
