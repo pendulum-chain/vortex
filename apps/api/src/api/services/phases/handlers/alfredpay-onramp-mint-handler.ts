@@ -16,7 +16,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
 const ALFREDPAY_ONRAMP_MINT_TIMEOUT_MS = 5 * 60 * 1000;
-const BALANCE_POLL_INTERVAL_MS = 3000;
+const BALANCE_POLL_INTERVAL_MS = 5000;
 const ALFREDPAY_POLL_INTERVAL_MS = 5000;
 
 export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
@@ -60,21 +60,13 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
       Networks.Polygon
     );
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error(`AlfredpayOnrampMintHandler: Timed out after ${ALFREDPAY_ONRAMP_MINT_TIMEOUT_MS}ms`)),
-        ALFREDPAY_ONRAMP_MINT_TIMEOUT_MS
-      );
-    });
-
     const alfredpayPollingPromise = this.pollAlfredpayOnrampStatus(alfredpayTransactionId, state, ALFREDPAY_POLL_INTERVAL_MS);
 
-    // - balanceCheckPromise resolves when the USDC balance is met → proceed.
-    // - timeoutPromise rejects after 5 min → recoverable error, but potentially user did not send funds.
+    // - balanceCheckPromise resolves when the USDC balance is met → proceed, or rejects if timeout → recoverable error.
     // - alfredpayPollingPromise rejects if FAILED → transition to failed. Not recoverable
     //   (it does NOT resolve on ON_CHAIN_COMPLETED, because we trust the balance check)
     try {
-      await Promise.race([balanceCheckPromise, timeoutPromise, alfredpayPollingPromise]);
+      await Promise.race([balanceCheckPromise, alfredpayPollingPromise]);
     } catch (error: any) {
       if (error?.kind === "failed") {
         logger.error(`AlfredpayOnrampMintHandler: Alfredpay onramp FAILED. Reason: ${error.failureReason ?? "unknown"}`);
@@ -87,14 +79,10 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
         );
       }
 
-      const isTimeout = error instanceof Error && error.message.includes("Timed out");
-      if (isTimeout) {
-        throw this.createRecoverableError(
-          `AlfredpayOnrampMintHandler: Phase timed out after ${ALFREDPAY_ONRAMP_MINT_TIMEOUT_MS}ms`
-        );
-      }
-
-      throw error;
+      // Safe to make generic recovery.
+      throw this.createRecoverableError(
+        `AlfredpayOnrampMintHandler: Failed to check balance or poll Alfredpay status: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     logger.info(
