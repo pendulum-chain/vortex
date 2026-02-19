@@ -1,7 +1,9 @@
 import { QuoteResponse, RampDirection } from "@vortexfi/shared";
+import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
@@ -72,10 +74,10 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
     <section className="overflow-hidden">
       <div className="mb-4">
         <h3 className="mb-3 font-semibold text-gray-900">{t("components.quoteSummary.exchangeDetails")}</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youSend")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={inputIcon.fallbackIconSrc}
@@ -84,13 +86,12 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(Number(quote.inputAmount))}{" "}
-              {quote.inputCurrency.toUpperCase()}
+              {formatPrice(Big(quote.inputAmount))} {quote.inputCurrency.toUpperCase()}
             </div>
           </div>
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youReceive")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={outputIcon.fallbackIconSrc}
@@ -99,8 +100,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              ~ {new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(Number(quote.outputAmount))}{" "}
-              {quote.outputCurrency.toUpperCase()}
+              ~ {formatPrice(Big(quote.outputAmount))} {quote.outputCurrency.toUpperCase()}
             </div>
           </div>
         </div>
