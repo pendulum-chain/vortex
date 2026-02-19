@@ -89,7 +89,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon, // Hardcoded to mint on Polygon
-    nonce: polygonAccountNonce,
+    nonce: polygonAccountNonce++,
     phase: "squidRouterApprove",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(approveData) as EvmTransactionData

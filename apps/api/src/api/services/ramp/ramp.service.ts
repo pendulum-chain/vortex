@@ -1107,7 +1107,7 @@ export class RampService extends BaseRampService {
     rampState: RampState,
     quote: QuoteTicket,
     transaction: Transaction
-  ): Promise<AlfredpayFiatPaymentInstructions> {
+  ): Promise<AlfredpayFiatPaymentInstructions | undefined> {
     if (!this.validateAllPresignedTransactionsSigned(rampState)) {
       return;
     }

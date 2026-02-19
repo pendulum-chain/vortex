@@ -97,7 +97,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
+      inputTokenErc20Address: params.fromToken,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,

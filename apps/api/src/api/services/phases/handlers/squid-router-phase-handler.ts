@@ -126,7 +126,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error(`Quote not found for ramp ${state.id}`);
       }
 
-      if (quote.inputCurrency === FiatToken.EURC) {
+      if (quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD) {
         return this.polygonClient;
       } else if (quote.inputCurrency === FiatToken.BRL) {
         return this.moonbeamClient;
