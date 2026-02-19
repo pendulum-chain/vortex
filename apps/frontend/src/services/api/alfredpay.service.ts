@@ -1,6 +1,8 @@
 import {
   AlfredpayCreateCustomerRequest,
   AlfredpayCreateCustomerResponse,
+  AlfredpayCustomerType,
+  AlfredpayGetKybRedirectLinkResponse,
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
   AlfredpayStatusResponse
@@ -42,12 +44,9 @@ export const AlfredpayService = {
   /**
    * Get the status of a specific KYC submission.
    */
-  /**
-   * Get the status of a specific KYC submission.
-   */
-  async getKycStatus(country: string): Promise<AlfredpayGetKycStatusResponse> {
+  async getKycStatus(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycStatusResponse> {
     const response = await apiClient.get<AlfredpayGetKycStatusResponse>("/alfredpay/getKycStatus", {
-      params: { country }
+      params: { country, type }
     });
     return response.data;
   },
@@ -55,9 +54,10 @@ export const AlfredpayService = {
   /**
    * Notify that the KYC redirect process is finished.
    */
-  async notifyKycRedirectFinished(country: string): Promise<{ success: boolean }> {
+  async notifyKycRedirectFinished(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }> {
     const response = await apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectFinished", {
-      country
+      country,
+      type
     });
     return response.data;
   },
@@ -65,19 +65,10 @@ export const AlfredpayService = {
   /**
    * Notify that the KYC redirect link has been opened.
    */
-  async notifyKycRedirectOpened(country: string): Promise<{ success: boolean }> {
+  async notifyKycRedirectOpened(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }> {
     const response = await apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectOpened", {
-      country
-    });
-    return response.data;
-  },
-
-  /**
-   * Retry the KYC process.
-   */
-  async retryKyc(country: string): Promise<AlfredpayGetKycRedirectLinkResponse> {
-    const response = await apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", {
-      country
+      country,
+      type
     });
     return response.data;
   }

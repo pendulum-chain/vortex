@@ -14,6 +14,14 @@ export const AlfredpayKycFlow = () => {
     actor?.send({ type: "COMPLETED_FILLING" });
   };
 
+  const toggleBusiness = () => {
+    actor?.send({ type: "TOGGLE_BUSINESS" });
+  };
+
+  const userAccept = () => {
+    actor?.send({ type: "USER_ACCEPT" });
+  };
+
   if (!actor || !state) return null;
 
   const { stateValue, context } = state;
@@ -89,7 +97,7 @@ export const AlfredpayKycFlow = () => {
       <div className="flex flex-col items-center space-y-4 py-4">
         <p className="text-green-600 font-bold text-lg">KYC Completed!</p>
         <p className="text-center text-gray-600">Your account has been verified. You can now proceed.</p>
-        {/* The parent component might handle navigation or updates based on this state */}
+        {/* Will not be rendered as the sub-state machine will stop and go to main kyc one */}
       </div>
     );
   }
@@ -107,6 +115,23 @@ export const AlfredpayKycFlow = () => {
             Cancel
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (stateValue === "CostumerDefinition") {
+    return (
+      <div className="flex flex-col items-center space-y-4 py-4">
+        <p className="text-center text-gray-600">Please select your account type to continue with KYC verification.</p>
+        <button className="btn-vortex-primary btn w-full rounded-xl" onClick={userAccept}>
+          Continue
+        </button>
+        <p className="text-center text-gray-500 text-sm">
+          {context.business ? "Click here to register as individual" : "If registering as a business please click here"}
+          <button className="text-blue-600 hover:text-blue-800 underline ml-1" onClick={toggleBusiness}>
+            here
+          </button>
+        </p>
       </div>
     );
   }

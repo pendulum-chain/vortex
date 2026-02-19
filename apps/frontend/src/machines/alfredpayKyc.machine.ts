@@ -1,6 +1,7 @@
 import {
   AlfredPayStatus,
   AlfredpayCreateCustomerResponse,
+  AlfredpayCustomerType,
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
   AlfredpayStatusResponse
@@ -25,16 +26,22 @@ export class AlfredpayKycMachineError extends Error {
 export const alfredpayKycMachine = setup({
   actors: {
     checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      console.log("Checking alfredpay status");
-
       const country = input.country || "US";
 
       const status = await AlfredpayService.getAlfredpayStatus(country);
       return status;
     }),
+    createBusinessCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+      const country = input.country || "US";
+      return AlfredpayService.createBusinessCustomer(country);
+    }),
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
-      return AlfredpayService.createCustomer(country, "INDIVIDUAL");
+      return AlfredpayService.createCustomer(country, AlfredpayCustomerType.INDIVIDUAL);
+    }),
+    getKybLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+      const country = input.country || "US";
+      return AlfredpayService.getKybRedirectLink(country);
     }),
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
@@ -99,7 +106,9 @@ export const alfredpayKycMachine = setup({
       | { type: "CONFIRM_SUCCESS" }
       | { type: "CHECK_STATUS" }
       | { type: "USER_RETRY" }
-      | { type: "USER_CANCEL" },
+      | { type: "USER_CANCEL" }
+      | { type: "TOGGLE_BUSINESS" }
+      | { type: "USER_ACCEPT" },
     input: {} as AlfredpayKycContext,
     output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
   }
@@ -141,7 +150,7 @@ export const alfredpayKycMachine = setup({
           {
             guard: ({ event }) =>
               (event.error as Error).message.includes("404") || (event.error as Error).message.includes("Not Found"),
-            target: "CreatingCustomer"
+            target: "CostumerDefinition"
           },
           {
             actions: assign({
@@ -154,7 +163,47 @@ export const alfredpayKycMachine = setup({
         src: "checkStatus"
       }
     },
+    CostumerDefinition: {
+      on: {
+        TOGGLE_BUSINESS: {
+          actions: assign({
+            business: ({ context }) => !context.business
+          })
+        },
+        USER_ACCEPT: {
+          target: "CreatingCustomer"
+        }
+      }
+    },
+    CreatingBusinessCustomer: {
+      invoke: {
+        id: "createBusinessCustomer",
+        input: ({ context }) => context,
+        onDone: {
+          target: "GettingKybLink"
+        },
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError("Failed to create business customer", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "createBusinessCustomer"
+      }
+    },
     CreatingCustomer: {
+      always: [
+        {
+          guard: ({ context }) => context.business === true,
+          target: "CreatingBusinessCustomer"
+        },
+        {
+          target: "CreatingIndividualCustomer"
+        }
+      ]
+    },
+    CreatingIndividualCustomer: {
       invoke: {
         id: "createCustomer",
         input: ({ context }) => context,
@@ -208,6 +257,26 @@ export const alfredpayKycMachine = setup({
           target: "PollingStatus"
         },
         src: "notifyFinished"
+      }
+    },
+    GettingKybLink: {
+      invoke: {
+        id: "getKybLink",
+        input: ({ context }) => context,
+        onDone: {
+          actions: assign({
+            submissionId: ({ event }) => event.output.submissionId,
+            verificationUrl: ({ event }) => event.output.verification_url
+          }),
+          target: "LinkReady"
+        },
+        onError: {
+          actions: assign({
+            error: () => new AlfredpayKycMachineError("Failed to get KYB link", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "getKybLink"
       }
     },
     GettingKycLink: {

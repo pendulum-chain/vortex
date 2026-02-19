@@ -31,6 +31,7 @@ export interface AlfredpayCreateCustomerResponse {
 // GET /alfredpay/getKycRedirectLink?country=:country
 export interface AlfredpayGetKycRedirectLinkRequest {
   country: string;
+  type?: AlfredpayCustomerType;
 }
 
 export type AlfredpayGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;
@@ -40,6 +41,7 @@ export type AlfredpayGetKybRedirectLinkResponse = GetKybRedirectLinkResponse;
 // POST /alfredpay/kycRedirectOpened
 export interface AlfredpayKycRedirectOpenedRequest {
   country: string;
+  type?: AlfredpayCustomerType;
 }
 
 export interface AlfredpayKycRedirectOpenedResponse {
@@ -49,15 +51,17 @@ export interface AlfredpayKycRedirectOpenedResponse {
 // POST /alfredpay/kycRedirectFinished
 export interface AlfredpayKycRedirectFinishedRequest {
   country: string;
+  type?: AlfredpayCustomerType;
 }
 
 export interface AlfredpayKycRedirectFinishedResponse {
   success: boolean;
 }
 
-// GET /alfredpay/getKycStatus?country=:country
+// GET /alfredpay/getKycStatus?country=:country&type=:type
 export interface AlfredpayGetKycStatusRequest {
   country: string;
+  type?: AlfredpayCustomerType;
 }
 
 export interface AlfredpayGetKycStatusResponse {
@@ -71,3 +75,8 @@ export interface AlfredpayGetKycStatusResponse {
 
 export type AlfredpayGetKybStatusRequest = AlfredpayGetKycStatusRequest;
 export type AlfredpayGetKybStatusResponse = AlfredpayGetKycStatusResponse;
+
+export interface AlfredpayRetryKycRequest {
+  country: string;
+  type?: AlfredpayCustomerType;
+}

@@ -13,6 +13,7 @@ export interface AlfredpayKycContext extends RampContext {
   submissionId?: string;
   country?: string;
   error?: AlfredpayKycMachineError;
+  business?: boolean;
 }
 
 export interface AveniaKycContext extends RampContext {
