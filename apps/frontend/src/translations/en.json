@@ -29,7 +29,7 @@
         "privacyPolicy": "Privacy Policy",
         "termsAndConditions": "Terms and Conditions"
       },
-      "title": "Verify your email",
+      "title": "Verify Your Email",
       "validation": {
         "invalidEmail": "Please enter a valid email address"
       }
