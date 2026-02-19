@@ -1,4 +1,4 @@
-import { FiatToken } from "@vortexfi/shared";
+import i18n from "i18next";
 import { AuthAPI } from "../../services/api/auth.api";
 import { RampContext } from "../types";
 
@@ -16,10 +16,8 @@ export const requestOTPActor = async ({ input }: { input: { context: RampContext
     throw new Error("Email is required");
   }
 
-  const activeQuote = input.context.quote ?? input.context.executionInput?.quote;
-  const isBrazilQuote =
-    activeQuote && (activeQuote.inputCurrency === FiatToken.BRL || activeQuote.outputCurrency === FiatToken.BRL);
-  const locale = isBrazilQuote ? "pt-BR" : undefined;
+  // Use the active UI language as the OTP email locale.
+  const locale = i18n.language;
 
   await AuthAPI.requestOTP(input.context.userEmail, locale);
   return { success: true };
