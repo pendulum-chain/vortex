@@ -62,7 +62,6 @@ export const alfredpayKycMachine = setup({
       );
     }),
     pollStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      console.log("Polling status for country", input.country);
       const country = input.country || "US";
       // Submission ID check removed as backend handles it
 
@@ -120,10 +119,12 @@ export const alfredpayKycMachine = setup({
       | { type: "RETRY" }
       | { type: "CONFIRM_SUCCESS" }
       | { type: "CHECK_STATUS" }
-      | { type: "USER_RETRY" }
-      | { type: "USER_CANCEL" }
       | { type: "TOGGLE_BUSINESS" }
-      | { type: "USER_ACCEPT" },
+      | { type: "USER_ACCEPT" }
+      | { type: "RETRY_PROCESS" }
+      | { type: "CANCEL_PROCESS" }
+      | { type: "USER_RETRY" }
+      | { type: "USER_CANCEL" },
     input: {} as AlfredpayKycContext,
     output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
   }
@@ -150,11 +151,14 @@ export const alfredpayKycMachine = setup({
           },
           {
             actions: assign({
-              error: ({ event }) =>
-                new AlfredpayKycMachineError("Alfredpay status failed", AlfredpayKycMachineErrorType.UnknownError)
+              error: ({ event, context }) =>
+                new AlfredpayKycMachineError(
+                  `${context.business ? "KYB" : "KYC"} Failed`,
+                  AlfredpayKycMachineErrorType.UnknownError
+                )
             }),
             guard: ({ event }) => event.output.status === AlfredPayStatus.Failed,
-            target: "Failure"
+            target: "FailureKyc"
           },
           {
             // Default state for normal flow.
@@ -199,7 +203,11 @@ export const alfredpayKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: () => new AlfredpayKycMachineError("Failed to create customer", AlfredpayKycMachineErrorType.UnknownError)
+            error: ({ context }) =>
+              new AlfredpayKycMachineError(
+                `Failed to create ${context.business ? "business " : ""}customer`,
+                AlfredpayKycMachineErrorType.UnknownError
+              )
           }),
           target: "Failure"
         },
@@ -211,6 +219,16 @@ export const alfredpayKycMachine = setup({
     },
     Failure: {
       on: {
+        CANCEL_PROCESS: {
+          target: "Done"
+        },
+        RETRY_PROCESS: {
+          target: "CheckingStatus"
+        }
+      }
+    },
+    FailureKyc: {
+      on: {
         USER_CANCEL: {
           target: "Done"
         },
@@ -221,6 +239,7 @@ export const alfredpayKycMachine = setup({
     },
     FillingKyc: {
       invoke: {
+        id: "waitForValidation",
         input: ({ context }) => context,
         onDone: {
           target: "PollingStatus"
@@ -259,7 +278,11 @@ export const alfredpayKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: () => new AlfredpayKycMachineError("Failed to get KYC link", AlfredpayKycMachineErrorType.UnknownError)
+            error: ({ context }) =>
+              new AlfredpayKycMachineError(
+                `Failed to get ${context.business ? "KYB" : "KYC"} link`,
+                AlfredpayKycMachineErrorType.UnknownError
+              )
           }),
           target: "Failure"
         },
@@ -293,6 +316,7 @@ export const alfredpayKycMachine = setup({
     },
     PollingStatus: {
       invoke: {
+        id: "pollStatus",
         input: ({ context }) => context,
         onDone: [
           {
@@ -301,13 +325,16 @@ export const alfredpayKycMachine = setup({
           },
           {
             actions: assign({
-              error: ({ event }) =>
+              error: ({ event, context }) =>
                 event.output.lastFailure
                   ? new AlfredpayKycMachineError(event.output.lastFailure, AlfredpayKycMachineErrorType.UnknownError)
-                  : new AlfredpayKycMachineError("KYC Failed", AlfredpayKycMachineErrorType.UnknownError)
+                  : new AlfredpayKycMachineError(
+                      `${context.business ? "KYB" : "KYC"} Failed`,
+                      AlfredpayKycMachineErrorType.UnknownError
+                    )
             }),
             guard: ({ event }) => event.output.status === AlfredPayStatus.Failed,
-            target: "Failure"
+            target: "FailureKyc"
           }
         ],
         src: "pollStatus"
@@ -322,7 +349,11 @@ export const alfredpayKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: () => new AlfredpayKycMachineError("Failed to retry KYC", AlfredpayKycMachineErrorType.UnknownError)
+            error: ({ context }) =>
+              new AlfredpayKycMachineError(
+                `Failed to retry ${context.business ? "KYB" : "KYC"}`,
+                AlfredpayKycMachineErrorType.UnknownError
+              )
           }),
           target: "Failure"
         },

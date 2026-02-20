@@ -25,6 +25,7 @@ export const AlfredpayKycFlow = () => {
   if (!actor || !state) return null;
 
   const { stateValue, context } = state;
+  const kycOrKyb = context.business ? "KYB" : "KYC";
 
   if (
     stateValue === "CheckingStatus" ||
@@ -44,7 +45,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Verifying KYC Status...</p>
+        <p className="text-gray-600 font-medium">Verifying {kycOrKyb} Status...</p>
         <p className="text-gray-500 text-sm text-center">This may take a few moments. Please do not close this window.</p>
       </div>
     );
@@ -53,9 +54,11 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "LinkReady") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-center text-gray-600">To continue, please complete the KYC process with our partner AlfredPay.</p>
+        <p className="text-center text-gray-600">
+          To continue, please complete the {kycOrKyb} process with our partner AlfredPay.
+        </p>
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={openLink}>
-          Open KYC Link
+          Open {kycOrKyb} Link
         </button>
       </div>
     );
@@ -76,7 +79,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
         <p className="text-center text-gray-600">
-          Please complete the KYC process in the new window. Once you are done, click the button below.
+          Please complete the {kycOrKyb} process in the new window. Once you are done, click the button below.
         </p>
         <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={completedFilling}>
           {isSubmitting ? (
@@ -85,7 +88,7 @@ export const AlfredpayKycFlow = () => {
               Verifying completion...
             </>
           ) : (
-            "I have finished the KYC verification"
+            `I have finished the ${kycOrKyb} verification`
           )}
         </button>
       </div>
@@ -95,17 +98,17 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "Done") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-green-600 font-bold text-lg">KYC Completed!</p>
+        <p className="text-green-600 font-bold text-lg">{kycOrKyb} Completed!</p>
         <p className="text-center text-gray-600">Your account has been verified. You can now proceed.</p>
         {/* Will not be rendered as the sub-state machine will stop and go to main kyc one */}
       </div>
     );
   }
 
-  if (stateValue === "Failure") {
+  if (stateValue === "FailureKyc") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-red-600 font-bold text-lg">KYC Failed</p>
+        <p className="text-red-600 font-bold text-lg">{kycOrKyb} Failed</p>
         <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
         <div className="flex w-full flex-col gap-2">
           <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "USER_RETRY" })}>
@@ -119,18 +122,47 @@ export const AlfredpayKycFlow = () => {
     );
   }
 
+  if (stateValue === "Failure") {
+    return (
+      <div className="flex flex-col items-center space-y-4 py-4">
+        <p className="text-red-600 font-bold text-lg">System Error</p>
+        <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
+        <div className="flex w-full flex-col gap-2">
+          <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "RETRY_PROCESS" })}>
+            Retry Process
+          </button>
+          <button className="btn-vortex-secondary btn w-full rounded-xl" onClick={() => actor.send({ type: "CANCEL_PROCESS" })}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (stateValue === "CostumerDefinition") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-center text-gray-600">Please select your account type to continue with KYC verification.</p>
+        <p className="text-center text-gray-600">Please continue with our partner for the {kycOrKyb} verification.</p>
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={userAccept}>
           Continue
         </button>
         <p className="text-center text-gray-500 text-sm">
-          {context.business ? "Click here to register as individual" : "If registering as a business please click here"}
-          <button className="text-blue-600 hover:text-blue-800 underline ml-1" onClick={toggleBusiness}>
-            here
-          </button>
+          {context.business ? (
+            <>
+              Click{" "}
+              <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness}>
+                here
+              </span>{" "}
+              to register as individual
+            </>
+          ) : (
+            <>
+              If registering as a business please click{" "}
+              <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness}>
+                here
+              </span>
+            </>
+          )}
         </p>
       </div>
     );
