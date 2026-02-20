@@ -1,4 +1,29 @@
+import logger from "../../../config/logger";
 import { supabase, supabaseAdmin } from "../../../config/supabase";
+
+// Supported BCP 47 locale values and their canonical forms.
+// The Supabase email templates branch on `.Data.locale` using these values.
+const LOCALE_MAP: Record<string, string> = {
+  en: "en-US",
+  "en-US": "en-US",
+  "en-us": "en-US",
+  pt: "pt-BR",
+  "pt-BR": "pt-BR",
+  "pt-br": "pt-BR"
+};
+
+const DEFAULT_LOCALE = "en-US";
+
+/**
+ * Normalizes an incoming locale string to a canonical BCP 47 value.
+ * Unknown or missing values fall back to the default locale.
+ */
+function resolveLocale(locale?: string): { resolved: string; source: "request" | "default" } {
+  if (locale && LOCALE_MAP[locale]) {
+    return { resolved: LOCALE_MAP[locale], source: "request" };
+  }
+  return { resolved: DEFAULT_LOCALE, source: "default" };
+}
 
 export class SupabaseAuthService {
   /**
@@ -7,11 +32,7 @@ export class SupabaseAuthService {
   static async checkUserExists(email: string): Promise<boolean> {
     try {
       // Query the profiles table directly for better performance
-      const { data, error } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
+      const { data, error } = await supabaseAdmin.from("profiles").select("id").eq("email", email).single();
 
       if (error) {
         // If error is "PGRST116" (no rows returned), user doesn't exist
@@ -23,7 +44,7 @@ export class SupabaseAuthService {
 
       return !!data;
     } catch (error) {
-      console.error("Error checking user existence:", error);
+      logger.error("Error checking user existence:", error);
       throw error;
     }
   }
@@ -31,12 +52,52 @@ export class SupabaseAuthService {
   /**
    * Send OTP to email
    */
-  static async sendOTP(email: string): Promise<void> {
+  static async sendOTP(email: string, locale?: string): Promise<void> {
+    const { resolved: emailLocale, source: localeSource } = resolveLocale(locale);
+
+    logger.debug(JSON.stringify({ emailLocale, event: "sendOTP", incomingLocale: locale ?? null, localeSource }));
+
+    // Try updating the locale of existing users
+    const { data: profileData } = await supabaseAdmin.from("profiles").select("id").eq("email", email).single();
+
+    if (profileData?.id) {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(profileData.id, {
+        // Will overwrite only the `locale` field
+        user_metadata: { locale: emailLocale }
+      });
+
+      if (updateError) {
+        logger.error(
+          JSON.stringify({
+            emailLocale,
+            error: updateError.message,
+            event: "sendOTP",
+            message: "failed to update user locale in metadata",
+            userId: profileData.id
+          })
+        );
+      } else {
+        logger.debug(
+          JSON.stringify({
+            emailLocale,
+            event: "sendOTP",
+            message: "updated existing user locale in metadata",
+            userId: profileData.id
+          })
+        );
+      }
+    }
+
+    const options = {
+      data: {
+        locale: emailLocale
+      },
+      shouldCreateUser: true
+    };
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        shouldCreateUser: true
-      }
+      options
     });
 
     if (error) {
