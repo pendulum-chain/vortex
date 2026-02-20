@@ -33,7 +33,6 @@ function useQuoteTokenIcons(quote: QuoteResponse) {
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { toggle, isExpanded, detailsId } = useCollapsibleCard();
-  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
 
   return (
     <>
@@ -44,14 +43,8 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
       <CurrencyExchange
         inputAmount={quote.inputAmount}
         inputCurrency={quote.inputCurrency}
-        inputFallbackIcon={inputIcon.fallbackIconSrc}
-        inputIcon={inputIcon.iconSrc}
-        inputNetwork={inputIcon.network}
         outputAmount={quote.outputAmount}
         outputCurrency={quote.outputCurrency}
-        outputFallbackIcon={outputIcon.fallbackIconSrc}
-        outputIcon={outputIcon.iconSrc}
-        outputNetwork={outputIcon.network}
       />
       <ToggleButton
         ariaControls={detailsId}
@@ -66,9 +59,13 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
+const APPROX_SIGN = "~";
+
 const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
+  const inputCurrencyUpper = quote.inputCurrency.toUpperCase();
+  const outputCurrencyUpper = quote.outputCurrency.toUpperCase();
 
   return (
     <section className="overflow-hidden">
@@ -86,7 +83,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {formatPrice(Big(quote.inputAmount))} {quote.inputCurrency.toUpperCase()}
+              {formatPrice(Big(quote.inputAmount))} {inputCurrencyUpper}
             </div>
           </div>
           <div className="flex flex-col">
@@ -100,7 +97,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              ~ {formatPrice(Big(quote.outputAmount))} {quote.outputCurrency.toUpperCase()}
+              {APPROX_SIGN} {formatPrice(Big(quote.outputAmount))} {outputCurrencyUpper}
             </div>
           </div>
         </div>

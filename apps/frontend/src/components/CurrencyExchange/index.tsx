@@ -1,4 +1,3 @@
-import { Networks } from "@vortexfi/shared";
 import Big from "big.js";
 import Arrow from "../../assets/arrow.svg";
 import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
@@ -8,16 +7,8 @@ interface CurrencyExchangeProps {
   inputCurrency: string;
   outputAmount: string;
   outputCurrency: string;
-  showIcons?: boolean;
-  layout?: "horizontal" | "vertical";
   className?: string;
   showApproximation?: boolean;
-  inputNetwork?: Networks;
-  outputNetwork?: Networks;
-  inputIcon?: string;
-  outputIcon?: string;
-  inputFallbackIcon?: string;
-  outputFallbackIcon?: string;
 }
 
 export const CurrencyExchange = ({
