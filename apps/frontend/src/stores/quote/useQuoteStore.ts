@@ -194,12 +194,8 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
           }
         },
         forceSetQuote: (quote: QuoteResponse) => {
-          set({
-            exchangeRate: 0,
-            loading: false,
-            outputAmount: undefined,
-            quote
-          });
+          const { outputAmount, exchangeRate } = processQuoteResponse(quote);
+          set({ exchangeRate, loading: false, outputAmount, quote });
         },
         reset: () => {
           set({
