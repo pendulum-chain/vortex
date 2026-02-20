@@ -81,12 +81,8 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
           <button
             className="btn-vortex-primary btn w-full"
             disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}
-            onClick={() => {
-              const formData = form.getValues();
-              aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
-            }}
             title={buttonProps.title}
-            type="button"
+            type="submit"
           >
             {isMaintenanceDisabled
               ? buttonProps.title
