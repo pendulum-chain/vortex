@@ -5,6 +5,7 @@ import {
   getOnChainTokenDetails,
   Networks,
   OnChainToken,
+  OnChainTokenSymbol,
   RampDirection
 } from "@vortexfi/shared";
 import { create } from "zustand";
@@ -42,7 +43,7 @@ const defaultOnChainToken =
 
 interface RampFormState {
   inputAmount: string;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   lastConstraintDirection: RampDirection;
   taxId?: string;
@@ -52,7 +53,7 @@ interface RampFormState {
 interface RampFormActions {
   actions: {
     setInputAmount: (amount?: string) => void;
-    setOnChainToken: (token: OnChainToken) => void;
+    setOnChainToken: (token: OnChainTokenSymbol) => void;
     setFiatToken: (token: FiatToken) => void;
     setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
@@ -93,7 +94,7 @@ export const useQuoteFormStore = create<RampFormState & RampFormActions>()(
         setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
         setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
         setInputAmount: (amount?: string) => set({ inputAmount: amount }),
-        setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
+        setOnChainToken: (token: OnChainTokenSymbol) => set({ onChainToken: token }),
         setPixId: (pixId: string) => set({ pixId }),
         setTaxId: (taxId: string) => set({ taxId })
       }

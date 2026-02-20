@@ -656,6 +656,19 @@ export const rampMachine = setup({
             quoteId: undefined
           }),
           target: "Idle"
+        },
+        SET_QUOTE: {
+          actions: assign({
+            enteredViaForm: ({ event }) => event.enteredViaForm,
+            quoteId: ({ event }) => event.quoteId,
+            quoteLocked: ({ event }) => event.lock
+          })
+        },
+        UPDATE_QUOTE: {
+          actions: assign({
+            quote: ({ event }) => event.quote,
+            quoteId: ({ event }) => event.quote.id
+          })
         }
       }
     },

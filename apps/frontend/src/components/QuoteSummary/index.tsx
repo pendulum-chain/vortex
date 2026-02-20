@@ -1,14 +1,14 @@
 import { QuoteResponse, RampDirection } from "@vortexfi/shared";
+import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { TransactionId } from "../TransactionId";
-
-export const QUOTE_SUMMARY_COLLAPSED_HEIGHT = 88;
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
@@ -33,7 +33,6 @@ function useQuoteTokenIcons(quote: QuoteResponse) {
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { toggle, isExpanded, detailsId } = useCollapsibleCard();
-  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
 
   return (
     <>
@@ -44,14 +43,8 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
       <CurrencyExchange
         inputAmount={quote.inputAmount}
         inputCurrency={quote.inputCurrency}
-        inputFallbackIcon={inputIcon.fallbackIconSrc}
-        inputIcon={inputIcon.iconSrc}
-        inputNetwork={inputIcon.network}
         outputAmount={quote.outputAmount}
         outputCurrency={quote.outputCurrency}
-        outputFallbackIcon={outputIcon.fallbackIconSrc}
-        outputIcon={outputIcon.iconSrc}
-        outputNetwork={outputIcon.network}
       />
       <ToggleButton
         ariaControls={detailsId}
@@ -66,18 +59,22 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
+const APPROX_SIGN = "~";
+
 const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
+  const inputCurrencyUpper = quote.inputCurrency.toUpperCase();
+  const outputCurrencyUpper = quote.outputCurrency.toUpperCase();
 
   return (
     <section className="overflow-hidden">
       <div className="mb-4">
         <h3 className="mb-3 font-semibold text-gray-900">{t("components.quoteSummary.exchangeDetails")}</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youSend")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={inputIcon.fallbackIconSrc}
@@ -86,12 +83,12 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
+              {formatPrice(Big(quote.inputAmount))} {inputCurrencyUpper}
             </div>
           </div>
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youReceive")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={outputIcon.fallbackIconSrc}
@@ -100,14 +97,12 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              ~ {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
+              {APPROX_SIGN} {formatPrice(Big(quote.outputAmount))} {outputCurrencyUpper}
             </div>
           </div>
         </div>
       </div>
-      <div>
-        <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
-      </div>
+      <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
     </section>
   );
 };

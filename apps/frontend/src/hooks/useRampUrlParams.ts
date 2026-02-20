@@ -1,17 +1,25 @@
+import { useSearch } from "@tanstack/react-router";
 import {
   AssetHubToken,
   DestinationType,
   EPaymentMethod,
+  type EvmNetworks,
   EvmToken,
   FiatToken,
+  getEvmTokenConfig,
+  getEvmTokensLoadedSnapshot,
+  isNetworkEVM,
+  logger,
   Networks,
   OnChainToken,
+  OnChainTokenSymbol,
   PaymentMethod,
   QuoteResponse,
-  RampDirection
+  RampDirection,
+  subscribeEvmTokensLoaded
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
@@ -21,6 +29,7 @@ import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
+import { RampSearchParams } from "../types/searchParams";
 import { useWidgetMode } from "./useWidgetMode";
 
 interface RampUrlParams {
@@ -33,7 +42,7 @@ interface RampUrlParams {
   moneriumCode?: string;
   fiat?: FiatToken;
   countryCode?: string;
-  cryptoLocked?: OnChainToken;
+  cryptoLocked?: OnChainTokenSymbol;
   paymentMethod?: PaymentMethod;
   walletLocked?: string;
   callbackUrl?: string;
@@ -58,7 +67,7 @@ function findFiatToken(fiatToken?: string): FiatToken | undefined {
   return foundToken;
 }
 
-function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainToken | undefined {
+function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainTokenSymbol | undefined {
   if (!tokenStr || !networkType) {
     return undefined;
   }
@@ -76,15 +85,15 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const [_, tokenValue] = matchedToken;
     return tokenValue as unknown as OnChainToken;
   } else {
-    const evmTokenEntries = Object.entries(EvmToken);
-    const matchedToken = evmTokenEntries.find(([_, token]) => token.toUpperCase() === tokenStr);
-
-    if (!matchedToken) {
-      return EvmToken.USDC;
+    if (isNetworkEVM(networkType as Networks)) {
+      const dynamicConfig = getEvmTokenConfig();
+      const networkTokens = dynamicConfig[networkType as EvmNetworks];
+      if (networkTokens && tokenStr in networkTokens) {
+        return tokenStr;
+      }
     }
 
-    const [_, tokenValue] = matchedToken;
-    return tokenValue as OnChainToken;
+    return EvmToken.USDC;
   }
 }
 
@@ -108,7 +117,7 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
 
 interface QuoteParams {
   inputAmount?: Big;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
@@ -119,8 +128,8 @@ interface QuotePayload {
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
-  inputCurrency: OnChainToken | FiatToken;
-  outputCurrency: OnChainToken | FiatToken;
+  inputCurrency: OnChainTokenSymbol | FiatToken;
+  outputCurrency: OnChainTokenSymbol | FiatToken;
 }
 
 const createQuotePayload = (params: QuoteParams): QuotePayload => {
@@ -168,25 +177,30 @@ export enum RampUrlParamsKeys {
 }
 
 export const useRampUrlParams = (): RampUrlParams => {
-  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const searchParams = useSearch({ strict: false }) as RampSearchParams;
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
+  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
 
   const urlParams = useMemo(() => {
-    const rampDirectionParam = params.get(RampUrlParamsKeys.RAMP_TYPE)?.toUpperCase();
-    const networkParam = params.get(RampUrlParamsKeys.NETWORK)?.toLowerCase();
-    const inputAmountParam = params.get(RampUrlParamsKeys.INPUT_AMOUNT);
-    const partnerIdParam = params.get(RampUrlParamsKeys.PARTNER_ID);
-    const apiKeyParam = params.get(RampUrlParamsKeys.API_KEY);
-    const moneriumCode = params.get(RampUrlParamsKeys.MONERIUM_CODE)?.toLowerCase();
-    const providedQuoteId = params.get(RampUrlParamsKeys.PROVIDED_QUOTE_ID)?.toLowerCase();
-    const fiatParam = params.get(RampUrlParamsKeys.FIAT)?.toUpperCase();
-    const cryptoLockedParam = params.get(RampUrlParamsKeys.CRYPTO_LOCKED)?.toUpperCase();
-    const paymentMethodParam = params.get(RampUrlParamsKeys.PAYMENT_METHOD) as PaymentMethod | undefined;
-    const walletLockedParam = params.get(RampUrlParamsKeys.WALLET_LOCKED);
-    const callbackUrlParam = params.get(RampUrlParamsKeys.CALLBACK_URL);
-    const externalSessionIdParam = params.get(RampUrlParamsKeys.EXTERNAL_SESSION_ID);
-    const countryCodeParam = params.get(RampUrlParamsKeys.COUNTRY_CODE)?.toUpperCase();
+    const rampDirectionParam = searchParams.rampType?.toUpperCase();
+    const fiatParam = searchParams.fiat?.toUpperCase();
+    const cryptoLockedParam = searchParams.cryptoLocked?.toUpperCase();
+    const countryCodeParam = searchParams.countryCode?.toUpperCase();
+
+    const moneriumCode = searchParams.code?.toLowerCase();
+    const networkParam = searchParams.network?.toLowerCase();
+    const providedQuoteId = searchParams.quoteId?.toLowerCase();
+    const paymentMethodParam = searchParams.paymentMethod?.toLowerCase() as PaymentMethod | undefined;
+
+    // inputAmount may be string or number after TanStack Router deserialization
+    const inputAmountParam = searchParams.inputAmount != null ? String(searchParams.inputAmount) : null;
+
+    const partnerIdParam = searchParams.partnerId;
+    const apiKeyParam = searchParams.apiKey;
+    const walletLockedParam = searchParams.walletAddressLocked;
+    const callbackUrlParam = searchParams.callbackUrl;
+    const externalSessionIdParam = searchParams.externalSessionId;
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -202,6 +216,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       callbackUrl: callbackUrlParam || undefined,
       countryCode: countryCodeParam || undefined,
       cryptoLocked,
+      evmTokensLoaded,
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
@@ -213,7 +228,8 @@ export const useRampUrlParams = (): RampUrlParams => {
       rampDirection,
       walletLocked: walletLockedParam || undefined
     };
-  }, [params, rampDirectionStore, selectedNetwork]);
+    // evmTokensLoaded: triggers re-evaluation of cryptoLocked when dynamic tokens (e.g. WETH, WBTC) finish loading from SquidRouter
+  }, [searchParams, rampDirectionStore, selectedNetwork, evmTokensLoaded]);
 
   return urlParams;
 };
@@ -263,7 +279,7 @@ export const useSetRampUrlParams = () => {
 
   const isWidget = useWidgetMode();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run-once guard via hasInitialized.current; re-running on every dep change would reset widget state
   useEffect(() => {
     // effect to read params when at /widget path
     if (!isWidget) return;
@@ -317,7 +333,7 @@ export const useSetRampUrlParams = () => {
             }
           })
           .catch((error: Error) => {
-            console.error("Error fetching quote with provided parameters:", error);
+            logger.current.error("Error fetching quote with provided parameters:", error);
             rampActor.send({ type: "INITIAL_QUOTE_FETCH_FAILED" });
           });
       }
@@ -411,4 +427,10 @@ export const useSetRampUrlParams = () => {
     handleFiatToken,
     moneriumCode
   ]);
+
+  useEffect(() => {
+    if (cryptoLocked) {
+      setOnChainToken(cryptoLocked);
+    }
+  }, [cryptoLocked, setOnChainToken]);
 };

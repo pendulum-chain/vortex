@@ -18,6 +18,7 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
@@ -89,7 +90,7 @@ function prepareSquidrouterRouteParams(params: {
 }): RouteParams {
   const { rampType, amountRaw, fromToken, toToken, fromNetwork, toNetwork } = params;
 
-  const placeholderAddress = "0x30a300612ab372cc73e53ffe87fb73d62ed68da3";
+  const placeholderAddress = privateKeyToAddress(generatePrivateKey());
   const placeholderHash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
   return rampType === RampDirection.BUY

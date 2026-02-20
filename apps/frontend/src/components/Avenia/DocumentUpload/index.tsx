@@ -1,12 +1,15 @@
-import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { AveniaDocumentType } from "@vortexfi/shared";
-import { motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { durations, easings } from "../../../constants/animations";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
 import { BrlaService } from "../../../services/api";
 import { KycLevel2Toggle } from "../../KycLevel2Toggle";
+import { StepFooter } from "../../StepFooter";
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
@@ -36,6 +39,7 @@ async function uploadFileAsBuffer(file: File, url: string) {
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, taxId }) => {
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
+  const shouldReduceMotion = useReducedMotion();
 
   const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
 
@@ -114,12 +118,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
-        console.log(
-          " urls: ",
-          response.idUpload.uploadURLFront,
-          response.idUpload.uploadURLBack,
-          response.selfieUpload.uploadURLFront
-        );
 
         uploads.push(
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
@@ -131,12 +129,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
-        console.log(
-          " urls: ",
-          response.idUpload.uploadURLFront,
-          response.idUpload.uploadURLBack,
-          response.selfieUpload.uploadURLFront
-        );
         // TODO how do we stop the flow until avenia liveness is done?
         uploads.push(uploadFileAsBuffer(front, response.idUpload.uploadURLFront));
       }
@@ -169,60 +161,108 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       <span className="mb-1 text-gray-600">{label}</span>
       <span className="text-gray-400 text-sm">{fileName || t("components.documentUpload.helperText")}</span>
       <input accept=".png,.jpeg,.jpg,.pdf" className="hidden" onChange={onChange} type="file" />
-      {valid && <CheckCircleIcon className="absolute top-2 right-2 h-6 w-6 text-green-500" />}
+      <AnimatePresence>
+        {valid && (
+          <motion.div
+            animate={{ scale: 1 }}
+            className="absolute top-2 right-2"
+            exit={{ scale: 0 }}
+            initial={{ scale: 0 }}
+            transition={shouldReduceMotion ? { duration: 0 } : { damping: 15, stiffness: 200, type: "spring" }}
+          >
+            <CheckCircleIcon className="h-6 w-6 text-green-500" />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </label>
   );
 
+  const fieldTransition = shouldReduceMotion ? { duration: 0 } : { duration: durations.normal, ease: easings.easeOutCubic };
+
   return (
-    <motion.div
+    <motion.form
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 min-h-[506px] px-4 pt-6 pb-8 md:mx-auto"
+      className="mt-8 mb-4 flex w-full flex-col"
       initial={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.3 }}
+      onSubmit={e => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
     >
-      <h2 className="mb-6 text-center font-semibold text-2xl text-blue-700">{t("components.documentUpload.title")}</h2>
-      <p className="mb-4 text-center text-gray-600">{t("components.documentUpload.description")}</p>
+      <div className="flex-1 pb-36">
+        <h2 className="mb-6 text-center font-semibold text-2xl text-blue-700">{t("components.documentUpload.title")}</h2>
+        <p className="mb-4 text-center text-gray-600">{t("components.documentUpload.description")}</p>
 
-      <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
+        <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
 
-      <div className="grid grid-cols-1 gap-4">
-        {docType === AveniaDocumentType.ID && (
-          <>
-            {renderField(
-              t("components.documentUpload.fields.rgFront"),
-              e => handleFileChange(e, setFront, setFrontValid),
-              frontValid,
-              DocumentTextIcon,
-              front?.name
+        <div className="grid grid-cols-1 gap-4">
+          <AnimatePresence mode="wait">
+            {docType === AveniaDocumentType.ID ? (
+              <motion.div
+                animate={{ opacity: 1, y: 0 }}
+                className="grid grid-cols-1 gap-4"
+                exit={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: 10 }}
+                key="id-fields"
+                transition={fieldTransition}
+              >
+                {renderField(
+                  t("components.documentUpload.fields.rgFront"),
+                  e => handleFileChange(e, setFront, setFrontValid),
+                  frontValid,
+                  DocumentTextIcon,
+                  front?.name
+                )}
+                {renderField(
+                  t("components.documentUpload.fields.rgBack"),
+                  e => handleFileChange(e, setBack, setBackValid),
+                  backValid,
+                  DocumentTextIcon,
+                  back?.name
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: 10 }}
+                key="cnh-fields"
+                transition={fieldTransition}
+              >
+                {renderField(
+                  t("components.documentUpload.fields.cnhDocument"),
+                  e => handleFileChange(e, setFront, setFrontValid),
+                  frontValid,
+                  DocumentTextIcon,
+                  front?.name
+                )}
+              </motion.div>
             )}
-            {renderField(
-              t("components.documentUpload.fields.rgBack"),
-              e => handleFileChange(e, setBack, setBackValid),
-              backValid,
-              DocumentTextIcon,
-              back?.name
-            )}
-          </>
-        )}
-        {docType === AveniaDocumentType.DRIVERS_LICENSE &&
-          renderField(
-            t("components.documentUpload.fields.cnhDocument"),
-            e => handleFileChange(e, setFront, setFrontValid),
-            frontValid,
-            DocumentTextIcon,
-            front?.name
+          </AnimatePresence>
+        </div>
+
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              animate={{ opacity: 1 }}
+              className="mt-4 text-center text-red-800"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.fast }}
+            >
+              {error}
+            </motion.p>
           )}
+        </AnimatePresence>
       </div>
 
-      {error && <p className="mt-4 text-center text-red-800">{error}</p>}
-
-      <div className="mt-8">
+      <StepFooter aboveQuote>
         <button
           className="btn-vortex-primary btn w-full"
-          onClick={handleSubmit}
-          type="button"
-          {...buttonProps}
-          disabled={buttonProps.disabled || isSubmitDisabled}
+          disabled={isMaintenanceDisabled || buttonProps.disabled || isSubmitDisabled}
+          title={buttonProps.title}
+          type="submit"
         >
           {isMaintenanceDisabled
             ? buttonProps.title
@@ -230,7 +270,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
               ? t("components.documentUpload.buttons.uploading")
               : t("components.documentUpload.buttons.finish")}
         </button>
-      </div>
-    </motion.div>
+      </StepFooter>
+    </motion.form>
   );
 };

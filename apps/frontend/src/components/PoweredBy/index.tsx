@@ -39,7 +39,7 @@ export function PoweredBy() {
   const { t } = useTranslation();
 
   return (
-    <section className="my-2 flex flex-col justify-between gap-y-2.5">
+    <section className="mt-16 mb-4 flex flex-col justify-between gap-y-2.5">
       <ImageList images={paymentImages} />
       <div className="flex items-center justify-center">
         <p className="mr-1 text-gray-500 text-xs">{t("components.footer.poweredBy")}</p>

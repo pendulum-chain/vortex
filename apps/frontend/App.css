@@ -31,7 +31,8 @@
   --radius: 0.625rem;
 
   /* QuoteSummary layout */
-  --quote-summary-height: 70px;
+  --quote-summary-height: 88px;
+  --widget-min-height: 506px;
 }
 
 @layer base {
@@ -249,7 +250,7 @@
 
 @layer utilities {
   .bottom-above-quote {
-    bottom: calc(var(--quote-summary-height) + 2rem);
+    bottom: calc(var(--quote-summary-height) + 1rem);
   }
 
   .shadow-custom {
