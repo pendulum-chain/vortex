@@ -153,6 +153,7 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as GetKybSubmissionResponse;
   }
 
+  // TODo is this endpoint correct?
   public async retryKybSubmission(customerId: string, submissionId: string): Promise<RetryKybSubmissionResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/retry`;
     return (await this.executeRequest(path, "POST")) as RetryKybSubmissionResponse;

@@ -21,7 +21,6 @@ export interface AlfredpayStatusResponse {
 // POST /alfredpay/createCustomer
 export interface AlfredpayCreateCustomerRequest {
   country: string;
-  type: AlfredpayCustomerType;
 }
 
 export interface AlfredpayCreateCustomerResponse {

@@ -31,29 +31,35 @@ export const alfredpayKycMachine = setup({
       const status = await AlfredpayService.getAlfredpayStatus(country);
       return status;
     }),
-    createBusinessCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
-      return AlfredpayService.createBusinessCustomer(country);
-    }),
+
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
-      return AlfredpayService.createCustomer(country, AlfredpayCustomerType.INDIVIDUAL);
+      if (input.business) {
+        return AlfredpayService.createBusinessCustomer(country);
+      }
+      return AlfredpayService.createCustomer(country);
     }),
-    getKybLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
-      return AlfredpayService.getKybRedirectLink(country);
-    }),
+
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
+      if (input.business) {
+        return AlfredpayService.getKybRedirectLink(country);
+      }
       return AlfredpayService.getKycRedirectLink(country);
     }),
     notifyFinished: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
-      return AlfredpayService.notifyKycRedirectFinished(country);
+      return AlfredpayService.notifyKycRedirectFinished(
+        country,
+        input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+      );
     }),
     notifyOpened: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
-      return AlfredpayService.notifyKycRedirectOpened(country);
+      return AlfredpayService.notifyKycRedirectOpened(
+        country,
+        input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+      );
     }),
     pollStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       console.log("Polling status for country", input.country);
@@ -62,7 +68,10 @@ export const alfredpayKycMachine = setup({
 
       while (true) {
         try {
-          const response = await AlfredpayService.getKycStatus(country);
+          const response = await AlfredpayService.getKycStatus(
+            country,
+            input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+          );
           if (response.status === AlfredPayStatus.Success || response.status === AlfredPayStatus.Failed) {
             return response;
           }
@@ -74,7 +83,10 @@ export const alfredpayKycMachine = setup({
     }),
     retryKyc: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
-      return AlfredpayService.retryKyc(country);
+      return AlfredpayService.retryKyc(
+        country,
+        input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+      );
     }),
     waitForValidation: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
@@ -82,7 +94,10 @@ export const alfredpayKycMachine = setup({
 
       while (true) {
         try {
-          const status = await AlfredpayService.getKycStatus(country);
+          const status = await AlfredpayService.getKycStatus(
+            country,
+            input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+          );
           if (
             status.status === AlfredPayStatus.Verifying ||
             status.status === AlfredPayStatus.Success ||
@@ -175,35 +190,7 @@ export const alfredpayKycMachine = setup({
         }
       }
     },
-    CreatingBusinessCustomer: {
-      invoke: {
-        id: "createBusinessCustomer",
-        input: ({ context }) => context,
-        onDone: {
-          target: "GettingKybLink"
-        },
-        onError: {
-          actions: assign({
-            error: () =>
-              new AlfredpayKycMachineError("Failed to create business customer", AlfredpayKycMachineErrorType.UnknownError)
-          }),
-          target: "Failure"
-        },
-        src: "createBusinessCustomer"
-      }
-    },
     CreatingCustomer: {
-      always: [
-        {
-          guard: ({ context }) => context.business === true,
-          target: "CreatingBusinessCustomer"
-        },
-        {
-          target: "CreatingIndividualCustomer"
-        }
-      ]
-    },
-    CreatingIndividualCustomer: {
       invoke: {
         id: "createCustomer",
         input: ({ context }) => context,
@@ -257,26 +244,6 @@ export const alfredpayKycMachine = setup({
           target: "PollingStatus"
         },
         src: "notifyFinished"
-      }
-    },
-    GettingKybLink: {
-      invoke: {
-        id: "getKybLink",
-        input: ({ context }) => context,
-        onDone: {
-          actions: assign({
-            submissionId: ({ event }) => event.output.submissionId,
-            verificationUrl: ({ event }) => event.output.verification_url
-          }),
-          target: "LinkReady"
-        },
-        onError: {
-          actions: assign({
-            error: () => new AlfredpayKycMachineError("Failed to get KYB link", AlfredpayKycMachineErrorType.UnknownError)
-          }),
-          target: "Failure"
-        },
-        src: "getKybLink"
       }
     },
     GettingKycLink: {
