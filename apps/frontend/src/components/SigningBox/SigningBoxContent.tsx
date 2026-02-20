@@ -12,7 +12,7 @@ export const SigningBoxButton = ({ signatureState, confirmations }: SigningBoxBu
   const { t } = useTranslation();
 
   return (
-    <button className="btn-vortex-primary btn rounded-xl" disabled style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}>
+    <button className="btn-vortex-primary btn w-full rounded-xl" disabled style={{ flex: "1 1 calc(50% - 0.75rem/2)" }}>
       <Spinner />
       <p className="my-2 ml-2.5 text-xs">
         {t("components.signingBox.waitingForSignature")} {signatureState.current}/{signatureState.max}
