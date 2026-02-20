@@ -18,10 +18,6 @@ export const AveniaKYBForm = () => {
 
   const { t } = useTranslation();
 
-  console.log(
-    "AveniaKYBForm: kycFormData from aveniaState context before passing to useKYCForm:",
-    aveniaState?.context.kycFormData
-  );
   const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   useEffect(() => {

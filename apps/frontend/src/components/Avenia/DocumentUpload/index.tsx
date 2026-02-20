@@ -118,12 +118,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
-        console.log(
-          " urls: ",
-          response.idUpload.uploadURLFront,
-          response.idUpload.uploadURLBack,
-          response.selfieUpload.uploadURLFront
-        );
 
         uploads.push(
           uploadFileAsBuffer(front, response.idUpload.uploadURLFront),
@@ -135,12 +129,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           console.error("Validation flags were true, but file data is missing. This is a bug.");
           return;
         }
-        console.log(
-          " urls: ",
-          response.idUpload.uploadURLFront,
-          response.idUpload.uploadURLBack,
-          response.selfieUpload.uploadURLFront
-        );
         // TODO how do we stop the flow until avenia liveness is done?
         uploads.push(uploadFileAsBuffer(front, response.idUpload.uploadURLFront));
       }
