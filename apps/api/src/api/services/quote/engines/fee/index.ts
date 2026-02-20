@@ -25,6 +25,10 @@ export interface FeeConfig {
 export interface FeeComputation {
   anchor: FeeComponentInput;
   network: FeeComponentInput;
+  // Optional fees that may not be applicable to all engines, but can be included in the summary if present
+  // Override the vortex and partner markup fees from the fee components
+  forcedVortexFee?: FeeComponentInput;
+  forcedPartnerMarkupFee?: FeeComponentInput;
 }
 
 export abstract class BaseFeeEngine implements Stage {
@@ -54,13 +58,13 @@ export abstract class BaseFeeEngine implements Stage {
       to: request.to
     });
 
-    const { anchor, network } = await this.compute(ctx, anchorFee, feeCurrency);
+    const { anchor, network, forcedVortexFee, forcedPartnerMarkupFee } = await this.compute(ctx, anchorFee, feeCurrency);
 
     await assignFeeSummary(ctx, {
       anchor,
       network,
-      partnerMarkup: { amount: partnerMarkupFee, currency: feeCurrency },
-      vortex: { amount: vortexFee, currency: feeCurrency }
+      partnerMarkup: forcedPartnerMarkupFee ? forcedPartnerMarkupFee : { amount: partnerMarkupFee, currency: feeCurrency },
+      vortex: forcedVortexFee ? forcedVortexFee : { amount: vortexFee, currency: feeCurrency }
     });
   }
 
