@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { createContext, forwardRef, ReactNode, useContext, useId, useState } from "react";
+import { createContext, forwardRef, ReactNode, useCallback, useContext, useId, useState } from "react";
 import { durations, easings } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 
@@ -41,16 +41,18 @@ const CollapsibleCard = forwardRef<HTMLDivElement, CollapsibleCardProps>(
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const detailsId = useId();
 
-    const toggle = () => {
-      const newState = !isExpanded;
-      setIsExpanded(newState);
-      onToggle?.(newState);
-    };
+    const toggle = useCallback(() => {
+      setIsExpanded(prev => {
+        const newState = !prev;
+        onToggle?.(newState);
+        return newState;
+      });
+    }, [onToggle]);
 
     return (
       <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
         <div
-          className={`flex flex-col-reverse rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}
+          className={`flex flex-col-reverse rounded-lg border border-blue-700 bg-white p-4 shadow-md transition-transform hover:scale-[101%] ${className}`}
           ref={ref}
         >
           {children}
