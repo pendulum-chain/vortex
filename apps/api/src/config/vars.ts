@@ -18,6 +18,7 @@ interface SpreadsheetConfig {
   googleCredentials: GoogleCredentials;
   storageSheetId: string | undefined;
   emailSheetId: string | undefined;
+  contactSheetId: string | undefined;
   ratingSheetId: string | undefined;
 }
 
@@ -31,6 +32,11 @@ interface Config {
   rateLimitNumberOfProxies: string | number;
   logs: string;
   adminSecret: string;
+  supabase: {
+    url: string;
+    anonKey: string;
+    serviceRoleKey: string;
+  };
   priceProviders: {
     alchemyPay: PriceProvider;
     transak: PriceProvider;
@@ -53,8 +59,6 @@ interface Config {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
   };
-  supabaseKey: string | undefined;
-  supabaseUrl: string | undefined;
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
 }
@@ -98,6 +102,7 @@ export const config: Config = {
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
   spreadsheet: {
+    contactSheetId: process.env.GOOGLE_CONTACT_SPREADSHEET_ID,
     emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
     googleCredentials: {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -107,8 +112,11 @@ export const config: Config = {
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
   subscanApiKey: process.env.SUBSCAN_API_KEY,
-  supabaseKey: process.env.SUPABASE_SERVICE_KEY,
-  supabaseUrl: process.env.SUPABASE_URL,
+  supabase: {
+    anonKey: process.env.SUPABASE_ANON_KEY || "",
+    serviceRoleKey: process.env.SUPABASE_SERVICE_KEY || "",
+    url: process.env.SUPABASE_URL || ""
+  },
   swap: {
     deadlineMinutes: 60 * 24 * 7 // 1 week
   },

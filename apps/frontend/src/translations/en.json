@@ -11,6 +11,39 @@
       },
       "title": "Special offer until 27 May"
     },
+    "authEmailStep": {
+      "buttons": {
+        "continue": "Continue",
+        "sending": "Sending..."
+      },
+      "description": "We'll send you a one-time code to verify your identity",
+      "fields": {
+        "email": {
+          "label": "Email Address",
+          "placeholder": "you@example.com"
+        }
+      },
+      "termsCheckbox": {
+        "and": "and",
+        "prefix": "I agree to the",
+        "privacyPolicy": "Privacy Policy",
+        "termsAndConditions": "Terms and Conditions"
+      },
+      "title": "Verify Your Email",
+      "validation": {
+        "invalidEmail": "Please enter a valid email address"
+      }
+    },
+    "authOTPStep": {
+      "buttons": {
+        "useDifferentEmail": "Use a different email"
+      },
+      "description": "We sent a 6-digit code to <1>{{email}}</1>",
+      "status": {
+        "verifying": "Verifying..."
+      },
+      "title": "Enter Verification Code"
+    },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
         "instructions": "As the individual legally authorized to act on behalf of the company, please provide your personal information and required documents."
@@ -435,6 +468,7 @@
     "stepper": {
       "confirm": "Confirm",
       "details": "Details",
+      "login": "Login",
       "verification": "Verification"
     },
     "swap": {
@@ -528,6 +562,7 @@
         "support": "Support",
         "termsAndConditions": "Terms & Conditions"
       },
+      "signOut": "Sign Out",
       "title": "Settings"
     }
   },
@@ -589,6 +624,43 @@
         "subtitle": "Vortex hosted app is the fastest way to add a secure fiat on/offramp to your app.",
         "title": "One integration.",
         "title2": " Everything handled."
+      }
+    },
+    "contact": {
+      "emailUs": "You can also email us at",
+      "error": "Something went wrong. Please try again.",
+      "form": {
+        "email": "Email",
+        "emailPlaceholder": "your@email.com",
+        "fullName": "Full name",
+        "fullNamePlaceholder": "Enter your full name",
+        "holdToSubmit": "Hold to submit",
+        "inquiry": "Tell us more about your inquiry",
+        "inquiryPlaceholder": "Describe your project and how we can help...",
+        "privacyPolicy": "I agree to Vortex",
+        "privacyPolicyLink": "Privacy Policy",
+        "projectName": "Project name",
+        "projectNamePlaceholder": "Enter your project name",
+        "submit": "Submit"
+      },
+      "info": {
+        "integrationHelp": "Get integration help",
+        "onboardingHelp": "Get onboarding help",
+        "requestDemo": "Request a demo",
+        "supportLink": "Contact support",
+        "technicalQuestions": "Technical issues or product questions?",
+        "title": "Contact sales"
+      },
+      "success": "Thank you! We'll be in touch soon.",
+      "title": "Tell us how to help",
+      "validation": {
+        "emailFormat": "Please enter a valid email address",
+        "emailRequired": "Email is required",
+        "fullNameRequired": "Full name is required",
+        "inquiryMinLength": "Please provide more details (at least 10 characters)",
+        "inquiryRequired": "Please tell us about your inquiry",
+        "privacyPolicyRequired": "You must accept the privacy policy",
+        "projectNameRequired": "Project name is required"
       }
     },
     "failure": {

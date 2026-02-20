@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { createContext, forwardRef, ReactNode, useContext, useId, useState } from "react";
+import { createContext, forwardRef, ReactNode, useCallback, useContext, useId, useState } from "react";
 import { durations, easings } from "../../constants/animations";
+import { cn } from "../../helpers/cn";
 
 interface CollapsibleCardProps {
   children: ReactNode;
@@ -40,16 +41,18 @@ const CollapsibleCard = forwardRef<HTMLDivElement, CollapsibleCardProps>(
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const detailsId = useId();
 
-    const toggle = () => {
-      const newState = !isExpanded;
-      setIsExpanded(newState);
-      onToggle?.(newState);
-    };
+    const toggle = useCallback(() => {
+      setIsExpanded(prev => {
+        const newState = !prev;
+        onToggle?.(newState);
+        return newState;
+      });
+    }, [onToggle]);
 
     return (
       <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
         <div
-          className={`rounded-lg border border-blue-700 bg-white p-4 shadow-md transition hover:scale-[101%] ${className}`}
+          className={`flex flex-col-reverse rounded-lg border border-blue-700 bg-white p-4 shadow-md transition-transform hover:scale-[101%] ${className}`}
           ref={ref}
         >
           {children}
@@ -71,19 +74,23 @@ const CollapsibleDetails = ({ children, className = "" }: CollapsibleDetailsProp
 
   return (
     <div
-      className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${className}`}
-      style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+      className={cn(
+        "grid",
+        isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        "transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+        className
+      )}
     >
       <div className="overflow-hidden">
         <AnimatePresence>
           {isExpanded && (
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="mt-4 border-gray-200 border-t pt-4"
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+              className="mb-4 border-gray-200 border-b pb-4"
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
               id={detailsId}
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.normal, ease: easings.easeOutCubic }}
             >
               {children}
             </motion.div>

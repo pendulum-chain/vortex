@@ -12,6 +12,7 @@ export enum TaxIdInternalStatus {
 // Define the attributes of the TaxId model
 export interface TaxIdAttributes {
   taxId: string;
+  userId: string | null; // UUID reference to Supabase Auth user
   subAccountId: string;
   accountType: AveniaAccountType;
   kycAttempt: string | null;
@@ -44,6 +45,7 @@ type TaxIdCreationAttributes = Optional<
 // Define the TaxId model
 class TaxId extends Model<TaxIdAttributes, TaxIdCreationAttributes> implements TaxIdAttributes {
   declare taxId: string;
+  declare userId: string | null;
   declare subAccountId: string;
   declare accountType: AveniaAccountType;
   declare kycAttempt: string | null;
@@ -127,6 +129,17 @@ TaxId.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    userId: {
+      allowNull: true,
+      field: "user_id",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "profiles"
+      },
+      type: DataTypes.UUID
     }
   },
   {

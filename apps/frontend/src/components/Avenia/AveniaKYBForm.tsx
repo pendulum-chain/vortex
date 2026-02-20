@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
 import { useQuote } from "../../stores/quote/useQuoteStore";
-import { DetailsStepQuoteSummary } from "../widget-steps/DetailsStep/DetailsStepQuoteSummary";
+import { QuoteSummary } from "../QuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 
@@ -18,10 +18,6 @@ export const AveniaKYBForm = () => {
 
   const { t } = useTranslation();
 
-  console.log(
-    "AveniaKYBForm: kycFormData from aveniaState context before passing to useKYCForm:",
-    aveniaState?.context.kycFormData
-  );
   const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   useEffect(() => {
@@ -57,9 +53,11 @@ export const AveniaKYBForm = () => {
   ];
 
   return (
-    <>
-      <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
-      <DetailsStepQuoteSummary quote={quote} />
-    </>
+    <div className="relative flex min-h-(--widget-min-height) grow flex-col">
+      <div className="flex flex-1 flex-col">
+        <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
+      </div>
+      {quote && <QuoteSummary quote={quote} />}
+    </div>
   );
 };

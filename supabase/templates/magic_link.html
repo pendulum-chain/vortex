@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{ $locale := index .Data "locale" }}
+  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt") }}
+  {{ if $isBrazil }}
+  <title>Seu código de verificação Vortex</title>
+  {{ else }}
+  <title>Your Vortex Verification Code</title>
+  {{ end }}
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f7;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    }
+    .header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .brand-name {
+      color: #ffffff;
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+      letter-spacing: 2px;
+    }
+    .header-title {
+      color: #e0e7ff;
+      font-size: 18px;
+      font-weight: 400;
+      margin: 0;
+    }
+    .content {
+      padding: 40px 30px;
+      text-align: center;
+    }
+    .greeting {
+      font-size: 18px;
+      color: #1f2937;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .message {
+      font-size: 15px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .otp-container {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 2px solid #2563eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 32px 0;
+    }
+    .otp-label {
+      font-size: 13px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .otp-code {
+      font-size: 36px;
+      font-weight: 700;
+      color: #2563eb;
+      letter-spacing: 8px;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+    }
+    .expiry-notice {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 12px;
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 24px 30px;
+      text-align: center;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer-text {
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 0 0 12px 0;
+      line-height: 1.6;
+    }
+    .footer-links {
+      margin-bottom: 16px;
+    }
+    .footer-link {
+      color: #6b7280;
+      text-decoration: underline;
+      margin: 0 8px;
+      font-size: 12px;
+    }
+    .footer-link:hover {
+      color: #2563eb;
+    }
+    .help-text {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- Header with Brand Name -->
+    <div class="header">
+      <h1 class="brand-name">VORTEX</h1>
+      {{ if $isBrazil }}
+      <p class="header-title">Código de verificação</p>
+      {{ else }}
+      <p class="header-title">Verification Code</p>
+      {{ end }}
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      {{ if $isBrazil }}
+      <p class="greeting">Bem-vindo(a) de volta!</p>
+      <p class="message">
+        Você solicitou um código de verificação para entrar na sua conta Vortex.
+        Digite o código abaixo para concluir o login:
+      </p>
+      {{ else }}
+      <p class="greeting">Welcome back!</p>
+      <p class="message">
+        You requested a verification code to sign in to your Vortex account. 
+        Enter the code below to complete your sign-in:
+      </p>
+      {{ end }}
+
+      <!-- OTP Code Box -->
+      <div class="otp-container">
+        {{ if $isBrazil }}
+        <div class="otp-label">Seu código de verificação</div>
+        {{ else }}
+        <div class="otp-label">Your Verification Code</div>
+        {{ end }}
+        <p class="otp-code">{{ .Token }}</p>
+        {{ if $isBrazil }}
+        <div class="expiry-notice">Este código expira em 1 hora</div>
+        {{ else }}
+        <div class="expiry-notice">This code expires in 1 hour</div>
+        {{ end }}
+      </div>
+
+      {{ if $isBrazil }}
+      <p class="message">
+        Se você não solicitou este código, pode ignorar este email com segurança.
+      </p>
+      {{ else }}
+      <p class="message">
+        If you didn't request this code, you can safely ignore this email.
+      </p>
+      {{ end }}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-links">
+        {{ if $isBrazil }}
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Serviço</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Política de Privacidade</a>
+        {{ else }}
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Terms of Service</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Privacy Policy</a>
+        {{ end }}
+      </div>
+      
+      {{ if $isBrazil }}
+      <p class="footer-text">
+        Este email foi enviado por <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
+        Dúvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+      </p>
+      {{ else }}
+      <p class="footer-text">
+        This email was sent by <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
+        Questions? Contact us at <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+      </p>
+      {{ end }}
+      
+      {{ if $isBrazil }}
+      <p class="help-text">
+        &copy; 2026 Vortex Finance. Todos os direitos reservados.
+      </p>
+      {{ else }}
+      <p class="help-text">
+        &copy; 2026 Vortex Finance. All rights reserved.
+      </p>
+      {{ end }}
+    </div>
+  </div>
+</body>
+</html>

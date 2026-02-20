@@ -11,6 +11,39 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "authEmailStep": {
+      "buttons": {
+        "continue": "Continuar",
+        "sending": "Enviando..."
+      },
+      "description": "Enviaremos um código único para verificar sua identidade",
+      "fields": {
+        "email": {
+          "label": "Endereço de e-mail",
+          "placeholder": "voce@exemplo.com"
+        }
+      },
+      "termsCheckbox": {
+        "and": "e",
+        "prefix": "Eu concordo com os",
+        "privacyPolicy": "Política de Privacidade",
+        "termsAndConditions": "Termos e Condições"
+      },
+      "title": "Verificação Por E-mail",
+      "validation": {
+        "invalidEmail": "Por favor, insira um endereço de e-mail válido"
+      }
+    },
+    "authOTPStep": {
+      "buttons": {
+        "useDifferentEmail": "Usar um e-mail diferente"
+      },
+      "description": "Enviamos um código de 6 dígitos para <1>{{email}}</1>",
+      "status": {
+        "verifying": "Verificando..."
+      },
+      "title": "Digite o código de verificação"
+    },
     "aveniaKYB": {
       "aveniaKYBVerifyCompanyRepresentative": {
         "instructions": "Como indivíduo legalmente autorizado a agir em nome da empresa, forneça suas informações pessoais e os documentos necessários."
@@ -435,6 +468,7 @@
     "stepper": {
       "confirm": "Confirmar",
       "details": "Detalhes",
+      "login": "Login",
       "verification": "Verificação"
     },
     "swap": {
@@ -528,6 +562,7 @@
         "support": "Apoiar",
         "termsAndConditions": "Termos e Condições"
       },
+      "signOut": "Sair",
       "title": "Configurações"
     }
   },
@@ -585,6 +620,43 @@
         },
         "subtitle": "O app hospedado da Vortex é a maneira mais rápida de adicionar uma rampa fiat on/off segura ao seu app.",
         "title": "Uma integração. Tudo resolvido."
+      }
+    },
+    "contact": {
+      "emailUs": "Você também pode nos enviar um e-mail para",
+      "error": "Algo deu errado. Por favor, tente novamente.",
+      "form": {
+        "email": "E-mail",
+        "emailPlaceholder": "seu@email.com",
+        "fullName": "Nome completo",
+        "fullNamePlaceholder": "Digite seu nome completo",
+        "holdToSubmit": "Segure para enviar",
+        "inquiry": "Conte-nos mais sobre sua consulta",
+        "inquiryPlaceholder": "Descreva seu projeto e como podemos ajudar...",
+        "privacyPolicy": "Eu concordo com a",
+        "privacyPolicyLink": "Política de Privacidade",
+        "projectName": "Nome do projeto",
+        "projectNamePlaceholder": "Digite o nome do seu projeto",
+        "submit": "Enviar"
+      },
+      "info": {
+        "integrationHelp": "Obter ajuda de integração",
+        "onboardingHelp": "Obter ajuda de onboarding",
+        "requestDemo": "Solicitar uma demonstração",
+        "supportLink": "Contatar suporte",
+        "technicalQuestions": "Problemas técnicos ou dúvidas sobre o produto?",
+        "title": "Fale com vendas"
+      },
+      "success": "Obrigado! Entraremos em contato em breve.",
+      "title": "Conte-nos como podemos ajudar",
+      "validation": {
+        "emailFormat": "Por favor, insira um e-mail válido",
+        "emailRequired": "E-mail é obrigatório",
+        "fullNameRequired": "Nome completo é obrigatório",
+        "inquiryMinLength": "Por favor, forneça mais detalhes (pelo menos 10 caracteres)",
+        "inquiryRequired": "Por favor, conte-nos sobre sua consulta",
+        "privacyPolicyRequired": "Você deve aceitar a política de privacidade",
+        "projectNameRequired": "Nome do projeto é obrigatório"
       }
     },
     "failure": {

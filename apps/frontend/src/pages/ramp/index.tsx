@@ -4,6 +4,7 @@ import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
 import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
+import { useAuthTokens } from "../../hooks/useAuthTokens";
 import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
@@ -20,6 +21,7 @@ export const Ramp = () => {
   const { forceSetQuote } = useQuoteActions();
   useMoneriumFlow();
   useSiweSignature(stellarKycActor);
+  useAuthTokens(rampActor);
 
   const { showToast } = useToastMessage();
 
@@ -36,10 +38,18 @@ export const Ramp = () => {
   }));
 
   useEffect(() => {
-    if (quoteFromState && quote !== quoteFromState) {
+    // Only initialize Zustand from machine when Zustand has no quote yet (e.g. widget loaded via ?quoteId= URL param)
+    if (quoteFromState && !quote) {
       forceSetQuote(quoteFromState);
     }
   }, [quote, quoteFromState, forceSetQuote]);
+
+  useEffect(() => {
+    // Keep machine context in sync with live quotes fetched by useQuoteService in QuoteReady
+    if (quote && state === "QuoteReady") {
+      rampActor.send({ quote, type: "UPDATE_QUOTE" });
+    }
+  }, [quote, state, rampActor]);
 
   console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();

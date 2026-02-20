@@ -143,7 +143,8 @@ export abstract class BaseFinalizeEngine implements Stage {
       paymentMethod,
       rampType: request.rampType,
       status: "pending",
-      to: request.to
+      to: request.to,
+      userId: request.userId || null
     });
 
     ctx.builtResponse = buildQuoteResponse(record);

@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
 import { Trans, useTranslation } from "react-i18next";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
-import { DetailsStepQuoteSummary } from "../../widget-steps/DetailsStep/DetailsStepQuoteSummary";
+import { StepFooter } from "../../StepFooter";
 
 interface AveniaKYBVerifyStepProps {
   titleKey: string;
@@ -32,50 +32,54 @@ export const AveniaKYBVerifyStep = ({
   const { t } = useTranslation();
 
   return (
-    <>
-      <div className="mt-8 mb-4 flex min-h-[506px] w-full flex-col justify-between">
-        <div>
-          <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
+    <div className="relative flex min-h-(--widget-min-height) w-full grow flex-col">
+      <div className="flex-1 pb-36">
+        <div className="mt-8 mb-4 flex w-full flex-col">
+          <div>
+            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
 
-          <img
-            alt="Business Check"
-            className="mx-auto mt-16 w-[170px] transition-opacity duration-300 motion-reduce:transition-none"
-            src={imageSrc}
-          />
+            <img
+              alt="Business Check"
+              className="mx-auto mt-16 w-[170px] transition-opacity duration-300 motion-reduce:transition-none"
+              src={imageSrc}
+            />
 
-          {!isVerificationStarted && (
-            <p className="mx-1 mt-6 mb-4 text-center">
-              <Trans i18nKey={instructionsKey}>
-                Please provide our trusted partner
-                <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
-                  Avenia
-                </a>
-                with your company registration information and the required documents.
-              </Trans>
-            </p>
-          )}
+            {!isVerificationStarted && (
+              <p className="mx-1 mt-6 mb-4 text-center">
+                <Trans i18nKey={instructionsKey}>
+                  Please provide our trusted partner
+                  <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                    Avenia
+                  </a>
+                  with your company registration information and the required documents.
+                </Trans>
+              </p>
+            )}
 
-          {isVerificationStarted && (
-            <div className="mx-1 mt-6 text-center">
-              <Trans
-                components={{
-                  1: (
-                    <a
-                      className="cursor-pointer font-bold text-primary underline"
-                      href={verificationUrl}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      here
-                    </a>
-                  )
-                }}
-                i18nKey="components.aveniaKYB.tryAgain"
-              />
-            </div>
-          )}
+            {isVerificationStarted && (
+              <div className="mx-1 mt-6 text-center">
+                <Trans
+                  components={{
+                    1: (
+                      <a
+                        className="cursor-pointer font-bold text-primary underline"
+                        href={verificationUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        here
+                      </a>
+                    )
+                  }}
+                  i18nKey="components.aveniaKYB.tryAgain"
+                />
+              </div>
+            )}
+          </div>
         </div>
+      </div>
 
+      <StepFooter quote={quote}>
         <div className="mt-8 flex gap-4">
           <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
             {t(cancelButtonKey)}
@@ -98,8 +102,7 @@ export const AveniaKYBVerifyStep = ({
             </a>
           )}
         </div>
-      </div>
-      <DetailsStepQuoteSummary quote={quote} />
-    </>
+      </StepFooter>
+    </div>
   );
 };

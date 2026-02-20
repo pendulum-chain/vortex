@@ -85,7 +85,6 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   }, [rampDirection, t]);
 
   const onClick = () => {
-    // Pass the quote ID to the widget page
     const quoteId = quote?.id;
 
     if (quoteId) {

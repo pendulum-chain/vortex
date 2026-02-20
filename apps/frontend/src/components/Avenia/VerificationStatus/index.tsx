@@ -1,7 +1,8 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
+
 import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
 
@@ -16,7 +17,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-4 mt-8 mb-4 flex min-h-[506px] flex-col items-center justify-center px-4 py-4 md:mx-auto"
+      className="mx-4 mt-8 mb-4 flex min-h-(--widget-min-height) flex-col items-center justify-center px-4 py-4 md:mx-auto"
       initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
@@ -89,50 +90,60 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({ aveniaKy
   );
 };
 
-const SuccessIcon = () => (
-  <motion.svg
-    animate={{ scale: 1 }}
-    className="h-16 w-16 text-green-500"
-    fill="none"
-    initial={{ scale: 0 }}
-    stroke="currentColor"
-    transition={{
-      damping: 15,
-      stiffness: 200,
-      type: "spring"
-    }}
-    viewBox="0 0 24 24"
-  >
-    <motion.path
-      animate={{ pathLength: 1 }}
-      d="M5 13l4 4L19 7"
-      initial={{ pathLength: 0 }}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      transition={{ delay: 0.2, duration: 0.8 }}
-    />
-  </motion.svg>
-);
+const SuccessIcon = () => {
+  const shouldReduceMotion = useReducedMotion();
+  const { t } = useTranslation();
 
-const ErrorIcon = () => (
-  <motion.svg
-    animate={{ opacity: 1, rotate: 0 }}
-    className="h-16 w-16 text-red-800"
-    fill="none"
-    initial={{ opacity: 0, rotate: -90 }}
-    stroke="currentColor"
-    transition={{ duration: 0.5 }}
-    viewBox="0 0 24 24"
-  >
-    <motion.path
-      animate={{ pathLength: 1 }}
-      d="M6 18L18 6M6 6l12 12"
-      initial={{ pathLength: 0 }}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      transition={{ duration: 0.6 }}
-    />
-  </motion.svg>
-);
+  return (
+    <motion.svg
+      animate={{ scale: 1 }}
+      aria-label={t("components.brlaExtendedForm.verificationStatus.success")}
+      className="h-16 w-16 text-green-500"
+      fill="none"
+      initial={shouldReduceMotion ? false : { scale: 0 }}
+      role="img"
+      stroke="currentColor"
+      transition={shouldReduceMotion ? { duration: 0 } : { damping: 15, stiffness: 200, type: "spring" }}
+      viewBox="0 0 24 24"
+    >
+      <motion.path
+        animate={{ pathLength: 1 }}
+        d="M5 13l4 4L19 7"
+        initial={shouldReduceMotion ? false : { pathLength: 0 }}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.2, duration: 0.8 }}
+      />
+    </motion.svg>
+  );
+};
+
+const ErrorIcon = () => {
+  const shouldReduceMotion = useReducedMotion();
+  const { t } = useTranslation();
+
+  return (
+    <motion.svg
+      animate={{ opacity: 1, rotate: 0 }}
+      aria-label={t("components.brlaExtendedForm.verificationStatus.error")}
+      className="h-16 w-16 text-red-800"
+      fill="none"
+      initial={shouldReduceMotion ? false : { opacity: 0, rotate: -90 }}
+      role="img"
+      stroke="currentColor"
+      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5 }}
+      viewBox="0 0 24 24"
+    >
+      <motion.path
+        animate={{ pathLength: 1 }}
+        d="M6 18L18 6M6 6l12 12"
+        initial={shouldReduceMotion ? false : { pathLength: 0 }}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6 }}
+      />
+    </motion.svg>
+  );
+};

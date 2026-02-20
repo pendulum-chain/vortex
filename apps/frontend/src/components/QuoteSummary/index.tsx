@@ -1,7 +1,9 @@
 import { QuoteResponse, RampDirection } from "@vortexfi/shared";
-import { useRef } from "react";
+import Big from "big.js";
 import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
@@ -10,6 +12,7 @@ import { TransactionId } from "../TransactionId";
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
+  className?: string;
 }
 
 /**
@@ -30,7 +33,6 @@ function useQuoteTokenIcons(quote: QuoteResponse) {
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { toggle, isExpanded, detailsId } = useCollapsibleCard();
-  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
 
   return (
     <>
@@ -41,14 +43,8 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
       <CurrencyExchange
         inputAmount={quote.inputAmount}
         inputCurrency={quote.inputCurrency}
-        inputFallbackIcon={inputIcon.fallbackIconSrc}
-        inputIcon={inputIcon.iconSrc}
-        inputNetwork={inputIcon.network}
         outputAmount={quote.outputAmount}
         outputCurrency={quote.outputCurrency}
-        outputFallbackIcon={outputIcon.fallbackIconSrc}
-        outputIcon={outputIcon.iconSrc}
-        outputNetwork={outputIcon.network}
       />
       <ToggleButton
         ariaControls={detailsId}
@@ -63,18 +59,22 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
+const APPROX_SIGN = "~";
+
 const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
   const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
+  const inputCurrencyUpper = quote.inputCurrency.toUpperCase();
+  const outputCurrencyUpper = quote.outputCurrency.toUpperCase();
 
   return (
     <section className="overflow-hidden">
       <div className="mb-4">
         <h3 className="mb-3 font-semibold text-gray-900">{t("components.quoteSummary.exchangeDetails")}</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youSend")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={inputIcon.fallbackIconSrc}
@@ -83,12 +83,12 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
+              {formatPrice(Big(quote.inputAmount))} {inputCurrencyUpper}
             </div>
           </div>
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youReceive")}</div>
-            <div className="flex items-center font-bold">
+            <div className="flex items-center font-bold text-sm sm:text-base">
               <TokenIconWithNetwork
                 className="mr-2 h-5 w-5"
                 fallbackIconSrc={outputIcon.fallbackIconSrc}
@@ -97,41 +97,27 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              ~ {quote.outputAmount} {quote.outputCurrency.toUpperCase()}
+              {APPROX_SIGN} {formatPrice(Big(quote.outputAmount))} {outputCurrencyUpper}
             </div>
           </div>
         </div>
       </div>
-      <div>
-        <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
-      </div>
+      <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
     </section>
   );
 };
 
-export const QuoteSummary = ({ quote }: QuoteSummaryProps) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleToggle = (isExpanded: boolean) => {
-    if (isExpanded && cardRef.current) {
-      // Wait for the animation to complete (300ms) before scrolling
-      setTimeout(() => {
-        cardRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end"
-        });
-      }, 300);
-    }
-  };
-
+export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
   return (
-    <CollapsibleCard onToggle={handleToggle} ref={cardRef}>
-      <CollapsibleSummary>
-        <QuoteSummaryCore quote={quote} />
-      </CollapsibleSummary>
-      <CollapsibleDetails>
-        <QuoteSummaryDetails quote={quote} />
-      </CollapsibleDetails>
-    </CollapsibleCard>
+    <div className={cn("absolute right-0 bottom-2 left-0 z-10", className)}>
+      <CollapsibleCard>
+        <CollapsibleSummary>
+          <QuoteSummaryCore quote={quote} />
+        </CollapsibleSummary>
+        <CollapsibleDetails>
+          <QuoteSummaryDetails quote={quote} />
+        </CollapsibleDetails>
+      </CollapsibleCard>
+    </div>
   );
 };

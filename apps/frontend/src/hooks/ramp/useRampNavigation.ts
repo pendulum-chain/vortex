@@ -1,17 +1,6 @@
-import { ReactNode, useCallback, useMemo } from "react";
-import { RampSearchParams } from "../../types/searchParams";
+import { ReactNode, useCallback } from "react";
+import { useIsQuoteComponentDisplayed } from "./useIsQuoteComponentDisplayed";
 import { useRampComponentState } from "./useRampComponentState";
-
-/**
- * Checks if all required URL parameters are present for automatic quote creation.
- * When these params are present, the Quote selection form should be skipped.
- *
- * Required params: cryptoLocked, fiat, inputAmount, network, rampType
- * These match the params checked in useRampUrlParams.ts for auto-creating a quote.
- */
-export const hasAllQuoteRefreshParams = (params: RampSearchParams): boolean => {
-  return Boolean(params.cryptoLocked && params.fiat && params.inputAmount && params.network && params.rampType);
-};
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -20,9 +9,8 @@ export const useRampNavigation = (
   formComponent: ReactNode,
   quoteComponent: ReactNode
 ) => {
-  const { searchParams, rampState, rampMachineState } = useRampComponentState();
-
-  const shouldSkipQuoteForm = useMemo(() => searchParams.quoteId || hasAllQuoteRefreshParams(searchParams), [searchParams]);
+  const { rampState, rampMachineState } = useRampComponentState();
+  const isQuoteDisplayed = useIsQuoteComponentDisplayed();
 
   const getCurrentComponent = useCallback(() => {
     if (rampState?.ramp?.currentPhase === "complete") {
@@ -37,11 +25,7 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    if (shouldSkipQuoteForm) {
-      return formComponent;
-    }
-
-    if (rampMachineState.value === "Idle") {
+    if (isQuoteDisplayed) {
       return quoteComponent;
     }
 
@@ -49,12 +33,12 @@ export const useRampNavigation = (
   }, [
     rampState,
     rampMachineState.value,
-    shouldSkipQuoteForm,
     successComponent,
     failureComponent,
     progressComponent,
     formComponent,
-    quoteComponent
+    quoteComponent,
+    isQuoteDisplayed
   ]);
 
   return {

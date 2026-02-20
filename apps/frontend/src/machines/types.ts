@@ -37,6 +37,11 @@ export interface RampContext {
   errorMessage?: string;
   kycFormData?: KYCFormData;
   enteredViaForm?: boolean; // True if user navigated from the Quote form, false if entered via direct URL
+  // Auth-related fields
+  userEmail?: string;
+  userId?: string;
+  isAuthenticated: boolean;
+  postAuthTarget?: "QuoteReady" | "RegisterRamp";
 }
 
 export type RampMachineEvents =
@@ -57,12 +62,22 @@ export type RampMachineEvents =
   | { type: "PROCEED_TO_REGISTRATION" }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_QUOTE_PARAMS"; partnerId?: string; walletLocked?: string; callbackUrl?: string }
+  | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
   | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
   | { type: "INITIAL_QUOTE_FETCH_FAILED" }
   | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
   | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" };
+  | { type: "REFRESH_FAILED" }
+  // Auth events
+  | { type: "ENTER_EMAIL"; email: string }
+  | { type: "CHANGE_EMAIL" }
+  | { type: "EMAIL_VERIFIED" }
+  | { type: "OTP_SENT" }
+  | { type: "VERIFY_OTP"; code: string }
+  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
+  | { type: "AUTH_ERROR"; error: string }
+  | { type: "LOGOUT" }
+  | { type: "GO_BACK" };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

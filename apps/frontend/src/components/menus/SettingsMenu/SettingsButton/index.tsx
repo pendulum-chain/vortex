@@ -1,6 +1,5 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { useSettingsMenuActions, useSettingsMenuState } from "../../../../stores/settingsMenuStore";
-import { SettingsMenu } from "..";
 
 export const SettingsButton = () => {
   const isOpen = useSettingsMenuState();
@@ -18,7 +17,6 @@ export const SettingsButton = () => {
       >
         <Cog6ToothIcon className="h-5 w-5" />
       </button>
-      <SettingsMenu />
     </>
   );
 };

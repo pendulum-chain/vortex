@@ -1,6 +1,7 @@
 import {
   CheckCircleIcon as ConfirmIcon,
   DocumentTextIcon as DetailsIcon,
+  UserCircleIcon as LoginIcon,
   DocumentCheckIcon as VerificationIcon
 } from "@heroicons/react/24/outline";
 import { useSelector } from "@xstate/react";
@@ -14,6 +15,7 @@ export const useStepper = () => {
   const rampActor = useRampActor();
 
   const {
+    isAuthenticated,
     isKycActive,
     isKycComplete,
     isKycFailure,
@@ -25,6 +27,7 @@ export const useStepper = () => {
     redirectCallback,
     isError
   } = useSelector(rampActor, state => ({
+    isAuthenticated: state.context.isAuthenticated,
     isError: state.matches("Error"),
     isKycActive: state.matches("KYC"),
     isKycComplete: state.matches("KycComplete"),
@@ -37,32 +40,56 @@ export const useStepper = () => {
     redirectCallback: state.matches("RedirectCallback")
   }));
 
-  const secondStepActive = isKycComplete || isKycActive || isKycFailure;
-  const secondStepComplete =
+  // Step 3: Verification - active during KYC, complete when done
+  const verificationStepActive = isKycActive || isKycFailure;
+  const verificationStepComplete =
     rampFollowUp || redirectCallback || isKycComplete || isRegister || isUpdate || rampPaymentConfirmed;
 
-  const thirdStepActive = secondStepComplete && rampSummaryVisible;
-  const thirdStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed || isRegister;
+  // Step 4: Confirm - active when verification complete, complete when payment confirmed
+  const confirmStepActive = verificationStepComplete && (rampSummaryVisible || isRegister || isUpdate);
+  const confirmStepComplete = rampFollowUp || redirectCallback || rampPaymentConfirmed;
+
+  // Step 2: Details - active after login, complete when KYC starts
+  const detailsStepActive = isAuthenticated && !isKycActive && !isKycComplete && !isKycFailure;
+  const detailsStepComplete = verificationStepComplete || isKycComplete || isKycActive || isKycFailure;
+
+  // Step 1: Login - complete when authenticated
+  const loginStepComplete = isAuthenticated;
 
   const steps = useMemo((): Step[] => {
     return [
       {
+        Icon: LoginIcon,
+        status: loginStepComplete ? "complete" : "active",
+        title: t("components.stepper.login", "Login")
+      },
+      {
         Icon: DetailsIcon,
-        status: isError ? "error" : secondStepActive || secondStepComplete ? "complete" : "active",
+        status: isError ? "error" : detailsStepComplete ? "complete" : detailsStepActive ? "active" : "incomplete",
         title: t("components.stepper.details", "Details")
       },
       {
         Icon: VerificationIcon,
-        status: isError ? "error" : secondStepComplete ? "complete" : secondStepActive ? "active" : "incomplete",
+        status: isError ? "error" : verificationStepComplete ? "complete" : verificationStepActive ? "active" : "incomplete",
         title: t("components.stepper.verification", "Verification")
       },
       {
         Icon: ConfirmIcon,
-        status: isError ? "error" : thirdStepComplete ? "complete" : thirdStepActive ? "active" : "incomplete",
+        status: isError ? "error" : confirmStepComplete ? "complete" : confirmStepActive ? "active" : "incomplete",
         title: t("components.stepper.confirm", "Confirm")
       }
     ];
-  }, [t, secondStepActive, secondStepComplete, thirdStepActive, thirdStepComplete, isError]);
+  }, [
+    confirmStepActive,
+    confirmStepComplete,
+    detailsStepActive,
+    detailsStepComplete,
+    isError,
+    loginStepComplete,
+    t,
+    verificationStepActive,
+    verificationStepComplete
+  ]);
 
   const currentStep = useMemo(() => {
     return steps.findIndex(step => step.status === "active");

@@ -1,4 +1,4 @@
-import { FiatToken, OnChainToken, RampDirection } from "@vortexfi/shared";
+import { FiatToken, OnChainToken, OnChainTokenSymbol, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import * as Yup from "yup";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -6,7 +6,7 @@ import { useRampDirection } from "../../stores/rampDirectionStore";
 export type QuoteFormValues = {
   inputAmount: string;
   outputAmount?: string;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   slippage?: number;
   deadline?: number;

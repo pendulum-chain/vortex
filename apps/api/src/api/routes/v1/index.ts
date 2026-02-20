@@ -3,7 +3,9 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
+import contactRoutes from "./contact.route";
 import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
@@ -86,6 +88,11 @@ router.use("/pendulum", pendulumRoutes);
 router.use("/storage", storageRoutes);
 
 /**
+ * POST v1/contact
+ */
+router.use("/contact", contactRoutes);
+
+/**
  * POST v1/email
  */
 router.use("/email", emailRoutes);
@@ -145,6 +152,16 @@ router.use("/supported-fiat-currencies", fiatRoutes);
  * GET v1/maintenance
  */
 router.use("/maintenance", maintenanceRoutes);
+
+/**
+ * Auth routes for Supabase authentication
+ * GET /v1/auth/check-email
+ * POST /v1/auth/request-otp
+ * POST /v1/auth/verify-otp
+ * POST /v1/auth/refresh
+ * POST /v1/auth/verify
+ */
+router.use("/auth", authRoutes);
 
 /**
  * GET v1/monerium
