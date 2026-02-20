@@ -121,7 +121,7 @@ export const SummaryStep: FC = () => {
         <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
         <div className="pb-20">{content}</div>
       </div>
-      <StepFooter>{actions}</StepFooter>
+      <StepFooter className="flex">{actions}</StepFooter>
     </div>
   );
 };

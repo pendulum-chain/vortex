@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{ $locale := index .Data "locale" }}
+  {{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt") }}
+  {{ if $isBrazil }}
+  <title>Bem-vindo(a) a Vortex - Verifique seu email</title>
+  {{ else }}
   <title>Welcome to Vortex - Verify Your Email</title>
+  {{ end }}
   <style>
     body {
       margin: 0;
@@ -117,11 +123,24 @@
     <!-- Header with Brand Name -->
     <div class="header">
       <h1 class="brand-name">VORTEX</h1>
+      {{ if $isBrazil }}
+      <p class="header-title">Bem-vindo(a) a Vortex</p>
+      {{ else }}
       <p class="header-title">Welcome to Vortex</p>
+      {{ end }}
     </div>
 
     <!-- Main Content -->
     <div class="content">
+      {{ if $isBrazil }}
+      <h2 class="greeting">Confirme seu endereço de email</h2>
+      <p class="message">
+        Obrigado por se cadastrar na Vortex! Estamos felizes em ter você com a gente.
+      </p>
+      <p class="message">
+        Para concluir seu cadastro e verificar sua conta, digite o código abaixo:
+      </p>
+      {{ else }}
       <h2 class="greeting">Confirm your email address</h2>
       <p class="message">
         Thank you for signing up for Vortex! We're excited to have you on board.
@@ -129,34 +148,67 @@
       <p class="message">
         To complete your registration and verify your account, please enter the code below:
       </p>
+      {{ end }}
 
       <!-- OTP Code Box -->
       <div class="otp-container">
+        {{ if $isBrazil }}
+        <div class="otp-label">Seu código de confirmação</div>
+        {{ else }}
         <div class="otp-label">Your Confirmation Code</div>
+        {{ end }}
         <p class="otp-code">{{ .Token }}</p>
+        {{ if $isBrazil }}
+        <div class="expiry-notice">Este código expira em 1 hora</div>
+        {{ else }}
         <div class="expiry-notice">This code expires in 1 hour</div>
+        {{ end }}
       </div>
 
+      {{ if $isBrazil }}
+      <p class="message" style="font-size: 14px; color: #6b7280;">
+        Se você não criou uma conta na Vortex, pode ignorar e excluir este email com segurança.
+      </p>
+      {{ else }}
       <p class="message" style="font-size: 14px; color: #6b7280;">
         If you didn't create an account with Vortex, you can safely ignore and delete this email.
       </p>
+      {{ end }}
     </div>
 
     <!-- Footer -->
     <div class="footer">
       <div class="footer-links">
+        {{ if $isBrazil }}
+        <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Termos de Serviço</a>
+        <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Política de Privacidade</a>
+        {{ else }}
         <a href="https://www.vortexfinance.co/en/terms-and-conditions" class="footer-link">Terms of Service</a>
         <a href="https://www.vortexfinance.co/en/privacy-policy" class="footer-link">Privacy Policy</a>
+        {{ end }}
       </div>
       
+      {{ if $isBrazil }}
+      <p class="footer-text">
+        Este email foi enviado por <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
+        Dúvidas? Fale com a gente em <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
+      </p>
+      {{ else }}
       <p class="footer-text">
         This email was sent by <a href="https://www.vortexfinance.co" style="color: #6b7280; text-decoration: none;">Vortex Finance</a><br>
         Questions? Contact us at <a href="mailto:support@vortexfinance.co" style="color: #6b7280;">support@vortexfinance.co</a>
       </p>
+      {{ end }}
       
+      {{ if $isBrazil }}
+      <p class="help-text">
+        &copy; 2026 Vortex Finance. Todos os direitos reservados.
+      </p>
+      {{ else }}
       <p class="help-text">
         &copy; 2026 Vortex Finance. All rights reserved.
       </p>
+      {{ end }}
     </div>
   </div>
 </body>
