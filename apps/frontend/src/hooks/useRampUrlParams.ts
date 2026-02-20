@@ -109,8 +109,7 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     ARS: EPaymentMethod.CBU,
     BRL: EPaymentMethod.PIX,
-    EUR: EPaymentMethod.SEPA,
-    USD: EPaymentMethod.SEPA // TODO
+    EUR: EPaymentMethod.SEPA
   };
 
   return destinationMap[fiatToken] || EPaymentMethod.SEPA;
