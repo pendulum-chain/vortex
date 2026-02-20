@@ -663,6 +663,12 @@ export const rampMachine = setup({
             quoteId: ({ event }) => event.quoteId,
             quoteLocked: ({ event }) => event.lock
           })
+        },
+        UPDATE_QUOTE: {
+          actions: assign({
+            quote: ({ event }) => event.quote,
+            quoteId: ({ event }) => event.quote.id
+          })
         }
       }
     },
