@@ -11,7 +11,7 @@ export const useSyncFormToUrl = () => {
   const rampDirection = useRampDirection();
   const { selectedNetwork } = useNetwork();
   const navigate = useNavigate();
-  const searchParams = useSearch({ strict: false }) as Record<string, unknown>;
+  const searchParams = useSearch({ from: "/{-$locale}/widget", strict: true });
 
   useEffect(() => {
     const newValues: Record<string, string | undefined> = {
@@ -23,7 +23,9 @@ export const useSyncFormToUrl = () => {
     };
 
     const alreadyInSync = Object.entries(newValues).every(
-      ([key, value]) => (value === undefined && !(key in searchParams)) || String(searchParams[key] ?? "") === value
+      ([key, value]) =>
+        (value === undefined && !(key in searchParams)) ||
+        String(searchParams[key as keyof typeof searchParams] ?? "") === value
     );
 
     if (alreadyInSync) return;
