@@ -207,7 +207,9 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
     cache.set(cacheKey, volumes, CACHE_TTL_SECONDS);
     return volumes;
   } catch (error: any) {
-    throw new Error("Could not calculate monthly volumes: " + error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Could not calculate monthly volumes", { error: errorMessage, stack: error?.stack });
+    throw new Error("Could not calculate monthly volumes: " + errorMessage);
   }
 }
 
@@ -236,7 +238,9 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
 
     return volumes;
   } catch (error: any) {
-    throw new Error("Could not calculate daily volumes: " + error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Could not calculate daily volumes", { error: errorMessage, stack: error?.stack });
+    throw new Error("Could not calculate daily volumes: " + errorMessage);
   }
 }
 
