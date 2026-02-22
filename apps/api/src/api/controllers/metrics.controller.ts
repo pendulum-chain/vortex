@@ -93,21 +93,14 @@ function isAuthOrPermissionError(error: any): boolean {
     errorMessage.includes("invalid api key") ||
     errorMessage.includes("jwt");
 
-  const has401 =
-    errorCode === "401" ||
-    /\b401\b/.test(errorMessage);
+  const has401 = errorCode === "401" || /\b401\b/.test(errorMessage);
 
-  const has403 =
-    errorCode === "403" ||
-    /\b403\b/.test(errorMessage);
+  const has403 = errorCode === "403" || /\b403\b/.test(errorMessage);
 
   return hasAuthOrPermissionText || has401 || has403;
 }
 
-async function rpcWithFallback<T extends any[], P extends Record<string, unknown>>(
-  fn: string,
-  params: P
-): Promise<T> {
+async function rpcWithFallback<T extends any[], P extends Record<string, unknown>>(fn: string, params: P): Promise<T> {
   const hasServiceKey = !!config.supabase.serviceRoleKey;
   const hasAnonKey = !!config.supabase.anonKey;
 
@@ -125,7 +118,7 @@ async function rpcWithFallback<T extends any[], P extends Record<string, unknown
   const primaryResult = await primaryClient.rpc(fn, params);
   if (!primaryResult.error) {
     if (primaryResult.data == null) {
-      return [] as T;
+      return [] as unknown as T;
     }
     return primaryResult.data as T;
   }
@@ -154,7 +147,7 @@ async function rpcWithFallback<T extends any[], P extends Record<string, unknown
       primaryAuthMode
     });
     if (fallbackResult.data == null) {
-      return [] as T;
+      return [] as unknown as T;
     }
     return fallbackResult.data as T;
   }
@@ -182,10 +175,9 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   if (cached) return cached;
 
   try {
-    const rawData = await rpcWithFallback<MonthlyVolume[], { year_param: null }>(
-      "get_monthly_volumes_by_chain",
-      { year_param: null }
-    );
+    const rawData = await rpcWithFallback<MonthlyVolume[], { year_param: null }>("get_monthly_volumes_by_chain", {
+      year_param: null
+    });
 
     if (!rawData || !rawData.length) return [];
 
