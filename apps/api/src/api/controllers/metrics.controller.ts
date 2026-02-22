@@ -42,18 +42,113 @@ export interface WeeklyVolume {
 }
 
 let supabaseClient: SupabaseClient | null = null;
+let supabaseAnonClient: SupabaseClient | null = null;
 
-function getSupabaseClient() {
+function getServiceSupabaseClient() {
   if (!supabaseClient) {
     if (!config.supabase.url) {
       throw new Error("Missing Supabase URL in configuration.");
     }
-    if (!config.supabase.anonKey) {
-      throw new Error("Missing Supabase Key in configuration.");
+    if (!config.supabase.serviceRoleKey) {
+      throw new Error("Missing Supabase service key in configuration.");
     }
-    supabaseClient = createClient(config.supabase.url, config.supabase.anonKey);
+    supabaseClient = createClient(config.supabase.url, config.supabase.serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
   }
   return supabaseClient;
+}
+
+function getAnonSupabaseClient() {
+  if (!supabaseAnonClient) {
+    if (!config.supabase.url) {
+      throw new Error("Missing Supabase URL in configuration.");
+    }
+    if (!config.supabase.anonKey) {
+      throw new Error("Missing Supabase anon key in configuration.");
+    }
+    supabaseAnonClient = createClient(config.supabase.url, config.supabase.anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
+  return supabaseAnonClient;
+}
+
+function isAuthOrPermissionError(error: any): boolean {
+  const errorText = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();
+  return (
+    errorText.includes("permission") ||
+    errorText.includes("denied") ||
+    errorText.includes("not allowed") ||
+    errorText.includes("invalid api key") ||
+    errorText.includes("jwt") ||
+    errorText.includes("401") ||
+    errorText.includes("403")
+  );
+}
+
+async function rpcWithFallback<T>(fn: string, params: Record<string, any>): Promise<T> {
+  const hasServiceKey = !!config.supabase.serviceRoleKey;
+  const hasAnonKey = !!config.supabase.anonKey;
+
+  if (!config.supabase.url) {
+    throw new Error("Missing Supabase URL in configuration.");
+  }
+  if (!hasServiceKey && !hasAnonKey) {
+    throw new Error("Missing Supabase keys in configuration.");
+  }
+
+  const primaryClient = hasServiceKey ? getServiceSupabaseClient() : getAnonSupabaseClient();
+  const primaryAuthMode = hasServiceKey ? "service" : "anon";
+  const fallbackAuthMode = hasServiceKey ? "anon" : "service";
+
+  const primaryResult = await primaryClient.rpc(fn, params);
+  if (!primaryResult.error) {
+    return (primaryResult.data as T) ?? ([] as unknown as T);
+  }
+
+  logger.error("Supabase RPC failed", {
+    authMode: primaryAuthMode,
+    code: primaryResult.error.code,
+    details: primaryResult.error.details,
+    function: fn,
+    hint: primaryResult.error.hint,
+    message: primaryResult.error.message
+  });
+
+  const shouldFallback = hasServiceKey && hasAnonKey && isAuthOrPermissionError(primaryResult.error);
+  if (!shouldFallback) {
+    throw primaryResult.error;
+  }
+
+  const fallbackClient = getAnonSupabaseClient();
+  const fallbackResult = await fallbackClient.rpc(fn, params);
+
+  if (!fallbackResult.error) {
+    logger.warn("Supabase RPC succeeded with fallback auth mode", {
+      fallbackAuthMode,
+      function: fn,
+      primaryAuthMode
+    });
+    return (fallbackResult.data as T) ?? ([] as unknown as T);
+  }
+
+  logger.error("Supabase RPC failed after fallback", {
+    authMode: fallbackAuthMode,
+    code: fallbackResult.error.code,
+    details: fallbackResult.error.details,
+    function: fn,
+    hint: fallbackResult.error.hint,
+    message: fallbackResult.error.message
+  });
+
+  throw fallbackResult.error;
 }
 
 const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
@@ -67,11 +162,8 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   if (cached) return cached;
 
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.rpc("get_monthly_volumes_by_chain", { year_param: null });
-    if (error) throw error;
+    const rawData = await rpcWithFallback<MonthlyVolume[]>("get_monthly_volumes_by_chain", { year_param: null });
 
-    const rawData = (data as MonthlyVolume[]) || [];
     if (!rawData.length) return [];
 
     const dataMap = new Map(rawData.map(row => [row.month, row]));
@@ -97,15 +189,11 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 }
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("get_daily_volumes_by_chain", {
+  const rawData = await rpcWithFallback<DailyVolume[]>("get_daily_volumes_by_chain", {
     end_date: endDate,
     start_date: startDate
   });
 
-  if (error) throw error;
-
-  const rawData = (data as DailyVolume[]) || [];
   const dataMap = new Map(rawData.map(row => [row.day, row]));
 
   const current = new Date(startDate);
