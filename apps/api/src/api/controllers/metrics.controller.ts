@@ -164,7 +164,7 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   try {
     const rawData = await rpcWithFallback<MonthlyVolume[]>("get_monthly_volumes_by_chain", { year_param: null });
 
-    if (!rawData.length) return [];
+    if (!rawData || !rawData.length) return [];
 
     const dataMap = new Map(rawData.map(row => [row.month, row]));
 
