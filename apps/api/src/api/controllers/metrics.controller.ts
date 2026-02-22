@@ -81,19 +81,33 @@ function getAnonSupabaseClient() {
 }
 
 function isAuthOrPermissionError(error: any): boolean {
-  const errorText = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();
-  return (
-    errorText.includes("permission") ||
-    errorText.includes("denied") ||
-    errorText.includes("not allowed") ||
-    errorText.includes("invalid api key") ||
-    errorText.includes("jwt") ||
-    errorText.includes("401") ||
-    errorText.includes("403")
-  );
+  const rawCode = error?.code ?? "";
+  const rawMessage = error?.message ?? "";
+  const errorCode = String(rawCode).toLowerCase();
+  const errorMessage = String(rawMessage).toLowerCase();
+
+  const hasAuthOrPermissionText =
+    errorMessage.includes("permission") ||
+    errorMessage.includes("denied") ||
+    errorMessage.includes("not allowed") ||
+    errorMessage.includes("invalid api key") ||
+    errorMessage.includes("jwt");
+
+  const has401 =
+    errorCode === "401" ||
+    /\b401\b/.test(errorMessage);
+
+  const has403 =
+    errorCode === "403" ||
+    /\b403\b/.test(errorMessage);
+
+  return hasAuthOrPermissionText || has401 || has403;
 }
 
-async function rpcWithFallback<T>(fn: string, params: Record<string, any>): Promise<T> {
+async function rpcWithFallback<T extends any[], P extends Record<string, unknown>>(
+  fn: string,
+  params: P
+): Promise<T> {
   const hasServiceKey = !!config.supabase.serviceRoleKey;
   const hasAnonKey = !!config.supabase.anonKey;
 
@@ -110,7 +124,10 @@ async function rpcWithFallback<T>(fn: string, params: Record<string, any>): Prom
 
   const primaryResult = await primaryClient.rpc(fn, params);
   if (!primaryResult.error) {
-    return (primaryResult.data as T) ?? ([] as unknown as T);
+    if (primaryResult.data == null) {
+      return [] as T;
+    }
+    return primaryResult.data as T;
   }
 
   logger.error("Supabase RPC failed", {
@@ -131,12 +148,15 @@ async function rpcWithFallback<T>(fn: string, params: Record<string, any>): Prom
   const fallbackResult = await fallbackClient.rpc(fn, params);
 
   if (!fallbackResult.error) {
-    logger.warn("Supabase RPC succeeded with fallback auth mode", {
+    logger.error("Supabase RPC succeeded with fallback auth mode - this may indicate a permission configuration issue", {
       fallbackAuthMode,
       function: fn,
       primaryAuthMode
     });
-    return (fallbackResult.data as T) ?? ([] as unknown as T);
+    if (fallbackResult.data == null) {
+      return [] as T;
+    }
+    return fallbackResult.data as T;
   }
 
   logger.error("Supabase RPC failed after fallback", {
@@ -162,7 +182,10 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   if (cached) return cached;
 
   try {
-    const rawData = await rpcWithFallback<MonthlyVolume[]>("get_monthly_volumes_by_chain", { year_param: null });
+    const rawData = await rpcWithFallback<MonthlyVolume[], { year_param: null }>(
+      "get_monthly_volumes_by_chain",
+      { year_param: null }
+    );
 
     if (!rawData || !rawData.length) return [];
 
@@ -189,25 +212,32 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 }
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
-  const rawData = await rpcWithFallback<DailyVolume[]>("get_daily_volumes_by_chain", {
-    end_date: endDate,
-    start_date: startDate
-  });
+  try {
+    const rawData = await rpcWithFallback<DailyVolume[], { start_date: string; end_date: string }>(
+      "get_daily_volumes_by_chain",
+      {
+        end_date: endDate,
+        start_date: startDate
+      }
+    );
 
-  const dataMap = new Map(rawData.map(row => [row.day, row]));
+    const dataMap = new Map(rawData.map(row => [row.day, row]));
 
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  const volumes: DailyVolume[] = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    const volumes: DailyVolume[] = [];
 
-  while (current <= end) {
-    const dayStr = current.toISOString().slice(0, 10);
-    // If date is missing, return empty chains array instead of zeroed fields
-    volumes.push(dataMap.get(dayStr) || { chains: [], day: dayStr });
-    current.setDate(current.getDate() + 1);
+    while (current <= end) {
+      const dayStr = current.toISOString().slice(0, 10);
+      // If date is missing, return empty chains array instead of zeroed fields
+      volumes.push(dataMap.get(dayStr) || { chains: [], day: dayStr });
+      current.setDate(current.getDate() + 1);
+    }
+
+    return volumes;
+  } catch (error: any) {
+    throw new Error("Could not calculate daily volumes: " + error.message);
   }
-
-  return volumes;
 }
 
 function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
