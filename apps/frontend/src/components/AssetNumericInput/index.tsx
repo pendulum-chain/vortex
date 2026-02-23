@@ -20,6 +20,7 @@ interface AssetNumericInputProps {
   disabled?: boolean;
   readOnly?: boolean;
   loading?: boolean;
+  tokenLoading?: boolean;
   logoURI?: string;
   fallbackLogoURI?: string;
   registerInput: UseFormRegisterReturn<keyof QuoteFormValues>;
@@ -33,6 +34,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   onClick,
   registerInput,
   loading,
+  tokenLoading,
   ...rest
 }) => (
   <div
@@ -45,6 +47,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
       <AssetButton
         assetIcon={assetIcon}
         fallbackLogoURI={rest.fallbackLogoURI}
+        loading={tokenLoading}
         logoURI={rest.logoURI}
         network={rest.network}
         onClick={onClick}
