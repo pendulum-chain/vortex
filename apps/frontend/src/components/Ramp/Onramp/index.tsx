@@ -1,6 +1,13 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
+import {
+  getAnyFiatTokenDetails,
+  getEvmTokensLoadedSnapshot,
+  getOnChainTokenDetailsOrDefault,
+  isNetworkEVM,
+  Networks,
+  subscribeEvmTokensLoaded
+} from "@vortexfi/shared";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
@@ -51,6 +58,9 @@ export const Onramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
+  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
+  const tokenLoading = isNetworkEVM(selectedNetwork as Networks) && !evmTokensLoaded;
+
   const fromToken = getAnyFiatTokenDetails(fiatToken);
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
 
@@ -99,10 +109,11 @@ export const Onramp = () => {
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
         registerInput={form.register("outputAmount")}
+        tokenLoading={tokenLoading}
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo]
+    [toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo, tokenLoading]
   );
 
   const handleConfirm = useCallback(() => {
