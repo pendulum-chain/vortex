@@ -258,10 +258,7 @@ export interface AlfredpayOfframpTransaction extends AlfredpayBaseTransaction {
   status: AlfredpayOfframpStatus;
   fiatAccountId: string;
   memo?: string;
-  originAddress: string;
   expiration: string;
-  externalId?: string;
-  metadata?: Record<string, unknown> | null;
   quote: AlfredpayOfframpQuote;
 }
 

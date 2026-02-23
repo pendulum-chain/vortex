@@ -9,6 +9,7 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  CreateAlfredpayOfframpRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   EvmNetworks,
@@ -273,6 +274,10 @@ export class RampService extends BaseRampService {
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
       if (quote.inputCurrency === FiatToken.USD) {
         achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
+      }
+
+      if (quote.outputCurrency === FiatToken.USD) {
+        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
       }
 
       // Create response
@@ -1172,6 +1177,74 @@ export class RampService extends BaseRampService {
     );
 
     return order.fiatPaymentInstructions;
+  }
+
+  private async processAlfredpayOfframpStart(
+    rampState: RampState,
+    quote: QuoteTicket,
+    transaction: Transaction
+  ): Promise<void> {
+    if (!this.validateAllPresignedTransactionsSigned(rampState)) {
+      return;
+    }
+
+    if (rampState.state.alfredpayTransactionId) {
+      return;
+    }
+
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
+
+    if (!alfredpayQuoteId) {
+      throw new APIError({
+        message: "Missing Alfredpay quote ID in metadata",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.alfredpayUserId) {
+      throw new APIError({
+        message: "Missing Alfredpay user ID in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.fiatAccountId) {
+      throw new APIError({
+        message: "Missing fiatAccountId in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.walletAddress) {
+      throw new APIError({
+        message: "Wallet address not found in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const orderRequest: CreateAlfredpayOfframpRequest = {
+      amount: quote.inputAmount,
+      chain: AlfredpayChain.MATIC,
+      customerId: rampState.state.alfredpayUserId,
+      fiatAccountId: rampState.state.fiatAccountId,
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      originAddress: rampState.state.walletAddress,
+      quoteId: alfredpayQuoteId,
+      toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
+    };
+
+    const order = await alfredpayService.createOfframp(orderRequest);
+
+    await rampState.update(
+      {
+        state: {
+          ...rampState.state,
+          alfredpayTransactionId: order.transactionId
+        }
+      },
+      { transaction }
+    );
   }
 }
 

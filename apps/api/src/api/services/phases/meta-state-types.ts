@@ -64,4 +64,5 @@ export interface StateMetadata {
   alfredpayTransactionId?: string;
   alfredpayOnrampMintTxHash?: string;
   fiatPaymentInstructions?: AlfredpayFiatPaymentInstructions;
+  fiatAccountId?: string;
 }
