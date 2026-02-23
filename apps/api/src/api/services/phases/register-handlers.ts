@@ -1,4 +1,5 @@
 import logger from "../../../config/logger";
+import alfredpayOfframpTransferHandler from "./handlers/alfredpay-offramp-transfer-handler";
 import alfredpayOnrampMintHandler from "./handlers/alfredpay-onramp-mint-handler";
 import brlaOnrampMintHandler from "./handlers/brla-onramp-mint-handler";
 import brlaPayoutMoonbeamHandler from "./handlers/brla-payout-moonbeam-handler";
@@ -45,6 +46,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(alfredpayOnrampMintHandler);
+  phaseRegistry.registerHandler(alfredpayOfframpTransferHandler);
   phaseRegistry.registerHandler(brlaOnrampMintHandler);
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPayPhaseHandler);

@@ -36,6 +36,7 @@ export type RampPhase =
   | "subsidizePostSwap"
   | "distributeFees"
   | "alfredpayOnrampMint"
+  | "alfredpayOfframpTransfer"
   | "brlaOnrampMint"
   | "brlaPayoutOnMoonbeam"
   | "failed"

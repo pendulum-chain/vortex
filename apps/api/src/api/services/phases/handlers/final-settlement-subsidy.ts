@@ -4,6 +4,7 @@ import {
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
+  FiatToken,
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
@@ -267,7 +268,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         }
       });
 
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return state.type === RampDirection.SELL && (quote.outputCurrency as unknown as FiatToken) === FiatToken.USD
+        ? this.transitionToNextPhase(state, "alfredpayOfframpTransfer")
+        : this.transitionToNextPhase(state, "destinationTransfer");
     } catch (error) {
       throw this.createRecoverableError(
         `FinalSettlementSubsidyHandler: Error during phase execution - ${(error as Error).message}`

@@ -229,6 +229,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     // off ramp cases
     if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
       return "distributeFees";
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
+      return "finalSettlementSubsidy";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
     }

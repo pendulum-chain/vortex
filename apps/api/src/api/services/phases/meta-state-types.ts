@@ -67,4 +67,5 @@ export interface StateMetadata {
   fiatAccountId?: string;
   destinationTransferTxHash?: string;
   finalSettlementSubsidyTxHash?: string;
+  alfredpayOfframpTransferTxHash?: string;
 }
