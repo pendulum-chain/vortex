@@ -13,17 +13,21 @@ import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";
 
-export class OffRampInitializeAlfredpayEngine extends BaseInitializeEngine {
+export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
   readonly config = {
     direction: RampDirection.SELL,
-    skipNote: "OffRampInitializeAlfredpayEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
+    skipNote: "OfframpTransactionAlfredpayEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
   };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
+    if (!ctx.evmToEvm) {
+      throw new Error("OfframpTransactionAlfredpayEngine: No evmToEvm quote");
+    }
+
     const usdTokenDecimals = ERC20_USDC_POLYGON_DECIMALS;
-    const inputAmountDecimal = new Big(req.inputAmount);
+    const inputAmountDecimal = new Big(ctx.evmToEvm.outputAmountDecimal);
 
     const alfredpayService = AlfredpayApiService.getInstance();
 
@@ -41,7 +45,7 @@ export class OffRampInitializeAlfredpayEngine extends BaseInitializeEngine {
 
     const quote = await alfredpayService.createOfframpQuote(quoteRequest);
 
-    const fromAmount = new Big(quote.fromAmount);
+    const fromAmount = new Big(ctx.evmToEvm.outputAmountDecimal);
     const toAmount = new Big(quote.toAmount);
 
     const alfredpayFee = Big(0);

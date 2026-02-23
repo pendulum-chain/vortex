@@ -2,6 +2,7 @@ import {
   checkEvmBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
+  EvmToken,
   EvmTokenDetails,
   getNetworkId,
   getOnChainTokenDetails,
@@ -11,7 +12,8 @@ import {
   Networks,
   RampCurrency,
   RampDirection,
-  RampPhase
+  RampPhase,
+  TokenType
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
@@ -50,23 +52,30 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
 
-    // Only handle onramp operations
-    if (state.type !== RampDirection.BUY) {
-      throw new Error("FinalSettlementSubsidyHandler: Only supports onramp operations");
-    }
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
-    if (!quote) {
-      throw new Error("Quote not found for the given state");
+    if (!quote || !quote.metadata.alfredpayOfframp) {
+      throw new Error("Quote not found or invalid for the given state");
     }
 
     if (!isEvmToken(quote.outputCurrency)) {
       throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
     }
 
-    const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
-    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
-    const destinationNetwork = quote.network as EvmNetworks;
+    const outTokenDetails =
+      state.type !== RampDirection.BUY
+        ? (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
+        : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
+
+    if (!outTokenDetails || outTokenDetails.type === TokenType.AssetHub) {
+      // Should not happen. Destination onchain token or USDC must be defined.
+      throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
+    }
+
+    const expectedAmountRaw =
+      state.type !== RampDirection.BUY
+        ? multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals)
+        : quote.metadata.alfredpayOfframp.inputAmountRaw;
+    const destinationNetwork = state.type !== RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 

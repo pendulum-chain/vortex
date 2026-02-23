@@ -1,8 +1,8 @@
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OffRampEvmToAlfredpayFeeEngine } from "../../engines/fee/offramp-evm-to-alfredpay";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
-import { OffRampInitializeAlfredpayEngine } from "../../engines/initialize/offramp-alfredpay";
-import { OnRampSquidRouterEvmToPolygonEngine } from "../../engines/squidrouter/onramp-evm-to-polygon";
+import { OfframpTransactionAlfredpayEngine } from "../../engines/initialize/offramp-alfredpay";
+import { AlfredpayOffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm-alfredpay";
 
 export class OfframpEvmToAlfredpayStrategy implements IRouteStrategy {
   readonly name = "OfframpEvmToAlfredpay";
@@ -13,9 +13,9 @@ export class OfframpEvmToAlfredpayStrategy implements IRouteStrategy {
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.Initialize]: new OffRampInitializeAlfredpayEngine(),
+      [StageKey.Initialize]: new AlfredpayOffRampFromEvmInitializeEngine(),
       [StageKey.Fee]: new OffRampEvmToAlfredpayFeeEngine(),
-      [StageKey.SquidRouter]: new OnRampSquidRouterEvmToPolygonEngine(),
+      [StageKey.SquidRouter]: new OfframpTransactionAlfredpayEngine(), // TODO: not really squidrouter for phase key, it handles the alfredpay ofrramp quote. We need a new phase name.
       [StageKey.Finalize]: new OnRampFinalizeEngine()
     };
   }
