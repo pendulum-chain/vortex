@@ -3,6 +3,7 @@ import {
   EPaymentMethod,
   FiatToken,
   OnChainToken,
+  OnChainTokenSymbol,
   QuoteError,
   QuoteResponse,
   RampDirection
@@ -14,7 +15,7 @@ import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
   inputAmount?: Big;
-  onChainToken: OnChainToken;
+  onChainToken: OnChainTokenSymbol;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampDirection;
@@ -27,8 +28,8 @@ interface QuotePayload {
   fromDestination: DestinationType;
   toDestination: DestinationType;
   inputAmount: string;
-  inputCurrency: OnChainToken | FiatToken;
-  outputCurrency: OnChainToken | FiatToken;
+  inputCurrency: OnChainTokenSymbol | FiatToken;
+  outputCurrency: OnChainTokenSymbol | FiatToken;
 }
 
 interface QuoteActions {
@@ -78,6 +79,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
   [QuoteError.BelowLowerLimitSell]: QuoteError.BelowLowerLimitSell, // We leave this as-is, as the replacement string depends on the context
   [QuoteError.BelowLowerLimitBuy]: QuoteError.BelowLowerLimitBuy, // We leave this as-is, as the replacement string depends on the context
+  [QuoteError.LowLiquidity]: "pages.swap.error.lowLiquidity",
   // Calculation failures - suggest different amount
   [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",
@@ -193,12 +195,8 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
           }
         },
         forceSetQuote: (quote: QuoteResponse) => {
-          set({
-            exchangeRate: 0,
-            loading: false,
-            outputAmount: undefined,
-            quote
-          });
+          const { outputAmount, exchangeRate } = processQuoteResponse(quote);
+          set({ exchangeRate, loading: false, outputAmount, quote });
         },
         reset: () => {
           set({

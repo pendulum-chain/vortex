@@ -20,6 +20,7 @@ import {
 } from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
+import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
@@ -261,6 +262,7 @@ const validateRequestBodyValues =
   };
 
 export const validateStorageInput = validateRequestBodyValuesForTransactionStore();
+export const validateContactInput = validateRequestBodyValues(CONTACT_SHEET_HEADER_VALUES);
 export const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 export const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 export const validateExecuteXCM = validateRequestBodyValues(["id", "payload"]);
@@ -377,6 +379,11 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
 };
 
 export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
+  if (req.body) {
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+  }
+
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
@@ -397,6 +404,11 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   res,
   next
 ) => {
+  if (req.body) {
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+  }
+
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
@@ -419,6 +431,12 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   }
 
   next();
+};
+
+const normalizeAxlUsdcCurrency = (value: unknown): unknown => {
+  if (typeof value !== "string") return value;
+
+  return value.toLowerCase() === "axlusdc" ? "USDC.axl" : value;
 };
 
 export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (

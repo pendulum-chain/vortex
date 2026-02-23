@@ -207,7 +207,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          throw new Error(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
+          throw this.createRecoverableError(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
         }
       }
     }
@@ -220,7 +220,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       return await publicClient.getTransactionCount({ address });
     } catch (error) {
       logger.error("Error getting nonce", error);
-      throw new Error("Failed to get transaction nonce");
+      throw this.createRecoverableError("Failed to get transaction nonce");
     }
   }
 }

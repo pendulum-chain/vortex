@@ -18,6 +18,7 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
@@ -89,7 +90,7 @@ function prepareSquidrouterRouteParams(params: {
 }): RouteParams {
   const { rampType, amountRaw, fromToken, toToken, fromNetwork, toNetwork } = params;
 
-  const placeholderAddress = "0x30a300612ab372cc73e53ffe87fb73d62ed68da3";
+  const placeholderAddress = privateKeyToAddress(generatePrivateKey());
   const placeholderHash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
   return rampType === RampDirection.BUY
@@ -237,8 +238,18 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
       outputTokenDecimals
     };
   } catch (error) {
-    logger.error(`Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`);
-    // We assume that the error is due to a low input amount
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error calculating EVM bridge and network fee: ${errorMessage}`);
+
+    // Check for specific SquidRouter error types
+    if (errorMessage.toLowerCase().includes("low liquidity") || errorMessage.toLowerCase().includes("reduce swap amount")) {
+      throw new APIError({
+        message: QuoteError.LowLiquidity,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    // Default to generic error for other cases
     throw new APIError({
       message: QuoteError.InputAmountTooLow,
       status: httpStatus.BAD_REQUEST

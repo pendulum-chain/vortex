@@ -2,15 +2,16 @@
  * Helper functions for token configuration
  */
 
-import { isNetworkEVM, Networks } from "../../helpers";
+import { EvmNetworks, isNetworkEVM, Networks } from "../../helpers";
 import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
+import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { freeTokenConfig } from "../freeTokens/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
-import { AssetHubToken, FiatToken, OnChainToken, RampCurrency } from "../types/base";
-import { EvmToken } from "../types/evm";
+import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency } from "../types/base";
+import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
 import { StellarTokenDetails } from "../types/stellar";
@@ -20,7 +21,11 @@ import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
 /**
  * Get token details for a specific network and token
  */
-export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
+export function getOnChainTokenDetails(
+  network: Networks,
+  onChainToken: OnChainTokenSymbol,
+  dynamicEvmTokenConfig?: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
+): OnChainTokenDetails | undefined {
   const normalizedOnChainToken = normalizeTokenSymbol(onChainToken);
 
   try {
@@ -28,7 +33,12 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
       return assetHubTokenConfig[normalizedOnChainToken as AssetHubToken];
     } else {
       if (isNetworkEVM(network)) {
-        return evmTokenConfig[network][normalizedOnChainToken as EvmToken];
+        const evmNetwork = network as EvmNetworks;
+        // Use provided config, or get dynamic config, or fallback to static config
+        // TODO what is best... pass it on the context or use directly this all the time?
+        const configToUse = dynamicEvmTokenConfig ?? getEvmTokenConfig();
+        const networkTokens = configToUse[evmNetwork] as Record<string, EvmTokenDetails>;
+        return networkTokens[normalizedOnChainToken];
       } else throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
   } catch (error) {
@@ -40,13 +50,24 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
 /**
  * Get token details for a specific network and token, with fallback to default
  */
-export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails {
-  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
+export function getOnChainTokenDetailsOrDefault(
+  network: Networks,
+  onChainToken: OnChainTokenSymbol,
+  dynamicEvmTokenConfig?: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
+): OnChainTokenDetails {
+  // AXLUSDC doesn't exist Ethereum
+  if (onChainToken === EvmToken.AXLUSDC && network === Networks.Ethereum) {
+    const usdcDetails = getOnChainTokenDetails(network, EvmToken.USDC, dynamicEvmTokenConfig);
+    if (usdcDetails) {
+      return usdcDetails;
+    }
+  }
+
+  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken, dynamicEvmTokenConfig);
   if (maybeOnChainTokenDetails) {
     return maybeOnChainTokenDetails;
   }
 
-  logger.current.error(`Invalid input token type: ${onChainToken}`);
   if (network === Networks.AssetHub) {
     const firstAvailableToken = Object.values(assetHubTokenConfig)[0];
     if (!firstAvailableToken) {
@@ -59,7 +80,6 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
       if (!firstAvailableToken) {
         throw new Error(`No tokens configured for network ${network}`);
       }
-
       return firstAvailableToken;
     } else throw new Error(`Network ${network} is not a valid EVM origin network`);
   }

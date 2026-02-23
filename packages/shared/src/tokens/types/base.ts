@@ -23,6 +23,8 @@ export enum AssetHubToken {
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;
+/** Includes dynamic tokens (e.g. WETH, WBTC) loaded at runtime from SquidRouter */
+export type OnChainTokenSymbol = OnChainToken | (string & {});
 export type NablaToken = OnChainToken;
 
 // Combines fiat currencies with tokens in one type

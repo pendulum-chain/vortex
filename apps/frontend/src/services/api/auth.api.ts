@@ -26,9 +26,10 @@ export class AuthAPI {
   /**
    * Request OTP
    */
-  static async requestOTP(email: string): Promise<void> {
+  static async requestOTP(email: string, locale?: string): Promise<void> {
     await apiClient.post("/auth/request-otp", {
-      email
+      email,
+      locale
     });
   }
 

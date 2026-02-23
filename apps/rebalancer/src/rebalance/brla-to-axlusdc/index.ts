@@ -17,7 +17,7 @@ import {
 /// Takes care of rebalancing an overfull BRLA pool on Pendulum with the axl.USDC pool on Pendulum.
 /// @param amountAxlUsdc - The amount of USDC.axl to swap to BRLA initially.
 /// @param forceRestart - If true, ignores any previous state and starts a new rebalance.
-export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart: boolean = false) {
+export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart = false) {
   console.log(`Starting rebalance from BRLA to USDC.axl with amount: ${amountAxlUsdc}`);
 
   const stateManager = new StateManager();

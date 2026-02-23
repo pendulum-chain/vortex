@@ -85,7 +85,6 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   }, [rampDirection, t]);
 
   const onClick = () => {
-    // Pass the quote ID to the widget page
     const quoteId = quote?.id;
 
     if (quoteId) {
@@ -93,7 +92,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
       // rampActor.send({ skipUrlCleaner: true, type: "RESET_RAMP" });
 
       // enteredViaForm: true allows the user to go back to the Quote form
-      rampActor.send({ enteredViaForm: true, lock: true, quoteId, type: "SET_QUOTE" });
+      rampActor.send({ enteredViaForm: true, lock: false, quoteId, type: "SET_QUOTE" });
 
       router.navigate({
         params,

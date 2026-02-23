@@ -1,17 +1,6 @@
-import { ReactNode, useCallback, useMemo } from "react";
-import { RampSearchParams } from "../../types/searchParams";
+import { ReactNode, useCallback } from "react";
+import { useIsQuoteComponentDisplayed } from "./useIsQuoteComponentDisplayed";
 import { useRampComponentState } from "./useRampComponentState";
-
-/**
- * Checks if all required URL parameters are present for automatic quote creation.
- * When these params are present, the Quote selection form should be skipped.
- *
- * Required params: cryptoLocked, fiat, inputAmount, network, rampType
- * These match the params checked in useRampUrlParams.ts for auto-creating a quote.
- */
-export const hasAllQuoteRefreshParams = (params: RampSearchParams): boolean => {
-  return Boolean(params.cryptoLocked && params.fiat && params.inputAmount && params.network && params.rampType);
-};
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -20,15 +9,10 @@ export const useRampNavigation = (
   formComponent: ReactNode,
   quoteComponent: ReactNode
 ) => {
-  const { searchParams, rampState, rampMachineState } = useRampComponentState();
-
-  const shouldSkipQuoteForm = useMemo(() => searchParams.quoteId || hasAllQuoteRefreshParams(searchParams), [searchParams]);
+  const { rampState, rampMachineState } = useRampComponentState();
+  const isQuoteDisplayed = useIsQuoteComponentDisplayed();
 
   const getCurrentComponent = useCallback(() => {
-    if (shouldSkipQuoteForm) {
-      return formComponent;
-    }
-
     if (rampState?.ramp?.currentPhase === "complete") {
       return successComponent;
     }
@@ -41,20 +25,20 @@ export const useRampNavigation = (
       return progressComponent;
     }
 
-    if (rampMachineState.value === "Idle") {
+    if (isQuoteDisplayed) {
       return quoteComponent;
     }
 
     return formComponent;
   }, [
-    shouldSkipQuoteForm,
     rampState,
-    formComponent,
+    rampMachineState.value,
     successComponent,
     failureComponent,
     progressComponent,
-    rampMachineState.value,
-    quoteComponent
+    formComponent,
+    quoteComponent,
+    isQuoteDisplayed
   ]);
 
   return {

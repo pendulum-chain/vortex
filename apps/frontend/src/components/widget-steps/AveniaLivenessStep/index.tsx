@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import livenessCheck from "../../../assets/liveness-check.svg";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
+import { StepFooter } from "../../StepFooter";
 
 interface AveniaLivenessStepProps {
   aveniaKycActor: AveniaKycActorRef;
@@ -39,7 +40,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
   };
 
   return (
-    <div className="relative flex min-h-[506px] w-full grow flex-col">
+    <div className="relative flex min-h-(--widget-min-height) w-full grow flex-col">
       <motion.div
         animate={{ opacity: 1, scale: 1 }}
         className="mx-4 mt-8 mb-4 flex flex-1 flex-col items-center justify-center px-4 py-4 pb-36 md:mx-auto"
@@ -87,7 +88,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
         )}
       </motion.div>
 
-      <div className="absolute right-0 bottom-above-quote left-0 z-[5] mb-4">
+      <StepFooter aboveQuote>
         <div className="flex w-full gap-x-4">
           {livenessCheckOpened ? (
             <motion.button
@@ -113,7 +114,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
             </motion.button>
           )}
         </div>
-      </div>
+      </StepFooter>
     </div>
   );
 };

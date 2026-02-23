@@ -38,16 +38,18 @@ export const Ramp = () => {
   }));
 
   useEffect(() => {
-    if (quoteFromState && quote !== quoteFromState) {
+    // Only initialize Zustand from machine when Zustand has no quote yet (e.g. widget loaded via ?quoteId= URL param)
+    if (quoteFromState && !quote) {
       forceSetQuote(quoteFromState);
     }
   }, [quote, quoteFromState, forceSetQuote]);
 
   useEffect(() => {
-    if (!quoteFromState && quote && state === "QuoteReady") {
+    // Keep machine context in sync with live quotes fetched by useQuoteService in QuoteReady
+    if (quote && state === "QuoteReady") {
       rampActor.send({ quote, type: "UPDATE_QUOTE" });
     }
-  }, [quote, quoteFromState, state, rampActor]);
+  }, [quote, state, rampActor]);
 
   console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();

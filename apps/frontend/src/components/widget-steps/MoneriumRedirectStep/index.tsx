@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMoneriumKycActor, useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { navigateToCleanOrigin } from "../../../lib/navigation";
+import { StepFooter } from "../../StepFooter";
 
 interface MoneriumRedirectStepProps {
   className?: string;
@@ -25,11 +26,11 @@ export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
   };
 
   return (
-    <div className="flex grow-1 flex-col justify-center">
-      <div className="flex flex-grow items-center justify-center text-center">
+    <div className="relative flex grow-1 flex-col justify-center">
+      <div className="flex flex-grow items-center justify-center pb-20 text-center">
         <p>{t("components.moneriumRedirect.description")}</p>
       </div>
-      <div className="mb-4 grid grid-cols-2 gap-4">
+      <StepFooter className="grid grid-cols-2 gap-4">
         <button className={cn("btn-vortex-secondary btn w-full rounded-xl", className)} onClick={onCancelClick}>
           {t("components.moneriumRedirect.cancel")}
         </button>
@@ -39,7 +40,7 @@ export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
         >
           {t("components.moneriumRedirect.goToPartner")}
         </button>
-      </div>
+      </StepFooter>
     </div>
   );
 }

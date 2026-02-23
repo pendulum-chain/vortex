@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import { AuthAPI } from "../../services/api/auth.api";
 import { RampContext } from "../types";
 
@@ -15,7 +16,10 @@ export const requestOTPActor = async ({ input }: { input: { context: RampContext
     throw new Error("Email is required");
   }
 
-  await AuthAPI.requestOTP(input.context.userEmail);
+  // Use the active UI language as the OTP email locale.
+  const locale = i18n.language;
+
+  await AuthAPI.requestOTP(input.context.userEmail, locale);
   return { success: true };
 };
 

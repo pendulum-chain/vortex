@@ -145,8 +145,8 @@ export const AveniaKYCForm = () => {
   }
 
   return (
-    <div className="relative flex h-full grow flex-col">
-      <div className="flex flex-col flex-1">
+    <div className="relative flex min-h-(--widget-min-height) grow flex-col">
+      <div className="flex flex-1 flex-col">
         <div className="relative">
           <div className="mb-4">
             <StepBackButton />

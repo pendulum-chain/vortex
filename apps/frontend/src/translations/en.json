@@ -29,7 +29,7 @@
         "privacyPolicy": "Privacy Policy",
         "termsAndConditions": "Terms and Conditions"
       },
-      "title": "Enter Your Email",
+      "title": "Verify Your Email",
       "validation": {
         "invalidEmail": "Please enter a valid email address"
       }
@@ -231,7 +231,7 @@
         "title": "Connect wallet"
       },
       "polkadotWalletSelectorDialogLoading": {
-        "description": "Please approve {selectedWallet} and approve the transaction.",
+        "description": "Please approve {{selectedWallet}} and approve the transaction.",
         "title": "Connecting wallet"
       },
       "selectionModal": {
@@ -633,6 +633,43 @@
         "title2": " Everything handled."
       }
     },
+    "contact": {
+      "emailUs": "You can also email us at",
+      "error": "Something went wrong. Please try again.",
+      "form": {
+        "email": "Email",
+        "emailPlaceholder": "your@email.com",
+        "fullName": "Full name",
+        "fullNamePlaceholder": "Enter your full name",
+        "holdToSubmit": "Hold to submit",
+        "inquiry": "Tell us more about your inquiry",
+        "inquiryPlaceholder": "Describe your project and how we can help...",
+        "privacyPolicy": "I agree to Vortex",
+        "privacyPolicyLink": "Privacy Policy",
+        "projectName": "Project name",
+        "projectNamePlaceholder": "Enter your project name",
+        "submit": "Submit"
+      },
+      "info": {
+        "integrationHelp": "Get integration help",
+        "onboardingHelp": "Get onboarding help",
+        "requestDemo": "Request a demo",
+        "supportLink": "Contact support",
+        "technicalQuestions": "Technical issues or product questions?",
+        "title": "Contact sales"
+      },
+      "success": "Thank you! We'll be in touch soon.",
+      "title": "Tell us how to help",
+      "validation": {
+        "emailFormat": "Please enter a valid email address",
+        "emailRequired": "Email is required",
+        "fullNameRequired": "Full name is required",
+        "inquiryMinLength": "Please provide more details (at least 10 characters)",
+        "inquiryRequired": "Please tell us about your inquiry",
+        "privacyPolicyRequired": "You must accept the privacy policy",
+        "projectNameRequired": "Project name is required"
+      }
+    },
     "failure": {
       "contactedSupport": "Ready to try again?",
       "contactSupport": {
@@ -920,8 +957,9 @@
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
       "brlaOnrampMint": "Your payment is being processed. This can take up to 5 minutes.",
-      "closeProgressScreenText": "💡 You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
+      "closeProgressScreenText": "You’re all set! You can now close this tab or grab a coffee while we finish up in the background.",
       "createStellarAccount": "Creating Stellar account",
+      "destinationTransfer": "Transferring {{assetSymbol}} to your wallet",
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
@@ -985,6 +1023,7 @@
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
+        "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
@@ -997,7 +1036,7 @@
       }
     },
     "termsAndConditions": {
-      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (\"FULL TERMS & CONDITIONS\") is available and applies in full.",
+      "intro": "These Short Terms provide a high-level summary of how Vortex operates. They are legally binding. A detailed version of the Terms (<1>\"FULL TERMS & CONDITIONS\"</1>) is available and applies in full.",
       "lastUpdated": "Last updated: 7th January 2026",
       "sections": {
         "1": {
@@ -1045,7 +1084,7 @@
           "title": "11. Governing Law"
         },
         "12": {
-          "text": "These Short Terms are supplemented by the Full Terms of Service, Privacy Policy, and Partner Terms, which apply in full in all cases.",
+          "text": "These Short Terms are supplemented by the <1>Full Terms of Service</1>, Privacy Policy, and Partner Terms, which apply in full in all cases.",
           "title": "12. Full Terms"
         }
       },

@@ -6,6 +6,7 @@ import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
+import contactRoutes from "./contact.route";
 import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
@@ -86,6 +87,11 @@ router.use("/pendulum", pendulumRoutes);
  * POST v1/storage
  */
 router.use("/storage", storageRoutes);
+
+/**
+ * POST v1/contact
+ */
+router.use("/contact", contactRoutes);
 
 /**
  * POST v1/email

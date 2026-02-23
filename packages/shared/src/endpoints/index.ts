@@ -1,6 +1,7 @@
 // Export all endpoint types
 export * from "./alfredpay.endpoints";
 export * from "./brla.endpoints";
+export * from "./contact.endpoints";
 export * from "./email.endpoints";
 export * from "./monerium";
 export * from "./moonbeam.endpoints";

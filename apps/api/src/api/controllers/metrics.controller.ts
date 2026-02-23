@@ -42,18 +42,126 @@ export interface WeeklyVolume {
 }
 
 let supabaseClient: SupabaseClient | null = null;
+let supabaseAnonClient: SupabaseClient | null = null;
 
-function getSupabaseClient() {
+function getServiceSupabaseClient() {
   if (!supabaseClient) {
     if (!config.supabase.url) {
       throw new Error("Missing Supabase URL in configuration.");
     }
-    if (!config.supabase.anonKey) {
-      throw new Error("Missing Supabase Key in configuration.");
+    if (!config.supabase.serviceRoleKey) {
+      throw new Error("Missing Supabase service key in configuration.");
     }
-    supabaseClient = createClient(config.supabase.url, config.supabase.anonKey);
+    supabaseClient = createClient(config.supabase.url, config.supabase.serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
   }
   return supabaseClient;
+}
+
+function getAnonSupabaseClient() {
+  if (!supabaseAnonClient) {
+    if (!config.supabase.url) {
+      throw new Error("Missing Supabase URL in configuration.");
+    }
+    if (!config.supabase.anonKey) {
+      throw new Error("Missing Supabase anon key in configuration.");
+    }
+    supabaseAnonClient = createClient(config.supabase.url, config.supabase.anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
+  return supabaseAnonClient;
+}
+
+function isAuthOrPermissionError(error: any): boolean {
+  const rawCode = error?.code ?? "";
+  const rawMessage = error?.message ?? "";
+  const errorCode = String(rawCode).toLowerCase();
+  const errorMessage = String(rawMessage).toLowerCase();
+
+  const hasAuthOrPermissionText =
+    errorMessage.includes("permission") ||
+    errorMessage.includes("denied") ||
+    errorMessage.includes("not allowed") ||
+    errorMessage.includes("invalid api key") ||
+    errorMessage.includes("jwt");
+
+  const has401 = errorCode === "401" || /\b401\b/.test(errorMessage);
+
+  const has403 = errorCode === "403" || /\b403\b/.test(errorMessage);
+
+  return hasAuthOrPermissionText || has401 || has403;
+}
+
+async function rpcWithFallback<T extends any[], P extends Record<string, unknown>>(fn: string, params: P): Promise<T> {
+  const hasServiceKey = !!config.supabase.serviceRoleKey;
+  const hasAnonKey = !!config.supabase.anonKey;
+
+  if (!config.supabase.url) {
+    throw new Error("Missing Supabase URL in configuration.");
+  }
+  if (!hasServiceKey && !hasAnonKey) {
+    throw new Error("Missing Supabase keys in configuration.");
+  }
+
+  const primaryClient = hasServiceKey ? getServiceSupabaseClient() : getAnonSupabaseClient();
+  const primaryAuthMode = hasServiceKey ? "service" : "anon";
+  const fallbackAuthMode = hasServiceKey ? "anon" : "service";
+
+  const primaryResult = await primaryClient.rpc(fn, params);
+  if (!primaryResult.error) {
+    if (primaryResult.data == null) {
+      return [] as unknown as T;
+    }
+    return primaryResult.data as T;
+  }
+
+  logger.error("Supabase RPC failed", {
+    authMode: primaryAuthMode,
+    code: primaryResult.error.code,
+    details: primaryResult.error.details,
+    function: fn,
+    hint: primaryResult.error.hint,
+    message: primaryResult.error.message
+  });
+
+  const shouldFallback = hasServiceKey && hasAnonKey && isAuthOrPermissionError(primaryResult.error);
+  if (!shouldFallback) {
+    throw primaryResult.error;
+  }
+
+  const fallbackClient = getAnonSupabaseClient();
+  const fallbackResult = await fallbackClient.rpc(fn, params);
+
+  if (!fallbackResult.error) {
+    logger.error("Supabase RPC succeeded with fallback auth mode - this may indicate a permission configuration issue", {
+      fallbackAuthMode,
+      function: fn,
+      primaryAuthMode
+    });
+    if (fallbackResult.data == null) {
+      return [] as unknown as T;
+    }
+    return fallbackResult.data as T;
+  }
+
+  logger.error("Supabase RPC failed after fallback", {
+    authMode: fallbackAuthMode,
+    code: fallbackResult.error.code,
+    details: fallbackResult.error.details,
+    function: fn,
+    hint: fallbackResult.error.hint,
+    message: fallbackResult.error.message
+  });
+
+  throw fallbackResult.error;
 }
 
 const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
@@ -62,17 +170,16 @@ const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
 });
 
 async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
-  const cacheKey = `monthly`;
+  const cacheKey = "monthly";
   const cached = cache.get<MonthlyVolume[]>(cacheKey);
   if (cached) return cached;
 
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.rpc("get_monthly_volumes_by_chain", { year_param: null });
-    if (error) throw error;
+    const rawData = await rpcWithFallback<MonthlyVolume[], { year_param: null }>("get_monthly_volumes_by_chain", {
+      year_param: null
+    });
 
-    const rawData = (data as MonthlyVolume[]) || [];
-    if (!rawData.length) return [];
+    if (!rawData || !rawData.length) return [];
 
     const dataMap = new Map(rawData.map(row => [row.month, row]));
 
@@ -92,34 +199,41 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
     cache.set(cacheKey, volumes, CACHE_TTL_SECONDS);
     return volumes;
   } catch (error: any) {
-    throw new Error("Could not calculate monthly volumes: " + error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Could not calculate monthly volumes", { error: errorMessage, stack: error?.stack });
+    throw new Error("Could not calculate monthly volumes: " + errorMessage);
   }
 }
 
 async function getDailyVolumes(startDate: string, endDate: string): Promise<DailyVolume[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("get_daily_volumes_by_chain", {
-    end_date: endDate,
-    start_date: startDate
-  });
+  try {
+    const rawData = await rpcWithFallback<DailyVolume[], { start_date: string; end_date: string }>(
+      "get_daily_volumes_by_chain",
+      {
+        end_date: endDate,
+        start_date: startDate
+      }
+    );
 
-  if (error) throw error;
+    const dataMap = new Map(rawData.map(row => [row.day, row]));
 
-  const rawData = (data as DailyVolume[]) || [];
-  const dataMap = new Map(rawData.map(row => [row.day, row]));
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    const volumes: DailyVolume[] = [];
 
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  const volumes: DailyVolume[] = [];
+    while (current <= end) {
+      const dayStr = current.toISOString().slice(0, 10);
+      // If date is missing, return empty chains array instead of zeroed fields
+      volumes.push(dataMap.get(dayStr) || { chains: [], day: dayStr });
+      current.setDate(current.getDate() + 1);
+    }
 
-  while (current <= end) {
-    const dayStr = current.toISOString().slice(0, 10);
-    // If date is missing, return empty chains array instead of zeroed fields
-    volumes.push(dataMap.get(dayStr) || { chains: [], day: dayStr });
-    current.setDate(current.getDate() + 1);
+    return volumes;
+  } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Could not calculate daily volumes", { error: errorMessage, stack: error?.stack });
+    throw new Error("Could not calculate daily volumes: " + errorMessage);
   }
-
-  return volumes;
 }
 
 function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {

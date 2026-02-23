@@ -1,14 +1,12 @@
 import { OnChainTokenDetails, OnChainTokenDetailsWithBalance } from "@vortexfi/shared";
-import { useMemo } from "react";
-import { useOnchainTokenBalances } from "./useOnchainTokenBalances";
+import { useTokenBalance } from "../stores/tokenBalanceStore";
 
 export const useOnchainTokenBalance = ({ token }: { token: OnChainTokenDetails }): OnChainTokenDetailsWithBalance => {
-  const tokens = useMemo(() => [token], [token]);
-  const balances = useOnchainTokenBalances(tokens);
+  const balance = useTokenBalance(token.network, token.assetSymbol);
 
-  return balances[0];
+  return {
+    ...token,
+    balance: balance?.balance ?? "0.00",
+    balanceUsd: balance?.balanceUsd ?? "0.00"
+  };
 };
-
-export function getOnchainTokenBalance(token?: OnChainTokenDetailsWithBalance): string {
-  return token?.balance ?? "0";
-}

@@ -1,17 +1,33 @@
-import { QuoteResponse } from "@vortexfi/shared";
+import { QuoteResponse, RampDirection } from "@vortexfi/shared";
+import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
-import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
+import { useTokenIcon } from "../../hooks/useTokenIcon";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
+import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { TransactionId } from "../TransactionId";
-
-export const QUOTE_SUMMARY_COLLAPSED_HEIGHT = 88;
 
 interface QuoteSummaryProps {
   quote: QuoteResponse;
   className?: string;
+}
+
+/**
+ * Hook to get token icons for both currencies in a quote.
+ * Determines which currency is on-chain based on ramp type.
+ */
+function useQuoteTokenIcons(quote: QuoteResponse) {
+  const isOfframp = quote.rampType === RampDirection.SELL;
+
+  // For offramp: input is on-chain (has network), output is fiat (no network)
+  // For onramp: input is fiat (no network), output is on-chain (has network)
+  const inputIcon = useTokenIcon(quote.inputCurrency, isOfframp ? quote.network : undefined);
+  const outputIcon = useTokenIcon(quote.outputCurrency, !isOfframp ? quote.network : undefined);
+
+  return { inputIcon, outputIcon };
 }
 
 const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
@@ -43,35 +59,50 @@ const QuoteSummaryCore = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
+const APPROX_SIGN = "~";
+
 const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   const { t } = useTranslation();
-  const inputIcon = useGetAssetIcon(quote.inputCurrency.toLowerCase());
-  const outputIcon = useGetAssetIcon(quote.outputCurrency.toLowerCase());
+  const { inputIcon, outputIcon } = useQuoteTokenIcons(quote);
+  const inputCurrencyUpper = quote.inputCurrency.toUpperCase();
+  const outputCurrencyUpper = quote.outputCurrency.toUpperCase();
 
   return (
     <section className="overflow-hidden">
       <div className="mb-4">
         <h3 className="mb-3 font-semibold text-gray-900">{t("components.quoteSummary.exchangeDetails")}</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youSend")}</div>
-            <div className="flex items-center font-bold">
-              <img alt={quote.inputCurrency} className="mr-2 h-5 w-5" src={inputIcon} />
-              {quote.inputAmount} {quote.inputCurrency.toUpperCase()}
+            <div className="flex items-center font-bold text-sm sm:text-base">
+              <TokenIconWithNetwork
+                className="mr-2 h-5 w-5"
+                fallbackIconSrc={inputIcon.fallbackIconSrc}
+                iconSrc={inputIcon.iconSrc}
+                network={inputIcon.network}
+                showNetworkOverlay={!!inputIcon.network}
+                tokenSymbol={quote.inputCurrency}
+              />
+              {formatPrice(Big(quote.inputAmount))} {inputCurrencyUpper}
             </div>
           </div>
           <div className="flex flex-col">
             <div className="text-gray-500 text-sm">{t("components.quoteSummary.youReceive")}</div>
-            <div className="flex items-center font-bold">
-              <img alt={quote.outputCurrency} className="mr-2 h-5 w-5" src={outputIcon} />~ {quote.outputAmount}{" "}
-              {quote.outputCurrency.toUpperCase()}
+            <div className="flex items-center font-bold text-sm sm:text-base">
+              <TokenIconWithNetwork
+                className="mr-2 h-5 w-5"
+                fallbackIconSrc={outputIcon.fallbackIconSrc}
+                iconSrc={outputIcon.iconSrc}
+                network={outputIcon.network}
+                showNetworkOverlay={!!outputIcon.network}
+                tokenSymbol={quote.outputCurrency}
+              />
+              {APPROX_SIGN} {formatPrice(Big(quote.outputAmount))} {outputCurrencyUpper}
             </div>
           </div>
         </div>
       </div>
-      <div>
-        <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
-      </div>
+      <TransactionId id={quote.id} label={t("components.quoteSummary.fullTransactionId")} variant="full" />
     </section>
   );
 };

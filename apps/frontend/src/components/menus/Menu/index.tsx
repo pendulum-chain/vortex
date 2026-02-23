@@ -1,5 +1,6 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ReactNode } from "react";
+import { durations, easings } from "../../../constants/animations";
 import { useEscapeKey } from "../../../hooks/useEscapeKey";
 import { PageHeader } from "../../PageHeader";
 
@@ -20,6 +21,7 @@ export interface MenuProps {
 
 export function Menu({ isOpen, onClose, title, children, animationDirection }: MenuProps) {
   useEscapeKey(isOpen, onClose);
+  const shouldReduceMotion = useReducedMotion();
 
   const animationProps =
     animationDirection === MenuAnimationDirection.RIGHT
@@ -41,8 +43,8 @@ export function Menu({ isOpen, onClose, title, children, animationDirection }: M
           animate={animationProps.animate}
           className="absolute top-0 right-0 bottom-0 left-0 z-40 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
           exit={animationProps.exit}
-          initial={animationProps.initial}
-          transition={{ duration: 0.3 }}
+          initial={shouldReduceMotion ? false : animationProps.initial}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
         >
           <PageHeader onClose={onClose} title={title} />
           <hr />

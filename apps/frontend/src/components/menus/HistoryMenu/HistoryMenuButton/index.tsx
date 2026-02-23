@@ -1,8 +1,16 @@
 import { ClockIcon } from "@heroicons/react/24/outline";
+import { useSelector } from "@xstate/react";
+import { useRampActor } from "../../../../contexts/rampState";
 import { useRampHistoryStore } from "../../../../stores/rampHistoryStore";
 
 export function HistoryMenuButton() {
+  const rampActor = useRampActor();
   const { isActive, actions } = useRampHistoryStore();
+  const isAuthenticated = useSelector(rampActor, state => state.context.isAuthenticated);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>

@@ -13,12 +13,10 @@ import i18n from "i18next";
 import { createRoot } from "react-dom/client";
 import { initReactI18next } from "react-i18next";
 import { WagmiProvider } from "wagmi";
-
 import { config } from "./config";
-import { EventsProvider } from "./contexts/events";
-import { NetworkProvider } from "./contexts/network";
 import { PolkadotNodeProvider } from "./contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
+import { initializeEvmTokens } from "./services/tokens";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
 import { PersistentRampStateProvider } from "./contexts/rampState";
@@ -76,20 +74,19 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
+// Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
+initializeEvmTokens();
+
 createRoot(root).render(
   <QueryClientProvider client={queryClient}>
     <ReactQueryDevtools initialIsOpen={false} />
     <WagmiProvider config={wagmiConfig}>
       <PersistentRampStateProvider>
-        <NetworkProvider>
-          <PolkadotNodeProvider>
-            <PolkadotWalletStateProvider>
-              <EventsProvider>
-                <RouterProvider router={router} />
-              </EventsProvider>
-            </PolkadotWalletStateProvider>
-          </PolkadotNodeProvider>
-        </NetworkProvider>
+        <PolkadotNodeProvider>
+          <PolkadotWalletStateProvider>
+            <RouterProvider router={router} />
+          </PolkadotWalletStateProvider>
+        </PolkadotNodeProvider>
       </PersistentRampStateProvider>
     </WagmiProvider>
   </QueryClientProvider>
