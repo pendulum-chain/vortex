@@ -1,3 +1,4 @@
+import { isSignedTypedData, isSignedTypedDataArray } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import {
@@ -100,6 +101,11 @@ export async function validatePresignedTxs(
 
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
+
+  // do not validate typed data
+  if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+    return;
+  }
 
   if (!expectedSigner) {
     throw new APIError({

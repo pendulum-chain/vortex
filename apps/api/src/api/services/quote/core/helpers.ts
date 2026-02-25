@@ -19,7 +19,12 @@ export const SUPPORTED_CHAINS: {
       Networks.Ethereum,
       Networks.Polygon
     ],
-    to: [EPaymentMethod.PIX as DestinationType, EPaymentMethod.SEPA as DestinationType, EPaymentMethod.CBU as DestinationType]
+    to: [
+      EPaymentMethod.PIX as DestinationType,
+      EPaymentMethod.SEPA as DestinationType,
+      EPaymentMethod.CBU as DestinationType,
+      EPaymentMethod.ACH as DestinationType
+    ]
   },
   [RampDirection.BUY]: {
     from: [

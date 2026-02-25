@@ -1,4 +1,5 @@
 import {
+  AlfredPayStatus,
   createOfframpSquidrouterTransactionsToEvm,
   ERC20_USDC_POLYGON,
   EvmClientManager,
@@ -16,6 +17,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
@@ -48,7 +50,8 @@ const erc20Abi = [
 export async function prepareEvmToAlfredpayOfframpTransactions({
   quote,
   signingAccounts,
-  userAddress
+  userAddress,
+  userId
 }: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
@@ -80,6 +83,18 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   if (!isNetworkEVM(fromNetwork)) {
     throw new Error(`Unsupported source network ${fromNetwork} for EVM to Alfredpay type offramp`);
+  }
+
+  const customer = await AlfredPayCustomer.findOne({
+    where: { userId }
+  });
+
+  if (!customer) {
+    throw new Error(`Alfredpay customer not found for userId ${userId}`);
+  }
+
+  if (customer.status !== AlfredPayStatus.Success) {
+    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
   }
 
   const inputAmountRaw = new Big(quote.inputAmount).mul(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0, 0);
@@ -119,11 +134,11 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       version: "2"
     },
     message: {
-      deadline: permitDeadline,
-      nonce: BigInt(userNonce),
+      deadline: permitDeadline.toString(),
+      nonce: userNonce.toString(),
       owner: userAddress,
       spender: RELAYER_ADDRESS,
-      value: BigInt(inputAmountRaw)
+      value: inputAmountRaw.toString()
     },
     primaryType: "Permit",
     types: {
@@ -150,9 +165,9 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     },
     message: {
       data: bridgeResult.swapData.data,
-      deadline: payloadDeadline,
+      deadline: payloadDeadline.toString(),
       destination: bridgeResult.swapData.to,
-      nonce: payloadNonce
+      nonce: payloadNonce.toString()
     },
     primaryType: "Payload",
     types: {
@@ -177,28 +192,10 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     txData: typedDataArray
   });
 
-  unsignedTxs.push({
-    meta: {},
-    network: fromNetwork,
-    nonce: 0,
-    phase: "squidRouterApprove",
-    signer: userAddress,
-    txData: encodeEvmTransactionData(bridgeResult.approveData) as EvmTransactionData
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: fromNetwork,
-    nonce: 0,
-    phase: "squidRouterSwap",
-    signer: userAddress,
-    txData: encodeEvmTransactionData(bridgeResult.swapData) as EvmTransactionData
-  });
-
   stateMeta = {
     ...stateMeta,
+    alfredpayUserId: customer.alfredPayId,
     evmEphemeralAddress: evmEphemeralEntry.address,
-    squidRouterQuoteId: bridgeResult.squidRouterQuoteId,
     walletAddress: userAddress
   };
 

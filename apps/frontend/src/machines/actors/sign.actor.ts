@@ -1,4 +1,4 @@
-import { isSignedTypedData, isSignedTypedDataArray, PresignedTx } from "@packages/shared";
+import {} from "@packages/shared";
 import {
   ERC20_EURE_POLYGON_DECIMALS,
   ERC20_EURE_POLYGON_TOKEN_NAME,
@@ -6,8 +6,11 @@ import {
   getAddressForFormat,
   getOnChainTokenDetails,
   isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   Networks,
   PermitSignature,
+  PresignedTx,
   RampDirection,
   Signature
 } from "@vortexfi/shared";
@@ -114,7 +117,7 @@ export const signTransactionsActor = async ({
     executionInput?.onChainToken && getOnChainTokenDetails(executionInput.network, executionInput.onChainToken)?.isNative
   );
 
-  const signedTxs: PresignedTx[] = { ...rampState.signedTransactions };
+  const signedTxs: PresignedTx[] = rampState.signedTransactions;
 
   try {
     for (const tx of sortedTxs) {

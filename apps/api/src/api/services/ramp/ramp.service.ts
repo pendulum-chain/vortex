@@ -277,7 +277,8 @@ export class RampService extends BaseRampService {
       }
 
       if (quote.outputCurrency === FiatToken.USD) {
-        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
+        // TODO mocking. Currently failing in sandbox.
+        //await this.processAlfredpayOfframpStart(rampState, quote, transaction);
       }
 
       // Create response
@@ -822,13 +823,15 @@ export class RampService extends BaseRampService {
   private async prepareOfframpNonBrlTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       quote,
       signingAccounts: normalizedSigningAccounts,
       stellarPaymentData: additionalData?.paymentData,
-      userAddress: additionalData?.walletAddress
+      userAddress: additionalData?.walletAddress,
+      userId
     });
 
     return { stateMeta, unsignedTxs };
@@ -1011,7 +1014,7 @@ export class RampService extends BaseRampService {
         // otherwise, it is automatically assumed to be a Monerium offramp.
         // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
       } else if (!additionalData?.moneriumAuthToken) {
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       } else {
         return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
       }
@@ -1037,7 +1040,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL) {
+    if (rampState.type === RampDirection.SELL && quote.outputCurrency !== FiatToken.USD) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,

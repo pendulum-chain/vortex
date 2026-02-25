@@ -4,6 +4,7 @@
 import { AssetHubToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
+import { OfframpEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { OnrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
@@ -47,6 +48,8 @@ export class RouteResolver {
     switch (ctx.to) {
       case "pix":
         return new OfframpToPixStrategy();
+      case "ach":
+        return new OfframpEvmToAlfredpayStrategy();
       case "sepa":
       case "cbu":
       default:
