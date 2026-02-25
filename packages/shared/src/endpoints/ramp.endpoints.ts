@@ -6,7 +6,8 @@ import {
   PaymentMethod,
   PermitSignature,
   RampCurrency,
-  RampDirection
+  RampDirection,
+  Signature
 } from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
@@ -14,6 +15,7 @@ export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
+  | "squidrouterPermitExecute"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -71,12 +73,54 @@ export interface EvmTransactionData {
   nonce?: number;
 }
 
-export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
-  return typeof data === "object" && data !== null && "to" in data && "data" in data;
+export interface TypedDataDomain {
+  name: string;
+  version: string;
+  chainId: number;
+  verifyingContract: EvmAddress;
+}
+
+export interface TypedDataField {
+  name: string;
+  type: string;
+}
+
+export interface SignedTypedData {
+  domain: TypedDataDomain;
+  types: Record<string, TypedDataField[]>;
+  primaryType: string;
+  message: Record<string, unknown>;
+  signature?: Signature | Signature[];
+}
+
+export function isEvmTransactionData(
+  data: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+): data is EvmTransactionData {
+  return typeof data === "object" && data !== null && !Array.isArray(data) && "to" in data && "data" in data;
+}
+
+export function isSignedTypedData(
+  data: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+): data is SignedTypedData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    "domain" in data &&
+    "types" in data &&
+    "primaryType" in data &&
+    "message" in data
+  );
+}
+
+export function isSignedTypedDataArray(
+  data: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+): data is SignedTypedData[] {
+  return Array.isArray(data) && data.length > 0 && data.every(item => isSignedTypedData(item as any));
 }
 
 export interface UnsignedTx {
-  txData: string | EvmTransactionData;
+  txData: string | EvmTransactionData | SignedTypedData | SignedTypedData[];
   phase: RampPhase | CleanupPhase;
   network: Networks;
   nonce: number;

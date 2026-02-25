@@ -29,3 +29,5 @@ export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decima
 
 export const ERC20_USDC_POLYGON_DECIMALS = 6; // USDC on Polygon has 6 decimals
 export const ERC20_USDT_POLYGON_DECIMALS = 6; // USDT on Polygon has 6 decimals
+
+export const SQUDROUTER_MAIN_CONTRACT_POLYGON = "0xce16F69375520ab01377ce7B88f5BA8C48F8D666";
