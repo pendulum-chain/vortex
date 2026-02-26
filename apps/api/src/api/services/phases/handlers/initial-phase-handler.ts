@@ -40,6 +40,8 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, "moneriumOnrampMint");
     } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.USD) {
       return this.transitionToNextPhase(state, "alfredpayOnrampMint");
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
+      return this.transitionToNextPhase(state, "squidrouterPermitExecute");
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");

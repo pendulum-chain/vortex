@@ -23,7 +23,7 @@ import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-const RELAYER_ADDRESS = "0x93C399bB9D6736010Fa296a4eB3FEA148353F99D" as const; // Placeholder
+export const RELAYER_ADDRESS = "0x93C399bB9D6736010Fa296a4eB3FEA148353F99D" as const;
 
 const erc20Abi = [
   {

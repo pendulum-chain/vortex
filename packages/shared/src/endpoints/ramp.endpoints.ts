@@ -76,7 +76,8 @@ export interface EvmTransactionData {
 export interface TypedDataDomain {
   name: string;
   version: string;
-  chainId: number;
+  salt?: `0x${string}`;
+  chainId?: number;
   verifyingContract: EvmAddress;
 }
 
