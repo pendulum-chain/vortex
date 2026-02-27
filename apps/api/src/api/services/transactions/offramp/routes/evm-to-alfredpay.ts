@@ -14,16 +14,91 @@ import {
   Networks,
   SignedTypedData,
   SQUDROUTER_MAIN_CONTRACT_POLYGON,
+  TypedDataDomain,
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0x93C399bB9D6736010Fa296a4eB3FEA148353F99D" as const;
+export const RELAYER_ADDRESS = "0x4C7B5AB549056b858b794D749960C1AEf04EFC08" as const;
+
+/**
+ * Resolves the EIP-712 domain for a token's permit signature.
+ * Some tokens (like USDT in polygon) use salt-based domain separation instead of chainId.
+ */
+async function resolvePermitDomain(
+  publicClient: PublicClient,
+  tokenAddress: `0x${string}`,
+  chainId: number,
+  tokenName: string
+): Promise<TypedDataDomain> {
+  let version = "1";
+  try {
+    version = (await publicClient.readContract({
+      abi: [{ inputs: [], name: "version", outputs: [{ type: "string" }], type: "function" }],
+      address: tokenAddress,
+      functionName: "version"
+    })) as string;
+  } catch {
+    // If version() fails, we stick with "1"
+  }
+
+  const standardHash = keccak256(
+    encodeAbiParameters(parseAbiParameters("bytes32, bytes32, bytes32, uint256, address"), [
+      keccak256(toHex("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")),
+      keccak256(toHex(tokenName)),
+      keccak256(toHex(version)),
+      BigInt(chainId),
+      tokenAddress
+    ])
+  );
+
+  let onChainSeparator: `0x${string}` | undefined;
+  try {
+    onChainSeparator = (await publicClient.readContract({
+      abi: [{ inputs: [], name: "DOMAIN_SEPARATOR", outputs: [{ type: "bytes32" }], type: "function" }],
+      address: tokenAddress,
+      functionName: "DOMAIN_SEPARATOR"
+    })) as `0x${string}`;
+  } catch {
+    // If we can't read it, fall back to using standard domain separator eventually
+  }
+
+  if (onChainSeparator !== undefined) {
+    if (onChainSeparator !== standardHash) {
+      // On-chain separator exists but doesn't match standard - compute salt hash for comparison
+      const salt = pad(toHex(chainId), { size: 32 });
+      const saltHash = keccak256(
+        encodeAbiParameters(parseAbiParameters("bytes32, bytes32, bytes32, address, bytes32"), [
+          keccak256(toHex("EIP712Domain(string name,string version,address verifyingContract,bytes32 salt)")),
+          keccak256(toHex(tokenName)),
+          keccak256(toHex(version)),
+          tokenAddress,
+          salt
+        ])
+      );
+
+      if (onChainSeparator === saltHash) {
+        return { name: tokenName, salt, verifyingContract: tokenAddress, version };
+      }
+
+      // Neither matches - this is an error
+      throw new Error(
+        `Token ${tokenName} has unexpected DOMAIN_SEPARATOR. Expected standard: ${standardHash} or salt: ${saltHash}, got: ${onChainSeparator}`
+      );
+    }
+    // use standard domain
+    return { chainId, name: tokenName, verifyingContract: tokenAddress, version };
+  }
+
+  // No on-chain separator available - default to standard
+  return { chainId, name: tokenName, verifyingContract: tokenAddress, version };
+}
 
 const erc20Abi = [
   {
@@ -126,13 +201,16 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     functionName: "name"
   })) as string;
 
+  const chainId = getNetworkId(fromNetwork)!;
+  const resolvedDomain = await resolvePermitDomain(
+    publicClient,
+    (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+    chainId,
+    tokenName
+  );
+
   const permitTypedData: SignedTypedData = {
-    domain: {
-      chainId: getNetworkId(Networks.Polygon),
-      name: tokenName, // TODO need to get the version as well?
-      verifyingContract: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-      version: "2"
-    },
+    domain: resolvedDomain,
     message: {
       deadline: permitDeadline.toString(),
       nonce: userNonce.toString(),
@@ -158,7 +236,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   const payloadTypedData: SignedTypedData = {
     domain: {
-      chainId: getNetworkId(Networks.Polygon)!,
+      chainId: getNetworkId(fromNetwork)!,
       name: "TokenRelayer",
       verifyingContract: RELAYER_ADDRESS,
       version: "1"
@@ -185,7 +263,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Polygon,
+    network: fromNetwork,
     nonce: 0,
     phase: "squidrouterPermitExecute",
     signer: userAddress,
@@ -196,13 +274,14 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     ...stateMeta,
     alfredpayUserId: customer.alfredPayId,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    squidRouterPermitExecutionValue: bridgeResult.swapData.value,
     walletAddress: userAddress
   };
 
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: "0x0000000000000000000000000000000000000000", // placeholder
+    toAddress: "0x0000000000000000000000000000000000000000", // TODO placeholder
     toToken: ERC20_USDC_POLYGON
   });
 

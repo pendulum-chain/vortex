@@ -1,5 +1,12 @@
 import { isSignedTypedDataArray } from "@packages/shared";
-import { EvmClientManager, Networks, RampPhase, SignedTypedData } from "@vortexfi/shared";
+import {
+  EvmClientManager,
+  getNetworkFromDestination,
+  isNetworkEVM,
+  Networks,
+  RampPhase,
+  SignedTypedData
+} from "@vortexfi/shared";
 import { recoverTypedDataAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
@@ -28,6 +35,12 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidrouterPermitExecute phase for ramp ${state.id}`);
 
+    const fromNetwork = getNetworkFromDestination(state.from);
+
+    if (!fromNetwork || !isNetworkEVM(fromNetwork)) {
+      throw this.createUnrecoverableError(`Unsupported network for squidrouterPermitExecute phase: ${state.from}`);
+    }
+
     try {
       const existingHash = state.state.squidrouterPermitExecutionHash || null;
 
@@ -35,7 +48,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         logger.info(`Found existing squidrouter permit execution hash for ramp ${state.id}: ${existingHash}`);
 
         try {
-          const publicClient = this.evmClientManager.getClient(Networks.Polygon);
+          const publicClient = this.evmClientManager.getClient(fromNetwork);
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: existingHash as `0x${string}`
           });
@@ -92,7 +105,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       const payloadDeadline = BigInt(payloadMessage.deadline as string);
 
       const relayerAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-      const walletClient = this.evmClientManager.getWalletClient(Networks.Polygon, relayerAccount);
+      const walletClient = this.evmClientManager.getWalletClient(fromNetwork, relayerAccount);
 
       const hash = await walletClient.writeContract({
         abi: tokenRelayerAbi,
@@ -107,6 +120,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
             payloadR: payloadR,
             payloadS: payloadS,
             payloadV: payloadV,
+            payloadValue: state.state.squidRouterPermitExecutionValue,
             permitR: permitR,
             permitS: permitS,
             permitV: permitV,
@@ -114,7 +128,8 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
             value: value
           }
         ],
-        functionName: "execute"
+        functionName: "execute",
+        value: BigInt(state.state.squidRouterPermitExecutionValue!)
       });
 
       logger.info(`Relayer execute transaction sent with hash: ${hash}`);
@@ -126,7 +141,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         }
       });
 
-      const publicClient = this.evmClientManager.getClient(Networks.Polygon);
+      const publicClient = this.evmClientManager.getClient(fromNetwork);
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: hash as `0x${string}`
       });
@@ -137,7 +152,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
       logger.info(`Relayer execute transaction confirmed: ${hash}`);
 
-      return this.transitionToNextPhase(updatedState, "fundEphemeral");
+      return this.transitionToNextPhase(updatedState, "complete");
     } catch (error) {
       logger.error(`Error in squidrouterPermitExecute phase for ramp ${state.id}:`, error);
 

@@ -11,6 +11,7 @@ export const tokenRelayerAbi = [
           { name: "permitR", type: "bytes32" },
           { name: "permitS", type: "bytes32" },
           { name: "payloadData", type: "bytes" },
+          { name: "payloadValue", type: "uint256" },
           { name: "payloadNonce", type: "uint256" },
           { name: "payloadDeadline", type: "uint256" },
           { name: "payloadV", type: "uint8" },
@@ -23,7 +24,7 @@ export const tokenRelayerAbi = [
     ],
     name: "execute",
     outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     type: "function"
   }
 ];
