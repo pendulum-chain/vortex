@@ -58,12 +58,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       throw new Error("Quote not found or invalid for the given state");
     }
 
-    if (!isEvmToken(quote.outputCurrency)) {
-      throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
-    }
-
     const outTokenDetails =
-      state.type !== RampDirection.BUY
+      state.type === RampDirection.BUY
         ? (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
         : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
 
@@ -73,10 +69,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     }
 
     const expectedAmountRaw =
-      state.type !== RampDirection.BUY
+      state.type === RampDirection.BUY
         ? multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals)
-        : quote.metadata.alfredpayOfframp.inputAmountRaw;
-    const destinationNetwork = state.type !== RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
+        : Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
+    const destinationNetwork = state.type === RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 

@@ -152,7 +152,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
       logger.info(`Relayer execute transaction confirmed: ${hash}`);
 
-      return this.transitionToNextPhase(updatedState, "complete");
+      return this.transitionToNextPhase(updatedState, "fundEphemeral");
     } catch (error) {
       logger.error(`Error in squidrouterPermitExecute phase for ramp ${state.id}:`, error);
 
