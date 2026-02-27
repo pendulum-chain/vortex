@@ -54,8 +54,14 @@ This journey handles on-ramping from EUR using Monerium. It follows one of two m
     *   If the destination is **AssetHub**, the swap is performed for an intermediate asset on Moonbeam.
     *   Transitions to `squidRouterPay`.
 10. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas for the Squid Router transaction and waits for its completion.
-    *   If the destination is **EVM**, transitions to `complete`.
+    *   If the destination is **EVM**, transitions to `finalSettlementSubsidy`.
     *   If the destination is **AssetHub**, transitions to `moonbeamToPendulum`.
+
+**EVM-Specific Sub-flow:**
+
+11. **Phase: `finalSettlementSubsidy` (`final-settlement-subsidy-handler.ts`):** Tops up the final asset balance if needed to ensure the user receives the quoted net amount after all fees. Transitions to `destinationTransfer`.
+12. **Phase: `destinationTransfer` (`destination-transfer-handler.ts`):** Transfers the final asset to the user's destination address. Transitions to `complete`.
+13. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 **AssetHub-Specific Sub-flow:**
 
@@ -95,7 +101,9 @@ This journey handles on-ramping from BRL using the BRLA token. It involves a ser
 
 13. **Phase: `pendulumToMoonbeamXcm` (`pendulum-to-moonbeam-xcm-handler.ts`):** Transfers the swapped asset from Pendulum back to Moonbeam. Transitions to `squidRouterSwap`.
 14. **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):** Performs a final swap on Moonbeam to get the target asset. Transitions to `squidRouterPay`.
-15. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas for the Squid Router transaction. Transitions to `complete`.
+15. **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas for the Squid Router transaction. Transitions to `finalSettlementSubsidy`.
+16. **Phase: `finalSettlementSubsidy` (`final-settlement-subsidy-handler.ts`):** Tops up the final asset balance if needed to ensure the user receives the quoted net amount after all fees. Transitions to `destinationTransfer`.
+17. **Phase: `destinationTransfer` (`destination-transfer-handler.ts`):** Transfers the final asset to the user's destination address. Transitions to `complete`.
 
 **AssetHub-Specific Sub-flow:**
 
@@ -104,6 +112,21 @@ This journey handles on-ramping from BRL using the BRLA token. It involves a ser
 15. **Phase: `hydrationSwap` (`hydration-swap-handler.ts`):** Swaps the asset on Hydration (e.g., to DOT or USDT). Transitions to `hydrationToAssethub`.
 16. **Phase: `hydrationToAssethub` (`hydration-to-assethub-handler.ts`):** Transfers the final asset from Hydration to AssetHub. Transitions to `complete`.
 17. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
+
+### On-Ramp Journey: Alfredpay
+
+This journey handles on-ramping using Alfredpay. It leverages Squid Router for cross-chain swaps and includes a final settlement subsidy step.
+
+*   **Starts After:** `initial`
+*   **Next Phase:** `alfredpayOnrampMint`
+
+6.  **Phase: `alfredpayOnrampMint` (`alfredpay-onramp-mint-handler.ts`):** Initiates the Alfredpay on-ramp process, minting the initial tokens. Transitions to `fundEphemeral`.
+7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Funds the ephemeral account with native tokens (POL) to cover transaction fees for subsequent steps. Transitions to `squidRouterSwap`.
+8.  **Phase: `squidRouterSwap` (`squid-router-swap-handler.ts`):** Uses Squid Router to perform the cross-chain swap from the source asset to the destination asset. Transitions to `squidRouterPay`.
+9.  **Phase: `squidRouterPay` (`squid-router-pay-phase-handler.ts`):** Pays the gas fees for the Squid Router transaction. Waits for transaction completion. Transitions to `finalSettlementSubsidy`.
+10. **Phase: `finalSettlementSubsidy` (`final-settlement-subsidy-handler.ts`):** Tops up the final asset balance if needed to ensure the user receives the quoted net amount after all fees. Transitions to `destinationTransfer`.
+11. **Phase: `destinationTransfer` (`destination-transfer-handler.ts`):** Transfers the final asset to the user's destination address. Transitions to `complete`.
+12. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
 ---
 
@@ -177,6 +200,19 @@ This journey handles on-ramping from BRL using the BRLA token. It involves a ser
     *   Transitions to `complete`.
 14. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
 
+### Off-Ramp Journey: Alfredpay
+
+This journey handles off-ramping using Alfredpay. It uses Squid Router with permit execution and includes a final settlement subsidy step before the Alfredpay offramp transfer.
+
+*   **Starts After:** `initial`
+*   **Next Phase:** `squidrouterPermitExecute`
+
+6.  **Phase: `squidrouterPermitExecute` (`squidrouter-permit-execution-handler.ts`):** Executes the Squid Router permit for the off-ramp transaction, executing the authorized swap and transfer. Transitions to `fundEphemeral`.
+7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Funds the ephemeral account with native tokens (only POL) to cover transaction fees for subsequent steps. Transitions to `finalSettlementSubsidy`.
+8.  **Phase: `finalSettlementSubsidy` (`final-settlement-subsidy-handler.ts`):** Tops up the asset balance if needed to ensure the correct amount is available for the offramp transfer. Transitions to `alfredpayOfframpTransfer`.
+9.  **Phase: `alfredpayOfframpTransfer` (`alfredpay-offramp-transfer-handler.ts`):** Initiates the Alfredpay off-ramp transfer, sending the final fiat amount to the user's destination. Transitions to `complete`.
+10. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
+
 ### Complete Ramp Flow Diagram
 ```mermaid
 graph TD
@@ -184,35 +220,51 @@ graph TD
         direction LR
         A[Start On-Ramp] --> B{Input Currency?};
 
-        %% --- Reusable Subgraphs for Common Flows ---
+        %% --- Reusable Subgraphs ---
         subgraph AssetHub_Finalization [AssetHub Finalization]
             direction LR
             AHF_Start{Output Token?} -->|USDC| AHF_to_AH[pendulumToAssethubXcm] --> Z[Complete];
             AHF_Start -->|DOT/USDT| AHF_to_H[pendulumToHydrationXcm] --> AHF_H_Swap[hydrationSwap] --> AHF_H_to_AH[hydrationToAssethubXcm] --> Z;
         end
 
-        subgraph Pendulum_Swap [Pendulum Swap & Subsidize]
+        subgraph Pendulum_Swap [Pendulum Swap and Subsidize]
             direction LR
             PS_Start[subsidizePreSwap] --> PS_app[nablaApprove] --> PS_swap[nablaSwap] --> PS_dist[distributeFees] --> PS_post[subsidizePostSwap];
+        end
+
+        %% All non-AssetHub on-ramp paths converge here
+        subgraph Squid_EVM_Settlement [EVM Settlement via Squid]
+            direction LR
+            SES_Swap[squidRouterSwap] --> SES_Pay[squidRouterPay] --> SES_Subsidy[finalSettlementSubsidy] --> SES_Dest[destinationTransfer] --> Z;
         end
 
         %% --- Main Entry Flows ---
         B -->|EUR| Monerium_Flow;
         B -->|BRL| BRLA_Flow;
+        B -->|Alfredpay| Alfredpay_Flow;
 
-        subgraph Monerium_Flow [Monerium EUR Initial Steps]
+        subgraph Alfredpay_Flow [Alfredpay On-Ramp]
+            direction LR
+            AF_Start[alfredpayOnrampMint] --> AF_Fund[fundEphemeral];
+        end
+
+        subgraph Monerium_Flow [Monerium EUR]
             direction LR
             M_Start[moneriumOnrampMint] --> M_Fund[fundEphemeral] --> M_Transfer[moneriumOnrampSelfTransfer] --> M_Dest{Destination?};
         end
 
-        subgraph BRLA_Flow [BRLA BRL Initial Steps]
+        subgraph BRLA_Flow [BRLA BRL]
             direction LR
             B_Start[brlaOnrampMint] --> B_FUND[fundEphemeral] --> B_to_P[moonbeamToPendulumXcm];
         end
 
-        %% --- Monerium Flow Branches ---
-        M_Dest -->|EVM| M_EVM_Swap[squidRouterSwap to EVM] --> M_EVM_Pay[squidRouterPay] --> Z;
-        M_Dest -->|AssetHub| M_AH_Swap[squidRouterSwap to Moonbeam] --> M_AH_Pay[squidRouterPay] --> M_to_P[moonbeamToPendulum];
+        %% --- All non-AssetHub paths enter the shared EVM settlement subgraph ---
+        AF_Fund --> SES_Swap;
+        M_Dest -->|EVM| SES_Swap;
+        B_to_M[pendulumToMoonbeamXcm] --> SES_Swap;
+
+        %% --- Monerium AssetHub path (dedicated squid nodes, different destination) ---
+        M_Dest -->|AssetHub| M_AH_Swap[squidRouterSwap - Moonbeam] --> M_AH_Pay[squidRouterPay] --> M_to_P[moonbeamToPendulum];
 
         %% --- Connections to/from Common Pendulum Swap Flow ---
         M_to_P --> PS_Start;
@@ -224,18 +276,21 @@ graph TD
         Post_Swap_Router -->|From BRLA| BRLA_Post_Swap_Dest{Destination?};
 
         BRLA_Post_Swap_Dest -->|AssetHub| AHF_Start;
-        BRLA_Post_Swap_Dest -->|EVM| BRLA_EVM_Path;
-        
-        subgraph BRLA_EVM_Path [BRLA to EVM Post-Swap]
-            direction LR
-            B_to_M[pendulumToMoonbeamXcm] --> B_Swap[squidRouterSwap] --> B_Pay[squidRouterPay] --> Z;
-        end
+        BRLA_Post_Swap_Dest -->|EVM| B_to_M;
     end
 
     subgraph "Off-Ramp"
         direction LR
-        M_off[Start Off-Ramp] --> MN_off[fundEphemeral]
-        MN_off[fundEphemeral] --> N_off{Input Asset Source?};
+        M_off[Start Off-Ramp] --> N_off{Input Source?};
+        
+        %% --- Alfredpay Off-Ramp Flow ---
+        N_off -->|Alfredpay| AF_Off_Permit[squidrouterPermitExecute];
+        AF_Off_Permit --> AF_Off_Fund[fundEphemeral];
+        AF_Off_Fund --> AF_Off_Subsidy[finalSettlementSubsidy];
+        AF_Off_Subsidy --> AF_Off_Transfer[alfredpayOfframpTransfer];
+        AF_Off_Transfer --> Y_off[Complete];
+        
+        %% --- Standard Off-Ramp Flows ---
         N_off -->|EVM| O_off[moonbeamToPendulum];
         N_off -->|AssetHub| P_off[distributeFees_assethub];
         O_off --> Q_off[distributeFees_evm];
@@ -247,7 +302,7 @@ graph TD
         U_off --> V_off{Output Fiat?};
         V_off -->|BRL| W_off[pendulumToMoonbeam];
         W_off --> X_off[brlaPayoutOnMoonbeam];
-        X_off --> Y_off[Complete];
+        X_off --> Y_off;
         V_off -->|EUR/ARS| Z_off[spacewalkRedeem];
         Z_off --> AA_off[stellarPayment];
         AA_off --> Y_off;
