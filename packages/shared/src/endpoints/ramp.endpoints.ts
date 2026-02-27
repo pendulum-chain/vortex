@@ -52,7 +52,8 @@ export interface AccountMeta {
 
 export interface EvmTransactionData {
   to: EvmAddress;
-  data: EvmAddress;
+  // Calldata hex string (0x...)
+  data: string;
   value: string;
   gas: string;
   maxFeePerGas?: string;
