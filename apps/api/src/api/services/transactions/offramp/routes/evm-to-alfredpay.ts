@@ -25,7 +25,7 @@ import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0x4C7B5AB549056b858b794D749960C1AEf04EFC08" as const;
+export const RELAYER_ADDRESS = "0xF85a238F8a618d573608c74Ab7937C00f5Fceef1" as const;
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.
@@ -281,7 +281,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: "0x0000000000000000000000000000000000000000", // TODO placeholder
+    toAddress: "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877", // TODO placeholder
     toToken: ERC20_USDC_POLYGON
   });
 
