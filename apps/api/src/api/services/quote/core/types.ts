@@ -149,6 +149,28 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  alfredpayMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+    quoteId: string;
+    expirationDate: Date;
+  };
+
+  alfredpayOfframp?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+    quoteId: string;
+    expirationDate: Date;
+  };
+
   aveniaMint?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;

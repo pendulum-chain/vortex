@@ -1,12 +1,50 @@
 import { ApiPromise } from "@polkadot/api";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { WalletAccount } from "@talismn/connect-wallets";
-import { decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData, UnsignedTx } from "@vortexfi/shared";
-import { Config, getAccount, sendTransaction, switchChain } from "@wagmi/core";
+import {
+  decodeSubmittableExtrinsic,
+  getNetworkId,
+  isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
+  Signature,
+  SignedTypedData,
+  UnsignedTx
+} from "@vortexfi/shared";
+import { Config, getAccount, sendTransaction, signTypedData, switchChain } from "@wagmi/core";
 import { config } from "../../config";
 import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
 import { wagmiConfig } from "../../wagmiConfig";
 import { PolkadotNodeName, polkadotApiService } from "../api/polkadot.service";
+
+/**
+ * Signs multiple typed data objects and returns signature objects
+ */
+export async function signMultipleTypedData(typedDataArray: SignedTypedData[]): Promise<SignedTypedData[]> {
+  const signedTypedDataArray: SignedTypedData[] = [];
+
+  for (const typedData of typedDataArray) {
+    const rawSignature = await signTypedData(wagmiConfig, {
+      domain: typedData.domain,
+      message: typedData.message,
+      primaryType: typedData.primaryType,
+      types: typedData.types
+    });
+
+    const v = parseInt(rawSignature.slice(130, 132), 16);
+    const r = `0x${rawSignature.slice(2, 66)}` as `0x${string}`;
+    const s = `0x${rawSignature.slice(66, 130)}` as `0x${string}`;
+
+    const deadline = typedData.message.deadline ? Number(typedData.message.deadline) : Math.floor(Date.now() / 1000) + 3600;
+
+    signedTypedDataArray.push({
+      ...typedData,
+      signature: { deadline, r, s, v }
+    });
+  }
+
+  return signedTypedDataArray;
+}
 
 // Sign the transaction with the user's connected wallet.
 // If the transaction network differs from the currently connected network,
@@ -91,7 +129,7 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
 export async function signAndSubmitSubstrateTransaction(unsignedTx: UnsignedTx, walletAccount: WalletAccount): Promise<string> {
   const { txData } = unsignedTx;
 
-  if (isEvmTransactionData(txData)) {
+  if (isEvmTransactionData(txData) || isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
     throw new Error("Invalid Substrate transaction data format for signing transaction");
   }
 

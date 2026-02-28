@@ -11,6 +11,7 @@ import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
+import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
@@ -190,6 +191,7 @@ export const rampMachine = setup({
     }
   },
   actors: {
+    alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
@@ -588,6 +590,7 @@ export const rampMachine = setup({
       }
     },
     KycFailure: {
+      // TODO alfredpay failure ends up here. We should handle a retry on it's own kyc state machine. Get the link again !
       always: {
         target: "Resetting"
       }

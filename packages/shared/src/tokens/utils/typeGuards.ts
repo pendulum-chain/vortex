@@ -3,15 +3,19 @@
  */
 
 import { AssetHubTokenDetails } from "../types/assethub";
-import { AssetHubToken, FiatToken, OnChainToken, TokenType } from "../types/base";
+import { AssetHubToken, FiatToken, FreeTokenDetails, OnChainToken, TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { StellarTokenDetails } from "../types/stellar";
 import { normalizeTokenSymbol } from "./normalization";
-
-export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarTokenDetails | MoonbeamTokenDetails;
+export type TokenDetails =
+  | EvmTokenDetails
+  | AssetHubTokenDetails
+  | StellarTokenDetails
+  | MoonbeamTokenDetails
+  | FreeTokenDetails;
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
-export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails;
+export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails | FreeTokenDetails;
 
 export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & {
   balance: string;
@@ -46,6 +50,10 @@ export function isMoonbeamTokenDetails(token: TokenDetails): token is MoonbeamTo
   return token.type === TokenType.Moonbeam;
 }
 
+export function isFreeTokenDetails(token: TokenDetails): token is FreeTokenDetails {
+  return token.type === TokenType.Fiat;
+}
+
 /**
  * Type guard for on-chain tokens
  */
@@ -57,7 +65,7 @@ export function isOnChainTokenDetails(token: TokenDetails): token is OnChainToke
  * Type guard for fiat tokens
  */
 export function isFiatTokenDetails(token: TokenDetails): token is FiatTokenDetails {
-  return isStellarTokenDetails(token) || isMoonbeamTokenDetails(token);
+  return isStellarTokenDetails(token) || isMoonbeamTokenDetails(token) || isFreeTokenDetails(token);
 }
 
 /**

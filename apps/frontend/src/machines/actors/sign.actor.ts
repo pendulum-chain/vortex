@@ -1,3 +1,4 @@
+import {} from "@packages/shared";
 import {
   ERC20_EURE_POLYGON_DECIMALS,
   ERC20_EURE_POLYGON_TOKEN_NAME,
@@ -5,14 +6,22 @@ import {
   getAddressForFormat,
   getOnChainTokenDetails,
   isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   Networks,
   PermitSignature,
-  RampDirection
+  PresignedTx,
+  RampDirection,
+  Signature
 } from "@vortexfi/shared";
 import { signERC2612Permit } from "../../helpers/crypto";
 import { RampService } from "../../services/api";
 import { MoneriumService } from "../../services/api/monerium.service";
-import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../services/transactions/userSigning";
+import {
+  signAndSubmitEvmTransaction,
+  signAndSubmitSubstrateTransaction,
+  signMultipleTypedData
+} from "../../services/transactions/userSigning";
 import { RampContext, RampMachineActor, RampState } from "../types";
 
 export enum SignRampErrorType {
@@ -79,6 +88,7 @@ export const signTransactionsActor = async ({
       txData: {} as any // Placeholder, actual txData is not needed for signing the permit
     });
   }
+
   if (!userTxs || userTxs.length === 0) {
     console.log("No user transactions found requiring signature.");
     return rampState;
@@ -107,9 +117,18 @@ export const signTransactionsActor = async ({
     executionInput?.onChainToken && getOnChainTokenDetails(executionInput.network, executionInput.onChainToken)?.isNative
   );
 
+  const signedTxs: PresignedTx[] = rampState.signedTransactions;
+
   try {
     for (const tx of sortedTxs) {
-      if (tx.phase === "squidRouterApprove") {
+      if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
+        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        tx.txData = await signMultipleTypedData(tx.txData as any);
+
+        signedTxs.push(tx);
+
+        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "squidRouterApprove") {
         if (isNativeTokenTransfer) {
           input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
           continue;
@@ -166,7 +185,7 @@ export const signTransactionsActor = async ({
   if (!rampState.ramp) {
     throw new Error("Ramp state is missing, cannot update ramp with user signatures.");
   }
-  const updatedRampProcess = await RampService.updateRamp(rampState.ramp.id, [], additionalData);
+  const updatedRampProcess = await RampService.updateRamp(rampState.ramp.id, signedTxs, additionalData);
 
   return {
     ...rampState,

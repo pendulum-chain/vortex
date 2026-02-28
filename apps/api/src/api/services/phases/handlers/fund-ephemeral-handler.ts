@@ -64,19 +64,32 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return "fundEphemeral";
   }
 
-  protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
-    // Pendulum ephemeral address is required for all cases except when doing a Monerium to EVM onramp
-    if (isOnramp(state) && inputCurrency === FiatToken.EURC && state.to !== Networks.AssetHub) {
+  protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
+    // Pendulum ephemeral address is required for all cases except when doing a Monerium/Alfredpay to EVM onramp,
+    // or alfredpay offramp
+    if (
+      isOnramp(state) &&
+      (inputCurrency === FiatToken.EURC || inputCurrency === FiatToken.USD) &&
+      state.to !== Networks.AssetHub
+    ) {
+      return false;
+    }
+
+    if (!isOnramp(state) && outputCurrency === FiatToken.USD) {
       return false;
     }
     return true;
   }
 
-  protected getRequiresPolygonEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
-    // Only required for Monerium onramps.
-    if (isOnramp(state) && inputCurrency === FiatToken.EURC) {
+  protected getRequiresPolygonEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
+    // Only required for Monerium and Alfredpay onramps and offramps.
+    if (isOnramp(state) && (inputCurrency === FiatToken.EURC || inputCurrency === FiatToken.USD)) {
       return true;
     }
+    if (!isOnramp(state) && outputCurrency === FiatToken.USD) {
+      return true;
+    }
+
     return false;
   }
 
@@ -110,8 +123,16 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     const moonbeamNode = await apiManager.getApi("moonbeam");
 
     const { evmEphemeralAddress, substrateEphemeralAddress } = state.state as StateMetadata;
-    const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(state, quote.inputCurrency);
-    const requiresPolygonEphemeralAddress = this.getRequiresPolygonEphemeralAddress(state, quote.inputCurrency);
+    const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(
+      state,
+      quote.inputCurrency,
+      quote.outputCurrency
+    );
+    const requiresPolygonEphemeralAddress = this.getRequiresPolygonEphemeralAddress(
+      state,
+      quote.inputCurrency,
+      quote.outputCurrency
+    );
     const requiresMoonbeamEphemeralAddress = this.getRequiresMoonbeamEphemeralAddress(state, quote.inputCurrency);
     const requiresDestinationEvmFunding = this.getRequiresDestinationEvmFunding(state);
 
@@ -178,7 +199,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         await fundMoonbeamEphemeralAccount(evmEphemeralAddress);
       }
 
-      if (isOnramp(state) && !isPolygonFunded) {
+      if (!isPolygonFunded) {
         logger.info(`Funding polygon ephemeral account ${evmEphemeralAddress}`);
         await this.fundPolygonEphemeralAccount(state);
       } else if (requiresPolygonEphemeralAddress) {
@@ -213,6 +234,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
       return "moonbeamToPendulumXcm";
     }
+    // alfredpay onramp case
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.USD) {
+      return "squidRouterSwap";
+    }
     // monerium onramp case
     if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
       return "moneriumOnrampSelfTransfer";
@@ -221,6 +246,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     // off ramp cases
     if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
       return "distributeFees";
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
+      return "finalSettlementSubsidy";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
     }

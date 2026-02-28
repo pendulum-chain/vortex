@@ -1,12 +1,23 @@
 import { FiatToken, Networks } from "@vortexfi/shared";
-import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "./common/types";
+import {
+  AlfredpayOnrampTransactionParams,
+  AveniaOnrampTransactionParams,
+  MoneriumOnrampTransactionParams,
+  OnrampTransactionParams,
+  OnrampTransactionsWithMeta
+} from "./common/types";
+import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactions } from "./routes/avenia-to-evm";
 import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
 import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
 export async function prepareOnrampTransactions(
-  params: AveniaOnrampTransactionParams | MoneriumOnrampTransactionParams
+  params:
+    | AveniaOnrampTransactionParams
+    | MoneriumOnrampTransactionParams
+    | AlfredpayOnrampTransactionParams
+    | OnrampTransactionParams
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
@@ -32,6 +43,16 @@ export async function prepareOnrampTransactions(
       return prepareMoneriumToAssethubOnrampTransactions(params);
     } else {
       return prepareMoneriumToEvmOnrampTransactions(params);
+    }
+  } else if (quote.inputCurrency === FiatToken.USD) {
+    if (!("userId" in params)) {
+      throw new Error("Alfredpay onramps requires logged in user");
+    }
+
+    if (quote.to !== Networks.AssetHub) {
+      return prepareAlfredpayToEvmOnrampTransactions(params);
+    } else {
+      throw new Error(`Unsupported destination network for Alfredpay onramp: ${quote.to}`);
     }
   } else {
     throw new Error(`Unsupported input currency: ${quote.inputCurrency}`);

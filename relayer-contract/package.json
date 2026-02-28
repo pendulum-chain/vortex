@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "viem": "^2.21.41"
+  },
+  "description": "Relayer contract with ERC20 permit and custom payload execution",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^0.15.9",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@types/node": "^22.10.5",
+    "hardhat": "^2.22.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "main": "index.js",
+  "name": "relayer-sandbox",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:amoy": "hardhat ignition deploy ignition/modules/Relayer.ts --network amoy",
+    "node": "hardhat node",
+    "test": "hardhat test",
+    "test:local": "hardhat run test/local-flow.ts --network hardhat"
+  },
+  "version": "1.0.0"
+}

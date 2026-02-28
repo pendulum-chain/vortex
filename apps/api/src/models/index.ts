@@ -1,4 +1,5 @@
 import sequelize from "../config/database";
+import AlfredPayCustomer from "./alfredPayCustomer.model";
 import Anchor from "./anchor.model";
 import ApiKey from "./apiKey.model";
 import KycLevel2 from "./kycLevel2.model";
@@ -32,8 +33,12 @@ KycLevel2.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(TaxId, { as: "taxIds", foreignKey: "userId" });
 TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
 
+User.hasMany(AlfredPayCustomer, { as: "alfredPayCustomers", foreignKey: "userId" });
+AlfredPayCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
+
 // Initialize models
 const models = {
+  AlfredPayCustomer,
   Anchor,
   ApiKey,
   KycLevel2,

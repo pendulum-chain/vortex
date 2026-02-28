@@ -1,4 +1,10 @@
-import { ExtrinsicOptions, IbanPaymentData, PermitSignature, StellarTokenDetails } from "@vortexfi/shared";
+import {
+  AlfredpayFiatPaymentInstructions,
+  ExtrinsicOptions,
+  IbanPaymentData,
+  PermitSignature,
+  StellarTokenDetails
+} from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -53,6 +59,15 @@ export interface StateMetadata {
   // Final transaction hash and explorer link (computed once when ramp is complete)
   finalTransactionHash?: string;
   finalTransactionExplorerLink?: string;
+  // Alfredpay
+  alfredpayUserId?: string;
+  alfredpayTransactionId?: string;
+  alfredpayOnrampMintTxHash?: string;
+  fiatPaymentInstructions?: AlfredpayFiatPaymentInstructions;
+  fiatAccountId?: string;
   destinationTransferTxHash?: string;
   finalSettlementSubsidyTxHash?: string;
+  alfredpayOfframpTransferTxHash?: string;
+  squidrouterPermitExecutionHash?: string;
+  squidRouterPermitExecutionValue?: string;
 }
