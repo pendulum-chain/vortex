@@ -1,8 +1,10 @@
+import { Trans, useTranslation } from "react-i18next";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { Spinner } from "../Spinner";
 
 export const AlfredpayKycFlow = () => {
+  const { t } = useTranslation();
   const actor = useAlfredpayKycActor();
   const state = useAlfredpayKycSelector();
 
@@ -36,7 +38,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Loading...</p>
+        <p className="text-gray-600 font-medium">{t("components.alfredpayKycFlow.loading")}</p>
       </div>
     );
   }
@@ -45,8 +47,8 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Verifying {kycOrKyb} Status...</p>
-        <p className="text-gray-500 text-sm text-center">This may take a few moments. Please do not close this window.</p>
+        <p className="text-gray-600 font-medium">{t("components.alfredpayKycFlow.verifyingStatus", { kycOrKyb })}</p>
+        <p className="text-gray-500 text-sm text-center">{t("components.alfredpayKycFlow.verifyingStatusDescription")}</p>
       </div>
     );
   }
@@ -54,11 +56,9 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "LinkReady") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-center text-gray-600">
-          To continue, please complete the {kycOrKyb} process with our partner AlfredPay.
-        </p>
+        <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeProcess", { kycOrKyb })}</p>
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={openLink}>
-          Open {kycOrKyb} Link
+          {t("components.alfredpayKycFlow.openLink", { kycOrKyb })}
         </button>
       </div>
     );
@@ -68,7 +68,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Opening Link...</p>
+        <p className="text-gray-600 font-medium">{t("components.alfredpayKycFlow.openingLink")}</p>
       </div>
     );
   }
@@ -78,17 +78,15 @@ export const AlfredpayKycFlow = () => {
 
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-center text-gray-600">
-          Please complete the {kycOrKyb} process in the new window. Once you are done, click the button below.
-        </p>
+        <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
         <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={completedFilling}>
           {isSubmitting ? (
             <>
               <Spinner className="mr-2 h-4 w-4" />
-              Verifying completion...
+              {t("components.alfredpayKycFlow.verifyingCompletion")}
             </>
           ) : (
-            `I have finished the ${kycOrKyb} verification`
+            t("components.alfredpayKycFlow.finishedVerification", { kycOrKyb })
           )}
         </button>
       </div>
@@ -98,8 +96,8 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "Done") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-green-600 font-bold text-lg">{kycOrKyb} Completed!</p>
-        <p className="text-center text-gray-600">Your account has been verified. You can now proceed.</p>
+        <p className="text-green-600 font-bold text-lg">{t("components.alfredpayKycFlow.completed", { kycOrKyb })}</p>
+        <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.accountVerified")}</p>
         {/* Will not be rendered as the sub-state machine will stop and go to main kyc one */}
       </div>
     );
@@ -108,14 +106,14 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "FailureKyc") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-red-600 font-bold text-lg">{kycOrKyb} Failed</p>
+        <p className="text-red-600 font-bold text-lg">{t("components.alfredpayKycFlow.failed", { kycOrKyb })}</p>
         <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
         <div className="flex w-full flex-col gap-2">
           <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "USER_RETRY" })}>
-            Retry
+            {t("components.alfredpayKycFlow.retry")}
           </button>
           <button className="btn-vortex-secondary btn w-full rounded-xl" onClick={() => actor.send({ type: "USER_CANCEL" })}>
-            Cancel
+            {t("components.alfredpayKycFlow.cancel")}
           </button>
         </div>
       </div>
@@ -125,14 +123,14 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "Failure") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-red-600 font-bold text-lg">System Error</p>
+        <p className="text-red-600 font-bold text-lg">{t("components.alfredpayKycFlow.systemError")}</p>
         <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
         <div className="flex w-full flex-col gap-2">
           <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "RETRY_PROCESS" })}>
-            Retry Process
+            {t("components.alfredpayKycFlow.retryProcess")}
           </button>
           <button className="btn-vortex-secondary btn w-full rounded-xl" onClick={() => actor.send({ type: "CANCEL_PROCESS" })}>
-            Cancel
+            {t("components.alfredpayKycFlow.cancel")}
           </button>
         </div>
       </div>
@@ -142,26 +140,25 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "CostumerDefinition") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-center text-gray-600">Please continue with our partner for the {kycOrKyb} verification.</p>
+        <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.continueWithPartner", { kycOrKyb })}</p>
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={userAccept}>
-          Continue
+          {t("components.alfredpayKycFlow.continue")}
         </button>
         <p className="text-center text-gray-500 text-sm">
           {context.business ? (
-            <>
-              Click{" "}
-              <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness}>
-                here
-              </span>{" "}
-              to register as individual
-            </>
+            <Trans
+              components={{
+                1: <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness} />
+              }}
+              i18nKey="components.alfredpayKycFlow.registerAsIndividual"
+            />
           ) : (
-            <>
-              If registering as a business please click{" "}
-              <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness}>
-                here
-              </span>
-            </>
+            <Trans
+              components={{
+                1: <span className="cursor-pointer text-blue-600 underline hover:text-blue-800" onClick={toggleBusiness} />
+              }}
+              i18nKey="components.alfredpayKycFlow.registerAsBusiness"
+            />
           )}
         </p>
       </div>
