@@ -5,6 +5,7 @@ import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { Checkbox } from "../../Checkbox";
 import { MenuButtons } from "../../MenuButtons";
 import { QuoteSummary } from "../../QuoteSummary";
 
@@ -82,13 +83,12 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
             </div>
 
             <div className="flex items-start gap-3">
-              <input
+              <Checkbox
                 checked={termsAccepted}
-                className="checkbox checkbox-primary checkbox-sm mt-0.5 rounded-sm p-1"
+                className="mt-0.5 rounded-sm p-1"
                 disabled={isLoading}
                 id="terms"
                 onChange={e => setTermsAccepted(e.target.checked)}
-                type="checkbox"
               />
               <label className="cursor-pointer text-gray-600 text-sm" htmlFor="terms">
                 {t("components.authEmailStep.termsCheckbox.prefix")}{" "}

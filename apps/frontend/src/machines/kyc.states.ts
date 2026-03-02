@@ -262,9 +262,16 @@ export const kycStateNode = {
       }
     },
     VerificationComplete: {
-      always: {
-        target: "#ramp.KycComplete"
-      },
+      always: [
+        {
+          actions: assign({ paymentMethodsEntrySource: () => "kyc" as const }),
+          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.USD,
+          target: "#ramp.PaymentMethodSelection"
+        },
+        {
+          target: "#ramp.KycComplete"
+        }
+      ],
       entry: {
         actions: [
           ({ context }: any) => {
