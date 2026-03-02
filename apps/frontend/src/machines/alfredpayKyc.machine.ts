@@ -1,10 +1,4 @@
-import {
-  AlfredPayStatus,
-  AlfredpayCreateCustomerResponse,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
-  AlfredpayStatusResponse
-} from "@vortexfi/shared";
+import { AlfredPayStatus } from "@vortexfi/shared";
 import { assign, fromPromise, raise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
@@ -25,11 +19,12 @@ export class AlfredpayKycMachineError extends Error {
 export const alfredpayKycMachine = setup({
   actors: {
     checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      console.log("Checking alfredpay status");
-
       const country = input.country || "US";
+      if (!input.userEmail) {
+        throw new Error("User email is required");
+      }
 
-      const status = await AlfredpayService.getAlfredpayStatus(country);
+      const status = await AlfredpayService.getAlfredpayStatus(country, input.userEmail);
       return status;
     }),
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
