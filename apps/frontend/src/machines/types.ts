@@ -8,6 +8,7 @@ import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { PaymentMethodsContext, paymentMethodsMachine } from "./paymentMethods.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 
 export type { RampState } from "../types/phases";
@@ -44,6 +45,7 @@ export interface RampContext {
   isAuthenticated: boolean;
   alfredpayCustomer?: any;
   postAuthTarget?: "QuoteReady" | "RegisterRamp";
+  paymentMethodsEntrySource?: "kyc" | "summary";
 }
 
 export type RampMachineEvents =
@@ -79,7 +81,8 @@ export type RampMachineEvents =
   | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
-  | { type: "GO_BACK" };
+  | { type: "GO_BACK" }
+  | { type: "GO_TO_PAYMENT_METHODS" };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
@@ -114,4 +117,12 @@ export type SelectedAveniaData = {
 export type SelectedAlfredpayData = {
   stateValue: AlfredpayKycSnapshot["value"];
   context: AlfredpayKycContext;
+};
+
+export type PaymentMethodsActorRef = ActorRefFrom<typeof paymentMethodsMachine>;
+export type PaymentMethodsSnapshot = SnapshotFrom<typeof paymentMethodsMachine>;
+
+export type SelectedPaymentMethodsData = {
+  stateValue: PaymentMethodsSnapshot["value"];
+  context: PaymentMethodsContext;
 };

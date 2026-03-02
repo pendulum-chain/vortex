@@ -13,6 +13,7 @@ import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
+import { PaymentMethodsStep } from "../../components/widget-steps/PaymentMethodsStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import {
@@ -62,6 +63,8 @@ const WidgetContent = () => {
     rampState: state.value
   }));
 
+  const isPaymentMethodSelection = useSelector(rampActor, state => state.matches("PaymentMethodSelection"));
+
   const rampSummaryVisible =
     rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
 
@@ -103,6 +106,10 @@ const WidgetContent = () => {
 
   if (isMoneriumRedirect) {
     return <MoneriumRedirectStep />;
+  }
+
+  if (isPaymentMethodSelection) {
+    return <PaymentMethodsStep />;
   }
 
   if (rampSummaryVisible) {

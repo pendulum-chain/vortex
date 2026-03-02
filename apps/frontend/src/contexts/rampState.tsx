@@ -1,6 +1,7 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { PaymentMethodsContext } from "../machines/paymentMethods.machine";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
@@ -9,10 +10,13 @@ import {
   AveniaKycSnapshot,
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
+  PaymentMethodsActorRef,
+  PaymentMethodsSnapshot,
   RampMachineSnapshot,
   SelectedAlfredpayData,
   SelectedAveniaData,
   SelectedMoneriumData,
+  SelectedPaymentMethodsData,
   SelectedStellarData,
   StellarKycActorRef,
   StellarKycSnapshot
@@ -179,6 +183,42 @@ export function useAveniaKycSelector(): SelectedAveniaData | undefined {
       }
       return {
         context: snapshot.context as AveniaKycContext,
+        stateValue: snapshot.value
+      };
+    },
+    (prev, next) => {
+      if (!prev || !next) {
+        return prev === next;
+      }
+      return prev.stateValue === next.stateValue && prev.context === next.context;
+    }
+  );
+}
+
+export function usePaymentMethodsActor(): PaymentMethodsActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).paymentMethods) as
+    | PaymentMethodsActorRef
+    | undefined;
+}
+
+export function usePaymentMethodsSelector(): SelectedPaymentMethodsData | undefined {
+  const rampActor = useRampActor();
+
+  const paymentMethodsActor = useSelector(
+    rampActor,
+    (snapshot: RampMachineSnapshot) => (snapshot.children as any).paymentMethods
+  ) as PaymentMethodsActorRef | undefined;
+
+  return useSelector(
+    paymentMethodsActor,
+    (snapshot: PaymentMethodsSnapshot | undefined) => {
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        context: snapshot.context as PaymentMethodsContext,
         stateValue: snapshot.value
       };
     },
