@@ -1,21 +1,27 @@
+import { createOnrampSquidrouterTransactionsOnDestinationChain, evmTokenConfig } from "@packages/shared";
 import {
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_USDC_POLYGON,
+  EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   EvmTransactionData,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getOnChainTokenDetailsOrDefault,
   isEvmToken,
   isOnChainToken,
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import { privateKeyToAccount } from "viem/accounts";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { getOutToken } from "../../../sep10/helpers";
 import { encodeEvmTransactionData } from "../../index";
+import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMoneriumOnramp } from "../common/validation";
 
@@ -76,7 +82,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-      destinationAddress, // TODO are we going to have another intermediate step here?
+      destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: ERC20_USDC_POLYGON,
       rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
@@ -102,6 +108,81 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const finalTransferTxData = await addOnrampDestinationChainTransactions({
+    amountRaw: quote.outputAmount,
+    destinationNetwork: toNetwork as EvmNetworks,
+    toAddress: destinationAddress,
+    toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
+  });
+
+  let destinationNonce = 0; // If minting on Polygon, no final transfer needed. Nonce would not be 0 but we don't care.
+  //  Otherwise it hast to be the first tx.
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "destinationTransfer",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(finalTransferTxData) as EvmTransactionData
+  });
+
+  // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
+  const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
+  const bridgedTokenForFallback =
+    toNetwork === Networks.Ethereum
+      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
+      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+
+  const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
+    destinationAddress: evmEphemeralEntry.address,
+    fromAddress: evmEphemeralEntry.address,
+    fromToken: bridgedTokenForFallback,
+    network: toNetwork as EvmNetworks,
+    rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
+    toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterApprove",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destApproveData) as EvmTransactionData
+  });
+  destinationNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterSwap",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destSwapData) as EvmTransactionData
+  });
+  destinationNonce++;
+
+  const maxUint256 = 2n ** 256n - 1n;
+  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+
+  const backupApproveTransaction = await addDestinationChainApprovalTransaction({
+    amountRaw: maxUint256.toString(),
+    destinationNetwork: toNetwork as EvmNetworks,
+    spenderAddress: fundingAccount.address,
+    tokenAddress: bridgedTokenForFallback
+  });
+
+  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = 0;
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: backupApproveNonce,
+    phase: "backupApprove",
+    signer: evmEphemeralEntry.address,
+    txData: backupApproveTransaction
   });
 
   stateMeta = {

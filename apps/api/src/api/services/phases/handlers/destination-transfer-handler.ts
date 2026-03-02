@@ -28,14 +28,15 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
   protected async executePhase(state: RampState): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
-    // Only handle onramp operations
-    if (state.type !== RampDirection.BUY) {
-      throw new Error("DestinationTransferHandler: Only supports onramp operations");
-    }
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
+    }
+
+    // For Alfredpay's onramps into Polygon, we skip his step, as we are on the destination network already!
+    if (state.type === RampDirection.BUY && state.to === Networks.Polygon && quote.inputCurrency === FiatToken.USD) {
+      throw new Error("DestinationTransferHandler: Only supports onramp operations");
     }
 
     if (!isEvmToken(quote.outputCurrency)) {
