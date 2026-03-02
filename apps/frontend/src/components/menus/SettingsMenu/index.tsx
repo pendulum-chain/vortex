@@ -75,13 +75,13 @@ export const SettingsMenu = () => {
     <div className="space-y-2 pt-4">
       {isAuthenticated && userEmail && (
         <>
-          <div className="mb-4 px-3 py-2 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="mb-4 rounded-lg bg-gray-50 px-3 py-2">
+            <div className="mb-3 flex items-center gap-2">
               <UserCircleIcon className="h-5 w-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-900 truncate">{userEmail}</span>
+              <span className="truncate font-medium text-gray-900 text-sm">{userEmail}</span>
             </div>
             <button
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 text-sm transition-all hover:bg-gray-50 active:scale-[0.98]"
               onClick={handleSignOut}
               type="button"
             >
@@ -89,7 +89,7 @@ export const SettingsMenu = () => {
               {t("menus.settings.signOut")}
             </button>
           </div>
-          <div className="border-t border-gray-200 mb-4" />
+          <div className="mb-4 border-gray-200 border-t" />
         </>
       )}
 
