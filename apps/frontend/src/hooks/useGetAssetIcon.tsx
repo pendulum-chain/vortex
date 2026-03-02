@@ -1,14 +1,16 @@
 import ARS from "../assets/coins/ARS.png";
 import BRL from "../assets/coins/BRL.png";
-import EUR from "../assets/coins/EUR.svg";
-import EURC from "../assets/coins/EURC.png";
+import EUR from "../assets/coins/EU.png";
+import MX from "../assets/coins/MX.png";
 import PLACEHOLDER from "../assets/coins/placeholder.svg";
+import USD from "../assets/coins/USD.png";
 
 const FIAT_ICONS: Record<string, string> = {
   ars: ARS,
   brl: BRL,
   eur: EUR,
-  eurc: EURC
+  mx: MX,
+  usd: USD
 };
 
 export type FiatIconType = keyof typeof FIAT_ICONS;
