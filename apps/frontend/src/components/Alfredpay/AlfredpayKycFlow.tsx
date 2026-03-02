@@ -22,7 +22,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Loading...</p>
+        <p className="font-medium text-gray-600">Loading...</p>
       </div>
     );
   }
@@ -31,8 +31,8 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Verifying KYC Status...</p>
-        <p className="text-gray-500 text-sm text-center">This may take a few moments. Please do not close this window.</p>
+        <p className="font-medium text-gray-600">Verifying KYC Status...</p>
+        <p className="text-center text-gray-500 text-sm">This may take a few moments. Please do not close this window.</p>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export const AlfredpayKycFlow = () => {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-8">
         <Spinner />
-        <p className="text-gray-600 font-medium">Opening Link...</p>
+        <p className="font-medium text-gray-600">Opening Link...</p>
       </div>
     );
   }
@@ -82,7 +82,7 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "Done") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-green-600 font-bold text-lg">KYC Completed!</p>
+        <p className="font-bold text-green-600 text-lg">KYC Completed!</p>
         <p className="text-center text-gray-600">Your account has been verified. You can now proceed.</p>
         {/* The parent component might handle navigation or updates based on this state */}
       </div>
@@ -92,7 +92,7 @@ export const AlfredpayKycFlow = () => {
   if (stateValue === "Failure") {
     return (
       <div className="flex flex-col items-center space-y-4 py-4">
-        <p className="text-red-600 font-bold text-lg">KYC Failed</p>
+        <p className="font-bold text-lg text-red-600">KYC Failed</p>
         <p className="text-center text-gray-600">{context.error?.message || "An unknown error occurred."}</p>
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={() => actor.send({ type: "RETRY" })}>
           Retry

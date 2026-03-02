@@ -2,9 +2,11 @@ import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { durations } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 import { useContactForm } from "../../hooks/useContactForm";
 import { submitContactForm } from "../../services/api/contact.service";
+import { Checkbox } from "../Checkbox";
 import { Field } from "../Field";
 import { HoldButton } from "../HoldButton";
 import { TextArea } from "../TextArea";
@@ -155,13 +157,7 @@ export function ContactForm() {
       </FormField>
 
       <div className="flex items-start gap-2 pt-1">
-        <input
-          {...register("privacyPolicyAccepted")}
-          className="checkbox checkbox-primary checkbox-sm mt-0.5"
-          disabled={loading}
-          id={`${formId}-privacy`}
-          type="checkbox"
-        />
+        <Checkbox {...register("privacyPolicyAccepted")} className="mt-0.5" disabled={loading} id={`${formId}-privacy`} />
         <label className="text-gray-500 text-sm" htmlFor={`${formId}-privacy`}>
           {t("pages.contact.form.privacyPolicy")}{" "}
           <a
@@ -177,6 +173,7 @@ export function ContactForm() {
 
       <div className="border-gray-200 border-b pt-2 pb-4">
         <HoldButton
+          ariaLabel="Holt to remove the payment method"
           className={cn("touch-manipulation", getButtonClassName())}
           disabled={loading || !isValid || buttonState === "success"}
           error={buttonState === "error"}
@@ -190,7 +187,7 @@ export function ContactForm() {
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 25 }}
               initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -25 }}
               key={buttonState}
-              transition={{ bounce: 0, duration: 0.3, type: "spring" }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.fast, ease: "easeOut" }}
             >
               {buttonState === "loading" && (
                 <svg aria-hidden="true" className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
