@@ -13,7 +13,7 @@ const ALFRED_TYPE_TO_METHOD = Object.entries(METHOD_TO_ALFRED_TYPE).reduce<
   return acc;
 }, {});
 
-const CARD_HEIGHT = 214;
+export const CARD_HEIGHT = 214;
 const PEEK = 28;
 const PEEK_EXPANDED = 54; // For mobile accessibility
 

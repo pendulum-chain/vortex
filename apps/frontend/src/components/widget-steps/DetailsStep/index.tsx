@@ -136,7 +136,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
           </div>
           <div
             className="absolute right-0 left-0 z-[5] mb-4"
-            style={{ bottom: `calc(var(--quote-summary-height, 100px) + 2rem)` }}
+            style={{ bottom: "calc(var(--quote-summary-height, 100px) + 2rem)" }}
           >
             <DetailsStepActions
               forceNetwork={forceNetwork}

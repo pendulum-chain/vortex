@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "../../helpers/cn";
 
 interface HoldButtonProps {
   children: React.ReactNode;
   onComplete: () => void;
+  ariaLabel: string;
   onHoldStart?: () => Promise<boolean> | boolean;
   duration?: number;
   disabled?: boolean;
@@ -15,6 +16,7 @@ interface HoldButtonProps {
 export function HoldButton({
   children,
   onComplete,
+  ariaLabel,
   onHoldStart,
   duration = 2000,
   disabled = false,
@@ -24,6 +26,23 @@ export function HoldButton({
 }: HoldButtonProps) {
   const [isHolding, setIsHolding] = useState(false);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancel = useCallback(() => {
+    setIsHolding(false);
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Freeze the hold timer when the user switches tabs (time-limited action must not fire in background)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) cancel();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [cancel]);
 
   const handlePointerDown = useCallback(async () => {
     if (disabled) return;
@@ -40,16 +59,11 @@ export function HoldButton({
     }, duration);
   }, [disabled, onHoldStart, onComplete, duration]);
 
-  const handlePointerUp = useCallback(() => {
-    setIsHolding(false);
-    if (holdTimeoutRef.current) {
-      clearTimeout(holdTimeoutRef.current);
-      holdTimeoutRef.current = null;
-    }
-  }, []);
+  const handlePointerUp = cancel;
 
   return (
     <button
+      aria-label={ariaLabel}
       className={cn(
         "relative flex h-12 w-full cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-lg bg-blue-100 font-medium text-gray-500 transition-transform duration-150 ease-out active:scale-[0.98]",
         disabled && "cursor-not-allowed bg-gray-100 text-gray-300",
