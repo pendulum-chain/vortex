@@ -46,7 +46,10 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
     const fromAmount = new Big(quote.fromAmount);
     const toAmount = new Big(quote.toAmount);
 
-    const alfredpayFee = Big(0);
+    const alfredpayFee = AlfredpayApiService.sumFeesByCurrency(
+      quote.fees,
+      req.inputCurrency as unknown as AlfredpayFiatCurrency
+    );
 
     ctx.alfredpayMint = {
       currency: ctx.request.inputCurrency,

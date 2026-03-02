@@ -9,13 +9,19 @@ export class OnRampAlfredpayToEvmFeeEngine extends BaseFeeEngine {
   };
 
   protected validate(ctx: QuoteContext): void {
-    // No specific validation needed
+    if (!ctx.alfredpayMint) {
+      throw new Error("OnRampAlfredpayToEvmFeeEngine requires alfredpayMint in context");
+    }
   }
 
   protected async compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation> {
-    // TODO verify, really no fees?
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const alfredpayFee = ctx.alfredpayMint!.fee.toString();
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const alfredpayFeeCurrency = ctx.alfredpayMint!.currency as RampCurrency;
+
     return {
-      anchor: { amount: "0", currency: FiatToken.USD as RampCurrency },
+      anchor: { amount: alfredpayFee, currency: alfredpayFeeCurrency },
       network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
     };
   }

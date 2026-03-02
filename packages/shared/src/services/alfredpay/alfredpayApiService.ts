@@ -1,9 +1,12 @@
+import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import {
   AlfredpayCustomerType,
+  AlfredpayFee,
   AlfredpayFiatAccountFields,
   AlfredpayFiatAccountType,
+  AlfredpayFiatCurrency,
   AlfredpayOfframpQuote,
   AlfredpayOnrampQuote,
   CreateAlfredpayCustomerResponse,
@@ -47,6 +50,10 @@ export class AlfredpayApiService {
       AlfredpayApiService.instance = new AlfredpayApiService();
     }
     return AlfredpayApiService.instance;
+  }
+
+  public static sumFeesByCurrency(fees: AlfredpayFee[], currency: AlfredpayFiatCurrency): Big {
+    return fees.filter(fee => fee.currency === currency).reduce((total, fee) => total.plus(new Big(fee.amount)), new Big(0));
   }
 
   private async executeRequest<T>(
