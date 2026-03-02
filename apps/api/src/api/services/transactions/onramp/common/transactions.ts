@@ -239,13 +239,13 @@ export async function addDestinationChainApprovalTransaction(params: {
     functionName: "approve"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
     data: approveCallData as `0x${string}`,
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     to: tokenAddress,
     value: "0"
   };

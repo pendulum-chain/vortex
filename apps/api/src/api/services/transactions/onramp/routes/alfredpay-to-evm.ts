@@ -111,7 +111,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   });
 
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
-    amountRaw: quote.outputAmount,
+    amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     toAddress: destinationAddress,
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
