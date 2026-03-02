@@ -4,8 +4,7 @@ import {
   AlfredpayFiatAccount,
   AlfredpayFiatAccountRequirement,
   AlfredpayFiatAccountType,
-  GetKycRedirectLinkResponse,
-  GetKycStatusResponse
+  GetKycRedirectLinkResponse
 } from "../services/alfredpay/types";
 
 export interface AlfredpayStatusRequest {
