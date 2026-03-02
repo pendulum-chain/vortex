@@ -1,8 +1,15 @@
 import {
   AccountMeta,
+  AlfredpayApiService,
+  AlfredpayChain,
+  AlfredpayFiatCurrency,
+  AlfredpayFiatPaymentInstructions,
+  AlfredpayOnChainCurrency,
+  AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   EvmNetworks,
   FiatToken,
@@ -29,7 +36,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
@@ -38,6 +45,7 @@ import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import { SupabaseAuthService } from "../auth/supabase.service";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -118,7 +126,8 @@ export class RampService extends BaseRampService {
         quote,
         normalizedSigningAccounts,
         additionalData,
-        signingAccounts
+        signingAccounts,
+        request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
       await this.consumeQuote(quote.id, transaction);
@@ -261,8 +270,14 @@ export class RampService extends BaseRampService {
         { transaction }
       );
 
+      let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
+      if (quote.inputCurrency === FiatToken.USD) {
+        achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
+      }
+
       // Create response
       const response: UpdateRampResponse = {
+        achPaymentData,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
         depositQrCode: rampState.state.depositQrCode,
@@ -332,15 +347,7 @@ export class RampService extends BaseRampService {
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals);
 
-      // Find ephemeral transactions in unsigned transactions
-      const ephemeralTransactions = rampState.unsignedTxs.filter(
-        tx =>
-          tx.signer === rampState.state.substrateEphemeralAddress ||
-          tx.signer === rampState.state.evmEphemeralAddress ||
-          tx.signer === rampState.state.stellarEphemeralAccountId
-      );
-      // Ensure all unsigned transactions have a corresponding presigned transaction
-      if (!areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs)) {
+      if (!this.validateAllPresignedTransactionsSigned(rampState)) {
         throw new APIError({
           message: "Not all unsigned transactions have a corresponding presigned transaction.",
           status: httpStatus.BAD_REQUEST
@@ -862,6 +869,32 @@ export class RampService extends BaseRampService {
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
+  private async prepareAlfredpayOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+  }> {
+    if (!additionalData || !additionalData.destinationAddress) {
+      throw new APIError({
+        message: "Parameter destinationAddress is required for Alfredpay onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      userId: userId!
+    });
+
+    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
   private async prepareMoneriumOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -957,7 +990,8 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[]
+    signingAccounts: AccountMeta[],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -979,9 +1013,22 @@ export class RampService extends BaseRampService {
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+      } else if (quote.inputCurrency === FiatToken.USD) {
+        return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
+  }
+
+  private validateAllPresignedTransactionsSigned(rampState: RampState): boolean {
+    const ephemeralTransactions = rampState.unsignedTxs.filter(
+      tx =>
+        tx.signer === rampState.state.substrateEphemeralAddress ||
+        tx.signer === rampState.state.evmEphemeralAddress ||
+        tx.signer === rampState.state.stellarEphemeralAccountId
+    );
+
+    return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
@@ -1054,6 +1101,77 @@ export class RampService extends BaseRampService {
     if (oldPhase !== newPhase) {
       await this.notifyStatusChangeIfNeeded(rampState, oldPhase, newPhase);
     }
+  }
+
+  private async processAlfredpayOnrampStart(
+    rampState: RampState,
+    quote: QuoteTicket,
+    transaction: Transaction
+  ): Promise<AlfredpayFiatPaymentInstructions> {
+    if (!this.validateAllPresignedTransactionsSigned(rampState)) {
+      return;
+    }
+
+    if (rampState.state.alfredpayTransactionId) {
+      return;
+    }
+
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const alfredpayQuoteId = quote.metadata.alfredpayMint?.quoteId;
+
+    if (!alfredpayQuoteId) {
+      throw new APIError({
+        message: "Missing Alfredpay quote ID in metadata",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.userId) {
+      throw new APIError({
+        message: "Missing user ID in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.destinationAddress) {
+      throw new APIError({
+        message: "Destination address not found in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!rampState.state.alfredpayUserId) {
+      throw new APIError({
+        message: "Missing Alfredpay user ID in ramp state",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const orderRequest: CreateAlfredpayOnrampRequest = {
+      amount: quote.inputAmount,
+      chain: AlfredpayChain.MATIC,
+      customerId: rampState.state.alfredpayUserId,
+      depositAddress: rampState.state.destinationAddress,
+      fromCurrency: AlfredpayFiatCurrency.USD,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      quoteId: alfredpayQuoteId,
+      toCurrency: AlfredpayOnChainCurrency.USDC
+    };
+
+    const order = await alfredpayService.createOnramp(orderRequest);
+
+    await rampState.update(
+      {
+        state: {
+          ...rampState.state,
+          alfredpayTransactionId: order.transaction.transactionId,
+          fiatPaymentInstructions: order.fiatPaymentInstructions
+        }
+      },
+      { transaction }
+    );
+
+    return order.fiatPaymentInstructions;
   }
 }
 

@@ -1,6 +1,7 @@
 import { isValidCnpj } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
+import { AlfredpayKycFlow } from "../../components/Alfredpay/AlfredpayKycFlow";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
@@ -12,9 +13,17 @@ import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
+import { PaymentMethodsStep } from "../../components/widget-steps/PaymentMethodsStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
-import { useAveniaKycActor, useAveniaKycSelector, useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
+import {
+  useAlfredpayKycActor,
+  useAlfredpayKycSelector,
+  useAveniaKycActor,
+  useAveniaKycSelector,
+  useMoneriumKycActor,
+  useRampActor
+} from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
 
@@ -43,6 +52,7 @@ const WidgetContent = () => {
   const aveniaKycActor = useAveniaKycActor();
   const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
+  const alfredpayKycActor = useAlfredpayKycActor();
 
   // Enable session persistence and auto-refresh
   useAuthTokens(rampActor);
@@ -52,6 +62,8 @@ const WidgetContent = () => {
     isRedirectCallback: state.matches("RedirectCallback"),
     rampState: state.value
   }));
+
+  const isPaymentMethodSelection = useSelector(rampActor, state => state.matches("PaymentMethodSelection"));
 
   const rampSummaryVisible =
     rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
@@ -96,6 +108,10 @@ const WidgetContent = () => {
     return <MoneriumRedirectStep />;
   }
 
+  if (isPaymentMethodSelection) {
+    return <PaymentMethodsStep />;
+  }
+
   if (rampSummaryVisible) {
     return <SummaryStep />;
   }
@@ -108,6 +124,10 @@ const WidgetContent = () => {
     }
 
     return isCnpj ? <AveniaKYBForm /> : <AveniaKYCForm />;
+  }
+
+  if (alfredpayKycActor) {
+    return <AlfredpayKycFlow />;
   }
 
   if (isInitialQuoteFailed) {

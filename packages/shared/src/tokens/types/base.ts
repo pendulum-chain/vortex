@@ -1,16 +1,19 @@
 import { EvmToken } from "./evm";
+import { PendulumTokenDetails } from "./pendulum";
 
 export enum TokenType {
   Evm = "evm",
   AssetHub = "assethub",
   Stellar = "stellar",
-  Moonbeam = "moonbeam"
+  Moonbeam = "moonbeam",
+  Fiat = "fiat"
 }
 
 export enum FiatToken {
   EURC = "EUR",
   ARS = "ARS",
-  BRL = "BRL"
+  BRL = "BRL",
+  USD = "USD"
 }
 
 export enum AssetHubToken {
@@ -49,4 +52,9 @@ export interface BaseFiatTokenDetails {
   maxBuyAmountRaw: string;
   buyFeesBasisPoints?: number;
   buyFeesFixedComponent?: number;
+}
+
+export interface FreeTokenDetails extends BaseTokenDetails, BaseFiatTokenDetails {
+  type: TokenType.Fiat;
+  pendulumRepresentative: PendulumTokenDetails;
 }

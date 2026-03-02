@@ -7,6 +7,7 @@ import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
 import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
+import { freeTokenConfig } from "../freeTokens/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
 import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency } from "../types/base";
@@ -112,7 +113,7 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
  * Get any fiat token details (Stellar or Moonbeam)
  */
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
-  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken];
+  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken] || freeTokenConfig[fiatToken];
   if (!tokenDetails) {
     throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar or Moonbeam.`);
   }

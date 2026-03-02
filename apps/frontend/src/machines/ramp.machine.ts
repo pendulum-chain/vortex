@@ -11,9 +11,11 @@ import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
+import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { paymentMethodsMachine } from "./paymentMethods.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
@@ -142,6 +144,7 @@ export type RampMachineEvents =
   | { type: "EXPIRE_QUOTE" }
   | { type: "REFRESH_FAILED" }
   | { type: "GO_BACK" }
+  | { type: "GO_TO_PAYMENT_METHODS" }
   // Auth events
   | { type: "ENTER_EMAIL"; email: string }
   | { type: "EMAIL_VERIFIED" }
@@ -190,6 +193,7 @@ export const rampMachine = setup({
     }
   },
   actors: {
+    alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
@@ -204,6 +208,7 @@ export const rampMachine = setup({
       return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
+    paymentMethods: paymentMethodsMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       const { quote, quoteLocked, apiKey, partnerId } = input.context;
       // Quote will exist at this stage, but to be type safe we check again.
@@ -543,6 +548,10 @@ export const rampMachine = setup({
         GO_BACK: {
           target: "QuoteReady"
         },
+        GO_TO_PAYMENT_METHODS: {
+          actions: assign({ paymentMethodsEntrySource: () => "summary" as const }),
+          target: "PaymentMethodSelection"
+        },
         PROCEED_TO_REGISTRATION: [
           {
             actions: assign({
@@ -588,6 +597,7 @@ export const rampMachine = setup({
       }
     },
     KycFailure: {
+      // TODO alfredpay failure ends up here. We should handle a retry on it's own kyc state machine. Get the link again !
       always: {
         target: "Resetting"
       }
@@ -624,6 +634,17 @@ export const rampMachine = setup({
           target: "Idle"
         },
         src: "loadQuote"
+      }
+    },
+    PaymentMethodSelection: {
+      invoke: {
+        id: "paymentMethods",
+        src: "paymentMethods"
+      },
+      on: {
+        GO_BACK: {
+          target: "KycComplete"
+        }
       }
     },
     QuoteReady: {

@@ -1,13 +1,21 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef } from "react";
-import { useAveniaKycActor, useAveniaKycSelector, useRampActor } from "../contexts/rampState";
+import {
+  useAveniaKycActor,
+  useAveniaKycSelector,
+  usePaymentMethodsActor,
+  usePaymentMethodsSelector,
+  useRampActor
+} from "../contexts/rampState";
 
 export const useStepBackNavigation = () => {
   const navigate = useNavigate();
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
+  const paymentMethodsActor = usePaymentMethodsActor();
+  const paymentMethodsState = usePaymentMethodsSelector();
 
   const rampState = useSelector(rampActor, state => state.value);
   const enteredViaForm = useSelector(rampActor, state => state.context.enteredViaForm);
@@ -42,6 +50,14 @@ export const useStepBackNavigation = () => {
     (rampState === "QuoteReady" && !enteredViaForm);
 
   const handleBack = () => {
+    if (paymentMethodsActor && paymentMethodsState) {
+      const state = paymentMethodsState.stateValue;
+      if (state === "PickMethod" || state === "RegisterAccount") {
+        paymentMethodsActor.send({ type: "GO_BACK" });
+        return;
+      }
+    }
+
     if (aveniaKycActor && aveniaState) {
       const childState = aveniaState.stateValue;
       if (childState === "DocumentUpload") {

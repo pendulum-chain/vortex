@@ -4,9 +4,11 @@ import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
+import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
-import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
+import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { PaymentMethodsContext, paymentMethodsMachine } from "./paymentMethods.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 
 export type { RampState } from "../types/phases";
@@ -41,7 +43,9 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
+  alfredpayCustomer?: any;
   postAuthTarget?: "QuoteReady" | "RegisterRamp";
+  paymentMethodsEntrySource?: "kyc" | "summary";
 }
 
 export type RampMachineEvents =
@@ -77,7 +81,8 @@ export type RampMachineEvents =
   | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
-  | { type: "GO_BACK" };
+  | { type: "GO_BACK" }
+  | { type: "GO_TO_PAYMENT_METHODS" };
 
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
@@ -90,6 +95,9 @@ export type MoneriumKycSnapshot = SnapshotFrom<typeof moneriumKycMachine>;
 
 export type AveniaKycActorRef = ActorRefFrom<typeof aveniaKycMachine>;
 export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
+
+export type AlfredpayKycActorRef = ActorRefFrom<typeof alfredpayKycMachine>;
+export type AlfredpayKycSnapshot = SnapshotFrom<typeof alfredpayKycMachine>;
 
 export type SelectedStellarData = {
   stateValue: StellarKycSnapshot["value"];
@@ -104,4 +112,17 @@ export type SelectedMoneriumData = {
 export type SelectedAveniaData = {
   stateValue: AveniaKycSnapshot["value"];
   context: AveniaKycContext;
+};
+
+export type SelectedAlfredpayData = {
+  stateValue: AlfredpayKycSnapshot["value"];
+  context: AlfredpayKycContext;
+};
+
+export type PaymentMethodsActorRef = ActorRefFrom<typeof paymentMethodsMachine>;
+export type PaymentMethodsSnapshot = SnapshotFrom<typeof paymentMethodsMachine>;
+
+export type SelectedPaymentMethodsData = {
+  stateValue: PaymentMethodsSnapshot["value"];
+  context: PaymentMethodsContext;
 };

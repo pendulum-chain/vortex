@@ -6,6 +6,7 @@ import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
+import { OnrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { OnrampAveniaToEvmStrategy } from "./strategies/onramp-avenia-to-evm.strategy";
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
@@ -24,6 +25,8 @@ export class RouteResolver {
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return new OnrampMoneriumToEvmStrategy();
+        } else if (ctx.request.inputCurrency === FiatToken.USD) {
+          return new OnrampAlfredpayToEvmStrategy();
         } else {
           return new OnrampAveniaToEvmStrategy();
         }
