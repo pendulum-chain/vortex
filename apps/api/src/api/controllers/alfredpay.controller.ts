@@ -1,9 +1,13 @@
 import {
   AlfredPayCountry,
   AlfredPayStatus,
+  AlfredpayAddFiatAccountRequest,
   AlfredpayApiService,
   AlfredpayCreateCustomerRequest,
   AlfredpayCreateCustomerResponse,
+  AlfredpayDeleteFiatAccountRequest,
+  AlfredpayFiatAccountRequirementsRequest,
+  AlfredpayFiatAccountType,
   AlfredpayGetKycRedirectLinkRequest,
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusRequest,
@@ -11,6 +15,7 @@ import {
   AlfredpayKycRedirectFinishedRequest,
   AlfredpayKycRedirectOpenedRequest,
   AlfredpayKycStatus,
+  AlfredpayListFiatAccountsRequest,
   AlfredpayStatusRequest,
   AlfredpayStatusResponse
 } from "@vortexfi/shared";
@@ -23,6 +28,7 @@ export class AlfredpayController {
   static async alfredpayStatus(req: Request, res: Response) {
     try {
       const { country } = req.query as unknown as AlfredpayStatusRequest;
+
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -127,6 +133,7 @@ export class AlfredpayController {
   static async getKycRedirectLink(req: Request, res: Response) {
     try {
       const { country } = req.query as unknown as AlfredpayGetKycRedirectLinkRequest;
+
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -213,6 +220,7 @@ export class AlfredpayController {
   static async getKycStatus(req: Request, res: Response) {
     try {
       const { country } = req.query as unknown as AlfredpayGetKycStatusRequest;
+
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -264,6 +272,133 @@ export class AlfredpayController {
     } catch (error) {
       logger.error("Error getting KYC status:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async listFiatAccounts(req: Request, res: Response) {
+    try {
+      const { country } = req.query as unknown as AlfredpayListFiatAccountsRequest;
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      if (alfredPayCustomer.status !== AlfredPayStatus.Success) {
+        return res.status(403).json({ error: "KYC verification must be completed before managing payment methods" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const accounts = await alfredpayService.listFiatAccounts(alfredPayCustomer.alfredPayId);
+
+      res.json(accounts);
+    } catch (error) {
+      logger.error("Error listing fiat accounts:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async addFiatAccount(req: Request, res: Response) {
+    try {
+      const {
+        country,
+        type,
+        accountNumber,
+        accountType,
+        accountName,
+        accountBankCode,
+        accountAlias,
+        networkIdentifier,
+        routingNumber,
+        bankStreet,
+        bankCity,
+        bankState,
+        bankCountry,
+        bankPostalCode
+      } = req.body as AlfredpayAddFiatAccountRequest;
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      if (alfredPayCustomer.status !== AlfredPayStatus.Success) {
+        return res.status(403).json({ error: "KYC verification must be completed before adding payment methods" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+
+      // First-party only: do NOT pass any third-party beneficiary fields
+      const result = await alfredpayService.createFiatAccount(alfredPayCustomer.alfredPayId, type as AlfredpayFiatAccountType, {
+        accountAlias: accountAlias ?? "",
+        accountBankCode,
+        accountName,
+        accountNumber,
+        accountType,
+        bankCity,
+        bankCountry,
+        bankPostalCode,
+        bankState,
+        bankStreet,
+        networkIdentifier: networkIdentifier ?? "",
+        routingNumber
+      });
+
+      res.json(result);
+    } catch (error) {
+      logger.error("Error adding fiat account:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async deleteFiatAccount(req: Request, res: Response) {
+    try {
+      const fiatAccountId = req.params.fiatAccountId as string;
+      const { country } = req.query as unknown as AlfredpayDeleteFiatAccountRequest;
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.deleteFiatAccount(alfredPayCustomer.alfredPayId, fiatAccountId);
+
+      res.status(204).send();
+    } catch (error) {
+      logger.error("Error deleting fiat account:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async getFiatAccountRequirements(req: Request, res: Response) {
+    try {
+      const { country, paymentMethod } = req.query as unknown as AlfredpayFiatAccountRequirementsRequest;
+      const alfredpayService = AlfredpayApiService.getInstance();
+
+      // TODO: verify exact query parameter names against AlfredPay sandbox before going live
+      const requirements = await alfredpayService.getFiatAccountRequirements(country, paymentMethod);
+
+      res.json(requirements);
+    } catch (error) {
+      logger.error("Error fetching fiat account requirements:", error);
+      // Return empty array so the frontend can fall back to static forms
+      res.json([]);
     }
   }
 

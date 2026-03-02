@@ -11,5 +11,9 @@ router.get("/getKycRedirectLink", requireAuth, validateResultCountry, AlfredpayC
 router.post("/kycRedirectOpened", requireAuth, validateResultCountry, AlfredpayController.kycRedirectOpened);
 router.post("/kycRedirectFinished", requireAuth, validateResultCountry, AlfredpayController.kycRedirectFinished);
 router.get("/getKycStatus", requireAuth, validateResultCountry, AlfredpayController.getKycStatus);
+router.get("/fiatAccounts", requireAuth, validateResultCountry, AlfredpayController.listFiatAccounts);
+router.post("/fiatAccounts", requireAuth, validateResultCountry, AlfredpayController.addFiatAccount);
+router.delete("/fiatAccounts/:fiatAccountId", requireAuth, validateResultCountry, AlfredpayController.deleteFiatAccount);
+router.get("/fiatAccountRequirements", requireAuth, AlfredpayController.getFiatAccountRequirements);
 
 export default router;
