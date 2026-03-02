@@ -22,6 +22,7 @@ export enum StageKey {
   SquidRouter = "SquidRouter",
   Fee = "Fee",
   Discount = "Discount",
+  PartnerOperation = "PartnerOperation",
   Finalize = "Finalize"
 }
 

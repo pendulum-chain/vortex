@@ -6,7 +6,6 @@ export interface AlfredPayCustomerAttributes {
   id: string; // Internal PK
   userId: string; // Foreign key to User (profiles.id)
   alfredPayId: string; // Alfredpay's user ID
-  email: string;
   country: AlfredPayCountry;
   status: AlfredPayStatus;
   statusExternal: string | null;
@@ -28,7 +27,6 @@ class AlfredPayCustomer
   declare id: string;
   declare userId: string;
   declare alfredPayId: string;
-  declare email: string;
   declare country: AlfredPayCountry;
   declare status: AlfredPayStatus;
   declare statusExternal: string | null;
@@ -57,13 +55,6 @@ AlfredPayCustomer.init(
       field: "created_at",
       type: DataTypes.DATE
     },
-    email: {
-      allowNull: false,
-      type: DataTypes.STRING,
-      validate: {
-        isEmail: true
-      }
-    },
     id: {
       allowNull: false,
       defaultValue: DataTypes.UUIDV4,
@@ -89,7 +80,7 @@ AlfredPayCustomer.init(
     },
     type: {
       allowNull: false,
-      defaultValue: AlfredPayType.Individual,
+      defaultValue: AlfredPayType.INDIVIDUAL,
       type: DataTypes.ENUM(...Object.values(AlfredPayType))
     },
     updatedAt: {

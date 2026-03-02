@@ -11,7 +11,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
-import { BaseInitializeEngine } from "./index";
+import { BaseInitializeEngine } from "./../initialize/index";
 
 export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
   readonly config = {

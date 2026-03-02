@@ -16,10 +16,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: DataTypes.NOW,
       type: DataTypes.DATE
     },
-    email: {
-      allowNull: false,
-      type: DataTypes.STRING
-    },
     id: {
       allowNull: false,
       defaultValue: DataTypes.UUIDV4,
@@ -77,10 +73,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex("alfredpay_customers", ["alfred_pay_id"], {
     name: "idx_alfredpay_customers_alfred_pay_id",
     unique: true
-  });
-
-  await queryInterface.addIndex("alfredpay_customers", ["email"], {
-    name: "idx_alfredpay_customers_email"
   });
 }
 
