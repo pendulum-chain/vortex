@@ -303,3 +303,25 @@ export interface CreateAlfredpayFiatAccountRequest {
 export interface CreateAlfredpayFiatAccountResponse {
   fiatAccountId: string;
 }
+
+export interface AlfredpayFiatAccount {
+  fiatAccountId: string;
+  customerId: string;
+  type: AlfredpayFiatAccountType;
+  fiatAccountFields: AlfredpayFiatAccountFields;
+  createdAt?: string;
+}
+
+export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
+
+export interface AlfredpayFiatAccountRequirement {
+  field: string;
+  label: string;
+  type: "text" | "select" | "phone" | "email";
+  required: boolean;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  hint?: string;
+}
+
+export type GetAlfredpayFiatAccountRequirementsResponse = AlfredpayFiatAccountRequirement[];

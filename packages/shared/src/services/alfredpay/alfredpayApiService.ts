@@ -2,6 +2,7 @@ import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../
 import logger from "../../logger";
 import {
   AlfredpayCustomerType,
+  AlfredpayFiatAccount,
   AlfredpayFiatAccountFields,
   AlfredpayFiatAccountType,
   AlfredpayOfframpQuote,
@@ -16,10 +17,12 @@ import {
   CreateAlfredpayOnrampRequest,
   CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
+  GetAlfredpayFiatAccountRequirementsResponse,
   GetAlfredpayOnrampTransactionResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
-  GetKycSubmissionResponse
+  GetKycSubmissionResponse,
+  ListAlfredpayFiatAccountsResponse
 } from "./types";
 
 export class AlfredpayApiService {
@@ -128,6 +131,11 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as GetKycSubmissionResponse;
   }
 
+  public async getCustomerByCountry(country: string, email: string): Promise<any> {
+    const path = `/api/v1/third-party-service/penny/customers/find/email/${email}/${country}`;
+    return (await this.executeRequest(path, "GET")) as any;
+  }
+
   public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
     return (await this.executeRequest(path, "POST", request)) as AlfredpayOnrampQuote;
@@ -174,5 +182,46 @@ export class AlfredpayApiService {
     };
     const path = "/api/v1/third-party-service/penny/fiatAccounts";
     return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
+  }
+
+  public async createFiatAccount(
+    customerId: string,
+    type: AlfredpayFiatAccountType,
+    fiatAccountFields: AlfredpayFiatAccountFields
+  ): Promise<CreateAlfredpayFiatAccountResponse> {
+    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, type };
+    const path = "/api/v1/third-party-service/penny/fiatAccounts";
+    return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
+  }
+
+  public async listFiatAccounts(customerId: string): Promise<ListAlfredpayFiatAccountsResponse> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts/${customerId}`;
+    const result = await this.executeRequest<ListAlfredpayFiatAccountsResponse | { data: ListAlfredpayFiatAccountsResponse }>(
+      path,
+      "GET"
+    );
+    if (Array.isArray(result)) return result;
+    return (result as { data: ListAlfredpayFiatAccountsResponse })?.data ?? [];
+  }
+
+  public async getFiatAccountDetail(fiatAccountId: string): Promise<AlfredpayFiatAccount> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts/detail/${fiatAccountId}`;
+    return (await this.executeRequest(path, "GET")) as AlfredpayFiatAccount;
+  }
+
+  public async deleteFiatAccount(customerId: string, fiatAccountId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts/${customerId}/${fiatAccountId}`;
+    await this.executeRequest(path, "DELETE");
+  }
+
+  // TODO: verify exact query parameter names and response shape against AlfredPay sandbox
+  public async getFiatAccountRequirements(
+    country: string,
+    paymentMethod: string
+  ): Promise<GetAlfredpayFiatAccountRequirementsResponse> {
+    const path = "/api/v1/third-party-service/penny/fiatAccounts/requirements";
+    const queryParams = `country=${encodeURIComponent(country)}&paymentMethod=${encodeURIComponent(paymentMethod)}`;
+    const result = await this.executeRequest<GetAlfredpayFiatAccountRequirementsResponse>(path, "GET", undefined, queryParams);
+    return result ?? [];
   }
 }

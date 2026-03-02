@@ -1,14 +1,16 @@
 import {
   AlfredPayStatus,
   AlfredpayCustomerType,
-  CreateAlfredpayCustomerResponse,
+  AlfredpayFiatAccount,
+  AlfredpayFiatAccountRequirement,
+  AlfredpayFiatAccountType,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse
 } from "../services/alfredpay/types";
 
-// GET /alfredpay/alfredpayStatus?country=:country
 export interface AlfredpayStatusRequest {
   country: string;
+  email: string;
 }
 
 export interface AlfredpayStatusResponse {
@@ -17,7 +19,6 @@ export interface AlfredpayStatusResponse {
   creationTime: string;
 }
 
-// POST /alfredpay/createCustomer
 export interface AlfredpayCreateCustomerRequest {
   country: string;
   type: AlfredpayCustomerType;
@@ -27,14 +28,12 @@ export interface AlfredpayCreateCustomerResponse {
   createdAt: string;
 }
 
-// GET /alfredpay/getKycRedirectLink?country=:country
 export interface AlfredpayGetKycRedirectLinkRequest {
   country: string;
 }
 
 export type AlfredpayGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;
 
-// POST /alfredpay/kycRedirectOpened
 export interface AlfredpayKycRedirectOpenedRequest {
   country: string;
 }
@@ -42,8 +41,6 @@ export interface AlfredpayKycRedirectOpenedRequest {
 export interface AlfredpayKycRedirectOpenedResponse {
   success: boolean;
 }
-
-// POST /alfredpay/kycRedirectFinished
 export interface AlfredpayKycRedirectFinishedRequest {
   country: string;
 }
@@ -51,8 +48,6 @@ export interface AlfredpayKycRedirectFinishedRequest {
 export interface AlfredpayKycRedirectFinishedResponse {
   success: boolean;
 }
-
-// GET /alfredpay/getKycStatus?country=:country
 export interface AlfredpayGetKycStatusRequest {
   country: string;
 }
@@ -65,3 +60,41 @@ export interface AlfredpayGetKycStatusResponse {
   alfred_pay_id: string;
   country: string;
 }
+
+export interface AlfredpayListFiatAccountsRequest {
+  country: string;
+}
+
+export type AlfredpayListFiatAccountsResponse = AlfredpayFiatAccount[];
+
+export interface AlfredpayAddFiatAccountRequest {
+  country: string;
+  type: AlfredpayFiatAccountType;
+  accountNumber: string;
+  accountType: string;
+  accountName: string;
+  accountBankCode: string;
+  accountAlias?: string;
+  networkIdentifier?: string;
+  routingNumber?: string;
+  bankStreet?: string;
+  bankCity?: string;
+  bankState?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+}
+
+export interface AlfredpayAddFiatAccountResponse {
+  fiatAccountId: string;
+}
+
+export interface AlfredpayDeleteFiatAccountRequest {
+  country: string;
+}
+
+export interface AlfredpayFiatAccountRequirementsRequest {
+  country: string;
+  paymentMethod: string;
+}
+
+export type AlfredpayFiatAccountRequirementsResponse = AlfredpayFiatAccountRequirement[];
