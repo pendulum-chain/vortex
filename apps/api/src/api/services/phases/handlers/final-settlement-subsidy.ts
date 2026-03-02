@@ -54,7 +54,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
-    if (!quote || !quote.metadata.alfredpayOfframp) {
+    if (!quote) {
       throw new Error("Quote not found or invalid for the given state");
     }
 
@@ -68,10 +68,27 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
     }
 
-    const expectedAmountRaw =
-      state.type === RampDirection.BUY
-        ? multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals)
-        : Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
+    // 3 distinct cases so far:
+    let expectedAmountRaw: Big | undefined;
+    switch (state.type) {
+      case RampDirection.BUY:
+        if (quote.inputCurrency === FiatToken.USD) {
+          expectedAmountRaw = Big(quote.metadata.alfredpayMint!.outputAmountRaw);
+          break;
+        }
+        expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
+
+      case RampDirection.SELL:
+        if (quote.outputCurrency === FiatToken.USD) {
+          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
+          break;
+        }
+    }
+
+    if (!expectedAmountRaw) {
+      throw new Error("FinalSettlementSubsidyHandler: Unable to determine expected amount for subsidy");
+    }
+
     const destinationNetwork = state.type === RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;

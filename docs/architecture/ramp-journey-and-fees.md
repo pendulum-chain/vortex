@@ -205,9 +205,9 @@ This journey handles on-ramping using Alfredpay. It leverages Squid Router for c
 This journey handles off-ramping using Alfredpay. It uses Squid Router with permit execution and includes a final settlement subsidy step before the Alfredpay offramp transfer.
 
 *   **Starts After:** `initial`
-*   **Next Phase:** `squidrouterPermitExecute`
+*   **Next Phase:** `squidRouterPermitExecute`
 
-6.  **Phase: `squidrouterPermitExecute` (`squidrouter-permit-execution-handler.ts`):** Executes the Squid Router permit for the off-ramp transaction, executing the authorized swap and transfer. Transitions to `fundEphemeral`.
+6.  **Phase: `squidRouterPermitExecute` (`squidRouter-permit-execution-handler.ts`):** Executes the Squid Router permit for the off-ramp transaction, executing the authorized swap and transfer. Transitions to `fundEphemeral`.
 7.  **Phase: `fundEphemeral` (`fund-ephemeral-handler.ts`):** Funds the ephemeral account with native tokens (only POL) to cover transaction fees for subsequent steps. Transitions to `finalSettlementSubsidy`.
 8.  **Phase: `finalSettlementSubsidy` (`final-settlement-subsidy-handler.ts`):** Tops up the asset balance if needed to ensure the correct amount is available for the offramp transfer. Transitions to `alfredpayOfframpTransfer`.
 9.  **Phase: `alfredpayOfframpTransfer` (`alfredpay-offramp-transfer-handler.ts`):** Initiates the Alfredpay off-ramp transfer, sending the final fiat amount to the user's destination. Transitions to `complete`.
@@ -284,7 +284,7 @@ graph TD
         M_off[Start Off-Ramp] --> N_off{Input Source?};
         
         %% --- Alfredpay Off-Ramp Flow ---
-        N_off -->|Alfredpay| AF_Off_Permit[squidrouterPermitExecute];
+        N_off -->|Alfredpay| AF_Off_Permit[squidRouterPermitExecute];
         AF_Off_Permit --> AF_Off_Fund[fundEphemeral];
         AF_Off_Fund --> AF_Off_Subsidy[finalSettlementSubsidy];
         AF_Off_Subsidy --> AF_Off_Transfer[alfredpayOfframpTransfer];

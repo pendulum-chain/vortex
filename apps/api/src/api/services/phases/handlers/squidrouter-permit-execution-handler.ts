@@ -29,23 +29,23 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
   }
 
   public getPhaseName(): RampPhase {
-    return "squidrouterPermitExecute";
+    return "squidRouterPermitExecute";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    logger.info(`Executing squidrouterPermitExecute phase for ramp ${state.id}`);
+    logger.info(`Executing squidRouterPermitExecute phase for ramp ${state.id}`);
 
     const fromNetwork = getNetworkFromDestination(state.from);
 
     if (!fromNetwork || !isNetworkEVM(fromNetwork)) {
-      throw this.createUnrecoverableError(`Unsupported network for squidrouterPermitExecute phase: ${state.from}`);
+      throw this.createUnrecoverableError(`Unsupported network for squidRouterPermitExecute phase: ${state.from}`);
     }
 
     try {
-      const existingHash = state.state.squidrouterPermitExecutionHash || null;
+      const existingHash = state.state.squidRouterPermitExecutionHash || null;
 
       if (existingHash) {
-        logger.info(`Found existing squidrouter permit execution hash for ramp ${state.id}: ${existingHash}`);
+        logger.info(`Found existing squidRouter permit execution hash for ramp ${state.id}: ${existingHash}`);
 
         try {
           const publicClient = this.evmClientManager.getClient(fromNetwork);
@@ -54,11 +54,11 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
           });
 
           if (receipt && receipt.status === "success") {
-            logger.info(`Existing squidrouter permit execution transaction was successful for ramp ${state.id}`);
+            logger.info(`Existing squidRouter permit execution transaction was successful for ramp ${state.id}`);
             return this.transitionToNextPhase(state, "fundEphemeral");
           } else {
             logger.info(
-              `Existing squidrouter permit execution transaction was not successful (status: ${receipt?.status}), will retry`
+              `Existing squidRouter permit execution transaction was not successful (status: ${receipt?.status}), will retry`
             );
           }
         } catch (error) {
@@ -66,9 +66,9 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         }
       }
 
-      const permitExecuteTransaction = this.getPresignedTransaction(state, "squidrouterPermitExecute");
+      const permitExecuteTransaction = this.getPresignedTransaction(state, "squidRouterPermitExecute");
       if (!permitExecuteTransaction) {
-        throw this.createUnrecoverableError("Missing presigned transaction for squidrouterPermitExecute phase");
+        throw this.createUnrecoverableError("Missing presigned transaction for squidRouterPermitExecute phase");
       }
 
       // For this special phase, txData is of type SignedTypedData[], where the first element is the permit typed data and the second element is the payload typed data
@@ -137,7 +137,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       const updatedState = await state.update({
         state: {
           ...state.state,
-          squidrouterPermitExecutionHash: hash
+          squidRouterPermitExecutionHash: hash
         }
       });
 
@@ -154,7 +154,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(updatedState, "fundEphemeral");
     } catch (error) {
-      logger.error(`Error in squidrouterPermitExecute phase for ramp ${state.id}:`, error);
+      logger.error(`Error in squidRouterPermitExecute phase for ramp ${state.id}:`, error);
 
       if (error instanceof PhaseError) {
         throw error;

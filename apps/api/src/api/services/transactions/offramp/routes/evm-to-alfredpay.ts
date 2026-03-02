@@ -265,7 +265,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     meta: {},
     network: fromNetwork,
     nonce: 0,
-    phase: "squidrouterPermitExecute",
+    phase: "squidRouterPermitExecute",
     signer: userAddress,
     txData: typedDataArray
   });

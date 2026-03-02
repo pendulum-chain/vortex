@@ -15,7 +15,7 @@ export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
-  | "squidrouterPermitExecute"
+  | "squidRouterPermitExecute"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"

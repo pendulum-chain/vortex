@@ -22,7 +22,7 @@ import pendulumToMoonbeamXcmHandler from "./handlers/pendulum-to-moonbeam-xcm-ha
 import spacewalkRedeemHandler from "./handlers/spacewalk-redeem-handler";
 import squidRouterPayPhaseHandler from "./handlers/squid-router-pay-phase-handler";
 import squidRouterPhaseHandler from "./handlers/squid-router-phase-handler";
-import squidrouterPermitExecutionHandler from "./handlers/squidrouter-permit-execution-handler";
+import squidRouterPermitExecutionHandler from "./handlers/squidrouter-permit-execution-handler";
 import stellarPaymentHandler from "./handlers/stellar-payment-handler";
 import subsidizePostSwapPhaseHandler from "./handlers/subsidize-post-swap-handler";
 import subsidizePreSwapPhaseHandler from "./handlers/subsidize-pre-swap-handler";
@@ -61,7 +61,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(hydrationSwapHandler);
   phaseRegistry.registerHandler(finalSettlementSubsidy);
   phaseRegistry.registerHandler(destinationTransferHandler);
-  phaseRegistry.registerHandler(squidrouterPermitExecutionHandler);
+  phaseRegistry.registerHandler(squidRouterPermitExecutionHandler);
 
   logger.info("Phase handlers registered");
 }

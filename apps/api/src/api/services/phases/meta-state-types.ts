@@ -68,6 +68,6 @@ export interface StateMetadata {
   destinationTransferTxHash?: string;
   finalSettlementSubsidyTxHash?: string;
   alfredpayOfframpTransferTxHash?: string;
-  squidrouterPermitExecutionHash?: string;
+  squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
 }
