@@ -11,6 +11,28 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "alfredpayKycFlow": {
+      "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
+      "cancel": "Cancelar",
+      "completed": "{{kycOrKyb}} Concluído!",
+      "completeInNewWindow": "Por favor, complete o processo {{kycOrKyb}} na nova janela. Quando terminar, clique no botão abaixo.",
+      "completeProcess": "Para continuar, complete o processo {{kycOrKyb}} com nosso parceiro AlfredPay.",
+      "continue": "Continuar",
+      "continueWithPartner": "Por favor, continue com nosso parceiro para a verificação {{kycOrKyb}}.",
+      "failed": "{{kycOrKyb}} Falhou",
+      "finishedVerification": "Terminei a verificação {{kycOrKyb}}",
+      "loading": "Carregando...",
+      "openingLink": "Abrindo Link...",
+      "openLink": "Abrir Link {{kycOrKyb}}",
+      "registerAsBusiness": "Se estiver se registrando como empresa, clique <1>aqui</1>",
+      "registerAsIndividual": "Clique <1>aqui</1> para se registrar como indivíduo",
+      "retry": "Tentar Novamente",
+      "retryProcess": "Tentar Processo Novamente",
+      "systemError": "Erro do Sistema",
+      "verifyingCompletion": "Verificando conclusão...",
+      "verifyingStatus": "Verificando Status {{kycOrKyb}}...",
+      "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continuar",
@@ -453,6 +475,13 @@
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
       "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
+      "USOnrampDetails": {
+        "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
+        "qrCode": "Selecione ACH no app do seu banco e escaneie o QR code abaixo.",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "timerLabel": "Cotação expira em:",
+        "title": "Pagar com ACH"
+      },
       "verifyWallet": "Verificar carteira"
     },
     "searchInput": {
