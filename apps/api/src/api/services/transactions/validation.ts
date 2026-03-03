@@ -1,4 +1,3 @@
-import { isSignedTypedData, isSignedTypedDataArray } from "@packages/shared";
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import {
@@ -7,6 +6,8 @@ import {
   EphemeralAccountType,
   FiatToken,
   getNetworkId,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   PresignedTx,
   RampDirection,
   RampPhase,

@@ -1,4 +1,11 @@
-import { encodeSubmittableExtrinsic, getPendulumDetails, isEvmTokenDetails, Networks, UnsignedTx } from "@vortexfi/shared";
+import {
+  encodeSubmittableExtrinsic,
+  getPendulumDetails,
+  isEvmTokenDetails,
+  MoonbeamTokenDetails,
+  Networks,
+  UnsignedTx
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -123,7 +130,7 @@ export async function prepareEvmToBRLOfframpTransactions({
       account: substrateAccount,
       brlaEvmAddress: validatedBrlaEvmAddress,
       outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
-      outputTokenPendulumDetails: outputTokenDetails.pendulumRepresentative,
+      outputTokenPendulumDetails: (outputTokenDetails as unknown as MoonbeamTokenDetails).pendulumRepresentative,
       pixDestination: validatedPixDestination,
       receiverTaxId: validatedReceiverTaxId,
       taxId: validatedTaxId

@@ -1,8 +1,8 @@
-import { isSignedTypedDataArray } from "@packages/shared";
 import {
   EvmClientManager,
   getNetworkFromDestination,
   isNetworkEVM,
+  isSignedTypedDataArray,
   Networks,
   RampPhase,
   SignedTypedData

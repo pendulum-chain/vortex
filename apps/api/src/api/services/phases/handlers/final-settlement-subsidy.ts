@@ -83,12 +83,14 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
           break;
         }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
+        break;
 
       case RampDirection.SELL:
         if (quote.outputCurrency === FiatToken.USD) {
           expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
           break;
         }
+        break;
     }
 
     if (!expectedAmountRaw) {

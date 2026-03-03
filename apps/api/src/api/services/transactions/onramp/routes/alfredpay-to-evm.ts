@@ -1,12 +1,13 @@
-import { createOnrampSquidrouterTransactionsOnDestinationChain, evmTokenConfig } from "@packages/shared";
 import {
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
+  createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_USDC_POLYGON,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   EvmTransactionData,
+  evmTokenConfig,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -19,11 +20,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { getOutToken } from "../../../sep10/helpers";
 import { encodeEvmTransactionData } from "../../index";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
-import { validateMoneriumOnramp } from "../common/validation";
 
 /**
  * Prepares all transactions for Alfredpay (USD) onramp to EVM chain.

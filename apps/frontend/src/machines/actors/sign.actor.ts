@@ -1,4 +1,3 @@
-import {} from "@packages/shared";
 import {
   ERC20_EURE_POLYGON_DECIMALS,
   ERC20_EURE_POLYGON_TOKEN_NAME,
@@ -11,8 +10,7 @@ import {
   Networks,
   PermitSignature,
   PresignedTx,
-  RampDirection,
-  Signature
+  RampDirection
 } from "@vortexfi/shared";
 import { signERC2612Permit } from "../../helpers/crypto";
 import { RampService } from "../../services/api";

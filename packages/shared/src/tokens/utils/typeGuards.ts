@@ -71,9 +71,7 @@ export function isFiatTokenDetails(token: TokenDetails): token is FiatTokenDetai
 /**
  * Type guard for Stellar output token details
  */
-export function isStellarOutputTokenDetails(
-  tokenDetails: StellarTokenDetails | MoonbeamTokenDetails
-): tokenDetails is StellarTokenDetails {
+export function isStellarOutputTokenDetails(tokenDetails: Partial<FiatTokenDetails>): tokenDetails is StellarTokenDetails {
   return tokenDetails.type === TokenType.Stellar;
 }
 
