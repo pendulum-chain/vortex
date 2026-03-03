@@ -123,7 +123,12 @@ export const signTransactionsActor = async ({
     for (const tx of sortedTxs) {
       if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
-        tx.txData = await signMultipleTypedData(tx.txData as any);
+        if (isSignedTypedData(tx.txData)) {
+          const signedArray = await signMultipleTypedData([tx.txData]);
+          tx.txData = signedArray[0];
+        } else {
+          tx.txData = await signMultipleTypedData(tx.txData);
+        }
 
         signedTxs.push(tx);
 

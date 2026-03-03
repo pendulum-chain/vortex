@@ -49,6 +49,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     return "finalSettlementSubsidy";
   }
 
+  private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
+    return state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD
+      ? "alfredpayOfframpTransfer"
+      : "destinationTransfer";
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
@@ -105,7 +111,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         logger.info(
           `FinalSettlementSubsidyHandler: Transaction ${state.state.finalSettlementSubsidyTxHash} already successful. Skipping.`
         );
-        return this.transitionToNextPhase(state, "destinationTransfer");
+        return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
       }
     }
 
@@ -131,7 +137,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info(
         `FinalSettlementSubsidyHandler: Actual balance (${actualBalance.toString()}) meets expected amount. No subsidy needed.`
       );
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
     logger.info(`FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units to ${ephemeralAddress}`);
@@ -281,9 +287,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         }
       });
 
-      return state.type === RampDirection.SELL && (quote.outputCurrency as unknown as FiatToken) === FiatToken.USD
-        ? this.transitionToNextPhase(state, "alfredpayOfframpTransfer")
-        : this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     } catch (error) {
       throw this.createRecoverableError(
         `FinalSettlementSubsidyHandler: Error during phase execution - ${(error as Error).message}`

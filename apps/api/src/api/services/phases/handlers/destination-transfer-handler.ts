@@ -36,7 +36,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
     // For Alfredpay's onramps into Polygon, we skip his step, as we are on the destination network already!
     if (state.type === RampDirection.BUY && state.to === Networks.Polygon && quote.inputCurrency === FiatToken.USD) {
-      throw new Error("DestinationTransferHandler: Only supports onramp operations");
+      return this.transitionToNextPhase(state, "complete");
     }
 
     if (!isEvmToken(quote.outputCurrency)) {
