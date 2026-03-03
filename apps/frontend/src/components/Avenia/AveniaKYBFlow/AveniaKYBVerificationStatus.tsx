@@ -12,7 +12,6 @@ export const AveniaKYBVerificationStatus: React.FC = () => {
 
   if (!aveniaState || !aveniaKycActor) return null;
 
-  console.log(aveniaState.context.kycStatus);
   return (
     <>
       <div className="relative">

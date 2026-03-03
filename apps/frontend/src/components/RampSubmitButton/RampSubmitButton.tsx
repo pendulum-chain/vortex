@@ -108,8 +108,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     //   };
     // }
 
-    console.log("submitButtonDisabled", submitButtonDisabled);
-
     if (submitButtonDisabled) {
       return {
         icon: <Spinner />,

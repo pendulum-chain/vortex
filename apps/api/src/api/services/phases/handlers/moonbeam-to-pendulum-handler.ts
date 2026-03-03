@@ -78,7 +78,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     try {
       if (!(await didInputTokenArriveOnPendulum())) {
         await waitUntilTrue(isHashRegisteredInSplitReceiver);
-        console.log(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
+        logger.info(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
       }
     } catch (e) {
       logger.error(e);

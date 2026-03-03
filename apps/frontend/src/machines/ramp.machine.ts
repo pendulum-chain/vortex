@@ -228,7 +228,6 @@ export const rampMachine = setup({
     urlCleaner: fromPromise(
       () =>
         new Promise<void>(resolve => {
-          console.log("Clearing URL parameters");
           const cleanUrl = window.location.pathname;
           window.history.replaceState({}, "", cleanUrl);
           resolve();

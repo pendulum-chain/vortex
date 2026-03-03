@@ -11,7 +11,6 @@ export const USOnrampDetails: FC = () => {
   const { isQuoteExpired } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired
   }));
-  console.log("loading");
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
   }));

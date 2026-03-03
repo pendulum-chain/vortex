@@ -232,8 +232,6 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     });
   }
 
-  console.log("Parsed Stellar transaction source:", transaction.source);
-
   if (phase === "stellarCreateAccount") {
     if (transaction.operations.length !== 3) {
       throw new APIError({

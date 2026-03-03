@@ -60,7 +60,7 @@ export interface StellarKycContext extends RampContext {
 // The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
 export const kycStateNode = {
   entry: ({ context }: { context: RampContext }) =>
-    console.log("Entering KYC state node. RampContext kycFormData:", context.kycFormData),
+    console.log("DEBUG: Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
     GO_BACK: {
