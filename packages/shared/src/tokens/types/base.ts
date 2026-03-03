@@ -54,7 +54,6 @@ export interface BaseFiatTokenDetails {
   buyFeesFixedComponent?: number;
 }
 
-export interface FreeTokenDetails extends BaseTokenDetails, BaseFiatTokenDetails {
+export interface FiatCurrencyDetails extends BaseTokenDetails, BaseFiatTokenDetails {
   type: TokenType.Fiat;
-  pendulumRepresentative: PendulumTokenDetails;
 }

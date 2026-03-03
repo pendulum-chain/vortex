@@ -3,9 +3,9 @@
  */
 
 import { PENDULUM_USDC_ASSETHUB } from "../pendulum/config";
-import { FiatToken, FreeTokenDetails, TokenType } from "../types/base";
+import { FiatCurrencyDetails, FiatToken, TokenType } from "../types/base";
 
-export const freeTokenConfig: Partial<Record<FiatToken, FreeTokenDetails>> = {
+export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = {
   [FiatToken.USD]: {
     assetSymbol: "USD",
     decimals: 1,
@@ -18,7 +18,6 @@ export const freeTokenConfig: Partial<Record<FiatToken, FreeTokenDetails>> = {
     maxSellAmountRaw: "100000000000000000000",
     minBuyAmountRaw: "1",
     minSellAmountRaw: "0.01",
-    pendulumRepresentative: PENDULUM_USDC_ASSETHUB,
     type: TokenType.Fiat
   }
 };
