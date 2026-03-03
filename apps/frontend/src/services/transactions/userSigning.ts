@@ -35,7 +35,9 @@ export async function signMultipleTypedData(typedDataArray: SignedTypedData[]): 
     const r = `0x${rawSignature.slice(2, 66)}` as `0x${string}`;
     const s = `0x${rawSignature.slice(66, 130)}` as `0x${string}`;
 
-    const deadline = typedData.message.deadline ? Number(typedData.message.deadline) : Math.floor(Date.now() / 1000) + 3600;
+    const deadline = typedData.message.deadline
+      ? Number(typedData.message.deadline)
+      : Math.floor(Date.now() / 1000) + 24 * 60 * 60; // Default deadline to 24 hours
 
     signedTypedDataArray.push({
       ...typedData,

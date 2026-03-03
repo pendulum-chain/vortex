@@ -17,13 +17,13 @@ export const AlfredpayService = {
     return response.data;
   },
   /**
-   * Create a new Alfredpay customer.
+   * Create a new Alfredpay individual customer.
    */
-  async createCustomer(country: string): Promise<AlfredpayCreateCustomerResponse> {
+  async createIndividualCustomer(country: string): Promise<AlfredpayCreateCustomerResponse> {
     const request: AlfredpayCreateCustomerRequest = {
       country
     };
-    const response = await apiClient.post<AlfredpayCreateCustomerResponse>("/alfredpay/createCustomer", request);
+    const response = await apiClient.post<AlfredpayCreateCustomerResponse>("/alfredpay/createIndividualCustomer", request);
     return response.data;
   },
   /**

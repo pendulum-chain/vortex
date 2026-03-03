@@ -184,7 +184,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     toToken: ERC20_USDC_POLYGON
   });
 
-  const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from "now"
+  const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60); // 24 hours from "now"
 
   const publicClient = evmClientManager.getClient(fromNetwork);
 

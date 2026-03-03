@@ -10,6 +10,8 @@ import { assign, fromPromise, raise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
 
+const POLLING_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
+
 export enum AlfredpayKycMachineErrorType {
   UserRejected = "USER_REJECTED",
   UnknownError = "UNKNOWN_ERROR"
@@ -37,7 +39,7 @@ export const alfredpayKycMachine = setup({
       if (input.business) {
         return AlfredpayService.createBusinessCustomer(country);
       }
-      return AlfredpayService.createCustomer(country);
+      return AlfredpayService.createIndividualCustomer(country);
     }),
 
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -65,7 +67,11 @@ export const alfredpayKycMachine = setup({
       const country = input.country || "US";
       // Submission ID check removed as backend handles it
 
+      const startTime = Date.now();
       while (true) {
+        if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
+          throw new Error("Polling timeout");
+        }
         try {
           const response = await AlfredpayService.getKycStatus(
             country,
@@ -91,7 +97,11 @@ export const alfredpayKycMachine = setup({
       const country = input.country || "US";
       // Submission ID check removed as backend handles it
 
+      const startTime = Date.now();
       while (true) {
+        if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
+          throw new Error("Polling timeout");
+        }
         try {
           const status = await AlfredpayService.getKycStatus(
             country,

@@ -96,7 +96,7 @@ export class AlfredpayController {
     }
   }
 
-  static async createCustomer(req: Request, res: Response) {
+  static async createIndividualCustomer(req: Request, res: Response) {
     try {
       const { country } = req.body as AlfredpayCreateCustomerRequest;
       const userId = req.userId!;
@@ -123,7 +123,6 @@ export class AlfredpayController {
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
         country: country as AlfredPayCountry,
-        email: user.email,
         status: AlfredPayStatus.Consulted,
         type: AlfredpayCustomerType.INDIVIDUAL,
         userId
@@ -278,7 +277,6 @@ export class AlfredpayController {
       const response: AlfredpayGetKycStatusResponse = {
         alfred_pay_id: alfredPayCustomer.alfredPayId,
         country: alfredPayCustomer.country,
-        email: alfredPayCustomer.email,
         lastFailure: updateData.lastFailureReasons?.[0] || alfredPayCustomer.lastFailureReasons?.[0], // Get the latest failure reason
         status: (newStatus || alfredPayCustomer.status) as AlfredPayStatus,
         updated_at: alfredPayCustomer.updatedAt.toISOString()
@@ -370,7 +368,6 @@ export class AlfredpayController {
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
         country: country as AlfredPayCountry,
-        email: user.email,
         status: AlfredPayStatus.Consulted,
         type,
         userId
