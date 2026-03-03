@@ -14,7 +14,8 @@ export const USOnrampDetails: FC = () => {
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
   }));
-  if (!rampState?.ramp?.achPaymentData) return null;
+  const achPaymentData = rampState?.ramp?.achPaymentData;
+  if (!achPaymentData) return null;
   if (isQuoteExpired) return null;
 
   return (
@@ -31,10 +32,10 @@ export const USOnrampDetails: FC = () => {
       </div>
       <div className="my-6 flex justify-center">
         <div className="rounded-lg border-1 border-gray-300 p-4">
-          <p>{rampState.ramp?.achPaymentData.paymentDescription!}</p>
-          <p>{rampState.ramp?.achPaymentData.accountNumber!}</p>
-          <p>{rampState.ramp?.achPaymentData.routingNumber!}</p>
-          <p>{rampState.ramp?.achPaymentData.accountHolderName!}</p>
+          <p>{String(achPaymentData.paymentDescription)}</p>
+          <p>{String(achPaymentData.accountNumber)}</p>
+          <p>{String(achPaymentData.routingNumber)}</p>
+          <p>{String(achPaymentData.accountHolderName)}</p>
         </div>
       </div>
       <p className="text-center">{t("components.SummaryPage.USOnrampDetails.copyCode")}</p>

@@ -19,6 +19,10 @@ export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> =
   [FiatToken.BRL]: {
     disabledReasonTranslationKey: "pages.swap.error.BRL_tokenUnavailable",
     enabled: true
+  },
+  [FiatToken.USD]: {
+    disabledReasonTranslationKey: "pages.swap.error.USD_tokenUnavailable",
+    enabled: true
   }
 };
 

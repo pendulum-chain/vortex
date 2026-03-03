@@ -6,6 +6,7 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isMoonbeamTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
@@ -108,7 +109,13 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
-    return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
+    if (isStellarOutputTokenDetails(fiatToken)) {
+      return fiatToken.anchorHomepageUrl;
+    }
+    if (isMoonbeamTokenDetails(fiatToken)) {
+      return fiatToken.partnerUrl;
+    }
+    throw new Error("Unsupported token type for partner URL");
   };
 
   const destinationAddress = isOnramp

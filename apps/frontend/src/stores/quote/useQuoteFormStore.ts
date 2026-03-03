@@ -24,7 +24,8 @@ export const DEFAULT_ARS_AMOUNT = "20";
 export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
   [FiatToken.EURC]: DEFAULT_EURC_AMOUNT,
   [FiatToken.ARS]: DEFAULT_ARS_AMOUNT,
-  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT
+  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
+  [FiatToken.USD]: "100"
 };
 
 const defaultFiatToken = getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;

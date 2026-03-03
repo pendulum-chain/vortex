@@ -15,6 +15,8 @@ import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
+  alfredpayOfframpTransfer: 30,
+  alfredpayOnrampMint: 5 * 60,
   assethubToPendulum: 24,
   backupApprove: 0,
   backupSquidRouterApprove: 0,
@@ -42,6 +44,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
   squidRouterPay: 60,
+  squidRouterPermitExecute: 30,
   squidRouterSwap: 10,
   stellarCreateAccount: 0,
   stellarPayment: 6,
