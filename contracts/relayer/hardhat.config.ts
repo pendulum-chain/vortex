@@ -30,12 +30,13 @@ const config: HardhatUserConfig = {
   },
   solidity: {
     settings: {
+      evmVersion: "cancun",
       optimizer: {
         enabled: true,
         runs: 200
       }
     },
-    version: "0.8.24"
+    version: "0.8.28"
   }
 };
 

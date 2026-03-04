@@ -74,6 +74,7 @@ const tokenRelayerAbi = [
           { name: "permitR", type: "bytes32" },
           { name: "permitS", type: "bytes32" },
           { name: "payloadData", type: "bytes" },
+          { name: "payloadValue", type: "uint256" },
           { name: "payloadNonce", type: "uint256" },
           { name: "payloadDeadline", type: "uint256" },
           { name: "payloadV", type: "uint8" },
@@ -85,8 +86,8 @@ const tokenRelayerAbi = [
       }
     ],
     name: "execute",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
+    outputs: [],
+    stateMutability: "payable",
     type: "function"
   }
 ];
@@ -295,6 +296,7 @@ async function main() {
           payloadR: payloadR,
           payloadS: payloadS,
           payloadV: payloadV,
+          payloadValue: 0,
           permitR: permitR,
           permitS: permitS,
           permitV: permitV,
