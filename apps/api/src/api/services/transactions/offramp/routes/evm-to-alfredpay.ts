@@ -25,7 +25,7 @@ import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0xF85a238F8a618d573608c74Ab7937C00f5Fceef1" as const;
+export const RELAYER_ADDRESS = "0xC9ECD03c89349B3EAe4613c7091c6c3029413785" as const;
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.

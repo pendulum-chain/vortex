@@ -2,9 +2,9 @@
 /* tslint:disable */
 /* eslint-disable */
 import type * as openzeppelin from "./@openzeppelin";
-import type * as contracts from "./contracts";
-
 export type { openzeppelin };
+
+import type * as contracts from "./contracts";
 export type { contracts };
 export type { Ownable } from "./@openzeppelin/contracts/access/Ownable";
 export type { IERC1363 } from "./@openzeppelin/contracts/interfaces/IERC1363";
