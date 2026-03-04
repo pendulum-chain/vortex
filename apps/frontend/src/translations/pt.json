@@ -1003,7 +1003,8 @@
           "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
-          "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco."
+          "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+          "USD": "Em breve os fundos estarão disponíveis em sua conta bancária."
         }
       },
       "returnHome": "Voltar para a página inicial.",

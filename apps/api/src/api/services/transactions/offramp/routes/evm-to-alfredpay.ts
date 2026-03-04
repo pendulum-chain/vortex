@@ -245,13 +245,21 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       data: bridgeResult.swapData.data,
       deadline: payloadDeadline.toString(),
       destination: bridgeResult.swapData.to,
-      nonce: payloadNonce.toString()
+      ethValue: bridgeResult.swapData.value,
+      nonce: payloadNonce.toString(),
+      owner: userAddress,
+      token: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+      value: inputAmountRaw.toString()
     },
     primaryType: "Payload",
     types: {
       Payload: [
         { name: "destination", type: "address" },
+        { name: "owner", type: "address" },
+        { name: "token", type: "address" },
+        { name: "value", type: "uint256" },
         { name: "data", type: "bytes" },
+        { name: "ethValue", type: "uint256" },
         { name: "nonce", type: "uint256" },
         { name: "deadline", type: "uint256" }
       ]
