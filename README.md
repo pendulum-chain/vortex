@@ -13,14 +13,16 @@ Vortex is a gateway for cross-border payments. It is built on top of the Pendulu
 
 ## Repository Structure
 
-This is a **Bun monorepo** containing multiple sub-projects organized into apps and packages:
+This is a **Bun monorepo** containing multiple sub-projects organized into apps, packages, and contracts:
 
 ### Apps
 
 - **[apps/api](apps/api)** - Backend API service providing signature services, on/off-ramping flows, quote generation, and transaction state management
 - **[apps/frontend](apps/frontend)** - React-based web application built with Vite for the Vortex user interface
 - **[apps/rebalancer](apps/rebalancer)** - Service for automated liquidity rebalancing across chains
-- **[relayer-contract](relayer-contract)** - Hardhat project for relayer smart contracts and deployment scripts
+### Contracts
+
+- **[contracts/relayer](contracts/relayer)** - Hardhat project for relayer smart contracts and deployment scripts
 
 ### Packages
 
@@ -72,7 +74,7 @@ bun dev:rebalancer
 
 **Relayer contract local node:**
 ```bash
-bun dev:relayer-contract
+bun dev:contracts:relayer
 ```
 
 ### Building
@@ -100,10 +102,10 @@ bun build:shared
 **Relayer contract:**
 ```bash
 # Compile contracts
-bun compile:relayer-contract
+bun compile:contracts:relayer
 
 # Run contract tests
-bun test:relayer-contract
+bun test:contracts:relayer
 ```
 
 ## Sub-Project Specific Instructions

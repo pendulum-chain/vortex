@@ -28,8 +28,8 @@
   "exclude": [
     "node_modules",
     "**/dist/**",
-    "**/relayer-contract/artifacts/**",
-    "**/relayer-contract/cache/**",
-    "**/relayer-contract/typechain-types/**"
+    "contracts/*/artifacts/**",
+    "contracts/*/cache/**",
+    "contracts/*/typechain-types/**"
   ]
 }

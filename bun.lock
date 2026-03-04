@@ -239,6 +239,23 @@
         "typescript": "catalog:",
       },
     },
+    "contracts/relayer": {
+      "name": "@vortexfi/contracts-relayer",
+      "version": "1.0.0",
+      "dependencies": {
+        "dotenv": "^16.4.7",
+        "viem": "catalog:",
+      },
+      "devDependencies": {
+        "@nomicfoundation/hardhat-ignition": "^0.15.9",
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@openzeppelin/contracts": "^5.2.0",
+        "@types/node": "catalog:",
+        "hardhat": "^2.22.17",
+        "ts-node": "^10.9.2",
+        "typescript": "catalog:",
+      },
+    },
     "packages/sdk": {
       "name": "@vortexfi/sdk",
       "version": "0.5.1",
@@ -293,23 +310,6 @@
         "@polkadot/types": "catalog:",
         "big.js": "catalog:",
         "viem": "catalog:",
-      },
-    },
-    "relayer-contract": {
-      "name": "@vortexfi/relayer-contract",
-      "version": "1.0.0",
-      "dependencies": {
-        "dotenv": "^16.4.7",
-        "viem": "catalog:",
-      },
-      "devDependencies": {
-        "@nomicfoundation/hardhat-ignition": "^0.15.9",
-        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-        "@openzeppelin/contracts": "^5.2.0",
-        "@types/node": "catalog:",
-        "hardhat": "^2.22.17",
-        "ts-node": "^10.9.2",
-        "typescript": "catalog:",
       },
     },
   },
@@ -1981,7 +1981,7 @@
 
     "@vitest/utils": ["@vitest/utils@3.2.4", "", { "dependencies": { "@vitest/pretty-format": "3.2.4", "loupe": "^3.1.4", "tinyrainbow": "^2.0.0" } }, "sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA=="],
 
-    "@vortexfi/relayer-contract": ["@vortexfi/relayer-contract@workspace:relayer-contract"],
+    "@vortexfi/contracts-relayer": ["@vortexfi/contracts-relayer@workspace:contracts/relayer"],
 
     "@vortexfi/sdk": ["@vortexfi/sdk@workspace:packages/sdk"],
 
