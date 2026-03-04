@@ -1,17 +1,17 @@
-import { QuoteResponse } from "@vortexfi/shared";
 import { ReactNode } from "react";
 import { cn } from "../../helpers/cn";
+import { useQuote } from "../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../QuoteSummary";
 
 interface StepFooterProps {
-  quote?: QuoteResponse;
-  aboveQuote?: boolean;
   children?: ReactNode;
   className?: string;
 }
 
-export function StepFooter({ quote, aboveQuote, children, className }: StepFooterProps) {
-  const showAboveQuote = !!quote || aboveQuote;
+export function StepFooter({ children, className }: StepFooterProps) {
+  const quote = useQuote();
+  const showAboveQuote = Boolean(quote);
+
   return (
     <>
       {children && (
@@ -21,7 +21,7 @@ export function StepFooter({ quote, aboveQuote, children, className }: StepFoote
           {children}
         </div>
       )}
-      {quote && <QuoteSummary quote={quote} />}
+      <QuoteSummary />
     </>
   );
 }

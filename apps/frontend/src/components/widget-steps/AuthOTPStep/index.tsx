@@ -22,7 +22,6 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
     userEmail: state.context.userEmail
   }));
 
-  const quote = useQuote();
   const [otp, setOtp] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -95,7 +94,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
         </div>
       </div>
 
-      {quote && <QuoteSummary quote={quote} />}
+      <QuoteSummary />
     </div>
   );
 }
