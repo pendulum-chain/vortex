@@ -28,7 +28,6 @@
       "registerAsIndividual": "Click <1>here</1> to register as individual",
       "retry": "Retry",
       "retryProcess": "Retry Process",
-      "systemError": "System Error",
       "verifyingCompletion": "Verifying completion...",
       "verifyingStatus": "Verifying {{kycOrKyb}} Status...",
       "verifyingStatusDescription": "This may take a few moments. Please do not close this window."
