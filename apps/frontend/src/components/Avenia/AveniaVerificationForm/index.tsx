@@ -77,7 +77,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
             </div>
           )}
         </div>
-        <StepFooter aboveQuote>
+        <StepFooter>
           <button
             className="btn-vortex-primary btn w-full"
             disabled={isMaintenanceDisabled || buttonProps.disabled || isFormInvalid}

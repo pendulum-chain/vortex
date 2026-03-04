@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { useQuote } from "../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../QuoteSummary";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
@@ -14,7 +13,6 @@ import { AveniaVerificationForm } from "./AveniaVerificationForm";
 export const AveniaKYBForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
-  const quote = useQuote();
 
   const { t } = useTranslation();
 
@@ -57,7 +55,7 @@ export const AveniaKYBForm = () => {
       <div className="flex flex-1 flex-col">
         <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
       </div>
-      {quote && <QuoteSummary quote={quote} />}
+      <QuoteSummary />
     </div>
   );
 };

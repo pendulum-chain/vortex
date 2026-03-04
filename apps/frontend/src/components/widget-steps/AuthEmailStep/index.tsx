@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
-import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { MenuButtons } from "../../MenuButtons";
 import { StepFooter } from "../../StepFooter";
 
@@ -21,8 +20,6 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     errorMessage: state.context.errorMessage,
     userEmail: state.context.userEmail
   }));
-
-  const quote = useQuote();
   const [email, setEmail] = useState(contextEmail || "");
   const [localError, setLocalError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -115,7 +112,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         </div>
       </form>
 
-      <StepFooter quote={quote}>
+      <StepFooter>
         <button
           className="btn-vortex-primary btn w-full"
           disabled={isLoading || !termsAccepted}

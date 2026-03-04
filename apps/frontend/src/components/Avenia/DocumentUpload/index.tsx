@@ -257,7 +257,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
         </AnimatePresence>
       </div>
 
-      <StepFooter aboveQuote>
+      <StepFooter>
         <button
           className="btn-vortex-primary btn w-full"
           disabled={isMaintenanceDisabled || buttonProps.disabled || isSubmitDisabled}
