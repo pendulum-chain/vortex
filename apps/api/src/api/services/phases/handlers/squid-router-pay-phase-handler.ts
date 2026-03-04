@@ -252,7 +252,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           logger.info("SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.");
         }
       } catch (error) {
-        logger.error(`SquidRouterPayPhaseHandler: Error in bridge status loop for ${swapHash}:`, error);
+        throw this.createRecoverableError(
+          `SquidRouterPayPhaseHandler: Failed to check bridge status for ${swapHash}, error: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
 
       await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
@@ -387,11 +389,36 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
       const squidRouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
       return squidRouterStatus;
-    } catch (error) {
-      logger.error(`SquidRouterPayPhaseHandler: Error fetching Squidrouter status for swap hash ${swapHash}:`, error);
-      throw this.createRecoverableError(
-        `SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`
+    } catch (squidRouterError) {
+      logger.warn(
+        `SquidRouterPayPhaseHandler: SquidRouter status check failed for swap hash ${swapHash}, attempting Axelar fallback: ${squidRouterError instanceof Error ? squidRouterError.message : String(squidRouterError)}`
       );
+
+      try {
+        const axelarScanStatus = await getStatusAxelarScan(swapHash);
+
+        if (!axelarScanStatus) {
+          throw new Error(
+            `SquidRouterPayPhaseHandler: Axelar scan status not found for swap hash ${swapHash} during fallback attempt.`
+          );
+        }
+
+        // Map Axelar status to SquidRouter format, assuming GMP transaction.
+        const mappedStatus =
+          axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed"
+            ? "success"
+            : axelarScanStatus.status;
+
+        return {
+          isGMPTransaction: true,
+          status: mappedStatus
+        } as SquidRouterPayResponse;
+      } catch (axelarError) {
+        logger.error(
+          `SquidRouterPayPhaseHandler: Both SquidRouter and Axelar fallback failed for swap hash ${swapHash}. Axelar fallback error: ${axelarError instanceof Error ? axelarError.message : String(axelarError)}`
+        );
+        throw new Error(`SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`);
+      }
     }
   }
 
