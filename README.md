@@ -20,6 +20,7 @@ This is a **Bun monorepo** containing multiple sub-projects organized into apps 
 - **[apps/api](apps/api)** - Backend API service providing signature services, on/off-ramping flows, quote generation, and transaction state management
 - **[apps/frontend](apps/frontend)** - React-based web application built with Vite for the Vortex user interface
 - **[apps/rebalancer](apps/rebalancer)** - Service for automated liquidity rebalancing across chains
+- **[relayer-contract](relayer-contract)** - Hardhat project for relayer smart contracts and deployment scripts
 
 ### Packages
 
@@ -69,6 +70,11 @@ bun dev:backend
 bun dev:rebalancer
 ```
 
+**Relayer contract local node:**
+```bash
+bun dev:relayer-contract
+```
+
 ### Building
 
 **Build all projects:**
@@ -89,6 +95,15 @@ bun build:sdk
 
 # Build shared package
 bun build:shared
+```
+
+**Relayer contract:**
+```bash
+# Compile contracts
+bun compile:relayer-contract
+
+# Run contract tests
+bun test:relayer-contract
 ```
 
 ## Sub-Project Specific Instructions
