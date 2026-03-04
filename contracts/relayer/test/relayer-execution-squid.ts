@@ -62,6 +62,7 @@ const tokenRelayerAbi = [
           { name: "permitR", type: "bytes32" },
           { name: "permitS", type: "bytes32" },
           { name: "payloadData", type: "bytes" },
+          { name: "payloadValue", type: "uint256" },
           { name: "payloadNonce", type: "uint256" },
           { name: "payloadDeadline", type: "uint256" },
           { name: "payloadV", type: "uint8" },
@@ -73,8 +74,8 @@ const tokenRelayerAbi = [
       }
     ],
     name: "execute",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
+    outputs: [],
+    stateMutability: "payable",
     type: "function"
   }
 ];
@@ -222,7 +223,11 @@ async function main() {
   const payloadTypes = {
     Payload: [
       { name: "destination", type: "address" },
+      { name: "owner", type: "address" },
+      { name: "token", type: "address" },
+      { name: "value", type: "uint256" },
       { name: "data", type: "bytes" },
+      { name: "ethValue", type: "uint256" },
       { name: "nonce", type: "uint256" },
       { name: "deadline", type: "uint256" }
     ]
@@ -232,7 +237,11 @@ async function main() {
     data: payloadData,
     deadline: payloadDeadline,
     destination: DESTINATION_ADDRESS,
-    nonce: payloadNonce
+    ethValue: 0n,
+    nonce: payloadNonce,
+    owner: user1Account.address,
+    token: ERC20_ADDRESS,
+    value: transferAmount
   };
 
   const payloadSignature = await user1Account.signTypedData({
@@ -267,6 +276,7 @@ async function main() {
           payloadR: payloadR,
           payloadS: payloadS,
           payloadV: payloadV,
+          payloadValue: 0n,
           permitR: permitR,
           permitS: permitS,
           permitV: permitV,

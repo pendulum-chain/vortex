@@ -251,7 +251,11 @@ async function main() {
   const payloadTypes = {
     Payload: [
       { name: "destination", type: "address" },
+      { name: "owner", type: "address" },
+      { name: "token", type: "address" },
+      { name: "value", type: "uint256" },
       { name: "data", type: "bytes" },
+      { name: "ethValue", type: "uint256" },
       { name: "nonce", type: "uint256" },
       { name: "deadline", type: "uint256" }
     ]
@@ -261,7 +265,11 @@ async function main() {
     data: payloadData,
     deadline: payloadDeadline,
     destination: ERC20_ADDRESS,
-    nonce: payloadNonce
+    ethValue: 0n,
+    nonce: payloadNonce,
+    owner: user1Account.address,
+    token: ERC20_ADDRESS,
+    value: transferAmount
   };
 
   const payloadSignature = await user1Account.signTypedData({

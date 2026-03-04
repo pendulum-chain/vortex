@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /**
  * @title TokenRelayer
@@ -19,9 +23,11 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  *    c. Forwards the payload call (transfer from relayer to another user)
  */
 contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
+    using SafeERC20 for IERC20;
+
     // Using OZ EIP712 for domain separator management
     bytes32 private constant _TYPE_HASH_PAYLOAD = keccak256(
-        "Payload(address destination,bytes data,uint256 nonce,uint256 deadline)"
+        "Payload(address destination,address owner,address token,uint256 value,bytes data,uint256 ethValue,uint256 nonce,uint256 deadline)"
     );
 
     address public immutable destinationContract;
@@ -75,11 +81,21 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         uint256 nonce = params.payloadNonce;
 
         // --- Checks ---
+        require(owner != address(0), "Invalid owner");
+        require(params.token != address(0), "Invalid token");
         require(!usedPayloadNonces[owner][nonce], "Nonce used");
         require(block.timestamp <= params.payloadDeadline, "Payload expired");
 
         // Verify payload signature and validate signed destination
-        bytes32 digest = _computeDigest(params.payloadData, nonce, params.payloadDeadline);
+        bytes32 digest = _computeDigest(
+            owner,
+            params.token,
+            params.value,
+            params.payloadData,
+            params.payloadValue,
+            nonce,
+            params.payloadDeadline
+        );
         // Using ECDSA.recover() which enforces low-s and rejects address(0)
         require(ECDSA.recover(digest, params.payloadV, params.payloadR, params.payloadS) == owner, "Invalid sig");
 
@@ -102,24 +118,36 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         );
 
         // Approve exact amount, forward call, then revoke
-        IERC20(params.token).approve(destinationContract, params.value);
+        IERC20(params.token).forceApprove(destinationContract, params.value);
 
         bool callSuccess = _forwardCall(params.payloadData, msg.value);
         require(callSuccess, "Call failed");
 
         // Revoke approval after the call to prevent residual allowance
-        IERC20(params.token).approve(destinationContract, 0);
+        IERC20(params.token).forceApprove(destinationContract, 0);
 
         emit RelayerExecuted(owner, params.token, params.value);
     }
 
     //  Using inherited _hashTypedDataV4 from OZ EIP712
-    function _computeDigest(bytes memory data, uint256 nonce, uint256 deadline) private view returns (bytes32) {
+    function _computeDigest(
+        address owner,
+        address token,
+        uint256 value,
+        bytes memory data,
+        uint256 ethValue,
+        uint256 nonce,
+        uint256 deadline
+    ) private view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(abi.encode(
                 _TYPE_HASH_PAYLOAD,
                 destinationContract, // [H-2] destination is always destinationContract
+                owner,
+                token,
+                value,
                 keccak256(data),
+                ethValue,
                 nonce,
                 deadline
             ))
@@ -152,7 +180,7 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         }
 
         // Transfer tokens from owner to this contract
-        require(IERC20(token).transferFrom(owner, address(this), value), "TransferFrom failed");
+        IERC20(token).safeTransferFrom(owner, address(this), value);
     }
 
     function _forwardCall(bytes memory data, uint256 value) internal returns (bool) {
@@ -168,7 +196,7 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
     // Using Ownable's onlyOwner instead of manual deployer check
     // Added TokenWithdrawn event
     function withdrawToken(address token, uint256 amount) external onlyOwner {
-        require(IERC20(token).transfer(owner(), amount), "Transfer failed");
+        IERC20(token).safeTransfer(owner(), amount);
         emit TokenWithdrawn(token, amount, owner());
     }
 

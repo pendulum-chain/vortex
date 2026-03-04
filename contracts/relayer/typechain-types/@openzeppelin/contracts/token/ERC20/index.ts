@@ -2,7 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type * as extensions from "./extensions";
+import type * as utils from "./utils";
 
 export type { extensions };
-export type { ERC20 } from "./ERC20";
+export type { utils };
 export type { IERC20 } from "./IERC20";
