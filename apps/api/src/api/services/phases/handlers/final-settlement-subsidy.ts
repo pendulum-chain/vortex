@@ -57,14 +57,16 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
-      throw new Error("Quote not found for the given state");
-    }
-
-    if (!isEvmToken(quote.outputCurrency)) {
-      throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
+      throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
 
     const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+    if (!outTokenDetails) {
+      throw new Error(
+        `FinalSettlementSubsidyHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
+      );
+    }
+
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
     const destinationNetwork = quote.network as EvmNetworks;
     const publicClient = evmClientManager.getClient(destinationNetwork);
