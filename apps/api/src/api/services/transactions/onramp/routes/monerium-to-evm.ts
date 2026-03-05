@@ -68,7 +68,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-      destinationAddress: moneriumWalletAddress,
+      destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: ERC20_EURE_POLYGON_V1,
       rawAmount: inputAmountPostAnchorFeeRaw,
