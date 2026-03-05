@@ -410,7 +410,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             : axelarScanStatus.status;
 
         return {
+          id: "",
           isGMPTransaction: true,
+          routeStatus: [],
+          squidTransactionStatus: "",
           status: mappedStatus
         } as SquidRouterPayResponse;
       } catch (axelarError) {
