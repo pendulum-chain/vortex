@@ -203,13 +203,13 @@ export async function addOnrampDestinationChainTransactions(params: {
     functionName: "transfer"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
     to: toToken,
     value: "0"
   };

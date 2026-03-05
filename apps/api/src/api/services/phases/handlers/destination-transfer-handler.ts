@@ -38,11 +38,14 @@ export class DestinationTransferHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!isEvmToken(quote.outputCurrency)) {
-      throw new Error("DestinationTransferHandler: Output currency is not an EVM token");
-    }
-    const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+    if (!outTokenDetails) {
+      throw new Error(
+        `FinalSettlementSubsidyHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
+      );
+    }
+
+    const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
     const { destinationTransferTxHash } = state.state;
