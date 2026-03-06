@@ -245,7 +245,6 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
         } else {
           try {
             balances = await fetchAlchemyTokenBalances(address, network);
-            console.log(`[${network}] Balances:`, Object.fromEntries(balances));
 
             globalBalanceCache.set(cacheKey, balances);
           } catch (error) {

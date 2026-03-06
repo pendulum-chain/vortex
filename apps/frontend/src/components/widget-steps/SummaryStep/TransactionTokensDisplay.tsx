@@ -6,6 +6,7 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isMoonbeamTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
@@ -25,6 +26,7 @@ import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
+import { USOnrampDetails } from "./USOnrampDetails";
 
 const QUOTE_EXPIRY_TIME = 10;
 
@@ -107,7 +109,13 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
-    return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
+    if (isStellarOutputTokenDetails(fiatToken)) {
+      return fiatToken.anchorHomepageUrl;
+    }
+    if (isMoonbeamTokenDetails(fiatToken)) {
+      return fiatToken.partnerUrl;
+    }
+    return "";
   };
 
   const destinationAddress = isOnramp
@@ -155,6 +163,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
       {quoteLocked && targetTimestamp !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

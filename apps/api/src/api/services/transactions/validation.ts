@@ -6,6 +6,8 @@ import {
   EphemeralAccountType,
   FiatToken,
   getNetworkId,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -100,6 +102,11 @@ export async function validatePresignedTxs(
 
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
+
+  // do not validate typed data
+  if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+    return;
+  }
 
   if (!expectedSigner) {
     throw new APIError({
@@ -225,8 +232,6 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
       status: httpStatus.BAD_REQUEST
     });
   }
-
-  console.log("Parsed Stellar transaction source:", transaction.source);
 
   if (phase === "stellarCreateAccount") {
     if (transaction.operations.length !== 3) {

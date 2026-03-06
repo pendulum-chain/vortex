@@ -24,7 +24,11 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     throw new Error("quoteId is missing from ramp context");
   }
 
-  if (executionInput.fiatToken === FiatToken.EURC || executionInput.fiatToken === FiatToken.ARS) {
+  if (
+    executionInput.fiatToken === FiatToken.EURC ||
+    executionInput.fiatToken === FiatToken.ARS ||
+    executionInput.fiatToken === FiatToken.USD
+  ) {
     return { kycNeeded: true };
   }
 

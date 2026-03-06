@@ -42,3 +42,7 @@ storybook-static
 
 CLAUDE.local.md
 .claude
+
+# hardhat generated files in workspace contract projects
+contracts/*/artifacts
+contracts/*/cache

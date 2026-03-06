@@ -1,11 +1,4 @@
-import {
-  encodeSubmittableExtrinsic,
-  getPendulumDetails,
-  isEvmTokenDetails,
-  isStellarOutputTokenDetails,
-  Networks,
-  UnsignedTx
-} from "@vortexfi/shared";
+import { encodeSubmittableExtrinsic, getPendulumDetails, isEvmTokenDetails, Networks, UnsignedTx } from "@vortexfi/shared";
 import Big from "big.js";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -152,10 +145,6 @@ export async function prepareEvmToStellarOfframpTransactions({
     ...stellarResult.stateMeta
   };
 
-  if (!isStellarOutputTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
-  }
-
   if (!stellarPaymentData) {
     throw new Error("Stellar payment data must be provided for offramp");
   }
@@ -164,7 +153,7 @@ export async function prepareEvmToStellarOfframpTransactions({
     {
       ephemeralAddress: stellarEphemeralEntry.address,
       outputAmountUnits: offrampAmountBeforeAnchorFeesUnits,
-      outputTokenDetails,
+      outputTokenDetails: stellarTokenDetails,
       stellarPaymentData
     },
     unsignedTxs

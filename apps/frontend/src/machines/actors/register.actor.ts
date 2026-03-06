@@ -86,6 +86,12 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       taxId: executionInput.taxId,
       walletAddress: connectedWalletAddress
     };
+  } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD) {
+    additionalData = {
+      destinationAddress: executionInput.sourceOrDestinationAddress,
+      sessionId: input.externalSessionId,
+      walletAddress: connectedWalletAddress
+    };
   } else {
     additionalData = {
       // moneriumAuthToken is only relevant after enabling Monerium offramps.

@@ -32,7 +32,6 @@ export function useSiweSignature(stellarKycActor: ActorRefFrom<typeof stellarKyc
   const checkAuthStatus = useCallback(async () => {
     if (!stellarKycActor) return;
     if (!address) {
-      console.log("Address must be defined. This is a bug.");
       stellarKycActor.send({ type: "AUTH_INVALID" });
       return;
     }

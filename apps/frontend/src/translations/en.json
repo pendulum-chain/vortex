@@ -11,6 +11,28 @@
       },
       "title": "Special offer until 27 May"
     },
+    "alfredpayKycFlow": {
+      "accountVerified": "Your account has been verified. You can now proceed.",
+      "cancel": "Cancel",
+      "completed": "{{kycOrKyb}} Completed!",
+      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click the button below.",
+      "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
+      "continue": "Continue",
+      "continueWithPartner": "Please continue with our partner for the {{kycOrKyb}} verification.",
+      "failed": "{{kycOrKyb}} Failed",
+      "finishedVerification": "I have finished the {{kycOrKyb}} verification",
+      "loading": "Loading...",
+      "openingLink": "Opening Link...",
+      "openLink": "Open {{kycOrKyb}} Link",
+      "registerAsBusiness": "If registering as a business please click <1>here</1>",
+      "registerAsIndividual": "Click <1>here</1> to register as individual",
+      "retry": "Retry",
+      "retryProcess": "Retry Process",
+      "systemError": "System Error",
+      "verifyingCompletion": "Verifying completion...",
+      "verifyingStatus": "Verifying {{kycOrKyb}} Status...",
+      "verifyingStatusDescription": "This may take a few moments. Please do not close this window."
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continue",
@@ -453,6 +475,13 @@
       "quoteExpired": "Quote expired. Go back and try again.",
       "source": "Source Account",
       "tryAgain": "Try again",
+      "USOnrampDetails": {
+        "copyCode": "or copy the ACH code below and paste it in your bank app",
+        "qrCode": "Select ACH in your bank's app and scan the QR code below.",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "timerLabel": "Quote expires in:",
+        "title": "Pay with ACH"
+      },
       "verifyWallet": "Verify Wallet"
     },
     "searchInput": {
@@ -980,7 +1009,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days."
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
       "returnHome": "Return Home",

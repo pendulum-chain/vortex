@@ -76,4 +76,7 @@ export enum MoneriumErrors {
   USER_MINT_ADDRESS_IS_NOT_READY = "User mint address is not ready yet"
 }
 
-export type PermitSignature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
+// TODO: Move these types to a more generic file if they are used outside of Monerium endpoints
+export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
+
+export type PermitSignature = Signature;

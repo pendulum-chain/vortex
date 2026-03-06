@@ -1,13 +1,16 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
-import { AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
+  AlfredpayKycActorRef,
+  AlfredpayKycSnapshot,
   AveniaKycActorRef,
   AveniaKycSnapshot,
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
   RampMachineSnapshot,
+  SelectedAlfredpayData,
   SelectedAveniaData,
   SelectedMoneriumData,
   SelectedStellarData,
@@ -19,7 +22,6 @@ const RAMP_STATE_STORAGE_KEY = "rampState";
 
 const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
 let restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
-console.log("restored state: ", restoredState);
 // invalidate restored state if the machine is with error status.
 restoredState = restoredState?.status === "error" ? undefined : restoredState;
 
@@ -176,6 +178,41 @@ export function useAveniaKycSelector(): SelectedAveniaData | undefined {
       }
       return {
         context: snapshot.context as AveniaKycContext,
+        stateValue: snapshot.value
+      };
+    },
+    (prev, next) => {
+      if (!prev || !next) {
+        return prev === next;
+      }
+      return prev.stateValue === next.stateValue && prev.context === next.context;
+    }
+  );
+}
+
+export function useAlfredpayKycActor(): AlfredpayKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).alfredpayKyc) as
+    | AlfredpayKycActorRef
+    | undefined;
+}
+
+export function useAlfredpayKycSelector(): SelectedAlfredpayData | undefined {
+  const rampActor = useRampActor();
+
+  const alfredpayActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).alfredpayKyc) as
+    | AlfredpayKycActorRef
+    | undefined;
+
+  return useSelector(
+    alfredpayActor,
+    (snapshot: AlfredpayKycSnapshot | undefined) => {
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        context: snapshot.context as AlfredpayKycContext,
         stateValue: snapshot.value
       };
     },
