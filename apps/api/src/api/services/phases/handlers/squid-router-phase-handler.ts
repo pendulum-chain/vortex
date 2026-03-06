@@ -1,5 +1,6 @@
 import {
   EvmClientManager,
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
@@ -42,9 +43,19 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+
     if (state.type === RampDirection.SELL) {
       logger.info("SquidRouter phase is not supported for off-ramp");
       return state;
+    }
+
+    // handle special "singularity" case: Alfredpay onrapm USDC in Polygon.
+    if (quote.to === Networks.Polygon && quote.outputCurrency === EvmToken.USDC) {
+      return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
     try {

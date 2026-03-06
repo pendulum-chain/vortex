@@ -1,6 +1,7 @@
 import {
   ERC20_USDC_POLYGON,
   ERC20_USDC_POLYGON_DECIMALS,
+  EvmToken,
   getNetworkFromDestination,
   Networks,
   OnChainToken,
@@ -10,7 +11,7 @@ import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
-import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
+import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig, SquidRouterData } from "./index";
 
 export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
@@ -33,6 +34,15 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
   }
 
   protected compute(ctx: QuoteContext): SquidRouterComputation {
+    if (ctx.to === Networks.Polygon && ctx.request.outputCurrency === EvmToken.USDC) {
+      return {
+        data: {
+          skipRouteCalculation: true
+        } as SquidRouterData,
+        type: "evm-to-evm"
+      };
+    }
+
     const req = ctx.request;
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
