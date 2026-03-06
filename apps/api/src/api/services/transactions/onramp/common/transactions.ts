@@ -209,7 +209,7 @@ export async function addOnrampDestinationChainTransactions(params: {
     data: transferCallData as `0x${string}`,
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxPriorityFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
     to: toToken,
     value: "0"
   };
