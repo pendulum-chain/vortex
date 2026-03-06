@@ -42,6 +42,7 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
+  isAuthLoading?: boolean;
   alfredpayCustomer?: any;
   postAuthTarget?: "QuoteReady" | "RegisterRamp";
 }

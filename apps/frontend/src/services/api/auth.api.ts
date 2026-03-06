@@ -56,17 +56,27 @@ export class AuthAPI {
    * Refresh token
    */
   static async refreshToken(refreshToken: string): Promise<VerifyOTPResponse> {
-    const response = await apiClient.post<{ success: boolean; access_token: string; refresh_token: string; user_id: string }>(
-      "/auth/refresh",
-      {
-        refresh_token: refreshToken
-      }
-    );
+    const response = await apiClient.post<{ success: boolean; access_token: string; refresh_token: string }>("/auth/refresh", {
+      refresh_token: refreshToken
+    });
     return {
       accessToken: response.data.access_token,
       refreshToken: response.data.refresh_token,
       success: response.data.success,
-      userId: response.data.user_id
+      userId: "" // Refresh doesn't return user_id, but interface requires it
+    };
+  }
+
+  /**
+   * Verify access token
+   */
+  static async verifyToken(accessToken: string): Promise<{ valid: boolean; userId?: string }> {
+    const response = await apiClient.post<{ valid: boolean; user_id?: string }>("/auth/verify", {
+      access_token: accessToken
+    });
+    return {
+      userId: response.data.user_id,
+      valid: response.data.valid
     };
   }
 }
