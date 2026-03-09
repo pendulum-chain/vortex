@@ -1,3 +1,4 @@
+import { createOnrampSquidrouterTransactionsOnDestinationChain } from "@packages/shared";
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   ERC20_EURE_POLYGON_V1,
@@ -16,6 +17,7 @@ import Big from "big.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, SANDBOX_ENABLED } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { priceFeedService } from "../../../priceFeed.service";
 import { encodeEvmTransactionData } from "../../index";
 import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
@@ -45,6 +47,11 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   if (!quote.metadata.moneriumMint?.outputAmountRaw) {
     throw new Error("Missing moonbeamToEvm output amount in quote metadata");
   }
+
+  if (!quote.metadata.evmToEvm?.inputAmountDecimal) {
+    throw new Error("Missing evmToEvm input amount in quote metadata");
+  }
+
   const inputAmountPostAnchorFeeRaw = new Big(quote.metadata.moneriumMint.outputAmountRaw).toFixed(0, 0);
 
   // Setup state metadata
@@ -129,36 +136,42 @@ export async function prepareMoneriumToEvmOnrampTransactions({
       ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
       : destinationAxlUsdcDetails.erc20AddressSourceChain;
 
-  // const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
-  //   destinationAddress: evmEphemeralEntry.address,
-  //   fromAddress: evmEphemeralEntry.address,
-  //   fromToken: bridgedTokenForFallback,
-  //   network: toNetwork as EvmNetworks,
-  //   rawAmount: quote.metadata.evmToEvm!.inputAmountRaw,
-  //   toToken: outputTokenDetails.erc20AddressSourceChain
-  // });
+  const intermediateUsdAmount = await priceFeedService.convertCurrency(
+    Big(quote!.metadata.evmToEvm?.inputAmountDecimal).toFixed(2, 0),
+    quote.inputCurrency,
+    EvmToken.USDC
+  );
 
-  // destinationNonce++;
+  const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
+    destinationAddress: evmEphemeralEntry.address,
+    fromAddress: evmEphemeralEntry.address,
+    fromToken: bridgedTokenForFallback,
+    network: toNetwork as EvmNetworks,
+    rawAmount: multiplyByPowerOfTen(intermediateUsdAmount, destinationAxlUsdcDetails.decimals).toFixed(0, 0),
+    toToken: outputTokenDetails.erc20AddressSourceChain
+  });
 
-  // unsignedTxs.push({
-  //   meta: {},
-  //   network: toNetwork,
-  //   nonce: destinationNonce,
-  //   phase: "backupSquidRouterApprove",
-  //   signer: evmEphemeralEntry.address,
-  //   txData: encodeEvmTransactionData(destApproveData) as EvmTransactionData
-  // });
-  // destinationNonce++;
+  destinationNonce++;
 
-  // unsignedTxs.push({
-  //   meta: {},
-  //   network: toNetwork,
-  //   nonce: destinationNonce,
-  //   phase: "backupSquidRouterSwap",
-  //   signer: evmEphemeralEntry.address,
-  //   txData: encodeEvmTransactionData(destSwapData) as EvmTransactionData
-  // });
-  // destinationNonce++;
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterApprove",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destApproveData) as EvmTransactionData
+  });
+  destinationNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: toNetwork,
+    nonce: destinationNonce,
+    phase: "backupSquidRouterSwap",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(destSwapData) as EvmTransactionData
+  });
+  destinationNonce++;
 
   const maxUint256 = 2n ** 256n - 1n;
   const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
