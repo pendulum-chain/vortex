@@ -192,7 +192,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   let destinationNonce = 0;
 
   const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
-  const finalSettlementTransaction = await addOnrampDestinationChainTransactions({
+  const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
     toAddress: destinationAddress,
@@ -205,7 +205,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     nonce: destinationNonce,
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
-    txData: finalSettlementTransaction
+    txData: finalDestinationTransfer
   });
 
   destinationNonce++;

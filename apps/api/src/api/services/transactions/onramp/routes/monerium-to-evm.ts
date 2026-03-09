@@ -1,6 +1,5 @@
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
-  createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_EURE_POLYGON_V1,
   EvmNetworks,
   EvmToken,
@@ -106,7 +105,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   let destinationNonce = 0;
 
   const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
-  const finalSettlementTransaction = await addOnrampDestinationChainTransactions({
+  const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
     toAddress: destinationAddress,
@@ -119,7 +118,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     nonce: destinationNonce,
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
-    txData: finalSettlementTransaction
+    txData: finalDestinationTransfer
   });
 
   // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
