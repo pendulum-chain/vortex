@@ -1,6 +1,6 @@
-import { createOnrampSquidrouterTransactionsOnDestinationChain } from "@packages/shared";
 import {
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
+  createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_EURE_POLYGON_V1,
   EvmNetworks,
   EvmToken,
