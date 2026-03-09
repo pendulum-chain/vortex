@@ -1,5 +1,4 @@
 import { EvmToken } from "./evm";
-import { PendulumTokenDetails } from "./pendulum";
 
 export enum TokenType {
   Evm = "evm",
@@ -13,7 +12,9 @@ export enum FiatToken {
   EURC = "EUR",
   ARS = "ARS",
   BRL = "BRL",
-  USD = "USD"
+  USD = "USD",
+  MXN = "MXN",
+  COP = "COP"
 }
 
 export enum AssetHubToken {
