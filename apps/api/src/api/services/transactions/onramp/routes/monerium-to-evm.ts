@@ -170,8 +170,9 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     tokenAddress: bridgedTokenForFallback
   });
 
-  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
-  const backupApproveNonce = 0;
+  // We set this to 0 for non-polygon networks on purpose because we don't want to risk that the required nonce
+  // is never reached
+  const backupApproveNonce = toNetwork === Networks.Polygon ? polygonAccountNonce : 0;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
