@@ -6,6 +6,7 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAlfredpayToken,
   isMoonbeamTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
@@ -108,6 +109,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
+    }
+    if (isAlfredpayToken(executionInput.fiatToken)) {
+      return "https://alfredpay.io";
     }
     if (isStellarOutputTokenDetails(fiatToken)) {
       return fiatToken.anchorHomepageUrl;

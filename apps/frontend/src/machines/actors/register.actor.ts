@@ -4,6 +4,7 @@ import {
   EphemeralAccountType,
   FiatToken,
   getAddressForFormat,
+  isAlfredpayToken,
   Networks,
   RampDirection,
   RegisterRampRequest,
@@ -86,7 +87,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       taxId: executionInput.taxId,
       walletAddress: connectedWalletAddress
     };
-  } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD) {
+  } else if (executionInput.quote.rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
       sessionId: input.externalSessionId,
