@@ -195,6 +195,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
+    isNativeToken: outputTokenDetails.isNative,
     toAddress: destinationAddress,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });

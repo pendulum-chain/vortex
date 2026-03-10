@@ -1,14 +1,11 @@
 import {
   checkEvmBalancePeriodically,
+  checkEvmNativeBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
-  FiatToken,
-  getAnyFiatTokenDetailsMoonbeam,
   getOnChainTokenDetails,
-  isEvmToken,
   multiplyByPowerOfTen,
-  Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
@@ -18,6 +15,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 /**
  * Handler for transferring funds to the destination address on EVM networks (onramp only)
  */
@@ -41,9 +39,12 @@ export class DestinationTransferHandler extends BasePhaseHandler {
     const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
     if (!outTokenDetails) {
       throw new Error(
-        `FinalSettlementSubsidyHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
+        `DestinationTransferHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
       );
     }
+
+    const isNativeToken =
+      outTokenDetails.isNative || outTokenDetails.erc20AddressSourceChain.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
 
     const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
@@ -69,14 +70,24 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
     // main phase execution loop:
     try {
-      await checkEvmBalancePeriodically(
-        outTokenDetails.erc20AddressSourceChain,
-        state.state.evmEphemeralAddress,
-        expectedAmountRaw,
-        BALANCE_POLLING_TIME_MS,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        destinationNetwork
-      );
+      if (isNativeToken) {
+        await checkEvmNativeBalancePeriodically(
+          state.state.evmEphemeralAddress,
+          expectedAmountRaw,
+          BALANCE_POLLING_TIME_MS,
+          EVM_BALANCE_CHECK_TIMEOUT_MS,
+          destinationNetwork
+        );
+      } else {
+        await checkEvmBalancePeriodically(
+          outTokenDetails.erc20AddressSourceChain,
+          state.state.evmEphemeralAddress,
+          expectedAmountRaw,
+          BALANCE_POLLING_TIME_MS,
+          EVM_BALANCE_CHECK_TIMEOUT_MS,
+          destinationNetwork
+        );
+      }
 
       // send the transaction, log hash in the state for recovery.
       const txHash = await evmClientManager.sendRawTransactionWithRetry(
