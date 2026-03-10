@@ -3,6 +3,7 @@ import {
   BalanceCheckError,
   BalanceCheckErrorType,
   checkEvmBalancePeriodically,
+  checkEvmNativeBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
@@ -28,7 +29,6 @@ import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
-import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -42,6 +42,7 @@ const BALANCE_POLLING_TIME_MS = 10000;
 // of otherwise successful bridge operations.
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
+const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
@@ -133,14 +134,26 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       const ephemeralAddress = state.state.evmEphemeralAddress;
 
       if (outTokenDetails && ephemeralAddress) {
-        balanceCheckPromise = checkEvmBalancePeriodically(
-          outTokenDetails.erc20AddressSourceChain,
-          ephemeralAddress,
-          "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-          BALANCE_POLLING_TIME_MS,
-          EVM_BALANCE_CHECK_TIMEOUT_MS,
-          toChain
-        );
+        const isNativeToken =
+          outTokenDetails.isNative ||
+          outTokenDetails.erc20AddressSourceChain.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+
+        balanceCheckPromise = isNativeToken
+          ? checkEvmNativeBalancePeriodically(
+              ephemeralAddress,
+              "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+              BALANCE_POLLING_TIME_MS,
+              EVM_BALANCE_CHECK_TIMEOUT_MS,
+              toChain
+            )
+          : checkEvmBalancePeriodically(
+              outTokenDetails.erc20AddressSourceChain,
+              ephemeralAddress,
+              "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+              BALANCE_POLLING_TIME_MS,
+              EVM_BALANCE_CHECK_TIMEOUT_MS,
+              toChain
+            );
       } else {
         logger.warn(
           "SquidRouterPayPhaseHandler: Cannot perform balance check optimization (missing expected token details or address)."
