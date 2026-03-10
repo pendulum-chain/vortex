@@ -13,6 +13,7 @@ import {
   getOnChainTokenDetailsOrDefault,
   getPendulumDetails,
   isEvmTokenDetails,
+  isNativeEvmToken,
   multiplyByPowerOfTen,
   Networks,
   UnsignedTx
@@ -195,7 +196,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
-    isNativeToken: outputTokenDetails.isNative,
+    isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });

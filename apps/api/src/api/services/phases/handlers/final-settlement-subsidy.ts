@@ -1,15 +1,15 @@
 import {
-  checkEvmBalancePeriodically,
-  checkEvmNativeBalancePeriodically,
-  EvmAddress,
+  checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
-  getEvmNativeBalance,
+  getEvmBalance,
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isNativeEvmToken,
   multiplyByPowerOfTen,
+  NATIVE_TOKEN_ADDRESS,
   Networks,
   RampCurrency,
   RampDirection,
@@ -27,7 +27,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -69,8 +68,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       );
     }
 
-    const isNativeToken =
-      outTokenDetails.isNative || outTokenDetails.erc20AddressSourceChain.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+    const isNative = isNativeEvmToken(outTokenDetails);
 
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
     const destinationNetwork = quote.network as EvmNetworks;
@@ -93,37 +91,22 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       }
     }
 
-    // 2. Check ephemeral address balance (native vs ERC-20)
-    const actualBalance = isNativeToken
-      ? await checkEvmNativeBalancePeriodically(
-          ephemeralAddress,
-          "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-          BALANCE_POLLING_TIME_MS,
-          EVM_BALANCE_CHECK_TIMEOUT_MS,
-          destinationNetwork
-        )
-      : await checkEvmBalancePeriodically(
-          outTokenDetails.erc20AddressSourceChain,
-          ephemeralAddress,
-          "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-          BALANCE_POLLING_TIME_MS,
-          EVM_BALANCE_CHECK_TIMEOUT_MS,
-          destinationNetwork
-        );
+    // 2. Check ephemeral address balance (handles both native and ERC-20 automatically)
+    const actualBalance = await checkEvmBalanceForToken({
+      amountDesiredRaw: "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+      chain: destinationNetwork,
+      intervalMs: BALANCE_POLLING_TIME_MS,
+      ownerAddress: ephemeralAddress,
+      timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+      tokenDetails: outTokenDetails
+    });
 
-    // 3. Check funding account balance (native vs ERC-20)
-    const actualBalanceFundingAccount = isNativeToken
-      ? await getEvmNativeBalance(fundingAccount.address as EvmAddress, destinationNetwork)
-      : new Big(
-          (
-            await publicClient.readContract({
-              abi: erc20Abi,
-              address: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-              args: [fundingAccount.address],
-              functionName: "balanceOf"
-            })
-          ).toString()
-        );
+    // 3. Check funding account balance (handles both native and ERC-20 automatically)
+    const actualBalanceFundingAccount = await getEvmBalance({
+      chain: destinationNetwork,
+      ownerAddress: fundingAccount.address as `0x${string}`,
+      tokenDetails: outTokenDetails
+    });
 
     const subsidyAmountRaw = expectedAmountRaw.minus(actualBalance);
 
@@ -135,12 +118,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     }
 
     logger.info(
-      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units of ${isNativeToken ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
+      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
     );
 
     // 4. Top up funding account if insufficient balance
     if (actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
-      if (isNativeToken) {
+      if (isNative) {
         // For native tokens, we cannot easily swap into the native token on-chain.
         // The funding account must be pre-funded with sufficient native balance.
         throw this.createUnrecoverableError(
@@ -238,14 +221,14 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info("FinalSettlementSubsidyHandler: Swap successful. Waiting for balance update...");
 
       // Wait for balance checks to pass
-      await checkEvmBalancePeriodically(
-        outTokenDetails.erc20AddressSourceChain,
-        fundingAccount.address,
-        subsidyAmountRaw.toString(),
-        BALANCE_POLLING_TIME_MS,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        destinationNetwork
-      );
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: subsidyAmountRaw.toString(),
+        chain: destinationNetwork,
+        intervalMs: BALANCE_POLLING_TIME_MS,
+        ownerAddress: fundingAccount.address,
+        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+        tokenDetails: outTokenDetails
+      });
     }
 
     // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
@@ -258,7 +241,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       let attempt = 0;
 
       while (attempt < 5 && (!receipt || receipt.status !== "success")) {
-        if (isNativeToken) {
+        if (isNative) {
           // Native token: simple value transfer, no contract interaction
           txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
             maxFeePerGas,
