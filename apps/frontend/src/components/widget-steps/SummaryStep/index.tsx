@@ -1,5 +1,5 @@
 import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
-import { FiatToken, MoneriumErrors, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, MoneriumErrors, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { MenuButtons } from "../../MenuButtons";
 import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
 import { SigningBoxButton, SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { StepFooter } from "../../StepFooter";
+import { AlfredpayPaymentMethodSelector } from "./AlfredpayPaymentMethodSelector";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const SummaryStep: FC = () => {
@@ -86,6 +87,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
+      {isAlfredpayToken(executionInput.fiatToken) && <AlfredpayPaymentMethodSelector fiatToken={executionInput.fiatToken} />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
