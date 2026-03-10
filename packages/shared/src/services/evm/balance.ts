@@ -1,6 +1,7 @@
 import Big from "big.js";
 import erc20ABI from "../../contracts/ERC20";
 import { EvmAddress, EvmNetworks } from "../../index";
+import logger from "../../logger";
 import { EvmClientManager } from "../evm/clientManager";
 
 export enum BalanceCheckErrorType {
@@ -79,6 +80,70 @@ export function checkEvmBalancePeriodically(
           new BalanceCheckError(
             BalanceCheckErrorType.ReadFailure,
             `Error checking balance: ${err instanceof Error ? err.message : String(err)}`
+          )
+        );
+      }
+    };
+
+    // Start the first check immediately
+    checkBalance();
+  });
+}
+
+/**
+ * Gets the native token balance for a given address on the specified chain, using RPC retry logic.
+ */
+export async function getEvmNativeBalance(ownerAddress: EvmAddress, chain: EvmNetworks): Promise<Big> {
+  try {
+    const evmClientManager = EvmClientManager.getInstance();
+    const balance = await evmClientManager.getBalanceWithRetry(chain, ownerAddress);
+    return new Big(balance.toString());
+  } catch (err) {
+    throw new Error(`Failed to read native balance: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Periodically checks the native token balance of an address on the specified chain
+ * until the desired amount is met or the timeout is reached.
+ */
+export function checkEvmNativeBalancePeriodically(
+  ownerAddress: string,
+  amountDesiredRaw: string,
+  intervalMs: number,
+  timeoutMs: number,
+  chain: EvmNetworks
+): Promise<Big> {
+  const evmClientManager = EvmClientManager.getInstance();
+
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const checkBalance = async () => {
+      try {
+        const balance = await evmClientManager.getBalanceWithRetry(chain, ownerAddress as EvmAddress);
+        const balanceBig = new Big(balance.toString());
+        const amountDesiredUnitsBig = new Big(amountDesiredRaw);
+
+        logger.current.debug(
+          `checkEvmNativeBalancePeriodically: Native balance of ${ownerAddress} on ${chain}: ${balanceBig.toString()} (target: ${amountDesiredRaw})`
+        );
+
+        if (balanceBig.gte(amountDesiredUnitsBig)) {
+          resolve(balanceBig);
+        } else if (Date.now() - startTime > timeoutMs) {
+          reject(
+            new BalanceCheckError(BalanceCheckErrorType.Timeout, `Native balance did not meet the limit within ${timeoutMs}ms`)
+          );
+        } else {
+          // Schedule next check AFTER this one completes to prevent overlapping calls
+          setTimeout(checkBalance, intervalMs);
+        }
+      } catch (err: unknown) {
+        reject(
+          new BalanceCheckError(
+            BalanceCheckErrorType.ReadFailure,
+            `Error checking native balance: ${err instanceof Error ? err.message : String(err)}`
           )
         );
       }
