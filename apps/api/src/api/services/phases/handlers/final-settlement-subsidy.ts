@@ -1,6 +1,7 @@
 import {
   checkEvmBalancePeriodically,
   checkEvmNativeBalancePeriodically,
+  EvmAddress,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
@@ -112,7 +113,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     // 3. Check funding account balance (native vs ERC-20)
     const actualBalanceFundingAccount = isNativeToken
-      ? await getEvmNativeBalance(fundingAccount.address, destinationNetwork)
+      ? await getEvmNativeBalance(fundingAccount.address as EvmAddress, destinationNetwork)
       : new Big(
           (
             await publicClient.readContract({
