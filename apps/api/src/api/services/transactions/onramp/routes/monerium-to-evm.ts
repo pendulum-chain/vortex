@@ -109,7 +109,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
-  let destinationNonce = 0;
+  let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce : 0;
 
   const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
