@@ -54,6 +54,9 @@ export type TokenConfig = {
   EURC: StellarTokenConfig;
   BRL: MoonbeamTokenConfig;
   USDC: XCMTokenConfig;
+  USD: XCMTokenConfig;
+  MXN: XCMTokenConfig;
+  COP: XCMTokenConfig;
   GLMR: XCMTokenConfig;
   "USDC.AXL": XCMTokenConfig;
 };

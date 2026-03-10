@@ -33,7 +33,9 @@ export const SuccessPage = () => {
     [FiatToken.EURC]: t("pages.success.arrivalText.sell.EURC"),
     [FiatToken.ARS]: t("pages.success.arrivalText.sell.ARS"),
     [FiatToken.BRL]: t("pages.success.arrivalText.sell.BRL"),
-    [FiatToken.USD]: t("pages.success.arrivalText.sell.USD")
+    [FiatToken.USD]: t("pages.success.arrivalText.sell.USD"),
+    [FiatToken.MXN]: t("pages.success.arrivalText.sell.MXN"),
+    [FiatToken.COP]: t("pages.success.arrivalText.sell.COP")
   };
 
   const arrivalTextBuy = t("pages.success.arrivalText.buy");
