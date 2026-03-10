@@ -1,12 +1,5 @@
-import {
-  AlfredPayStatus,
-  AlfredpayCreateCustomerResponse,
-  AlfredpayCustomerType,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
-  AlfredpayStatusResponse
-} from "@vortexfi/shared";
-import { assign, fromPromise, raise, setup } from "xstate";
+import { AlfredPayStatus, AlfredpayCustomerType } from "@vortexfi/shared";
+import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
 

@@ -15,6 +15,7 @@ import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuo
 import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
+import { FiatAccountMachineContext, useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import {
   useAlfredpayKycActor,
   useAlfredpayKycSelector,
@@ -25,25 +26,28 @@ import {
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
+import { FiatAccountRegistration } from "../alfredpay/FiatAccountRegistration";
 
 export interface WidgetProps {
   className?: string;
 }
 
 export const Widget = ({ className }: WidgetProps) => (
-  <motion.div
-    animate={{ opacity: 1, scale: 1 }}
-    className={cn(
-      "relative mx-6 mt-8 mb-4 flex min-h-[620px] flex-col overflow-hidden rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
-      className
-    )}
-    initial={{ opacity: 0, scale: 0.9 }}
-    transition={{ duration: 0.3 }}
-  >
-    <WidgetContent />
-    <SettingsMenu />
-    <HistoryMenu />
-  </motion.div>
+  <FiatAccountMachineContext.Provider>
+    <motion.div
+      animate={{ opacity: 1, scale: 1 }}
+      className={cn(
+        "relative mx-6 mt-8 mb-4 flex min-h-[620px] flex-col overflow-hidden rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
+        className
+      )}
+      initial={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3 }}
+    >
+      <WidgetContent />
+      <SettingsMenu />
+      <HistoryMenu />
+    </motion.div>
+  </FiatAccountMachineContext.Provider>
 );
 
 const WidgetContent = () => {
@@ -52,6 +56,9 @@ const WidgetContent = () => {
   const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
   const alfredpayKycActor = useAlfredpayKycActor();
+
+  const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
+  const fiatRegistrationCountry = useFiatAccountSelector(s => s.context.fiatRegistrationCountry);
 
   // Enable session persistence and auto-refresh
   useAuthTokens(rampActor);
@@ -106,6 +113,9 @@ const WidgetContent = () => {
   }
 
   if (rampSummaryVisible) {
+    if (showFiatAccountRegistration) {
+      return <FiatAccountRegistration kycApproved={true} preselectedCountry={fiatRegistrationCountry ?? undefined} />;
+    }
     return <SummaryStep />;
   }
 
