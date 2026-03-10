@@ -1,7 +1,7 @@
 import {
   DestinationType,
-  EPaymentMethod,
   FiatToken,
+  mapFiatToDestination,
   OnChainToken,
   OnChainTokenSymbol,
   QuoteError,
@@ -47,22 +47,6 @@ interface QuoteState {
   outputAmount: Big | undefined;
   exchangeRate: number;
 }
-
-/**
- * Maps a fiat token to its destination type
- * @param fiatToken The fiat token to map
- * @returns The corresponding destination type
- */
-const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
-  const destinationMap: Record<FiatToken, DestinationType> = {
-    ARS: EPaymentMethod.CBU,
-    BRL: EPaymentMethod.PIX,
-    EUR: EPaymentMethod.SEPA,
-    USD: EPaymentMethod.ACH
-  };
-
-  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
-};
 
 const friendlyErrorMessages: Record<QuoteError, string> = {
   // Validation errors - show specific messages
