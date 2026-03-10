@@ -121,18 +121,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
     );
 
-    // 4. Top up funding account if insufficient balance
-    if (actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
-      if (isNative) {
-        // For native tokens, we cannot easily swap into the native token on-chain.
-        // The funding account must be pre-funded with sufficient native balance.
-        throw this.createUnrecoverableError(
-          `FinalSettlementSubsidyHandler: Funding account has insufficient native token balance ` +
-            `(${actualBalanceFundingAccount.toString()}) to cover subsidy of ${subsidyAmountRaw.toString()} on ${destinationNetwork}. ` +
-            `Please top up the funding account with native tokens manually.`
-        );
-      }
-
+    // 4. Top up funding account if insufficient balance (ERC-20 only; native tokens are transferred directly)
+    if (!isNative && actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
       logger.info(
         `FinalSettlementSubsidyHandler: Funding account has insufficient balance. Swapping native token to ${outTokenDetails.assetSymbol}`
       );
