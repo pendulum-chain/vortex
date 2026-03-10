@@ -32,7 +32,8 @@ export class OnRampSquidRouterBrlToEvmEngine extends BaseSquidRouterEngine {
       );
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork);
+    const toTokenAddress = toToken.erc20AddressSourceChain;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const pendulumToMoonbeamXcm = ctx.pendulumToMoonbeamXcm!;
 
@@ -43,9 +44,9 @@ export class OnRampSquidRouterBrlToEvmEngine extends BaseSquidRouterEngine {
         fromToken: AXL_USDC_MOONBEAM,
         inputAmountDecimal: pendulumToMoonbeamXcm.outputAmountDecimal,
         inputAmountRaw: pendulumToMoonbeamXcm.outputAmountRaw,
-        outputDecimals: getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, toNetwork).decimals,
+        outputDecimals: toToken.decimals,
         toNetwork,
-        toToken
+        toToken: toTokenAddress
       },
       type: "moonbeam-to-evm"
     };

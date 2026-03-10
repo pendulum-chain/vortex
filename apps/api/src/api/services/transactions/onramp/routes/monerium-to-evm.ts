@@ -136,18 +136,22 @@ export async function prepareMoneriumToEvmOnrampTransactions({
       ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
       : destinationAxlUsdcDetails.erc20AddressSourceChain;
 
-  const intermediateUsdAmount = await priceFeedService.convertCurrency(
-    Big(quote!.metadata.evmToEvm?.inputAmountDecimal).toFixed(2, 0),
+  const intermediateUsdAmountForFallback = await priceFeedService.convertCurrency(
+    Big(quote.metadata.evmToEvm?.inputAmountDecimal).toFixed(2, 0),
     quote.inputCurrency,
     EvmToken.USDC
   );
+  const intermediateUsdAmountForFallbackRaw = multiplyByPowerOfTen(
+    intermediateUsdAmountForFallback,
+    destinationAxlUsdcDetails.decimals
+  ).toFixed(0, 0);
 
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
     destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
     fromToken: bridgedTokenForFallback,
     network: toNetwork as EvmNetworks,
-    rawAmount: multiplyByPowerOfTen(intermediateUsdAmount, destinationAxlUsdcDetails.decimals).toFixed(0, 0),
+    rawAmount: intermediateUsdAmountForFallbackRaw,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });
 
