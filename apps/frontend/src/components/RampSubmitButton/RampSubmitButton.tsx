@@ -6,12 +6,14 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAlfredpayToken,
   RampDirection,
   TokenType
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
@@ -200,6 +202,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   const isOnramp = quote?.rampType === RampDirection.BUY;
   const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
+  const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
 
@@ -218,7 +221,12 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     ) {
       return true;
     }
-    if (machineState === "QuoteReady" || machineState === "KycComplete") {
+    if (machineState === "QuoteReady") {
+      return false;
+    }
+
+    if (machineState === "KycComplete") {
+      if (isAlfredpayToken(fiatToken) && !selectedFiatAccountId) return true;
       return false;
     }
 
@@ -251,8 +259,10 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOfframp,
     isOnramp,
     rampState?.ramp?.depositQrCode,
+    rampState?.ramp?.achPaymentData,
     anchorUrl,
     fiatToken,
+    selectedFiatAccountId,
     stellarData,
     machineState,
     moneriumKycActor,
@@ -279,7 +289,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      rampActor.send({ selectedFiatAccountId: selectedFiatAccountId ?? undefined, type: "PROCEED_TO_REGISTRATION" });
       return;
     }
 
