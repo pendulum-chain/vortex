@@ -18,7 +18,7 @@ This is a **Bun monorepo** using workspaces:
 
 ## Essential Commands
 
-> Always use `bun` — never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code change.
+> Always use `bun`- never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code change.
 
 ```bash
 # Install all dependencies
@@ -115,7 +115,7 @@ From `.clinerules/`:
 - Skip useless comments; only comment race conditions, TODOs, or genuinely confusing code
 
 ### XState v5
-- Use `setup({ ... }).createMachine(...)` API — not `createMachine` directly
+- Use `setup({ ... }).createMachine(...)` API- not `createMachine` directly
 - Actor refs from `useActor` / `useSelector` from `@xstate/react`
 - Machine files live in `apps/frontend/src/machines/`
 

@@ -37,6 +37,7 @@ export interface RampExecutionInput {
   taxId?: string;
   pixId?: string;
   brlaEvmAddress?: string;
+  selectedFiatAccountId?: string;
   network: Networks;
   setInitializeFailed: (message?: string | null) => void;
 }

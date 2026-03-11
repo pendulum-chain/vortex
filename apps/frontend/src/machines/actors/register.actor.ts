@@ -90,6 +90,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else if (executionInput.quote.rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
+      fiatAccountId: executionInput.selectedFiatAccountId,
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress
     };
