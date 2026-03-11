@@ -50,6 +50,7 @@
 
   :root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
     scrollbar-gutter: unset;
+    overflow-y: scroll;
   }
 }
 
@@ -135,7 +136,7 @@
 }
 
 .btn-vortex-primary:hover {
-  @apply bg-blue-200 text-blue-700;
+  @apply bg-blue-100 text-blue-700;
 }
 
 .btn-vortex-primary:disabled {
@@ -215,11 +216,11 @@
 }
 
 .btn-vortex-danger {
-  @apply bg-red-600;
-  @apply text-white;
+  @apply bg-red-800;
+  @apply text-red-100;
   @apply rounded-xl;
   @apply border;
-  @apply border-red-600;
+  @apply border-red-800;
   @apply shadow-none;
   transition: scale 0.1s ease-in-out;
 }
@@ -229,7 +230,7 @@
 }
 
 .btn-vortex-danger:hover {
-  @apply bg-white;
+  @apply bg-red-100;
   @apply text-red-800;
   @apply border-red-800;
 }
