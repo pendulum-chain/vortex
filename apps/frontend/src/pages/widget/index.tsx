@@ -113,8 +113,8 @@ const WidgetContent = () => {
   }
 
   if (rampSummaryVisible) {
-    if (showFiatAccountRegistration) {
-      return <FiatAccountRegistration kycApproved={true} preselectedCountry={fiatRegistrationCountry ?? undefined} />;
+    if (showFiatAccountRegistration && fiatRegistrationCountry) {
+      return <FiatAccountRegistration kycApproved={true} preselectedCountry={fiatRegistrationCountry} />;
     }
     return <SummaryStep />;
   }

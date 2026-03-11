@@ -1,5 +1,4 @@
 import { useSelector } from "@xstate/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { MenuButtons } from "../../../components/MenuButtons";
@@ -12,14 +11,12 @@ import { RegisterFiatAccountScreen } from "./RegisterFiatAccountScreen";
 
 interface FiatAccountRegistrationProps {
   kycApproved: boolean;
-  preselectedCountry?: string;
+  preselectedCountry: string;
 }
 
 export function FiatAccountRegistration({ kycApproved, preselectedCountry }: FiatAccountRegistrationProps) {
   const { t } = useTranslation();
-  const defaultCountry = ALFREDPAY_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFREDPAY_COUNTRY_METHODS[0];
-
-  const [selectedCountry] = useState<CountryFiatAccountConfig>(defaultCountry);
+  const selectedCountry = ALFREDPAY_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFREDPAY_COUNTRY_METHODS[0];
 
   const { data: accounts = [], isLoading } = useFiatAccounts(selectedCountry.country);
   const deleteMutation = useDeleteFiatAccount(selectedCountry.country);
