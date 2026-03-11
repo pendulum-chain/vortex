@@ -1,4 +1,5 @@
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import { useTranslation } from "react-i18next";
 import { MenuButtons } from "../../../components/MenuButtons";
 import { AccountCardDeck } from "./AccountCardDeck";
 import { AccountCardSkeleton } from "./AccountCardSkeleton";
@@ -13,23 +14,28 @@ interface RegisteredAccountsListProps {
 }
 
 export function RegisteredAccountsList({ accounts, isLoading, kycApproved, onAddNew, onDelete }: RegisteredAccountsListProps) {
+  const { t } = useTranslation();
   return (
     <div className="relative flex grow-1 flex-col">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">Payment methods</h1>
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">
+        {t("components.fiatAccountRegistration.title")}
+      </h1>
       {!kycApproved && <KycRequiredBanner />}
 
       <div className="mt-8">
         {isLoading ? (
           <AccountCardSkeleton />
         ) : accounts.length === 0 ? (
-          <p className="py-6 text-center text-gray-500 text-sm">No payment methods configured yet.</p>
+          <p className="py-6 text-center text-gray-500 text-sm">
+            {t("components.fiatAccountRegistration.noAccountsConfigured")}
+          </p>
         ) : (
           <AccountCardDeck accounts={accounts} onDelete={onDelete} />
         )}
       </div>
 
       <button className="btn btn-vortex-primary-inverse my-8 w-full" disabled={!kycApproved} onClick={onAddNew} type="button">
-        + Add a new payment method
+        {t("components.fiatAccountRegistration.addNew")}
       </button>
     </div>
   );

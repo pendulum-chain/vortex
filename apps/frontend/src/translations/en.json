@@ -288,7 +288,7 @@
       "description": "We're always looking to improve, and we'd greatly appreciate your feedback. If you're willing, please leave your email below so we can reach out for a quick chat about your experience.",
       "error": "Error while saving your email. Please try again.",
       "loading": "Loading...",
-      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
+      "noNewslettersNoSpam": "No newsletters, no spam- just your honest thoughts.",
       "submit": "Submit",
       "success": "Successfully saved!",
       "title": "Thank you for using our new product!"
@@ -323,6 +323,57 @@
       },
       "totalFee": "Total Fee",
       "yourQuote": "Your quote"
+    },
+    "fiatAccountMethods": {
+      "accountDetails": "ACCOUNT DETAILS",
+      "accountOwner": "ACCOUNT OWNER",
+      "clickToSelect": "Click to select",
+      "descriptions": {
+        "ACH": "1-2 business days",
+        "SPEI": "Instant interbank transfer via CLABE number",
+        "WIRE": "Same day"
+      },
+      "labels": {
+        "ACH": "ACH Transfer",
+        "SPEI": "SPEI",
+        "WIRE": "Wire Transfer"
+      },
+      "switchToAccount": "Switch to {{accountType}} account ending {{last4}}"
+    },
+    "fiatAccountRegistration": {
+      "addNew": "+ Add a new payment method",
+      "alreadyRegistered": "This account is already registered.",
+      "cancelRemoval": "Cancel account removal",
+      "chooseType": "Choose a payment method",
+      "close": "Close",
+      "holdToRemove": "Hold to remove",
+      "kycRequired": {
+        "description": "Complete identity verification before adding fiat accounts.",
+        "title": "Identity verification required"
+      },
+      "noAccountsConfigured": "No payment methods configured yet.",
+      "registeredSuccess": "Payment method registered successfully.",
+      "registrationError": "Could not register account. Please try again.",
+      "remove": "Remove",
+      "removeAccount": "Remove this account",
+      "removedSuccess": "Payment method removed.",
+      "removeError": "Could not remove account. Please try again.",
+      "save": "Save",
+      "selectPlaceholder": "Select…",
+      "title": "Payment methods",
+      "validation": {
+        "accountNumber": "Account number must be 4-17 digits",
+        "clabe": "CLABE must be exactly 18 digits",
+        "fieldRequired": "{{field}} is required",
+        "nickname": "Nickname must be 40 characters or fewer",
+        "routing": "Routing number must be exactly 9 digits"
+      }
+    },
+    "fiatAccountSelector": {
+      "label": "Payment method",
+      "manage": "Manage payment methods",
+      "noPaymentMethods": "No payment methods",
+      "selected": "Selected"
     },
     "footer": {
       "business": {
@@ -566,7 +617,7 @@
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
       "kycInvalid": "Your KYC level is invalid. Please contact support.",
-      "maintenance": "Temporary maintenance in progress — please check back later."
+      "maintenance": "Temporary maintenance in progress- please check back later."
     },
     "useTokenAmountOut": {
       "default": "Something went wrong",

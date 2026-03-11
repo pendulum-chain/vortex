@@ -1,5 +1,6 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { MenuButtons } from "../../../components/MenuButtons";
 import { ALFREDPAY_COUNTRY_METHODS, type CountryFiatAccountConfig } from "../../../constants/fiatAccountMethods";
@@ -15,6 +16,7 @@ interface FiatAccountRegistrationProps {
 }
 
 export function FiatAccountRegistration({ kycApproved, preselectedCountry }: FiatAccountRegistrationProps) {
+  const { t } = useTranslation();
   const defaultCountry = ALFREDPAY_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFREDPAY_COUNTRY_METHODS[0];
 
   const [selectedCountry] = useState<CountryFiatAccountConfig>(defaultCountry);
@@ -28,9 +30,9 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
   const handleDelete = async (fiatAccountId: string) => {
     try {
       await deleteMutation.mutateAsync(fiatAccountId);
-      toast.success("Fiat account removed.");
+      toast.success(t("components.fiatAccountRegistration.removedSuccess"));
     } catch {
-      toast.error("Could not remove account. Please try again.");
+      toast.error(t("components.fiatAccountRegistration.removeError"));
     }
   };
 

@@ -1,10 +1,11 @@
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
 import { AnimatePresence, motion, type Transition, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { MaskedAccountNumber } from "../../../components/MaskedAccountNumber";
 import { ALFRED_TO_ACCOUNT_TYPE } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { CardHeader } from "./CardHeader";
-import { MaskedAccountNumber } from "./MaskedAccountNumber";
 import { RemoveAccountControls } from "./RemoveAccountControls";
 
 export const CARD_HEIGHT = 214;
@@ -12,6 +13,7 @@ const PEEK = 28;
 const PEEK_EXPANDED = 54; // For mobile accessibility
 
 function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount; onDelete: (id: string) => void }) {
+  const { t } = useTranslation();
   const { fiatAccountFields, type, fiatAccountId } = account;
   const accountType = ALFRED_TO_ACCOUNT_TYPE[type];
   const label = fiatAccountFields.accountAlias || fiatAccountFields.accountBankCode;
@@ -29,12 +31,12 @@ function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount
       <div>
         <CardHeader accountType={accountType} sub={sub} />
         <div className="flex w-full flex-col">
-          <p className="mt-5 text-gray-500 text-xs">ACCOUNT DETAILS</p>
+          <p className="mt-5 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountDetails")}</p>
           <div className="flex w-full min-w-0 items-center justify-between">
             <p className="min-w-0 truncate text-gray-500">{label}</p>
             <MaskedAccountNumber accountNumber={fiatAccountFields.accountNumber} />
           </div>
-          <span className="mt-4 text-gray-500 text-xs">ACCOUNT OWNER</span>
+          <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountOwner")}</span>
           <span className="truncate text-gray-500">{fiatAccountFields.accountName}</span>
         </div>
       </div>
@@ -65,6 +67,7 @@ interface AccountCardDeckProps {
 }
 
 export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
+  const { t } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
   const spring: Transition = shouldReduceMotion ? { duration: 0 } : { bounce: 0.25, duration: 0.45, type: "spring" };
   const canHover = useMemo(() => window.matchMedia("(hover: hover) and (pointer: fine)").matches, []);
@@ -111,7 +114,10 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
             }}
             aria-label={
               i > 0
-                ? `Switch to ${ALFRED_TO_ACCOUNT_TYPE[account.type]} account ending ${account.fiatAccountFields.accountNumber.slice(-4)}`
+                ? t("components.fiatAccountMethods.switchToAccount", {
+                    accountType: ALFRED_TO_ACCOUNT_TYPE[account.type],
+                    last4: account.fiatAccountFields.accountNumber.slice(-4)
+                  })
                 : undefined
             }
             exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
@@ -168,7 +174,7 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
                       transition={{ duration: 0.12, ease: "easeOut" }}
                     >
                       <span className="whitespace-nowrap rounded-full bg-gray-800/70 px-2.5 py-1 text-white text-xs backdrop-blur-sm">
-                        Click to select
+                        {t("components.fiatAccountMethods.clickToSelect")}
                       </span>
                     </motion.div>
                   )}

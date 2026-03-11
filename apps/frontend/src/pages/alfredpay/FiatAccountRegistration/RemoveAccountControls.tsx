@@ -1,10 +1,12 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AnimatedRemoveFiatAccountLabel } from "../../../components/AnimatedRemoveFiatAccountLabel";
 import { HoldButton } from "../../../components/HoldButton";
 import { durations } from "../../../constants/animations";
 
 export function RemoveAccountControls({ onDelete }: { onDelete: () => void }) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
@@ -25,14 +27,18 @@ export function RemoveAccountControls({ onDelete }: { onDelete: () => void }) {
               holdClassName="bg-red-300 text-red-800"
               onComplete={onDelete}
             >
-              Hold to remove
+              {t("components.fiatAccountRegistration.holdToRemove")}
             </HoldButton>
           </motion.div>
         )}
       </AnimatePresence>
       <button
         aria-expanded={confirming}
-        aria-label={confirming ? "Cancel account removal" : "Remove this account"}
+        aria-label={
+          confirming
+            ? t("components.fiatAccountRegistration.cancelRemoval")
+            : t("components.fiatAccountRegistration.removeAccount")
+        }
         className={
           "relative w-[80px] cursor-pointer touch-manipulation overflow-hidden rounded-lg bg-gray-100 py-2.5 text-center text-gray-500 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 active:scale-[0.97] [@media(hover:hover)]:hover:bg-gray-200 [@media(hover:hover)]:hover:text-gray-800"
         }
@@ -40,7 +46,7 @@ export function RemoveAccountControls({ onDelete }: { onDelete: () => void }) {
         type="button"
       >
         <AnimatedRemoveFiatAccountLabel motionKey={confirming ? "close" : "remove"}>
-          {confirming ? "Close" : "Remove"}
+          {confirming ? t("components.fiatAccountRegistration.close") : t("components.fiatAccountRegistration.remove")}
         </AnimatedRemoveFiatAccountLabel>
       </button>
     </div>

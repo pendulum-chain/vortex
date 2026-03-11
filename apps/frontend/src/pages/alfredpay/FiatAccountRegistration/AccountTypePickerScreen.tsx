@@ -27,11 +27,14 @@ function AccountTypeRow({ accountType }: { accountType: FiatAccountTypeKey }) {
 }
 
 export function AccountTypePickerScreen({ countryConfig, onSelect }: AccountTypePickerScreenProps) {
+  const { t } = useTranslation();
   const accountTypes = [...new Set([...countryConfig.onramp, ...countryConfig.offramp])] as FiatAccountTypeKey[];
 
   return (
     <div className="px-1">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">Choose a payment method</h1>
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">
+        {t("components.fiatAccountRegistration.chooseType")}
+      </h1>
 
       <div className="space-y-3">
         {accountTypes.map(accountType => (

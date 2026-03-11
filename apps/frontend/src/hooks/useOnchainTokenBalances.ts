@@ -300,7 +300,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   const { apiComponents: assethubNode } = useAssetHubNode();
 
   useEffect(() => {
-    // Only process non-native asset tokens here — native token handled by useAssetHubNativeBalance
+    // Only process non-native asset tokens here - native token handled by useAssetHubNativeBalance
     if (tokens.length === 0) return;
 
     const assetTokens = tokens.filter(t => !t.isNative);

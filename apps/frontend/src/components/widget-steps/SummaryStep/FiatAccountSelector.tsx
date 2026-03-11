@@ -96,17 +96,19 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
           {accountType ? t(ACCOUNT_TYPE_LABELS[accountType]) : selectedAccount.type} ••••{last4}
         </p>
       </div>
-      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">Selected</span>
+      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
+        {t("components.fiatAccountSelector.selected")}
+      </span>
     </>
   ) : (
-    <p className="text-secondary-content text-sm">No payment methods</p>
+    <p className="text-secondary-content text-sm">{t("components.fiatAccountSelector.noPaymentMethods")}</p>
   );
 
   return (
     <DropdownSelector
       className="mt-4 mb-32"
       isLoading={isLoading}
-      label="Payment method"
+      label={t("components.fiatAccountSelector.label")}
       onOpenChange={setOpen}
       open={open}
       triggerContent={triggerContent}
@@ -137,7 +139,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
           type="button"
         >
           <PlusIcon aria-hidden="true" className="h-4 w-4" />
-          Manage payment methods
+          {t("components.fiatAccountSelector.manage")}
         </button>
       </div>
     </DropdownSelector>

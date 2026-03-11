@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertBanner } from "../../../components/AlertBanner";
 
 const kycIcon = (
@@ -18,12 +19,13 @@ const kycIcon = (
 );
 
 export function KycRequiredBanner() {
+  const { t } = useTranslation();
   return (
     <AlertBanner
       className="mb-6"
-      description="Complete identity verification before adding fiat accounts."
+      description={t("components.fiatAccountRegistration.kycRequired.description")}
       icon={kycIcon}
-      title="Identity verification required"
+      title={t("components.fiatAccountRegistration.kycRequired.title")}
     />
   );
 }

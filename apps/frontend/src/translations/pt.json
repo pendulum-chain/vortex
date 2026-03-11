@@ -289,7 +289,7 @@
       "description": "Estamos sempre buscando melhorar e gostaríamos muito de receber seu feedback. Se possível, deixe seu e-mail abaixo para que possamos entrar em contato para uma rápida conversa sobre sua experiência.",
       "error": "Erro ao salvar seu e-mail. Por favor, tente novamente.",
       "loading": "Carregando...",
-      "noNewslettersNoSpam": "Sem newsletters, sem spam — apenas suas opiniões sinceras.",
+      "noNewslettersNoSpam": "Sem newsletters, sem spam- apenas suas opiniões sinceras.",
       "submit": "Enviar",
       "success": "Salvo com sucesso!",
       "title": "Obrigado por usar nosso novo produto!"
@@ -324,6 +324,57 @@
       },
       "totalFee": "Taxa total",
       "yourQuote": "Sua cotação"
+    },
+    "fiatAccountMethods": {
+      "accountDetails": "DETALHES DA CONTA",
+      "accountOwner": "TITULAR DA CONTA",
+      "clickToSelect": "Clique para selecionar",
+      "descriptions": {
+        "ACH": "1 a 2 dias úteis",
+        "SPEI": "Transferência interbancária instantânea via número CLABE",
+        "WIRE": "No mesmo dia"
+      },
+      "labels": {
+        "ACH": "Transferência ACH",
+        "SPEI": "SPEI",
+        "WIRE": "Transferência Internacional"
+      },
+      "switchToAccount": "Alternar para conta {{accountType}} terminada em {{last4}}"
+    },
+    "fiatAccountRegistration": {
+      "addNew": "+ Adicionar novo método de pagamento",
+      "alreadyRegistered": "Esta conta já está cadastrada.",
+      "cancelRemoval": "Cancelar remoção da conta",
+      "chooseType": "Escolha um método de pagamento",
+      "close": "Fechar",
+      "holdToRemove": "Pressione para remover",
+      "kycRequired": {
+        "description": "Complete a verificação de identidade antes de adicionar contas.",
+        "title": "Verificação de identidade necessária"
+      },
+      "noAccountsConfigured": "Nenhum método de pagamento configurado ainda.",
+      "registeredSuccess": "Método de pagamento cadastrado com sucesso.",
+      "registrationError": "Não foi possível cadastrar a conta. Tente novamente.",
+      "remove": "Remover",
+      "removeAccount": "Remover esta conta",
+      "removedSuccess": "Método de pagamento removido.",
+      "removeError": "Não foi possível remover a conta. Tente novamente.",
+      "save": "Salvar",
+      "selectPlaceholder": "Selecionar…",
+      "title": "Métodos de pagamento",
+      "validation": {
+        "accountNumber": "Número da conta deve ter entre 4 e 17 dígitos",
+        "clabe": "CLABE deve ter exatamente 18 dígitos",
+        "fieldRequired": "{{field}} é obrigatório",
+        "nickname": "Apelido deve ter no máximo 40 caracteres",
+        "routing": "Número de roteamento deve ter exatamente 9 dígitos"
+      }
+    },
+    "fiatAccountSelector": {
+      "label": "Método de pagamento",
+      "manage": "Gerenciar métodos de pagamento",
+      "noPaymentMethods": "Nenhum método de pagamento",
+      "selected": "Selecionado"
     },
     "footer": {
       "business": {

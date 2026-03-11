@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
+import type { TFunction } from "i18next";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -21,32 +22,36 @@ interface RegisterFiatAccountScreenProps {
   onSuccess: () => void;
 }
 
-function buildZodSchema(fields: FieldDef[], accountType: FiatAccountTypeKey): z.ZodObject<Record<string, z.ZodTypeAny>> {
+function buildZodSchema(
+  fields: FieldDef[],
+  accountType: FiatAccountTypeKey,
+  t: TFunction
+): z.ZodObject<Record<string, z.ZodTypeAny>> {
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const f of fields) {
     let schema: z.ZodTypeAny = z.string();
 
     if (f.required) {
-      schema = z.string().min(1, `${f.label} is required`);
+      schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: f.label }));
     } else {
       schema = z.string().optional();
     }
 
     if (f.field === "accountNumber" && accountType === "SPEI") {
-      schema = z.string().regex(/^\d{18}$/, "CLABE must be exactly 18 digits");
+      schema = z.string().regex(/^\d{18}$/, t("components.fiatAccountRegistration.validation.clabe"));
     }
     if (f.field === "routingNumber" && (accountType === "ACH" || accountType === "WIRE")) {
-      schema = z.string().regex(/^\d{9}$/, "Routing number must be exactly 9 digits");
+      schema = z.string().regex(/^\d{9}$/, t("components.fiatAccountRegistration.validation.routing"));
     }
     if (f.field === "accountNumber" && accountType === "ACH") {
-      schema = z.string().regex(/^\d{4,17}$/, "Account number must be 4-17 digits");
+      schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
     if (f.field === "accountNumber" && accountType === "WIRE") {
-      schema = z.string().regex(/^\d{4,17}$/, "Account number must be 4-17 digits");
+      schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
     if (f.field === "accountAlias") {
-      schema = z.string().max(40, "Nickname must be 40 characters or fewer").optional();
+      schema = z.string().max(40, t("components.fiatAccountRegistration.validation.nickname")).optional();
     }
 
     shape[f.field] = schema;
@@ -61,7 +66,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   const fields: FieldDef[] = FORMS[accountType] ?? [];
 
-  const schema = buildZodSchema(fields, accountType);
+  const schema = buildZodSchema(fields, accountType, t);
 
   const {
     control,
@@ -110,7 +115,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
         routingNumber,
         type: alfredType
       });
-      toast.success("Fiat account registered successfully.");
+      toast.success(t("components.fiatAccountRegistration.registeredSuccess"));
       onSuccess();
     } catch (err: unknown) {
       const axiosErr = err as {
@@ -123,11 +128,11 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
       const body = axiosErr?.response?.data;
 
       if (status === 409) {
-        toast.error("This account is already registered.");
+        toast.error(t("components.fiatAccountRegistration.alreadyRegistered"));
       } else if (status === 400 && body?.fields) {
         toast.error(body.fields.map(f => `${f.field}: ${f.message}`).join("; "));
       } else {
-        toast.error(body?.error || body?.message || "Could not register account. Please try again.");
+        toast.error(body?.error || body?.message || t("components.fiatAccountRegistration.registrationError"));
       }
     }
   };
@@ -160,7 +165,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                         className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-0 focus-visible:ring-offset-0 data-[size=default]:h-auto ${errors[f.field] ? "border-red-800" : "border-neutral-300"}`}
                         id={`field-${f.field}`}
                       >
-                        <SelectValue placeholder="Select…" />
+                        <SelectValue placeholder={t("components.fiatAccountRegistration.selectPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         {f.options?.map(opt => (
@@ -193,7 +198,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
           disabled={addFiatAccount.isPending}
           type="submit"
         >
-          {addFiatAccount.isPending ? <Spinner size="sm" theme="light" /> : "Save"}
+          {addFiatAccount.isPending ? <Spinner size="sm" theme="light" /> : t("components.fiatAccountRegistration.save")}
         </button>
       </form>
     </div>
