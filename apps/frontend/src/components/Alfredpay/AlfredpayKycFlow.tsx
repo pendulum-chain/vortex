@@ -14,6 +14,7 @@ export const AlfredpayKycFlow = () => {
   const actor = useAlfredpayKycActor();
   const state = useAlfredpayKycSelector();
 
+  const confirmSuccess = useCallback(() => actor?.send({ type: "CONFIRM_SUCCESS" }), [actor]);
   const openLink = useCallback(() => actor?.send({ type: "OPEN_LINK" }), [actor]);
   const completedFilling = useCallback(() => actor?.send({ type: "COMPLETED_FILLING" }), [actor]);
   const toggleBusiness = useCallback(() => actor?.send({ type: "TOGGLE_BUSINESS" }), [actor]);
@@ -57,6 +58,10 @@ export const AlfredpayKycFlow = () => {
         onCompletedFilling={completedFilling}
       />
     );
+  }
+
+  if (stateValue === "VerificationDone") {
+    return <DoneScreen kycOrKyb={kycOrKyb} onContinue={confirmSuccess} />;
   }
 
   if (stateValue === "Done") {

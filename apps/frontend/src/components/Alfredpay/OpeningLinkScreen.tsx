@@ -6,8 +6,8 @@ export const OpeningLinkScreen = memo(() => {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 py-8">
-      <Spinner />
+    <div className="flex min-h-[480px] flex-col items-center justify-center space-y-4 py-8">
+      <Spinner size="lg" theme="dark" />
       <p className="font-medium text-gray-600">{t("components.alfredpayKycFlow.openingLink")}</p>
     </div>
   );

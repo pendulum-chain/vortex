@@ -20,7 +20,7 @@ export const CustomerDefinitionScreen = memo(
     const { t } = useTranslation();
 
     return (
-      <div className="relative flex grow-1 flex-col items-center">
+      <main className="relative flex grow-1 flex-col items-center">
         <MenuButtons />
         {isBusiness ? (
           <img alt="Business Handshake" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={businessHandshake} />
@@ -48,7 +48,7 @@ export const CustomerDefinitionScreen = memo(
             {t("components.alfredpayKycFlow.continue")}
           </button>
         </StepFooter>
-      </div>
+      </main>
     );
   }
 );

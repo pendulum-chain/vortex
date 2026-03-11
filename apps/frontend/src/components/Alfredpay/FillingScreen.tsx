@@ -1,6 +1,9 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
+import documentReady from "../../assets/document_ready.svg";
+import { MenuButtons } from "../MenuButtons";
 import { Spinner } from "../Spinner";
+import { StepFooter } from "../StepFooter";
 
 interface FillingScreenProps {
   kycOrKyb: string;
@@ -12,19 +15,23 @@ export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling 
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col items-center space-y-4 py-4">
+    <main className="relative flex grow-1 flex-col items-center">
+      <MenuButtons />
+      <img alt="Business Handshake" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReady} />
       <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
-      <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={onCompletedFilling}>
-        {isSubmitting ? (
-          <>
-            <Spinner className="mr-2 h-4 w-4" />
-            {t("components.alfredpayKycFlow.verifyingCompletion")}
-          </>
-        ) : (
-          t("components.alfredpayKycFlow.finishedVerification", { kycOrKyb })
-        )}
-      </button>
-    </div>
+      <StepFooter>
+        <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={onCompletedFilling}>
+          {isSubmitting ? (
+            <>
+              <Spinner />
+              {t("components.alfredpayKycFlow.verifyingCompletion")}
+            </>
+          ) : (
+            t("components.alfredpayKycFlow.finishedVerification", { kycOrKyb })
+          )}
+        </button>
+      </StepFooter>
+    </main>
   );
 });
 
