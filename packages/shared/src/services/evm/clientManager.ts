@@ -328,6 +328,34 @@ export class EvmClientManager {
   }
 
   /**
+   * Gets the native balance of an address with smart retry logic using exponential backoff and RPC switching.
+   * Exhausts all available RPCs before repeating selections.
+   *
+   * @param networkName - The EVM network to query
+   * @param address - The address to get the native balance of
+   * @param maxRetries - Maximum number of retry attempts (default: 3)
+   * @param initialDelayMs - Initial delay in milliseconds before first retry (default: 1000)
+   * @returns Native balance as bigint
+   */
+  public async getBalanceWithRetry(
+    networkName: EvmNetworks,
+    address: `0x${string}`,
+    maxRetries = 3,
+    initialDelayMs = 1000
+  ): Promise<bigint> {
+    return this.executeWithRetry(
+      networkName,
+      async rpcUrl => {
+        const publicClient = this.getClient(networkName, rpcUrl);
+        return await publicClient.getBalance({ address });
+      },
+      "get native balance",
+      maxRetries,
+      initialDelayMs
+    );
+  }
+
+  /**
    * Sends a raw transaction with smart retry logic using exponential backoff and RPC switching.
    * Exhausts all available RPCs before repeating selections.
    * This method should be used for idempotent operations where retrying is safe.
