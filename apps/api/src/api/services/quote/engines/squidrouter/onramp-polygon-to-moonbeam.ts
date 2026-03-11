@@ -1,10 +1,4 @@
-import {
-  AXL_USDC_MOONBEAM,
-  ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_V1,
-  Networks,
-  RampDirection
-} from "@vortexfi/shared";
+import { AXL_USDC_MOONBEAM_DETAILS, ERC20_EURE_POLYGON_V1, Networks, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
@@ -32,6 +26,9 @@ export class OnRampSquidRouterEurToAssetHubEngine extends BaseSquidRouterEngine 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const moneriumMint = ctx.moneriumMint!;
 
+    const toToken = AXL_USDC_MOONBEAM_DETAILS;
+    const toTokenAddress = toToken.erc20AddressSourceChain;
+
     return {
       data: {
         amountRaw: moneriumMint.outputAmountRaw,
@@ -39,9 +36,9 @@ export class OnRampSquidRouterEurToAssetHubEngine extends BaseSquidRouterEngine 
         fromToken: ERC20_EURE_POLYGON_V1,
         inputAmountDecimal: moneriumMint.outputAmountDecimal,
         inputAmountRaw: moneriumMint.outputAmountRaw,
-        outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
+        outputDecimals: toToken.decimals,
         toNetwork: Networks.Moonbeam,
-        toToken: AXL_USDC_MOONBEAM
+        toToken: toTokenAddress
       },
       type: "evm-to-moonbeam"
     };
