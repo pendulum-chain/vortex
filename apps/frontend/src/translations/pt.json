@@ -28,8 +28,8 @@
       "registerAsIndividual": "Clique <1>aqui</1> para se registrar como indivíduo",
       "retry": "Tentar Novamente",
       "retryProcess": "Tentar Processo Novamente",
-      "verifyingCompletion": "Verificando conclusão...",
-      "verifyingStatus": "Verificando Status {{kycOrKyb}}...",
+      "verifyingCompletion": "Verificando conclusão",
+      "verifyingStatus": "Verificando Status {{kycOrKyb}}",
       "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
     },
     "authEmailStep": {
