@@ -1,7 +1,7 @@
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
 import { AnimatePresence, motion, type Transition, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ALFRED_TYPE_TO_METHOD } from "../../../constants/alfredPayMethods";
+import { ALFRED_TO_ACCOUNT_TYPE } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { CardHeader } from "./CardHeader";
 import { MaskedAccountNumber } from "./MaskedAccountNumber";
@@ -13,7 +13,7 @@ const PEEK_EXPANDED = 54; // For mobile accessibility
 
 function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount; onDelete: (id: string) => void }) {
   const { fiatAccountFields, type, fiatAccountId } = account;
-  const methodKey = ALFRED_TYPE_TO_METHOD[type];
+  const accountType = ALFRED_TO_ACCOUNT_TYPE[type];
   const label = fiatAccountFields.accountAlias || fiatAccountFields.accountBankCode;
   const last4 = fiatAccountFields.accountNumber.slice(-4);
   const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
@@ -27,7 +27,7 @@ function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount
       }}
     >
       <div>
-        <CardHeader methodKey={methodKey} sub={sub} />
+        <CardHeader accountType={accountType} sub={sub} />
         <div className="flex w-full flex-col">
           <p className="mt-5 text-gray-500 text-xs">ACCOUNT DETAILS</p>
           <div className="flex w-full min-w-0 items-center justify-between">
@@ -45,7 +45,7 @@ function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount
 
 function BackCardContent({ account, index }: { account: AlfredpayFiatAccount; index: number }) {
   const { fiatAccountFields, type } = account;
-  const methodKey = ALFRED_TYPE_TO_METHOD[type];
+  const accountType = ALFRED_TO_ACCOUNT_TYPE[type];
   const bg = index === 1 ? "bg-gray-50" : "bg-gray-100";
   const last4 = fiatAccountFields.accountNumber.slice(-4);
   const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
@@ -53,7 +53,7 @@ function BackCardContent({ account, index }: { account: AlfredpayFiatAccount; in
   return (
     <div className={`flex h-full w-full items-start rounded-lg border border-gray-200 ${bg} shadow-sm`}>
       <div className="w-full px-4 pt-2 pb-2">
-        <CardHeader compact methodKey={methodKey} sub={sub} />
+        <CardHeader accountType={accountType} compact sub={sub} />
       </div>
     </div>
   );
@@ -111,7 +111,7 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
             }}
             aria-label={
               i > 0
-                ? `Switch to ${ALFRED_TYPE_TO_METHOD[account.type]} account ending ${account.fiatAccountFields.accountNumber.slice(-4)}`
+                ? `Switch to ${ALFRED_TO_ACCOUNT_TYPE[account.type]} account ending ${account.fiatAccountFields.accountNumber.slice(-4)}`
                 : undefined
             }
             exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}

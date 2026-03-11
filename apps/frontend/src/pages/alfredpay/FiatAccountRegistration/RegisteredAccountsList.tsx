@@ -15,14 +15,14 @@ interface RegisteredAccountsListProps {
 export function RegisteredAccountsList({ accounts, isLoading, kycApproved, onAddNew, onDelete }: RegisteredAccountsListProps) {
   return (
     <div className="relative flex grow-1 flex-col">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">Payment Methods</h1>
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">Payment methods</h1>
       {!kycApproved && <KycRequiredBanner />}
 
       <div className="mt-8">
         {isLoading ? (
           <AccountCardSkeleton />
         ) : accounts.length === 0 ? (
-          <p className="py-6 text-center text-gray-500 text-sm">No payment methods yet. Add one below.</p>
+          <p className="py-6 text-center text-gray-500 text-sm">No payment methods configured yet.</p>
         ) : (
           <AccountCardDeck accounts={accounts} onDelete={onDelete} />
         )}

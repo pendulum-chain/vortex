@@ -2,21 +2,26 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { z } from "zod";
 import { Spinner } from "../../../components/Spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { type FieldDef, FORMS } from "../../../constants/alfredPayForms";
-import { METHOD_LABELS, METHOD_TO_ALFRED_TYPE, type PaymentMethodKey } from "../../../constants/alfredPayMethods";
+import { type FieldDef, FORMS } from "../../../constants/fiatAccountForms";
+import {
+  ACCOUNT_TYPE_LABELS,
+  ACCOUNT_TYPE_TO_ALFRED_TYPE,
+  type FiatAccountTypeKey
+} from "../../../constants/fiatAccountMethods";
 import { useAddFiatAccount } from "../../../hooks/alfredpay/useFiatAccounts";
 
 interface RegisterFiatAccountScreenProps {
   country: string;
-  method: PaymentMethodKey;
+  accountType: FiatAccountTypeKey;
   onSuccess: () => void;
 }
 
-function buildZodSchema(fields: FieldDef[], method: PaymentMethodKey): z.ZodObject<Record<string, z.ZodTypeAny>> {
+function buildZodSchema(fields: FieldDef[], accountType: FiatAccountTypeKey): z.ZodObject<Record<string, z.ZodTypeAny>> {
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const f of fields) {
@@ -28,16 +33,16 @@ function buildZodSchema(fields: FieldDef[], method: PaymentMethodKey): z.ZodObje
       schema = z.string().optional();
     }
 
-    if (f.field === "accountNumber" && method === "SPEI") {
+    if (f.field === "accountNumber" && accountType === "SPEI") {
       schema = z.string().regex(/^\d{18}$/, "CLABE must be exactly 18 digits");
     }
-    if (f.field === "routingNumber" && (method === "ACH" || method === "WIRE")) {
+    if (f.field === "routingNumber" && (accountType === "ACH" || accountType === "WIRE")) {
       schema = z.string().regex(/^\d{9}$/, "Routing number must be exactly 9 digits");
     }
-    if (f.field === "accountNumber" && method === "ACH") {
+    if (f.field === "accountNumber" && accountType === "ACH") {
       schema = z.string().regex(/^\d{4,17}$/, "Account number must be 4-17 digits");
     }
-    if (f.field === "accountNumber" && method === "WIRE") {
+    if (f.field === "accountNumber" && accountType === "WIRE") {
       schema = z.string().regex(/^\d{4,17}$/, "Account number must be 4-17 digits");
     }
     if (f.field === "accountAlias") {
@@ -50,12 +55,13 @@ function buildZodSchema(fields: FieldDef[], method: PaymentMethodKey): z.ZodObje
   return z.object(shape);
 }
 
-export function RegisterFiatAccountScreen({ country, method, onSuccess }: RegisterFiatAccountScreenProps) {
+export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: RegisterFiatAccountScreenProps) {
+  const { t } = useTranslation();
   const addFiatAccount = useAddFiatAccount(country);
 
-  const fields: FieldDef[] = FORMS[method] ?? [];
+  const fields: FieldDef[] = FORMS[accountType] ?? [];
 
-  const schema = buildZodSchema(fields, method);
+  const schema = buildZodSchema(fields, accountType);
 
   const {
     control,
@@ -69,7 +75,7 @@ export function RegisterFiatAccountScreen({ country, method, onSuccess }: Regist
     reset();
   }, [reset]);
 
-  const alfredType = METHOD_TO_ALFRED_TYPE[method] as AlfredpayFiatAccountType;
+  const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
 
   const onSubmit = async (data: Record<string, unknown>) => {
     const {
@@ -77,7 +83,7 @@ export function RegisterFiatAccountScreen({ country, method, onSuccess }: Regist
       accountBankCode,
       accountName,
       accountNumber,
-      accountType,
+      accountType: accountTypeField,
       networkIdentifier,
       routingNumber,
       bankStreet,
@@ -93,7 +99,7 @@ export function RegisterFiatAccountScreen({ country, method, onSuccess }: Regist
         accountBankCode: accountBankCode ?? "",
         accountName: accountName ?? "",
         accountNumber: accountNumber ?? "",
-        accountType: accountType ?? "",
+        accountType: accountTypeField ?? "",
         bankCity,
         bankCountry,
         bankPostalCode,
@@ -104,7 +110,7 @@ export function RegisterFiatAccountScreen({ country, method, onSuccess }: Regist
         routingNumber,
         type: alfredType
       });
-      toast.success("Payment method registered successfully.");
+      toast.success("Fiat account registered successfully.");
       onSuccess();
     } catch (err: unknown) {
       const axiosErr = err as {
@@ -130,7 +136,7 @@ export function RegisterFiatAccountScreen({ country, method, onSuccess }: Regist
     <div className="flex grow-1 flex-col">
       <div className="flex items-center gap-1 px-4 pt-4">
         <span className="text-gray-300">·</span>
-        <h2 className="font-semibold text-gray-800">{METHOD_LABELS[method]}</h2>
+        <h2 className="font-semibold text-gray-800">{t(ACCOUNT_TYPE_LABELS[accountType])}</h2>
       </div>
 
       <form

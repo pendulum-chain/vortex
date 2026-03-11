@@ -2,10 +2,10 @@ import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { MenuButtons } from "../../../components/MenuButtons";
-import { ALFRED_COUNTRY_METHODS, type CountryPaymentConfig } from "../../../constants/alfredPayMethods";
+import { ALFREDPAY_COUNTRY_METHODS, type CountryFiatAccountConfig } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor } from "../../../contexts/FiatAccountMachineContext";
 import { useDeleteFiatAccount, useFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
-import { MethodPickerScreen } from "./MethodPickerScreen";
+import { AccountTypePickerScreen } from "./AccountTypePickerScreen";
 import { RegisteredAccountsList } from "./RegisteredAccountsList";
 import { RegisterFiatAccountScreen } from "./RegisterFiatAccountScreen";
 
@@ -15,9 +15,9 @@ interface FiatAccountRegistrationProps {
 }
 
 export function FiatAccountRegistration({ kycApproved, preselectedCountry }: FiatAccountRegistrationProps) {
-  const defaultCountry = ALFRED_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFRED_COUNTRY_METHODS[0];
+  const defaultCountry = ALFREDPAY_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFREDPAY_COUNTRY_METHODS[0];
 
-  const [selectedCountry] = useState<CountryPaymentConfig>(defaultCountry);
+  const [selectedCountry] = useState<CountryFiatAccountConfig>(defaultCountry);
 
   const { data: accounts = [], isLoading } = useFiatAccounts(selectedCountry.country);
   const deleteMutation = useDeleteFiatAccount(selectedCountry.country);
@@ -28,33 +28,33 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
   const handleDelete = async (fiatAccountId: string) => {
     try {
       await deleteMutation.mutateAsync(fiatAccountId);
-      toast.success("Payment method removed.");
+      toast.success("Fiat account removed.");
     } catch {
       toast.error("Could not remove account. Please try again.");
     }
   };
 
   const handleAddNew = () => {
-    const methods = [...new Set([...selectedCountry.onramp, ...selectedCountry.offramp])];
+    const accountTypes = [...new Set([...selectedCountry.onramp, ...selectedCountry.offramp])];
     actor.send({ type: "ADD_NEW" });
-    if (methods.length === 1) {
-      actor.send({ method: methods[0], type: "SELECT_METHOD" });
+    if (accountTypes.length === 1) {
+      actor.send({ accountType: accountTypes[0], type: "SELECT_ACCOUNT_TYPE" });
     }
   };
 
   return (
     <>
       <MenuButtons />
-      {state.matches({ Open: "PickMethod" }) && (
-        <MethodPickerScreen
+      {state.matches({ Open: "PickAccountType" }) && (
+        <AccountTypePickerScreen
           countryConfig={selectedCountry}
-          onSelect={method => actor.send({ method, type: "SELECT_METHOD" })}
+          onSelect={accountType => actor.send({ accountType, type: "SELECT_ACCOUNT_TYPE" })}
         />
       )}
-      {state.matches({ Open: "RegisterAccount" }) && state.context.selectedMethod && (
+      {state.matches({ Open: "RegisterAccount" }) && state.context.selectedAccountType && (
         <RegisterFiatAccountScreen
+          accountType={state.context.selectedAccountType}
           country={selectedCountry.country}
-          method={state.context.selectedMethod}
           onSuccess={() => actor.send({ type: "REGISTER_DONE" })}
         />
       )}
