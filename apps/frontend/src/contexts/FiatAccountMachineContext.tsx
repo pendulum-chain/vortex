@@ -1,7 +1,7 @@
 import { createActorContext } from "@xstate/react";
-import { paymentMethodsMachine } from "../machines/paymentMethods.machine";
+import { fiatAccountMachine } from "../machines/fiatAccount.machine";
 
-export const FiatAccountMachineContext = createActorContext(paymentMethodsMachine);
+export const FiatAccountMachineContext = createActorContext(fiatAccountMachine);
 
 export const useFiatAccountActor = FiatAccountMachineContext.useActorRef;
 export const useFiatAccountSelector = FiatAccountMachineContext.useSelector;

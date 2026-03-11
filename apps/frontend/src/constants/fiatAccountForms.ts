@@ -1,4 +1,4 @@
-import type { PaymentMethodKey } from "./alfredPayMethods";
+import type { FiatAccountTypeKey } from "./fiatAccountMethods";
 
 export interface FieldDef {
   field: string;
@@ -10,7 +10,7 @@ export interface FieldDef {
   type: "text" | "select" | "phone" | "email";
 }
 
-export const FORMS: Record<PaymentMethodKey, FieldDef[]> = {
+export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
   ACH: [
     { field: "accountBankCode", label: "Bank Name", required: true, type: "text" },
     { field: "routingNumber", label: "Routing Number (9 digits)", placeholder: "021000021", required: true, type: "text" },
