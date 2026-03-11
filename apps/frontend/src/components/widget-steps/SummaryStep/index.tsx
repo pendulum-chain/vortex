@@ -7,11 +7,12 @@ import { useRampActor } from "../../../contexts/rampState";
 import { useGetRampRegistrationErrorMessage } from "../../../hooks/offramp/useRampService/useRegisterRamp/helpers";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
 import { useRampSummaryActions } from "../../../stores/rampSummary";
+import { AlertBanner } from "../../AlertBanner";
 import { MenuButtons } from "../../MenuButtons";
 import { RampSubmitButton } from "../../RampSubmitButton/RampSubmitButton";
 import { SigningBoxButton, SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { StepFooter } from "../../StepFooter";
-import { AlfredpayPaymentMethodSelector } from "./AlfredpayPaymentMethodSelector";
+import { FiatAccountSelector } from "./FiatAccountSelector";
 import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const SummaryStep: FC = () => {
@@ -87,7 +88,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
-      {isAlfredpayToken(executionInput.fiatToken) && <AlfredpayPaymentMethodSelector fiatToken={executionInput.fiatToken} />}
+      {isAlfredpayToken(executionInput.fiatToken) && <FiatAccountSelector fiatToken={executionInput.fiatToken} />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
@@ -96,22 +97,21 @@ export const SummaryStep: FC = () => {
       )}
 
       {isUserMintAddressNotFound && (
-        <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
-          <div className="flex items-center">
-            <UserIcon className="w-5 text-yellow-800" />
-            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationErrorMessage}</p>
-          </div>
+        <AlertBanner
+          className="mt-4 mb-4"
+          icon={<UserIcon className="w-5 text-yellow-800" />}
+          title={rampRegistrationErrorMessage ?? ""}
+        >
           <progress className="progress progress-warning mt-4 w-56" />
-        </div>
+        </AlertBanner>
       )}
 
       {!isUserMintAddressNotFound && rampRegistrationErrorMessage && (
-        <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-yellow-50 p-4">
-          <div className="flex items-center">
-            <ExclamationCircleIcon className="w-5 text-yellow-800" />
-            <p className="ml-3 font-medium text-sm text-yellow-800">{rampRegistrationErrorMessage}</p>
-          </div>
-        </div>
+        <AlertBanner
+          className="mt-4 mb-4"
+          icon={<ExclamationCircleIcon className="w-5 text-yellow-800" />}
+          title={rampRegistrationErrorMessage}
+        />
       )}
     </>
   );

@@ -6,11 +6,12 @@ import { QuoteSummary } from "../QuoteSummary";
 interface StepFooterProps {
   children?: ReactNode;
   className?: string;
+  hideQuoteSummary?: boolean;
 }
 
-export function StepFooter({ children, className }: StepFooterProps) {
+export function StepFooter({ children, className, hideQuoteSummary = false }: StepFooterProps) {
   const quote = useQuote();
-  const showAboveQuote = Boolean(quote);
+  const showAboveQuote = hideQuoteSummary ? false : Boolean(quote);
 
   return (
     <>
@@ -21,7 +22,7 @@ export function StepFooter({ children, className }: StepFooterProps) {
           {children}
         </div>
       )}
-      <QuoteSummary />
+      {hideQuoteSummary ? <></> : <QuoteSummary />}
     </>
   );
 }

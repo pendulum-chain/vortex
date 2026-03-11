@@ -2,13 +2,14 @@ import { CheckIcon, PlusIcon } from "@heroicons/react/24/solid";
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
 import { FiatToken } from "@vortexfi/shared";
 import { useEffect, useState } from "react";
-import type { PaymentMethodKey } from "../../../constants/alfredPayMethods";
+import { useTranslation } from "react-i18next";
+import type { FiatAccountTypeKey } from "../../../constants/fiatAccountMethods";
 import {
-  ALFRED_TYPE_TO_METHOD,
-  ALFREDPAY_FIAT_TOKEN_TO_COUNTRY,
-  METHOD_ICONS,
-  METHOD_LABELS
-} from "../../../constants/alfredPayMethods";
+  ACCOUNT_TYPE_ICONS,
+  ACCOUNT_TYPE_LABELS,
+  ALFRED_TO_ACCOUNT_TYPE,
+  ALFREDPAY_FIAT_TOKEN_TO_COUNTRY
+} from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { useFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
 import { DropdownSelector } from "../../ui/DropdownSelector";
@@ -26,8 +27,9 @@ function AccountOption({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const methodKey = ALFRED_TYPE_TO_METHOD[account.type];
-  const Icon = methodKey ? METHOD_ICONS[methodKey] : null;
+  const { t } = useTranslation();
+  const accountType = ALFRED_TO_ACCOUNT_TYPE[account.type];
+  const Icon = accountType ? ACCOUNT_TYPE_ICONS[accountType] : null;
   const last4 = account.fiatAccountFields.accountNumber.slice(-4);
 
   return (
@@ -42,7 +44,7 @@ function AccountOption({
       <div className="min-w-0 flex-1">
         <p className="truncate text-gray-900 text-sm">{accountLabel(account)}</p>
         <p className="text-secondary-content text-xs">
-          {methodKey ? METHOD_LABELS[methodKey] : account.type} ••••{last4}
+          {accountType ? t(ACCOUNT_TYPE_LABELS[accountType]) : account.type} ••••{last4}
         </p>
       </div>
       {selected && <CheckIcon className="h-4 w-4 shrink-0 text-primary" />}
@@ -50,11 +52,12 @@ function AccountOption({
   );
 }
 
-interface AlfredpayPaymentMethodSelectorProps {
+interface FiatAccountSelectorProps {
   fiatToken: FiatToken;
 }
 
-export function AlfredpayPaymentMethodSelector({ fiatToken }: AlfredpayPaymentMethodSelectorProps) {
+export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
+  const { t } = useTranslation();
   const country = ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken];
   const fiatAccountActor = useFiatAccountActor();
   const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
@@ -78,8 +81,10 @@ export function AlfredpayPaymentMethodSelector({ fiatToken }: AlfredpayPaymentMe
 
   if (!country) return null;
 
-  const methodKey = selectedAccount ? ALFRED_TYPE_TO_METHOD[selectedAccount.type] : null;
-  const Icon = methodKey ? METHOD_ICONS[methodKey] : null;
+  const accountType: FiatAccountTypeKey | null = selectedAccount
+    ? (ALFRED_TO_ACCOUNT_TYPE[selectedAccount.type] ?? null)
+    : null;
+  const Icon = accountType ? ACCOUNT_TYPE_ICONS[accountType] : null;
   const last4 = selectedAccount?.fiatAccountFields.accountNumber.slice(-4);
 
   const triggerContent = selectedAccount ? (
@@ -88,13 +93,13 @@ export function AlfredpayPaymentMethodSelector({ fiatToken }: AlfredpayPaymentMe
       <div className="min-w-0 flex-1">
         <p className="truncate text-gray-900 text-sm">{accountLabel(selectedAccount)}</p>
         <p className="text-secondary-content text-xs">
-          {methodKey ? METHOD_LABELS[methodKey] : selectedAccount.type} ••••{last4}
+          {accountType ? t(ACCOUNT_TYPE_LABELS[accountType]) : selectedAccount.type} ••••{last4}
         </p>
       </div>
       <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">Selected</span>
     </>
   ) : (
-    <p className="text-secondary-content text-sm">No payment method</p>
+    <p className="text-secondary-content text-sm">No payment methods</p>
   );
 
   return (
