@@ -324,7 +324,7 @@ export const alfredpayKycMachine = setup({
         onDone: [
           {
             guard: ({ event }) => event.output.status === AlfredPayStatus.Success,
-            target: "Done"
+            target: "VerificationDone"
           },
           {
             actions: assign({
@@ -361,6 +361,11 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "retryKyc"
+      }
+    },
+    VerificationDone: {
+      on: {
+        CONFIRM_SUCCESS: { target: "Done" }
       }
     }
   }
