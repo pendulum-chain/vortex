@@ -42,3 +42,6 @@ storybook-static
 
 CLAUDE.local.md
 .claude
+/contracts/relayer/artifacts/*
+/contracts/relayer/cache/*
+/.roo/*
