@@ -67,7 +67,7 @@ export const subsidizePreSwap = async (
     res.json({ message: "Subsidy transferred successfully" });
     return;
   } catch (error) {
-    console.error("Error in subsidizePreSwap::", error);
+    logger.error("Error in subsidizePreSwap::", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: error instanceof Error ? error.message : "Unknown error",
       error: "Server error"
@@ -97,7 +97,7 @@ export const subsidizePostSwap = async (
     res.json({ message: "Subsidy transferred successfully" });
     return;
   } catch (error) {
-    console.error("Error in subsidizePostSwap::", error);
+    logger.error("Error in subsidizePostSwap::", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: error instanceof Error ? error.message : "Unknown error",
       error: "Server error"

@@ -128,7 +128,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
-      console.error("Error in brlaPayoutOnMoonbeam", e);
+      logger.error("Error in brlaPayoutOnMoonbeam", e);
       throw this.createUnrecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
     }
   }

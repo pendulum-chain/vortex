@@ -20,6 +20,7 @@ import {
 } from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
+import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
@@ -253,7 +254,7 @@ const validateRequestBodyValues =
     if (!requiredRequestBodyKeys.every(key => data[key])) {
       const missingItems = requiredRequestBodyKeys.filter(key => !data[key]);
       const errorMessage = `Request body data does not match schema. Missing items: ${missingItems.join(", ")}`;
-      console.error(errorMessage);
+      logger.error(errorMessage);
       res.status(httpStatus.BAD_REQUEST).json({ error: errorMessage });
       return;
     }

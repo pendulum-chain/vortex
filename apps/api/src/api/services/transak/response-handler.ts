@@ -1,4 +1,5 @@
 import { RampDirection, TransakPriceResponse } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -32,7 +33,7 @@ export interface TransakApiResponse {
 function handleTransakError(response: Response, body: TransakApiResponse): never {
   const errorMessage = body?.error?.message || `HTTP error ${response.status}: ${response.statusText}`;
 
-  console.error(`Transak API Error (${response.status}): ${errorMessage}`);
+  logger.error(`Transak API Error (${response.status}): ${errorMessage}`);
 
   const lowerErrorMessage = errorMessage.toLowerCase();
 

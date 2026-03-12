@@ -1,3 +1,5 @@
+import logger from "../../../config/logger";
+
 /**
  * Remove empty keys from an object
  * @param map The object to remove empty keys from
@@ -92,7 +94,7 @@ export function getJsonBody(body: string): string {
     map = JSON.parse(body);
   } catch (error) {
     map = {};
-    console.error("Couldn't parse JSON body", error);
+    logger.error("Couldn't parse JSON body", error);
   }
 
   if (Object.keys(map).length === 0) {

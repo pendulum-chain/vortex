@@ -2,6 +2,7 @@ import { Keyring } from "@polkadot/api";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG, waitUntilTrueWithTimeout } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../config/logger";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
 import { multiplyByPowerOfTen } from "./helpers";
 
@@ -64,7 +65,7 @@ export const fundEphemeralAccount = async (
 
     return true;
   } catch (error) {
-    console.error("Error during funding:", error);
+    logger.error("Error during funding:", error);
     return false;
   }
 };
