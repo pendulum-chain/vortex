@@ -1,4 +1,5 @@
 import { AlchemyPayPriceResponse, RampDirection } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -26,7 +27,7 @@ export interface AlchemyPayResponse {
  */
 function handleHttpError(response: Response, body: AlchemyPayResponse): never {
   const errorMessage = body?.returnMsg || `HTTP error ${response.status}: ${response.statusText}`;
-  console.error(`AlchemyPay API Error (${response.status}): ${errorMessage}`);
+  logger.error(`AlchemyPay API Error (${response.status}): ${errorMessage}`);
 
   if (response.status >= 500) {
     throw new ProviderInternalError(`AlchemyPay server error: ${errorMessage}`);
@@ -54,7 +55,7 @@ function handleHttpError(response: Response, body: AlchemyPayResponse): never {
  */
 function handleLogicError(body: AlchemyPayResponse): never {
   const errorMessage = body.returnMsg || "AlchemyPay API returned success=false with no message";
-  console.error(`AlchemyPay API Logic Error: ${errorMessage}`);
+  logger.error(`AlchemyPay API Logic Error: ${errorMessage}`);
 
   // Analyze returnMsg for specific errors
   const lowerErrorMessage = errorMessage.toLowerCase();

@@ -1,6 +1,7 @@
 import { Networks } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import logger from "../../config/logger";
 import { checkAddressExists } from "../services/monerium";
 
 export const checkAddressExistsController = async (req: Request, res: Response): Promise<void> => {
@@ -24,7 +25,7 @@ export const checkAddressExistsController = async (req: Request, res: Response):
       res.status(httpStatus.NOT_FOUND).json({ error: "Address not found" });
     }
   } catch (error) {
-    console.error("Error in checkAddressExistsController:", error);
+    logger.error("Error in checkAddressExistsController:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" });
   }
 };

@@ -33,6 +33,7 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
+import logger from "../../config/logger";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 
@@ -96,7 +97,7 @@ function mapKycFailureReason(webhookReason: string | undefined): KycFailureReaso
 
 // Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
-  console.error(`Error while performing ${apiMethod}: `, error);
+  logger.error(`Error while performing ${apiMethod}: `, error);
 
   if (error instanceof Error && error.message.includes("status '400'")) {
     const splitError = error.message.split("Error: ", 1);
@@ -174,7 +175,7 @@ export const getAveniaUser = async (
     });
     return;
   } catch (error) {
-    console.log(error);
+    logger.info(error);
     if (
       error instanceof Error &&
       (error.message.includes("sub-account-id does not exist") || error.message.includes("sub-account-id is invalid"))
@@ -335,7 +336,7 @@ export const createSubaccount = async (
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
-    console.error("Error creating subaccount:", error);
+    logger.error("Error creating subaccount:", error);
     handleApiError(error, res, "createSubaccount");
   }
 };
@@ -465,7 +466,7 @@ export const getSelfieLivenessUrl = async (
       validateLivenessToken: selfieUrl.validateLivenessToken ?? ""
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     handleApiError(error, res, "getSelfieLivenessUrl");
   }
 };
@@ -536,7 +537,7 @@ export const getUploadUrls = async (
       }
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     handleApiError(error, res, "getUploadUrls");
   }
 };

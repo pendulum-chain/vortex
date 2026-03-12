@@ -1,4 +1,5 @@
 import { ApiManager, decodeSubmittableExtrinsic, getAddressForFormat, RampPhase, submitXTokens } from "@vortexfi/shared";
+import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -36,7 +37,7 @@ export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
-      console.error("Error in PendulumToAssethubPhase:", e);
+      logger.error("Error in PendulumToAssethubPhase:", e);
       throw e;
     }
   }

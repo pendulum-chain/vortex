@@ -9,6 +9,7 @@ import {
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Keypair } from "stellar-sdk";
+import logger from "../../config/logger";
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from "../../constants/constants";
 import { signSep10Challenge } from "../services/sep10/sep10.service";
 import { SlackNotifier } from "../services/slack.service";
@@ -35,7 +36,7 @@ export const createStellarTransactionHandler = async (
     res.json({ public: FUNDING_PUBLIC_KEY, sequence, signature });
     return;
   } catch (error) {
-    console.error("Error in createStellarTransaction:", error);
+    logger.error("Error in createStellarTransaction:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: (error as Error).message,
       error: "Failed to create transaction"
@@ -63,7 +64,7 @@ export const signSep10ChallengeHandler = async (
     });
     return;
   } catch (error) {
-    console.error("Error in signSep10Challenge:", error);
+    logger.error("Error in signSep10Challenge:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: (error as Error).message,
       error: "Failed to sign challenge"
@@ -84,7 +85,7 @@ export const getSep10MasterPKHandler = async (
     res.json({ masterSep10Public });
     return;
   } catch (error) {
-    console.error("Error in getSep10MasterPK:", error);
+    logger.error("Error in getSep10MasterPK:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: (error as Error).message,
       error: "Failed to get master public key"
@@ -117,7 +118,7 @@ export async function sendStatusWithPk(): Promise<StatusResult> {
 
     return { public: FUNDING_PUBLIC_KEY, status: true };
   } catch (error) {
-    console.error("Couldn't load Stellar account:", error);
+    logger.error("Couldn't load Stellar account:", error);
     return { public: FUNDING_PUBLIC_KEY, status: false };
   }
 }

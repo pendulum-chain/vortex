@@ -58,10 +58,10 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
           }
         }
 
-        console.error(horizonError.response.data.extras);
+        logger.error(horizonError.response.data.extras);
         throw new Error("Could not submit the offramping transaction");
       } else {
-        console.error("Error while submitting the offramp transaction", e);
+        logger.error("Error while submitting the offramp transaction", e);
         throw new Error("Could not submit the offramping transaction");
       }
     }

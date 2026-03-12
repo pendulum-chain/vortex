@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
+import logger from "../../config/logger";
 import { validateSignatureAndGetMemo } from "../services/siwe.service";
 
 declare global {
@@ -60,7 +61,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
       return;
     }
 
-    console.error(`Error in getMemoFromCookiesMiddleware: ${err.message}`);
+    logger.error(`Error in getMemoFromCookiesMiddleware: ${err.message}`);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: err.message,
       error: "Error while verifying signature"

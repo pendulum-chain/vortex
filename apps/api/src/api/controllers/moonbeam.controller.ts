@@ -10,6 +10,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import logger from "../../config/logger";
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
@@ -60,12 +61,12 @@ export const executeXcmController = async (
       res.json({ hash });
       return;
     } catch (error) {
-      console.error("Error executing XCM:", error);
+      logger.error("Error executing XCM:", error);
       res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid transaction" });
       return;
     }
   } catch (error) {
-    console.error("Error executing XCM:", error);
+    logger.error("Error executing XCM:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" });
   }
 };
@@ -92,7 +93,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
 
     return { public: moonbeamExecutorAccount.address, status: true };
   } catch (error) {
-    console.error("Error fetching Moonbeam executor balance:", error);
+    logger.error("Error fetching Moonbeam executor balance:", error);
     return { public: moonbeamExecutorAccount?.address, status: false };
   }
 };

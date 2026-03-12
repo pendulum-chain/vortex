@@ -1,5 +1,6 @@
 import { ApiManager, EvmAddress, EvmClientManager, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
+import logger from "../../../../config/logger";
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 
 export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
@@ -26,7 +27,7 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
       throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
     }
   } catch (error) {
-    console.error("Error during funding Moonbeam ephemeral:", error);
+    logger.error("Error during funding Moonbeam ephemeral:", error);
     throw new Error("Error during funding Moonbeam ephemeral: " + error);
   }
 };

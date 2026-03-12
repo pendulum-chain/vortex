@@ -43,7 +43,7 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
-      console.error("Error in hydrationToAssethubXcm phase:", e);
+      logger.error("Error in hydrationToAssethubXcm phase:", e);
       throw e;
     }
   }
