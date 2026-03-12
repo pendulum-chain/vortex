@@ -1,5 +1,6 @@
 import { multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
 import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
@@ -37,33 +38,69 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    // Calculate expected output amount based on oracle price + target discount
+    // Step 1: Calculate the oracle-based expected output in BRL.
+    // For offramps (isOfframp=true): expectedOutput = inputAmount * (1/oraclePrice) * (1 + discount)
+    // The oracle is the Binance USDT-BRL rate expressed as FIAT-USD (e.g., 0.175 USD per 1 BRL),
+    // inverted to give BRL per USD (e.g., 5.7 BRL per USDC input).
     const {
-      expectedOutput: expectedOutputAmountDecimal,
+      expectedOutput: oracleExpectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
-    const expectedOutputAmountRaw = multiplyByPowerOfTen(expectedOutputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
+
+    // Step 2: Account for the anchor fee deducted in the Finalize stage.
+    //
+    // The Finalize stage computes the BRL the user receives as:
+    //   final_BRL = pendulumToMoonbeamXcm.outputAmountDecimal - anchorFee
+    //
+    // The PendulumTransfer stage sets pendulumToMoonbeamXcm.outputAmountDecimal to:
+    //   nablaOutput + subsidyAmount
+    //
+    // Without this adjustment the subsidy targets `oracleExpectedOutputDecimal` BRLA
+    // on Pendulum, but after the anchor fee deduction the user receives
+    // `oracleExpectedOutputDecimal - anchorFee` BRL — systematically less than the
+    // oracle-promised rate.
+    //
+    // Fix: add the anchor fee on top of the oracle-promised BRL so that:
+    //   pendulumToMoonbeamXcm = oracle_promised + anchorFee
+    //   final_BRL = (oracle_promised + anchorFee) - anchorFee = oracle_promised ✓
+    const anchorFeeInBrl = ctx.fees?.displayFiat?.anchor ? new Big(ctx.fees.displayFiat.anchor) : new Big(0);
+    const adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal.plus(anchorFeeInBrl);
+
+    if (anchorFeeInBrl.gt(0)) {
+      logger.info(
+        `OffRampDiscountEngine: Adjusted expected BRL from ${oracleExpectedOutputDecimal.toFixed(6)} ` +
+          `to ${adjustedExpectedOutputDecimal.toFixed(6)} (anchor fee: ${anchorFeeInBrl.toFixed(6)} BRL)`
+      );
+      ctx.addNote?.(
+        `OffRampDiscountEngine: Adjusted expected BRL output from ${oracleExpectedOutputDecimal.toFixed(4)} ` +
+          `to ${adjustedExpectedOutputDecimal.toFixed(4)} BRL to account for anchor fee of ${anchorFeeInBrl.toFixed(4)} BRL`
+      );
+    }
+
+    const expectedOutputAmountRaw = multiplyByPowerOfTen(adjustedExpectedOutputDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const actualOutputAmountDecimal = nablaSwap.outputAmountDecimal;
     const actualOutputAmountRaw = multiplyByPowerOfTen(actualOutputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
-    // Calculate ideal subsidy (uncapped - the full shortfall needed to reach expected output)
-    const idealSubsidyAmountDecimal = actualOutputAmountDecimal.gte(expectedOutputAmountDecimal)
+    // Calculate ideal subsidy (uncapped - the full shortfall needed to reach adjusted expected output)
+    const idealSubsidyAmountDecimal = actualOutputAmountDecimal.gte(adjustedExpectedOutputDecimal)
       ? new Big(0)
-      : expectedOutputAmountDecimal.minus(actualOutputAmountDecimal);
+      : adjustedExpectedOutputDecimal.minus(actualOutputAmountDecimal);
     const idealSubsidyAmountRaw = multiplyByPowerOfTen(idealSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     // Calculate actual subsidy (capped by maxSubsidy)
     const actualSubsidyAmountDecimal =
-      targetDiscount > 0 ? calculateSubsidyAmount(expectedOutputAmountDecimal, actualOutputAmountDecimal, maxSubsidy) : Big(0);
+      targetDiscount > 0
+        ? calculateSubsidyAmount(adjustedExpectedOutputDecimal, actualOutputAmountDecimal, maxSubsidy)
+        : Big(0);
     const actualSubsidyAmountRaw = multiplyByPowerOfTen(actualSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(actualSubsidyAmountDecimal);
     const targetOutputAmountRaw = Big(actualOutputAmountRaw).plus(actualSubsidyAmountRaw).toFixed(0, 0);
 
-    const subsidyRate = expectedOutputAmountDecimal.gt(0)
-      ? actualSubsidyAmountDecimal.div(expectedOutputAmountDecimal)
+    const subsidyRate = adjustedExpectedOutputDecimal.gt(0)
+      ? actualSubsidyAmountDecimal.div(adjustedExpectedOutputDecimal)
       : new Big(0);
 
     return {
@@ -71,7 +108,7 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
       actualOutputAmountRaw,
       adjustedDifference,
       adjustedTargetDiscount,
-      expectedOutputAmountDecimal,
+      expectedOutputAmountDecimal: adjustedExpectedOutputDecimal,
       expectedOutputAmountRaw,
       idealSubsidyAmountInOutputTokenDecimal: idealSubsidyAmountDecimal,
       idealSubsidyAmountInOutputTokenRaw: idealSubsidyAmountRaw,
