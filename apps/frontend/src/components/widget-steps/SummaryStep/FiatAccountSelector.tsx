@@ -1,7 +1,7 @@
 import { CheckIcon, PlusIcon } from "@heroicons/react/24/solid";
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
 import { FiatToken } from "@vortexfi/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FiatAccountTypeKey } from "../../../constants/fiatAccountMethods";
 import {
@@ -61,23 +61,12 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
   const country = ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken];
   const fiatAccountActor = useFiatAccountActor();
   const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
-  const [open, setOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
 
   const { data: accounts = [], isLoading } = useFiatAccounts(country ?? "", { enabled: !!country });
 
   const selectedAccount = accounts.find(a => a.fiatAccountId === selectedFiatAccountId) ?? accounts[0] ?? null;
-
-  useEffect(() => {
-    if (!selectedFiatAccountId && accounts.length > 0) {
-      fiatAccountActor.send({ id: accounts[0].fiatAccountId, type: "SELECT_ACCOUNT" });
-    }
-  }, [accounts, selectedFiatAccountId, fiatAccountActor]);
-
-  useEffect(() => {
-    if (!isLoading && accounts.length === 0) {
-      setOpen(true);
-    }
-  }, [isLoading, accounts.length]);
+  const open = userOpen || (!isLoading && accounts.length === 0);
 
   if (!country) return null;
 
@@ -109,7 +98,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
       className="mt-4 mb-32"
       isLoading={isLoading}
       label={t("components.fiatAccountSelector.label")}
-      onOpenChange={setOpen}
+      onOpenChange={setUserOpen}
       open={open}
       triggerContent={triggerContent}
     >
@@ -121,7 +110,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
               key={account.fiatAccountId}
               onSelect={() => {
                 fiatAccountActor.send({ id: account.fiatAccountId, type: "SELECT_ACCOUNT" });
-                setOpen(false);
+                setUserOpen(false);
               }}
               selected={selectedFiatAccountId === account.fiatAccountId}
             />
@@ -134,7 +123,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
           className="flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-2 px-3 py-2.5 text-secondary-content text-sm transition-colors [@media(hover:hover)]:hover:bg-neutral [@media(hover:hover)]:hover:text-gray-700"
           onClick={() => {
             fiatAccountActor.send({ country, type: "OPEN" });
-            setOpen(false);
+            setUserOpen(false);
           }}
           type="button"
         >

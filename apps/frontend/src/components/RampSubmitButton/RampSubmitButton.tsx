@@ -13,11 +13,13 @@ import {
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../../constants/fiatAccountMethods";
 import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
+import { useFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { navigateToCleanOrigin } from "../../lib/navigation";
@@ -203,6 +205,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
   const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
+  const alfredpayCountry = isAlfredpayToken(fiatToken) ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? null) : null;
+  const { data: fiatAccounts = [] } = useFiatAccounts(alfredpayCountry ?? "", { enabled: !!alfredpayCountry });
+  const effectiveSelectedFiatAccountId = selectedFiatAccountId ?? fiatAccounts[0]?.fiatAccountId ?? null;
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
 
@@ -226,7 +231,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      if (isAlfredpayToken(fiatToken) && !selectedFiatAccountId) return true;
+      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId) return true;
       return false;
     }
 
@@ -262,7 +267,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     rampState?.ramp?.achPaymentData,
     anchorUrl,
     fiatToken,
-    selectedFiatAccountId,
+    effectiveSelectedFiatAccountId,
     stellarData,
     machineState,
     moneriumKycActor,
@@ -289,7 +294,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      rampActor.send({ selectedFiatAccountId: selectedFiatAccountId ?? undefined, type: "PROCEED_TO_REGISTRATION" });
+      rampActor.send({ selectedFiatAccountId: effectiveSelectedFiatAccountId ?? undefined, type: "PROCEED_TO_REGISTRATION" });
       return;
     }
 

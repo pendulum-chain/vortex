@@ -1,9 +1,8 @@
-import { useSelector } from "@xstate/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { MenuButtons } from "../../../components/MenuButtons";
 import { ALFREDPAY_COUNTRY_METHODS, type CountryFiatAccountConfig } from "../../../constants/fiatAccountMethods";
-import { useFiatAccountActor } from "../../../contexts/FiatAccountMachineContext";
+import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { useDeleteFiatAccount, useFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
 import { AccountTypePickerScreen } from "./AccountTypePickerScreen";
 import { RegisteredAccountsList } from "./RegisteredAccountsList";
@@ -22,7 +21,10 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
   const deleteMutation = useDeleteFiatAccount(selectedCountry.country);
 
   const actor = useFiatAccountActor();
-  const state = useSelector(actor, s => s);
+  const matchesPickAccountType = useFiatAccountSelector(s => s.matches({ Open: "PickAccountType" }));
+  const matchesRegisterAccount = useFiatAccountSelector(s => s.matches({ Open: "RegisterAccount" }));
+  const matchesAccountsList = useFiatAccountSelector(s => s.matches({ Open: "AccountsList" }));
+  const selectedAccountType = useFiatAccountSelector(s => s.context.selectedAccountType);
 
   const handleDelete = async (fiatAccountId: string) => {
     try {
@@ -44,20 +46,20 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
   return (
     <>
       <MenuButtons />
-      {state.matches({ Open: "PickAccountType" }) && (
+      {matchesPickAccountType && (
         <AccountTypePickerScreen
           countryConfig={selectedCountry}
           onSelect={accountType => actor.send({ accountType, type: "SELECT_ACCOUNT_TYPE" })}
         />
       )}
-      {state.matches({ Open: "RegisterAccount" }) && state.context.selectedAccountType && (
+      {matchesRegisterAccount && selectedAccountType && (
         <RegisterFiatAccountScreen
-          accountType={state.context.selectedAccountType}
+          accountType={selectedAccountType}
           country={selectedCountry.country}
           onSuccess={() => actor.send({ type: "REGISTER_DONE" })}
         />
       )}
-      {state.matches({ Open: "AccountsList" }) && (
+      {matchesAccountsList && (
         <RegisteredAccountsList
           accounts={accounts}
           isLoading={isLoading}

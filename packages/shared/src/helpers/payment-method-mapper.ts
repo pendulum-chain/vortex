@@ -69,9 +69,9 @@ export const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     ARS: EPaymentMethod.CBU,
     BRL: EPaymentMethod.PIX,
-    COP: EPaymentMethod.ACH,
+    COP: EPaymentMethod.SPEI,
     EUR: EPaymentMethod.SEPA,
-    MXN: EPaymentMethod.ACH,
+    MXN: EPaymentMethod.SPEI,
     USD: EPaymentMethod.ACH
   };
 

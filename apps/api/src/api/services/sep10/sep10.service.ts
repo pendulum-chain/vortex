@@ -34,9 +34,9 @@ export const signSep10Challenge = async (
     [FiatToken.EURC]: "EURC",
     [FiatToken.ARS]: "ARS",
     [FiatToken.BRL]: "BRL",
-    [FiatToken.USD]: "USDC", // USD maps to USDC for consistency, though not used for SEP10
-    [FiatToken.MXN]: "MXN", // not used for SEP10
-    [FiatToken.COP]: "COP" // not used for SEP10
+    [FiatToken.USD]: "USDC",
+    [FiatToken.MXN]: "USDC",
+    [FiatToken.COP]: "USDC"
   };
 
   const outToken = tokenMapping[fiatToken];

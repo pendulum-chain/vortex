@@ -11,14 +11,18 @@ export enum PaymentMethodName {
   SEPA = "SEPA",
   PIX = "PIX",
   CBU = "CBU",
-  ACH = "ACH"
+  ACH = "ACH",
+  SPEI = "SPEI",
+  WIRE = "WIRE"
 }
 
 export enum EPaymentMethod {
   PIX = "pix",
   SEPA = "sepa",
   CBU = "cbu",
-  ACH = "ach"
+  ACH = "ach",
+  WIRE = "wire",
+  SPEI = "spei"
 }
 
 export type PaymentMethod = EPaymentMethod;
