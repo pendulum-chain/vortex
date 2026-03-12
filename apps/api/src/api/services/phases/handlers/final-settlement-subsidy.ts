@@ -134,7 +134,6 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         nativeToken.symbol as RampCurrency
       );
       const oneUsdInNativeRaw = multiplyByPowerOfTen(oneUsdInNative, nativeToken.decimals).toFixed(0);
-      console.log("values; oneUsdInNativeRaw:", oneUsdInNativeRaw);
 
       const chainId = getNetworkId(destinationNetwork).toString();
       const testRouteResult = await getRoute({

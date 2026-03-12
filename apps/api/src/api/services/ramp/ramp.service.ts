@@ -360,7 +360,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      console.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
+      logger.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
       webhookDeliveryService
         .triggerTransactionCreated(
           rampState.quoteId,

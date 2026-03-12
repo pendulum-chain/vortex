@@ -7,6 +7,7 @@ import {
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import logger from "../../config/logger";
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
 import { createAndSendNonce, validateSignatureAndGetMemo, verifyAndStoreSiweMessage } from "../services/siwe.service";
 
@@ -26,7 +27,7 @@ export const sendSiweMessage = async (
     res.json({ nonce });
     return;
   } catch (error) {
-    console.error("Nonce generation error:", error);
+    logger.error("Nonce generation error:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Error while generating nonce" });
   }
 };
@@ -57,7 +58,7 @@ export const validateSiweSignature = async (
     res.json({ message: "Signature is valid" });
     return;
   } catch (error) {
-    console.error("Signature validation error:", error);
+    logger.error("Signature validation error:", error);
 
     if (error instanceof Error && error.name === "SiweValidationError") {
       res.status(httpStatus.UNAUTHORIZED).json({ error: `Siwe validation error: ${error.message}` });
@@ -97,7 +98,7 @@ export const checkAuth = async (req: Request, res: Response): Promise<void> => {
       res.status(httpStatus.UNAUTHORIZED).json({ error: "Invalid authentication token." });
     }
   } catch (error) {
-    console.error("Auth check error:", error);
+    logger.error("Auth check error:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "An error occurred during authentication check." });
   }
 };
