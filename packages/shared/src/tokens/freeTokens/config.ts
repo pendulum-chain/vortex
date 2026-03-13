@@ -25,7 +25,7 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     fiat: {
       assetIcon: "mxn",
       name: "Mexican Peso",
-      symbol: "MX"
+      symbol: "MXN"
     },
     maxBuyAmountRaw: "10000000000",
     maxSellAmountRaw: "100000000000000000000",
