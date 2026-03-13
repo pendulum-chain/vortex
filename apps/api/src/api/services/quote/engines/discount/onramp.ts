@@ -105,28 +105,17 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    // Step 1: Calculate the oracle-based expected output in USDT-equivalent axlUSDC terms.
-    // For onramps (isOfframp=false): expectedOutput = inputAmount * oraclePrice * (1 + discount)
-    // The oracle is the Binance USDT-BRL rate expressed as FIAT-USD (e.g., 0.175 USD per 1 BRL).
+    // Calculate the oracle-based expected output in USDT-equivalent axlUSDC terms.
     const {
       expectedOutput: oracleExpectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
 
-    // Step 2: For onramps to EVM chains (not AssetHub), the Nabla output token (axlUSDC on
+    // For onramps to EVM chains (not AssetHub), the Nabla output token (axlUSDC on
     // Pendulum) is subsequently bridged via squidrouter (Moonbeam → EVM destination). The
     // oracle gives a USDT-BRL rate, but axlUSDC may not trade 1:1 with USDT on squidrouter.
-    //
-    // Without this adjustment the subsidy would ensure the user has exactly
-    // `oracleExpectedOutputDecimal` axlUSDC on Pendulum. After squidrouter converts
-    // axlUSDC → destination token at rate r < 1, the user would receive
-    // `oracleExpectedOutputDecimal * r` instead of the oracle-promised
-    // `oracleExpectedOutputDecimal` — a systematic short-pay.
-    //
-    // Fix: use the actual squidrouter route to determine the required axlUSDC amount:
-    //   required_axlUSDC = oracle_promised_dest_amount / squidrouter_rate
-    //   After squidrouter: required_axlUSDC * squidrouter_rate = oracle_promised_dest_amount ✓
+    // So we use the actual squidrouter route to determine the required axlUSDC amount
     let adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal;
     if (ctx.request.to !== "assethub") {
       const squidRouterRate = await this.getSquidRouterAxlUSDCConversionRate(ctx, oracleExpectedOutputDecimal);

@@ -38,32 +38,15 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    // Step 1: Calculate the oracle-based expected output in BRL.
-    // For offramps (isOfframp=true): expectedOutput = inputAmount * (1/oraclePrice) * (1 + discount)
-    // The oracle is the Binance USDT-BRL rate expressed as FIAT-USD (e.g., 0.175 USD per 1 BRL),
-    // inverted to give BRL per USD (e.g., 5.7 BRL per USDC input).
+    // Calculate the oracle-based expected output in BRL.
     const {
       expectedOutput: oracleExpectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
 
-    // Step 2: Account for the anchor fee deducted in the Finalize stage.
-    //
-    // The Finalize stage computes the BRL the user receives as:
-    //   final_BRL = pendulumToMoonbeamXcm.outputAmountDecimal - anchorFee
-    //
-    // The PendulumTransfer stage sets pendulumToMoonbeamXcm.outputAmountDecimal to:
-    //   nablaOutput + subsidyAmount
-    //
-    // Without this adjustment the subsidy targets `oracleExpectedOutputDecimal` BRLA
-    // on Pendulum, but after the anchor fee deduction the user receives
-    // `oracleExpectedOutputDecimal - anchorFee` BRL — systematically less than the
-    // oracle-promised rate.
-    //
-    // Fix: add the anchor fee on top of the oracle-promised BRL so that:
-    //   pendulumToMoonbeamXcm = oracle_promised + anchorFee
-    //   final_BRL = (oracle_promised + anchorFee) - anchorFee = oracle_promised ✓
+    // Account for the anchor fee deducted in the Finalize stage, which reduces the user's received amount.
+    // We need to add it back to the expected output to calculate the subsidy correctly.
     const anchorFeeInBrl = ctx.fees?.displayFiat?.anchor ? new Big(ctx.fees.displayFiat.anchor) : new Big(0);
     const adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal.plus(anchorFeeInBrl);
 
