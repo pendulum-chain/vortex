@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Trans, useTranslation } from "react-i18next";
-import WidgetSnippetImage from "../../../assets/widget-snippet.png";
-import WidgetSnippetImageSell from "../../../assets/widget-snippet-sell.png";
 import { AnimatedTitle } from "../../../components/AnimatedTitle";
+import { Globe } from "../../../components/Globe";
 import { fadeInUp, prefersReducedMotion, staggerContainer } from "../../../constants/animations";
 
 export const Hero = () => {
@@ -66,39 +65,11 @@ export const Hero = () => {
           </div>
         </div>
         <div
-          aria-label="Vortex widget preview demonstration"
+          aria-label="Interactive globe showing supported countries"
           className="relative mx-auto flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 lg:w-full xl:w-4/5"
           role="img"
         >
-          <div className="relative overflow-hidden pt-2">
-            <motion.img
-              alt="Vortex cryptocurrency widget interface for buying crypto"
-              animate={{ opacity: 1, rotateX: 0, scale: 1, transition: { duration: 0.3, ease: "easeOut" }, y: 0 }}
-              className="relative z-20 mx-auto max-w-4/5 shadow-custom"
-              initial={{ opacity: 0.4, rotateX: "120deg", scale: 0.9, y: 350 }}
-              src={WidgetSnippetImage}
-              whileHover={reducedMotion ? undefined : { scale: 1.01 }}
-            />
-            <motion.img
-              alt="Vortex cryptocurrency widget interface for selling crypto"
-              animate={{
-                opacity: 1,
-                rotateZ: 5,
-                scale: 1,
-                transition: {
-                  damping: 18,
-                  delay: 0.5,
-                  stiffness: 320,
-                  type: "spring"
-                }
-              }}
-              className="-translate-x-1/2 -translate-y-1/2 absolute top-2/3 left-4/7 z-10 max-w-4/5 shadow-custom hover:z-30"
-              initial={{ opacity: 0, rotateZ: 0, scale: 0.8 }}
-              src={WidgetSnippetImageSell}
-              whileHover={reducedMotion ? undefined : { rotateZ: 2, scale: 1.01 }}
-            />
-          </div>
-          <div className="relative z-20 flex w-full items-center justify-center gap-4 rounded-lg bg-gradient-to-r from-blue-400 via-pink-700 to-blue-700 p-0.5"></div>
+          <Globe className="w-full" />
         </div>
       </div>
     </section>
