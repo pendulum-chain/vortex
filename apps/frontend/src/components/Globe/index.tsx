@@ -78,7 +78,9 @@ export const Globe = ({ className }: GlobeProps) => {
     const globe = createGlobe(canvasRef.current, {
       arcColor: [0.3, 0.5, 1],
       arcHeight: 0.3,
-      arcs: [{ from: [37.78, -122.44], to: [40.71, -74.01] }],
+      arcs: CURRENCY_MARKERS.flatMap((a, i) =>
+        CURRENCY_MARKERS.slice(i + 1).map(b => ({ from: [a.lat, a.lng], to: [b.lat, b.lng] }))
+      ),
       arcWidth: 0.5,
       baseColor: [0.07, 0.23, 0.72],
       dark: 1,
@@ -99,7 +101,7 @@ export const Globe = ({ className }: GlobeProps) => {
         phiRef.current += 0.003;
       }
       globe.update({ phi: phiRef.current });
-      projectedRef.current = CURRENCY_MARKERS.map(m => projectToScreen(m.lat, m.lng, phiRef.current));
+      projectedRef.current = CURRENCY_MARKERS.map(m => projectToScreen(m.lat, m.lng, phiRef.current + Math.PI));
       setMarkerPositions([...projectedRef.current]);
       rafId = requestAnimationFrame(tick);
     };
