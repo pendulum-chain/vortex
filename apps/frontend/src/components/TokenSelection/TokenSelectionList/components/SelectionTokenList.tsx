@@ -10,8 +10,9 @@ import { useIsFiatDirection, useTokenDefinitions } from "../helpers";
 import { ExtendedTokenDefinition, useTokenSelection } from "../hooks/useTokenSelection";
 
 const ROW_HEIGHT = 56;
-const OVERSCAN = 10;
-const MIN_ITEMS_FOR_VIRTUALIZATION = 20;
+const ROW_GAP = 8;
+const OVERSCAN = 3;
+const SCROLL_PADDING_TOP = 12; // matches pt-3 on the scroll container
 
 function getBalanceKey(network: string, symbol: string): string {
   return `${network}-${symbol}`;
@@ -79,14 +80,12 @@ export const SelectionTokenList = () => {
 
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const shouldVirtualize = currentDefinitions.length > MIN_ITEMS_FOR_VIRTUALIZATION;
-
   const rowVirtualizer = useVirtualizer({
     count: currentDefinitions.length,
-    enabled: shouldVirtualize,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => ROW_HEIGHT + ROW_GAP,
     getScrollElement: () => parentRef.current,
-    overscan: OVERSCAN
+    overscan: OVERSCAN,
+    scrollPaddingStart: SCROLL_PADDING_TOP
   });
 
   return (
@@ -97,46 +96,28 @@ export const SelectionTokenList = () => {
       )}
       ref={parentRef}
     >
-      {shouldVirtualize ? (
-        <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
-          {rowVirtualizer.getVirtualItems().map(virtualItem => {
-            const token = currentDefinitions[virtualItem.index];
-            const isSelected = selectedToken === token.type && selectedNetwork === token.network;
-            const tokenBalance = balances.get(getBalanceKey(token.network, token.assetSymbol));
+      <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+        {rowVirtualizer.getVirtualItems().map(virtualItem => {
+          const token = currentDefinitions[virtualItem.index];
+          const isSelected = selectedToken === token.type && selectedNetwork === token.network;
+          const tokenBalance = balances.get(getBalanceKey(token.network, token.assetSymbol));
 
-            return (
-              <div
-                className="absolute left-0 w-full"
-                key={virtualItem.key}
-                style={{ height: ROW_HEIGHT, transform: `translateY(${virtualItem.start}px)` }}
-              >
-                <ListItem
-                  balance={tokenBalance?.balance}
-                  isSelected={isSelected}
-                  onSelect={tokenType => handleTokenSelect(tokenType, token)}
-                  token={token}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {currentDefinitions.map(token => {
-            const isSelected = selectedToken === token.type && selectedNetwork === token.network;
-            const tokenBalance = balances.get(getBalanceKey(token.network, token.assetSymbol));
-            return (
+          return (
+            <div
+              className="absolute left-0 w-full"
+              key={virtualItem.key}
+              style={{ height: ROW_HEIGHT, transform: `translateY(${virtualItem.start}px)` }}
+            >
               <ListItem
                 balance={tokenBalance?.balance}
                 isSelected={isSelected}
-                key={`${token.type}-${token.network}`}
                 onSelect={tokenType => handleTokenSelect(tokenType, token)}
                 token={token}
               />
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
