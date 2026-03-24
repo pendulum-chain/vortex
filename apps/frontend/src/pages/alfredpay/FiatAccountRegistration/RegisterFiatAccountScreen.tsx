@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
 import type { TFunction } from "i18next";
-import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
@@ -72,13 +71,8 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
     control,
     formState: { errors },
     handleSubmit,
-    register,
-    reset
+    register
   } = useForm({ resolver: zodResolver(schema) });
-
-  useEffect(() => {
-    reset();
-  }, [reset]);
 
   const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
 
@@ -139,10 +133,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   return (
     <div className="flex grow-1 flex-col">
-      <div className="flex items-center gap-1 px-4 pt-4">
-        <span className="text-gray-300">·</span>
-        <h2 className="font-semibold text-gray-800">{t(ACCOUNT_TYPE_LABELS[accountType])}</h2>
-      </div>
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{t(ACCOUNT_TYPE_LABELS[accountType])}</h1>
 
       <form
         className="flex grow-1 flex-col px-4 pt-6 pb-4"

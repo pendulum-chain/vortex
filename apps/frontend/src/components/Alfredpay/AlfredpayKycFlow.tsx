@@ -56,6 +56,7 @@ export const AlfredpayKycFlow = () => {
         isSubmitting={stateValue === "FinishingFilling"}
         kycOrKyb={kycOrKyb}
         onCompletedFilling={completedFilling}
+        onOpenLink={openLink}
       />
     );
   }

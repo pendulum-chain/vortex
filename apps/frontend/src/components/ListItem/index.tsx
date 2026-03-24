@@ -4,6 +4,7 @@ import Big from "big.js";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
+import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
 import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { ExtendedTokenDefinition } from "../TokenSelection/TokenSelectionList/hooks/useTokenSelection";
@@ -39,9 +40,10 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect, ba
 
   return (
     <button
-      className={`btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left transition-transform hover:bg-gray-100 active:scale-[0.98] ${
-        isDisabled ? "cursor-not-allowed opacity-50" : ""
-      }`}
+      className={cn(
+        "btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left transition-transform hover:bg-gray-100 active:scale-[0.98]",
+        isDisabled && "cursor-not-allowed opacity-50"
+      )}
       key={token.assetSymbol}
       onClick={() => !isDisabled && onSelect(token.type)}
       type="button"

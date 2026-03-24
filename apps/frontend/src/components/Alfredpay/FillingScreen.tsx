@@ -9,9 +9,10 @@ interface FillingScreenProps {
   kycOrKyb: string;
   isSubmitting: boolean;
   onCompletedFilling: () => void;
+  onOpenLink?: () => void;
 }
 
-export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling }: FillingScreenProps) => {
+export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling, onOpenLink }: FillingScreenProps) => {
   const { t } = useTranslation();
 
   return (
@@ -19,6 +20,11 @@ export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling 
       <MenuButtons />
       <img alt="Business Handshake" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReady} />
       <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
+      {onOpenLink && (
+        <button className="mt-2 text-primary text-sm underline" onClick={onOpenLink} type="button">
+          {t("components.alfredpayKycFlow.reopenLink", { kycOrKyb })}
+        </button>
+      )}
       <StepFooter>
         <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={onCompletedFilling}>
           {isSubmitting ? (

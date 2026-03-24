@@ -324,11 +324,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   };
 
   return (
-    <button
-      className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
-      disabled={submitButtonDisabled}
-      onClick={onSubmit}
-    >
+    <button className={cn("btn-vortex-primary btn w-full", className)} disabled={submitButtonDisabled} onClick={onSubmit}>
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}

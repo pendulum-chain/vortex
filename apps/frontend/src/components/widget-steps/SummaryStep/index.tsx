@@ -120,8 +120,8 @@ export const SummaryStep: FC = () => {
     <div className="relative flex grow-1 flex-col">
       <MenuButtons />
       <div>
-        <h1 className="mt-4 mb-4 text-center font-bold text-blue-700 text-widget-title">{headerText}</h1>
-        <div className="pb-20">{content}</div>
+        <h1 className="mt-4 mb-4 text-center font-bold text-primary text-widget-title">{headerText}</h1>
+        <div className="pb-footer-offset">{content}</div>
       </div>
       <StepFooter>{actions}</StepFooter>
     </div>

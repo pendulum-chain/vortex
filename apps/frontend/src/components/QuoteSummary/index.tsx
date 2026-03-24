@@ -113,7 +113,7 @@ export const QuoteSummary = ({ className }: QuoteSummaryProps) => {
   if (!quote) return null;
 
   return (
-    <div className={cn("absolute right-0 bottom-2 left-0 z-10", className)}>
+    <div className={cn("absolute right-0 bottom-2 left-0 z-quote", className)}>
       <CollapsibleCard>
         <CollapsibleSummary>
           <QuoteSummaryCore quote={quote} />
