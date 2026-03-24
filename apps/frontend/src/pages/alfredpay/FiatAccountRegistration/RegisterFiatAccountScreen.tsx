@@ -162,7 +162,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <SelectTrigger
-                        className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-0 focus-visible:ring-offset-0 data-[size=default]:h-auto ${errors[f.field] ? "border-red-800" : "border-neutral-300"}`}
+                        className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-0 focus-visible:ring-offset-0 data-[size=default]:h-auto ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
                         id={`field-${f.field}`}
                       >
                         <SelectValue placeholder={t("components.fiatAccountRegistration.selectPlaceholder")} />
@@ -179,7 +179,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                 />
               ) : (
                 <input
-                  className={`input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${errors[f.field] ? "border-red-800" : "border-neutral-300"}`}
+                  className={`input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
                   id={`field-${f.field}`}
                   placeholder={f.placeholder}
                   type={f.type === "phone" ? "tel" : f.type === "email" ? "email" : "text"}
@@ -188,7 +188,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
               )}
 
               {f.hint && <span className="mt-1 block text-gray-500 text-xs">{f.hint}</span>}
-              {errors[f.field] && <span className="mt-1 block text-red-800 text-sm">{errors[f.field]?.message as string}</span>}
+              {errors[f.field] && <span className="mt-1 block text-error text-sm">{errors[f.field]?.message as string}</span>}
             </div>
           ))}
         </div>

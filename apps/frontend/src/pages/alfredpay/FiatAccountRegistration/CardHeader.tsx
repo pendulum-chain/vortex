@@ -25,7 +25,7 @@ export function CardHeader({ accountType, sub, compact = false }: CardHeaderProp
       </div>
       {accountType && (
         <span
-          className={`shrink-0 rounded-full px-2 py-0.5 font-medium text-xs ${compact ? "text-gray-500" : "bg-green-100 text-green-700"}`}
+          className={`shrink-0 rounded-full px-2 py-0.5 font-medium text-xs ${compact ? "text-gray-500" : "bg-success/10 text-success"}`}
         >
           {sub}
         </span>

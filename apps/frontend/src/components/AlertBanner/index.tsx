@@ -12,7 +12,7 @@ export function AlertBanner({ icon, title, description, children, className }: A
   return (
     <div
       className={cn(
-        "rounded-lg bg-yellow-50 p-4",
+        "rounded-lg bg-warning/10 p-4",
         children ? "flex flex-col items-center" : "flex items-center gap-3",
         className
       )}
@@ -21,7 +21,7 @@ export function AlertBanner({ icon, title, description, children, className }: A
       <div className="flex items-center">
         {icon}
         <div className="ml-3">
-          <p className="font-medium text-sm text-yellow-800">{title}</p>
+          <p className="font-medium text-sm text-warning">{title}</p>
           {description && <p className="text-gray-600 text-sm">{description}</p>}
         </div>
       </div>
