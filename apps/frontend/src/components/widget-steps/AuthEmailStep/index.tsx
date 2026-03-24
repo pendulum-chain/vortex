@@ -46,7 +46,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
       </div>
       <form className="flex flex-1 flex-col pb-36" id="auth-email-form" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authEmailStep.title")}</h1>
+          <h1 className="mb-4 font-bold text-blue-700 text-widget-title">{t("components.authEmailStep.title")}</h1>
           <p className="mb-6 text-gray-600">{t("components.authEmailStep.description")}</p>
         </div>
 

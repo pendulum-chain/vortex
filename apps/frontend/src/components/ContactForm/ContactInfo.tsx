@@ -6,7 +6,7 @@ export function ContactInfo() {
 
   return (
     <div className="rounded-xl bg-gray-50 p-6 md:p-8">
-      <h2 className="mb-6 font-bold text-gray-900 text-xl" style={{ textWrap: "balance" }}>
+      <h2 className="mb-6 font-bold text-gray-900 text-section-title" style={{ textWrap: "balance" }}>
         {t("pages.contact.info.title")}
       </h2>
 
