@@ -29,6 +29,13 @@
   --color-error: oklch(0.444 0.177 26.899);
   --color-error-content: oklch(1 0 0);
 
+  /* Interaction state colors */
+  --color-primary-hover: oklch(0.37 0.2 260);
+  --color-secondary-hover: oklch(0.46 0.22 350);
+  --color-error-hover: oklch(0.37 0.177 26.899);
+  --color-success-hover: oklch(0.37 0.119 151.328);
+  --color-warning-hover: oklch(0.65 0.16 83);
+
   /* Project-specific variables */
   --radius-field: 9px;
   --text: oklch(0.15 0 0);
@@ -42,7 +49,7 @@
 
   /* QuoteSummary layout */
   --quote-summary-height: 88px;
-  --widget-min-height: 506px;
+  --widget-min-height: 620px;
 }
 
 @layer base {
@@ -101,11 +108,11 @@
   min-height: 2.5rem !important;
 }
 .step-vortex::before {
-  @apply bg-blue-700;
+  @apply bg-primary;
   width: 2px !important;
 }
 .step-vortex::after {
-  @apply text-blue-700;
+  @apply text-primary;
 }
 .step-primary.step-vortex::after {
   @apply text-white;
@@ -118,7 +125,7 @@
 }
 
 .collapse-title::after {
-  @apply text-blue-700;
+  @apply text-primary;
   @apply w-3;
   @apply h-3;
   top: 1.4rem !important;
@@ -135,7 +142,7 @@
 }
 
 .btn-vortex-primary {
-  @apply bg-blue-700 text-white rounded-[var(--radius-field)] border border-blue-700 cursor-pointer;
+  @apply bg-primary text-primary-content rounded-[var(--radius-field)] border border-primary cursor-pointer;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -144,11 +151,13 @@
 }
 
 .btn-vortex-primary:hover {
-  @apply bg-blue-100 text-blue-700;
+  background-color: var(--color-primary-hover);
+  color: var(--color-primary-content);
+  border-color: var(--color-primary-hover);
 }
 
 .btn-vortex-primary:disabled {
-  @apply opacity-40;
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-accent {
@@ -166,9 +175,13 @@
 }
 
 .btn-vortex-accent:hover {
-  @apply bg-blue-100;
-  @apply text-blue-700;
-  @apply border-blue-300;
+  @apply bg-gray-300;
+  @apply text-gray-800;
+  @apply border-gray-400;
+}
+
+.btn-vortex-accent:disabled {
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-success {
@@ -186,17 +199,40 @@
 }
 
 .btn-vortex-success:hover {
-  @apply bg-success/10;
-  @apply text-success;
-  @apply border-success/30;
+  background-color: var(--color-success-hover);
+  color: var(--color-success-content);
+  border-color: var(--color-success-hover);
+}
+
+.btn-vortex-success:disabled {
+  @apply opacity-40 cursor-not-allowed;
+}
+
+.btn-vortex-warning {
+  @apply bg-warning text-warning-content rounded-[var(--radius-field)] border border-warning;
+  transition: scale 0.1s ease-in-out;
+}
+
+.btn-vortex-warning:active {
+  scale: 0.98;
+}
+
+.btn-vortex-warning:hover {
+  background-color: var(--color-warning-hover);
+  color: var(--color-warning-content);
+  border-color: var(--color-warning-hover);
+}
+
+.btn-vortex-warning:disabled {
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-primary-inverse {
   @apply bg-white;
-  @apply text-blue-700;
+  @apply text-primary;
   @apply rounded-[var(--radius-field)];
   @apply border;
-  @apply border-blue-700;
+  @apply border-primary;
   @apply cursor-pointer;
   transition: scale 0.1s ease-in-out;
 }
@@ -206,22 +242,23 @@
 }
 
 .btn-vortex-primary-inverse:hover {
-  @apply bg-blue-200;
-  @apply border-blue-700;
+  @apply bg-primary/20;
+  @apply border-primary;
 }
 
 .btn-vortex-primary-inverse:disabled {
   @apply bg-white;
-  @apply text-blue-700;
-  @apply border-blue-700;
+  @apply text-primary;
+  @apply border-primary;
   @apply opacity-40;
+  @apply cursor-not-allowed;
 }
 
 .btn-vortex-primary-inverse:active,
 .btn-vortex-primary-inverse:focus {
-  @apply bg-blue-200;
-  @apply text-blue-700;
-  @apply border-blue-700;
+  @apply bg-primary/20;
+  @apply text-primary;
+  @apply border-primary;
 }
 
 .btn-vortex-secondary {
@@ -238,10 +275,13 @@
 }
 
 .btn-vortex-secondary:hover {
-  @apply bg-pink-100;
-  @apply text-pink-600;
-  @apply border;
-  @apply border-pink-600;
+  background-color: var(--color-secondary-hover);
+  color: white;
+  border-color: var(--color-secondary-hover);
+}
+
+.btn-vortex-secondary:disabled {
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-danger {
@@ -259,16 +299,17 @@
 }
 
 .btn-vortex-danger:hover {
-  @apply bg-error/10;
-  @apply text-error;
-  @apply border-error;
+  background-color: var(--color-error-hover);
+  color: var(--color-error-content);
+  border-color: var(--color-error-hover);
 }
 
 .btn-vortex-danger:disabled {
   @apply bg-error;
   @apply text-error-content;
   @apply border-error;
-  @apply opacity-60;
+  @apply opacity-40;
+  @apply cursor-not-allowed;
 }
 
 .btn-vortex-danger:active,
@@ -281,6 +322,27 @@
 @layer utilities {
   .bottom-above-quote {
     bottom: calc(var(--quote-summary-height) + 1rem);
+  }
+
+  .pb-footer-offset {
+    padding-bottom: calc(var(--quote-summary-height) + 1rem);
+  }
+
+  /* Z-index scale */
+  .z-footer {
+    z-index: 5;
+  }
+  .z-quote {
+    z-index: 10;
+  }
+  .z-overlay {
+    z-index: 20;
+  }
+  .z-modal {
+    z-index: 50;
+  }
+  .z-toast {
+    z-index: 100;
   }
 
   .shadow-custom {
