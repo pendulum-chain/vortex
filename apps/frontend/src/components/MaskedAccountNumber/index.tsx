@@ -29,7 +29,7 @@ export function MaskedAccountNumber({ accountNumber }: { accountNumber: string }
             ) : (
               <>
                 {"•"
-                  .repeat(accountNumber.length - 4)
+                  .repeat(Math.max(0, accountNumber.length - 4))
                   .split("")
                   .map((_, i) => (
                     <span className="inline-block w-[1ch] text-center" key={i}>
