@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { MenuButtons } from "../../../components/MenuButtons";
 import { ALFREDPAY_COUNTRY_METHODS, type CountryFiatAccountConfig } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
-import { useDeleteFiatAccount, useFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
+import { useAlfredpayFiatAccounts, useDeleteFiatAccount } from "../../../hooks/alfredpay/useFiatAccounts";
 import { AccountTypePickerScreen } from "./AccountTypePickerScreen";
 import { RegisteredAccountsList } from "./RegisteredAccountsList";
 import { RegisterFiatAccountScreen } from "./RegisterFiatAccountScreen";
@@ -17,7 +17,7 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
   const { t } = useTranslation();
   const selectedCountry = ALFREDPAY_COUNTRY_METHODS.find(c => c.country === preselectedCountry) ?? ALFREDPAY_COUNTRY_METHODS[0];
 
-  const { data: accounts = [], isLoading } = useFiatAccounts(selectedCountry.country);
+  const { data: accounts = [], isLoading } = useAlfredpayFiatAccounts();
   const deleteMutation = useDeleteFiatAccount(selectedCountry.country);
 
   const actor = useFiatAccountActor();
