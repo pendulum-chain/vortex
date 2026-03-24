@@ -66,7 +66,7 @@ export const Hero = () => {
         </div>
         <div
           aria-label="Interactive globe showing supported countries"
-          className="relative mx-auto flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 lg:w-full xl:w-4/5"
+          className="flex flex-col items-center justify-center pt-2 md:w-4/5 lg:mx-0 lg:w-full xl:w-4/5"
           role="img"
         >
           <Globe className="w-full" />

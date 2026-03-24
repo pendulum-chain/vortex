@@ -9,11 +9,11 @@ import USD_ICON from "../../assets/coins/USD.png";
 import { prefersReducedMotion } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 
-const CANVAS_SIZE = 480;
+const CANVAS_SIZE = 780;
 // Cobe renders the globe sphere at NDC radius 0.8 with scale=1, so pixel radius = 0.8 * (size/2)
 const GLOBE_PIXEL_RADIUS = 0.8 * (CANVAS_SIZE / 2);
 // Must match the theta passed to createGlobe
-const GLOBE_THETA = 0.38;
+const GLOBE_THETA = -0.1;
 // Must match the phi passed to createGlobe
 const GLOBE_INITIAL_PHI = 0;
 
@@ -77,23 +77,23 @@ export const Globe = ({ className }: GlobeProps) => {
     let rafId: number;
     const globe = createGlobe(canvasRef.current, {
       arcColor: [0.3, 0.5, 1],
-      arcHeight: 0.3,
+      arcHeight: 0.25,
       arcs: CURRENCY_MARKERS.flatMap((a, i) =>
         CURRENCY_MARKERS.slice(i + 1).map(b => ({ from: [a.lat, a.lng], to: [b.lat, b.lng] }))
       ),
-      arcWidth: 0.5,
+      arcWidth: 0.3,
       baseColor: [0.07, 0.23, 0.72],
       dark: 1,
       devicePixelRatio: window.devicePixelRatio,
       diffuse: 1.2,
-      glowColor: [1, 1, 1],
+      glowColor: [0.07, 0.23, 0.72],
       height: CANVAS_SIZE * 2,
-      mapBrightness: 6,
-      mapSamples: 16000,
+      mapBrightness: 3,
+      mapSamples: 18000,
       markerColor: [0.07, 0.23, 0.72],
       markers: [],
       phi: 0,
-      theta: 0.38,
+      theta: GLOBE_THETA,
       width: CANVAS_SIZE * 2
     });
     const tick = () => {
@@ -129,21 +129,9 @@ export const Globe = ({ className }: GlobeProps) => {
     isDraggingRef.current = false;
   };
 
-  if (reducedMotion) {
-    return (
-      <div className="flex h-[480px] items-center justify-center">
-        <div className="flex flex-wrap justify-center gap-4">
-          {CURRENCY_MARKERS.map(m => (
-            <img alt={m.currency.toUpperCase()} className="h-12 w-12 rounded-full" key={m.currency} src={m.icon} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
-      className={cn("relative mx-auto cursor-grab active:cursor-grabbing", className)}
+      className={cn("absolute top-8 right-5 mx-auto cursor-grab active:cursor-grabbing", className)}
       onPointerCancel={onPointerUp}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
