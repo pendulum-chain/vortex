@@ -79,6 +79,32 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     evmEphemeralAddress: evmEphemeralEntry.address
   };
 
+  let polygonAccountNonce = 0; // Starts fresh
+
+  // Special case, onramping USDC on Polygon. We need to skip the SquidRouter step and go directly to the destination transfer.
+  if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ERC20_USDC_POLYGON) {
+    const finalTransferTxData = await addOnrampDestinationChainTransactions({
+      amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+      destinationNetwork: toNetwork as EvmNetworks,
+      toAddress: destinationAddress,
+      toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: toNetwork,
+      nonce: polygonAccountNonce,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(finalTransferTxData) as EvmTransactionData
+    });
+
+    stateMeta = {
+      ...stateMeta
+    };
+
+    return { stateMeta, unsignedTxs };
+  }
+
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
       destinationAddress: evmEphemeralEntry.address,
@@ -88,8 +114,6 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
     });
-
-  let polygonAccountNonce = 0; // Starts fresh
 
   unsignedTxs.push({
     meta: {},
@@ -116,12 +140,12 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 
-  let destinationNonce = 0; // If minting on Polygon, no final transfer needed. Nonce would not be 0 but we don't care.
-  //  Otherwise it hast to be the first tx.
+  let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce++ : 0; // If the destination is Polygon, we need to use the same nonce sequence. Otherwise, we start fresh on the new chain.
+
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
-    nonce: destinationNonce,
+    nonce: destinationNonce++,
     phase: "destinationTransfer",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(finalTransferTxData) as EvmTransactionData

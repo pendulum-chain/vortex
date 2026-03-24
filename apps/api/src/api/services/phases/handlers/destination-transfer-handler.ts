@@ -34,11 +34,6 @@ export class DestinationTransferHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    // For Alfredpay's onramps into Polygon, we skip his step, as we are on the destination network already!
-    if (state.type === RampDirection.BUY && state.to === Networks.Polygon && quote.inputCurrency === FiatToken.USD) {
-      return this.transitionToNextPhase(state, "complete");
-    }
-
     if (!isEvmToken(quote.outputCurrency)) {
       throw new Error("DestinationTransferHandler: Output currency is not an EVM token");
     }

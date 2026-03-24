@@ -43,6 +43,6 @@ storybook-static
 CLAUDE.local.md
 .claude
 
-# relayer hardat files
-**/relayer-contract/artifacts
-**/relayer-contract/cache
+# hardhat generated files in workspace contract projects
+contracts/*/artifacts
+contracts/*/cache

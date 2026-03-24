@@ -1060,7 +1060,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days."
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
       "returnHome": "Return Home",

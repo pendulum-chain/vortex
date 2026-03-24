@@ -25,5 +25,11 @@
     "target": "ESNext",
     "verbatimModuleSyntax": false
   },
-  "exclude": ["**/relayer-contract/"]
+  "exclude": [
+    "node_modules",
+    "**/dist/**",
+    "contracts/*/artifacts/**",
+    "contracts/*/cache/**",
+    "contracts/*/typechain-types/**"
+  ]
 }

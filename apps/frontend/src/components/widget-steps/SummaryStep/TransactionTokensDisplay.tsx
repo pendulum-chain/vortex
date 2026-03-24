@@ -82,7 +82,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (isMoonbeamTokenDetails(fiatToken)) {
       return fiatToken.partnerUrl;
     }
-    throw new Error("Unsupported token type for partner URL");
+    return "";
   };
 
   const destinationAddress = isOnramp
