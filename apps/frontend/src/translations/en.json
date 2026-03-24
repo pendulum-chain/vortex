@@ -26,6 +26,7 @@
       "openLink": "Open {{kycOrKyb}} Link",
       "registerAsBusiness": "Click <1>here</1> to register as business.",
       "registerAsIndividual": "Click <1>here</1> to register as individual.",
+      "reopenLink": "Re-open the {{kycOrKyb}} window",
       "retry": "Retry",
       "retryProcess": "Retry Process",
       "verifyingCompletion": "Verifying completion",
