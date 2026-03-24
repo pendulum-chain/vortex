@@ -52,7 +52,10 @@ const CollapsibleCard = forwardRef<HTMLDivElement, CollapsibleCardProps>(
     return (
       <CollapsibleCardContext.Provider value={{ detailsId, isExpanded, toggle }}>
         <div
-          className={`flex flex-col-reverse rounded-lg border border-blue-700 bg-white p-4 shadow-md transition-transform hover:scale-[101%] ${className}`}
+          className={cn(
+            "flex flex-col-reverse rounded-lg border border-primary bg-base-200 p-4 shadow-md transition-transform hover:scale-[101%]",
+            className
+          )}
           ref={ref}
         >
           {children}
