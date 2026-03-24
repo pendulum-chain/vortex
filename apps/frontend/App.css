@@ -345,6 +345,16 @@
     z-index: 100;
   }
 
+  /* Touch target expansion — expands hit area by 8px on all sides without affecting layout */
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+
   .shadow-custom {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
   }

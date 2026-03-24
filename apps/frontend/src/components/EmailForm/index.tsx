@@ -33,7 +33,6 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
   const onSubmit = handleSubmit(data => {
     if (!transactionId) {
-      console.error("Transaction ID is missing");
       return;
     }
 
@@ -55,11 +54,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
             </AnimatePresence>
           </div>
           {!isPending && !isSuccess && (
-            <button
-              className="min-w-24 cursor-pointer rounded bg-blue-600 px-5 py-2 text-center text-white transition-[background-color,transform] duration-200 ease-out hover:bg-blue-700 active:scale-95 motion-reduce:transition-none"
-              disabled={isPending}
-              type="submit"
-            >
+            <button className="btn-vortex-primary btn min-w-24" disabled={isPending} type="submit">
               {isPending ? <Spinner /> : t("components.emailForm.submit")}
             </button>
           )}
