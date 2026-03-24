@@ -39,7 +39,7 @@ export const FAQAccordion = () => {
 
   return (
     <div className="px-4 pb-32 md:px-10 ">
-      <p className="mb-3 text-center font-bold text-blue-700">{t("sections.faq.learnMore")}</p>
+      <p className="mb-3 text-center font-bold text-primary">{t("sections.faq.learnMore")}</p>
       <h1 className="text-center text-black text-h2">{t("sections.faq.title")}</h1>
       <div className="mt-6">
         <Accordion>

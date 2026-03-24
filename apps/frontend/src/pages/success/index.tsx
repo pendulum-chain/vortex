@@ -10,8 +10,8 @@ import { useQuoteFormStore } from "../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 const Checkmark = () => (
-  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-blue-700">
-    <CheckIcon className="w-10 text-blue-700" /> {/* Changed pink to blue */}
+  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary">
+    <CheckIcon className="w-10 text-primary" />
   </div>
 );
 
@@ -52,10 +52,10 @@ export const SuccessPage = () => {
           <Checkmark />
         </div>
         <div className="mt-6 w-full px-4 md:px-8">
-          <h1 className="mb-6 text-center font-bold text-2xl text-blue-700">
+          <h1 className="mb-6 text-center font-bold text-2xl text-primary">
             {t(`pages.success.title.${isOnramp ? "buy" : "sell"}`)}
           </h1>
-          <p className="mb-8 text-center font-light text-blue-700 leading-relaxed">
+          <p className="mb-8 text-center font-light text-primary leading-relaxed">
             {isOnramp ? arrivalTextBuy : arrivalTextSell}
           </p>
           <div className="m-auto mt-8 mb-5 h-0.5 w-1/5 bg-pink-500" />

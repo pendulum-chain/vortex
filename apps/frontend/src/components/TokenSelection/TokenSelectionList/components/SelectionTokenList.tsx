@@ -10,7 +10,7 @@ import { useIsFiatDirection, useTokenDefinitions } from "../helpers";
 import { ExtendedTokenDefinition, useTokenSelection } from "../hooks/useTokenSelection";
 
 const ROW_HEIGHT = 56;
-const ROW_GAP = 8;
+const ROW_GAP = 2;
 const OVERSCAN = 3;
 const SCROLL_PADDING_TOP = 12; // matches pt-3 on the scroll container
 

@@ -35,7 +35,7 @@ export const AveniaKYBVerifyStep = ({
       <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
           <div>
-            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
+            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-primary">{t(titleKey)}</h1>
 
             <img
               alt="Business Check"

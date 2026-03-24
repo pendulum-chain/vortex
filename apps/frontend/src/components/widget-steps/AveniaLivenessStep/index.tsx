@@ -48,7 +48,7 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
         transition={{ duration: 0.3 }}
       >
         <div className="text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.aveniaLiveness.title")}</h1>
+          <h1 className="mb-4 font-bold text-3xl text-primary">{t("components.aveniaLiveness.title")}</h1>
           <motion.p
             animate={{ opacity: 1 }}
             className="text-gray-600 text-sm"

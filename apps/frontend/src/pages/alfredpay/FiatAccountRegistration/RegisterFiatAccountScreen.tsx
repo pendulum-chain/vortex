@@ -133,7 +133,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   return (
     <div className="flex grow-1 flex-col">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{t(ACCOUNT_TYPE_LABELS[accountType])}</h1>
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">{t(ACCOUNT_TYPE_LABELS[accountType])}</h1>
 
       <form
         className="flex grow-1 flex-col px-4 pt-6 pb-4"

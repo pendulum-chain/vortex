@@ -46,7 +46,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
       </div>
       <form className="flex flex-1 flex-col pb-36" id="auth-email-form" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-blue-700 text-widget-title">{t("components.authEmailStep.title")}</h1>
+          <h1 className="mb-4 font-bold text-primary text-widget-title">{t("components.authEmailStep.title")}</h1>
           <p className="mb-6 text-gray-600">{t("components.authEmailStep.description")}</p>
         </div>
 
@@ -90,7 +90,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
               <label className="cursor-pointer text-gray-600 text-sm" htmlFor="terms">
                 {t("components.authEmailStep.termsCheckbox.prefix")}{" "}
                 <a
-                  className="text-blue-600 underline hover:text-blue-700"
+                  className="text-primary underline hover:text-primary/80"
                   href={`/${i18n.language}/terms-and-conditions`}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -99,7 +99,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
                 </a>{" "}
                 {t("components.authEmailStep.termsCheckbox.and")}{" "}
                 <a
-                  className="text-blue-600 underline hover:text-blue-700"
+                  className="text-primary underline hover:text-primary/80"
                   href={`/${i18n.language}/privacy-policy`}
                   rel="noopener noreferrer"
                   target="_blank"

@@ -28,7 +28,7 @@ export function ContactInfo() {
       <div className="border-gray-200 border-t pt-6">
         <p className="mb-3 text-gray-600 text-sm">{t("pages.contact.info.technicalQuestions")}</p>
         <a
-          className="group inline-flex min-h-[44px] items-center gap-2 text-blue-600 transition-colors duration-150 ease-out hover:text-blue-700"
+          className="group touch-target inline-flex items-center gap-2 text-primary transition-colors duration-150 ease-out hover:text-primary/80"
           href="https://t.me/vortex_fi"
           rel="noopener noreferrer"
           target="_blank"
@@ -48,7 +48,7 @@ function CheckIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="h-5 w-5 flex-shrink-0 text-blue-600"
+      className="h-5 w-5 flex-shrink-0 text-primary"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"

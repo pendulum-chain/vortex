@@ -23,7 +23,7 @@ const paymentImages = [
 const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
   <div className="items-normal flex flex-col text-center">
     <img alt={alt} className={cn(comingSoon ? "h-[12px]" : "h-4", additionalClass)} src={src} />
-    {comingSoon && <div className="w-12 text-[7px] text-blue-700">Coming soon</div>}
+    {comingSoon && <div className="w-12 text-[7px] text-primary">Coming soon</div>}
   </div>
 );
 

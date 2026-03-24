@@ -39,7 +39,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
         transition={{ duration: 0.3 }}
       >
         <div className="flex-1 pb-36">
-          <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-blue-700">
+          <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-primary">
             {isCompany ? t("components.aveniaKYB.title.default") : t("components.aveniaKYC.title")}
           </h1>
           <div className="grid grid-cols-2 gap-4">

@@ -165,7 +165,7 @@ export function ContactForm() {
         <label className="text-gray-500 text-sm" htmlFor={`${formId}-privacy`}>
           {t("pages.contact.form.privacyPolicy")}{" "}
           <a
-            className="text-blue-600 underline hover:text-blue-800"
+            className="text-primary underline hover:text-primary/80"
             href={`/${i18n.language}/privacy-policy`}
             rel="noopener noreferrer"
             target="_blank"

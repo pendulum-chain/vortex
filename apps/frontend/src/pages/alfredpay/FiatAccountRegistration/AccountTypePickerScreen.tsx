@@ -32,7 +32,7 @@ export function AccountTypePickerScreen({ countryConfig, onSelect }: AccountType
 
   return (
     <div className="px-1">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">
+      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">
         {t("components.fiatAccountRegistration.chooseType")}
       </h1>
 
