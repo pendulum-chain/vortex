@@ -171,9 +171,12 @@ export class PhaseProcessor {
         }, maxExecuteTime);
       });
 
-      const updatedState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
+      const pendingState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
         clearTimeout(timeoutId);
       });
+
+      // Single source of authority for phase transitions.
+      const updatedState = await pendingState.save();
 
       // If the phase has changed, process the next phase
       // except for complete or fail phases which are terminal.
