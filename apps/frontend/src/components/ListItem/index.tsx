@@ -1,7 +1,7 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { FiatToken, isFiatToken, OnChainToken, stringifyBigWithSignificantDecimals } from "@vortexfi/shared";
 import Big from "big.js";
-import { memo } from "react";
+import { FocusEventHandler, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
 import { cn } from "../../helpers/cn";
@@ -14,6 +14,7 @@ interface ListItemProps {
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
   token: ExtendedTokenDefinition;
   balance?: string;
+  onFocus?: FocusEventHandler<HTMLButtonElement>;
 }
 
 function formatBalance(balance: string): string {
@@ -26,7 +27,7 @@ function formatBalance(balance: string): string {
   }
 }
 
-export const ListItem = memo(function ListItem({ token, isSelected, onSelect, balance }: ListItemProps) {
+export const ListItem = memo(function ListItem({ token, isSelected, onSelect, balance, onFocus }: ListItemProps) {
   const { t } = useTranslation();
   const isFiat = isFiatToken(token.type);
   // Use assetIcon for fiat lookup, with network for on-chain tokens
@@ -40,12 +41,16 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect, ba
 
   return (
     <button
+      aria-disabled={isDisabled || undefined}
+      aria-selected={isSelected}
       className={cn(
-        "btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left transition-transform hover:bg-gray-100 active:scale-[0.98]",
+        "btn w-full justify-start gap-4 rounded-lg border-gray-200 px-3 text-left transition-transform active:scale-[0.98] [@media(hover:hover)]:hover:bg-gray-100",
         isDisabled && "cursor-not-allowed opacity-50"
       )}
       key={token.assetSymbol}
       onClick={() => !isDisabled && onSelect(token.type)}
+      onFocus={onFocus}
+      role="option"
       type="button"
     >
       <span className="relative">
@@ -77,7 +82,7 @@ export const ListItem = memo(function ListItem({ token, isSelected, onSelect, ba
           </span>
         </span>
         {formattedBalance && (
-          <span className="font-bold text-base">
+          <span className="font-bold text-base tabular-nums">
             {formattedBalance} {token.assetSymbol}
           </span>
         )}

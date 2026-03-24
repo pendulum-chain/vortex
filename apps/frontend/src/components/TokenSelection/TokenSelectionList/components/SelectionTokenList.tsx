@@ -90,34 +90,39 @@ export const SelectionTokenList = () => {
 
   return (
     <div
+      aria-label="Select token"
       className={cn(
         "no-scrollbar mt-3 flex-1 overflow-auto border-gray-200 border-t pt-3 pb-10",
-        isNetworkDropdownOpen && "pointer-events-none opacity-0"
+        isNetworkDropdownOpen && "opacity-0"
       )}
+      inert={isNetworkDropdownOpen || undefined}
       ref={parentRef}
+      role="listbox"
     >
-      <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+      <ul className="relative w-full" role="presentation" style={{ height: rowVirtualizer.getTotalSize() }}>
         {rowVirtualizer.getVirtualItems().map(virtualItem => {
           const token = currentDefinitions[virtualItem.index];
           const isSelected = selectedToken === token.type && selectedNetwork === token.network;
           const tokenBalance = balances.get(getBalanceKey(token.network, token.assetSymbol));
 
           return (
-            <div
+            <li
               className="absolute left-0 w-full"
               key={virtualItem.key}
+              role="presentation"
               style={{ height: ROW_HEIGHT, transform: `translateY(${virtualItem.start}px)` }}
             >
               <ListItem
                 balance={tokenBalance?.balance}
                 isSelected={isSelected}
+                onFocus={e => e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest" })}
                 onSelect={tokenType => handleTokenSelect(tokenType, token)}
                 token={token}
               />
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 };
