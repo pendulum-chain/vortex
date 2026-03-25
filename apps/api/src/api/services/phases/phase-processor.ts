@@ -176,7 +176,12 @@ export class PhaseProcessor {
       });
 
       // Single source of authority for phase transitions.
-      const updatedState = await pendingState.save();
+      // Persist only the phase-related fields on the original persisted instance
+      // to avoid inserting new records or clobbering unrelated columns.
+      const updatedState = await state.update(
+        { currentPhase: pendingState.currentPhase },
+        { fields: ["currentPhase"] }
+      );
 
       // If the phase has changed, process the next phase
       // except for complete or fail phases which are terminal.
