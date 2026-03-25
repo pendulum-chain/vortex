@@ -179,8 +179,8 @@ export class PhaseProcessor {
       // Persist only the phase-related fields on the original persisted instance
       // to avoid inserting new records or clobbering unrelated columns.
       const updatedState = await state.update(
-        { currentPhase: pendingState.currentPhase },
-        { fields: ["currentPhase"] }
+        { currentPhase: pendingState.currentPhase, phaseHistory: pendingState.phaseHistory },
+        { fields: ["currentPhase", "phaseHistory"] }
       );
 
       // If the phase has changed, process the next phase
