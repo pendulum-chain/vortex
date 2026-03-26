@@ -29,7 +29,7 @@ function buildZodSchema(
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const f of fields) {
-    let schema: z.ZodTypeAny = z.string();
+    let schema: z.ZodTypeAny;
 
     if (f.required) {
       schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: f.label }));
