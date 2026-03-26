@@ -20,7 +20,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -81,7 +81,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     switch (state.type) {
       case RampDirection.BUY:
         if (quote.inputCurrency === FiatToken.USD) {
-          expectedAmountRaw = Big(quote.metadata.alfredpayMint!.outputAmountRaw);
+          if (!quote.metadata.alfredpayMint) {
+            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay mint metadata for USD onramp quote");
+          }
+          expectedAmountRaw = Big(quote.metadata.alfredpayMint.outputAmountRaw);
           break;
         }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
@@ -89,7 +92,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
       case RampDirection.SELL:
         if (quote.outputCurrency === FiatToken.USD) {
-          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
+          if (!quote.metadata.alfredpayOfframp) {
+            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay offramp metadata for USD sell quote");
+          }
+          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
           break;
         }
         break;
@@ -146,7 +152,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     }
 
     logger.info(
-      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
+      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} raw units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
     );
 
     // 4. Top up funding account if insufficient balance (ERC-20 only; native tokens are transferred directly)
@@ -164,17 +170,20 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       const oneUsdInNativeRaw = multiplyByPowerOfTen(oneUsdInNative, nativeToken.decimals).toFixed(0);
 
       const chainId = getNetworkId(destinationNetwork).toString();
+
+      // Use a placeholder address for this query to prevent rate limiting issues
+      const placeholderAddress = privateKeyToAddress(generatePrivateKey());
       const testRouteResult = await getRoute({
         bypassGuardrails: true,
         enableExpress: true,
-        fromAddress: fundingAccount.address,
+        fromAddress: placeholderAddress,
         fromAmount: oneUsdInNativeRaw,
         fromChain: chainId,
         fromToken: NATIVE_TOKEN_ADDRESS,
         slippageConfig: {
           autoMode: 1
         },
-        toAddress: fundingAccount.address,
+        toAddress: placeholderAddress,
         toChain: chainId,
         toToken: outTokenDetails.erc20AddressSourceChain
       });
@@ -187,7 +196,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         `FinalSettlementSubsidyHandler: Swapping ${requiredNativeRaw} native units (approx. rate ${rate}) to get required subsidy.`
       );
 
-      // Check the amount of native is not higher than cap, cap specidied in units of usd.
+      // Check the amount of native is not higher than cap, cap specified in units of usd.
       const requiredNative = new Big(requiredNativeRaw).div(new Big(10).pow(nativeToken.decimals));
       const requiredNativeInUsd = await priceFeedService.convertCurrency(
         requiredNative.toString(),
