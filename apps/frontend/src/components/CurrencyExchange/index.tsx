@@ -1,5 +1,6 @@
 import Arrow from "../../assets/arrow.svg";
-import { formatPrice, parseBig } from "../../sections/individuals/FeeComparison/helpers";
+import { parseBig } from "../../helpers/numbers";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 
 interface CurrencyExchangeProps {
   inputAmount: string;

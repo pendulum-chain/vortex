@@ -10,7 +10,7 @@ import {
 import Big from "big.js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { parseBig } from "../../sections/individuals/FeeComparison/helpers";
+import { parseBig } from "../../helpers/numbers";
 import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
@@ -119,8 +119,9 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
  */
 const processQuoteResponse = (quoteResponse: QuoteResponse) => {
   const outputAmount = parseBig(quoteResponse.outputAmount);
-  const exchangeRate =
-    Number(quoteResponse.outputAmount.replace(/,/g, "")) / Number(quoteResponse.inputAmount.replace(/,/g, ""));
+  // Calculate exchange rate safely using Big division, converting to Number at the end
+  const inputAmount = parseBig(quoteResponse.inputAmount);
+  const exchangeRate = inputAmount.eq(0) ? 0 : Number(outputAmount.div(inputAmount));
 
   return { exchangeRate, outputAmount };
 };

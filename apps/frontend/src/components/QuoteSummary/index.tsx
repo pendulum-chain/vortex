@@ -1,8 +1,9 @@
 import { QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
+import { parseBig } from "../../helpers/numbers";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
-import { formatPrice, parseBig } from "../../sections/individuals/FeeComparison/helpers";
+import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
