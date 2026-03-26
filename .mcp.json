@@ -5,7 +5,7 @@
       "url": "https://mcp.linear.app/sse"
     },
     "obsidian": {
-      "args": ["-y", "obsidian-mcp", "/Users/kacpersatoshipay/Obsidian/Sharqiewicz"],
+      "args": ["-y", "obsidian-mcp", "$OBSIDIAN_VAULT_PATH"],
       "command": "npx"
     }
   }
