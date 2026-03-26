@@ -2,7 +2,6 @@ import {
   DestinationType,
   FiatToken,
   mapFiatToDestination,
-  OnChainToken,
   OnChainTokenSymbol,
   QuoteError,
   QuoteResponse,
@@ -11,6 +10,7 @@ import {
 import Big from "big.js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { parseBig } from "../../sections/individuals/FeeComparison/helpers";
 import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
@@ -118,8 +118,9 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
  * @returns Object containing output amount and exchange rate
  */
 const processQuoteResponse = (quoteResponse: QuoteResponse) => {
-  const outputAmount = Big(quoteResponse.outputAmount);
-  const exchangeRate = Number(quoteResponse.outputAmount) / Number(quoteResponse.inputAmount);
+  const outputAmount = parseBig(quoteResponse.outputAmount);
+  const exchangeRate =
+    Number(quoteResponse.outputAmount.replace(/,/g, "")) / Number(quoteResponse.inputAmount.replace(/,/g, ""));
 
   return { exchangeRate, outputAmount };
 };

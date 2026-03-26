@@ -1,9 +1,8 @@
 import { QuoteResponse, RampDirection } from "@vortexfi/shared";
-import Big from "big.js";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
-import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
+import { formatPrice, parseBig } from "../../sections/individuals/FeeComparison/helpers";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
@@ -83,7 +82,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!inputIcon.network}
                 tokenSymbol={quote.inputCurrency}
               />
-              {formatPrice(Big(quote.inputAmount))} {inputCurrencyUpper}
+              {formatPrice(parseBig(quote.inputAmount))} {inputCurrencyUpper}
             </div>
           </div>
           <div className="flex flex-col">
@@ -97,7 +96,7 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
                 showNetworkOverlay={!!outputIcon.network}
                 tokenSymbol={quote.outputCurrency}
               />
-              {APPROX_SIGN} {formatPrice(Big(quote.outputAmount))} {outputCurrencyUpper}
+              {APPROX_SIGN} {formatPrice(parseBig(quote.outputAmount))} {outputCurrencyUpper}
             </div>
           </div>
         </div>
