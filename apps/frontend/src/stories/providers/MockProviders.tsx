@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PropsWithChildren, useEffect, useMemo } from "react";
+import { createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import { createContext, PropsWithChildren, ReactNode, useContext, useEffect, useMemo } from "react";
 import { WagmiProvider } from "wagmi";
 import { EventsProvider } from "../../contexts/events";
 import { NetworkProvider } from "../../contexts/network";
@@ -7,6 +8,19 @@ import { PolkadotNodeProvider } from "../../contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "../../contexts/polkadotWallet";
 import { PersistentRampStateProvider } from "../../contexts/rampState";
 import { wagmiConfig } from "../../wagmiConfig";
+
+// RouterProvider renders the route tree and doesn't accept children directly.
+// We pass inner content through a module-level context so the root route component can render it.
+const MockRouterChildrenContext = createContext<ReactNode>(null);
+
+const rootRoute = createRootRoute({
+  component: () => {
+    const children = useContext(MockRouterChildrenContext);
+    return <>{children}</>;
+  }
+});
+
+const mockRouter = createRouter({ routeTree: rootRoute });
 
 /**
  * MockProviders wraps Storybook stories with all necessary context providers
@@ -36,7 +50,7 @@ export const MockProviders = ({ children }: PropsWithChildren) => {
     }
   }, []);
 
-  return (
+  const innerContent = (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
         <PersistentRampStateProvider>
@@ -50,5 +64,11 @@ export const MockProviders = ({ children }: PropsWithChildren) => {
         </PersistentRampStateProvider>
       </WagmiProvider>
     </QueryClientProvider>
+  );
+
+  return (
+    <MockRouterChildrenContext.Provider value={innerContent}>
+      <RouterProvider router={mockRouter} />
+    </MockRouterChildrenContext.Provider>
   );
 };

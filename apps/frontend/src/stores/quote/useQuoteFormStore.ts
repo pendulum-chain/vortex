@@ -20,12 +20,17 @@ export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;
 export const DEFAULT_BRL_AMOUNT = "100";
 export const DEFAULT_EURC_AMOUNT = "30";
 export const DEFAULT_ARS_AMOUNT = "20";
+export const DEFAULT_MXN_AMOUNT = "100";
+export const DEFAULT_COP_AMOUNT = "100";
+export const DEFAULT_USD_AMOUNT = "100";
 
 export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
   [FiatToken.EURC]: DEFAULT_EURC_AMOUNT,
   [FiatToken.ARS]: DEFAULT_ARS_AMOUNT,
   [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
-  [FiatToken.USD]: "100"
+  [FiatToken.USD]: DEFAULT_USD_AMOUNT,
+  [FiatToken.MXN]: DEFAULT_MXN_AMOUNT,
+  [FiatToken.COP]: DEFAULT_COP_AMOUNT
 };
 
 const defaultFiatToken = getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;

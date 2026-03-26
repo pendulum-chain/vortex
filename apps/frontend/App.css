@@ -19,6 +19,23 @@
   --color-base-300: oklch(0.92 0.008 250);
   --color-base-content: oklch(0.5 0.04 250);
 
+  /* Semantic state colors */
+  --color-warning: oklch(0.77 0.16 83);
+  --color-warning-content: oklch(0.15 0 0);
+
+  --color-success: oklch(0.448 0.119 151.328);
+  --color-success-content: oklch(1 0 0);
+
+  --color-error: oklch(0.444 0.177 26.899);
+  --color-error-content: oklch(1 0 0);
+
+  /* Interaction state colors */
+  --color-primary-hover: oklch(0.37 0.2 260);
+  --color-secondary-hover: oklch(0.46 0.22 350);
+  --color-error-hover: oklch(0.37 0.177 26.899);
+  --color-success-hover: oklch(0.37 0.119 151.328);
+  --color-warning-hover: oklch(0.65 0.16 83);
+
   /* Project-specific variables */
   --radius-field: 9px;
   --text: oklch(0.15 0 0);
@@ -32,7 +49,7 @@
 
   /* QuoteSummary layout */
   --quote-summary-height: 88px;
-  --widget-min-height: 506px;
+  --widget-min-height: 620px;
 }
 
 @layer base {
@@ -50,15 +67,13 @@
 
   :root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
     scrollbar-gutter: unset;
+    overflow-y: scroll;
   }
 }
 
 /* Component Overrides (Unlayered to ensure precedence over DaisyUI layers) */
 .modal-box {
-  border-bottom-right-radius: 1.25rem;
-  border-bottom-left-radius: 1.25rem;
-  border-top-left-radius: 1.25rem;
-  border-top-right-radius: 1.25rem;
+  @apply rounded-2xl;
 }
 
 .input-disabled {
@@ -93,11 +108,11 @@
   min-height: 2.5rem !important;
 }
 .step-vortex::before {
-  @apply bg-blue-700;
+  @apply bg-primary;
   width: 2px !important;
 }
 .step-vortex::after {
-  @apply text-blue-700;
+  @apply text-primary;
 }
 .step-primary.step-vortex::after {
   @apply text-white;
@@ -110,7 +125,7 @@
 }
 
 .collapse-title::after {
-  @apply text-blue-700;
+  @apply text-primary;
   @apply w-3;
   @apply h-3;
   top: 1.4rem !important;
@@ -123,10 +138,11 @@
 .btn {
   height: 3rem;
   box-shadow: none;
+  cursor: pointer !important;
 }
 
 .btn-vortex-primary {
-  @apply bg-blue-700 text-white rounded-[var(--radius-field)] border border-blue-700 cursor-pointer;
+  @apply bg-primary text-primary-content rounded-[var(--radius-field)] border border-primary cursor-pointer;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -135,11 +151,13 @@
 }
 
 .btn-vortex-primary:hover {
-  @apply bg-blue-200 text-blue-700;
+  background-color: var(--color-primary-hover);
+  color: var(--color-primary-content);
+  border-color: var(--color-primary-hover);
 }
 
 .btn-vortex-primary:disabled {
-  @apply opacity-40;
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-accent {
@@ -157,17 +175,64 @@
 }
 
 .btn-vortex-accent:hover {
-  @apply bg-blue-100;
-  @apply text-blue-700;
-  @apply border-blue-300;
+  @apply bg-gray-300;
+  @apply text-gray-800;
+  @apply border-gray-400;
+}
+
+.btn-vortex-accent:disabled {
+  @apply opacity-40 cursor-not-allowed;
+}
+
+.btn-vortex-success {
+  @apply bg-success;
+  @apply text-success-content;
+  @apply rounded-[var(--radius-field)];
+  @apply border;
+  @apply border-success;
+  @apply duration-200;
+  transition: scale 0.1s ease-in-out;
+}
+
+.btn-vortex-success:active {
+  scale: 0.98;
+}
+
+.btn-vortex-success:hover {
+  background-color: var(--color-success-hover);
+  color: var(--color-success-content);
+  border-color: var(--color-success-hover);
+}
+
+.btn-vortex-success:disabled {
+  @apply opacity-40 cursor-not-allowed;
+}
+
+.btn-vortex-warning {
+  @apply bg-warning text-warning-content rounded-[var(--radius-field)] border border-warning;
+  transition: scale 0.1s ease-in-out;
+}
+
+.btn-vortex-warning:active {
+  scale: 0.98;
+}
+
+.btn-vortex-warning:hover {
+  background-color: var(--color-warning-hover);
+  color: var(--color-warning-content);
+  border-color: var(--color-warning-hover);
+}
+
+.btn-vortex-warning:disabled {
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-primary-inverse {
   @apply bg-white;
-  @apply text-blue-700;
-  @apply rounded-xl;
+  @apply text-primary;
+  @apply rounded-[var(--radius-field)];
   @apply border;
-  @apply border-blue-700;
+  @apply border-primary;
   @apply cursor-pointer;
   transition: scale 0.1s ease-in-out;
 }
@@ -177,27 +242,29 @@
 }
 
 .btn-vortex-primary-inverse:hover {
-  @apply bg-blue-200;
-  @apply border-blue-700;
+  @apply bg-primary/20;
+  @apply border-primary;
 }
 
 .btn-vortex-primary-inverse:disabled {
   @apply bg-white;
-  @apply text-blue-700;
-  @apply border-blue-700;
+  @apply text-primary;
+  @apply border-primary;
   @apply opacity-40;
+  @apply cursor-not-allowed;
 }
 
 .btn-vortex-primary-inverse:active,
 .btn-vortex-primary-inverse:focus {
-  @apply bg-blue-200;
-  @apply text-blue-700;
-  @apply border-blue-700;
+  @apply bg-primary/20;
+  @apply text-primary;
+  @apply border-primary;
 }
 
 .btn-vortex-secondary {
   @apply text-white;
   @apply bg-pink-600;
+  @apply rounded-[var(--radius-field)];
   @apply border-pink-600;
   @apply shadow-none;
   transition: scale 0.1s ease-in-out;
@@ -208,18 +275,21 @@
 }
 
 .btn-vortex-secondary:hover {
-  @apply bg-pink-100;
-  @apply text-pink-600;
-  @apply border;
-  @apply border-pink-600;
+  background-color: var(--color-secondary-hover);
+  color: white;
+  border-color: var(--color-secondary-hover);
+}
+
+.btn-vortex-secondary:disabled {
+  @apply opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-danger {
-  @apply bg-red-600;
-  @apply text-white;
+  @apply bg-error;
+  @apply text-error-content;
   @apply rounded-xl;
   @apply border;
-  @apply border-red-600;
+  @apply border-error;
   @apply shadow-none;
   transition: scale 0.1s ease-in-out;
 }
@@ -229,28 +299,60 @@
 }
 
 .btn-vortex-danger:hover {
-  @apply bg-white;
-  @apply text-red-800;
-  @apply border-red-800;
+  background-color: var(--color-error-hover);
+  color: var(--color-error-content);
+  border-color: var(--color-error-hover);
 }
 
 .btn-vortex-danger:disabled {
-  @apply bg-red-600;
-  @apply text-white;
-  @apply border-red-600;
+  @apply bg-error;
+  @apply text-error-content;
+  @apply border-error;
   @apply opacity-40;
+  @apply cursor-not-allowed;
 }
 
 .btn-vortex-danger:active,
 .btn-vortex-danger:focus {
-  @apply bg-red-100;
-  @apply text-red-800;
-  @apply border-red-800;
+  @apply bg-error/10;
+  @apply text-error;
+  @apply border-error;
 }
 
 @layer utilities {
   .bottom-above-quote {
     bottom: calc(var(--quote-summary-height) + 1rem);
+  }
+
+  .pb-footer-offset {
+    padding-bottom: calc(var(--quote-summary-height) + 1rem);
+  }
+
+  /* Z-index scale */
+  .z-footer {
+    z-index: 5;
+  }
+  .z-quote {
+    z-index: 10;
+  }
+  .z-overlay {
+    z-index: 20;
+  }
+  .z-modal {
+    z-index: 50;
+  }
+  .z-toast {
+    z-index: 100;
+  }
+
+  /* Touch target expansion — expands hit area by 8px on all sides without affecting layout */
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
   }
 
   .shadow-custom {
@@ -323,6 +425,27 @@
   .text-body {
     @apply text-base;
   }
+
+  /* Widget UI typography scale */
+  .text-widget-title {
+    @apply text-3xl;
+  }
+
+  .text-section-title {
+    @apply text-xl;
+  }
+
+  .text-amount {
+    @apply text-lg;
+  }
+
+  .text-label {
+    @apply text-sm;
+  }
+
+  .text-caption {
+    @apply text-xs;
+  }
 }
 
 @keyframes appear {
@@ -387,9 +510,11 @@
   animation: caret-blink 1.2s ease-out infinite;
 }
 
+/* Border-radius scale: sm=6px · md=8px · lg=10px · xl=14px · 2xl=20px */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
 }

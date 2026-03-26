@@ -4,6 +4,7 @@ import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { CopyButton } from "../../CopyButton";
+import { InfoBox } from "../../InfoBox";
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();
@@ -31,9 +32,9 @@ export const BRLOnrampDetails: FC = () => {
         </p>
       </div>
       <div className="my-6 flex justify-center">
-        <div className="rounded-lg border-1 border-gray-300 p-4">
+        <InfoBox>
           <QRCodeSVG value={rampState.ramp?.depositQrCode} />
-        </div>
+        </InfoBox>
       </div>
       <p className="text-center">{t("components.SummaryPage.BRLOnrampDetails.copyCode")}</p>
       <CopyButton className="mt-4 mb-4 w-full py-10" text={rampState.ramp?.depositQrCode} />

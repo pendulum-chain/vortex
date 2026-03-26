@@ -1,12 +1,5 @@
-import {
-  AlfredPayStatus,
-  AlfredpayCreateCustomerResponse,
-  AlfredpayCustomerType,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
-  AlfredpayStatusResponse
-} from "@vortexfi/shared";
-import { assign, fromPromise, raise, setup } from "xstate";
+import { AlfredPayStatus, AlfredpayCustomerType } from "@vortexfi/shared";
+import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
 
@@ -259,6 +252,13 @@ export const alfredpayKycMachine = setup({
       on: {
         COMPLETED_FILLING: {
           target: "FinishingFilling"
+        },
+        OPEN_LINK: {
+          actions: ({ context }) => {
+            if (context.verificationUrl) {
+              window.open(context.verificationUrl, "_blank");
+            }
+          }
         }
       }
     },
@@ -331,7 +331,7 @@ export const alfredpayKycMachine = setup({
         onDone: [
           {
             guard: ({ event }) => event.output.status === AlfredPayStatus.Success,
-            target: "Done"
+            target: "VerificationDone"
           },
           {
             actions: assign({
@@ -368,6 +368,11 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "retryKyc"
+      }
+    },
+    VerificationDone: {
+      on: {
+        CONFIRM_SUCCESS: { target: "Done" }
       }
     }
   }

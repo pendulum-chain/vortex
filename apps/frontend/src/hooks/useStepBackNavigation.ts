@@ -1,6 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef } from "react";
+import { useFiatAccountActor, useFiatAccountSelector } from "../contexts/FiatAccountMachineContext";
 import { useAveniaKycActor, useAveniaKycSelector, useRampActor } from "../contexts/rampState";
 
 export const useStepBackNavigation = () => {
@@ -8,6 +9,8 @@ export const useStepBackNavigation = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
+  const fiatAccountActor = useFiatAccountActor();
+  const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
 
   const rampState = useSelector(rampActor, state => state.value);
   const enteredViaForm = useSelector(rampActor, state => state.context.enteredViaForm);
@@ -42,6 +45,11 @@ export const useStepBackNavigation = () => {
     (rampState === "QuoteReady" && !enteredViaForm);
 
   const handleBack = () => {
+    if (showFiatAccountRegistration) {
+      fiatAccountActor.send({ type: "GO_BACK" });
+      return;
+    }
+
     if (aveniaKycActor && aveniaState) {
       const childState = aveniaState.stateValue;
       if (childState === "DocumentUpload") {

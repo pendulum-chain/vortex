@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { useTokenIcon } from "../../hooks/useTokenIcon";
 import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
+import { useQuote } from "../../stores/quote/useQuoteStore";
 import { CollapsibleCard, CollapsibleDetails, CollapsibleSummary, useCollapsibleCard } from "../CollapsibleCard";
 import { CurrencyExchange } from "../CurrencyExchange";
 import { ToggleButton } from "../ToggleButton";
@@ -11,7 +12,6 @@ import { TokenIconWithNetwork } from "../TokenIconWithNetwork";
 import { TransactionId } from "../TransactionId";
 
 interface QuoteSummaryProps {
-  quote: QuoteResponse;
   className?: string;
 }
 
@@ -107,9 +107,13 @@ const QuoteSummaryDetails = ({ quote }: { quote: QuoteResponse }) => {
   );
 };
 
-export const QuoteSummary = ({ quote, className }: QuoteSummaryProps) => {
+export const QuoteSummary = ({ className }: QuoteSummaryProps) => {
+  const quote = useQuote();
+
+  if (!quote) return null;
+
   return (
-    <div className={cn("absolute right-0 bottom-2 left-0 z-10", className)}>
+    <div className={cn("absolute right-0 bottom-2 left-0 z-quote", className)}>
       <CollapsibleCard>
         <CollapsibleSummary>
           <QuoteSummaryCore quote={quote} />

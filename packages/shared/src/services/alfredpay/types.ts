@@ -1,3 +1,5 @@
+import { FiatToken } from "../../tokens/types/base";
+
 export enum AlfredpayCustomerType {
   INDIVIDUAL = "INDIVIDUAL",
   BUSINESS = "BUSINESS"
@@ -322,3 +324,17 @@ export interface CreateAlfredpayFiatAccountRequest {
 export interface CreateAlfredpayFiatAccountResponse {
   fiatAccountId: string;
 }
+
+export interface AlfredpayFiatAccount {
+  fiatAccountId: string;
+  customerId: string;
+  type: AlfredpayFiatAccountType;
+  fiatAccountFields: AlfredpayFiatAccountFields;
+  createdAt?: string;
+}
+
+export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
+
+const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
+
+export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);

@@ -49,7 +49,7 @@ export function Hero() {
               style={{ perspective: "1000px" }}
               variants={staggerContainer}
             >
-              <AnimatedTitle highlightColor="text-blue-700" text={t("pages.business.hero.title")} />
+              <AnimatedTitle highlightColor="text-primary" text={t("pages.business.hero.title")} />
             </motion.h1>
             <motion.p className="text-center text-body-lg lg:text-left" custom={0.45} variants={fadeInUp}>
               {t("pages.business.hero.description")}

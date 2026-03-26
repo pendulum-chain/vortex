@@ -22,7 +22,6 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
     userEmail: state.context.userEmail
   }));
 
-  const quote = useQuote();
   const [otp, setOtp] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +47,7 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
 
       <div className="flex-1 pb-36">
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authOTPStep.title")}</h1>
+          <h1 className="mb-4 font-bold text-primary text-widget-title">{t("components.authOTPStep.title")}</h1>
           <p className="mb-6 text-gray-600">
             <Trans i18nKey="components.authOTPStep.description" values={{ email: userEmail }}>
               We sent a 6-digit code to <strong>{userEmail}</strong>
@@ -89,13 +88,13 @@ export function AuthOTPStep({ className }: AuthOTPStepProps) {
             </p>
 
             {isVerifying && (
-              <p className="mb-4 text-center text-blue-600 text-sm">{t("components.authOTPStep.status.verifying")}</p>
+              <p className="mb-4 text-center text-primary text-sm">{t("components.authOTPStep.status.verifying")}</p>
             )}
           </div>
         </div>
       </div>
 
-      {quote && <QuoteSummary quote={quote} />}
+      <QuoteSummary />
     </div>
   );
 }

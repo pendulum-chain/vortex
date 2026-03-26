@@ -8,7 +8,6 @@ import {
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
-  isEvmToken,
   multiplyByPowerOfTen,
   Networks,
   RampCurrency,

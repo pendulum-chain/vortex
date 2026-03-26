@@ -4,6 +4,7 @@ export const cacheKeys = {
   accountBalance: "accountBalance",
   allPrices: "allPrices",
   balance: "balance",
+  fiatAccounts: "fiatAccounts",
   nablaInstance: "nablaInstance",
   quoteBackstopPoolDrain: "quoteBackstopPoolDrain",
   quoteBackstopPoolWithdraw: "quoteBackstopPoolWithdraw",

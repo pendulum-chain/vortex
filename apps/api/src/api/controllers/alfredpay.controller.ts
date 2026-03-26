@@ -6,14 +6,10 @@ import {
   AlfredpayCreateCustomerResponse,
   AlfredpayCustomerType,
   AlfredpayGetKybRedirectLinkResponse,
-  AlfredpayGetKybStatusResponse,
   AlfredpayGetKycRedirectLinkRequest,
   AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusRequest,
   AlfredpayGetKycStatusResponse,
   AlfredpayKybStatus,
-  AlfredpayKycRedirectFinishedRequest,
-  AlfredpayKycRedirectOpenedRequest,
   AlfredpayKycStatus,
   AlfredpayStatusRequest,
   AlfredpayStatusResponse
@@ -258,10 +254,8 @@ export class AlfredpayController {
         : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
 
       const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
-      console.log("newStatus", newStatus);
       const updateData: Partial<AlfredPayCustomer> = {};
 
-      console.log("our status", alfredPayCustomer.status);
       if (newStatus && newStatus !== alfredPayCustomer.status) {
         updateData.status = newStatus;
       }

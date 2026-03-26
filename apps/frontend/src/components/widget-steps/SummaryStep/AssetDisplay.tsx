@@ -12,7 +12,7 @@ interface AssetDisplayProps {
 
 export const AssetDisplay: FC<AssetDisplayProps> = ({ amount, symbol, iconSrc, fallbackIconSrc, network }) => (
   <div className="flex w-full items-center justify-between">
-    <span className="font-bold text-lg">
+    <span className="font-bold text-amount">
       {amount} {symbol}
     </span>
     <TokenIconWithNetwork

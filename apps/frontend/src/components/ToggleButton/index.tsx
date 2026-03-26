@@ -1,4 +1,5 @@
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/20/solid";
+import { cn } from "../../helpers/cn";
 
 interface ToggleButtonProps {
   isExpanded: boolean;
@@ -20,7 +21,10 @@ export const ToggleButton = ({
       aria-controls={ariaControls}
       aria-expanded={isExpanded}
       aria-label={ariaLabel}
-      className={`btn btn-sm h-8! rounded-full bg-blue-100 p-2 transition-colors hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${className}`}
+      className={cn(
+        "btn btn-sm h-8! rounded-full bg-primary/10 p-2 transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        className
+      )}
       onClick={onToggle}
       type="button"
     >

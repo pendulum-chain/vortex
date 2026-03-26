@@ -19,7 +19,7 @@ export function Spinner({
   };
 
   const themeClasses = {
-    dark: "border-gray-600 ",
+    dark: "border-primary",
     light: "border-white"
   };
 

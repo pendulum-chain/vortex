@@ -82,10 +82,8 @@ export function FeeProviderRow({
   }, [isLoading, error, providerPrice, amount, sourceAssetSymbol, targetAssetSymbol, provider.name, schedulePrice]);
 
   return (
-    <div className={cn("w-full", isBestRate && "rounded-md bg-green-500/10 py-1")}>
-      {isBestRate && (
-        <div className="ml-4 pb-1 text-green-700 text-sm italic">{t("sections.feeComparison.table.bestRate")}</div>
-      )}
+    <div className={cn("w-full", isBestRate && "rounded-md bg-success/10 py-1")}>
+      {isBestRate && <div className="ml-4 pb-1 text-sm text-success italic">{t("sections.feeComparison.table.bestRate")}</div>}
       <div className="flex w-full items-center justify-between">
         <a className="ml-4 flex w-full grow items-center gap-4" href={provider.href} rel="noreferrer" target="_blank">
           {provider.icon}
@@ -108,7 +106,7 @@ export function FeeProviderRow({
                 )}
               </div>
               {priceDiff && priceDiff.lt(0) && (
-                <div className="flex w-full justify-end text-red-800">
+                <div className="flex w-full justify-end text-error">
                   <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
                 </div>
               )}

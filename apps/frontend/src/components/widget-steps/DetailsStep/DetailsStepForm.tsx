@@ -1,3 +1,4 @@
+import { cn } from "../../../helpers/cn";
 import { SigningBoxContent } from "../../SigningBox/SigningBoxContent";
 import { AveniaFormStep } from "../AveniaFormStep";
 import { MoneriumAssethubFormStep } from "../MoneriumAssethubFormStep";
@@ -22,7 +23,7 @@ export const DetailsStepForm = ({
 
   return (
     <>
-      <div className={`mt-8 grid flex-grow gap-3 ${className || ""}`}>
+      <div className={cn("mt-8 grid flex-grow gap-3", className)}>
         {isBrazilLanding && <AveniaFormStep isWalletAddressDisabled={isWalletAddressDisabled} />}
         {showWalletAddressField && <MoneriumAssethubFormStep />}
       </div>

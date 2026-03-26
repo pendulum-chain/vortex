@@ -1,6 +1,8 @@
 import {
   AlfredPayStatus,
   AlfredpayCustomerType,
+  AlfredpayFiatAccount,
+  AlfredpayFiatAccountType,
   CreateAlfredpayCustomerResponse,
   GetKybRedirectLinkResponse,
   GetKycRedirectLinkResponse,
@@ -78,3 +80,51 @@ export interface AlfredpayRetryKycRequest {
   country: string;
   type?: AlfredpayCustomerType;
 }
+
+export interface AlfredpayListFiatAccountsRequest {
+  country: string;
+}
+
+export type AlfredpayListFiatAccountsResponse = AlfredpayFiatAccount[];
+
+export interface AlfredpayAddFiatAccountRequest {
+  country: string;
+  type: AlfredpayFiatAccountType;
+  accountNumber: string;
+  accountType: string;
+  accountName: string;
+  accountBankCode: string;
+  accountAlias?: string;
+  networkIdentifier?: string;
+  routingNumber?: string;
+  bankStreet?: string;
+  bankCity?: string;
+  bankState?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+}
+
+export interface AlfredpayAddFiatAccountResponse {
+  fiatAccountId: string;
+}
+
+export interface AlfredpayDeleteFiatAccountRequest {
+  country: string;
+}
+
+export interface AlfredpayFiatAccountRequirementsRequest {
+  country: string;
+  paymentMethod: string;
+}
+
+export interface AlfredpayFiatAccountRequirement {
+  field: string;
+  label: string;
+  type: "text" | "select" | "phone" | "email";
+  required: boolean;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  hint?: string;
+}
+
+export type AlfredpayFiatAccountRequirementsResponse = AlfredpayFiatAccountRequirement[];

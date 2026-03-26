@@ -90,7 +90,7 @@ const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = "",
     <div className="flex">
       <motion.button
         className={cn(
-          "w-full cursor-pointer px-6 py-4 text-left font-medium text-base text-gray-900 transition-colors duration-200 hover:text-blue-700 focus:outline-none md:text-lg",
+          "w-full cursor-pointer px-6 py-4 text-left font-medium text-base text-gray-900 transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:text-lg",
           className
         )}
         onClick={() => toggleValue(value)}
@@ -101,7 +101,7 @@ const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = "",
           <span>{children}</span>
           <motion.svg
             animate={{ rotate: isOpen ? 180 : 0 }}
-            className="h-5 w-5 text-blue-700"
+            className="h-5 w-5 text-primary"
             fill="none"
             stroke="currentColor"
             transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
