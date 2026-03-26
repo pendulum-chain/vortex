@@ -1,4 +1,5 @@
 import { EPaymentMethod, PaymentMethod } from "../endpoints/payment-methods.endpoints";
+import { FiatToken } from "../tokens";
 import { RampDirection } from "../types/rampDirection";
 import { DestinationType, Networks } from "./networks";
 
@@ -50,7 +51,7 @@ export function deriveFromTo(
  */
 export function getPaymentMethodFromDestinations(from: DestinationType, to: DestinationType): PaymentMethod {
   // Check if 'from' is a payment method
-  const paymentMethods: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU];
+  const paymentMethods: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU, EPaymentMethod.ACH];
 
   if (paymentMethods.includes(from as PaymentMethod)) {
     return from as PaymentMethod;
@@ -63,3 +64,16 @@ export function getPaymentMethodFromDestinations(from: DestinationType, to: Dest
 
   throw new Error(`Unable to determine payment method from destinations: from=${from}, to=${to}`);
 }
+
+export const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
+  const destinationMap: Record<FiatToken, DestinationType> = {
+    ARS: EPaymentMethod.CBU,
+    BRL: EPaymentMethod.PIX,
+    COP: EPaymentMethod.SPEI,
+    EUR: EPaymentMethod.SEPA,
+    MXN: EPaymentMethod.SPEI,
+    USD: EPaymentMethod.ACH
+  };
+
+  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
+};

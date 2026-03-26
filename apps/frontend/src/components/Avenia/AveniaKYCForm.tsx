@@ -2,7 +2,6 @@ import { isValidCnpj } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { useQuote } from "../../stores/quote/useQuoteStore";
 import { QuoteSummary } from "../QuoteSummary";
 import { StepBackButton } from "../StepBackButton";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
@@ -14,7 +13,6 @@ import { VerificationStatus } from "./VerificationStatus";
 export const AveniaKYCForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
-  const quote = useQuote();
 
   const { t } = useTranslation();
   const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
@@ -154,7 +152,7 @@ export const AveniaKYCForm = () => {
           {content}
         </div>
       </div>
-      {quote && <QuoteSummary quote={quote} />}
+      <QuoteSummary />
     </div>
   );
 };

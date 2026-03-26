@@ -10,6 +10,5 @@ export const startRampActor = async ({ input }: { input: RampContext }): Promise
   }
 
   const response = await RampService.startRamp(rampState.ramp.id);
-  console.log("Error during starting ramp: ", response);
   return response;
 };

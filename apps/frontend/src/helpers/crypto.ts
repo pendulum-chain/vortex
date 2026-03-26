@@ -18,7 +18,6 @@ export async function signERC2612Permit(
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600); // 1 week from now
 
   if (originalChainId && originalChainId !== chainId) {
-    console.log(`Switching to chain ${chainId} from chain ${originalChainId} for permit signing`);
     try {
       await switchChain(wagmiConfig, { chainId });
     } catch (error) {
@@ -68,7 +67,6 @@ export async function signERC2612Permit(
       spender,
       value: value.toFixed(0, 0)
     };
-    console.log("DEBUG: Signing ERC2612 Permit with message:", message);
 
     const signature = await signTypedData(wagmiConfig, {
       account: owner,
@@ -87,7 +85,6 @@ export async function signERC2612Permit(
     throw new Error("Failed to sign ERC2612 permit: " + error);
   } finally {
     if (originalChainId && originalChainId !== chainId) {
-      console.log(`Switching back to original chain ${originalChainId} after permit signing`);
       try {
         await switchChain(wagmiConfig, { chainId: originalChainId });
       } catch (switchError) {

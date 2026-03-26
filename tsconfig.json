@@ -24,5 +24,12 @@
     "strict": true,
     "target": "ESNext",
     "verbatimModuleSyntax": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "**/dist/**",
+    "contracts/*/artifacts/**",
+    "contracts/*/cache/**",
+    "contracts/*/typechain-types/**"
+  ]
 }

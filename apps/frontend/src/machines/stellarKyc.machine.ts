@@ -148,10 +148,7 @@ export const stellarKycMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error
-            }),
-            ({ context, event }) => {
-              console.log("context after error: ", context, "event : ", event);
-            }
+            })
           ],
           target: "Failed"
         },

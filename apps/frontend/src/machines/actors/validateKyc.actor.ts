@@ -1,4 +1,4 @@
-import { BrlaErrorResponse, FiatToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
+import { BrlaErrorResponse, FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
 
 import { BrlaService } from "../../services/api";
 import { RampContext } from "../types";
@@ -24,7 +24,11 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
     throw new Error("quoteId is missing from ramp context");
   }
 
-  if (executionInput.fiatToken === FiatToken.EURC || executionInput.fiatToken === FiatToken.ARS) {
+  if (
+    executionInput.fiatToken === FiatToken.EURC ||
+    executionInput.fiatToken === FiatToken.ARS ||
+    isAlfredpayToken(executionInput.fiatToken)
+  ) {
     return { kycNeeded: true };
   }
 

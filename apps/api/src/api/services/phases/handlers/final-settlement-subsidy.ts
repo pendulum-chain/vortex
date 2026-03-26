@@ -2,7 +2,9 @@ import {
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
+  EvmToken,
   EvmTokenDetails,
+  FiatToken,
   getEvmBalance,
   getNetworkId,
   getOnChainTokenDetails,
@@ -13,7 +15,8 @@ import {
   Networks,
   RampCurrency,
   RampDirection,
-  RampPhase
+  RampPhase,
+  TokenType
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
@@ -47,31 +50,56 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     return "finalSettlementSubsidy";
   }
 
+  private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
+    return state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD
+      ? "alfredpayOfframpTransfer"
+      : "destinationTransfer";
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-
-    // Only handle onramp operations
-    if (state.type !== RampDirection.BUY) {
-      throw new Error("FinalSettlementSubsidyHandler: Only supports onramp operations");
-    }
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
 
-    const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
-    if (!outTokenDetails) {
-      throw new Error(
-        `FinalSettlementSubsidyHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
-      );
+    const outTokenDetails =
+      state.type === RampDirection.BUY
+        ? (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
+        : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
+
+    if (!outTokenDetails || outTokenDetails.type === TokenType.AssetHub) {
+      // Should not happen. Destination onchain token or USDC must be defined.
+      throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
     }
 
     const isNative = isNativeEvmToken(outTokenDetails);
 
-    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
-    const destinationNetwork = quote.network as EvmNetworks;
+    let expectedAmountRaw: Big | undefined;
+    switch (state.type) {
+      case RampDirection.BUY:
+        if (quote.inputCurrency === FiatToken.USD) {
+          expectedAmountRaw = Big(quote.metadata.alfredpayMint!.outputAmountRaw);
+          break;
+        }
+        expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
+        break;
+
+      case RampDirection.SELL:
+        if (quote.outputCurrency === FiatToken.USD) {
+          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
+          break;
+        }
+        break;
+    }
+
+    if (!expectedAmountRaw) {
+      throw new Error("FinalSettlementSubsidyHandler: Unable to determine expected amount for subsidy");
+    }
+
+    const destinationNetwork = state.type === RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 
@@ -87,7 +115,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         logger.info(
           `FinalSettlementSubsidyHandler: Transaction ${state.state.finalSettlementSubsidyTxHash} already successful. Skipping.`
         );
-        return this.transitionToNextPhase(state, "destinationTransfer");
+        return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
       }
     }
 
@@ -114,7 +142,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info(
         `FinalSettlementSubsidyHandler: Actual balance (${actualBalance.toString()}) meets expected amount. No subsidy needed.`
       );
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
     logger.info(
@@ -275,7 +303,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         }
       });
 
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     } catch (error) {
       throw this.createRecoverableError(
         `FinalSettlementSubsidyHandler: Error during phase execution - ${(error as Error).message}`

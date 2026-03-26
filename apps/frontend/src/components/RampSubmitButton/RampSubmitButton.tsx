@@ -6,16 +6,19 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAlfredpayToken,
   RampDirection,
   TokenType
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
 import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
+import { useAlfredpayFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
 import { useRampSubmission } from "../../hooks/ramp/useRampSubmission";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { navigateToCleanOrigin } from "../../lib/navigation";
@@ -48,7 +51,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode);
+    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
 
     if (
       walletLocked &&
@@ -107,8 +110,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     //     text: t("components.SummaryPage.tryAgain")
     //   };
     // }
-
-    console.log("submitButtonDisabled", submitButtonDisabled);
 
     if (submitButtonDisabled) {
       return {
@@ -202,6 +203,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   const isOnramp = quote?.rampType === RampDirection.BUY;
   const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
+  const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
+  const { data: fiatAccounts = [] } = useAlfredpayFiatAccounts();
+  const effectiveSelectedFiatAccountId = selectedFiatAccountId ?? fiatAccounts[0]?.fiatAccountId ?? null;
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
 
@@ -220,7 +224,12 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     ) {
       return true;
     }
-    if (machineState === "QuoteReady" || machineState === "KycComplete") {
+    if (machineState === "QuoteReady") {
+      return false;
+    }
+
+    if (machineState === "KycComplete") {
+      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId) return true;
       return false;
     }
 
@@ -240,7 +249,8 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "UpdateRamp") {
-      const isDepositQrCodeReady = Boolean(isOnramp && rampState?.ramp?.depositQrCode);
+      const isDepositQrCodeReady =
+        Boolean(isOnramp && rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
       if (isOnramp && !isDepositQrCodeReady) return true;
     }
 
@@ -252,8 +262,10 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOfframp,
     isOnramp,
     rampState?.ramp?.depositQrCode,
+    rampState?.ramp?.achPaymentData,
     anchorUrl,
     fiatToken,
+    effectiveSelectedFiatAccountId,
     stellarData,
     machineState,
     moneriumKycActor,
@@ -280,7 +292,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      rampActor.send({ type: "PROCEED_TO_REGISTRATION" });
+      rampActor.send({ selectedFiatAccountId: effectiveSelectedFiatAccountId ?? undefined, type: "PROCEED_TO_REGISTRATION" });
       return;
     }
 
@@ -310,11 +322,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   };
 
   return (
-    <button
-      className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
-      disabled={submitButtonDisabled}
-      onClick={onSubmit}
-    >
+    <button className={cn("btn-vortex-primary btn w-full", className)} disabled={submitButtonDisabled} onClick={onSubmit}>
       {buttonContent.icon}
       {buttonContent.icon && " "}
       {buttonContent.text}

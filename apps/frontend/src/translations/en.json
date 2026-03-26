@@ -11,6 +11,28 @@
       },
       "title": "Special offer until 27 May"
     },
+    "alfredpayKycFlow": {
+      "accountVerified": "Your account has been verified. You can now proceed.",
+      "cancel": "Cancel",
+      "completed": "{{kycOrKyb}} Completed!",
+      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click the button below.",
+      "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
+      "continue": "Continue",
+      "continueWithPartner": "Please continue with our partner for the {{kycOrKyb}} verification.",
+      "failed": "{{kycOrKyb}} Failed",
+      "finishedVerification": "I have finished the {{kycOrKyb}} verification",
+      "loading": "Loading...",
+      "openingLink": "Opening Link...",
+      "openLink": "Open {{kycOrKyb}} Link",
+      "registerAsBusiness": "Click <1>here</1> to register as business.",
+      "registerAsIndividual": "Click <1>here</1> to register as individual.",
+      "reopenLink": "Re-open the {{kycOrKyb}} window",
+      "retry": "Retry",
+      "retryProcess": "Retry Process",
+      "verifyingCompletion": "Verifying completion",
+      "verifyingStatus": "Verifying {{kycOrKyb}} Status",
+      "verifyingStatusDescription": "This may take a few moments. Please do not close this window."
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continue",
@@ -303,6 +325,57 @@
       "totalFee": "Total Fee",
       "yourQuote": "Your quote"
     },
+    "fiatAccountMethods": {
+      "accountDetails": "ACCOUNT DETAILS",
+      "accountOwner": "ACCOUNT OWNER",
+      "clickToSelect": "Click to select",
+      "descriptions": {
+        "ACH": "1-2 business days",
+        "SPEI": "Instant interbank transfer via CLABE number",
+        "WIRE": "Same day"
+      },
+      "labels": {
+        "ACH": "ACH Transfer",
+        "SPEI": "SPEI",
+        "WIRE": "Wire Transfer"
+      },
+      "switchToAccount": "Switch to {{accountType}} account ending {{last4}}"
+    },
+    "fiatAccountRegistration": {
+      "addNew": "+ Add a new payment method",
+      "alreadyRegistered": "This account is already registered.",
+      "cancelRemoval": "Cancel account removal",
+      "chooseType": "Choose a payment method",
+      "close": "Close",
+      "holdToRemove": "Hold to remove",
+      "kycRequired": {
+        "description": "Complete identity verification before adding fiat accounts.",
+        "title": "Identity verification required"
+      },
+      "noAccountsConfigured": "No payment methods configured yet.",
+      "registeredSuccess": "Payment method registered successfully.",
+      "registrationError": "Could not register account. Please try again.",
+      "remove": "Remove",
+      "removeAccount": "Remove this account",
+      "removedSuccess": "Payment method removed.",
+      "removeError": "Could not remove account. Please try again.",
+      "save": "Save",
+      "selectPlaceholder": "Select…",
+      "title": "Payment methods",
+      "validation": {
+        "accountNumber": "Account number must be 4-17 digits",
+        "clabe": "CLABE must be exactly 18 digits",
+        "fieldRequired": "{{field}} is required",
+        "nickname": "Nickname must be 40 characters or fewer",
+        "routing": "Routing number must be exactly 9 digits"
+      }
+    },
+    "fiatAccountSelector": {
+      "label": "Payment method",
+      "manage": "Manage payment methods",
+      "noPaymentMethods": "No payment methods",
+      "selected": "Selected"
+    },
     "footer": {
       "business": {
         "contactSales": "Contact Sales",
@@ -453,6 +526,13 @@
       "quoteExpired": "Quote expired. Go back and try again.",
       "source": "Source Account",
       "tryAgain": "Try again",
+      "USOnrampDetails": {
+        "copyCode": "or copy the ACH code below and paste it in your bank app",
+        "qrCode": "Select ACH in your bank's app and scan the QR code below.",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "timerLabel": "Quote expires in:",
+        "title": "Pay with ACH"
+      },
       "verifyWallet": "Verify Wallet"
     },
     "searchInput": {
@@ -980,7 +1060,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days."
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
       "returnHome": "Return Home",
@@ -998,6 +1079,7 @@
           "sell": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}"
         },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
+        "COP_tokenUnavailable": "Building your COP rail - available soon!",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
@@ -1017,6 +1099,7 @@
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
         "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
+        "MXN_tokenUnavailable": "Building your MXN rail - available soon!",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",

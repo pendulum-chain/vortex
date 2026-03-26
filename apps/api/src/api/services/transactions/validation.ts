@@ -5,6 +5,8 @@ import {
   CleanupPhase,
   EphemeralAccountType,
   getNetworkId,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -98,6 +100,11 @@ export async function validatePresignedTxs(
 
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
+
+  // do not validate typed data
+  if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+    return;
+  }
 
   if (!expectedSigner) {
     throw new APIError({
@@ -224,7 +231,7 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     });
   }
 
-  logger.info("Parsed Stellar transaction source:", transaction.source);
+  logger.debug("Parsed Stellar transaction source:", transaction.source);
 
   if (phase === "stellarCreateAccount") {
     if (transaction.operations.length !== 3) {

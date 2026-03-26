@@ -120,7 +120,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             if (!receipt || receipt.status !== "success") {
               logger.error(`MoonbeamToPendulumPhaseHandler: Transaction ${obtainedHash} failed or was not found`);
               attempt++;
-              // Wait for 20 seconds to allow the network to settle the squidrouter transaction
+              // Wait for 20 seconds to allow the network to settle the squidRouter transaction
               await new Promise(resolve => setTimeout(resolve, 20000));
             }
           }

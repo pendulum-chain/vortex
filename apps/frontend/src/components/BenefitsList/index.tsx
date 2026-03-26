@@ -14,7 +14,7 @@ export const BenefitsList = () => {
         <CheckIcon className="mr-2 w-4 text-pink-500" />
         <p>
           <Trans i18nKey="components.benefitsList.takes5Minutes">
-            Takes <span className="font-bold text-blue-700">5 minutes</span>
+            Takes <span className="font-bold text-primary">5 minutes</span>
           </Trans>
         </p>
       </li>

@@ -24,10 +24,6 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
   protected async executePhase(state: RampState): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
-    // Only handle onramp operations
-    if (state.type !== RampDirection.BUY) {
-      throw new Error("DestinationTransferHandler: Only supports onramp operations");
-    }
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {

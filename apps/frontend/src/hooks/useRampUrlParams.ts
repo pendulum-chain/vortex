@@ -10,6 +10,7 @@ import {
   getEvmTokensLoadedSnapshot,
   isNetworkEVM,
   logger,
+  mapFiatToDestination,
   Networks,
   OnChainToken,
   OnChainTokenSymbol,
@@ -111,16 +112,6 @@ function getNetworkFromParam(param?: string): Networks | undefined {
   }
   return undefined;
 }
-
-const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
-  const destinationMap: Record<FiatToken, DestinationType> = {
-    ARS: EPaymentMethod.CBU,
-    BRL: EPaymentMethod.PIX,
-    EUR: EPaymentMethod.SEPA
-  };
-
-  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
-};
 
 interface QuoteParams {
   inputAmount?: Big;

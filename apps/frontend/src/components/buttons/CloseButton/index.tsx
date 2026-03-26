@@ -4,8 +4,7 @@ type CloseButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export const CloseButton = (props: CloseButtonProps) => (
   <button
-    className="btn btn-ghost btn-sm btn-circle w-[3rem] transition-transform duration-200 active:scale-95"
-    style={{ color: "var(--secondary)" }}
+    className="btn btn-ghost btn-sm btn-circle w-[3rem] text-secondary transition-transform duration-200 active:scale-95"
     type="button"
     {...props}
   >

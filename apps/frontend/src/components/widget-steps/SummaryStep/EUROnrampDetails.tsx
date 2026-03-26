@@ -5,7 +5,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { AlertBanner } from "../../AlertBanner";
 import { CopyButton } from "../../CopyButton";
+import { InfoBox } from "../../InfoBox";
 
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
@@ -29,7 +31,7 @@ export const EUROnrampDetails: FC = () => {
     <section>
       <hr className="my-5" />
       <h1 className="text-center font-bold text-lg">{t("components.SummaryPage.EUROnrampDetails.title")}</h1>
-      <div className="my-4 rounded-lg border-1 border-gray-300 p-3">
+      <InfoBox className="my-4 p-3">
         <div className="flex items-center justify-between">
           <span>{t("components.SummaryPage.EUROnrampDetails.amount")}</span>
           <strong>{amount} EUR</strong>
@@ -52,20 +54,19 @@ export const EUROnrampDetails: FC = () => {
             <CopyButton text={bic} />
           </div>
         </div>
-      </div>
+      </InfoBox>
       {rampState.quote.outputCurrency === EvmToken.ETH && (
-        <div className="my-4 flex items-center rounded-lg border-1 border-yellow-400 bg-yellow-50 p-3 text-yellow-700">
-          <ExclamationTriangleIcon className="mr-2 h-5 w-5" />
-          <p className="text-sm">
-            When buying a non-stablecoin asset, you have to use instant SEPA. Otherwise your ramp might fail due to the delay.
-          </p>
-        </div>
+        <AlertBanner
+          className="my-4"
+          icon={<ExclamationTriangleIcon className="h-5 w-5 text-warning" />}
+          title="When buying a non-stablecoin asset, you have to use instant SEPA. Otherwise your ramp might fail due to the delay."
+        />
       )}
       {rampState.ramp?.depositQrCode && (
         <div className="my-6 flex justify-center">
-          <div className="rounded-lg border-1 border-gray-300 p-4">
+          <InfoBox>
             <QRCodeSVG value={rampState.ramp?.depositQrCode} />
-          </div>
+          </InfoBox>
         </div>
       )}
       <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.hint")}</p>

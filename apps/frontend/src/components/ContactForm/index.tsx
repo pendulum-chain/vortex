@@ -83,8 +83,8 @@ export function ContactForm() {
   };
 
   const getButtonClassName = () => {
-    if (buttonState === "success") return "bg-green-500 text-white";
-    if (buttonState === "error") return "bg-red-300 text-red-800";
+    if (buttonState === "success") return "bg-success text-success-content";
+    if (buttonState === "error") return "bg-error/10 text-error";
     if (loading) return "bg-primary text-white";
     return "";
   };
@@ -165,7 +165,7 @@ export function ContactForm() {
         <label className="text-gray-500 text-sm" htmlFor={`${formId}-privacy`}>
           {t("pages.contact.form.privacyPolicy")}{" "}
           <a
-            className="text-blue-600 underline hover:text-blue-800"
+            className="text-primary underline hover:text-primary/80"
             href={`/${i18n.language}/privacy-policy`}
             rel="noopener noreferrer"
             target="_blank"
@@ -257,7 +257,7 @@ function FormField({ label, htmlFor, children, error }: FormFieldProps) {
         {error && (
           <motion.p
             animate={{ height: "auto", opacity: 1 }}
-            className="mt-1 overflow-hidden text-red-600 text-xs"
+            className="mt-1 overflow-hidden text-error text-xs"
             exit={{ height: 0, opacity: 0 }}
             initial={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.15, ease: EASE_OUT }}

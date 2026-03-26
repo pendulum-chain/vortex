@@ -45,12 +45,7 @@ export const FailurePage = () => {
             </div>
 
             <div className="flex flex-col space-y-2">
-              <a
-                className="w-full rounded-md bg-blue-600 px-4 py-2 text-center font-medium text-white transition-colors hover:bg-blue-700"
-                href={config.supportUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
+              <a className="btn-vortex-primary btn w-full" href={config.supportUrl} rel="noreferrer" target="_blank">
                 {t("pages.failure.contactSupport.url")}
               </a>
 

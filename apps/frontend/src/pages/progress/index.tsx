@@ -15,6 +15,8 @@ import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
+  alfredpayOfframpTransfer: 30,
+  alfredpayOnrampMint: 5 * 60,
   assethubToPendulum: 24,
   backupApprove: 0,
   backupSquidRouterApprove: 0,
@@ -42,6 +44,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   spacewalkRedeem: 130,
   squidRouterApprove: 10,
   squidRouterPay: 60,
+  squidRouterPermitExecute: 30,
   squidRouterSwap: 10,
   stellarCreateAccount: 0,
   stellarPayment: 6,
@@ -299,7 +302,7 @@ const ProgressCircle: FC<{
     <div className="absolute top-0 left-0 flex h-full w-full items-center justify-center">
       {showCheckmark ? (
         <motion.div animate={{ scale: 1 }} initial={{ scale: 0 }} transition={{ duration: 0.5, type: "spring" }}>
-          <CheckIcon className="h-12 w-12 text-blue-700" />
+          <CheckIcon className="h-12 w-12 text-primary" />
         </motion.div>
       ) : (
         <motion.span animate={{ opacity: 1 }} className="text-4xl" initial={{ opacity: 0 }} transition={{ delay: 0.5 }}>
@@ -389,7 +392,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
         <ProgressCircle circumference={circumference} displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} />
         <motion.h1
           animate={{ opacity: 1, y: 0 }}
-          className="my-3 font-bold text-base text-blue-700"
+          className="my-3 font-bold text-base text-primary"
           initial={{ opacity: 0, y: 20 }}
           transition={{ delay: 0.6 }}
         >
@@ -397,7 +400,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
         </motion.h1>
         <motion.h1
           animate={{ opacity: 1, y: 0 }}
-          className="mb-3 text-base text-blue-700"
+          className="mb-3 text-base text-primary"
           initial={{ opacity: 0, y: 20 }}
           transition={{ delay: 0.8 }}
         >

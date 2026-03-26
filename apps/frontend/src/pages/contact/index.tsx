@@ -25,7 +25,7 @@ export function ContactPage() {
           <p className="mt-6 border-gray-100 border-t pt-6 text-gray-500 text-sm">
             {t("pages.contact.emailUs")}{" "}
             <a
-              className="text-blue-600 underline decoration-blue-600/30 underline-offset-2 transition-colors duration-150 ease-out hover:text-blue-700 hover:decoration-blue-700/50"
+              className="text-primary underline decoration-primary/30 underline-offset-2 transition-colors duration-150 ease-out hover:text-primary/80 hover:decoration-primary/50"
               href="mailto:sales@vortexfinance.co"
             >
               sales@vortexfinance.co

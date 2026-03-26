@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
-import { useQuote } from "../../../stores/quote/useQuoteStore";
 import { MenuButtons } from "../../MenuButtons";
 import { StepFooter } from "../../StepFooter";
 
@@ -21,8 +20,6 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     errorMessage: state.context.errorMessage,
     userEmail: state.context.userEmail
   }));
-
-  const quote = useQuote();
   const [email, setEmail] = useState(contextEmail || "");
   const [localError, setLocalError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -49,7 +46,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
       </div>
       <form className="flex flex-1 flex-col pb-36" id="auth-email-form" onSubmit={handleSubmit}>
         <div className="mt-4 text-center">
-          <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("components.authEmailStep.title")}</h1>
+          <h1 className="mb-4 font-bold text-primary text-widget-title">{t("components.authEmailStep.title")}</h1>
           <p className="mb-6 text-gray-600">{t("components.authEmailStep.description")}</p>
         </div>
 
@@ -93,7 +90,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
               <label className="cursor-pointer text-gray-600 text-sm" htmlFor="terms">
                 {t("components.authEmailStep.termsCheckbox.prefix")}{" "}
                 <a
-                  className="text-blue-600 underline hover:text-blue-700"
+                  className="text-primary underline hover:text-primary/80"
                   href={`/${i18n.language}/terms-and-conditions`}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -102,7 +99,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
                 </a>{" "}
                 {t("components.authEmailStep.termsCheckbox.and")}{" "}
                 <a
-                  className="text-blue-600 underline hover:text-blue-700"
+                  className="text-primary underline hover:text-primary/80"
                   href={`/${i18n.language}/privacy-policy`}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -115,7 +112,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
         </div>
       </form>
 
-      <StepFooter quote={quote}>
+      <StepFooter>
         <button
           className="btn-vortex-primary btn w-full"
           disabled={isLoading || !termsAccepted}

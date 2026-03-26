@@ -1,4 +1,4 @@
-import { FiatToken } from "@vortexfi/shared";
+import { FiatToken, TOKEN_CONFIG } from "@vortexfi/shared";
 import { Keypair, Networks, Transaction, TransactionBuilder } from "stellar-sdk";
 import { CLIENT_DOMAIN_SECRET, SANDBOX_ENABLED, SEP10_MASTER_SECRET } from "../../../constants/constants";
 import { fetchTomlValues } from "../../helpers/anchors";
@@ -29,8 +29,17 @@ export const signSep10Challenge = async (
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
-  // TODO improve this mapping. Use at least the TOKEN_CONFIG key, not just the "EURC" string.
-  const outToken = fiatToken === FiatToken.EURC ? "EURC" : fiatToken;
+  // Map FiatToken enum values to TOKEN_CONFIG keys
+  const tokenMapping: Record<FiatToken, keyof typeof TOKEN_CONFIG> = {
+    [FiatToken.EURC]: "EURC",
+    [FiatToken.ARS]: "ARS",
+    [FiatToken.BRL]: "BRL",
+    [FiatToken.USD]: "USDC",
+    [FiatToken.MXN]: "USDC",
+    [FiatToken.COP]: "USDC"
+  };
+
+  const outToken = tokenMapping[fiatToken];
 
   const outTokenConfig = getOutToken(outToken);
   const { signingKey: anchorSigningKey } = (await fetchTomlValues(outTokenConfig.tomlFileUrl)) as TomlValues;
