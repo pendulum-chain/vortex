@@ -1,6 +1,13 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from "@vortexfi/shared";
+import {
+  getAnyFiatTokenDetails,
+  getEvmTokensLoadedSnapshot,
+  getOnChainTokenDetailsOrDefault,
+  isNetworkEVM,
+  Networks,
+  subscribeEvmTokensLoaded
+} from "@vortexfi/shared";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
@@ -56,6 +63,9 @@ export const Offramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
+  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
+  const tokenLoading = isNetworkEVM(selectedNetwork as Networks) && !evmTokensLoaded;
+
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken, getEvmTokenConfig());
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
@@ -89,6 +99,7 @@ export const Offramp = () => {
           onChange={handleInputChange}
           onClick={() => openTokenSelectModal("from")}
           registerInput={form.register("inputAmount")}
+          tokenLoading={tokenLoading}
           tokenSymbol={fromToken.assetSymbol}
         />
         <div className="flex grow-1 flex-row justify-between">
@@ -97,7 +108,7 @@ export const Offramp = () => {
         </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, fromIconInfo]
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, fromIconInfo, tokenLoading]
   );
 
   const ReceiveNumericInput = useMemo(

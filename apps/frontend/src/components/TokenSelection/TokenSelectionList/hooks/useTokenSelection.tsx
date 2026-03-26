@@ -35,10 +35,6 @@ export const useTokenSelection = () => {
       return;
     }
 
-    if (!isFiatToken) {
-      await setSelectedNetwork(tokenDefinition.network);
-    }
-
     if (rampDirection === RampDirection.BUY) {
       if (tokenSelectModalType === "from") {
         setFiatToken(token as FiatToken);
@@ -52,6 +48,11 @@ export const useTokenSelection = () => {
         setFiatToken(token as FiatToken);
       }
     }
+
+    if (!isFiatToken) {
+      await setSelectedNetwork(tokenDefinition.network);
+    }
+
     closeTokenSelectModal();
   };
 

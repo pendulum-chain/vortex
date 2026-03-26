@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import logger from "../../config/logger";
 import User from "../../models/user.model";
 import { SupabaseAuthService } from "../services/auth";
 
@@ -24,7 +25,7 @@ export class AuthController {
         exists
       });
     } catch (error) {
-      console.error("Error in checkEmail:", error);
+      logger.error("Error in checkEmail:", error);
       return res.status(500).json({
         error: "Failed to check email"
       });
@@ -58,7 +59,7 @@ export class AuthController {
         success: true
       });
     } catch (error) {
-      console.error("Error in requestOTP:", error);
+      logger.error("Error in requestOTP:", error);
       return res.status(500).json({
         error: "Failed to send OTP"
       });
@@ -94,7 +95,7 @@ export class AuthController {
         user_id: result.user_id
       });
     } catch (error) {
-      console.error("Error in verifyOTP:", error);
+      logger.error("Error in verifyOTP:", error);
       return res.status(400).json({
         error: "Invalid OTP or OTP expired"
       });
@@ -123,7 +124,7 @@ export class AuthController {
         success: true
       });
     } catch (error) {
-      console.error("Error in refreshToken:", error);
+      logger.error("Error in refreshToken:", error);
       return res.status(401).json({
         error: "Invalid refresh token"
       });
@@ -158,7 +159,7 @@ export class AuthController {
         valid: true
       });
     } catch (error) {
-      console.error("Error in verifyToken:", error);
+      logger.error("Error in verifyToken:", error);
       return res.status(401).json({
         error: "Token verification failed",
         valid: false

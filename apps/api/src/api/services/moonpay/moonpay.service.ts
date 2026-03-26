@@ -1,5 +1,6 @@
 import { MoonpayPriceResponse, RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config";
+import logger from "../../../config/logger";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
 import { processMoonpayResponse } from "./response-handler";
@@ -41,7 +42,7 @@ async function fetchMoonpayData(url: string): Promise<FetchResult> {
       type: error instanceof TypeError ? "NETWORK" : "PARSE"
     };
 
-    console.error("Moonpay error:", moonpayError);
+    logger.error("Moonpay error:", moonpayError);
 
     throw new ProviderInternalError(
       moonpayError.type === "NETWORK"

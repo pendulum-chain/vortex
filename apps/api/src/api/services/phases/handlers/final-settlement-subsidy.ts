@@ -1,14 +1,17 @@
 import {
-  checkEvmBalancePeriodically,
+  checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   FiatToken,
+  getEvmBalance,
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isNativeEvmToken,
   multiplyByPowerOfTen,
+  NATIVE_TOKEN_ADDRESS,
   Networks,
   RampCurrency,
   RampDirection,
@@ -27,7 +30,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -60,7 +62,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
-      throw new Error("Quote not found or invalid for the given state");
+      throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
 
     const outTokenDetails =
@@ -73,7 +75,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
     }
 
-    // 3 distinct cases so far:
+    const isNative = isNativeEvmToken(outTokenDetails);
+
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
@@ -116,20 +119,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       }
     }
 
-    const actualBalance = await checkEvmBalancePeriodically(
-      outTokenDetails.erc20AddressSourceChain,
-      ephemeralAddress,
-      "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-      BALANCE_POLLING_TIME_MS,
-      EVM_BALANCE_CHECK_TIMEOUT_MS,
-      destinationNetwork
-    );
+    // 2. Check ephemeral address balance (handles both native and ERC-20 automatically)
+    const actualBalance = await checkEvmBalanceForToken({
+      amountDesiredRaw: "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+      chain: destinationNetwork,
+      intervalMs: BALANCE_POLLING_TIME_MS,
+      ownerAddress: ephemeralAddress,
+      timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+      tokenDetails: outTokenDetails
+    });
 
-    const actualBalanceFundingAccount = await publicClient.readContract({
-      abi: erc20Abi,
-      address: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-      args: [fundingAccount.address],
-      functionName: "balanceOf"
+    // 3. Check funding account balance (handles both native and ERC-20 automatically)
+    const actualBalanceFundingAccount = await getEvmBalance({
+      chain: destinationNetwork,
+      ownerAddress: fundingAccount.address as `0x${string}`,
+      tokenDetails: outTokenDetails
     });
 
     const subsidyAmountRaw = expectedAmountRaw.minus(actualBalance);
@@ -141,10 +145,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
-    logger.info(`FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units to ${ephemeralAddress}`);
+    logger.info(
+      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
+    );
 
-    // Check if funding account has enough balance
-    if (new Big(actualBalanceFundingAccount.toString()).lt(subsidyAmountRaw)) {
+    // 4. Top up funding account if insufficient balance (ERC-20 only; native tokens are transferred directly)
+    if (!isNative && actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
       logger.info(
         `FinalSettlementSubsidyHandler: Funding account has insufficient balance. Swapping native token to ${outTokenDetails.assetSymbol}`
       );
@@ -232,40 +238,50 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info("FinalSettlementSubsidyHandler: Swap successful. Waiting for balance update...");
 
       // Wait for balance checks to pass
-      await checkEvmBalancePeriodically(
-        outTokenDetails.erc20AddressSourceChain,
-        fundingAccount.address,
-        subsidyAmountRaw.toString(),
-        BALANCE_POLLING_TIME_MS,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        destinationNetwork
-      );
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: subsidyAmountRaw.toString(),
+        chain: destinationNetwork,
+        intervalMs: BALANCE_POLLING_TIME_MS,
+        ownerAddress: fundingAccount.address,
+        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+        tokenDetails: outTokenDetails
+      });
     }
 
-    // Execution Loop
+    // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
     let txHash: `0x${string}` | undefined = state.state.finalSettlementSubsidyTxHash as `0x${string}` | undefined;
 
     try {
-      const data = encodeFunctionData({
-        abi: erc20Abi,
-        args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
-        functionName: "transfer"
-      });
-
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
       let receipt: TransactionReceipt | undefined = undefined;
       let attempt = 0;
 
       while (attempt < 5 && (!receipt || receipt.status !== "success")) {
-        // Blind retry for transaction submission
-        txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-          data,
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-          to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-          value: 0n
-        });
+        if (isNative) {
+          // Native token: simple value transfer, no contract interaction
+          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            to: ephemeralAddress,
+            value: BigInt(subsidyAmountRaw.toFixed(0))
+          });
+        } else {
+          // ERC-20: encode transfer call
+          const data = encodeFunctionData({
+            abi: erc20Abi,
+            args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
+            functionName: "transfer"
+          });
+
+          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            data,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
+            value: 0n
+          });
+        }
 
         receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 

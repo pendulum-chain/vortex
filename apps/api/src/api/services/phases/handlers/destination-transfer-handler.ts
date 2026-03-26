@@ -1,14 +1,10 @@
 import {
-  checkEvmBalancePeriodically,
+  checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
-  FiatToken,
-  getAnyFiatTokenDetailsMoonbeam,
   getOnChainTokenDetails,
-  isEvmToken,
   multiplyByPowerOfTen,
-  Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
@@ -34,11 +30,14 @@ export class DestinationTransferHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!isEvmToken(quote.outputCurrency)) {
-      throw new Error("DestinationTransferHandler: Output currency is not an EVM token");
-    }
-    const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+    if (!outTokenDetails) {
+      throw new Error(
+        `DestinationTransferHandler: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
+      );
+    }
+
+    const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
     const { destinationTransferTxHash } = state.state;
@@ -62,14 +61,14 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
     // main phase execution loop:
     try {
-      await checkEvmBalancePeriodically(
-        outTokenDetails.erc20AddressSourceChain,
-        state.state.evmEphemeralAddress,
-        expectedAmountRaw,
-        BALANCE_POLLING_TIME_MS,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        destinationNetwork
-      );
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: expectedAmountRaw,
+        chain: destinationNetwork,
+        intervalMs: BALANCE_POLLING_TIME_MS,
+        ownerAddress: state.state.evmEphemeralAddress,
+        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+        tokenDetails: outTokenDetails
+      });
 
       // send the transaction, log hash in the state for recovery.
       const txHash = await evmClientManager.sendRawTransactionWithRetry(

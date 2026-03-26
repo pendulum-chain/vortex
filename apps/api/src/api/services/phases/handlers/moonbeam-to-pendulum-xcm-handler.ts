@@ -1,5 +1,6 @@
-import { ApiManager, decodeSubmittableExtrinsic, logger, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@vortexfi/shared";
+import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitMoonbeamXcm, waitUntilTrue } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../errors/phase-error";
@@ -74,7 +75,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         const txNonce = xcmTransaction.nonce.toNumber();
         const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(evmEphemeralAddress);
         if (txNonce !== accountNonce.toNumber()) {
-          logger.current.warn(
+          logger.warn(
             `Nonce mismatch for XCM transaction of account ${evmEphemeralAddress}: expected ${accountNonce.toNumber()}, got ${txNonce}`
           );
         }
@@ -90,15 +91,15 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           );
         }
       }
-      console.error("Error while executing moonbeam-to-pendulum xcm:", error);
+      logger.error("Error while executing moonbeam-to-pendulum xcm:", error);
       throw new RecoverablePhaseError("MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction", 120);
     }
 
     try {
-      logger.current.info("waiting for token to arrive on pendulum...");
+      logger.info("waiting for token to arrive on pendulum...");
       await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
-      console.error("Error while waiting for transaction receipt:", e);
+      logger.error("Error while waiting for transaction receipt:", e);
       throw new Error("MoonbeamToPendulumXcmPhaseHandler: Failed to wait for tokens to arrive on Pendulum.");
     }
 
