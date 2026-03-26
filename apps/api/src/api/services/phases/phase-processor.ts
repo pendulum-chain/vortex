@@ -171,9 +171,17 @@ export class PhaseProcessor {
         }, maxExecuteTime);
       });
 
-      const updatedState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
+      const pendingState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
         clearTimeout(timeoutId);
       });
+
+      // Single source of authority for phase transitions.
+      // Persist only the phase-related fields on the original persisted instance
+      // to avoid inserting new records or clobbering unrelated columns.
+      const updatedState = await state.update(
+        { currentPhase: pendingState.currentPhase, phaseHistory: pendingState.phaseHistory },
+        { fields: ["currentPhase", "phaseHistory"] }
+      );
 
       // If the phase has changed, process the next phase
       // except for complete or fail phases which are terminal.
