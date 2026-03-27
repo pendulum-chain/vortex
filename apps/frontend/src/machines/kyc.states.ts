@@ -1,8 +1,9 @@
 import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
+import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
-import { AlfredpayKycMachineError } from "./alfredpayKyc.machine";
+import { AlfredpayKycMachineError, MxnKycFiles, MxnKycFormData } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext, SelectedAveniaData } from "./types";
@@ -14,6 +15,8 @@ export interface AlfredpayKycContext extends RampContext {
   country?: string;
   error?: AlfredpayKycMachineError;
   business?: boolean;
+  mxnFormData?: MxnKycFormData;
+  mxnFiles?: MxnKycFiles;
 }
 
 export interface AveniaKycContext extends RampContext {
@@ -94,8 +97,11 @@ export const kycStateNode = {
         id: "alfredpayKyc",
         input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
           console.log("Invoking Alfredpay KYC actor with RampContext input:", context);
+          const fiatToken = context.executionInput?.fiatToken;
+          const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
-            ...context
+            ...context,
+            country
           };
         },
         onDone: [
@@ -164,7 +170,8 @@ export const kycStateNode = {
     Deciding: {
       always: [
         {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.USD,
+          guard: ({ context }: { context: RampContext }) =>
+            context.executionInput?.fiatToken === FiatToken.USD || context.executionInput?.fiatToken === FiatToken.MXN,
           target: "Alfredpay"
         },
         {

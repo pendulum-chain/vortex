@@ -129,5 +129,31 @@ export const AlfredpayService = {
       type
     });
     return response.data;
+  },
+
+  async sendKycSubmission(country: string, submissionId: string): Promise<void> {
+    await apiClient.post("/alfredpay/sendKycSubmission", { country, submissionId });
+  },
+
+  async submitKycFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("submissionId", submissionId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKycFile", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+  },
+
+  async submitKycInformation(
+    country: string,
+    data: Omit<import("@vortexfi/shared").SubmitKycInformationRequest, "country">
+  ): Promise<{ submissionId: string }> {
+    const response = await apiClient.post<{ submissionId: string }>("/alfredpay/submitKycInformation", {
+      country,
+      ...data
+    });
+    return response.data;
   }
 };

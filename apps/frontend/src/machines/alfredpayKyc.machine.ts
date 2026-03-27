@@ -1,7 +1,24 @@
-import { AlfredPayStatus, AlfredpayCustomerType } from "@vortexfi/shared";
+import { AlfredPayStatus, AlfredpayCustomerType, AlfredpayKycFileType } from "@vortexfi/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
+
+export interface MxnKycFormData {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  email: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  address: string;
+  dni: string;
+}
+
+export interface MxnKycFiles {
+  front: File;
+  back: File;
+}
 
 const POLLING_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -56,12 +73,10 @@ export const alfredpayKycMachine = setup({
         input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
       );
     }),
-    pollStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+    pollStatus: fromPromise(async ({ input, signal }: { input: AlfredpayKycContext; signal: AbortSignal }) => {
       const country = input.country || "US";
-      // Submission ID check removed as backend handles it
-
       const startTime = Date.now();
-      while (true) {
+      while (!signal.aborted) {
         if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
           throw new Error("Polling timeout");
         }
@@ -74,10 +89,18 @@ export const alfredpayKycMachine = setup({
             return response;
           }
         } catch (e) {
+          if (signal.aborted) throw e;
           // Ignore and retry
         }
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise<void>((resolve, reject) => {
+          const id = setTimeout(resolve, 5000);
+          signal.addEventListener("abort", () => {
+            clearTimeout(id);
+            reject(new Error("Aborted"));
+          });
+        });
       }
+      throw new Error("Aborted");
     }),
     retryKyc: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
@@ -86,12 +109,34 @@ export const alfredpayKycMachine = setup({
         input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
       );
     }),
-    waitForValidation: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
-      const country = input.country || "US";
-      // Submission ID check removed as backend handles it
 
+    sendSubmission: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+      const country = input.country || "MX";
+      if (!input.submissionId) throw new Error("Submission ID missing");
+      return AlfredpayService.sendKycSubmission(country, input.submissionId);
+    }),
+
+    submitFiles: fromPromise(
+      async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: MxnKycFormData; mxnFiles?: MxnKycFiles } }) => {
+        const country = input.country || "MX";
+        if (!input.submissionId) throw new Error("Submission ID missing");
+        if (!input.mxnFiles) throw new Error("MXN KYC files missing");
+        await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.FRONT, input.mxnFiles.front);
+        if (input.mxnFiles.back && input.mxnFormData?.documentType !== "Passport") {
+          await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.BACK, input.mxnFiles.back);
+        }
+      }
+    ),
+    submitKycInfo: fromPromise(async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: MxnKycFormData } }) => {
+      const country = input.country || "MX";
+      if (!input.mxnFormData) throw new Error("MXN KYC form data missing");
+      return AlfredpayService.submitKycInformation(country, input.mxnFormData);
+    }),
+
+    waitForValidation: fromPromise(async ({ input, signal }: { input: AlfredpayKycContext; signal: AbortSignal }) => {
+      const country = input.country || "US";
       const startTime = Date.now();
-      while (true) {
+      while (!signal.aborted) {
         if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
           throw new Error("Polling timeout");
         }
@@ -108,14 +153,22 @@ export const alfredpayKycMachine = setup({
             return status;
           }
         } catch (e) {
+          if (signal.aborted) throw e;
           // Ignore errors during polling and keep trying
         }
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise<void>((resolve, reject) => {
+          const id = setTimeout(resolve, 5000);
+          signal.addEventListener("abort", () => {
+            clearTimeout(id);
+            reject(new Error("Aborted"));
+          });
+        });
       }
+      throw new Error("Aborted");
     })
   },
   types: {
-    context: {} as AlfredpayKycContext,
+    context: {} as AlfredpayKycContext & { mxnFormData?: MxnKycFormData; mxnFiles?: MxnKycFiles },
     events: {} as
       | { type: "OPEN_LINK" }
       | { type: "COMPLETED_FILLING" }
@@ -127,9 +180,11 @@ export const alfredpayKycMachine = setup({
       | { type: "RETRY_PROCESS" }
       | { type: "CANCEL_PROCESS" }
       | { type: "USER_RETRY" }
-      | { type: "USER_CANCEL" },
+      | { type: "USER_CANCEL" }
+      | { type: "SUBMIT_FORM"; data: MxnKycFormData }
+      | { type: "SUBMIT_FILES"; files: MxnKycFiles },
     input: {} as AlfredpayKycContext,
-    output: {} as { error?: AlfredpayKycMachineError; kycResponse?: any }
+    output: {} as { error?: AlfredpayKycMachineError }
   }
 }).createMachine({
   context: ({ input }) => ({ ...input, country: input.country || "US" }),
@@ -164,15 +219,27 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
-            // Default state for normal flow.
+            // MXN uses API-based form, not iFrame link
+            guard: ({ context }) => context.country === "MX",
+            target: "FillingKycForm"
+          },
+          {
+            // Default state for normal flow (iFrame countries like US).
             target: "GettingKycLink"
           }
         ],
         onError: [
           {
+            // MXN: no customer → skip CustomerDefinition, always individual
+            guard: ({ context, event }) =>
+              context.country === "MX" &&
+              ((event.error as Error).message.includes("404") || (event.error as Error).message.includes("Not Found")),
+            target: "CreatingCustomer"
+          },
+          {
             guard: ({ event }) =>
               (event.error as Error).message.includes("404") || (event.error as Error).message.includes("Not Found"),
-            target: "CostumerDefinition"
+            target: "CustomerDefinition"
           },
           {
             actions: assign({
@@ -185,25 +252,19 @@ export const alfredpayKycMachine = setup({
         src: "checkStatus"
       }
     },
-    CostumerDefinition: {
-      on: {
-        TOGGLE_BUSINESS: {
-          actions: assign({
-            business: ({ context }) => !context.business
-          })
-        },
-        USER_ACCEPT: {
-          target: "CreatingCustomer"
-        }
-      }
-    },
     CreatingCustomer: {
       invoke: {
         id: "createCustomer",
         input: ({ context }) => context,
-        onDone: {
-          target: "GettingKycLink"
-        },
+        onDone: [
+          {
+            guard: ({ context }) => context.country === "MX",
+            target: "FillingKycForm"
+          },
+          {
+            target: "GettingKycLink"
+          }
+        ],
         onError: {
           actions: assign({
             error: ({ context }) =>
@@ -215,6 +276,18 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "createCustomer"
+      }
+    },
+    CustomerDefinition: {
+      on: {
+        TOGGLE_BUSINESS: {
+          actions: assign({
+            business: ({ context }) => !context.business
+          })
+        },
+        USER_ACCEPT: {
+          target: "CreatingCustomer"
+        }
       }
     },
     Done: {
@@ -259,6 +332,15 @@ export const alfredpayKycMachine = setup({
               window.open(context.verificationUrl, "_blank");
             }
           }
+        }
+      }
+    },
+
+    FillingKycForm: {
+      on: {
+        SUBMIT_FORM: {
+          actions: assign({ mxnFormData: ({ event }) => event.data }),
+          target: "SubmittingKycInfo"
         }
       }
     },
@@ -368,6 +450,70 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "retryKyc"
+      }
+    },
+
+    SendingSubmission: {
+      invoke: {
+        id: "sendSubmission",
+        input: ({ context }) => context,
+        onDone: {
+          target: "PollingStatus"
+        },
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError("Failed to send KYC submission", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "sendSubmission"
+      }
+    },
+
+    SubmittingFiles: {
+      invoke: {
+        id: "submitFiles",
+        input: ({ context }) => context,
+        onDone: {
+          target: "SendingSubmission"
+        },
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "submitFiles"
+      }
+    },
+
+    SubmittingKycInfo: {
+      invoke: {
+        id: "submitKycInfo",
+        input: ({ context }) => context,
+        onDone: {
+          actions: assign({ submissionId: ({ event }) => (event.output as { submissionId: string }).submissionId }),
+          target: "UploadingDocuments"
+        },
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError("Failed to submit KYC information", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "submitKycInfo"
+      }
+    },
+
+    UploadingDocuments: {
+      on: {
+        SUBMIT_FILES: {
+          actions: assign({ mxnFiles: ({ event }) => event.files }),
+          target: "SubmittingFiles"
+        }
       }
     },
     VerificationDone: {
