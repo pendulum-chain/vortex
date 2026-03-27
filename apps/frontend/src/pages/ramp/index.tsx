@@ -38,8 +38,9 @@ export const Ramp = () => {
   }));
 
   useEffect(() => {
-    // Only initialize Zustand from machine when Zustand has no quote yet (e.g. widget loaded via ?quoteId= URL param)
-    if (quoteFromState && !quote) {
+    // Only initialize Zustand from machine when Zustand has no quote yet (e.g. widget loaded via ?quoteId= URL param).
+    // In QuoteReady state, useQuoteService manages live quotes — restoring here would show stale data after a fetch error.
+    if (quoteFromState && !quote && state !== "QuoteReady") {
       forceSetQuote(quoteFromState);
     }
   }, [quote, quoteFromState, forceSetQuote]);

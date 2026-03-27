@@ -326,6 +326,25 @@
       "totalFee": "Taxa total",
       "yourQuote": "Sua cotação"
     },
+    "fiatAccountForms": {
+      "accountAlias": "Apelido (opcional)",
+      "accountName": "Nome do Titular da Conta",
+      "accountNumber": "Número da Conta",
+      "accountType": "Tipo de Conta",
+      "bankName": "Nome do Banco",
+      "clabe": "CLABE (18 dígitos)",
+      "options": {
+        "checking": "Corrente",
+        "savings": "Poupança"
+      },
+      "placeholders": {
+        "bankNameMx": "ex. BBVA, Santander, Banamex",
+        "clabe": "ex. 032180000118359719",
+        "routingNumber": "ex. 021000021"
+      },
+      "routingAba": "Número de Roteamento / ABA",
+      "routingNumber": "Número de Roteamento (9 dígitos)"
+    },
     "fiatAccountMethods": {
       "accountDetails": "DETALHES DA CONTA",
       "accountOwner": "TITULAR DA CONTA",
@@ -450,6 +469,31 @@
       "cancel": "Cancelar",
       "description": "Você foi redirecionado para nosso parceiro...",
       "goToPartner": "Ir para o parceiro"
+    },
+    "mxnDocumentUpload": {
+      "backLabel": "Verso do Documento",
+      "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
+      "fileTooLarge": "O arquivo excede o limite de 5 MB.",
+      "frontLabel": "Frente do Documento",
+      "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do seu documento. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
+      "tapToSelect": "Toque para selecionar o arquivo",
+      "title": "Enviar Documentos de Identidade"
+    },
+    "mxnKycForm": {
+      "address": "Endereço",
+      "city": "Cidade",
+      "continue": "Continuar",
+      "dateOfBirth": "Data de Nascimento",
+      "dni": "CURP / Número INE",
+      "email": "E-mail",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "state": "Estado",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade",
+      "zipCode": "CEP"
     },
     "navbar": {
       "api": "API",
@@ -1055,6 +1099,7 @@
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+          "MXN": "Seus fundos chegarão à sua conta bancária via SPEI em alguns minutos.",
           "USD": "Em breve os fundos estarão disponíveis em sua conta bancária."
         }
       },

@@ -26,7 +26,7 @@ export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> =
   },
   [FiatToken.MXN]: {
     disabledReasonTranslationKey: "pages.swap.error.MXN_tokenUnavailable",
-    enabled: false
+    enabled: true
   },
   [FiatToken.COP]: {
     disabledReasonTranslationKey: "pages.swap.error.COP_tokenUnavailable",

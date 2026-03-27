@@ -325,6 +325,25 @@
       "totalFee": "Total Fee",
       "yourQuote": "Your quote"
     },
+    "fiatAccountForms": {
+      "accountAlias": "Nickname (optional)",
+      "accountName": "Account Holder Name",
+      "accountNumber": "Account Number",
+      "accountType": "Account Type",
+      "bankName": "Bank Name",
+      "clabe": "CLABE (18 digits)",
+      "options": {
+        "checking": "Checking",
+        "savings": "Savings"
+      },
+      "placeholders": {
+        "bankNameMx": "e.g. BBVA, Santander, Banamex",
+        "clabe": "e.g. 032180000118359719",
+        "routingNumber": "e.g. 021000021"
+      },
+      "routingAba": "Routing / ABA Number",
+      "routingNumber": "Routing Number (9 digits)"
+    },
     "fiatAccountMethods": {
       "accountDetails": "ACCOUNT DETAILS",
       "accountOwner": "ACCOUNT OWNER",
@@ -449,6 +468,31 @@
       "cancel": "Cancel",
       "description": "You have been redirected to our partner...",
       "goToPartner": "Go to partner"
+    },
+    "mxnDocumentUpload": {
+      "backLabel": "Back of Document",
+      "fileHint": "Accepted formats: JPG, PNG, PDF — max 5 MB each",
+      "fileTooLarge": "File exceeds the 5 MB limit.",
+      "frontLabel": "Front of Document",
+      "invalidType": "Only JPG, PNG, or PDF files are accepted.",
+      "submit": "Submit Documents",
+      "subtitle": "Please upload a photo or scan of your ID document. Max 5 MB per file (JPG, PNG, PDF).",
+      "tapToSelect": "Tap to select file",
+      "title": "Upload ID Documents"
+    },
+    "mxnKycForm": {
+      "address": "Street Address",
+      "city": "City",
+      "continue": "Continue",
+      "dateOfBirth": "Date of Birth",
+      "dni": "CURP / INE Number",
+      "email": "Email",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "state": "State",
+      "subtitle": "Please provide your personal information to complete KYC.",
+      "title": "Identity Verification",
+      "zipCode": "ZIP Code"
     },
     "navbar": {
       "api": "API",
@@ -1060,7 +1104,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "EURC": "Funds will be received via Standard SEPA within 1-2 business days.",
+          "MXN": "Your funds will arrive in your bank account via SPEI in a few minutes.",
           "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
