@@ -338,3 +338,32 @@ export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
 
 export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+
+// MXN KYC form submission types
+export enum AlfredpayDocumentType {
+  INE = "INE",
+  RESIDENT_CARD = "Resident card",
+  PASSPORT = "passport"
+}
+
+export interface SubmitKycInformationRequest {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  email: string;
+  country: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  address: string;
+  dni: string;
+}
+
+export interface SubmitKycInformationResponse {
+  submissionId: string;
+}
+
+export enum AlfredpayKycFileType {
+  FRONT = "National ID Front",
+  BACK = "National ID Back"
+}
