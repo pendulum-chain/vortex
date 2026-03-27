@@ -26,7 +26,11 @@ export class RouteResolver {
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return new OnrampMoneriumToEvmStrategy();
-        } else if (ctx.request.inputCurrency === FiatToken.USD) {
+        } else if (
+          ctx.request.inputCurrency === FiatToken.USD ||
+          ctx.request.inputCurrency === FiatToken.MXN ||
+          ctx.request.inputCurrency === FiatToken.COP
+        ) {
           return new OnrampAlfredpayToEvmStrategy();
         } else {
           return new OnrampAveniaToEvmStrategy();
@@ -48,7 +52,9 @@ export class RouteResolver {
     switch (ctx.to) {
       case "pix":
         return new OfframpToPixStrategy();
+      case "wire":
       case "ach":
+      case "spei":
         return new OfframpEvmToAlfredpayStrategy();
       case "sepa":
       case "cbu":

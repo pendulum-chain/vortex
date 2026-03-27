@@ -70,9 +70,14 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(actualSubsidyAmountDecimal);
     const targetOutputAmountRaw = Big(actualOutputAmountRaw).plus(actualSubsidyAmountRaw).toFixed(0, 0);
 
+    console.log("expectedOutputAmountDecimal: ", expectedOutputAmountDecimal);
+    console.log("actualSubsidyAmountDecimal: ", actualSubsidyAmountDecimal);
+
     const subsidyRate = expectedOutputAmountDecimal.gt(0)
       ? actualSubsidyAmountDecimal.div(expectedOutputAmountDecimal)
       : new Big(0);
+
+    console.log("subsidyRate: ", subsidyRate);
 
     return {
       actualOutputAmountDecimal,

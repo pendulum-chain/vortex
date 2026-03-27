@@ -188,6 +188,18 @@ export class QuoteService extends BaseRampService {
         throw error;
       }
 
+      // Detect Alfredpay trade limit error and surface it as a user-facing limit error
+      if (error instanceof Error && error.message.startsWith("ALFREDPAY_TRADE_LIMIT:")) {
+        const [, minQuantity, currency] = error.message.split(":");
+        const isOnramp = ctx.request.rampType === RampDirection.BUY;
+        throw new APIError({
+          message: isOnramp
+            ? `${QuoteError.BelowLowerLimitBuy} ${minQuantity} ${currency}`
+            : `${QuoteError.BelowLowerLimitSell} ${minQuantity} ${currency}`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Wrap unexpected errors as generic failure
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
