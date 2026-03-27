@@ -46,3 +46,5 @@ CLAUDE.local.md
 # hardhat generated files in workspace contract projects
 contracts/*/artifacts
 contracts/*/cache
+
+.mcp.json
