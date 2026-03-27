@@ -12,39 +12,57 @@ export interface FieldDef {
 
 export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
   ACH: [
-    { field: "accountBankCode", label: "Bank Name", required: true, type: "text" },
-    { field: "routingNumber", label: "Routing Number (9 digits)", placeholder: "021000021", required: true, type: "text" },
-    { field: "accountNumber", label: "Account Number", required: true, type: "text" },
+    { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
+    {
+      field: "routingNumber",
+      label: "components.fiatAccountForms.routingNumber",
+      placeholder: "components.fiatAccountForms.placeholders.routingNumber",
+      required: true,
+      type: "text"
+    },
+    { field: "accountNumber", label: "components.fiatAccountForms.accountNumber", required: true, type: "text" },
     {
       field: "accountType",
-      label: "Account Type",
+      label: "components.fiatAccountForms.accountType",
       options: [
-        { label: "Checking", value: "CHECKING" },
-        { label: "Savings", value: "SAVINGS" }
+        { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
+        { label: "components.fiatAccountForms.options.savings", value: "SAVINGS" }
       ],
       required: true,
       type: "select"
     },
-    { field: "accountName", label: "Account Holder Name", required: true, type: "text" },
-    { field: "accountAlias", label: "Nickname (optional)", required: false, type: "text" }
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
   ],
   SPEI: [
     {
       field: "accountBankCode",
-      label: "Bank Name",
-      placeholder: "e.g. BBVA, Santander, Banamex",
+      label: "components.fiatAccountForms.bankName",
+      placeholder: "components.fiatAccountForms.placeholders.bankNameMx",
       required: true,
       type: "text"
     },
-    { field: "accountNumber", label: "CLABE (18 digits)", placeholder: "032180000118359719", required: true, type: "text" },
-    { field: "accountName", label: "Account Holder Name", required: true, type: "text" },
-    { field: "accountAlias", label: "Nickname (optional)", required: false, type: "text" }
+    {
+      field: "accountNumber",
+      label: "components.fiatAccountForms.clabe",
+      placeholder: "components.fiatAccountForms.placeholders.clabe",
+      required: true,
+      type: "text"
+    },
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
   ],
   WIRE: [
-    { field: "accountBankCode", label: "Bank Name", required: true, type: "text" },
-    { field: "routingNumber", label: "Routing / ABA Number", placeholder: "021000021", required: true, type: "text" },
-    { field: "accountNumber", label: "Account Number", required: true, type: "text" },
-    { field: "accountName", label: "Account Holder Name", required: true, type: "text" },
-    { field: "accountAlias", label: "Nickname (optional)", required: false, type: "text" }
+    { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
+    {
+      field: "routingNumber",
+      label: "components.fiatAccountForms.routingAba",
+      placeholder: "components.fiatAccountForms.placeholders.routingNumber",
+      required: true,
+      type: "text"
+    },
+    { field: "accountNumber", label: "components.fiatAccountForms.accountNumber", required: true, type: "text" },
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
   ]
 };

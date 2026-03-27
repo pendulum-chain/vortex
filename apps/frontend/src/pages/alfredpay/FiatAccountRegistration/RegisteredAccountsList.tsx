@@ -17,7 +17,7 @@ export function RegisteredAccountsList({ accounts, isLoading, kycApproved, onAdd
   const { t } = useTranslation();
   return (
     <div className="relative flex grow-1 flex-col">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">{t("components.fiatAccountRegistration.title")}</h1>
+      <h2 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">{t("components.fiatAccountRegistration.title")}</h2>
       {!kycApproved && <KycRequiredBanner />}
 
       <div className="mt-8">

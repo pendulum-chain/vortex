@@ -103,29 +103,41 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
     return () => document.removeEventListener("pointerdown", handler);
   }, [isExpanded, canHover]);
 
+  const sharedCardStyle = (i: number) => ({
+    height: CARD_HEIGHT,
+    left: 0,
+    position: "absolute" as const,
+    right: 0,
+    zIndex: orderedAccounts.length - i
+  });
+
   return (
     <motion.div animate={{ height: containerHeight }} className="relative" ref={deckRef} transition={spring}>
       <AnimatePresence initial={false}>
-        {orderedAccounts.map((account, i) => (
-          <motion.div
-            animate={{
-              scale: 1 - i * 0.045,
-              top: (orderedAccounts.length - 1 - i) * activePeek
-            }}
-            aria-label={
-              i > 0
-                ? t("components.fiatAccountMethods.switchToAccount", {
-                    accountType: ALFRED_TO_ACCOUNT_TYPE[account.type],
-                    last4: account.fiatAccountFields.accountNumber.slice(-4)
-                  })
-                : undefined
-            }
-            exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
-            initial={false}
-            key={account.fiatAccountId}
-            onClick={
-              i > 0
-                ? canHover
+        {orderedAccounts.map((account, i) =>
+          i === 0 ? (
+            <motion.div
+              animate={{ scale: 1 - i * 0.045, top: (orderedAccounts.length - 1 - i) * activePeek }}
+              exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
+              initial={false}
+              key={account.fiatAccountId}
+              style={{ cursor: "default", ...sharedCardStyle(i) }}
+              transition={spring}
+            >
+              <FrontCardContent account={account} onDelete={onDelete} />
+            </motion.div>
+          ) : (
+            <motion.button
+              animate={{ scale: 1 - i * 0.045, top: (orderedAccounts.length - 1 - i) * activePeek }}
+              aria-label={t("components.fiatAccountMethods.switchToAccount", {
+                accountType: ALFRED_TO_ACCOUNT_TYPE[account.type],
+                last4: account.fiatAccountFields.accountNumber.slice(-4)
+              })}
+              exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
+              initial={false}
+              key={account.fiatAccountId}
+              onClick={
+                canHover
                   ? () => setActiveId(account.fiatAccountId)
                   : !isExpanded
                     ? () => setIsExpanded(true)
@@ -133,56 +145,35 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
                         setActiveId(account.fiatAccountId);
                         setIsExpanded(false);
                       }
-                : undefined
-            }
-            onHoverEnd={i > 0 && canHover ? () => setHoveredId(null) : undefined}
-            onHoverStart={i > 0 && canHover ? () => setHoveredId(account.fiatAccountId) : undefined}
-            onKeyDown={
-              i > 0
-                ? e => {
-                    if (e.key === "Enter" || e.key === " ") setActiveId(account.fiatAccountId);
-                  }
-                : undefined
-            }
-            role={i > 0 ? "button" : undefined}
-            style={{
-              cursor: i > 0 ? "pointer" : "default",
-              height: CARD_HEIGHT,
-              left: 0,
-              position: "absolute",
-              right: 0,
-              zIndex: orderedAccounts.length - i
-            }}
-            tabIndex={i > 0 ? 0 : undefined}
-            transition={spring}
-            whileHover={i > 0 && canHover ? { y: -10 } : undefined}
-          >
-            {i === 0 ? (
-              <FrontCardContent account={account} onDelete={onDelete} />
-            ) : (
-              <>
-                <BackCardContent account={account} index={i} />
-                <AnimatePresence>
-                  {hoveredId === account.fiatAccountId && (
-                    <motion.div
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center"
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      key="tooltip"
-                      style={{ height: PEEK }}
-                      transition={{ duration: 0.12, ease: "easeOut" }}
-                    >
-                      <span className="whitespace-nowrap rounded-full bg-gray-800/70 px-2.5 py-1 text-white text-xs backdrop-blur-sm">
-                        {t("components.fiatAccountMethods.clickToSelect")}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
-          </motion.div>
-        ))}
+              }
+              onHoverEnd={canHover ? () => setHoveredId(null) : undefined}
+              onHoverStart={canHover ? () => setHoveredId(account.fiatAccountId) : undefined}
+              style={{ cursor: "pointer", ...sharedCardStyle(i) }}
+              transition={spring}
+              type="button"
+              whileHover={canHover ? { y: -10 } : undefined}
+            >
+              <BackCardContent account={account} index={i} />
+              <AnimatePresence>
+                {hoveredId === account.fiatAccountId && (
+                  <motion.div
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center"
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    key="tooltip"
+                    style={{ height: PEEK }}
+                    transition={{ duration: 0.12, ease: "easeOut" }}
+                  >
+                    <span className="whitespace-nowrap rounded-full bg-gray-800/70 px-2.5 py-1 text-white text-xs backdrop-blur-sm">
+                      {t("components.fiatAccountMethods.clickToSelect")}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          )
+        )}
       </AnimatePresence>
     </motion.div>
   );
