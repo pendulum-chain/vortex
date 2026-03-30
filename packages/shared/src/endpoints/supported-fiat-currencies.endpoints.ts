@@ -30,5 +30,6 @@ export const SUPPORTED_FIAT_CURRENCIES: SupportedFiatCurrency[] = [
 
 export const isSupportedFiatCurrency = (value: unknown): boolean => {
   if (typeof value !== "string") return false;
-  return SUPPORTED_FIAT_CURRENCIES.some(c => c.symbol === value.toUpperCase());
+  const normalizedValue = value.toUpperCase();
+  return SUPPORTED_FIAT_CURRENCIES.some(c => c.symbol === normalizedValue);
 };
