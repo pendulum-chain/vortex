@@ -22,6 +22,7 @@ export interface SquidRouterData {
   inputAmountDecimal: Big;
   inputAmountRaw: string;
   outputDecimals: number;
+  skipRouteCalculation?: boolean;
 }
 
 export abstract class BaseSquidRouterEngine implements Stage {
@@ -41,6 +42,10 @@ export abstract class BaseSquidRouterEngine implements Stage {
     this.validate(ctx);
 
     const computation = this.compute(ctx);
+
+    if (computation.data.skipRouteCalculation) {
+      return;
+    }
 
     const bridgeRequest = this.buildBridgeRequest(computation.data, request);
 

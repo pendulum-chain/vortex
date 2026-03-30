@@ -4,10 +4,11 @@ import { durations, easings } from "../../constants/animations";
 import { Step, StepConnectorProps } from "./types";
 
 const getConnectorColor = (currentStatus: Step["status"], nextStatus: Step["status"]): string => {
-  if (currentStatus === "error") return "#f87171";
-  if (currentStatus === "complete" && nextStatus === "complete") return "#22c55e";
-  if (currentStatus === "complete") return "#3b82f6";
-  return "#d1d5db";
+  const style = getComputedStyle(document.documentElement);
+  if (currentStatus === "error") return style.getPropertyValue("--color-error").trim();
+  if (currentStatus === "complete" && nextStatus === "complete") return style.getPropertyValue("--color-success").trim();
+  if (currentStatus === "complete") return style.getPropertyValue("--color-primary").trim();
+  return style.getPropertyValue("--color-base-300").trim();
 };
 
 export const StepConnector: React.FC<StepConnectorProps> = ({ currentStepStatus, nextStepStatus }) => {

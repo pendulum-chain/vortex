@@ -8,11 +8,13 @@ import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Step } from "../components/Stepper";
-import { useRampActor } from "../contexts/rampState";
+import { useAlfredpayKycSelector, useRampActor } from "../contexts/rampState";
 
 export const useStepper = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
+  const kycState = useAlfredpayKycSelector();
+  const isKycSubFailure = kycState?.stateValue === "Failure" || kycState?.stateValue === "FailureKyc";
 
   const {
     isAuthenticated,
@@ -56,26 +58,28 @@ export const useStepper = () => {
   // Step 1: Login - complete when authenticated
   const loginStepComplete = isAuthenticated;
 
+  const isAnyError = isKycSubFailure || isError;
+
   const steps = useMemo((): Step[] => {
     return [
       {
         Icon: LoginIcon,
-        status: loginStepComplete ? "complete" : "active",
+        status: isAnyError ? "error" : loginStepComplete ? "complete" : "active",
         title: t("components.stepper.login", "Login")
       },
       {
         Icon: DetailsIcon,
-        status: isError ? "error" : detailsStepComplete ? "complete" : detailsStepActive ? "active" : "incomplete",
+        status: isAnyError ? "error" : detailsStepComplete ? "complete" : detailsStepActive ? "active" : "incomplete",
         title: t("components.stepper.details", "Details")
       },
       {
         Icon: VerificationIcon,
-        status: isError ? "error" : verificationStepComplete ? "complete" : verificationStepActive ? "active" : "incomplete",
+        status: isAnyError ? "error" : verificationStepComplete ? "complete" : verificationStepActive ? "active" : "incomplete",
         title: t("components.stepper.verification", "Verification")
       },
       {
         Icon: ConfirmIcon,
-        status: isError ? "error" : confirmStepComplete ? "complete" : confirmStepActive ? "active" : "incomplete",
+        status: isAnyError ? "error" : confirmStepComplete ? "complete" : confirmStepActive ? "active" : "incomplete",
         title: t("components.stepper.confirm", "Confirm")
       }
     ];
@@ -84,7 +88,7 @@ export const useStepper = () => {
     confirmStepComplete,
     detailsStepActive,
     detailsStepComplete,
-    isError,
+    isAnyError,
     loginStepComplete,
     t,
     verificationStepActive,

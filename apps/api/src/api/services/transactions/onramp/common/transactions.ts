@@ -191,25 +191,41 @@ export async function addOnrampDestinationChainTransactions(params: {
   toToken: `0x${string}`;
   amountRaw: string;
   destinationNetwork: EvmNetworks;
+  isNativeToken?: boolean;
 }): Promise<EvmTransactionData> {
-  const { toAddress, amountRaw, destinationNetwork, toToken } = params;
+  const { toAddress, amountRaw, destinationNetwork, toToken, isNativeToken } = params;
 
   const evmClientManager = EvmClientManager.getInstance();
   const publicClient = evmClientManager.getClient(destinationNetwork);
 
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  if (isNativeToken) {
+    // Native token: simple value transfer to the recipient address
+    const txData: EvmTransactionData = {
+      data: "0x" as `0x${string}`,
+      gas: "21000", // Standard gas limit for native transfers
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
+      to: toAddress as `0x${string}`,
+      value: amountRaw
+    };
+
+    return txData;
+  }
+
+  // ERC-20 token: encode transfer call targeting the token contract
   const transferCallData = encodeFunctionData({
     abi: erc20ABI,
     args: [toAddress, amountRaw],
     functionName: "transfer"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
-
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
     to: toToken,
     value: "0"
   };
@@ -239,13 +255,13 @@ export async function addDestinationChainApprovalTransaction(params: {
     functionName: "approve"
   });
 
-  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   const txData: EvmTransactionData = {
     data: approveCallData as `0x${string}`,
     gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     to: tokenAddress,
     value: "0"
   };

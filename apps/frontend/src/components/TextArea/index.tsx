@@ -11,7 +11,7 @@ export const TextArea = ({ className, register, error, ...rest }: TextAreaProps)
   <textarea
     className={cn(
       "input-vortex-primary input-ghost w-full resize-none rounded-lg border p-2",
-      error ? "border-red-800" : "border-neutral-300",
+      error ? "border-error" : "border-neutral-300",
       className
     )}
     {...register}

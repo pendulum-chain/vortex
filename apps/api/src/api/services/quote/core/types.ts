@@ -22,6 +22,7 @@ export enum StageKey {
   SquidRouter = "SquidRouter",
   Fee = "Fee",
   Discount = "Discount",
+  PartnerOperation = "PartnerOperation",
   Finalize = "Finalize"
 }
 
@@ -147,6 +148,28 @@ export interface QuoteContext {
     outputAmountRaw: string;
     fee: Big;
     currency: RampCurrency;
+  };
+
+  alfredpayMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+    quoteId: string;
+    expirationDate: Date;
+  };
+
+  alfredpayOfframp?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+    quoteId: string;
+    expirationDate: Date;
   };
 
   aveniaMint?: {

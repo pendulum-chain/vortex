@@ -199,8 +199,6 @@ const useEvents = () => {
       }
     }
 
-    console.log("Push data layer", event);
-
     window.dataLayer.push(event);
   }, []);
 

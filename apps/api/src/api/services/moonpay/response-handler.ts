@@ -1,4 +1,5 @@
 import { MoonpayPriceResponse, RampDirection } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -16,7 +17,7 @@ function handleMoonpayError(response: Response, body: MoonpayErrorResponse): nev
   const errorMessage = body?.message || `HTTP error ${response.status}: ${response.statusText}`;
   const errorType = body?.type;
 
-  console.error(`Moonpay API Error (${response.status}): Type: ${errorType}, Message: ${errorMessage}`);
+  logger.error(`Moonpay API Error (${response.status}): Type: ${errorType}, Message: ${errorMessage}`);
 
   if (errorType === "NotFoundError" || errorMessage.toLowerCase().includes("unsupported")) {
     throw new UnsupportedPairError(`Moonpay: ${errorMessage}`);
@@ -62,7 +63,7 @@ function validateMoonpayResponse(
   }
 
   if (Number(requestedAmount) !== receivedBaseCurrencyAmount) {
-    console.warn(
+    logger.warn(
       `Moonpay Warning: Requested base amount ${requestedAmount} differs from received ${receivedBaseCurrencyAmount}`
     );
     throw new ProviderInternalError(

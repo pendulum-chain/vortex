@@ -46,6 +46,15 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         });
       }
       finalOutputAmountDecimal = new Big(output);
+    } else if (request.inputCurrency === FiatToken.USD) {
+      const output = ctx.alfredpayMint?.outputAmountDecimal;
+      if (!output) {
+        throw new APIError({
+          message: "OnRampFinalizeEngine requires alfredpayMint output for EVM",
+          status: httpStatus.INTERNAL_SERVER_ERROR
+        });
+      }
+      finalOutputAmountDecimal = new Big(output);
     } else {
       const output = ctx.moonbeamToEvm?.outputAmountDecimal;
       if (!output) {

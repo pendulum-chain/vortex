@@ -1,6 +1,6 @@
 import { multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
-import { brlaFiatTokenDetails, usdcTokenDetails } from "../../constants.ts";
+import { brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
 import { phaseOrder, RebalancePhase, StateManager } from "../../services/stateManager.ts";
 import { getMoonbeamEvmClients, getPendulumAccount } from "../../utils/config.ts";
 import {
@@ -69,7 +69,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart
   if (currentOrder <= 3) {
     if (!state.brlaAmount) throw new Error("State corrupted: brlaAmount missing for step 3");
 
-    await sendBrlaToMoonbeam(state.brlaAmount, brlaFiatTokenDetails.pendulumRepresentative);
+    await sendBrlaToMoonbeam(state.brlaAmount, brlaMoonbeamTokenDetails.pendulumRepresentative);
     console.log(`Sent ${state.brlaAmount} BRLA to Moonbeam`);
     state.currentPhase = RebalancePhase.PollForSufficientBalance;
 

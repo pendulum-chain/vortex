@@ -1,8 +1,7 @@
 import {
   DestinationType,
-  EPaymentMethod,
   FiatToken,
-  OnChainToken,
+  mapFiatToDestination,
   OnChainTokenSymbol,
   QuoteError,
   QuoteResponse,
@@ -11,6 +10,7 @@ import {
 import Big from "big.js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { parseBig } from "../../helpers/numbers";
 import { QuoteService } from "../../services/api";
 
 interface QuoteParams {
@@ -47,21 +47,6 @@ interface QuoteState {
   outputAmount: Big | undefined;
   exchangeRate: number;
 }
-
-/**
- * Maps a fiat token to its destination type
- * @param fiatToken The fiat token to map
- * @returns The corresponding destination type
- */
-const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
-  const destinationMap: Record<FiatToken, DestinationType> = {
-    ARS: EPaymentMethod.CBU,
-    BRL: EPaymentMethod.PIX,
-    EUR: EPaymentMethod.SEPA
-  };
-
-  return destinationMap[fiatToken] || EPaymentMethod.SEPA;
-};
 
 const friendlyErrorMessages: Record<QuoteError, string> = {
   // Validation errors - show specific messages
@@ -133,8 +118,10 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
  * @returns Object containing output amount and exchange rate
  */
 const processQuoteResponse = (quoteResponse: QuoteResponse) => {
-  const outputAmount = Big(quoteResponse.outputAmount);
-  const exchangeRate = Number(quoteResponse.outputAmount) / Number(quoteResponse.inputAmount);
+  const outputAmount = parseBig(quoteResponse.outputAmount);
+  // Calculate exchange rate safely using Big division, converting to Number at the end
+  const inputAmount = parseBig(quoteResponse.inputAmount);
+  const exchangeRate = inputAmount.eq(0) ? 0 : Number(outputAmount.div(inputAmount));
 
   return { exchangeRate, outputAmount };
 };

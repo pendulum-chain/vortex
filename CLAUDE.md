@@ -18,6 +18,8 @@ This is a **Bun monorepo** using workspaces:
 
 ## Essential Commands
 
+> Always use `bun`- never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code change.
+
 ```bash
 # Install all dependencies
 bun install
@@ -70,7 +72,7 @@ Phase metadata and valid transitions are stored in PostgreSQL and seeded via `se
 ### Frontend Architecture
 
 - **State**: Zustand stores (`stores/`) + React Context (`contexts/`)
-- **Forms**: React Hook Form with Yup validation
+- **Forms**: React Hook Form with Zod validation (not Yup)
 - **Data Fetching**: TanStack Query
 - **Routing**: TanStack Router (route tree auto-generated in `routeTree.gen.ts`)
 - **State Machines**: XState machines in `machines/` for complex flows (KYC, ramp process)
@@ -95,6 +97,8 @@ Contains cross-package utilities:
 
 **Important**: Always rebuild shared when making changes: `bun build:shared`
 
+After ANY change to `packages/shared`, run `bun build:shared` before running frontend/api.
+
 ## Code Style Guidelines
 
 From `.clinerules/`:
@@ -110,6 +114,11 @@ From `.clinerules/`:
 - Extract complex conditional rendering into new components
 - Skip useless comments; only comment race conditions, TODOs, or genuinely confusing code
 
+### XState v5
+- Use `setup({ ... }).createMachine(...)` API- not `createMachine` directly
+- Actor refs from `useActor` / `useSelector` from `@xstate/react`
+- Machine files live in `apps/frontend/src/machines/`
+
 ### Biome Configuration
 - Line width: 128
 - Indent: 2 spaces
@@ -117,6 +126,22 @@ From `.clinerules/`:
 - Trailing commas: none
 - Quote style: double
 - Sorted Tailwind classes enforced via `useSortedClasses` rule
+
+## Token Exhaustiveness
+
+`FiatToken` currently has 6 values: `EURC`, `ARS`, `BRL`, `USD`, `MXN`, `COP`.
+
+Any `Record<FiatToken, X>` must include ALL six. Missing entries cause TypeScript errors
+when shared is rebuilt. Check: tokenAvailability, mapFiatToDestination, success page
+ARRIVAL_TEXT_BY_TOKEN, sep10 tokenMapping.
+
+## No Over-Engineering
+
+- Don't add features, refactors, or "improvements" beyond what was asked
+- Don't add docstrings/comments to code you didn't touch
+- Don't create helpers/utilities for one-time operations
+- Don't validate inputs that can't be invalid (internal calls, typed params)
+- Three similar lines is better than a premature abstraction
 
 ## Testing
 

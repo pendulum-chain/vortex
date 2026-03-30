@@ -40,7 +40,6 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
       const fetchAndUpdateSep24Url = async () => {
         const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, executionInput.fiatToken);
         const url = new URL(firstSep24Response.url);
-        console.log("SEP-24 URL:", url.toString());
         url.searchParams.append("callback", "postMessage");
         sendBack({
           id: firstSep24Response.id,
@@ -63,12 +62,10 @@ export const startSep24Actor = fromCallback<any, RampContext>(({ sendBack, input
     }
   };
 
-  console.log("Starting SEP-24 logic with input:", input);
   runSep24Logic();
 
   return () => {
     if (intervalId) {
-      console.log("clearing interval", intervalId);
       clearInterval(intervalId);
     }
   };

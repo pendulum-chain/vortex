@@ -6,18 +6,21 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  isAlfredpayToken,
+  isMoonbeamTokenDetails,
   isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import Big from "big.js";
-import { FC, useEffect, useState } from "react";
+import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "../../../contexts/network";
 import { useAssetHubNode } from "../../../contexts/polkadotNode";
 import { useRampActor } from "../../../contexts/rampState";
 import { trimAddress } from "../../../helpers/addressFormatter";
+import { useCountdown } from "../../../hooks/useCountdown";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { RampExecutionInput } from "../../../types/phases";
@@ -25,8 +28,7 @@ import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
-
-const QUOTE_EXPIRY_TIME = 10;
+import { USOnrampDetails } from "./USOnrampDetails";
 
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
@@ -42,12 +44,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const { apiComponents } = useAssetHubNode();
   const { chainId } = useVortexAccount();
 
-  const [timeLeft, setTimeLeft] = useState({
-    minutes: QUOTE_EXPIRY_TIME,
-    seconds: 0
-  });
-  const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
-
   const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
     connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
@@ -56,40 +52,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     rampState: state.context.rampState
   }));
 
-  useEffect(() => {
-    let targetTimestamp: number | null = null;
-    if (!quote) return;
+  const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;
+  const { minutes, seconds } = useCountdown(targetTimestampMs, () => rampActor.send({ type: "EXPIRE_QUOTE" }));
 
-    const expiresAt = quote.expiresAt;
-    targetTimestamp = new Date(expiresAt).getTime();
-
-    setTargetTimestamp(targetTimestamp);
-
-    if (targetTimestamp === null) {
-      setTimeLeft({ minutes: 0, seconds: 0 });
-      return;
-    }
-
-    const intervalId = setInterval(() => {
-      const now = Date.now();
-      const diff = targetTimestamp - now;
-
-      if (diff <= 0) {
-        setTimeLeft({ minutes: 0, seconds: 0 });
-        rampActor.send({ type: "EXPIRE_QUOTE" });
-        clearInterval(intervalId);
-        return;
-      }
-
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      setTimeLeft({ minutes, seconds });
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [rampActor.send, quote]);
-
-  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? "0" : ""}${timeLeft.seconds}`;
+  const formattedTime = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(executionInput.fiatToken)
@@ -107,7 +73,16 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (fromToken.assetSymbol === "EURC") {
       return "https://monerium.com";
     }
-    return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
+    if (isAlfredpayToken(executionInput.fiatToken)) {
+      return "https://alfredpay.io";
+    }
+    if (isStellarOutputTokenDetails(fiatToken)) {
+      return fiatToken.anchorHomepageUrl;
+    }
+    if (isMoonbeamTokenDetails(fiatToken)) {
+      return fiatToken.partnerUrl;
+    }
+    return "";
   };
 
   const destinationAddress = isOnramp
@@ -155,7 +130,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
-      {quoteLocked && targetTimestamp !== null && !isQuoteExpired && (
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
+      {quoteLocked && targetTimestampMs !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { APIError } from "../errors/api-error";
 import { appendData, GoogleCredentials, getOrCreateSheet, initGoogleSpreadsheet } from "../services/spreadsheet.service";
@@ -44,7 +45,7 @@ export async function storeDataInGoogleSpreadsheet(
     await appendData(sheet, req.body);
     return res.status(httpStatus.OK).json({ message: "Data stored successfully" });
   } catch (error) {
-    console.error("Error in storeData:", error);
+    logger.error("Error in storeData:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       details: errorMessage,

@@ -13,18 +13,20 @@ export const SearchInput = ({ set, placeholder, className, ...p }: SearchInputPr
   const { t } = useTranslation();
 
   return (
-    <label
+    <div
       className={cn(
-        "input-vortex-primary input input-bordered flex h-[3rem] items-center text-base focus:outline-primary",
+        "input-vortex-primary input input-bordered flex h-[3rem] items-center text-base focus-within:outline-primary",
         className ?? "w-full"
       )}
-      htmlFor="search"
     >
-      <MagnifyingGlassIcon className="mr-1 size-5 text-neutral-400" />
+      <label className="sr-only" htmlFor="search-input">
+        {t("components.searchInput.placeholder")}
+      </label>
+      <MagnifyingGlassIcon className="mr-1 size-5 shrink-0 text-neutral-400" />
       <input
         autoComplete="off"
         className="h-[3rem] w-full"
-        id="search"
+        id="search-input"
         name="search"
         onChange={e => set((e.target as HTMLInputElement).value)}
         placeholder={placeholder || t("components.searchInput.placeholder")}
@@ -32,6 +34,6 @@ export const SearchInput = ({ set, placeholder, className, ...p }: SearchInputPr
         type="text"
         {...p}
       />
-    </label>
+    </div>
   );
 };

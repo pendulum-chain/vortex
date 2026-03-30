@@ -78,7 +78,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     try {
       if (!(await didInputTokenArriveOnPendulum())) {
         await waitUntilTrue(isHashRegisteredInSplitReceiver);
-        console.log(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
+        logger.info(`Hash ${squidRouterReceiverHash} is registered in receiver contract`);
       }
     } catch (e) {
       logger.error(e);
@@ -98,6 +98,10 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             functionName: "executeXCM"
           });
 
+          logger.info(
+            `Sending transaction to Moonbeam split receiver contract at address ${MOONBEAM_RECEIVER_CONTRACT_ADDRESS} with data ${data}. Args: [${squidRouterReceiverId}, ${squidRouterPayload}]`
+          );
+
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
           let receipt: TransactionReceipt | undefined = undefined;
@@ -116,7 +120,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             if (!receipt || receipt.status !== "success") {
               logger.error(`MoonbeamToPendulumPhaseHandler: Transaction ${obtainedHash} failed or was not found`);
               attempt++;
-              // Wait for 20 seconds to allow the network to settle the squidrouter transaction
+              // Wait for 20 seconds to allow the network to settle the squidRouter transaction
               await new Promise(resolve => setTimeout(resolve, 20000));
             }
           }
@@ -133,14 +137,14 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
         }
       }
     } catch (e) {
-      console.error("Error while executing moonbeam split contract transaction:", e);
+      logger.error("Error while executing moonbeam split contract transaction:", e);
       throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction", 30);
     }
 
     try {
       await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
-      console.error("Error while waiting for transaction receipt:", e);
+      logger.error("Error while waiting for transaction receipt:", e);
       throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.", 30);
     }
 

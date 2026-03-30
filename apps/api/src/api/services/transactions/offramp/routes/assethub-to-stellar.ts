@@ -151,7 +151,7 @@ export async function prepareAssethubToStellarOfframpTransactions({
     {
       ephemeralAddress: stellarEphemeralEntry.address,
       outputAmountUnits: offrampAmountBeforeAnchorFeesUnits,
-      outputTokenDetails,
+      outputTokenDetails: outputTokenDetails as any,
       stellarPaymentData
     },
     unsignedTxs

@@ -50,18 +50,20 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
 
   const messages: Record<RampPhase, string> = {
+    alfredpayOfframpTransfer: getTransferringMessage(),
+    alfredpayOnrampMint: t("pages.progress.alfredpayOnrampMint"), // Not relevant for progress page
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
-    }),
+    }), // Not relevant for progress page
     backupApprove: "", // Not relevant for progress page
-    backupSquidRouterApprove: "", // Not relevant for progress page
-    backupSquidRouterSwap: "", // Not relevant for progress page
-    brlaOnrampMint: t("pages.progress.brlaOnrampMint"),
+    backupSquidRouterApprove: "",
+    backupSquidRouterSwap: "",
+    brlaOnrampMint: t("pages.progress.brlaOnrampMint"), // Not relevant for progress page
     brlaPayoutOnMoonbeam: getTransferringMessage(),
-    complete: "", // Not relevant for progress page
-    destinationTransfer: getDestinationTransferMessage(),
+    complete: "",
+    destinationTransfer: getDestinationTransferMessage(), // Not relevant for progress page
     distributeFees: getSwappingMessage(),
-    failed: "", // Not relevant for progress page
+    failed: "",
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
     hydrationSwap: t("pages.progress.hydrationSwap", {
@@ -92,14 +94,15 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     }),
     squidRouterApprove: getSquidrouterSwapMessage(),
     squidRouterPay: getSquidrouterSwapMessage(),
+    squidRouterPermitExecute: getSquidrouterSwapMessage(),
     squidRouterSwap: getSquidrouterSwapMessage(),
     stellarCreateAccount: t("pages.progress.createStellarAccount"),
     stellarPayment: t("pages.progress.stellarPayment", {
       assetSymbol: outputAssetSymbol
     }),
-    subsidizePostSwap: getSwappingMessage(),
+    subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
-    timedOut: "" // Not relevant for progress page
+    timedOut: ""
   };
 
   return messages[currentPhase];

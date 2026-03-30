@@ -4,6 +4,7 @@ import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { QuoteService } from "../services/api";
+import { AuthAPI } from "../services/api/auth.api";
 import { AuthService } from "../services/auth";
 import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
@@ -11,6 +12,7 @@ import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
 import { validateKycActor } from "./actors/validateKyc.actor";
+import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
@@ -20,28 +22,6 @@ import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
-
-// Restore session from localStorage if available
-const getInitialAuthState = () => {
-  if (typeof window === "undefined") {
-    return { isAuthenticated: false, userEmail: undefined, userId: undefined };
-  }
-
-  const tokens = AuthService.getTokens();
-
-  if (tokens) {
-    const authState = {
-      isAuthenticated: true,
-      userEmail: tokens.userEmail,
-      userId: tokens.userId
-    };
-    return authState;
-  }
-
-  return { isAuthenticated: false, userEmail: undefined, userId: undefined };
-};
-
-const authState = getInitialAuthState();
 
 const initialRampContext: RampContext = {
   apiKey: undefined,
@@ -55,7 +35,7 @@ const initialRampContext: RampContext = {
   externalSessionId: undefined,
   getMessageSignature: undefined,
   initializeFailedMessage: undefined,
-  isAuthenticated: authState.isAuthenticated,
+  isAuthenticated: false,
   isQuoteExpired: false,
   isSep24Redo: false,
   partnerId: undefined,
@@ -69,9 +49,8 @@ const initialRampContext: RampContext = {
   rampSigningPhase: undefined,
   rampState: undefined,
   substrateWalletAccount: undefined,
-  // Auth fields - restore from localStorage if available
-  userEmail: authState.userEmail,
-  userId: authState.userId,
+  userEmail: undefined,
+  userId: undefined,
   walletLocked: undefined
 };
 
@@ -132,7 +111,7 @@ export type RampMachineEvents =
   | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
-  | { type: "PROCEED_TO_REGISTRATION" }
+  | { type: "PROCEED_TO_REGISTRATION"; selectedFiatAccountId?: string }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
@@ -190,7 +169,46 @@ export const rampMachine = setup({
     }
   },
   actors: {
+    alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
+    checkAndRefreshToken: fromPromise(async () => {
+      const tokens = AuthService.getTokens();
+      if (!tokens) {
+        return { success: false, tokens: null };
+      }
+
+      try {
+        const verifyResult = await AuthAPI.verifyToken(tokens.accessToken);
+        if (verifyResult.valid && verifyResult.userId) {
+          console.log("valid token");
+          return {
+            success: true,
+            tokens: {
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              userEmail: tokens.userEmail,
+              userId: verifyResult.userId
+            }
+          };
+        }
+      } catch (error) {}
+
+      let refreshedTokens = undefined;
+      try {
+        refreshedTokens = await AuthService.refreshAccessToken();
+      } catch (error) {
+        // If refreshing the token fails for any reason, we treat it as if there are no valid tokens and require the user to authenticate again.
+        AuthService.clearTokens();
+        return { success: false, tokens: null };
+      }
+
+      if (refreshedTokens) {
+        return { success: true, tokens: refreshedTokens };
+      }
+
+      AuthService.clearTokens();
+      return { success: false, tokens: null };
+    }),
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
       if (!input.quoteId) {
@@ -226,7 +244,6 @@ export const rampMachine = setup({
     urlCleaner: fromPromise(
       () =>
         new Promise<void>(resolve => {
-          console.log("Clearing URL parameters");
           const cleanUrl = window.location.pathname;
           window.history.replaceState({}, "", cleanUrl);
           resolve();
@@ -332,29 +349,52 @@ export const rampMachine = setup({
   },
   states: {
     CheckAuth: {
-      always: [
-        {
-          actions: assign({
-            postAuthTarget: undefined
-          }),
-          guard: ({ context }) => context.isAuthenticated && context.postAuthTarget === "RegisterRamp",
-          target: "RegisterRamp"
-        },
-        {
-          actions: assign({
-            postAuthTarget: undefined
-          }),
-          guard: ({ context }) => context.isAuthenticated && context.postAuthTarget === "QuoteReady",
-          target: "QuoteReady"
-        },
-        {
-          guard: ({ context }) => context.isAuthenticated,
-          target: "QuoteReady"
-        },
-        {
+      invoke: {
+        onDone: [
+          {
+            actions: [
+              assign({
+                isAuthenticated: true,
+                userEmail: ({ event }) => event.output.tokens?.userEmail,
+                userId: ({ event }) => event.output.tokens?.userId
+              })
+            ],
+            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "RegisterRamp",
+            target: "RegisterRamp"
+          },
+          {
+            actions: [
+              assign({
+                isAuthenticated: true,
+                userEmail: ({ event }) => event.output.tokens?.userEmail,
+                userId: ({ event }) => event.output.tokens?.userId
+              })
+            ],
+            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "QuoteReady",
+            target: "QuoteReady"
+          },
+          {
+            actions: [
+              assign({
+                isAuthenticated: false,
+                userEmail: undefined,
+                userId: undefined
+              })
+            ],
+            target: "EnterEmail"
+          }
+        ],
+        onError: {
+          // On error, treat as not authenticated
+          actions: [
+            assign({
+              isAuthenticated: false
+            })
+          ],
           target: "EnterEmail"
-        }
-      ],
+        },
+        src: "checkAndRefreshToken"
+      },
       on: {
         GO_BACK: [
           {
@@ -546,6 +586,10 @@ export const rampMachine = setup({
         PROCEED_TO_REGISTRATION: [
           {
             actions: assign({
+              executionInput: ({ context, event }) =>
+                context.executionInput
+                  ? { ...context.executionInput, selectedFiatAccountId: event.selectedFiatAccountId }
+                  : context.executionInput,
               postAuthTarget: () => "RegisterRamp"
             }),
             guard: ({ context }) => !context.isAuthenticated,
@@ -553,6 +597,10 @@ export const rampMachine = setup({
           },
           {
             actions: assign({
+              executionInput: ({ context, event }) =>
+                context.executionInput
+                  ? { ...context.executionInput, selectedFiatAccountId: event.selectedFiatAccountId }
+                  : context.executionInput,
               postAuthTarget: undefined
             }),
             target: "RegisterRamp"
@@ -588,6 +636,7 @@ export const rampMachine = setup({
       }
     },
     KycFailure: {
+      // TODO alfredpay failure ends up here. We should handle a retry on it's own kyc state machine. Get the link again !
       always: {
         target: "Resetting"
       }
@@ -605,15 +654,7 @@ export const rampMachine = setup({
               postAuthTarget: () => "QuoteReady",
               quote: ({ event }) => event.output.quote
             }),
-            guard: ({ context }) => !context.isAuthenticated && context.enteredViaForm === true,
             target: "CheckAuth"
-          },
-          {
-            actions: assign({
-              isQuoteExpired: ({ event }) => event.output.isExpired,
-              quote: ({ event }) => event.output.quote
-            }),
-            target: "QuoteReady"
           }
         ],
         onError: {

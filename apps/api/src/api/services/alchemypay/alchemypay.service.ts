@@ -1,4 +1,5 @@
 import { AlchemyPayPriceResponse, RampDirection } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
 import { AlchemyPayResponse, processAlchemyPayResponse } from "./response-handler";
@@ -21,7 +22,7 @@ async function fetchAlchemyPayData(url: string, request: RequestInit): Promise<F
     const body = (await response.json()) as AlchemyPayResponse;
     return { body, response };
   } catch (fetchError) {
-    console.error("AlchemyPay fetch error:", fetchError);
+    logger.error("AlchemyPay fetch error:", fetchError);
     throw new ProviderInternalError(`Network error fetching price from AlchemyPay: ${(fetchError as Error).message}`);
   }
 }

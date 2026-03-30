@@ -201,7 +201,7 @@ async function getFutureShiftedLedgerSequence(
 
     return shiftedSequence;
   } catch (error) {
-    console.error("Error fetching and calculating ledger sequence:", error);
+    logger.error("Error fetching and calculating ledger sequence:", error);
     throw error;
   }
 }

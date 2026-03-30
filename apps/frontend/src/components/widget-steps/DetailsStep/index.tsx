@@ -1,12 +1,11 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
-import { RampFormValues } from "../../../hooks/ramp/schema";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useSigningBoxState } from "../../../hooks/useSigningBoxState";
@@ -86,9 +85,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
     form.setValue("fiatToken", fiatToken);
   }, [form, evmAddress, isMoneriumRamp, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress, quote]);
 
-  const previousValues = useRef<RampFormValues>({});
-  const currentValues = form.watch();
-
   const { onRampConfirm } = useRampSubmission();
 
   const signingState: SigningState = {
@@ -131,7 +127,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               </div>
             )}
           </div>
-          <StepFooter quote={quote}>
+          <StepFooter>
             <DetailsStepActions
               forceNetwork={forceNetwork}
               isBrazilLanding={isBrazilLanding}

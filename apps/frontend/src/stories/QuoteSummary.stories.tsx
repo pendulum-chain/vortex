@@ -1,14 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Decorator, Meta, StoryObj } from "@storybook/react";
 import { AssetHubToken, EPaymentMethod, FiatToken, Networks, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { QuoteSummary } from "../components/QuoteSummary";
+import { useQuoteStore } from "../stores/quote/useQuoteStore";
+
+// Decorator that seeds the Zustand quote store before rendering
+const withQuoteStore =
+  (quote: QuoteResponse): Decorator =>
+  (Story, context) => {
+    useQuoteStore.getState().actions.forceSetQuote(quote);
+    return Story(context);
+  };
 
 const meta: Meta<typeof QuoteSummary> = {
-  argTypes: {
-    quote: {
-      control: "object",
-      description: "Quote data object"
-    }
-  },
   component: QuoteSummary,
   parameters: {
     layout: "centered"
@@ -130,44 +133,36 @@ const largeAmountQuote: QuoteResponse = {
 };
 
 export const Default: Story = {
-  args: {
-    quote: sampleQuote
-  }
+  decorators: [withQuoteStore(sampleQuote)]
 };
 
 export const CryptoToFiat: Story = {
-  args: {
-    quote: cryptoToFiatQuote
-  }
+  decorators: [withQuoteStore(cryptoToFiatQuote)]
 };
 
 export const FiatToCrypto: Story = {
-  args: {
-    quote: fiatToCryptoQuote
-  }
+  decorators: [withQuoteStore(fiatToCryptoQuote)]
 };
 
 export const LargeAmount: Story = {
-  args: {
-    quote: largeAmountQuote
-  }
+  decorators: [withQuoteStore(largeAmountQuote)]
 };
 
 export const LongTransactionId: Story = {
-  args: {
-    quote: {
+  decorators: [
+    withQuoteStore({
       ...sampleQuote,
       id: "quote_very_long_transaction_id_that_should_wrap_properly_in_the_ui_component_1234567890abcdef"
-    }
-  }
+    })
+  ]
 };
 
 export const SmallAmount: Story = {
-  args: {
-    quote: {
+  decorators: [
+    withQuoteStore({
       ...sampleQuote,
       inputAmount: "1.00",
       outputAmount: "0.99"
-    }
-  }
+    })
+  ]
 };

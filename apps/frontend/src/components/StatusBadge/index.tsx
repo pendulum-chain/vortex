@@ -16,9 +16,9 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
   const normalizedStatus = status.toLowerCase();
 
   const colors = {
-    complete: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-    pending: "bg-yellow-100 text-yellow-800"
+    complete: "bg-success/10 text-success",
+    failed: "bg-error/10 text-error",
+    pending: "bg-warning/10 text-warning"
   } as const;
 
   const colorClass = colors[normalizedStatus as keyof typeof colors] || colors.pending;
