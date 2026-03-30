@@ -68,7 +68,8 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.FailedToCalculateQuote]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.tryDifferentAmount",
-  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount"
+  [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount",
+  [QuoteError.UnsupportedCurrency]: "pages.swap.error.unsupportedCurrency"
 };
 
 function getFriendlyErrorMessage(error: unknown) {
