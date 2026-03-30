@@ -99,6 +99,9 @@ export enum QuoteError {
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
 
+  // Availability errors
+  UnsupportedCurrency = "Currency not supported",
+
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",
   FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.",
