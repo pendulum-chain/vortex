@@ -19,7 +19,7 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@vortexfi/shared";
-import { RequestHandler } from "express";
+import { RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
@@ -380,6 +380,20 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
+const validateSupportedFiatCurrency = (
+  rampType: RampDirection,
+  inputCurrency: unknown,
+  outputCurrency: unknown,
+  res: Response
+): boolean => {
+  const fiatCurrency = rampType === RampDirection.BUY ? inputCurrency : outputCurrency;
+  if (!isSupportedFiatCurrency(fiatCurrency)) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.UnsupportedCurrency });
+    return false;
+  }
+  return true;
+};
+
 export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
   if (req.body) {
     req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
@@ -398,9 +412,7 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
     return;
   }
 
-  const fiatCurrency = rampType === RampDirection.BUY ? inputCurrency : outputCurrency;
-  if (!isSupportedFiatCurrency(fiatCurrency)) {
-    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.UnsupportedCurrency });
+  if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
     return;
   }
 
@@ -439,9 +451,7 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
     return;
   }
 
-  const fiatCurrency = rampType === RampDirection.BUY ? inputCurrency : outputCurrency;
-  if (!isSupportedFiatCurrency(fiatCurrency)) {
-    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.UnsupportedCurrency });
+  if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
     return;
   }
 
