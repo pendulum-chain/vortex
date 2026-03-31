@@ -13,6 +13,7 @@ import {
   QuoteError,
   RampDirection,
   RouteParams,
+  SquidrouterCachedRoute,
   SquidrouterRoute,
   stringifyBigWithSignificantDecimals
 } from "@vortexfi/shared";
@@ -114,10 +115,20 @@ function prepareSquidrouterRouteParams(params: {
 }
 
 /**
- * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
+ * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback.
+ * For cached routes (SquidrouterCachedRoute), returns an estimated fee since
+ * transactionRequest is not available.
  */
-async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
-  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.transactionRequest.value), -18);
+async function calculateSquidrouterNetworkFee(route: SquidrouterRoute | SquidrouterCachedRoute): Promise<string> {
+  // Check if this is a cached route (no transactionRequest)
+  if (!("transactionRequest" in route)) {
+    // For cached routes, use a reasonable estimate based on typical Squidrouter fees
+    // This is acceptable for quote creation; actual execution will use non-cached routes
+    logger.debug("Using estimated network fee for cached route");
+    return "0.50"; // Typical Squidrouter fee is around $0.30-$0.70 USD
+  }
+
+  const squidRouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
 
   try {
     // Get current GLMR price in USD from price feed service

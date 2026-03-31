@@ -1,7 +1,7 @@
-import type { RouteParams, SquidrouterRouteResult } from "./route";
+import type { RouteParams, SquidrouterCachedRouteResult, SquidrouterRouteResult } from "./route";
 
 interface CachedRoute {
-  result: SquidrouterRouteResult;
+  result: SquidrouterCachedRouteResult;
   timestamp: number;
 }
 
@@ -23,13 +23,31 @@ function stableStringify(value: unknown): string {
 }
 
 export function generateRouteCacheKey(params: RouteParams): string {
-  // Include all fields in the cache key to ensure that cached results (including
-  // transactionRequest) are only reused when the full RouteParams are identical.
-  // This avoids reusing executable transactions across different addresses or hooks.
-  return stableStringify(params);
+  // Exclude fields that don't affect route pricing but differ across quote requests:
+  // - fromAddress / toAddress: random placeholder addresses generated per request
+  // - postHook: contains address-specific calldata (receivingContractAddress) that varies
+  //   per request even though the route pricing is identical
+  const { fromAddress: _from, toAddress: _to, postHook: _hook, ...routeFields } = params;
+  return stableStringify(routeFields);
 }
 
-export function getCachedRoute(cacheKey: string): SquidrouterRouteResult | undefined {
+/**
+ * Strips a full SquidrouterRouteResult down to a SquidrouterCachedRouteResult,
+ * removing transactionRequest to prevent accidental use of cached executable data.
+ */
+export function stripRouteForCache(result: SquidrouterRouteResult): SquidrouterCachedRouteResult {
+  return {
+    data: {
+      route: {
+        quoteId: result.data.route.quoteId,
+        estimate: result.data.route.estimate
+      }
+    },
+    requestId: result.requestId
+  };
+}
+
+export function getCachedRoute(cacheKey: string): SquidrouterCachedRouteResult | undefined {
   const cached = routeCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     // Move to end for LRU tracking (Map maintains insertion order)
@@ -53,7 +71,8 @@ export function setCachedRoute(cacheKey: string, result: SquidrouterRouteResult)
     routeCache.delete(oldestKey as string);
   }
 
-  routeCache.set(cacheKey, { result, timestamp: Date.now() });
+  // Store only the stripped-down version without transactionRequest
+  routeCache.set(cacheKey, { result: stripRouteForCache(result), timestamp: Date.now() });
 }
 
 /** Evict all entries whose TTL has expired. Called lazily on cache writes. */

@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios";
 import PQueue from "p-queue";
 import logger from "../../logger";
 import { squidRouterConfigBase } from "./config";
-import { generateRouteCacheKey, getCachedRoute, setCachedRoute } from "./route-cache";
+import { generateRouteCacheKey, getCachedRoute, setCachedRoute, stripRouteForCache } from "./route-cache";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
 
@@ -44,15 +44,17 @@ export interface SquidRouterPayResponse {
   routeStatus: RouteStatus[];
 }
 
+export interface SquidrouterRouteEstimate {
+  toToken: { decimals: number };
+  aggregateSlippage: number;
+  toAmount: string;
+  toAmountMin: string;
+  toAmountUSD: string;
+}
+
 export interface SquidrouterRoute {
   quoteId: string;
-  estimate: {
-    toToken: { decimals: number };
-    aggregateSlippage: number;
-    toAmount: string;
-    toAmountMin: string;
-    toAmountUSD: string;
-  };
+  estimate: SquidrouterRouteEstimate;
   transactionRequest: {
     value: string;
     target: string;
@@ -61,15 +63,42 @@ export interface SquidrouterRoute {
   };
 }
 
+/**
+ * A stripped-down version of SquidrouterRoute that only contains estimate data.
+ * This is used for cached routes to prevent accidental use of cached transactionRequest
+ * data, which could be generated for different wallet addresses or post-hook configurations.
+ */
+export interface SquidrouterCachedRoute {
+  quoteId: string;
+  estimate: SquidrouterRouteEstimate;
+}
+
 export interface SquidrouterRouteResult {
   data: { route: SquidrouterRoute };
   requestId: string;
 }
 
+/**
+ * A stripped-down version of SquidrouterRouteResult that only contains estimate data.
+ * This is used for cached routes to prevent accidental use of cached transactionRequest
+ * data, which could be generated for different wallet addresses or post-hook configurations.
+ */
+export interface SquidrouterCachedRouteResult {
+  data: {
+    route: SquidrouterCachedRoute;
+  };
+  requestId: string;
+}
+
 export interface GetRouteOptions {
   /**
-   * When true, results are cached for 3 minutes using the full RouteParams as cache key.
-   * This is intended only for quote creation to reduce API calls.
+   * When true, results are cached for 3 minutes using a cache key derived from a subset of RouteParams
+   * (excluding fromAddress, toAddress, and postHook). This is intended only for quote creation and
+   * must not be relied on for transaction execution, since cached routes may have been generated for
+   * different wallet addresses or post-hook configurations.
+   *
+   * When useCache is true, the returned result is a SquidrouterCachedRouteResult which intentionally
+   * excludes transactionRequest to prevent accidental use of cached executable data.
    */
   useCache?: boolean;
 }
@@ -78,7 +107,19 @@ export interface GetRouteOptions {
 // This prevents hitting SquidRouter API rate limits for the same user when multiple getRoute() calls happen in quick succession.
 const routeQueues = new Map<string, PQueue>();
 
-export async function getRoute(params: RouteParams, options: GetRouteOptions = {}): Promise<SquidrouterRouteResult> {
+/**
+ * Get a route from Squidrouter. When useCache is true, returns a stripped-down result
+ * without transactionRequest. When useCache is false (default), returns the full result.
+ */
+export async function getRoute(
+  params: RouteParams,
+  options: { useCache: true }
+): Promise<SquidrouterCachedRouteResult>;
+export async function getRoute(params: RouteParams, options?: { useCache?: false }): Promise<SquidrouterRouteResult>;
+export async function getRoute(
+  params: RouteParams,
+  options: GetRouteOptions = {}
+): Promise<SquidrouterRouteResult | SquidrouterCachedRouteResult> {
   const { useCache = false } = options;
 
   if (useCache) {
@@ -105,6 +146,8 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
     if (useCache) {
       const cacheKey = generateRouteCacheKey(params);
       setCachedRoute(cacheKey, result);
+      // Return the stripped-down version for cached calls
+      return stripRouteForCache(result);
     }
 
     return result;
