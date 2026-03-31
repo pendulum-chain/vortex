@@ -88,7 +88,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
-      {isAlfredpayToken(executionInput.fiatToken) && <FiatAccountSelector fiatToken={executionInput.fiatToken} />}
+      {isAlfredpayToken(executionInput.fiatToken) && <FiatAccountSelector />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
@@ -99,7 +99,7 @@ export const SummaryStep: FC = () => {
       {isUserMintAddressNotFound && (
         <AlertBanner
           className="mt-4 mb-4"
-          icon={<UserIcon className="w-5 text-yellow-800" />}
+          icon={<UserIcon className="w-5 text-warning" />}
           title={rampRegistrationErrorMessage ?? ""}
         >
           <progress className="progress progress-warning mt-4 w-56" />
@@ -109,7 +109,7 @@ export const SummaryStep: FC = () => {
       {!isUserMintAddressNotFound && rampRegistrationErrorMessage && (
         <AlertBanner
           className="mt-4 mb-4"
-          icon={<ExclamationCircleIcon className="w-5 text-yellow-800" />}
+          icon={<ExclamationCircleIcon className="w-5 text-warning" />}
           title={rampRegistrationErrorMessage}
         />
       )}
@@ -120,8 +120,8 @@ export const SummaryStep: FC = () => {
     <div className="relative flex grow-1 flex-col">
       <MenuButtons />
       <div>
-        <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-blue-700">{headerText}</h1>
-        <div className="pb-20">{content}</div>
+        <h1 className="mt-4 mb-4 text-center font-bold text-primary text-widget-title">{headerText}</h1>
+        <div className="pb-footer-offset">{content}</div>
       </div>
       <StepFooter>{actions}</StepFooter>
     </div>

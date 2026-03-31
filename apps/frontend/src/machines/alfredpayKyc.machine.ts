@@ -252,6 +252,13 @@ export const alfredpayKycMachine = setup({
       on: {
         COMPLETED_FILLING: {
           target: "FinishingFilling"
+        },
+        OPEN_LINK: {
+          actions: ({ context }) => {
+            if (context.verificationUrl) {
+              window.open(context.verificationUrl, "_blank");
+            }
+          }
         }
       }
     },

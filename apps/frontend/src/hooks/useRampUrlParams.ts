@@ -68,7 +68,11 @@ function findFiatToken(fiatToken?: string): FiatToken | undefined {
   return foundToken;
 }
 
-function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainTokenSymbol | undefined {
+function findOnChainToken(
+  tokenStr?: string,
+  networkType?: Networks | string,
+  evmTokensLoaded?: boolean
+): OnChainTokenSymbol | undefined {
   if (!tokenStr || !networkType) {
     return undefined;
   }
@@ -87,6 +91,9 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     return tokenValue as unknown as OnChainToken;
   } else {
     if (isNetworkEVM(networkType as Networks)) {
+      if (!evmTokensLoaded) {
+        return undefined; // wait — don't fall back to USDC prematurely while tokens load
+      }
       const dynamicConfig = getEvmTokenConfig();
       const networkTokens = dynamicConfig[networkType as EvmNetworks];
       if (networkTokens && tokenStr in networkTokens) {
@@ -200,7 +207,7 @@ export const useRampUrlParams = (): RampUrlParams => {
 
     const network = getNetworkFromParam(networkParam);
     const fiat = findFiatToken(fiatParam);
-    const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork);
+    const cryptoLocked = findOnChainToken(cryptoLockedParam, network || selectedNetwork, evmTokensLoaded);
 
     return {
       apiKey: apiKeyParam || undefined,

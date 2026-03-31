@@ -1,6 +1,6 @@
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { cn } from "../../helpers/cn";
 
 interface DropdownSelectorProps {
@@ -23,6 +23,7 @@ export function DropdownSelector({
   className
 }: DropdownSelectorProps) {
   const prefersReducedMotion = useReducedMotion();
+  const labelId = useId();
 
   function handleBlur(e: React.FocusEvent) {
     if (!e.currentTarget.contains(e.relatedTarget)) {
@@ -45,8 +46,18 @@ export function DropdownSelector({
       };
 
   return (
-    <div className={cn("flex flex-col", className)} onBlur={handleBlur} onKeyDown={handleKeyDown}>
-      {label && <p className="mb-2 font-medium text-gray-700 text-sm">{label}</p>}
+    <div
+      aria-labelledby={label ? labelId : undefined}
+      className={cn("flex flex-col", className)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      role="group"
+    >
+      {label && (
+        <p className="mb-2 font-medium text-gray-700 text-sm" id={labelId}>
+          {label}
+        </p>
+      )}
 
       <button
         aria-expanded={open}
@@ -59,7 +70,7 @@ export function DropdownSelector({
         type="button"
       >
         {isLoading ? (
-          <div className="h-8 w-full animate-pulse rounded-lg bg-gray-100" />
+          <div className="h-6 w-full animate-pulse rounded-lg bg-gray-100" />
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-3">{triggerContent}</div>
         )}

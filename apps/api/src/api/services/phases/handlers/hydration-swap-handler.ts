@@ -1,4 +1,5 @@
 import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitExtrinsic } from "@vortexfi/shared";
+import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
@@ -33,7 +34,7 @@ export class HydrationSwapPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, "hydrationToAssethubXcm");
     } catch (e) {
-      console.error("Error in hydrationSwap phase:", e);
+      logger.error("Error in hydrationSwap phase:", e);
       throw e;
     }
   }

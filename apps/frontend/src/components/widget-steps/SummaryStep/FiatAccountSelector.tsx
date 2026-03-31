@@ -1,17 +1,11 @@
 import { CheckIcon, PlusIcon } from "@heroicons/react/24/solid";
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
-import { FiatToken } from "@vortexfi/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FiatAccountTypeKey } from "../../../constants/fiatAccountMethods";
-import {
-  ACCOUNT_TYPE_ICONS,
-  ACCOUNT_TYPE_LABELS,
-  ALFRED_TO_ACCOUNT_TYPE,
-  ALFREDPAY_FIAT_TOKEN_TO_COUNTRY
-} from "../../../constants/fiatAccountMethods";
+import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS, ALFRED_TO_ACCOUNT_TYPE } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
-import { useFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
+import { useAlfredpayFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
 import { DropdownSelector } from "../../ui/DropdownSelector";
 
 function accountLabel(account: AlfredpayFiatAccount) {
@@ -52,23 +46,32 @@ function AccountOption({
   );
 }
 
-interface FiatAccountSelectorProps {
-  fiatToken: FiatToken;
-}
-
-export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
+export function FiatAccountSelector() {
   const { t } = useTranslation();
-  const country = ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken];
+  const { country, data: accounts = [], isLoading } = useAlfredpayFiatAccounts();
   const fiatAccountActor = useFiatAccountActor();
   const selectedFiatAccountId = useFiatAccountSelector(s => s.context.selectedFiatAccountId);
-  const [userOpen, setUserOpen] = useState(false);
-
-  const { data: accounts = [], isLoading } = useFiatAccounts(country ?? "", { enabled: !!country });
+  const [open, setOpen] = useState(false);
 
   const selectedAccount = accounts.find(a => a.fiatAccountId === selectedFiatAccountId) ?? accounts[0] ?? null;
-  const open = userOpen || (!isLoading && accounts.length === 0);
 
   if (!country) return null;
+
+  if (!isLoading && accounts.length === 0) {
+    return (
+      <div className="mt-4 mb-32">
+        <p className="mb-2 font-medium text-gray-700 text-sm">{t("components.fiatAccountSelector.label")}</p>
+        <button
+          className="flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2.5 text-secondary-content text-sm transition-colors [@media(hover:hover)]:hover:bg-neutral [@media(hover:hover)]:hover:text-gray-700"
+          onClick={() => fiatAccountActor.send({ country, type: "OPEN" })}
+          type="button"
+        >
+          <PlusIcon aria-hidden="true" className="h-4 w-4" />
+          {t("components.fiatAccountSelector.manage")}
+        </button>
+      </div>
+    );
+  }
 
   const accountType: FiatAccountTypeKey | null = selectedAccount
     ? (ALFRED_TO_ACCOUNT_TYPE[selectedAccount.type] ?? null)
@@ -98,7 +101,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
       className="mt-4 mb-32"
       isLoading={isLoading}
       label={t("components.fiatAccountSelector.label")}
-      onOpenChange={setUserOpen}
+      onOpenChange={setOpen}
       open={open}
       triggerContent={triggerContent}
     >
@@ -110,7 +113,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
               key={account.fiatAccountId}
               onSelect={() => {
                 fiatAccountActor.send({ id: account.fiatAccountId, type: "SELECT_ACCOUNT" });
-                setUserOpen(false);
+                setOpen(false);
               }}
               selected={selectedFiatAccountId === account.fiatAccountId}
             />
@@ -123,7 +126,7 @@ export function FiatAccountSelector({ fiatToken }: FiatAccountSelectorProps) {
           className="flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-2 px-3 py-2.5 text-secondary-content text-sm transition-colors [@media(hover:hover)]:hover:bg-neutral [@media(hover:hover)]:hover:text-gray-700"
           onClick={() => {
             fiatAccountActor.send({ country, type: "OPEN" });
-            setUserOpen(false);
+            setOpen(false);
           }}
           type="button"
         >

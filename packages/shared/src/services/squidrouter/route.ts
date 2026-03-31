@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import PQueue from "p-queue";
 import { encodeFunctionData, PublicClient } from "viem";
 import erc20ABI from "../../contracts/ERC20";
 import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
@@ -121,7 +122,16 @@ export interface SquidrouterRouteResult {
   requestId: string;
 }
 
+// Rate-limited queue: at most 1 concurrent request, with a minimum 500ms gap between calls.
+// This prevents hitting SquidRouter API rate limits when multiple getRoute() calls happen in quick succession.
+const routeQueue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 });
+
 export async function getRoute(params: RouteParams): Promise<SquidrouterRouteResult> {
+  const result = (await routeQueue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
+  return result;
+}
+
+async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteResult> {
   // This is the integrator ID for the Squidrouter API
   const { integratorId } = squidRouterConfigBase;
   const url = `${SQUIDROUTER_BASE_URL}/route`;

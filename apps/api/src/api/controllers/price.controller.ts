@@ -11,7 +11,7 @@ import {
 } from "@vortexfi/shared";
 import { RequestHandler } from "express";
 import httpStatus from "http-status";
-
+import logger from "../../config/logger";
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -110,10 +110,10 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
       res.status(httpStatus.BAD_REQUEST).json({ error: err.message });
     } else if (err instanceof ProviderInternalError) {
       // 502 Bad Gateway: The upstream provider had an internal issue. Log it.
-      console.error("Provider internal error:", err);
+      logger.error("Provider internal error:", err);
       res.status(httpStatus.BAD_GATEWAY).json({ error: err.message });
     } else {
-      console.error("Unexpected server error:", err);
+      logger.error("Unexpected server error:", err);
       res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
         error: "An internal server error occurred while fetching the price."
       });
@@ -200,10 +200,10 @@ export const getAllPricesBundled: RequestHandler<
         } else if (reason instanceof Error) {
           // Generic JS Error
           errorMessage = reason.message;
-          console.error(`Non-provider error for ${provider}:`, reason); // Log unexpected errors
+          logger.error(`Non-provider error for ${provider}:`, reason); // Log unexpected errors
         } else {
           // Unknown error type
-          console.error(`Unknown error type for ${provider}:`, reason);
+          logger.error(`Unknown error type for ${provider}:`, reason);
         }
 
         response[provider] = {
@@ -215,7 +215,7 @@ export const getAllPricesBundled: RequestHandler<
       // This case indicates an issue with the Promise.allSettled structure itself or the mapping,
       // as our inner promises are designed to catch their errors.
       // Log this unexpected scenario for debugging.
-      console.error("Unexpected Promise.allSettled rejection:", result.reason);
+      logger.error("Unexpected Promise.allSettled rejection:", result.reason);
       // For now, we won't add an entry for this provider if the outer promise rejects.
     }
   });

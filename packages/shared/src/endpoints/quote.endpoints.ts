@@ -84,8 +84,8 @@ export enum QuoteError {
   MissingRequiredFields = "Missing required fields",
   InvalidRampType = 'Invalid ramp type, must be "BUY" or "SELL"',
 
-  MissingToField = "BUY rampType requires 'from' parameter",
-  MissingFromField = "SELL rampType requires 'to' parameter",
+  MissingToField = "SELL rampType requires 'to' parameter",
+  MissingFromField = "BUY rampType requires 'from' parameter",
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",
@@ -98,6 +98,9 @@ export enum QuoteError {
   LowLiquidity = "Low liquidity for this route. Please try a smaller amount.",
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
+
+  // Availability errors
+  UnsupportedCurrency = "Currency not supported",
 
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",

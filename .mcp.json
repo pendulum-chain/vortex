@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "linear-server": {
+      "type": "sse",
+      "url": "https://mcp.linear.app/sse"
+    },
+    "obsidian": {
+      "args": ["-y", "obsidian-mcp", "$OBSIDIAN_VAULT_PATH"],
+      "command": "npx"
+    }
+  }
+}

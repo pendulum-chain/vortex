@@ -17,7 +17,7 @@ export function StepFooter({ children, className, hideQuoteSummary = false }: St
     <>
       {children && (
         <div
-          className={cn("absolute right-0 left-0 z-[5]", showAboveQuote ? "bottom-above-quote mb-4" : "bottom-2", className)}
+          className={cn("absolute right-0 left-0 z-footer", showAboveQuote ? "bottom-above-quote mb-4" : "bottom-2", className)}
         >
           {children}
         </div>

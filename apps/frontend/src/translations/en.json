@@ -24,8 +24,9 @@
       "loading": "Loading...",
       "openingLink": "Opening Link...",
       "openLink": "Open {{kycOrKyb}} Link",
-      "registerAsBusiness": "If registering as a business please click <1>here</1>",
-      "registerAsIndividual": "Click <1>here</1> to register as individual",
+      "registerAsBusiness": "Click <1>here</1> to register as business.",
+      "registerAsIndividual": "Click <1>here</1> to register as individual.",
+      "reopenLink": "Re-open the {{kycOrKyb}} window",
       "retry": "Retry",
       "retryProcess": "Retry Process",
       "verifyingCompletion": "Verifying completion",
@@ -288,7 +289,7 @@
       "description": "We're always looking to improve, and we'd greatly appreciate your feedback. If you're willing, please leave your email below so we can reach out for a quick chat about your experience.",
       "error": "Error while saving your email. Please try again.",
       "loading": "Loading...",
-      "noNewslettersNoSpam": "No newsletters, no spam- just your honest thoughts.",
+      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
       "submit": "Submit",
       "success": "Successfully saved!",
       "title": "Thank you for using our new product!"
@@ -617,7 +618,7 @@
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
       "kycInvalid": "Your KYC level is invalid. Please contact support.",
-      "maintenance": "Temporary maintenance in progress- please check back later."
+      "maintenance": "Temporary maintenance in progress — please check back later."
     },
     "useTokenAmountOut": {
       "default": "Something went wrong",
@@ -1059,7 +1060,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days."
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
       "returnHome": "Return Home",
@@ -1077,6 +1079,7 @@
           "sell": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}"
         },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
+        "COP_tokenUnavailable": "Building your COP rail - available soon!",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
@@ -1096,6 +1099,7 @@
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
         "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
+        "MXN_tokenUnavailable": "Building your MXN rail - available soon!",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
@@ -1104,7 +1108,9 @@
         "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
-        "tryLargerAmount": "Input amount too low. Please try a larger amount."
+        "tryLargerAmount": "Input amount too low. Please try a larger amount.",
+        "USD_tokenUnavailable": "Building your USD rail - available soon!",
+        "unsupportedCurrency": "This currency is not currently supported."
       }
     },
     "termsAndConditions": {

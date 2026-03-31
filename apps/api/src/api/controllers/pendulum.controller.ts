@@ -43,7 +43,7 @@ export const fundEphemeralAccountController = async (
     res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: "Funding error" });
     return;
   } catch (error) {
-    console.error("Error funding ephemeral account:", error);
+    logger.error("Error funding ephemeral account:", error);
     res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: "Internal Server Error" });
   }
 };

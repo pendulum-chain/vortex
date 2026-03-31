@@ -40,7 +40,7 @@ export function QuoteRefreshProgress() {
     <div className="flex items-center justify-center gap-1">
       <div className="relative inline-block">
         <div
-          className="tooltip tooltip-bottom tooltip-primary relative flex items-center justify-center"
+          className="tooltip tooltip-bottom tooltip-primary relative flex items-center justify-center tabular-nums"
           data-tip={`Quote will update in ${timeRemaining}s`}
         >
           <svg className="-rotate-90 transform" height={radius * 2} width={radius * 2}>

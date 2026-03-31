@@ -25,7 +25,7 @@ import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0xF85a238F8a618d573608c74Ab7937C00f5Fceef1" as const;
+export const RELAYER_ADDRESS = "0xC9ECD03c89349B3EAe4613c7091c6c3029413785" as const;
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.
@@ -245,13 +245,21 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       data: bridgeResult.swapData.data,
       deadline: payloadDeadline.toString(),
       destination: bridgeResult.swapData.to,
-      nonce: payloadNonce.toString()
+      ethValue: bridgeResult.swapData.value,
+      nonce: payloadNonce.toString(),
+      owner: userAddress,
+      token: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+      value: inputAmountRaw.toString()
     },
     primaryType: "Payload",
     types: {
       Payload: [
         { name: "destination", type: "address" },
+        { name: "owner", type: "address" },
+        { name: "token", type: "address" },
+        { name: "value", type: "uint256" },
         { name: "data", type: "bytes" },
+        { name: "ethValue", type: "uint256" },
         { name: "nonce", type: "uint256" },
         { name: "deadline", type: "uint256" }
       ]

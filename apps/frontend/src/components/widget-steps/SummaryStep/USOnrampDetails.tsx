@@ -4,6 +4,7 @@ import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { CopyButton } from "../../CopyButton";
+import { InfoBox } from "../../InfoBox";
 
 export const USOnrampDetails: FC = () => {
   const { t } = useTranslation();
@@ -31,12 +32,12 @@ export const USOnrampDetails: FC = () => {
         </p>
       </div>
       <div className="my-6 flex justify-center">
-        <div className="rounded-lg border-1 border-gray-300 p-4">
+        <InfoBox>
           <p>{String(achPaymentData.paymentDescription)}</p>
           <p>{String(achPaymentData.accountNumber)}</p>
           <p>{String(achPaymentData.routingNumber)}</p>
           <p>{String(achPaymentData.accountHolderName)}</p>
-        </div>
+        </InfoBox>
       </div>
       <p className="text-center">{t("components.SummaryPage.USOnrampDetails.copyCode")}</p>
     </>

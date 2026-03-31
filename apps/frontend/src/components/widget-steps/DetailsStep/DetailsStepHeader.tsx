@@ -16,7 +16,7 @@ export const DetailsStepHeader = ({ className }: DetailsStepHeaderProps) => {
         <MenuButtons />
       </div>
       <div className="mt-4 text-center">
-        <h1 className="mb-4 font-bold text-3xl text-blue-700">{t("pages.widget.details.title")}</h1>
+        <h1 className="mb-4 font-bold text-primary text-widget-title">{t("pages.widget.details.title")}</h1>
         <DetailsDescription />
       </div>
     </div>

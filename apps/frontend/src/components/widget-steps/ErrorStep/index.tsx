@@ -40,9 +40,9 @@ export function ErrorStep({ className }: ErrorStepProps) {
     <div className="flex grow-1 flex-col justify-center">
       <div className="flex flex-col gap-6">
         <div className="flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-error/10">
             <svg
-              className="h-8 w-8 text-red-800"
+              className="h-8 w-8 text-error"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -59,11 +59,11 @@ export function ErrorStep({ className }: ErrorStepProps) {
         </div>
 
         <div className="text-center">
-          <h2 className="font-semibold text-gray-900 text-xl">{t("components.errorStep.title")}</h2>
+          <h2 className="font-semibold text-gray-900 text-section-title">{t("components.errorStep.title")}</h2>
         </div>
 
-        <div className="rounded-lg bg-red-100 p-4">
-          <p className="text-center text-red-800 text-sm">
+        <div className="rounded-lg bg-error/10 p-4">
+          <p className="text-center text-error text-sm">
             {errorMessage ? convertCommonErrorToMessage(errorMessage, t) : t("components.errorStep.defaultMessage")}
           </p>
         </div>

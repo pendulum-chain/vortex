@@ -98,6 +98,10 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             functionName: "executeXCM"
           });
 
+          logger.info(
+            `Sending transaction to Moonbeam split receiver contract at address ${MOONBEAM_RECEIVER_CONTRACT_ADDRESS} with data ${data}. Args: [${squidRouterReceiverId}, ${squidRouterPayload}]`
+          );
+
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
           let receipt: TransactionReceipt | undefined = undefined;
@@ -133,14 +137,14 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
         }
       }
     } catch (e) {
-      console.error("Error while executing moonbeam split contract transaction:", e);
+      logger.error("Error while executing moonbeam split contract transaction:", e);
       throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to send XCM transaction", 30);
     }
 
     try {
       await waitUntilTrue(didInputTokenArriveOnPendulum, 5000);
     } catch (e) {
-      console.error("Error while waiting for transaction receipt:", e);
+      logger.error("Error while waiting for transaction receipt:", e);
       throw new RecoverablePhaseError("MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.", 30);
     }
 

@@ -13,7 +13,7 @@ interface CustomerDefinitionScreenProps {
 }
 
 const toggleLinkClass =
-  "cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-blue-600 underline touch-manipulation [@media(hover:hover)]:hover:text-blue-800";
+  "cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-primary underline touch-manipulation [@media(hover:hover)]:hover:text-primary/80";
 
 export const CustomerDefinitionScreen = memo(
   ({ kycOrKyb, isBusiness, onAccept, onToggleBusiness }: CustomerDefinitionScreenProps) => {

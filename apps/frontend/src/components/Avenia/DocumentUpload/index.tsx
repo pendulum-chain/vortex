@@ -191,7 +191,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
     >
       <div className="flex-1 pb-36">
-        <h2 className="mb-6 text-center font-semibold text-2xl text-blue-700">{t("components.documentUpload.title")}</h2>
+        <h2 className="mb-6 text-center font-semibold text-2xl text-primary">{t("components.documentUpload.title")}</h2>
         <p className="mb-4 text-center text-gray-600">{t("components.documentUpload.description")}</p>
 
         <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />

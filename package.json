@@ -94,8 +94,10 @@
     "build:frontend": "bun run --cwd apps/frontend build",
     "build:sdk": "bun run --cwd packages/sdk build",
     "build:shared": "bun run --cwd packages/shared build",
+    "compile:contracts:relayer": "bun run --cwd contracts/relayer compile",
     "dev": "concurrently -n 'shared,backend,frontend' -c '#ffa500,#007755,#2f6da3' 'cd packages/shared && bun run dev' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
     "dev:backend": "bun run --cwd apps/api dev",
+    "dev:contracts:relayer": "bun run --cwd contracts/relayer node",
     "dev:frontend": "bun run --cwd apps/frontend dev",
     "dev:rebalancer": "bun run --cwd apps/rebalancer dev",
     "format": "biome check --write --unsafe --no-errors-on-unmatched",
@@ -104,11 +106,13 @@
     "prepare": "husky",
     "serve:backend": "bun run --cwd apps/api serve",
     "serve:frontend": "bun run --cwd apps/frontend preview",
+    "test:contracts:relayer": "bun run --cwd contracts/relayer test",
     "typecheck": "bunx tsc",
     "verify": "biome check --no-errors-on-unmatched"
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "contracts/*"
   ]
 }

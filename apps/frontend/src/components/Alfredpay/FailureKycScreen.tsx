@@ -13,7 +13,7 @@ export const FailureKycScreen = memo(({ kycOrKyb, errorMessage, onRetry, onCance
 
   return (
     <div className="flex flex-col items-center space-y-4 py-4">
-      <p className="font-bold text-lg text-red-600">{t("components.alfredpayKycFlow.failed", { kycOrKyb })}</p>
+      <p className="font-bold text-lg text-warning">{t("components.alfredpayKycFlow.failed", { kycOrKyb })}</p>
       <p className="text-center text-gray-600">{errorMessage ?? "An unknown error occurred."}</p>
       <div className="flex w-full flex-col gap-2">
         <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onRetry}>
