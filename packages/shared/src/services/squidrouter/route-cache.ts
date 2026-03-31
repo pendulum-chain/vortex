@@ -50,11 +50,7 @@ export function setCachedRoute(cacheKey: string, result: SquidrouterRouteResult)
   // If still at max capacity, evict the oldest (first) entries (LRU)
   while (routeCache.size >= CACHE_MAX_SIZE) {
     const oldestKey = routeCache.keys().next().value;
-    if (oldestKey) {
-      routeCache.delete(oldestKey);
-    } else {
-      break;
-    }
+    routeCache.delete(oldestKey as string);
   }
 
   routeCache.set(cacheKey, { result, timestamp: Date.now() });

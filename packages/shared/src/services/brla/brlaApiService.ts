@@ -85,11 +85,7 @@ export class BrlaApiService {
     // If still at max capacity, evict the oldest (first) entries (LRU)
     while (this.quoteCache.size >= QUOTE_CACHE_MAX_SIZE) {
       const oldestKey = this.quoteCache.keys().next().value;
-      if (oldestKey) {
-        this.quoteCache.delete(oldestKey);
-      } else {
-        break;
-      }
+      this.quoteCache.delete(oldestKey as string);
     }
 
     this.quoteCache.set(cacheKey, { result, timestamp: now });
