@@ -64,13 +64,17 @@ export interface SquidrouterRoute {
 }
 
 /**
- * A stripped-down version of SquidrouterRoute that only contains estimate data.
- * This is used for cached routes to prevent accidental use of cached transactionRequest
- * data, which could be generated for different wallet addresses or post-hook configurations.
+ * A stripped-down version of SquidrouterRoute that contains estimate data and the value field
+ * needed for fee calculation, but excludes executable transaction data (data, target, gasLimit).
+ * This is used for cached routes to prevent accidental execution while still allowing accurate
+ * network fee calculations. The value field is route-dependent but not address-specific.
  */
 export interface SquidrouterCachedRoute {
   quoteId: string;
   estimate: SquidrouterRouteEstimate;
+  transactionRequest: {
+    value: string;
+  };
 }
 
 export interface SquidrouterRouteResult {
@@ -79,9 +83,10 @@ export interface SquidrouterRouteResult {
 }
 
 /**
- * A stripped-down version of SquidrouterRouteResult that only contains estimate data.
- * This is used for cached routes to prevent accidental use of cached transactionRequest
- * data, which could be generated for different wallet addresses or post-hook configurations.
+ * A stripped-down version of SquidrouterRouteResult that contains estimate data and the value field
+ * needed for fee calculation, but excludes executable transaction data (data, target, gasLimit).
+ * This is used for cached routes to prevent accidental execution while still allowing accurate
+ * network fee calculations.
  */
 export interface SquidrouterCachedRouteResult {
   data: {

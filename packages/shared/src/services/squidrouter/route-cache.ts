@@ -33,14 +33,18 @@ export function generateRouteCacheKey(params: RouteParams): string {
 
 /**
  * Strips a full SquidrouterRouteResult down to a SquidrouterCachedRouteResult,
- * removing transactionRequest to prevent accidental use of cached executable data.
+ * keeping only the value field from transactionRequest for fee calculation while
+ * removing executable transaction data (data, target, gasLimit) to prevent accidental execution.
  */
 export function stripRouteForCache(result: SquidrouterRouteResult): SquidrouterCachedRouteResult {
   return {
     data: {
       route: {
         quoteId: result.data.route.quoteId,
-        estimate: result.data.route.estimate
+        estimate: result.data.route.estimate,
+        transactionRequest: {
+          value: result.data.route.transactionRequest.value
+        }
       }
     },
     requestId: result.requestId
