@@ -1,66 +1,10 @@
 import axios, { AxiosError } from "axios";
 import PQueue from "p-queue";
-import { encodeFunctionData, PublicClient } from "viem";
-import erc20ABI from "../../contracts/ERC20";
-import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, EvmTransactionData, getNetworkId, Networks } from "../../index";
 import logger from "../../logger";
-import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
-
-/**
- * Normalizes a numeric string to a format that BigInt can parse.
- * Handles scientific notation (e.g., "1.5e18") and decimal strings (e.g., "123.456")
- * by converting them to integer strings, truncating any fractional part.
- */
-function normalizeBigIntString(value: string): string {
-  if (!value || value === "") {
-    return "0";
-  }
-
-  // If it's already a valid integer string (decimal or hex), return as-is
-  if (/^-?\d+$/.test(value) || /^0x[0-9a-fA-F]+$/i.test(value)) {
-    return value;
-  }
-
-  // Handle scientific notation and decimals by parsing as Number first, then converting
-  // This will truncate any fractional part
-  try {
-    const num = Number(value);
-    if (Number.isNaN(num) || !Number.isFinite(num)) {
-      logger.current.warn(`Invalid numeric value for BigInt conversion: ${value}, defaulting to 0`);
-      return "0";
-    }
-    // Use BigInt on the truncated integer value to avoid precision issues with large numbers
-    // For very large numbers, we need to handle them specially
-    if (Math.abs(num) > Number.MAX_SAFE_INTEGER) {
-      // For scientific notation with large exponents, parse manually
-      const match = value.match(/^(-?\d+\.?\d*)[eE]([+-]?\d+)$/);
-      if (match) {
-        const [, mantissa, exponent] = match;
-        const exp = parseInt(exponent, 10);
-        const [intPart, decPart = ""] = mantissa.replace("-", "").split(".");
-        const sign = mantissa.startsWith("-") ? "-" : "";
-        const totalDigits = intPart + decPart;
-        const zerosNeeded = exp - decPart.length;
-        if (zerosNeeded >= 0) {
-          return sign + totalDigits + "0".repeat(zerosNeeded);
-        } else {
-          // Truncate decimal part
-          return sign + totalDigits.slice(0, totalDigits.length + zerosNeeded) || "0";
-        }
-      }
-    }
-    // For smaller numbers, Math.trunc works fine
-    return BigInt(Math.trunc(num)).toString();
-  } catch (e) {
-    logger.current.warn(`Failed to normalize BigInt string: ${value}, error: ${e}`);
-    return "0";
-  }
-}
+import { squidRouterConfigBase } from "./config";
+import { generateRouteCacheKey, getCachedRoute, setCachedRoute } from "./route-cache";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
-
-export { splitReceiverABI };
 
 export interface RouteParams {
   fromAddress: string;
@@ -122,43 +66,6 @@ export interface SquidrouterRouteResult {
   requestId: string;
 }
 
-// --- Route cache for quote-phase calls (3-minute TTL) ---
-
-interface CachedRoute {
-  result: SquidrouterRouteResult;
-  timestamp: number;
-}
-
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
-const routeCache = new Map<string, CachedRoute>();
-
-/**
- * Produces a deterministic JSON string for any value by sorting object keys recursively.
- * Unlike JSON.stringify, this guarantees identical output regardless of property insertion order.
- */
-function stableStringify(value: unknown): string {
-  if (value === null || value === undefined) return String(value);
-  if (typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
-  const obj = value as Record<string, unknown>;
-  const sortedKeys = Object.keys(obj).sort();
-  return "{" + sortedKeys.map(k => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}";
-}
-
-function generateRouteCacheKey(params: RouteParams): string {
-  return stableStringify(params);
-}
-
-/** Evict all entries whose TTL has expired. Called lazily on cache writes. */
-function evictExpiredCacheEntries(): void {
-  const now = Date.now();
-  for (const [key, entry] of routeCache) {
-    if (now - entry.timestamp >= CACHE_TTL_MS) {
-      routeCache.delete(key);
-    }
-  }
-}
-
 export interface GetRouteOptions {
   /** When true, results are cached for 3 minutes keyed on the full RouteParams. Use only during quote creation. */
   useCache?: boolean;
@@ -174,10 +81,10 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
   // --- cache hit path ---
   if (useCache) {
     const cacheKey = generateRouteCacheKey(params);
-    const cached = routeCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    const cached = getCachedRoute(cacheKey);
+    if (cached) {
       logger.current.info("getRoute: returning cached route (TTL still valid)");
-      return cached.result;
+      return cached;
     }
   }
 
@@ -195,9 +102,8 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
 
     // --- cache store path ---
     if (useCache) {
-      evictExpiredCacheEntries();
       const cacheKey = generateRouteCacheKey(params);
-      routeCache.set(cacheKey, { result, timestamp: Date.now() });
+      setCachedRoute(cacheKey, result);
     }
 
     return result;
@@ -288,197 +194,4 @@ export async function getStatus(
     logger.current.error(`Couldn't get status from squidRouter for transactionID ${transactionId}.}`);
     throw error;
   }
-}
-
-// This function creates the parameters for the Squidrouter API to get a route for offramping.
-// This route will always be from another EVM chain to Moonbeam.
-export function createRouteParamsWithMoonbeamPostHook(params: {
-  fromAddress: string;
-  amount: string;
-  fromToken: `0x${string}`;
-  fromNetwork: Networks;
-  receivingContractAddress: string;
-  squidRouterReceiverHash: string;
-}): RouteParams {
-  const { fromAddress, amount, fromToken, fromNetwork, receivingContractAddress, squidRouterReceiverHash } = params;
-
-  const fromChainId = getNetworkId(fromNetwork);
-  const toChainId = getNetworkId(Networks.Moonbeam);
-
-  const approvalErc20 = encodeFunctionData({
-    abi: erc20ABI,
-    args: [receivingContractAddress, "0"],
-    functionName: "approve"
-  });
-
-  const initXCMEncodedData = encodeFunctionData({
-    abi: splitReceiverABI,
-    args: [squidRouterReceiverHash, "0"],
-    functionName: "initXCM"
-  });
-
-  return {
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress,
-    fromAmount: amount,
-    fromChain: fromChainId.toString(),
-    fromToken,
-    postHook: {
-      calls: [
-        // approval call.
-        {
-          callData: approvalErc20,
-          callType: 1,
-          chainType: "evm", // this will be replaced by the full native balance of the multicall after the swap
-          estimatedGas: "500000",
-          payload: {
-            inputPos: "1", // unused // unused in callType 2, dummy value
-            tokenAddress: AXL_USDC_MOONBEAM
-          },
-          target: AXL_USDC_MOONBEAM,
-          value: "0"
-        },
-        // trigger the xcm call
-        {
-          callData: initXCMEncodedData, // SquidCallType.FULL_TOKEN_BALANCE
-          callType: 1,
-          chainType: "evm",
-          estimatedGas: "700000",
-          payload: {
-            // this indexes the 256 bit word position of the
-            // "amount" parameter in the encoded arguments to the call executeXCMEncodedData
-            // i.e., a "1" means that the bits 256-511 are the position of "amount"
-            // in the encoded argument list
-            inputPos: "1",
-            tokenAddress: AXL_USDC_MOONBEAM
-          },
-          target: receivingContractAddress,
-          value: "0"
-        }
-      ],
-      chainType: "evm",
-      description: "Pendulum post hook", // This should be the name of your product or application that is triggering the hook
-      logoURI: "https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg", // Add your product or application's logo here
-      provider: "Pendulum"
-    },
-    slippage: 4,
-    toAddress: fromAddress,
-    toChain: toChainId.toString(),
-    toToken: AXL_USDC_MOONBEAM
-  };
-}
-
-export function createGenericRouteParams(params: {
-  fromAddress: string;
-  amount: string;
-  fromToken: `0x${string}`;
-  toToken: `0x${string}`;
-  fromNetwork: Networks;
-  toNetwork: Networks;
-  destinationAddress: string;
-}): RouteParams {
-  const { fromAddress, amount, fromToken, toToken, fromNetwork, toNetwork, destinationAddress } = params;
-
-  const fromChainId = getNetworkId(fromNetwork);
-  const toChainId = getNetworkId(toNetwork);
-
-  return {
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress,
-    fromAmount: amount,
-    fromChain: fromChainId.toString(),
-    fromToken,
-    slippage: 4,
-    toAddress: destinationAddress,
-    toChain: toChainId.toString(),
-    toToken
-  };
-}
-
-export async function testRoute(
-  testingToken: EvmTokenDetails,
-  attemptedAmountRaw: string,
-  address: string,
-  fromNetwork: Networks
-) {
-  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
-
-  const sharedRouteParams: RouteParams = {
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress: address,
-    fromAmount: attemptedAmountRaw,
-    fromChain: fromChainId,
-    fromToken: testingToken.erc20AddressSourceChain,
-
-    slippageConfig: {
-      autoMode: 1
-    },
-    toAddress: address,
-    toChain: toChainId,
-    toToken: axlUSDC_MOONBEAM
-  };
-
-  // will throw if no route is found
-  await getRoute(sharedRouteParams);
-}
-
-export async function createTransactionDataFromRoute({
-  route,
-  rawAmount,
-  inputTokenErc20Address,
-  publicClient,
-  swapValue,
-  nonce
-}: {
-  route: SquidrouterRoute;
-  rawAmount: string;
-  inputTokenErc20Address: string;
-  publicClient: PublicClient;
-  swapValue?: string;
-  nonce?: number;
-}): Promise<{ approveData: EvmTransactionData; swapData: EvmTransactionData; squidRouterQuoteId?: string }> {
-  const { transactionRequest } = route;
-
-  const approveTransactionData = encodeFunctionData({
-    abi: erc20ABI,
-    args: [transactionRequest?.target, rawAmount],
-    functionName: "approve"
-  });
-
-  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-  const approveData: EvmTransactionData = {
-    data: approveTransactionData as `0x${string}`,
-    gas: "150000",
-    maxFeePerGas: maxFeePerGas.toString(),
-    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
-    to: inputTokenErc20Address as `0x${string}`,
-    value: "0"
-  };
-
-  if (nonce !== undefined) {
-    approveData.nonce = nonce;
-  }
-
-  const swapData: EvmTransactionData = {
-    data: transactionRequest.data as `0x${string}`,
-    gas: normalizeBigIntString(transactionRequest.gasLimit),
-    maxFeePerGas: maxFeePerGas.toString(),
-    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
-    to: transactionRequest.target as `0x${string}`,
-    value: normalizeBigIntString(swapValue ?? transactionRequest.value)
-  };
-
-  if (nonce !== undefined) {
-    swapData.nonce = nonce + 1;
-  }
-
-  return {
-    approveData,
-    squidRouterQuoteId: route.quoteId,
-    swapData
-  };
 }
