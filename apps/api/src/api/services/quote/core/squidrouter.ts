@@ -25,6 +25,13 @@ import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
 
+/**
+ * Estimated Squidrouter network fee in USD for cached routes.
+ * Based on typical Squidrouter cross-chain fees ranging from $0.30-$0.70.
+ * Used only for quote estimation when transactionRequest is not available.
+ */
+const ESTIMATED_SQUIDROUTER_NETWORK_FEE_USD = "0.50";
+
 export interface EvmBridgeRequest {
   amountRaw: string; // Raw amount to bridge/swap via Squidrouter
   fromToken: `0x${string}`; // EVM token address on source chain
@@ -125,7 +132,7 @@ async function calculateSquidrouterNetworkFee(route: SquidrouterRoute | Squidrou
     // For cached routes, use a reasonable estimate based on typical Squidrouter fees
     // This is acceptable for quote creation; actual execution will use non-cached routes
     logger.debug("Using estimated network fee for cached route");
-    return "0.50"; // Typical Squidrouter fee is around $0.30-$0.70 USD
+    return ESTIMATED_SQUIDROUTER_NETWORK_FEE_USD;
   }
 
   const squidRouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);

@@ -108,8 +108,10 @@ export interface GetRouteOptions {
 const routeQueues = new Map<string, PQueue>();
 
 /**
- * Get a route from Squidrouter. When useCache is true, returns a stripped-down result
- * without transactionRequest. When useCache is false (default), returns the full result.
+ * Get a route from Squidrouter.
+ *
+ * When useCache is true, returns a stripped-down SquidrouterCachedRouteResult without transactionRequest.
+ * When useCache is false or not specified (default), returns the full SquidrouterRouteResult.
  */
 export async function getRoute(
   params: RouteParams,
