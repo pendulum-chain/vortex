@@ -37,6 +37,7 @@ interface CachedQuote {
 }
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
@@ -58,20 +59,39 @@ export class BrlaApiService {
   private getCachedQuote(cacheKey: string): AveniaQuoteResponse | undefined {
     const cached = this.quoteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_TTL_MS) {
+      // Move to end for LRU tracking (Map maintains insertion order)
+      this.quoteCache.delete(cacheKey);
+      this.quoteCache.set(cacheKey, cached);
       logger.current.debug(`BrlaApiService: returning cached quote for key: ${cacheKey.slice(0, 80)}...`);
       return cached.result;
+    }
+    // Remove expired entry if present
+    if (cached) {
+      this.quoteCache.delete(cacheKey);
     }
     return undefined;
   }
 
   private setCachedQuote(cacheKey: string, result: AveniaQuoteResponse): void {
-    // Lazy eviction of expired entries
     const now = Date.now();
+
+    // Evict expired entries first
     for (const [key, entry] of this.quoteCache) {
       if (now - entry.timestamp >= QUOTE_CACHE_TTL_MS) {
         this.quoteCache.delete(key);
       }
     }
+
+    // If still at max capacity, evict the oldest (first) entries (LRU)
+    while (this.quoteCache.size >= QUOTE_CACHE_MAX_SIZE) {
+      const oldestKey = this.quoteCache.keys().next().value;
+      if (oldestKey) {
+        this.quoteCache.delete(oldestKey);
+      } else {
+        break;
+      }
+    }
+
     this.quoteCache.set(cacheKey, { result, timestamp: now });
   }
 

@@ -67,7 +67,10 @@ export interface SquidrouterRouteResult {
 }
 
 export interface GetRouteOptions {
-  /** When true, results are cached for 3 minutes keyed on the full RouteParams. Use only during quote creation. */
+  /**
+   * When true, results are cached for 3 minutes using the full RouteParams as cache key.
+   * This is intended only for quote creation to reduce API calls.
+   */
   useCache?: boolean;
 }
 
@@ -87,12 +90,13 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
     }
   }
 
-  const { fromAddress } = params;
-  let queue = routeQueues.get(fromAddress);
+  // Normalize address to lowercase for consistent queue keying (EVM addresses may have different casing)
+  const normalizedFromAddress = params.fromAddress.toLowerCase();
+  let queue = routeQueues.get(normalizedFromAddress);
 
   if (!queue) {
     queue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 });
-    routeQueues.set(fromAddress, queue);
+    routeQueues.set(normalizedFromAddress, queue);
   }
 
   try {
@@ -107,7 +111,7 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
   } finally {
     // Optional cleanup to prevent memory leaks if queue becomes empty
     if (queue.size === 0 && queue.pending === 0) {
-      routeQueues.delete(fromAddress);
+      routeQueues.delete(normalizedFromAddress);
     }
   }
 }

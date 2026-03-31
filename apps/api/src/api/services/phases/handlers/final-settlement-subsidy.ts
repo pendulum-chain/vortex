@@ -228,7 +228,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
           toChain: chainId,
           toToken: outTokenDetails.erc20AddressSourceChain
         },
-        { useCache: true }
+        // Do not use cache for routes that will be executed on-chain
+        { useCache: false }
       );
 
       const { route: swapRoute } = swapRouteResult.data;

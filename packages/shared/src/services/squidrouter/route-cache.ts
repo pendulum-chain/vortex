@@ -6,6 +6,7 @@ interface CachedRoute {
 }
 
 export const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const CACHE_MAX_SIZE = 100; // Maximum number of cached entries
 const routeCache = new Map<string, CachedRoute>();
 
 /**
@@ -22,24 +23,40 @@ function stableStringify(value: unknown): string {
 }
 
 export function generateRouteCacheKey(params: RouteParams): string {
-  // Exclude fields that don't affect route pricing but differ across quote requests:
-  // - fromAddress / toAddress: random placeholder addresses generated per request
-  // - postHook: contains address-specific calldata (receivingContractAddress) that varies
-  //   per request even though the route pricing is identical
-  const { fromAddress: _from, toAddress: _to, postHook: _hook, ...routeFields } = params;
-  return stableStringify(routeFields);
+  // Include all fields in the cache key to ensure that cached results (including
+  // transactionRequest) are only reused when the full RouteParams are identical.
+  // This avoids reusing executable transactions across different addresses or hooks.
+  return stableStringify(params);
 }
 
 export function getCachedRoute(cacheKey: string): SquidrouterRouteResult | undefined {
   const cached = routeCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    // Move to end for LRU tracking (Map maintains insertion order)
+    routeCache.delete(cacheKey);
+    routeCache.set(cacheKey, cached);
     return cached.result;
+  }
+  // Remove expired entry if present
+  if (cached) {
+    routeCache.delete(cacheKey);
   }
   return undefined;
 }
 
 export function setCachedRoute(cacheKey: string, result: SquidrouterRouteResult): void {
   evictExpiredCacheEntries();
+
+  // If still at max capacity, evict the oldest (first) entries (LRU)
+  while (routeCache.size >= CACHE_MAX_SIZE) {
+    const oldestKey = routeCache.keys().next().value;
+    if (oldestKey) {
+      routeCache.delete(oldestKey);
+    } else {
+      break;
+    }
+  }
+
   routeCache.set(cacheKey, { result, timestamp: Date.now() });
 }
 
