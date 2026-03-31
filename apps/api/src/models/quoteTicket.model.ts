@@ -1,13 +1,6 @@
-import {
-  DestinationType,
-  Networks,
-  PaymentMethod,
-  QuoteFeeStructure,
-  RampCurrency,
-  RampDirection
-} from "@vortexfi/shared";
-import {DataTypes, Model, Optional} from "sequelize";
-import {QuoteTicketMetadata} from "../api/services/quote/core/types";
+import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { DataTypes, Model, Optional } from "sequelize";
+import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";
 
 // Define the attributes of the QuoteTicket model
@@ -126,7 +119,7 @@ QuoteTicket.init(
     inputCurrency: {
       allowNull: false,
       field: "input_currency",
-      type: DataTypes.STRING(8)
+      type: DataTypes.STRING(30)
     },
     metadata: {
       allowNull: false,
@@ -144,7 +137,7 @@ QuoteTicket.init(
     outputCurrency: {
       allowNull: false,
       field: "output_currency",
-      type: DataTypes.STRING(8)
+      type: DataTypes.STRING(30)
     },
     partnerId: {
       allowNull: true,

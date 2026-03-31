@@ -31,6 +31,14 @@ import {
   PixOutputTicketPayload
 } from "./types";
 
+interface CachedQuote {
+  result: AveniaQuoteResponse;
+  timestamp: number;
+}
+
+const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+
 export class BrlaApiService {
   private static instance: BrlaApiService;
 
@@ -38,12 +46,49 @@ export class BrlaApiService {
 
   private privateKey: string;
 
+  private quoteCache = new Map<string, CachedQuote>();
+
   private constructor() {
     if (!BRLA_API_KEY || !BRLA_PRIVATE_KEY) {
       throw new Error("BRLA_API_KEY or BRLA_PRIVATE_KEY not defined");
     }
     this.apiKey = BRLA_API_KEY;
     this.privateKey = BRLA_PRIVATE_KEY;
+  }
+
+  private getCachedQuote(cacheKey: string): AveniaQuoteResponse | undefined {
+    const cached = this.quoteCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_TTL_MS) {
+      // Move to end for LRU tracking (Map maintains insertion order)
+      this.quoteCache.delete(cacheKey);
+      this.quoteCache.set(cacheKey, cached);
+      logger.current.debug(`BrlaApiService: returning cached quote for key: ${cacheKey.slice(0, 80)}...`);
+      return cached.result;
+    }
+    // Remove expired entry if present
+    if (cached) {
+      this.quoteCache.delete(cacheKey);
+    }
+    return undefined;
+  }
+
+  private setCachedQuote(cacheKey: string, result: AveniaQuoteResponse): void {
+    const now = Date.now();
+
+    // Evict expired entries first
+    for (const [key, entry] of this.quoteCache) {
+      if (now - entry.timestamp >= QUOTE_CACHE_TTL_MS) {
+        this.quoteCache.delete(key);
+      }
+    }
+
+    // If still at max capacity, evict the oldest (first) entries (LRU)
+    while (this.quoteCache.size >= QUOTE_CACHE_MAX_SIZE) {
+      const oldestKey = this.quoteCache.keys().next().value;
+      this.quoteCache.delete(oldestKey as string);
+    }
+
+    this.quoteCache.set(cacheKey, { result, timestamp: now });
   }
 
   public static getInstance(): BrlaApiService {
@@ -153,7 +198,10 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
   }
 
-  public async createPayInQuote(quoteParams: PayInQuoteParams): Promise<AveniaQuoteResponse> {
+  public async createPayInQuote(
+    quoteParams: PayInQuoteParams,
+    options: { useCache?: boolean } = {}
+  ): Promise<AveniaQuoteResponse> {
     const urlSearchParams = new URLSearchParams({
       inputAmount: quoteParams.inputAmount,
       inputCurrency: quoteParams.inputCurrency,
@@ -172,10 +220,26 @@ export class BrlaApiService {
     }
 
     const query = urlSearchParams.toString();
-    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+    const cacheKey = `payIn:${query}`;
+
+    if (options.useCache) {
+      const cached = this.getCachedQuote(cacheKey);
+      if (cached) return cached;
+    }
+
+    const result = await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+
+    if (options.useCache) {
+      this.setCachedQuote(cacheKey, result);
+    }
+
+    return result;
   }
 
-  public async createPayOutQuote(quoteParams: PayOutQuoteParams): Promise<AveniaQuoteResponse> {
+  public async createPayOutQuote(
+    quoteParams: PayOutQuoteParams,
+    options: { useCache?: boolean } = {}
+  ): Promise<AveniaQuoteResponse> {
     const urlSearchParams = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputCurrency: BrlaCurrency.BRLA, // Fixed to BRLA token
@@ -192,10 +256,26 @@ export class BrlaApiService {
     }
 
     const query = urlSearchParams.toString();
-    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+    const cacheKey = `payOut:${query}`;
+
+    if (options.useCache) {
+      const cached = this.getCachedQuote(cacheKey);
+      if (cached) return cached;
+    }
+
+    const result = await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+
+    if (options.useCache) {
+      this.setCachedQuote(cacheKey, result);
+    }
+
+    return result;
   }
 
-  public async createOnchainSwapQuote(quoteParams: OnchainSwapQuoteParams): Promise<AveniaQuoteResponse> {
+  public async createOnchainSwapQuote(
+    quoteParams: OnchainSwapQuoteParams,
+    options: { useCache?: boolean } = {}
+  ): Promise<AveniaQuoteResponse> {
     const query = new URLSearchParams({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
       inputAmount: quoteParams.inputAmount,
@@ -206,7 +286,20 @@ export class BrlaApiService {
       outputPaymentMethod: AveniaPaymentMethod.POLYGON,
       outputThirdParty: String(false) // Fixed. We know it goes to our Moonbeam account.
     }).toString();
-    return await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+    const cacheKey = `onchainSwap:${query}`;
+
+    if (options.useCache) {
+      const cached = this.getCachedQuote(cacheKey);
+      if (cached) return cached;
+    }
+
+    const result = await this.sendRequest(Endpoint.FixedRateQuote, "GET", query);
+
+    if (options.useCache) {
+      this.setCachedQuote(cacheKey, result);
+    }
+
+    return result;
   }
 
   public async createPixInputTicket(payload: PixInputTicketPayload, subAccountId: string): Promise<PixInputTicketOutput> {
