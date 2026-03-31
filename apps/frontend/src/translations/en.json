@@ -1108,7 +1108,9 @@
         "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
-        "tryLargerAmount": "Input amount too low. Please try a larger amount."
+        "tryLargerAmount": "Input amount too low. Please try a larger amount.",
+        "USD_tokenUnavailable": "Building your USD rail - available soon!",
+        "unsupportedCurrency": "This currency is not currently supported."
       }
     },
     "termsAndConditions": {

@@ -1102,7 +1102,9 @@
         "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
-        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior.",
+        "USD_tokenUnavailable": "Construindo seu trilho USD - disponível em breve!",
+        "unsupportedCurrency": "Esta moeda não é suportada atualmente."
       }
     },
     "termsAndConditions": {
