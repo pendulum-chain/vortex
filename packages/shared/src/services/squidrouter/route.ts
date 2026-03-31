@@ -78,17 +78,15 @@ const routeQueues = new Map<string, PQueue>();
 export async function getRoute(params: RouteParams, options: GetRouteOptions = {}): Promise<SquidrouterRouteResult> {
   const { useCache = false } = options;
 
-  // --- cache hit path ---
   if (useCache) {
     const cacheKey = generateRouteCacheKey(params);
     const cached = getCachedRoute(cacheKey);
     if (cached) {
-      logger.current.info("getRoute: returning cached route (TTL still valid)");
+      logger.current.debug("getRoute: returning cached route (TTL still valid)");
       return cached;
     }
   }
 
-  // --- rate-limited fetch path ---
   const { fromAddress } = params;
   let queue = routeQueues.get(fromAddress);
 
@@ -100,7 +98,6 @@ export async function getRoute(params: RouteParams, options: GetRouteOptions = {
   try {
     const result = (await queue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
 
-    // --- cache store path ---
     if (useCache) {
       const cacheKey = generateRouteCacheKey(params);
       setCachedRoute(cacheKey, result);

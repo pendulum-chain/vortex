@@ -58,7 +58,7 @@ export class BrlaApiService {
   private getCachedQuote(cacheKey: string): AveniaQuoteResponse | undefined {
     const cached = this.quoteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_TTL_MS) {
-      logger.current.info(`BrlaApiService: returning cached quote for key: ${cacheKey.slice(0, 80)}...`);
+      logger.current.debug(`BrlaApiService: returning cached quote for key: ${cacheKey.slice(0, 80)}...`);
       return cached.result;
     }
     return undefined;
