@@ -22,7 +22,12 @@ function stableStringify(value: unknown): string {
 }
 
 export function generateRouteCacheKey(params: RouteParams): string {
-  return stableStringify(params);
+  // Exclude fields that don't affect route pricing but differ across quote requests:
+  // - fromAddress / toAddress: random placeholder addresses generated per request
+  // - postHook: contains address-specific calldata (receivingContractAddress) that varies
+  //   per request even though the route pricing is identical
+  const { fromAddress: _from, toAddress: _to, postHook: _hook, ...routeFields } = params;
+  return stableStringify(routeFields);
 }
 
 export function getCachedRoute(cacheKey: string): SquidrouterRouteResult | undefined {
