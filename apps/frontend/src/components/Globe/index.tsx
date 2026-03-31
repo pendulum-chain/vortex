@@ -9,13 +9,16 @@ import USD_ICON from "../../assets/coins/USD.png";
 import { prefersReducedMotion } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 
-const CANVAS_SIZE = 780;
-// Cobe renders the globe sphere at NDC radius 0.8 with scale=1, so pixel radius = 0.8 * (size/2)
-const GLOBE_PIXEL_RADIUS = 0.8 * (CANVAS_SIZE / 2);
-// Must match the theta passed to createGlobe
 const GLOBE_THETA = -0.1;
-// Must match the phi passed to createGlobe
 const GLOBE_INITIAL_PHI = 0;
+const NORMAL_SPEED = 0.003;
+const GLOBE_COLOR: [number, number, number] = [0.07, 0.23, 0.72];
+
+const GLOBE_SIZES = {
+  lg: 780,
+  md: 560,
+  sm: 380
+} as const;
 
 const CURRENCY_MARKERS = [
   { currency: "usd", icon: USD_ICON, lat: 38.91, lng: -77.04 },
@@ -26,12 +29,45 @@ const CURRENCY_MARKERS = [
   { currency: "ars", icon: ARS_ICON, lat: -34.61, lng: -58.38 }
 ] as const;
 
-type ProjectedPoint = { x: number; y: number; visible: boolean };
+function getGlobeSize(): number {
+  if (window.matchMedia("(min-width: 1024px)").matches) return GLOBE_SIZES.lg;
+  if (window.matchMedia("(min-width: 640px)").matches) return GLOBE_SIZES.md;
+  return GLOBE_SIZES.sm;
+}
+
+function createGlobeConfig(size: number) {
+  const bufferSize = size * window.devicePixelRatio;
+  return {
+    arcColor: [0.3, 0.5, 1] as [number, number, number],
+    arcHeight: 0.25,
+    arcs: CURRENCY_MARKERS.flatMap((a, i) =>
+      CURRENCY_MARKERS.slice(i + 1).map(b => ({
+        from: [a.lat, a.lng] as [number, number],
+        to: [b.lat, b.lng] as [number, number]
+      }))
+    ),
+    arcWidth: 0.3,
+    baseColor: GLOBE_COLOR,
+    dark: 1,
+    devicePixelRatio: window.devicePixelRatio,
+    diffuse: 1.2,
+    glowColor: GLOBE_COLOR,
+    height: bufferSize,
+    mapBrightness: 3,
+    mapSamples: 12000,
+    markerColor: GLOBE_COLOR,
+    markers: [],
+    phi: 0,
+    theta: GLOBE_THETA,
+    width: bufferSize
+  };
+}
 
 // Matches cobe's shader coordinate system exactly:
-//   sphere point: px = -cos(lat)*cos(lng), py = sin(lat), pz = cos(lat)*sin(lng)
-//   rotation:     screen = M(theta, phi) * p   (derived from mat3 A(theta,phi) in cobe's GLSL)
-function projectToScreen(lat: number, lng: number, phi: number): ProjectedPoint {
+// sphere point: px = -cos(lat)*cos(lng), py = sin(lat), pz = cos(lat)*sin(lng)
+// rotation: screen = R_x(theta) * R_y(phi) * p  (derived from mat3 A(theta,phi) in cobe's GLSL)
+function projectToScreen(lat: number, lng: number, phi: number, size: number) {
+  const pixelRadius = 0.8 * (size / 2);
   const latRad = (lat * Math.PI) / 180;
   const lngRad = (lng * Math.PI) / 180;
 
@@ -48,69 +84,32 @@ function projectToScreen(lat: number, lng: number, phi: number): ProjectedPoint 
   const sy = sinPhi * sinTheta * px + cosTheta * py - cosPhi * sinTheta * pz;
   const sz = -sinPhi * cosTheta * px + sinTheta * py + cosPhi * cosTheta * pz;
 
-  if (sz <= 0) return { visible: false, x: 0, y: 0 };
+  if (sz <= 0) return null;
 
   return {
-    visible: true,
-    x: CANVAS_SIZE / 2 + sx * GLOBE_PIXEL_RADIUS,
-    y: CANVAS_SIZE / 2 - sy * GLOBE_PIXEL_RADIUS
+    x: size / 2 + sx * pixelRadius,
+    y: size / 2 - sy * pixelRadius
   };
 }
 
-interface GlobeProps {
-  className?: string;
+function updateMarkers(phi: number, size: number, markerRefs: React.RefObject<(HTMLImageElement | null)[]>) {
+  for (let i = 0; i < CURRENCY_MARKERS.length; i++) {
+    const el = markerRefs.current[i];
+    if (!el) continue;
+    const pos = projectToScreen(CURRENCY_MARKERS[i].lat, CURRENCY_MARKERS[i].lng, phi + Math.PI, size);
+    if (pos) {
+      el.style.display = "";
+      el.style.left = `${pos.x}px`;
+      el.style.top = `${pos.y}px`;
+    } else {
+      el.style.display = "none";
+    }
+  }
 }
 
-export const Globe = ({ className }: GlobeProps) => {
-  const reducedMotion = prefersReducedMotion();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const phiRef = useRef(GLOBE_INITIAL_PHI);
+function useDragRotation(phiRef: React.RefObject<number>, size: number) {
   const isDraggingRef = useRef(false);
   const lastPointerXRef = useRef(0);
-  const projectedRef = useRef<ProjectedPoint[]>(CURRENCY_MARKERS.map(() => ({ visible: false, x: 0, y: 0 })));
-  const [markerPositions, setMarkerPositions] = useState<ProjectedPoint[]>(
-    CURRENCY_MARKERS.map(() => ({ visible: false, x: 0, y: 0 }))
-  );
-
-  useEffect(() => {
-    if (!canvasRef.current || reducedMotion) return;
-    let rafId: number;
-    const globe = createGlobe(canvasRef.current, {
-      arcColor: [0.3, 0.5, 1],
-      arcHeight: 0.25,
-      arcs: CURRENCY_MARKERS.flatMap((a, i) =>
-        CURRENCY_MARKERS.slice(i + 1).map(b => ({ from: [a.lat, a.lng], to: [b.lat, b.lng] }))
-      ),
-      arcWidth: 0.3,
-      baseColor: [0.07, 0.23, 0.72],
-      dark: 1,
-      devicePixelRatio: window.devicePixelRatio,
-      diffuse: 1.2,
-      glowColor: [0.07, 0.23, 0.72],
-      height: CANVAS_SIZE * 2,
-      mapBrightness: 3,
-      mapSamples: 18000,
-      markerColor: [0.07, 0.23, 0.72],
-      markers: [],
-      phi: 0,
-      theta: GLOBE_THETA,
-      width: CANVAS_SIZE * 2
-    });
-    const tick = () => {
-      if (!isDraggingRef.current) {
-        phiRef.current += 0.003;
-      }
-      globe.update({ phi: phiRef.current });
-      projectedRef.current = CURRENCY_MARKERS.map(m => projectToScreen(m.lat, m.lng, phiRef.current + Math.PI));
-      setMarkerPositions([...projectedRef.current]);
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => {
-      globe.destroy();
-      cancelAnimationFrame(rafId);
-    };
-  }, [reducedMotion]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;
@@ -121,7 +120,7 @@ export const Globe = ({ className }: GlobeProps) => {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) return;
     const delta = e.clientX - lastPointerXRef.current;
-    phiRef.current += (delta / CANVAS_SIZE) * Math.PI;
+    phiRef.current += (delta / size) * Math.PI;
     lastPointerXRef.current = e.clientX;
   };
 
@@ -129,35 +128,79 @@ export const Globe = ({ className }: GlobeProps) => {
     isDraggingRef.current = false;
   };
 
+  return { isDraggingRef, onPointerCancel: onPointerUp, onPointerDown, onPointerMove, onPointerUp };
+}
+
+interface GlobeProps {
+  className?: string;
+}
+
+export const Globe = ({ className }: GlobeProps) => {
+  const reducedMotion = prefersReducedMotion();
+  // size as state — triggers globe effect to recreate at new canvas dimensions on breakpoint change
+  const [size, setSize] = useState<number>(getGlobeSize);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // positions written directly to DOM each frame, skipping React re-renders
+  const markerRefs = useRef<(HTMLImageElement | null)[]>(CURRENCY_MARKERS.map(() => null));
+  const phiRef = useRef(GLOBE_INITIAL_PHI);
+
+  const dragHandlers = useDragRotation(phiRef, size);
+
+  // Recreate globe when crossing Tailwind sm (640px) or lg (1024px) breakpoints
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px), (min-width: 640px)");
+    const handler = () => setSize(getGlobeSize());
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!canvasRef.current || reducedMotion) return;
+    let rafId: number;
+    const globe = createGlobe(canvasRef.current, createGlobeConfig(size));
+    const tick = () => {
+      if (!dragHandlers.isDraggingRef.current) {
+        phiRef.current += NORMAL_SPEED;
+      }
+      globe.update({ phi: phiRef.current });
+      updateMarkers(phiRef.current, size, markerRefs);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      globe.destroy();
+      cancelAnimationFrame(rafId);
+    };
+  }, [reducedMotion, size, dragHandlers.isDraggingRef]);
+
   return (
     <div
-      className={cn("absolute top-8 right-5 mx-auto cursor-grab active:cursor-grabbing", className)}
-      onPointerCancel={onPointerUp}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      style={{ height: CANVAS_SIZE, width: CANVAS_SIZE }}
+      className={cn("relative cursor-grab select-none active:cursor-grabbing", className)}
+      style={{ height: size, touchAction: "manipulation", width: size }}
+      {...dragHandlers}
     >
       <canvas
-        height={CANVAS_SIZE * 2}
+        height={size * window.devicePixelRatio}
         ref={canvasRef}
-        style={{ height: CANVAS_SIZE, width: CANVAS_SIZE }}
-        width={CANVAS_SIZE * 2}
+        style={{ height: size, width: size }}
+        width={size * window.devicePixelRatio}
       />
       <div className="pointer-events-none absolute inset-0">
-        {CURRENCY_MARKERS.map((m, i) => {
-          const pos = markerPositions[i];
-          if (!pos?.visible) return null;
-          return (
-            <img
-              alt={m.currency.toUpperCase()}
-              className="-translate-x-1/2 -translate-y-1/2 absolute h-8 w-8 rounded-full shadow-lg ring-2 ring-white/60"
-              key={m.currency}
-              src={m.icon}
-              style={{ left: pos.x, top: pos.y }}
-            />
-          );
-        })}
+        {CURRENCY_MARKERS.map((m, i) => (
+          <img
+            alt={m.currency.toUpperCase()}
+            className="-translate-x-1/2 -translate-y-1/2 absolute rounded-full shadow-lg ring-2 ring-white/60"
+            height={32}
+            key={m.currency}
+            ref={el => {
+              markerRefs.current[i] = el;
+            }}
+            src={m.icon}
+            style={{ display: "none", left: 0, top: 0 }}
+            width={32}
+          />
+        ))}
       </div>
     </div>
   );
