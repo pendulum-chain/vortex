@@ -7,9 +7,10 @@ import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import { evmTokenConfig } from "../evm/config";
 import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
+import { freeTokenConfig } from "../freeTokens/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
 import { stellarTokenConfig } from "../stellar/config";
-import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency } from "../types/base";
+import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency, TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
@@ -112,7 +113,7 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
  * Get any fiat token details (Stellar or Moonbeam)
  */
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
-  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken];
+  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken] || freeTokenConfig[fiatToken];
   if (!tokenDetails) {
     throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar or Moonbeam.`);
   }
@@ -142,6 +143,9 @@ export function isFiatTokenEnum(token: string): token is FiatToken {
  */
 export function getPendulumCurrencyId(fiatToken: FiatToken) {
   const tokenDetails = getAnyFiatTokenDetails(fiatToken);
+  if (tokenDetails.type === TokenType.Fiat) {
+    throw new Error(`Invalid token type: ${tokenDetails.type}. Fiat currency does not have pendulum representative.`);
+  }
   return tokenDetails.pendulumRepresentative.currencyId;
 }
 
@@ -155,7 +159,7 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks):
       ? getOnChainTokenDetailsOrDefault(network, tokenType as OnChainToken)
       : undefined;
 
-  if (!tokenDetails) {
+  if (!tokenDetails || tokenDetails.type === TokenType.Fiat) {
     throw new Error("Invalid token provided for pendulum details.");
   }
 

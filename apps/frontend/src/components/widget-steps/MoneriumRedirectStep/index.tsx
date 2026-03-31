@@ -27,15 +27,15 @@ export function MoneriumRedirectStep({ className }: MoneriumRedirectStepProps) {
 
   return (
     <div className="relative flex grow-1 flex-col justify-center">
-      <div className="flex flex-grow items-center justify-center pb-20 text-center">
+      <div className="flex flex-grow items-center justify-center pb-footer-offset text-center">
         <p>{t("components.moneriumRedirect.description")}</p>
       </div>
       <StepFooter className="grid grid-cols-2 gap-4">
-        <button className={cn("btn-vortex-secondary btn w-full rounded-xl", className)} onClick={onCancelClick}>
+        <button className={cn("btn-vortex-secondary btn w-full", className)} onClick={onCancelClick}>
           {t("components.moneriumRedirect.cancel")}
         </button>
         <button
-          className={cn("btn-vortex-primary btn w-full rounded-xl", className)}
+          className={cn("btn-vortex-primary btn w-full", className)}
           onClick={() => moneriumKycActor.send({ type: "RETRY_REDIRECT" })}
         >
           {t("components.moneriumRedirect.goToPartner")}

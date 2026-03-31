@@ -10,9 +10,9 @@ export const getStepTitleStyles = (status: Step["status"]): string => {
   const baseStyles = "mt-2 text-center text-xs leading-tight break-words";
 
   const statusStyles = {
-    active: "font-medium text-blue-600",
-    complete: "font-medium text-green-600",
-    error: "font-medium text-red-600",
+    active: "font-medium text-primary",
+    complete: "font-medium text-success",
+    error: "font-medium text-error",
     incomplete: "text-gray-500"
   };
 

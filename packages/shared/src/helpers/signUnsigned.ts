@@ -10,6 +10,8 @@ import {
   decodeSubmittableExtrinsic,
   EphemeralAccount,
   isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   Networks,
   PresignedTx,
   SANDBOX_ENABLED,
@@ -188,14 +190,13 @@ async function signMultipleEvmTransactions(
     if (!walletClient.account) {
       throw new Error("Wallet client account is undefined");
     }
-
     const txData = {
       account: walletClient.account,
       chain: walletClient.chain,
       data: tx.txData.data,
       gas: BigInt(tx.txData.gas),
-      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 5n : BigInt(187500000000),
-      maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
+      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 1n : BigInt(187500000000),
+      maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n : BigInt(187500000000),
       nonce: Number(currentNonce),
       to: tx.txData.to,
       value: BigInt(tx.txData.value)
@@ -257,7 +258,7 @@ export async function signUnsignedTransactions(
       const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
 
       for (const tx of stellarTxs) {
-        if (isEvmTransactionData(tx.txData)) {
+        if (isEvmTransactionData(tx.txData) || isSignedTypedData(tx.txData)) {
           throw new Error("Invalid Stellar transaction data format");
         }
 
@@ -276,7 +277,7 @@ export async function signUnsignedTransactions(
         throw new Error("Hydration API is required for signing transactions");
       }
 
-      if (isEvmTransactionData(tx.txData)) {
+      if (isEvmTransactionData(tx.txData) || isSignedTypedData(tx.txData)) {
         throw new Error("Invalid Hydration transaction data format");
       }
 
@@ -300,7 +301,7 @@ export async function signUnsignedTransactions(
         throw new Error("Pendulum API is required for signing transactions");
       }
 
-      if (isEvmTransactionData(tx.txData)) {
+      if (isEvmTransactionData(tx.txData) || isSignedTypedData(tx.txData)) {
         throw new Error("Invalid Pendulum transaction data format");
       }
 
@@ -327,7 +328,7 @@ export async function signUnsignedTransactions(
         const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
 
         signedTxs.push(txWithMeta);
-      } else {
+      } else if (!isSignedTypedData(tx.txData) && !isSignedTypedDataArray(tx.txData)) {
         // Handle Moonbeam Substrate transactions
         const keyring = new Keyring({ type: "ethereum" });
         const privateKey = ephemerals.evmEphemeral.secret as `0x${string}`;
@@ -339,6 +340,7 @@ export async function signUnsignedTransactions(
 
         signedTxs.push(txWithMeta);
       }
+      // Skip SignedTypedData and SignedTypedData[] transactions as they are signed by the user not by ephemerals
     }
 
     // Process Polygon transactions

@@ -28,7 +28,6 @@ export const AveniaKYBVerifyStep = ({
   instructionsKey = "components.aveniaKYB.instructions",
   cancelButtonKey = "components.aveniaKYB.buttons.cancel"
 }: AveniaKYBVerifyStepProps) => {
-  const quote = useQuote();
   const { t } = useTranslation();
 
   return (
@@ -36,7 +35,7 @@ export const AveniaKYBVerifyStep = ({
       <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
           <div>
-            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-blue-700">{t(titleKey)}</h1>
+            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-primary">{t(titleKey)}</h1>
 
             <img
               alt="Business Check"
@@ -79,7 +78,7 @@ export const AveniaKYBVerifyStep = ({
         </div>
       </div>
 
-      <StepFooter quote={quote}>
+      <StepFooter>
         <div className="mt-8 flex gap-4">
           <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
             {t(cancelButtonKey)}

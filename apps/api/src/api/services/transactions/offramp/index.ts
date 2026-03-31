@@ -8,6 +8,7 @@ import {
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/types";
 import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
 import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
+import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
 import { prepareEvmToBRLOfframpTransactions } from "./routes/evm-to-brl";
 import { prepareEvmToMoneriumEvmOfframpTransactions } from "./routes/evm-to-monerium-evm";
 import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
@@ -31,6 +32,9 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
   } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
     // Monerium EVM offramp
     return prepareEvmToMoneriumEvmOfframpTransactions(params);
+  } else if (quote.outputCurrency === FiatToken.USD) {
+    // Alfredpay offramp
+    return prepareEvmToAlfredpayOfframpTransactions(params);
   } else {
     // Stellar offramp
     const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency as OnChainToken);

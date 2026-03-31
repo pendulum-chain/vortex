@@ -27,3 +27,9 @@ export const SUPPORTED_FIAT_CURRENCIES: SupportedFiatCurrency[] = [
     symbol: "ARS"
   }
 ];
+
+export const isSupportedFiatCurrency = (value: unknown): boolean => {
+  if (typeof value !== "string") return false;
+  const normalizedValue = value.toUpperCase();
+  return SUPPORTED_FIAT_CURRENCIES.some(c => c.symbol === normalizedValue);
+};

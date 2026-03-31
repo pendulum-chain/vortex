@@ -106,7 +106,7 @@ export function RampFeeCollapse() {
         <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
         <QuoteRefreshProgress />
       </div>
-      <div className="collapse-arrow collapse overflow-visible border border-blue-700">
+      <div className="collapse-arrow collapse overflow-visible border border-primary">
         <input type="checkbox" />
         <div className="collapse-title min-h-0 px-4 py-2">
           <div className="flex items-center justify-between">

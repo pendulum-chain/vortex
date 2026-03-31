@@ -96,7 +96,7 @@ export async function swapAxlusdcToBrla(amount: string): Promise<Big> {
     api,
     fromAmountString: amount,
     inputTokenPendulumDetails: usdcTokenDetails,
-    outputTokenPendulumDetails: brlaFiatTokenDetails.pendulumRepresentative
+    outputTokenPendulumDetails: brlaMoonbeamTokenDetails.pendulumRepresentative
   });
 
   if (!expectedAmountOut.preciseQuotedAmountOut) {
@@ -117,7 +117,7 @@ export async function swapAxlusdcToBrla(amount: string): Promise<Big> {
     amountRaw,
     { address: callerAddress, type: EphemeralAccountType.Substrate },
     usdcTokenDetails,
-    brlaFiatTokenDetails.pendulumRepresentative,
+    brlaMoonbeamTokenDetails.pendulumRepresentative,
     minOutputRaw
   );
 

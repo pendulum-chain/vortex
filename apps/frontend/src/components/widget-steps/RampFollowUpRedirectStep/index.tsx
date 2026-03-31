@@ -1,13 +1,14 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { useSelector } from "@xstate/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
+import { useCountdown } from "../../../hooks/useCountdown";
 import { SUCCESS_CALLBACK_DELAY_MS } from "../../../machines/ramp.machine";
 
 const Checkmark = () => (
-  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-blue-700">
-    <CheckIcon className="w-10 text-blue-700" />
+  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary">
+    <CheckIcon className="w-10 text-primary" />
   </div>
 );
 
@@ -15,19 +16,9 @@ export const RampFollowUpRedirectStep = () => {
   const rampActor = useRampActor();
   const { callbackUrl } = useSelector(rampActor, state => state.context);
   const { t } = useTranslation();
-  const [countdown, setCountdown] = useState(SUCCESS_CALLBACK_DELAY_MS / 1000);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prevCountdown => prevCountdown - 1);
-    }, 1000);
-
-    if (countdown === 0) {
-      clearInterval(timer);
-    }
-
-    return () => clearInterval(timer);
-  }, [countdown]);
+  const [targetMs] = useState(() => Date.now() + SUCCESS_CALLBACK_DELAY_MS);
+  const { seconds } = useCountdown(targetMs);
 
   return (
     <>
@@ -35,11 +26,11 @@ export const RampFollowUpRedirectStep = () => {
         <Checkmark />
       </div>
       <div className="mt-6 w-full">
-        <h1 className="mb-6 text-center font-bold text-blue-700 text-xl ">{t("components.RampFollowUpRedirectStep.title")}</h1>
+        <h1 className="mb-6 text-center font-bold text-primary text-xl">{t("components.RampFollowUpRedirectStep.title")}</h1>
       </div>
-      <div style={{ padding: "20px", textAlign: "center" }}>
+      <div className="p-5 text-center">
         <p>
-          {t("components.RampFollowUpRedirectStep.beforeLink", { countdown })}
+          {t("components.RampFollowUpRedirectStep.beforeLink", { countdown: seconds })}
           <a href={callbackUrl} style={{ textDecoration: "underline" }}>
             {t("components.RampFollowUpRedirectStep.link")}
           </a>

@@ -99,7 +99,7 @@ Partner.init(
     markupCurrency: {
       allowNull: true,
       field: "markup_currency",
-      type: DataTypes.STRING(8)
+      type: DataTypes.STRING(30)
     },
     markupType: {
       allowNull: false,

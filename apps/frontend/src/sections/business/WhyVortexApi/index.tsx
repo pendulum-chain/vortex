@@ -1,6 +1,6 @@
 import { ArrowTopRightOnSquareIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { Trans, useTranslation } from "react-i18next";
-import quoteRequestPreview from "../../../assets/quote-request-preview.mov";
+import quoteRequestPreview from "../../../assets/videos/quote-request-preview.mov";
 
 export function WhyVortexApi() {
   const { t } = useTranslation();

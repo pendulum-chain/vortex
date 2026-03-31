@@ -31,8 +31,8 @@ export function AssetButton({
   return (
     <button
       className={cn(
-        " mt-0.5 flex h-8 cursor-pointer items-center rounded-full border border-blue-700 px-2 py-1 pr-3 text-base",
-        disabled || loading ? "cursor-not-allowed" : "hover:bg-blue-200"
+        "touch-target mt-0.5 flex cursor-pointer items-center rounded-full border border-primary px-2 py-1 pr-3 text-base",
+        disabled || loading ? "cursor-not-allowed" : "hover:bg-primary/10"
       )}
       disabled={disabled || loading}
       onClick={onClick}

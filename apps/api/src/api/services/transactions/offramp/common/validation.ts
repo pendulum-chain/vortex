@@ -6,7 +6,7 @@ import {
   getOnChainTokenDetails,
   isFiatToken,
   isOnChainToken,
-  isStellarOutputTokenDetails,
+  isStellarTokenDetails,
   PaymentData,
   StellarTokenDetails
 } from "@vortexfi/shared";
@@ -112,7 +112,7 @@ export function validateStellarOfframp(
   stellarTokenDetails: StellarTokenDetails;
   stellarPaymentData: PaymentData;
 } {
-  if (!isStellarOutputTokenDetails(outputTokenDetails)) {
+  if (!isStellarTokenDetails(outputTokenDetails)) {
     throw new Error("Output currency must be Stellar token for offramp, got output token details type");
   }
 
@@ -122,7 +122,7 @@ export function validateStellarOfframp(
 
   return {
     stellarPaymentData,
-    stellarTokenDetails: outputTokenDetails
+    stellarTokenDetails: outputTokenDetails as StellarTokenDetails
   };
 }
 

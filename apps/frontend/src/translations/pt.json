@@ -11,6 +11,28 @@
       },
       "title": "Oferta especial até 27 Maio"
     },
+    "alfredpayKycFlow": {
+      "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
+      "cancel": "Cancelar",
+      "completed": "{{kycOrKyb}} Concluído!",
+      "completeInNewWindow": "Por favor, complete o processo {{kycOrKyb}} na nova janela. Quando terminar, clique no botão abaixo.",
+      "completeProcess": "Para continuar, complete o processo {{kycOrKyb}} com nosso parceiro AlfredPay.",
+      "continue": "Continuar",
+      "continueWithPartner": "Por favor, continue com nosso parceiro para a verificação {{kycOrKyb}}.",
+      "failed": "{{kycOrKyb}} Falhou",
+      "finishedVerification": "Terminei a verificação {{kycOrKyb}}",
+      "loading": "Carregando...",
+      "openingLink": "Abrindo Link...",
+      "openLink": "Abrir Link {{kycOrKyb}}",
+      "registerAsBusiness": "Clique <1>aqui</1> para se registrar como empresa.",
+      "registerAsIndividual": "Clique <1>aqui</1> para se registrar como indivíduo.",
+      "reopenLink": "Reabrir a janela de {{kycOrKyb}}",
+      "retry": "Tentar Novamente",
+      "retryProcess": "Tentar Processo Novamente",
+      "verifyingCompletion": "Verificando conclusão",
+      "verifyingStatus": "Verificando Status {{kycOrKyb}}",
+      "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continuar",
@@ -304,6 +326,57 @@
       "totalFee": "Taxa total",
       "yourQuote": "Sua cotação"
     },
+    "fiatAccountMethods": {
+      "accountDetails": "DETALHES DA CONTA",
+      "accountOwner": "TITULAR DA CONTA",
+      "clickToSelect": "Clique para selecionar",
+      "descriptions": {
+        "ACH": "1 a 2 dias úteis",
+        "SPEI": "Transferência interbancária instantânea via número CLABE",
+        "WIRE": "No mesmo dia"
+      },
+      "labels": {
+        "ACH": "Transferência ACH",
+        "SPEI": "SPEI",
+        "WIRE": "Transferência Internacional"
+      },
+      "switchToAccount": "Alternar para conta {{accountType}} terminada em {{last4}}"
+    },
+    "fiatAccountRegistration": {
+      "addNew": "+ Adicionar novo método de pagamento",
+      "alreadyRegistered": "Esta conta já está cadastrada.",
+      "cancelRemoval": "Cancelar remoção da conta",
+      "chooseType": "Escolha um método de pagamento",
+      "close": "Fechar",
+      "holdToRemove": "Pressione para remover",
+      "kycRequired": {
+        "description": "Complete a verificação de identidade antes de adicionar contas.",
+        "title": "Verificação de identidade necessária"
+      },
+      "noAccountsConfigured": "Nenhum método de pagamento configurado ainda.",
+      "registeredSuccess": "Método de pagamento cadastrado com sucesso.",
+      "registrationError": "Não foi possível cadastrar a conta. Tente novamente.",
+      "remove": "Remover",
+      "removeAccount": "Remover esta conta",
+      "removedSuccess": "Método de pagamento removido.",
+      "removeError": "Não foi possível remover a conta. Tente novamente.",
+      "save": "Salvar",
+      "selectPlaceholder": "Selecionar…",
+      "title": "Métodos de pagamento",
+      "validation": {
+        "accountNumber": "Número da conta deve ter entre 4 e 17 dígitos",
+        "clabe": "CLABE deve ter exatamente 18 dígitos",
+        "fieldRequired": "{{field}} é obrigatório",
+        "nickname": "Apelido deve ter no máximo 40 caracteres",
+        "routing": "Número de roteamento deve ter exatamente 9 dígitos"
+      }
+    },
+    "fiatAccountSelector": {
+      "label": "Método de pagamento",
+      "manage": "Gerenciar métodos de pagamento",
+      "noPaymentMethods": "Nenhum método de pagamento",
+      "selected": "Selecionado"
+    },
     "footer": {
       "business": {
         "contactSales": "Contatar Vendas",
@@ -453,6 +526,13 @@
       "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
       "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
+      "USOnrampDetails": {
+        "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
+        "qrCode": "Selecione ACH no app do seu banco e escaneie o QR code abaixo.",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "timerLabel": "Cotação expira em:",
+        "title": "Pagar com ACH"
+      },
       "verifyWallet": "Verificar carteira"
     },
     "searchInput": {
@@ -974,7 +1054,8 @@
           "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
-          "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco."
+          "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+          "USD": "Em breve os fundos estarão disponíveis em sua conta bancária."
         }
       },
       "returnHome": "Voltar para a página inicial.",
@@ -992,6 +1073,7 @@
           "sell": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}"
         },
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
+        "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
         "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
         "fetchingQuote": "Falha ao obter cotação",
@@ -1011,6 +1093,7 @@
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
         "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
+        "MXN_tokenUnavailable": "Construa seu trilho MXN - disponível em breve!",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
@@ -1019,7 +1102,9 @@
         "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
-        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior.",
+        "USD_tokenUnavailable": "Construindo seu trilho USD - disponível em breve!",
+        "unsupportedCurrency": "Esta moeda não é suportada atualmente."
       }
     },
     "termsAndConditions": {

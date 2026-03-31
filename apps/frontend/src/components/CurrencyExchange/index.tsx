@@ -1,5 +1,5 @@
-import Big from "big.js";
 import Arrow from "../../assets/arrow.svg";
+import { parseBig } from "../../helpers/numbers";
 import { formatPrice } from "../../sections/individuals/FeeComparison/helpers";
 
 interface CurrencyExchangeProps {
@@ -23,13 +23,13 @@ export const CurrencyExchange = ({
     <div className={`text-left text-xs sm:text-sm ${className}`}>
       <div className="flex items-center">
         <div className="text-gray-500">
-          {formatPrice(Big(inputAmount))} {inputCurrency.toUpperCase()}
+          {formatPrice(parseBig(inputAmount))} {inputCurrency.toUpperCase()}
         </div>
         <img alt="arrow" className="mx-2 hidden h-3 w-3 rotate-90 transform sm:block" src={Arrow} />
       </div>
       <div className="font-bold">
         {showApproximation && "~ "}
-        {formatPrice(Big(outputAmount))} {outputCurrency.toUpperCase()}
+        {formatPrice(parseBig(outputAmount))} {outputCurrency.toUpperCase()}
       </div>
     </div>
   );

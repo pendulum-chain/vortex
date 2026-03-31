@@ -26,26 +26,32 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, brlaTokenDetails.decimals).toFixed(0, 0);
 
     const brlaApiService = BrlaApiService.getInstance();
-    const aveniaPayInToInternalQuote = await brlaApiService.createPayInQuote({
-      inputAmount: inputAmountDecimal.toString(),
-      inputCurrency: BrlaCurrency.BRL,
-      inputPaymentMethod: AveniaPaymentMethod.PIX,
-      inputThirdParty: false,
-      outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
-      outputThirdParty: false
-    });
+    const aveniaPayInToInternalQuote = await brlaApiService.createPayInQuote(
+      {
+        inputAmount: inputAmountDecimal.toString(),
+        inputCurrency: BrlaCurrency.BRL,
+        inputPaymentMethod: AveniaPaymentMethod.PIX,
+        inputThirdParty: false,
+        outputCurrency: BrlaCurrency.BRLA,
+        outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
+        outputThirdParty: false
+      },
+      { useCache: true }
+    );
 
-    const aveniaTransferToMoonbeamQuote = await brlaApiService.createPayInQuote({
-      blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: aveniaPayInToInternalQuote.outputAmount.toString(),
-      inputCurrency: BrlaCurrency.BRLA,
-      inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
-      inputThirdParty: false,
-      outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
-      outputThirdParty: false
-    });
+    const aveniaTransferToMoonbeamQuote = await brlaApiService.createPayInQuote(
+      {
+        blockchainSendMethod: BlockchainSendMethod.PERMIT,
+        inputAmount: aveniaPayInToInternalQuote.outputAmount.toString(),
+        inputCurrency: BrlaCurrency.BRLA,
+        inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
+        inputThirdParty: false,
+        outputCurrency: BrlaCurrency.BRLA,
+        outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+        outputThirdParty: false
+      },
+      { useCache: true }
+    );
 
     // We add a small buffer for the gas fees
     const gasFeePayIn = aveniaPayInToInternalQuote.appliedFees.find(fee => fee.type === "Gas Fee");

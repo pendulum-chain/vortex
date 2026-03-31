@@ -20,10 +20,13 @@ export class OffRampFeeAveniaEngine extends BaseFeeEngine {
     const outputAmountOfframp = ctx.nablaSwap!.outputAmountDecimal.toFixed(2, 0);
 
     const brlaApiService = BrlaApiService.getInstance();
-    const aveniaQuote = await brlaApiService.createPayOutQuote({
-      outputAmount: outputAmountOfframp,
-      outputThirdParty: false
-    });
+    const aveniaQuote = await brlaApiService.createPayOutQuote(
+      {
+        outputAmount: outputAmountOfframp,
+        outputThirdParty: false
+      },
+      { useCache: true }
+    );
 
     const computedAnchorFee = new Big(aveniaQuote.inputAmount).minus(aveniaQuote.outputAmount).toString();
     const anchorFeeCurrency = FiatToken.BRL as RampCurrency;

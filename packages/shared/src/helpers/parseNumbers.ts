@@ -123,6 +123,11 @@ export const roundNumber = (value: number | string = 0, round = 6) => {
 
 export function roundDownToSignificantDecimals(number: Big.BigSource, decimals: number) {
   const big = new Big(number);
+
+  if (Number.isNaN(big.e)) {
+    return big;
+  }
+
   return big.prec(Math.max(0, big.e + 1) + decimals, 0);
 }
 

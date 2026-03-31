@@ -45,7 +45,7 @@ export const HowToSell = () => {
                   <div className="-translate-x-1/2 absolute top-1/3 left-1/2 z-[0] block h-full w-[1px] bg-primary/50 lg:hidden"></div>
                 )}
                 <div className="relative z-[1] flex flex-col items-center">
-                  <div className="mb-4 flex h-18 w-18 items-center justify-center rounded-full border-2 border-blue-700 bg-[radial-gradient(at_50%_50%,theme(colors.black),theme(colors.blue.950),theme(colors.black)_134%)] shadow-lg transition-all duration-300 group-hover:scale-105">
+                  <div className="mb-4 flex h-18 w-18 items-center justify-center rounded-full border-2 border-primary bg-[radial-gradient(at_50%_50%,theme(colors.black),theme(colors.blue.950),theme(colors.black)_134%)] shadow-lg transition-all duration-300 group-hover:scale-105">
                     <span className="text-h3 text-white">0{step.id}</span>
                   </div>
                   <div className="text-center transition-all duration-300 group-hover:translate-y-1 group-hover:transform">

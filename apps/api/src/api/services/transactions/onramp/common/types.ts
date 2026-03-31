@@ -9,6 +9,8 @@ export interface OnrampTransactionParams {
 
 export type AveniaOnrampTransactionParams = OnrampTransactionParams & { taxId: string };
 
+export type AlfredpayOnrampTransactionParams = OnrampTransactionParams & { userId: string };
+
 export type MoneriumOnrampTransactionParams = OnrampTransactionParams & { moneriumWalletAddress: string };
 
 export interface OnrampTransactionsWithMeta {

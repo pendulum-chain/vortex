@@ -15,7 +15,9 @@ import {
   SquidrouterRoute
 } from "../..";
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
-import { createGenericRouteParams, createTransactionDataFromRoute, getRoute } from "./route";
+import { getRoute } from "./route";
+import { createGenericRouteParams } from "./route-params";
+import { createTransactionDataFromRoute } from "./route-transactions";
 
 export interface OnrampSquidrouterParamsFromMoonbeam {
   fromAddress: string;
@@ -107,7 +109,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
     const { route } = routeResult.data;
 
     const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
+      inputTokenErc20Address: params.fromToken,
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
