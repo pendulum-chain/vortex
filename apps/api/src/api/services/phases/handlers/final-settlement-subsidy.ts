@@ -173,20 +173,23 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
       // Use a placeholder address for this query to prevent rate limiting issues
       const placeholderAddress = privateKeyToAddress(generatePrivateKey());
-      const testRouteResult = await getRoute({
-        bypassGuardrails: true,
-        enableExpress: true,
-        fromAddress: placeholderAddress,
-        fromAmount: oneUsdInNativeRaw,
-        fromChain: chainId,
-        fromToken: NATIVE_TOKEN_ADDRESS,
-        slippageConfig: {
-          autoMode: 1
+      const testRouteResult = await getRoute(
+        {
+          bypassGuardrails: true,
+          enableExpress: true,
+          fromAddress: placeholderAddress,
+          fromAmount: oneUsdInNativeRaw,
+          fromChain: chainId,
+          fromToken: NATIVE_TOKEN_ADDRESS,
+          slippageConfig: {
+            autoMode: 1
+          },
+          toAddress: placeholderAddress,
+          toChain: chainId,
+          toToken: outTokenDetails.erc20AddressSourceChain
         },
-        toAddress: placeholderAddress,
-        toChain: chainId,
-        toToken: outTokenDetails.erc20AddressSourceChain
-      });
+        { useCache: true }
+      );
 
       const { route: testRoute } = testRouteResult.data;
       const rate = new Big(testRoute.estimate.toAmount).div(new Big(oneUsdInNativeRaw));
@@ -210,20 +213,23 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         );
       }
 
-      const swapRouteResult = await getRoute({
-        bypassGuardrails: true,
-        enableExpress: true,
-        fromAddress: fundingAccount.address,
-        fromAmount: requiredNativeRaw,
-        fromChain: chainId,
-        fromToken: NATIVE_TOKEN_ADDRESS,
-        slippageConfig: {
-          autoMode: 1
+      const swapRouteResult = await getRoute(
+        {
+          bypassGuardrails: true,
+          enableExpress: true,
+          fromAddress: fundingAccount.address,
+          fromAmount: requiredNativeRaw,
+          fromChain: chainId,
+          fromToken: NATIVE_TOKEN_ADDRESS,
+          slippageConfig: {
+            autoMode: 1
+          },
+          toAddress: fundingAccount.address,
+          toChain: chainId,
+          toToken: outTokenDetails.erc20AddressSourceChain
         },
-        toAddress: fundingAccount.address,
-        toChain: chainId,
-        toToken: outTokenDetails.erc20AddressSourceChain
-      });
+        { useCache: true }
+      );
 
       const { route: swapRoute } = swapRouteResult.data;
 

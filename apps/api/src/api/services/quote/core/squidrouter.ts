@@ -169,7 +169,7 @@ function buildRouteRequest(request: EvmBridgeQuoteRequest) {
 }
 
 async function getSquidrouterRouteData(routeParams: RouteParams) {
-  const routeResult = await getRoute(routeParams);
+  const routeResult = await getRoute(routeParams, { useCache: true });
 
   if (!routeResult?.data?.route?.estimate) {
     throw new APIError({

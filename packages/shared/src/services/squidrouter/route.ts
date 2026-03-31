@@ -122,11 +122,66 @@ export interface SquidrouterRouteResult {
   requestId: string;
 }
 
+// --- Route cache for quote-phase calls (3-minute TTL) ---
+
+interface CachedRoute {
+  result: SquidrouterRouteResult;
+  timestamp: number;
+}
+
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const routeCache = new Map<string, CachedRoute>();
+
+/**
+ * Produces a deterministic JSON string for any value by sorting object keys recursively.
+ * Unlike JSON.stringify, this guarantees identical output regardless of property insertion order.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || value === undefined) return String(value);
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+  const obj = value as Record<string, unknown>;
+  const sortedKeys = Object.keys(obj).sort();
+  return "{" + sortedKeys.map(k => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}";
+}
+
+function generateRouteCacheKey(params: RouteParams): string {
+  return stableStringify(params);
+}
+
+/** Evict all entries whose TTL has expired. Called lazily on cache writes. */
+function evictExpiredCacheEntries(): void {
+  const now = Date.now();
+  for (const [key, entry] of routeCache) {
+    if (now - entry.timestamp >= CACHE_TTL_MS) {
+      routeCache.delete(key);
+    }
+  }
+}
+
+export interface GetRouteOptions {
+  /** When true, results are cached for 3 minutes keyed on the full RouteParams. Use only during quote creation. */
+  useCache?: boolean;
+}
+
 // Rate-limited queues per fromAddress: at most 1 concurrent request per address, with a minimum 1000ms gap between calls.
 // This prevents hitting SquidRouter API rate limits for the same user when multiple getRoute() calls happen in quick succession.
 const routeQueues = new Map<string, PQueue>();
 
-export async function getRoute(params: RouteParams): Promise<SquidrouterRouteResult> {
+export async function getRoute(params: RouteParams, options: GetRouteOptions = {}): Promise<SquidrouterRouteResult> {
+  const { useCache = false } = options;
+
+  // --- cache hit path ---
+  if (useCache) {
+    const cacheKey = generateRouteCacheKey(params);
+    const cached = routeCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      logger.current.info("getRoute: returning cached route (TTL still valid)");
+      return cached.result;
+    }
+  }
+
+  // --- rate-limited fetch path ---
   const { fromAddress } = params;
   let queue = routeQueues.get(fromAddress);
 
@@ -137,6 +192,14 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 
   try {
     const result = (await queue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
+
+    // --- cache store path ---
+    if (useCache) {
+      evictExpiredCacheEntries();
+      const cacheKey = generateRouteCacheKey(params);
+      routeCache.set(cacheKey, { result, timestamp: Date.now() });
+    }
+
     return result;
   } finally {
     // Optional cleanup to prevent memory leaks if queue becomes empty
