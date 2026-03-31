@@ -122,13 +122,28 @@ export interface SquidrouterRouteResult {
   requestId: string;
 }
 
-// Rate-limited queue: at most 1 concurrent request, with a minimum 500ms gap between calls.
-// This prevents hitting SquidRouter API rate limits when multiple getRoute() calls happen in quick succession.
-const routeQueue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 });
+// Rate-limited queues per fromAddress: at most 1 concurrent request per address, with a minimum 1000ms gap between calls.
+// This prevents hitting SquidRouter API rate limits for the same user when multiple getRoute() calls happen in quick succession.
+const routeQueues = new Map<string, PQueue>();
 
 export async function getRoute(params: RouteParams): Promise<SquidrouterRouteResult> {
-  const result = (await routeQueue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
-  return result;
+  const { fromAddress } = params;
+  let queue = routeQueues.get(fromAddress);
+
+  if (!queue) {
+    queue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 });
+    routeQueues.set(fromAddress, queue);
+  }
+
+  try {
+    const result = (await queue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
+    return result;
+  } finally {
+    // Optional cleanup to prevent memory leaks if queue becomes empty
+    if (queue.size === 0 && queue.pending === 0) {
+      routeQueues.delete(fromAddress);
+    }
+  }
 }
 
 async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteResult> {
