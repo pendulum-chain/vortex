@@ -176,7 +176,7 @@ export const Globe = ({ className }: GlobeProps) => {
 
   return (
     <div
-      className={cn("relative cursor-grab select-none active:cursor-grabbing", className)}
+      className={cn("relative cursor-grab select-none active:cursor-grabbing lg:absolute", className)}
       style={{ height: size, touchAction: "manipulation", width: size }}
       {...dragHandlers}
     >
