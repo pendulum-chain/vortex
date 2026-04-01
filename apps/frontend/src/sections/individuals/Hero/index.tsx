@@ -14,7 +14,7 @@ export const Hero = () => {
       aria-label={t("pages.main.hero.title")}
       className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-42"
     >
-      <div className="container mx-auto flex flex-col gap-x-20 gap-y-10 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr]">
+      <div className="container mx-auto flex flex-col gap-x-20 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-y-10">
         <div className="flex flex-col gap-6">
           <motion.h1
             animate="visible"
@@ -64,7 +64,11 @@ export const Hero = () => {
             </Link>
           </div>
         </div>
-        <div aria-label="Interactive globe showing supported countries" className="mx-auto lg:mx-0 lg:min-h-[400px]" role="img">
+        <div
+          aria-label="Interactive globe showing supported countries"
+          className="relative min-h-[280px] lg:mx-0 lg:min-h-[400px]"
+          role="img"
+        >
           <Globe />
         </div>
       </div>

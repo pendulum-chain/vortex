@@ -1,5 +1,5 @@
 import createGlobe from "cobe";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import ARS_ICON from "../../assets/coins/ARS.png";
 import BRL_ICON from "../../assets/coins/BRL.png";
 import COP_ICON from "../../assets/coins/COP.png";
@@ -9,15 +9,16 @@ import USD_ICON from "../../assets/coins/USD.png";
 import { prefersReducedMotion } from "../../constants/animations";
 import { cn } from "../../helpers/cn";
 
-const GLOBE_THETA = -0.1;
-const GLOBE_INITIAL_PHI = 0;
-const NORMAL_SPEED = 0.003;
+const GLOBE_THETA = -0.08;
+const GLOBE_INITIAL_PHI = -1.32;
+const NORMAL_SPEED = 0.0005;
+const VERTICAL_SPEED = -0.0005;
 const GLOBE_COLOR: [number, number, number] = [0.07, 0.23, 0.72];
 
 const GLOBE_SIZES = {
-  lg: 780,
-  md: 560,
-  sm: 380
+  lg: 960,
+  md: 780,
+  sm: 560
 } as const;
 
 const CURRENCY_MARKERS = [
@@ -66,7 +67,7 @@ function createGlobeConfig(size: number) {
 // Matches cobe's shader coordinate system exactly:
 // sphere point: px = -cos(lat)*cos(lng), py = sin(lat), pz = cos(lat)*sin(lng)
 // rotation: screen = R_x(theta) * R_y(phi) * p  (derived from mat3 A(theta,phi) in cobe's GLSL)
-function projectToScreen(lat: number, lng: number, phi: number, size: number) {
+function projectToScreen(lat: number, lng: number, phi: number, theta: number, size: number) {
   const pixelRadius = 0.8 * (size / 2);
   const latRad = (lat * Math.PI) / 180;
   const lngRad = (lng * Math.PI) / 180;
@@ -77,8 +78,8 @@ function projectToScreen(lat: number, lng: number, phi: number, size: number) {
 
   const cosPhi = Math.cos(phi);
   const sinPhi = Math.sin(phi);
-  const cosTheta = Math.cos(GLOBE_THETA);
-  const sinTheta = Math.sin(GLOBE_THETA);
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
 
   const sx = cosPhi * px + sinPhi * pz;
   const sy = sinPhi * sinTheta * px + cosTheta * py - cosPhi * sinTheta * pz;
@@ -92,11 +93,11 @@ function projectToScreen(lat: number, lng: number, phi: number, size: number) {
   };
 }
 
-function updateMarkers(phi: number, size: number, markerRefs: React.RefObject<(HTMLImageElement | null)[]>) {
+function updateMarkers(phi: number, theta: number, size: number, markerRefs: React.RefObject<(HTMLImageElement | null)[]>) {
   for (let i = 0; i < CURRENCY_MARKERS.length; i++) {
     const el = markerRefs.current[i];
     if (!el) continue;
-    const pos = projectToScreen(CURRENCY_MARKERS[i].lat, CURRENCY_MARKERS[i].lng, phi + Math.PI, size);
+    const pos = projectToScreen(CURRENCY_MARKERS[i].lat, CURRENCY_MARKERS[i].lng, phi + Math.PI, theta, size);
     if (pos) {
       el.style.display = "";
       el.style.left = `${pos.x}px`;
@@ -107,21 +108,24 @@ function updateMarkers(phi: number, size: number, markerRefs: React.RefObject<(H
   }
 }
 
-function useDragRotation(phiRef: React.RefObject<number>, size: number) {
+function useDragRotation(phiRef: React.RefObject<number>, thetaRef: React.RefObject<number>, size: number) {
   const isDraggingRef = useRef(false);
   const lastPointerXRef = useRef(0);
+  const lastPointerYRef = useRef(0);
 
   const onPointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;
     lastPointerXRef.current = e.clientX;
+    lastPointerYRef.current = e.clientY;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) return;
-    const delta = e.clientX - lastPointerXRef.current;
-    phiRef.current += (delta / size) * Math.PI;
+    phiRef.current += ((e.clientX - lastPointerXRef.current) / size) * Math.PI;
+    thetaRef.current += ((e.clientY - lastPointerYRef.current) / size) * Math.PI;
     lastPointerXRef.current = e.clientX;
+    lastPointerYRef.current = e.clientY;
   };
 
   const onPointerUp = () => {
@@ -131,40 +135,39 @@ function useDragRotation(phiRef: React.RefObject<number>, size: number) {
   return { isDraggingRef, onPointerCancel: onPointerUp, onPointerDown, onPointerMove, onPointerUp };
 }
 
+function subscribeToBreakpoints(callback: () => void) {
+  const mq = window.matchMedia("(min-width: 1024px), (min-width: 640px)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
 interface GlobeProps {
   className?: string;
 }
 
 export const Globe = ({ className }: GlobeProps) => {
   const reducedMotion = prefersReducedMotion();
-  // size as state — triggers globe effect to recreate at new canvas dimensions on breakpoint change
-  const [size, setSize] = useState<number>(getGlobeSize);
+  const size = useSyncExternalStore(subscribeToBreakpoints, getGlobeSize, getGlobeSize);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // positions written directly to DOM each frame, skipping React re-renders
   const markerRefs = useRef<(HTMLImageElement | null)[]>(CURRENCY_MARKERS.map(() => null));
   const phiRef = useRef(GLOBE_INITIAL_PHI);
+  const thetaRef = useRef(GLOBE_THETA);
 
-  const dragHandlers = useDragRotation(phiRef, size);
-
-  // Recreate globe when crossing Tailwind sm (640px) or lg (1024px) breakpoints
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px), (min-width: 640px)");
-    const handler = () => setSize(getGlobeSize());
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const { isDraggingRef, ...dragHandlers } = useDragRotation(phiRef, thetaRef, size);
 
   useEffect(() => {
     if (!canvasRef.current || reducedMotion) return;
     let rafId: number;
     const globe = createGlobe(canvasRef.current, createGlobeConfig(size));
     const tick = () => {
-      if (!dragHandlers.isDraggingRef.current) {
+      if (!isDraggingRef.current) {
         phiRef.current += NORMAL_SPEED;
+        thetaRef.current += VERTICAL_SPEED;
       }
-      globe.update({ phi: phiRef.current });
-      updateMarkers(phiRef.current, size, markerRefs);
+      globe.update({ phi: phiRef.current, theta: thetaRef.current });
+      updateMarkers(phiRef.current, thetaRef.current, size, markerRefs);
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
@@ -172,11 +175,11 @@ export const Globe = ({ className }: GlobeProps) => {
       globe.destroy();
       cancelAnimationFrame(rafId);
     };
-  }, [reducedMotion, size, dragHandlers.isDraggingRef]);
+  }, [reducedMotion, size]);
 
   return (
     <div
-      className={cn("relative cursor-grab select-none active:cursor-grabbing lg:absolute", className)}
+      className={cn("absolute cursor-grab select-none active:cursor-grabbing", className)}
       style={{ height: size, touchAction: "manipulation", width: size }}
       {...dragHandlers}
     >
