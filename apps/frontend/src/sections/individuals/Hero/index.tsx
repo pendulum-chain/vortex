@@ -12,7 +12,7 @@ export const Hero = () => {
   return (
     <section
       aria-label={t("pages.main.hero.title")}
-      className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-42"
+      className="relative overflow-hidden bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))] py-16 lg:py-40"
     >
       <div className="container mx-auto flex flex-col gap-x-20 px-4 sm:px-8 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-y-10">
         <div className="flex flex-col gap-6">

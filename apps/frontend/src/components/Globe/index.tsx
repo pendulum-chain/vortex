@@ -136,9 +136,14 @@ function useDragRotation(phiRef: React.RefObject<number>, thetaRef: React.RefObj
 }
 
 function subscribeToBreakpoints(callback: () => void) {
-  const mq = window.matchMedia("(min-width: 1024px), (min-width: 640px)");
-  mq.addEventListener("change", callback);
-  return () => mq.removeEventListener("change", callback);
+  const mqLg = window.matchMedia("(min-width: 1024px)");
+  const mqSm = window.matchMedia("(min-width: 640px)");
+  mqLg.addEventListener("change", callback);
+  mqSm.addEventListener("change", callback);
+  return () => {
+    mqLg.removeEventListener("change", callback);
+    mqSm.removeEventListener("change", callback);
+  };
 }
 
 interface GlobeProps {
