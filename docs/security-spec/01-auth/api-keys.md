@@ -40,15 +40,15 @@ Three middleware components:
 
 ## Audit Checklist
 
-- [ ] All endpoints requiring partner auth use `apiKeyAuth({ required: true })` or `enforcePartnerAuth()`
-- [ ] Secret key validation (`validateSecretApiKey`) always uses bcrypt comparison, never plaintext comparison
-- [ ] Public key validation (`validatePublicApiKey`) stores keys in plaintext (by design for lookup) but never returns auth credentials
-- [ ] `getKeyType()` correctly identifies `pk_` as public, `sk_` as secret, and anything else as `null`
-- [ ] Regex patterns in `isValidApiKeyFormat` and `isValidSecretKeyFormat` match the documented format exactly: `^(pk|sk)_(live|test)_[a-zA-Z0-9]{32}$`
-- [ ] `generateApiKey()` uses `crypto.randomBytes(32)` — not `Math.random()` or other weak sources
-- [ ] `hashApiKey()` uses bcrypt with salt rounds ≥ 10
-- [ ] Expiration check (`expiresAt`) uses `new Date() > keyRecord.expiresAt`, correctly handling `null` expiresAt (no expiration)
-- [ ] `enforcePartnerAuth` returns 403 (not 401) when partnerId is present but no auth provided
-- [ ] Partner name comparison is case-sensitive and exact (no normalization that could be exploited)
-- [ ] No endpoint accepts secret keys from query parameters or request body
-- [ ] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats
+- [x] All endpoints requiring partner auth use `apiKeyAuth({ required: true })` or `enforcePartnerAuth()` — **PARTIAL: `enforcePartnerAuth()` commented out on quote route**
+- [x] Secret key validation (`validateSecretApiKey`) always uses bcrypt comparison, never plaintext comparison — **PASS**
+- [x] Public key validation (`validatePublicApiKey`) stores keys in plaintext (by design for lookup) but never returns auth credentials — **PASS**
+- [x] `getKeyType()` correctly identifies `pk_` as public, `sk_` as secret, and anything else as `null` — **PASS**
+- [x] Regex patterns in `isValidApiKeyFormat` and `isValidSecretKeyFormat` match the documented format exactly: `^(pk|sk)_(live|test)_[a-zA-Z0-9]{32}$` — **PASS**
+- [x] `generateApiKey()` uses `crypto.randomBytes(32)` — not `Math.random()` or other weak sources — **PASS**
+- [x] `hashApiKey()` uses bcrypt with salt rounds ≥ 10 — **PASS (saltRounds = 10)**
+- [x] Expiration check (`expiresAt`) uses `new Date() > keyRecord.expiresAt`, correctly handling `null` expiresAt (no expiration) — **PASS**
+- [x] `enforcePartnerAuth` returns 403 (not 401) when partnerId is present but no auth provided — **PASS (code correct, but currently commented out)**
+- [x] Partner name comparison is case-sensitive and exact (no normalization that could be exploited) — **PASS**
+- [x] No endpoint accepts secret keys from query parameters or request body — **PASS**
+- [x] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats — **PARTIAL: `PARTNER_MISMATCH` leaks authenticated partner name in response details**

@@ -37,16 +37,16 @@ All keys are loaded from environment variables. There is no HSM, secrets manager
 
 ## Audit Checklist
 
-- [ ] `FUNDING_SECRET` is used only in `stellar.service.ts` for account creation and co-signing — never for arbitrary Stellar operations
-- [ ] `PENDULUM_FUNDING_SEED` is used only for funding ephemeral Pendulum accounts — never for arbitrary extrinsics
-- [ ] `MOONBEAM_EXECUTOR_PRIVATE_KEY` is used only for platform operations (funding, subsidization, XCM) — never for user-initiated EVM transactions
-- [ ] `CryptoService.initializeKeys()` is called exactly once at startup
-- [ ] `CryptoService.getPrivateKey()` is `private` — not callable from outside the class
-- [ ] `CryptoService.getPublicKey()` is the only method that exposes key material — and it's the public key only
-- [ ] If `WEBHOOK_PRIVATE_KEY` is not set, a warning is logged (verified in current code)
-- [ ] RSA key generation uses 2048-bit modulus length minimum (verified: `modulusLength: 2048`)
-- [ ] Signing uses `RSA_PKCS1_PSS_PADDING` with `RSA_PSS_SALTLEN_MAX_SIGN` (verified in current code)
-- [ ] No server key (funding, executor, webhook) is ever included in API responses, logs, or error messages
-- [ ] Server startup fails if `FUNDING_SECRET`, `PENDULUM_FUNDING_SEED`, or `MOONBEAM_EXECUTOR_PRIVATE_KEY` is missing
-- [ ] Funding and executor accounts hold minimal balances — only what's needed for near-term operations
-- [ ] Monitoring/alerts exist for unexpected balance changes on funding and executor accounts
+- [ ] `FUNDING_SECRET` is used only in `stellar.service.ts` for account creation and co-signing — never for arbitrary Stellar operations — 🟡 PARTIAL (also aliased as `SEP10_MASTER_SECRET`, F-022)
+- [x] `PENDULUM_FUNDING_SEED` is used only for funding ephemeral Pendulum accounts — never for arbitrary extrinsics — ✅ PASS
+- [ ] `MOONBEAM_EXECUTOR_PRIVATE_KEY` is used only for platform operations (funding, subsidization, XCM) — never for user-initiated EVM transactions — 🟡 PARTIAL (also aliased as `MOONBEAM_FUNDING_PRIVATE_KEY`, intentional)
+- [x] `CryptoService.initializeKeys()` is called exactly once at startup — ✅ PASS
+- [x] `CryptoService.getPrivateKey()` is `private` — not callable from outside the class — ✅ PASS
+- [x] `CryptoService.getPublicKey()` is the only method that exposes key material — and it's the public key only — ✅ PASS
+- [x] If `WEBHOOK_PRIVATE_KEY` is not set, a warning is logged (verified in current code) — ✅ PASS
+- [x] RSA key generation uses 2048-bit modulus length minimum (verified: `modulusLength: 2048`) — ✅ PASS
+- [x] Signing uses `RSA_PKCS1_PSS_PADDING` with `RSA_PSS_SALTLEN_MAX_SIGN` (verified in current code) — ✅ PASS
+- [x] No server key (funding, executor, webhook) is ever included in API responses, logs, or error messages — ✅ PASS
+- [x] Server startup fails if `FUNDING_SECRET`, `PENDULUM_FUNDING_SEED`, or `MOONBEAM_EXECUTOR_PRIVATE_KEY` is missing — ✅ PASS
+- [ ] Funding and executor accounts hold minimal balances — only what's needed for near-term operations — ❓ N/A (operational check)
+- [ ] Monitoring/alerts exist for unexpected balance changes on funding and executor accounts — ❓ N/A (no monitoring in codebase)

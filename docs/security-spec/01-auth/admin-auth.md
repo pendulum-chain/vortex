@@ -35,13 +35,13 @@ This is the simplest auth mechanism in the system — a single static secret wit
 
 ## Audit Checklist
 
-- [ ] `adminAuth` middleware is applied to every admin-only endpoint
-- [ ] `safeCompare()` is the only comparison used for the admin secret — no `===` or `==` anywhere
-- [ ] **FINDING**: `safeCompare()` leaks secret length via early return on `a.length !== b.length` — verify this is acceptable or replace with `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` (which requires equal-length buffers but avoids the length-dependent branch)
-- [ ] `config.adminSecret` is validated at startup — empty string defaults should be caught
-- [ ] No admin endpoint also accepts Supabase auth or API key auth as a fallback (admin is the only auth layer)
-- [ ] Admin endpoints are not reachable from the public frontend (verify CORS, route prefix separation)
-- [ ] `ADMIN_SECRET` is at least 32 characters in production
-- [ ] No logging middleware captures the full `Authorization` header for admin requests
-- [ ] Error response for invalid admin token does not include the expected token or any hint about the secret
-- [ ] Admin auth errors are logged server-side with request metadata (IP, path) for audit trail
+- [x] `adminAuth` middleware is applied to every admin-only endpoint — **PASS**
+- [x] `safeCompare()` is the only comparison used for the admin secret — no `===` or `==` anywhere — **PASS**
+- [x] **FINDING**: `safeCompare()` leaks secret length via early return on `a.length !== b.length` — verify this is acceptable or replace with `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` (which requires equal-length buffers but avoids the length-dependent branch) — **EXISTING F-010**
+- [x] `config.adminSecret` is validated at startup — empty string defaults should be caught — **PARTIAL: Runtime check returns 500, but no startup validation**
+- [x] No admin endpoint also accepts Supabase auth or API key auth as a fallback (admin is the only auth layer) — **PASS**
+- [x] Admin endpoints are not reachable from the public frontend (verify CORS, route prefix separation) — **PASS (CORS allows all origins to all routes, but auth middleware protects)**
+- [ ] `ADMIN_SECRET` is at least 32 characters in production — **N/A: Deployment config, not verifiable from code**
+- [x] No logging middleware captures the full `Authorization` header for admin requests — **PASS**
+- [x] Error response for invalid admin token does not include the expected token or any hint about the secret — **PASS**
+- [x] Admin auth errors are logged server-side with request metadata (IP, path) for audit trail — **FAIL: Only exceptions logged, not intentional rejections (F-020)**

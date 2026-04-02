@@ -36,13 +36,13 @@ The SDK optionally stores ephemeral keys to a local JSON file (`ephemerals_{ramp
 
 ## Audit Checklist
 
-- [ ] `createStellarEphemeral()`, `createPendulumEphemeral()`, `createMoonbeamEphemeral()` are only called in the SDK/frontend, never in `apps/api`
-- [ ] The API's ramp registration endpoint only accepts addresses (public keys), never private keys or seed phrases
-- [ ] Stellar ephemeral creation sets all thresholds to 2 and adds the funding account as a signer with weight 1
-- [ ] `STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS` is set to the minimum viable amount (just enough for trustlines + fees)
-- [ ] `storeEphemeralKeys` writes to local filesystem only — verify no network calls in the storage path
-- [ ] Ephemeral addresses are validated for format before use in transaction construction
-- [ ] No code path in the API logs or persists ephemeral private keys
-- [ ] Each call to `generateEphemerals()` produces fresh, unique keypairs — no memoization or caching
-- [ ] Unsigned transactions returned to the client are bound to the specific ephemeral addresses provided during registration
-- [ ] The API does not trust that an ephemeral address is an EOA on EVM — verify if contract address detection is needed
+- [x] `createStellarEphemeral()`, `createPendulumEphemeral()`, `createMoonbeamEphemeral()` are only called in the SDK/frontend, never in `apps/api` — ✅ PASS
+- [x] The API's ramp registration endpoint only accepts addresses (public keys), never private keys or seed phrases — ✅ PASS
+- [ ] Stellar ephemeral creation sets all thresholds to 2 and adds the funding account as a signer with weight 1 — ↗️ Deferred to Module 05
+- [x] `STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS` is set to the minimum viable amount (just enough for trustlines + fees) — ✅ PASS (2.5 XLM)
+- [x] `storeEphemeralKeys` writes to local filesystem only — verify no network calls in the storage path — ✅ PASS
+- [ ] Ephemeral addresses are validated for format before use in transaction construction — ❌ FAIL (F-021)
+- [x] No code path in the API logs or persists ephemeral private keys — ✅ PASS
+- [x] Each call to `generateEphemerals()` produces fresh, unique keypairs — no memoization or caching — ✅ PASS
+- [x] Unsigned transactions returned to the client are bound to the specific ephemeral addresses provided during registration — ✅ PASS
+- [ ] The API does not trust that an ephemeral address is an EOA on EVM — verify if contract address detection is needed — 🟡 PARTIAL (no check, but low self-harm risk)

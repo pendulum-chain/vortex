@@ -39,13 +39,13 @@ Two middleware variants exist:
 
 ## Audit Checklist
 
-- [ ] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations
-- [ ] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup)
-- [ ] `SupabaseAuthService.verifyToken()` uses the service role key, not the anon key
-- [ ] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`)
-- [ ] `req.userId` is never set by any code path other than the two auth middlewares
-- [ ] Error responses from auth middleware contain no token fragments, user details, or internal error messages
-- [ ] `optionalAuth` truncates tokens in warning logs (first 15 + last 4 characters)
-- [ ] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at startup — empty strings are treated as missing
-- [ ] Token expiry is enforced by the verification call (not just signature validity)
-- [ ] No endpoint that should require auth is using `optionalAuth` as a shortcut
+- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **FAIL: Cross-ref F-013. Multiple ramp, BRLA, and operational endpoints have no auth.**
+- [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
+- [x] `SupabaseAuthService.verifyToken()` uses the service role key, not the anon key — **FAIL: Uses anon-key client (F-018). Functionally correct but deviates from spec.**
+- [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**
+- [x] `req.userId` is never set by any code path other than the two auth middlewares — **PASS**
+- [x] Error responses from auth middleware contain no token fragments, user details, or internal error messages — **PASS**
+- [x] `optionalAuth` truncates tokens in warning logs (first 15 + last 4 characters) — **PASS**
+- [x] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at startup — empty strings are treated as missing — **FAIL: All default to "" with no startup validation (F-019)**
+- [x] Token expiry is enforced by the verification call (not just signature validity) — **PASS**
+- [x] No endpoint that should require auth is using `optionalAuth` as a shortcut — **PARTIAL: BRLA KYC endpoints use optionalAuth but create user-specific resources**
