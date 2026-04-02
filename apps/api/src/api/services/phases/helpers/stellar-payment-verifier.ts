@@ -1,7 +1,7 @@
+import { HORIZON_URL } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon } from "stellar-sdk";
 import logger from "../../../../config/logger";
-import { HORIZON_URL } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { StateMetadata } from "../meta-state-types";

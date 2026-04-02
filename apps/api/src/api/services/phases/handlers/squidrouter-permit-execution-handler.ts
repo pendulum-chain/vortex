@@ -3,11 +3,9 @@ import {
   getNetworkFromDestination,
   isNetworkEVM,
   isSignedTypedDataArray,
-  Networks,
   RampPhase,
   SignedTypedData
 } from "@vortexfi/shared";
-import { recoverTypedDataAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
@@ -16,7 +14,6 @@ import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { RELAYER_ADDRESS } from "../../transactions/offramp/routes/evm-to-alfredpay";
 import { BasePhaseHandler } from "../base-phase-handler";
-import { StateMetadata } from "../meta-state-types";
 
 // Phase description: call the relayer contract's `execute` function with both the token permit and
 // the signed squidrouter call.
@@ -42,6 +39,19 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     }
 
     try {
+      const executionValue = state.state.squidRouterPermitExecutionValue;
+      if (executionValue === undefined || executionValue === null) {
+        throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
+      }
+
+      const executionValueBigInt = BigInt(executionValue);
+      const maxAllowedValue = BigInt("1000000000000000000"); // 1 ETH in wei
+      if (executionValueBigInt > maxAllowedValue) {
+        throw this.createUnrecoverableError(
+          `squidRouterPermitExecutionValue ${executionValueBigInt} exceeds maximum allowed ${maxAllowedValue}`
+        );
+      }
+
       const existingHash = state.state.squidRouterPermitExecutionHash || null;
 
       if (existingHash) {
@@ -129,7 +139,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
           }
         ],
         functionName: "execute",
-        value: BigInt(state.state.squidRouterPermitExecutionValue!)
+        value: executionValueBigInt
       });
 
       logger.info(`Relayer execute transaction sent with hash: ${hash}`);

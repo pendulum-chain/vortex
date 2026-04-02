@@ -51,8 +51,8 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.nablaSwap.outputCurrencyId
       );
 
-      // @ts-ignore
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      const balanceJson = balanceResponse.toJSON() as { free?: string | number } | null;
+      const currentBalance = Big(String(balanceJson?.free ?? "0"));
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
@@ -87,17 +87,30 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           quote.metadata.nablaSwap?.outputCurrencyId
         );
 
-        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const innerJson = balanceResponse.toJSON() as { free?: string | number } | null;
+        const currentBalance = Big(String(innerJson?.free ?? "0"));
         const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
         return requiredAmount.lte(Big(0));
       };
 
       if (requiredAmount.gt(Big(0))) {
-        // Do the actual subsidizing.
+        const fundingAccountKeypair = getFundingAccount();
+
+        const fundingBalanceResponse = await pendulumNode.api.query.tokens.accounts(
+          fundingAccountKeypair.address,
+          quote.metadata.nablaSwap?.outputCurrencyId
+        );
+        const fundingBalanceJson = fundingBalanceResponse.toJSON() as { free?: string | number } | null;
+        const fundingBalance = Big(String(fundingBalanceJson?.free ?? "0"));
+        if (fundingBalance.lt(requiredAmount)) {
+          throw this.createUnrecoverableError(
+            `SubsidizePostSwapPhaseHandler: Funding account balance too low for subsidy: has ${fundingBalance.toFixed(0)}, needs ${requiredAmount.toFixed(0)}`
+          );
+        }
+
         logger.info(
           `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
         );
-        const fundingAccountKeypair = getFundingAccount();
         const result = await apiManager.executeApiCall(
           api =>
             api.tx.tokens.transfer(
@@ -144,7 +157,14 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     if (quote.outputCurrency === FiatToken.BRL) {
       return "pendulumToMoonbeamXcm";
     }
-    return "spacewalkRedeem";
+
+    if (state.type === RampDirection.SELL) {
+      return "spacewalkRedeem";
+    }
+
+    throw new Error(
+      `SubsidizePostSwapPhaseHandler: Unrecognized routing combination: direction=${state.type}, to=${state.to}, output=${quote.outputCurrency}`
+    );
   }
 }
 

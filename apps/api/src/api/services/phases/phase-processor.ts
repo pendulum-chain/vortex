@@ -241,8 +241,10 @@ export class PhaseProcessor {
           return this.processPhase(errorUpdatedState);
         }
 
-        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${errorUpdatedState.id}`);
+        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${errorUpdatedState.id}, transitioning to failed`);
+        await errorUpdatedState.update({ currentPhase: "failed" });
         this.retriesMap.delete(errorUpdatedState.id);
+        return;
       }
 
       if (isPhaseError && !isRecoverable) {

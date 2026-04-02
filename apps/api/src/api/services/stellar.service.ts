@@ -1,6 +1,6 @@
-import { getTokenConfigByAssetCode, StellarTokenConfig, TOKEN_CONFIG } from "@vortexfi/shared";
+import { getTokenConfigByAssetCode, HORIZON_URL, StellarTokenConfig, TOKEN_CONFIG } from "@vortexfi/shared";
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from "stellar-sdk";
-import { HORIZON_URL, SANDBOX_ENABLED, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
+import { SANDBOX_ENABLED, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
 
 interface CreationTxResult {
   signature: string;

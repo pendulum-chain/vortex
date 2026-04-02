@@ -102,11 +102,11 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             `Sending transaction to Moonbeam split receiver contract at address ${MOONBEAM_RECEIVER_CONTRACT_ADDRESS} with data ${data}. Args: [${squidRouterReceiverId}, ${squidRouterPayload}]`
           );
 
-          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
           let receipt: TransactionReceipt | undefined = undefined;
           let attempt = 0;
           while (attempt < 5 && (!receipt || receipt.status !== "success")) {
+            const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
             // blind retry for transaction submission
             obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
               data,

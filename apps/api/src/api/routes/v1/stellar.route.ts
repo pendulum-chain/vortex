@@ -1,11 +1,12 @@
 import { Router } from "express";
 import * as stellarController from "../../controllers/stellar.controller";
 import { getMemoFromCookiesMiddleware } from "../../middlewares/auth";
+import { requireAuth } from "../../middlewares/supabaseAuth";
 import { validateCreationInput, validateSep10Input } from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 
-router.route("/create").post(validateCreationInput, stellarController.createStellarTransactionHandler);
+router.route("/create").post(requireAuth, validateCreationInput, stellarController.createStellarTransactionHandler);
 
 // Only authorized route. Does not reject the request, but rather passes the memo (if any) derived from a valid cookie in the request.
 router

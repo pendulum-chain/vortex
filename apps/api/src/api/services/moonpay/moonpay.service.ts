@@ -2,6 +2,7 @@ import { MoonpayPriceResponse, RampDirection } from "@vortexfi/shared";
 import { config } from "../../../config";
 import logger from "../../../config/logger";
 import { ProviderInternalError } from "../../errors/providerErrors";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import { createQuoteRequest } from "./request-creator";
 import { processMoonpayResponse } from "./response-handler";
 import { getCryptoCode, getFiatCode } from "./utils";
@@ -32,7 +33,7 @@ type MoonpayError = {
 
 async function fetchMoonpayData(url: string): Promise<FetchResult> {
   try {
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     const body = (await response.json()) as MoonpayResponse;
     return { body, response };
   } catch (error) {

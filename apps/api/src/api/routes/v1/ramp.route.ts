@@ -57,6 +57,8 @@ router.post("/register", optionalAuth, rampController.registerRamp);
  * @apiError (Not Found 404) NotFound Ramp does not exist
  * @apiError (Conflict 409) ConflictError Ramp is not in a state that allows updates
  */
+// TODO [F-013]: /ramp/update is unauthenticated for backwards compatibility.
+// Add requireAuth once frontend auth integration is complete.
 router.post("/update", rampController.updateRamp);
 
 /**
@@ -83,6 +85,8 @@ router.post("/update", rampController.updateRamp);
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
+// TODO [F-013]: /ramp/start and /ramp/update are unauthenticated for backwards compatibility.
+// Add requireAuth once frontend auth integration is complete.
 router.post("/start", rampController.startRamp);
 
 /**

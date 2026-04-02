@@ -122,3 +122,17 @@ export const config: Config = {
   },
   vortexFeePenPercentage: parseFloat(process.env.VORTEX_FEE_PEN_PERCENTAGE || "0.0")
 };
+
+if (config.env === "production") {
+  const missing: string[] = [];
+
+  if (!config.supabase.url) missing.push("SUPABASE_URL");
+  if (!config.supabase.anonKey) missing.push("SUPABASE_ANON_KEY");
+  if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
+  if (!process.env.WEBHOOK_PRIVATE_KEY) missing.push("WEBHOOK_PRIVATE_KEY");
+  if (!config.adminSecret) missing.push("ADMIN_SECRET");
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);
+  }
+}

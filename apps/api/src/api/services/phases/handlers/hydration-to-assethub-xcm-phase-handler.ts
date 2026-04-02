@@ -1,6 +1,7 @@
 import { ApiManager, decodeSubmittableExtrinsic, RampPhase, submitExtrinsic } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
+import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -26,8 +27,9 @@ export class HydrationToAssethubXCMPhaseHandler extends BasePhaseHandler {
       const accountData = await hydrationNode.api.query.system.account(substrateEphemeralAddress);
       const currentEphemeralAccountNonce = accountData.nonce.toNumber();
       if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > nonce) {
-        logger.warn(
-          `Nonce mismatch: Hydration Account ${substrateEphemeralAddress} has nonce ${currentEphemeralAccountNonce}, expected nonce for TX: ${nonce}`
+        throw new RecoverablePhaseError(
+          `Nonce mismatch: Hydration Account ${substrateEphemeralAddress} has nonce ${currentEphemeralAccountNonce}, expected ${nonce}. Transaction may have already been submitted.`,
+          10
         );
       }
 

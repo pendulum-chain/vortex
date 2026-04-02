@@ -1,3 +1,4 @@
+import { decodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
   AlfredpayApiService,
@@ -38,6 +39,8 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { Op, Transaction } from "sequelize";
+import { StrKey } from "stellar-sdk";
+import { isAddress } from "viem";
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
@@ -46,7 +49,6 @@ import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { SupabaseAuthService } from "../auth/supabase.service";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -59,6 +61,38 @@ import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
+
+/**
+ * Validates the address format for a given ephemeral account type.
+ * Throws if the address is empty or does not match the expected format.
+ */
+function validateAddressFormat(address: string, type: EphemeralAccountType): void {
+  if (!address || address.trim().length === 0) {
+    throw new Error(`Empty address provided for ${type} ephemeral account.`);
+  }
+
+  switch (type) {
+    case EphemeralAccountType.Stellar:
+      if (!StrKey.isValidEd25519PublicKey(address)) {
+        throw new Error(`Invalid Stellar address format: "${address}". Expected a valid Ed25519 public key.`);
+      }
+      break;
+
+    case EphemeralAccountType.Substrate:
+      try {
+        decodeAddress(address);
+      } catch {
+        throw new Error(`Invalid Substrate address format: "${address}". Expected a valid SS58 address.`);
+      }
+      break;
+
+    case EphemeralAccountType.EVM:
+      if (!isAddress(address)) {
+        throw new Error(`Invalid EVM address format: "${address}". Expected a valid Ethereum address.`);
+      }
+      break;
+  }
+}
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
@@ -75,6 +109,8 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
     if (!type) {
       throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
     }
+
+    validateAddressFormat(account.address, type);
 
     normalizedSigningAccounts.push({
       address: account.address,

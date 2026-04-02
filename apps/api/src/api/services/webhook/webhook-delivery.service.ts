@@ -2,6 +2,7 @@ import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } fr
 import cryptoService from "../../../config/crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import webhookService from "./webhook.service";
 
 export class WebhookDeliveryService {
@@ -28,7 +29,7 @@ export class WebhookDeliveryService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-      const response = await fetch(webhook.url, {
+      const response = await fetchWithTimeout(webhook.url, {
         body: payloadString,
         headers: {
           "Content-Type": "application/json",

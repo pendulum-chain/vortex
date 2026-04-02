@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
+
 // 6 hours in milliseconds
 const COOLDOWN_PERIOD_MS = 6 * 60 * 60 * 1000;
 
@@ -39,7 +41,7 @@ export class SlackNotifier {
       return;
     }
 
-    const response = await fetch(this.webhookUrl, {
+    const response = await fetchWithTimeout(this.webhookUrl, {
       body: JSON.stringify(message),
       headers: {
         "Content-Type": "application/json"

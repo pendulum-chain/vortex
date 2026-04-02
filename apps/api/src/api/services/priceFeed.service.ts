@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
+import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
 import { SlackNotifier } from "./slack.service";
 
 // Cache entry interface
@@ -134,7 +135,7 @@ export class PriceFeedService {
       }
 
       // Make the API request
-      const response = await fetch(url.toString(), { headers });
+      const response = await fetchWithTimeout(url.toString(), { headers });
 
       // Handle non-2xx responses
       if (!response.ok) {

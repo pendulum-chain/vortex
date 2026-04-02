@@ -69,8 +69,8 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     try {
       const accountData = await pendulumNode.api.query.system.account(substrateEphemeralAddress);
-      // @ts-ignore
-      const currentEphemeralAccountNonce = await accountData.nonce.toNumber();
+      const accountJson = accountData.toJSON() as { nonce?: number } | null;
+      const currentEphemeralAccountNonce = accountJson?.nonce;
 
       // Re-execution guard
       if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > executeSpacewalkNonce) {

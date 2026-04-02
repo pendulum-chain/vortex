@@ -20,6 +20,15 @@ declare module "./vars" {
 // Create Sequelize instance
 const sequelize = new Sequelize(config.database.database, config.database.username, config.database.password, {
   dialect: config.database.dialect,
+  dialectOptions:
+    config.env === "production"
+      ? {
+          ssl: {
+            rejectUnauthorized: false,
+            require: true
+          }
+        }
+      : undefined,
   host: config.database.host,
   logging: config.database.logging ? msg => logger.debug(msg) : false,
   pool: {

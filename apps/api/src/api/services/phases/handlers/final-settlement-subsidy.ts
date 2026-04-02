@@ -208,7 +208,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       );
 
       if (new Big(requiredNativeInUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
-        this.createUnrecoverableError(
+        throw this.createUnrecoverableError(
           `FinalSettlementSubsidyHandler: Required subsidy swap amount $${requiredNativeInUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
         );
       }
@@ -233,6 +233,15 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       );
 
       const { route: swapRoute } = swapRouteResult.data;
+
+      // F-030: Validate swap route output is within acceptable range (≥80% of required subsidy)
+      const estimatedOutput = new Big(swapRoute.estimate.toAmount);
+      const minimumAcceptableOutput = subsidyAmountRaw.mul(0.8);
+      if (estimatedOutput.lt(minimumAcceptableOutput)) {
+        throw this.createUnrecoverableError(
+          `FinalSettlementSubsidyHandler: SquidRouter swap output ${estimatedOutput.toString()} is below 80% of required subsidy ${subsidyAmountRaw.toString()}`
+        );
+      }
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       const txHashIdx = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {

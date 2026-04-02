@@ -144,7 +144,7 @@ export class SupabaseAuthService {
     valid: boolean;
     user_id?: string;
   }> {
-    const { data, error } = await supabase.auth.getUser(accessToken);
+    const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
 
     if (error || !data.user) {
       return { valid: false };

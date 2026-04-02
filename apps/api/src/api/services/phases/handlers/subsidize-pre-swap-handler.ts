@@ -40,8 +40,8 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.nablaSwap.inputCurrencyId
       );
 
-      // @ts-ignore
-      const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+      const balanceJson = balanceResponse.toJSON() as { free?: string | number } | null;
+      const currentBalance = Big(String(balanceJson?.free ?? "0"));
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on pendulum");
       }
@@ -56,16 +56,29 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.metadata.nablaSwap?.inputCurrencyId
         );
 
-        const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
+        const innerJson = balanceResponse.toJSON() as { free?: string | number } | null;
+        const currentBalance = Big(String(innerJson?.free ?? "0"));
         return currentBalance.gte(Big(expectedInputAmountForSwapRaw));
       };
 
       if (requiredAmount.gt(Big(0))) {
-        // Do the actual subsidizing.
+        const fundingAccountKeypair = getFundingAccount();
+
+        const fundingBalanceResponse = await pendulumNode.api.query.tokens.accounts(
+          fundingAccountKeypair.address,
+          quote.metadata.nablaSwap?.inputCurrencyId
+        );
+        const fundingBalanceJson = fundingBalanceResponse.toJSON() as { free?: string | number } | null;
+        const fundingBalance = Big(String(fundingBalanceJson?.free ?? "0"));
+        if (fundingBalance.lt(requiredAmount)) {
+          throw this.createUnrecoverableError(
+            `SubsidizePreSwapPhaseHandler: Funding account balance too low for subsidy: has ${fundingBalance.toFixed(0)}, needs ${requiredAmount.toFixed(0)}`
+          );
+        }
+
         logger.info(
           `Subsidizing pre-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedInputAmountForSwapRaw}`
         );
-        const fundingAccountKeypair = getFundingAccount();
 
         const result = await apiManager.executeApiCall(
           api =>

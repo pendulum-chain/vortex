@@ -14,6 +14,7 @@ import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
+import { fetchWithTimeout } from "../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -239,7 +240,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    */
   private async checkExtrinsicStatus(extrinsicHash: string): Promise<ExtrinsicStatus> {
     try {
-      const response = await fetch("https://pendulum.api.subscan.io/api/scan/extrinsic", {
+      const response = await fetchWithTimeout("https://pendulum.api.subscan.io/api/scan/extrinsic", {
         body: JSON.stringify({
           events_limit: 10,
           hash: extrinsicHash,

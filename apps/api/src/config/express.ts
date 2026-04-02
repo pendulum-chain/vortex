@@ -31,7 +31,7 @@ app.use(
     origin: [
       "https://app.vortexfinance.co",
       "https://metrics.vortexfinance.co",
-      "https://staging--pendulum-pay.netlify.app",
+      process.env.NODE_ENV !== "production" ? "https://staging--pendulum-pay.netlify.app" : null,
       process.env.NODE_ENV === "development" ? "http://localhost:5173" : null,
       process.env.NODE_ENV === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]
@@ -58,8 +58,8 @@ app.use(cookieParser());
 app.use(morgan(logs));
 
 // parse body params and attach them to req.body
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
+app.use(bodyParser.json({ limit: "1mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
 
 // gzip compression
 app.use(compress());

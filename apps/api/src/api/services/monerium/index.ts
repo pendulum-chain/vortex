@@ -16,6 +16,7 @@ import {
 } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 
 const MONERIUM_API_URL = SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app";
 export const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
@@ -31,7 +32,7 @@ const authorize = async (): Promise<MoneriumTokenResponse> => {
     grant_type: "client_credentials"
   });
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     body,
     headers,
     method: "POST"
@@ -53,7 +54,7 @@ export const checkAddressExists = async (address: string, network: Networks): Pr
   };
 
   try {
-    const response = await fetch(url, { headers });
+    const response = await fetchWithTimeout(url, { headers });
     if (!response.ok) {
       if (response.status === 404) {
         return null;
@@ -80,7 +81,7 @@ export const getFirstMoneriumLinkedAddress = async (token: string): Promise<stri
   };
 
   try {
-    const response = await fetch(url, { headers });
+    const response = await fetchWithTimeout(url, { headers });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -114,7 +115,7 @@ export const getAuthContext = async (authToken: string): Promise<AuthContext> =>
   };
 
   try {
-    const response = await fetch(url, { headers });
+    const response = await fetchWithTimeout(url, { headers });
 
     if (!response.ok) {
       throw new Error(`No auth context found: ${response.status} ${response.statusText}`);
@@ -159,7 +160,7 @@ export const getMoneriumUserIban = async ({ authToken, profileId }: FetchIbansPa
   });
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: headers,
       method: "GET"
     });
@@ -197,7 +198,7 @@ export const getMoneriumLinkedIbans = async (authToken: string): Promise<IbanDat
   });
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: headers,
       method: "GET"
     });
@@ -227,7 +228,7 @@ export const getMoneriumUserProfile = async ({ authToken, profileId }: FetchProf
   });
 
   try {
-    const profileResponse = await fetch(profileUrl, {
+    const profileResponse = await fetchWithTimeout(profileUrl, {
       headers: headers,
       method: "GET"
     });
