@@ -1,5 +1,6 @@
 import bodyParser from "body-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
+import helmet from "helmet";
 import httpStatus from "http-status";
 import logger from "../src/config/logger";
 
@@ -32,6 +33,7 @@ class EventStore {
 }
 
 const app = express();
+app.use(helmet());
 const PORT = process.env.PORT || 3000;
 const PASSWORD = process.env.PASSWORD || "bananas";
 const MAX_EVENTS = 1000;
