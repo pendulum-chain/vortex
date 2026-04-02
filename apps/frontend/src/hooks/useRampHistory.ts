@@ -39,6 +39,7 @@ export function useRampHistory(walletAddress?: string) {
           const transactions = response.transactions.map(formatTransaction);
           allTransactions.push(...transactions);
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") throw error;
           console.warn(`Failed to fetch wallet history for ${address}:`, error);
         }
       }

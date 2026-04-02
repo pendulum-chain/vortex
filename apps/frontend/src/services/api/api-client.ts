@@ -5,7 +5,7 @@ export class ApiError extends Error {
   status: number;
   data: { error?: string; message?: string; details?: string };
 
-  constructor(status: number, data: Record<string, unknown>, message: string) {
+  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string) {
     super(message);
     this.status = status;
     this.data = data;
@@ -45,7 +45,7 @@ async function apiFetch<T>(
       ...options.headers
     },
     method,
-    signal: options.signal ?? AbortSignal.timeout(30000)
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
   });
 
   if (!response.ok) {
