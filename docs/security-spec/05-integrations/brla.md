@@ -50,15 +50,15 @@ BRLA is the Brazilian Real stablecoin anchor used for BRL on-ramp and off-ramp o
 
 ## Audit Checklist
 
-- [ ] BRLA API credentials loaded from environment variables (not hardcoded)
-- [ ] `brlaOnrampMint` handler verifies BRLA payment confirmation before minting/teleporting tokens
-- [ ] `brlaPayoutOnMoonbeam` handler passes the correct gross amount (accounting for BRLA's fee deduction)
-- [ ] User CPF/tax ID is validated for format before being sent to BRLA
-- [ ] BRLA subaccount creation is idempotent — no duplicate subaccounts for the same tax ID
-- [ ] BRLA API responses are validated (status code, amount confirmation, transaction ID)
-- [ ] Both handlers use `RecoverablePhaseError` for transient BRLA API failures
-- [ ] HTTPS is enforced for all BRLA API calls
-- [ ] No BRLA API credentials or user tax IDs appear in logs or error messages
-- [ ] Timeout is configured for BRLA API calls
-- [ ] PIX payment details (QR code) returned to user are generated server-side, not client-modifiable
-- [ ] BRLA interaction amounts are logged for reconciliation (amounts, not credentials)
+- [x] BRLA API credentials loaded from environment variables (not hardcoded). **PASS** — verified: credentials loaded from env vars.
+- [x] `brlaOnrampMint` handler verifies BRLA payment confirmation before minting/teleporting tokens. **PASS** — handler polls BRLA API for payment status before proceeding.
+- [x] `brlaPayoutOnMoonbeam` handler passes the correct gross amount (accounting for BRLA's fee deduction). **PASS** — amount derived from ramp state quote values.
+- [x] User CPF/tax ID is validated for format before being sent to BRLA. **PASS** — CPF validation present in registration flow.
+- [x] BRLA subaccount creation is idempotent — no duplicate subaccounts for the same tax ID. **PASS** — checks existing subaccount before creating.
+- [PARTIAL] BRLA API responses are validated (status code, amount confirmation, transaction ID). **PARTIAL** — shared package (`@packages/shared`) used for BRLA client; not fully audited as a separate module.
+- [x] Both handlers use `RecoverablePhaseError` for transient BRLA API failures. **PASS** — verified in both handler files.
+- [x] HTTPS is enforced for all BRLA API calls. **PASS** — base URL uses `https://`.
+- [PARTIAL] No BRLA API credentials or user tax IDs appear in logs or error messages. **PARTIAL** — generic error logging may inadvertently include sensitive data in error objects; no explicit scrubbing.
+- [FAIL] Timeout is configured for BRLA API calls. **FAIL F-014** — no explicit timeout configured on BRLA HTTP client; relies on default system/library timeouts.
+- [x] PIX payment details (QR code) returned to user are generated server-side, not client-modifiable. **PASS** — PIX details come from BRLA API response.
+- [PARTIAL] BRLA interaction amounts are logged for reconciliation (amounts, not credentials). **PARTIAL** — some logging exists but no formal reconciliation logging with explicit amount fields.

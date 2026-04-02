@@ -49,17 +49,17 @@ XCM (Cross-Consensus Messaging) is the inter-parachain transfer protocol used to
 
 ## Audit Checklist
 
-- [ ] Verify `moonbeam-to-pendulum-xcm-handler.ts` RPC shuffling: `submittedToRpcIndexes` is persisted in ramp state across retries and correctly excludes already-tried RPCs
-- [ ] Verify `RecoverablePhaseError` with `minimumWaitSeconds: 1800` (30 min) is thrown when all RPCs are exhausted
-- [ ] Verify `moonbeam-to-pendulum-handler.ts` waits for `getHashRegistered()` before calling `executeXCM`
-- [ ] Verify `MOONBEAM_EXECUTOR_PRIVATE_KEY` is used correctly — not leaked in logs, not passed to clients
-- [ ] Verify the Moonbeam receiver contract's `executeXCM` function validates the caller is the authorized executor (on-chain check, not just client-side)
-- [ ] Verify `pendulum-to-moonbeam-xcm-handler.ts` 3-tier recovery: (a) hash check → (b) token departure check → (c) fresh submit, in that order
-- [ ] Verify Moonbeam balance polling uses a 2-minute timeout and throws recoverable error on expiry
-- [ ] **FINDING**: `hydration-to-assethub-xcm-phase-handler.ts` explicitly passes `false` for finalization wait — verify this is an accepted risk and document the reorg window
-- [ ] Verify Hydration nonce re-execution guard: `currentNonce > executeNonce` correctly identifies a previously-executed transfer
-- [ ] Verify `hydration-swap-handler.ts` uses the presigned extrinsic from state — not constructed at execution time
-- [ ] Verify `pendulum-to-assethub-phase-handler.ts` transitions to `complete` — confirm this is the correct terminal phase for its flow
-- [ ] Verify `pendulum-to-hydration-xcm-phase-handler.ts` waits for balance arrival on Hydration before transitioning to `hydrationSwap`
-- [ ] Verify no XCM handler logs private keys, seeds, or full transaction payloads that could expose sensitive data
-- [ ] Verify `moonbeam-to-pendulum-handler.ts` blind retry (5 attempts, 20s delay) does not consume the phase processor's retry budget — each handler invocation counts as one phase processor attempt
+- [x] Verify `moonbeam-to-pendulum-xcm-handler.ts` RPC shuffling: `submittedToRpcIndexes` is persisted in ramp state across retries and correctly excludes already-tried RPCs. **PASS** — RPC index array persisted in ramp state.
+- [x] Verify `RecoverablePhaseError` with `minimumWaitSeconds: 1800` (30 min) is thrown when all RPCs are exhausted. **PASS** — 30-minute wait confirmed when all RPCs tried.
+- [x] Verify `moonbeam-to-pendulum-handler.ts` waits for `getHashRegistered()` before calling `executeXCM`. **PASS** — hash registration check precedes XCM execution.
+- [x] Verify `MOONBEAM_EXECUTOR_PRIVATE_KEY` is used correctly — not leaked in logs, not passed to clients. **PASS** — key used only for signing; no log leakage found.
+- [PARTIAL] Verify the Moonbeam receiver contract's `executeXCM` function validates the caller is the authorized executor (on-chain check, not just client-side). **PARTIAL** — cannot verify on-chain contract logic from application code alone; requires separate on-chain audit.
+- [x] Verify `pendulum-to-moonbeam-xcm-handler.ts` 3-tier recovery: (a) hash check → (b) token departure check → (c) fresh submit, in that order. **PASS** — 3-tier recovery logic confirmed in correct order.
+- [x] Verify Moonbeam balance polling uses a 2-minute timeout and throws recoverable error on expiry. **PASS** — 2-minute timeout with recoverable error confirmed.
+- [x] **FINDING**: `hydration-to-assethub-xcm-phase-handler.ts` explicitly passes `false` for finalization wait — verify this is an accepted risk and document the reorg window. **PASS (accepted risk)** — finalization skip is intentional due to Hydration limitations; documented as known risk.
+- [FAIL] Verify Hydration nonce re-execution guard: `currentNonce > executeNonce` correctly identifies a previously-executed transfer. **FAIL F-028** — nonce mismatch is logged as warning only; execution is NOT blocked. A stale nonce could cause re-execution.
+- [x] Verify `hydration-swap-handler.ts` uses the presigned extrinsic from state — not constructed at execution time. **PASS** — extrinsic decoded from stored presigned hex.
+- [x] Verify `pendulum-to-assethub-phase-handler.ts` transitions to `complete` — confirm this is the correct terminal phase for its flow. **PASS** — transitions to `complete` as expected.
+- [x] Verify `pendulum-to-hydration-xcm-phase-handler.ts` waits for balance arrival on Hydration before transitioning to `hydrationSwap`. **PASS** — balance polling confirmed before phase transition.
+- [x] Verify no XCM handler logs private keys, seeds, or full transaction payloads that could expose sensitive data. **PASS** — no sensitive data in logs.
+- [PARTIAL] Verify `moonbeam-to-pendulum-handler.ts` blind retry (5 attempts, 20s delay) does not consume the phase processor's retry budget — each handler invocation counts as one phase processor attempt. **PARTIAL F-028** — the 5-attempt internal retry uses stale gas prices from initial fetch; no gas price refresh between retries.

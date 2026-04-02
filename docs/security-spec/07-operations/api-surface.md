@@ -52,19 +52,19 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 ## Audit Checklist
 
-- [ ] **⚠️ FINDING**: `bodyParser.json({ limit: "50mb" })` — verify this limit is intentional. Recommend reducing to 1-10MB for a JSON API.
-- [ ] **FINDING**: `staging--pendulum-pay.netlify.app` is in the production CORS whitelist — verify this is intentional and assess the risk of staging-site compromise
-- [ ] **FINDING**: All validators are hand-written (no Zod/Joi) — verify every mutable endpoint has a corresponding validator middleware
-- [ ] Verify CORS does not use wildcard (`*`) or dynamic origin reflection — check `express.ts` for `origin: true` or callback patterns
-- [ ] Verify rate limiting cannot be bypassed by removing or spoofing `X-Forwarded-For` headers — check how `express-rate-limit` identifies clients
-- [ ] Verify `Helmet` is configured with secure defaults — check for any disabled protections
-- [ ] Verify `NODE_ENV` is set to `"production"` in production — stack traces are only stripped when not in development mode
-- [ ] Verify error responses do not include internal error types, database error codes, or SQL fragments
-- [ ] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names
-- [ ] Map all 27 route files and verify each has appropriate auth middleware (Supabase, API key, admin, or public)
-- [ ] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key)
-- [ ] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns
-- [ ] Verify no endpoint returns `process.env`, server config, or internal paths in responses
-- [ ] Check whether Supabase auth cookies use `SameSite=Strict` or `SameSite=Lax` — and whether CSRF tokens are required for state-changing operations
-- [ ] Verify the 404 handler does not reveal Express version or framework information
-- [ ] Check all 27 route files for endpoints that accept file uploads — verify file size limits and type validation if present
+- [FAIL] **⚠️ FINDING F-035**: `bodyParser.json({ limit: "50mb" })` — verify this limit is intentional. Recommend reducing to 1-10MB for a JSON API. **FAIL F-035** — 50MB limit is excessive; enables memory exhaustion attacks.
+- [FAIL] **FINDING F-036**: `staging--pendulum-pay.netlify.app` is in the production CORS whitelist — verify this is intentional and assess the risk of staging-site compromise. **FAIL F-036** — staging origin always in CORS whitelist regardless of `NODE_ENV`.
+- [PARTIAL] **FINDING**: All validators are hand-written (no Zod/Joi) — verify every mutable endpoint has a corresponding validator middleware. **PARTIAL F-037** — hand-written validators exist but multiple sensitive endpoints lack authentication/validation entirely.
+- [x] Verify CORS does not use wildcard (`*`) or dynamic origin reflection — check `express.ts` for `origin: true` or callback patterns. **PASS** — explicit origin whitelist used; no wildcard or dynamic reflection.
+- [x] Verify rate limiting cannot be bypassed by removing or spoofing `X-Forwarded-For` headers — check how `express-rate-limit` identifies clients. **PASS** — `express-rate-limit` uses IP-based identification.
+- [x] Verify `Helmet` is configured with secure defaults — check for any disabled protections. **PASS** — Helmet enabled with default security headers.
+- [N/A] Verify `NODE_ENV` is set to `"production"` in production — stack traces are only stripped when not in development mode. **N/A** — requires deployment configuration inspection.
+- [x] Verify error responses do not include internal error types, database error codes, or SQL fragments. **PASS** — error handler wraps errors in generic `APIError` format.
+- [x] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names. **PASS** — error messages are user-facing validation messages.
+- [PARTIAL] Map all 27 route files and verify each has appropriate auth middleware (Supabase, API key, admin, or public). **PARTIAL F-037** — multiple sensitive endpoints lack authentication: `/ramp/update`, `/ramp/start`, `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/maintenance/schedules/:id/active`, `/webhook`.
+- [x] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key). **PASS** — auth middleware usage reviewed per route.
+- [N/A] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns. **N/A** — deferred; requires comprehensive Sequelize usage audit.
+- [x] Verify no endpoint returns `process.env`, server config, or internal paths in responses. **PASS** — no endpoint exposes internal configuration.
+- [PARTIAL] Check whether Supabase auth cookies use `SameSite=Strict` or `SameSite=Lax` — and whether CSRF tokens are required for state-changing operations. **PARTIAL** — cookie parser enabled but cookie attributes not explicitly configured for `SameSite`.
+- [x] Verify the 404 handler does not reveal Express version or framework information. **PASS** — custom 404 handler returns generic JSON error.
+- [x] Check all 27 route files for endpoints that accept file uploads — verify file size limits and type validation if present. **PASS** — no file upload endpoints found.

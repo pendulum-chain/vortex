@@ -40,15 +40,15 @@ The bridge operates through a **vault-based model**: independent vault operators
 
 ## Audit Checklist
 
-- [ ] Verify `createVaultService()` filters by both `assetCode` AND `assetIssuer` — not just one
-- [ ] Verify vault capacity check is performed before vault selection — not after
-- [ ] Verify the redeem extrinsic is decoded from stored presigned data, not constructed at execution time
-- [ ] Verify nonce guard: `currentEphemeralAccountNonce > executeSpacewalkNonce` correctly identifies prior execution
-- [ ] Verify `AmountExceedsUserBalance` catch path does NOT re-submit the redeem — only enters the Stellar balance waiting loop
-- [ ] Verify `isStellarEphemeralFunded()` checks both account existence AND the trustline for the specific Stellar asset being redeemed
-- [ ] Verify the 10-minute balance polling timeout is enforced and throws a recoverable error on expiry
-- [ ] Verify no fallback to a default vault if the selected vault fails — the error should propagate, not silently pick another vault mid-execution
-- [ ] Verify Spacewalk protocol's vault slash/cancel mechanism is understood and documented for operational runbooks
-- [ ] Verify the `@ts-ignore` annotations in `spacewalk-redeem-handler.ts` (lines 72-73) — check that `.nonce.toNumber()` returns the correct value and the type assertion hasn't hidden an API change
-- [ ] Check whether Spacewalk has a maximum redeem amount per vault per transaction — if so, verify Vortex respects it
-- [ ] Verify there is no claimable-balance recovery mechanism — document as a known operational gap if absent
+- [x] Verify `createVaultService()` filters by both `assetCode` AND `assetIssuer` — not just one. **PASS** — both fields used in vault selection filter.
+- [x] Verify vault capacity check is performed before vault selection — not after. **PASS** — capacity checked during selection.
+- [x] Verify the redeem extrinsic is decoded from stored presigned data, not constructed at execution time. **PASS** — decoded from stored hex.
+- [x] Verify nonce guard: `currentEphemeralAccountNonce > executeSpacewalkNonce` correctly identifies prior execution. **PASS** — nonce guard logic verified.
+- [x] Verify `AmountExceedsUserBalance` catch path does NOT re-submit the redeem — only enters the Stellar balance waiting loop. **PASS** — catch enters waiting path only.
+- [x] Verify `isStellarEphemeralFunded()` checks both account existence AND the trustline for the specific Stellar asset being redeemed. **PASS** — both checks present.
+- [x] Verify the 10-minute balance polling timeout is enforced and throws a recoverable error on expiry. **PASS** — timeout with recoverable error confirmed.
+- [x] Verify no fallback to a default vault if the selected vault fails — the error should propagate, not silently pick another vault mid-execution. **PASS** — error propagates; no silent fallback.
+- [PARTIAL] Verify Spacewalk protocol's vault slash/cancel mechanism is understood and documented for operational runbooks. **PARTIAL** — protocol mechanism understood but no operational runbook exists.
+- [EXISTING FINDING] Verify the `@ts-ignore` annotations in `spacewalk-redeem-handler.ts` (lines 72-73) — check that `.nonce.toNumber()` returns the correct value and the type assertion hasn't hidden an API change. **EXISTING FINDING F-026** — `@ts-ignore` suppresses type safety; API changes would fail silently.
+- [PARTIAL] Check whether Spacewalk has a maximum redeem amount per vault per transaction — if so, verify Vortex respects it. **PARTIAL** — vault capacity is checked but no explicit max-per-transaction enforcement verified at Spacewalk protocol level.
+- [x] Verify there is no claimable-balance recovery mechanism — document as a known operational gap if absent. **PASS (confirmed absent)** — no recovery mechanism exists; documented as known gap.

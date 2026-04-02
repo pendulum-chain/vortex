@@ -44,7 +44,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** Two parallel fee calculation paths exist. Token-config-based fees are what actually deduct from user amounts during swaps. Database-based fees are calculated, stored, and displayed — but are NOT used for actual deductions. These two systems can produce different numbers for the same ramp, meaning users may see one fee but pay another.
 
-**Fix:** Unify the fee systems or add reconciliation checks that alert on divergence.
+**CTO Clarification (2026-04-02):** Unify into a single source of truth. One fee calculation path used for both display and deduction.
+
+**Fix:** Unify the fee systems into a single calculation path. Remove the parallel system so the same calculation is used for both display and on-chain deduction.
 
 ---
 
@@ -61,7 +63,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** Lock acquisition reads `state.processingLock.locked` from a potentially stale DB read, then sets it in a separate UPDATE. No `SELECT FOR UPDATE`, advisory lock, or atomic compare-and-swap. The in-memory `Set` only protects within a single Node.js process.
 
-**Fix:** Use `SELECT FOR UPDATE` or database advisory locks for cross-instance safety.
+**CTO Clarification (2026-04-02):** Currently single instance, but multi-instance deployment is planned for the future. Should add proper DB-level locking now in preparation.
+
+**Fix:** Use `SELECT FOR UPDATE` or database advisory locks for cross-instance safety. Implement now even though it's currently single-instance, to prepare for future multi-instance deployment.
 
 ---
 
@@ -76,7 +80,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** After `MAX_RETRIES` (8) is exhausted for a recoverable error, the ramp stays in its current phase. It is not transitioned to `failed`. The next processing cycle picks it up again and the retry counter restarts.
 
-**Fix:** Transition to `failed` after max retries exhausted, or persist the retry counter so it survives across processing cycles.
+**CTO Clarification (2026-04-02):** After max retries, transition the ramp to `failed` state. User gets notified, manual intervention possible.
+
+**Fix:** Transition to `failed` after max retries exhausted. The retry counter should not reset across processing cycles.
 
 ---
 
@@ -91,7 +97,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** All secrets are plain environment variables loaded at startup. No HSM, no secrets manager (AWS Secrets Manager, Vault, etc.), no encrypted storage at rest, no audit trail. Blast radius of a server compromise is total: Stellar funding keys, Pendulum seeds, Moonbeam executor keys, all rebalancer chain keys, database credentials, admin tokens, and all third-party API keys.
 
-**Fix:** Adopt a secrets manager with access logging and rotation support. At minimum, separate high-value keys (funding/signing) from low-value keys (API tokens).
+**CTO Clarification (2026-04-02):** Planned improvement. Migration to a secrets manager is on the roadmap but not in this audit cycle's scope.
+
+**Fix:** Planned for future. At minimum, separate high-value keys (funding/signing) from low-value keys (API tokens). Full secrets manager migration to be scoped separately.
 
 ---
 
@@ -106,7 +114,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** Rebalancer state is stored as a JSON file in Supabase Storage. Supabase Storage has no file locking, no conditional writes, no atomic compare-and-swap. If two instances run simultaneously, both read the same state and could execute the same steps.
 
-**Fix:** Add a locking mechanism (e.g., DB-based lock, advisory lock) or ensure single-instance deployment.
+**CTO Clarification (2026-04-02):** Concurrent rebalancer runs can happen (e.g., cron overlap). Needs a locking mechanism.
+
+**Fix:** Add a locking mechanism (e.g., DB-based lock, advisory lock, or Supabase row-level lock) to prevent concurrent rebalancer execution. Check and acquire lock at startup, release on completion or crash.
 
 ---
 
@@ -123,7 +133,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** `bodyParser.json({ limit: "50mb" })` is configured. Typical JSON APIs use 1-10MB. A 50MB limit combined with the global rate limit (100 req/min) allows significant memory pressure.
 
-**Fix:** Reduce to 1-10MB unless a specific endpoint requires large payloads.
+**CTO Clarification (2026-04-02):** No endpoint needs more than ~1MB. The largest payload is the presigned transaction bundle from the user, which is well under 1MB. 50MB was not intentional.
+
+**Fix:** Reduce to `1mb` (or at most `10mb` as a safety margin). No per-route override needed.
 
 ---
 
@@ -138,7 +150,14 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** `staging--pendulum-pay.netlify.app` is in the CORS whitelist alongside production domains. This means the staging site can make authenticated cross-origin requests to production.
 
-**Fix:** Remove staging origins from production CORS config. Use environment-specific CORS lists.
+**CTO Clarification (2026-04-02):** Oversight. The staging origin should NOT be in the production CORS whitelist.
+
+**Fix:** Remove staging origins from production CORS config. Gate behind `NODE_ENV` check:
+```typescript
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging') {
+  allowedOrigins.push('https://staging--pendulum-pay.netlify.app');
+}
+```
 
 ---
 
@@ -153,7 +172,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** `submitExtrinsic` is called with `waitForFinalization=false` because "it somehow doesn't work on Hydration." The handler proceeds after inclusion. If the chain reorganizes, the transfer is reverted but the ramp is already marked complete.
 
-**Fix:** Document as accepted risk with reasoning. Monitor Hydration block finality characteristics. Consider post-hoc verification.
+**CTO Clarification (2026-04-02):** Investigate and fix. The root cause of finalization not working on Hydration should be identified and resolved rather than accepted.
+
+**Fix:** Investigate why `waitForFinalization=true` doesn't work on Hydration. Fix the root cause so the handler waits for finalization before proceeding. If the fix is non-trivial, add post-hoc verification (check finalization status before marking ramp complete).
 
 ---
 
@@ -183,7 +204,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** If `WEBHOOK_PRIVATE_KEY` is not set, `CryptoService` generates an ephemeral RSA keypair at startup. This key is non-persistent: webhook signatures generated before a restart cannot be verified after, and vice versa.
 
-**Fix:** Ensure `WEBHOOK_PRIVATE_KEY` is always set in production. Add a startup check that fails if missing.
+**CTO Clarification (2026-04-02):** `WEBHOOK_PRIVATE_KEY` IS set in production. The ephemeral fallback is only for local development.
+
+**Fix:** Add a startup validation check: if `NODE_ENV === "production"` and `WEBHOOK_PRIVATE_KEY` is not set, terminate the process with a clear error. This prevents accidental deployment without the key.
 
 ---
 
@@ -200,7 +223,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** The `partnerDiscountState` Map is in-memory only. All dynamic pricing state (the `difference` value per partner) is lost on restart.
 
-**Fix:** Persist to database if continuity across restarts matters. Or accept as design decision with documentation.
+**CTO Clarification (2026-04-02):** Acceptable. Losing dynamic pricing state on restart is fine — partners adapt quickly. No persistence needed.
+
+**Fix:** Document as accepted design decision. No code change needed. Optionally add a log message on startup noting that dynamic pricing state starts fresh.
 
 ---
 
@@ -229,9 +254,20 @@ This file consolidates all security findings. Initially discovered during the sp
 - `PATCH /v1/maintenance/schedules/:id/active` — toggle maintenance mode
 - `GET /v1/brla/getUser`, `GET /v1/brla/getUserRemainingLimit`, etc. — user data without auth
 
-**Note:** Some of these may be intentionally unauthenticated because the SDK calls them after the user has signed transactions client-side (the presigned tx itself acts as implicit authorization). If so, this design decision should be explicitly documented and additional validations (e.g., verifying the ramp is in the correct state, the caller provided valid presigned data) should be verified.
+**CTO Clarification (2026-04-02):**
+- `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap` are **legacy endpoints that should be removed**. They were from a time when the frontend managed ramp progression directly. The server now handles this internally.
+- `/ramp/start` and `/ramp/update` must remain **unauthenticated for now** (backwards compatibility with existing SDK users who haven't implemented auth yet). Auth will be added in a future iteration once all SDK consumers are notified.
+- `/stellar/create` — **add auth** (requireAuth or apiKeyAuth).
+- `/maintenance/schedules/:id/active` — **add adminAuth**.
+- `/webhook` POST/DELETE — **add apiKeyAuth** (partners register webhooks).
+- `/brla/getUser`, `/brla/getUserRemainingLimit` — **add requireAuth** (user data must require authenticated session).
+- The API is **directly exposed to the internet** with no reverse proxy or firewall restricting endpoint access.
 
-**Fix:** For each endpoint, either: (1) add appropriate auth middleware, or (2) document why auth is not needed and what alternative authorization mechanism is in place.
+**Fix:**
+1. **Remove** legacy endpoints: `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap`
+2. **Add auth middleware**: `requireAuth` to `/stellar/create` and `/brla/*` user data endpoints; `adminAuth` to `/maintenance/*`; `apiKeyAuth` to `/webhook` POST/DELETE
+3. **Document** that `/ramp/start` and `/ramp/update` are intentionally unauthenticated (temporary, backwards compat) with a TODO to add API key auth once SDK users migrate
+4. **Future:** Require API key auth on `/ramp/start` and `/ramp/update`
 
 ---
 
@@ -384,7 +420,9 @@ This file consolidates all security findings. Initially discovered during the sp
 
 **Description:** `SEP10_MASTER_SECRET` is set to `FUNDING_SECRET` at `constants.ts:43` rather than being loaded from its own environment variable. This means the Stellar key that holds and moves XLM funds is the same key used for SEP-10 web authentication challenges. The blast radius of a SEP-10 compromise is amplified from "authentication broken" to "funding account drained."
 
-**Fix:** Use a separate Stellar keypair for SEP-10: add `SEP10_MASTER_SECRET` as its own env var, include it in `validateRequiredEnvVars()`, and remove the aliasing.
+**CTO Clarification (2026-04-02):** Intentional simplification — only one Stellar keypair is used. Accepted risk for now.
+
+**Fix:** Deferred. Document as accepted risk. If the Stellar integration grows, revisit with a dedicated SEP-10 keypair.
 
 ---
 
@@ -442,7 +480,9 @@ These are design observations noted during spec writing that may warrant review 
 
 If the design assumes Monerium mints instantly after SEPA settlement and the ramp is only created once Monerium signals readiness (i.e., the 30-min window starts after Monerium confirms receipt, not after the user sends SEPA), then this timeout is appropriate. **Clarification needed on the intended flow.**
 
-**Fix:** Verify that the 30-minute window begins after Monerium confirms payment (not after user initiates SEPA). If it starts at ramp creation, extend the timeout or implement a callback/webhook-based flow for SEPA.
+**CTO Clarification (2026-04-02):** The timer starts at ramp creation — NOT after Monerium confirms SEPA settlement. This means the 30-minute window begins before SEPA settles (which takes 1-3 business days). The flow works because the ramp isn't created until the SEPA transfer is expected to have already settled and Monerium is expected to mint EURe imminently. However, if Monerium processing is delayed beyond 30 minutes after the ramp is created, the ramp will fail even if the payment was legitimate.
+
+**Fix:** Verify that the 30-minute window is sufficient for the expected Monerium processing time after SEPA settlement. If not, extend the timeout or implement a webhook-based flow where Monerium notifies completion rather than polling.
 
 ---
 
@@ -457,6 +497,8 @@ If the design assumes Monerium mints instantly after SEPA settlement and the ram
 | **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). |
 
 **Description:** No per-user concurrent ramp limit is enforced for Monerium SEPA flows. A user can create unlimited pending SEPA ramps. Each ramp consumes: (1) a database row with state tracking, (2) periodic phase processing cycles (polling for token arrival), (3) a slot in the phase processor queue. The 30-minute timeout per ramp partially mitigates this (each ramp auto-fails after 30 min), but during those 30 minutes the system is actively polling for each ramp. Combined with the global rate limit (100 req/min), an attacker could create hundreds of phantom ramps per day.
+
+**CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
 **Fix:** Add a per-user limit on concurrent pending ramps (e.g., max 3 pending SEPA ramps per user). Enforce at ramp creation time.
 
@@ -537,7 +579,9 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 
 Each of these roles has different exposure surfaces and trust requirements. A single key compromise (e.g., from a SquidRouter API integration leak) would grant an attacker the ability to drain the funding account, execute arbitrary XCM transfers, and sign Monerium operations.
 
-**Fix:** Use separate private keys for each role: one for the executor (XCM contract calls), one for EVM funding (subsidization), and one for third-party integration operations (Monerium, SquidRouter). This limits blast radius if any single integration is compromised.
+**CTO Clarification (2026-04-02):** Known gap, to be addressed later. Currently only one EOA is managed on Moonbeam. Key separation requires deploying and funding additional accounts.
+
+**Fix:** Deferred. Document as accepted risk with a plan to separate keys when infra supports multiple funded EOAs. When addressed: one key for executor (XCM contract calls), one for EVM funding (subsidization), one for third-party integrations (Monerium, SquidRouter).
 
 ---
 
@@ -654,7 +698,9 @@ The final `return "spacewalkRedeem"` is an implicit catch-all. For current flows
 
 None of these steps check for prior execution evidence (e.g., transaction hash from previous attempt, nonce guards, or balance pre-checks) before re-executing.
 
-**Fix:** Make each step idempotent. Options include:
+**CTO Clarification (2026-04-02):** Crash recovery is a real concern. Steps should be made idempotent.
+
+**Fix:** Make each step idempotent. Recommended approach:
 1. **Transaction hash guards**: Save the tx hash in state immediately after submission (before `saveState()` for the full step). On re-entry, check if the tx hash exists and verify its status before re-executing.
 2. **Nonce guards**: Use explicit nonce management so re-submitted transactions are rejected as duplicates.
 3. **Balance pre-checks**: Before executing a transfer, check if the expected balance change already occurred (e.g., tokens already on target chain).
@@ -686,12 +732,20 @@ None of these steps check for prior execution evidence (e.g., transaction hash f
 
 6. **`/webhook` (POST, DELETE)** — No auth for webhook registration or deletion. Anyone can register callback URLs or delete existing webhooks.
 
-**Note:** Some of these endpoints may be intentionally internal-only (called by the system itself, not by external clients), in which case the fix is to ensure they are not publicly accessible via network-level controls (firewall rules, internal-only routing) rather than application-level auth.
+**CTO Clarification (2026-04-02):**
+- Legacy endpoints (`/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*`) — **remove entirely** (see F-013 clarification).
+- `/ramp/start`, `/ramp/update` — **unauthenticated for now** (backwards compat). Auth planned as future iteration.
+- `/stellar/create` — **add requireAuth or apiKeyAuth**.
+- `/maintenance/schedules/:id/active` — **add adminAuth**.
+- `/webhook` POST/DELETE — **add apiKeyAuth** (partner-facing).
+- `/brla/*` user data — **add requireAuth**.
+- API is **directly exposed to the internet** with no network-level restrictions.
 
 **Fix:**
-- **Immediate**: Add authentication middleware (`requireAuth`, `apiKeyAuth`, or `adminAuth`) to all sensitive endpoints.
-- **Input validation**: Add request body validation middleware for each endpoint.
-- **If internal-only**: Document which endpoints are internal, add auth anyway as defense-in-depth, and consider moving them to a separate internal router that binds to a different port or uses a service mesh.
+1. **Remove** legacy endpoints: `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap`
+2. **Add auth**: `adminAuth` on `/maintenance/*`, `apiKeyAuth` on `/webhook` POST/DELETE, `requireAuth` on `/stellar/create` and `/brla/*` user data
+3. **Add input validation middleware** for all remaining endpoints
+4. **Document** `/ramp/start` and `/ramp/update` as intentionally unauthenticated (temporary) with TODO for API key auth
 
 ---
 
@@ -743,7 +797,9 @@ The existing rate limiter (100 requests per 15 minutes per IP) provides some mit
 - Rate limiting is per-IP and can be bypassed with multiple IPs
 - The rate limiter applies AFTER body parsing, not before — so the body is already in memory when the rate limit kicks in
 
-**Fix:** Reduce the body parser limit to `1mb` (or at most `10mb` if there's a specific endpoint that needs larger payloads). If a specific endpoint genuinely needs larger bodies, apply a per-route override rather than a global 50MB limit.
+**CTO Clarification (2026-04-02):** No endpoint needs more than ~1MB. The largest payload is the presigned transaction bundle, well under 1MB. The 50MB limit was not intentional.
+
+**Fix:** Reduce the body parser limit to `1mb` (or at most `10mb` as a safety margin). If a specific endpoint genuinely needs larger bodies, apply a per-route override rather than a global 50MB limit.
 
 ---
 
@@ -769,6 +825,8 @@ const allowedOrigins = [
 ```
 
 Since `credentials: true` is set in the CORS config, the staging origin can make authenticated cross-origin requests to the production API.
+
+**CTO Clarification (2026-04-02):** Oversight. Staging should NOT be in the production CORS whitelist.
 
 **Fix:** Gate the staging origin behind the same `NODE_ENV` check as localhost:
 ```typescript

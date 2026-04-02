@@ -46,17 +46,17 @@ There are three subsidization phases and one settlement phase:
 
 ## Audit Checklist
 
-- [ ] **⚠️ CRITICAL**: Verify `final-settlement-subsidy.ts` lines 211-213 — confirm `this.createUnrecoverableError(...)` is called WITHOUT `throw`. This means `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` is never enforced. **Fix: add `throw` keyword.**
-- [ ] Verify `subsidize-pre-swap-handler.ts` calculates subsidy as `expectedAmount - currentBalance` and transfers exactly that amount
-- [ ] Verify `subsidize-post-swap-handler.ts` calculates subsidy the same way — no off-by-one, no rounding errors
-- [ ] Verify both pre/post swap handlers skip subsidization when `currentBalance >= expectedAmount` (no negative transfers)
-- [ ] Verify `getFundingAccount()` derives the keypair from `PENDULUM_FUNDING_SEED` and this seed is not reused for other purposes
-- [ ] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` is used only for EVM subsidization, not other Moonbeam operations
-- [ ] Verify `destination-transfer-handler.ts` checks ephemeral balance before submitting the presigned transaction
-- [ ] Verify the presigned destination transfer is submitted as-is — no server-side modification of recipient or amount
-- [ ] Verify `final-settlement-subsidy.ts` SquidRouter swap: check that the swap input amount is bounded and that the swap output is verified against expectations
-- [ ] Verify the 5-attempt retry loop in `final-settlement-subsidy.ts` does not retry on swap failures that indicate a malicious route (e.g., output far below expected)
-- [ ] Verify `subsidize-post-swap-handler.ts` next-phase routing logic covers all valid combinations of `direction`, `toChain`, and `outputTokenType` — no unhandled cases that silently proceed
-- [ ] Verify funding account balance is checked before subsidization — insufficient balance should fail the phase, not silently skip
-- [ ] Check whether there is any monitoring or alerting on funding account balance depletion
-- [ ] Verify `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` value is reasonable for the expected settlement amounts (check the constant's actual value)
+- [EXISTING FINDING] **⚠️ CRITICAL**: Verify `final-settlement-subsidy.ts` lines 211-213 — confirm `this.createUnrecoverableError(...)` is called WITHOUT `throw`. This means `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` is never enforced. **Fix: add `throw` keyword.** **EXISTING FINDING F-001 (CRITICAL)** — confirmed: `throw` missing. Cap unenforced.
+- [x] Verify `subsidize-pre-swap-handler.ts` calculates subsidy as `expectedAmount - currentBalance` and transfers exactly that amount. **PASS** — difference calculation and exact transfer confirmed.
+- [x] Verify `subsidize-post-swap-handler.ts` calculates subsidy the same way — no off-by-one, no rounding errors. **PASS** — same calculation pattern confirmed.
+- [x] Verify both pre/post swap handlers skip subsidization when `currentBalance >= expectedAmount` (no negative transfers). **PASS** — skip condition verified in both handlers.
+- [x] Verify `getFundingAccount()` derives the keypair from `PENDULUM_FUNDING_SEED` and this seed is not reused for other purposes. **PASS** — seed used only for funding account derivation.
+- [FAIL] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` is used only for EVM subsidization, not other Moonbeam operations. **FAIL F-029** — `MOONBEAM_FUNDING_PRIVATE_KEY` equals `MOONBEAM_EXECUTOR_PRIVATE_KEY`; same key used for funding, executor, Monerium, and SquidRouter operations.
+- [x] Verify `destination-transfer-handler.ts` checks ephemeral balance before submitting the presigned transaction. **PASS** — balance check before submission confirmed.
+- [x] Verify the presigned destination transfer is submitted as-is — no server-side modification of recipient or amount. **PASS** — presigned transaction submitted unmodified.
+- [PARTIAL] Verify `final-settlement-subsidy.ts` SquidRouter swap: check that the swap input amount is bounded and that the swap output is verified against expectations. **PARTIAL** — input amount calculated but cap enforcement broken (F-001); no output verification against expectations.
+- [FAIL] Verify the 5-attempt retry loop in `final-settlement-subsidy.ts` does not retry on swap failures that indicate a malicious route (e.g., output far below expected). **FAIL F-030** — retry loop retries all failures uniformly; no distinction between transient errors and potentially malicious routes.
+- [PARTIAL] Verify `subsidize-post-swap-handler.ts` next-phase routing logic covers all valid combinations of `direction`, `toChain`, and `outputTokenType` — no unhandled cases that silently proceed. **PARTIAL F-031** — routing logic covers known combinations but no default/exhaustive error for unhandled combinations.
+- [FAIL] Verify funding account balance is checked before subsidization — insufficient balance should fail the phase, not silently skip. **FAIL F-032** — no pre-check of funding account balance; insufficient balance causes transaction revert at chain level, not a graceful phase error.
+- [N/A] Check whether there is any monitoring or alerting on funding account balance depletion. **N/A** — no monitoring infrastructure audited.
+- [x] Verify `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` value is reasonable for the expected settlement amounts (check the constant's actual value). **PASS** — value reviewed and reasonable for expected settlement sizes.

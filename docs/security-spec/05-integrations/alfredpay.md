@@ -51,14 +51,14 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 
 ## Audit Checklist
 
-- [ ] Alfredpay API credentials loaded from environment variables
-- [ ] `validateResultCountry` middleware applied to all Alfredpay-related endpoints
-- [ ] Country validation uses `Object.values(AlfredPayCountry).includes()` — not string matching
-- [ ] `alfredpayOnrampMint` handler verifies Alfredpay payment confirmation before minting
-- [ ] `alfredpayOfframpTransfer` handler sends the correct amount (from stored quote, post-subsidy)
-- [ ] SquidRouter permit execution validates the permit data before executing
-- [ ] All Alfredpay phase handlers use `RecoverablePhaseError` for transient failures
-- [ ] HTTPS enforced for Alfredpay API calls
-- [ ] No Alfredpay credentials or user payment details in logs
-- [ ] Timeout configured for Alfredpay API calls
-- [ ] `finalSettlementSubsidy` runs before `alfredpayOfframpTransfer` in the off-ramp flow
+- [x] Alfredpay API credentials loaded from environment variables. **PASS** — verified: credentials from env vars.
+- [x] `validateResultCountry` middleware applied to all Alfredpay-related endpoints. **PASS** — middleware applied in route definitions.
+- [x] Country validation uses `Object.values(AlfredPayCountry).includes()` — not string matching. **PASS** — enum-based validation confirmed.
+- [x] `alfredpayOnrampMint` handler verifies Alfredpay payment confirmation before minting. **PASS** — handler waits for Alfredpay confirmation.
+- [x] `alfredpayOfframpTransfer` handler sends the correct amount (from stored quote, post-subsidy). **PASS** — amount derived from ramp state.
+- [x] SquidRouter permit execution validates the permit data before executing. **PASS** — permit data validated via `isSignedTypedDataArray`.
+- [x] All Alfredpay phase handlers use `RecoverablePhaseError` for transient failures. **PASS** — verified in all handlers.
+- [x] HTTPS enforced for Alfredpay API calls. **PASS** — base URL uses `https://`.
+- [x] No Alfredpay credentials or user payment details in logs. **PASS** — no credential leakage observed in log statements.
+- [FAIL] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
+- [x] `finalSettlementSubsidy` runs before `alfredpayOfframpTransfer` in the off-ramp flow. **PASS** — phase ordering confirmed in flow definition.

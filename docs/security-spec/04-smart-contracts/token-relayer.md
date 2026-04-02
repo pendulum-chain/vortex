@@ -59,7 +59,7 @@ These incorporate all findings from both prior security reviews:
 
 - [x] C-1: `execute()` has `nonReentrant` modifier AND follows CEI pattern — verified: `usedPayloadNonces` set at line 106 before any external call
 - [x] C-2: Uses `ECDSA.recover()` from OpenZeppelin (line 100) — validates `s` value and rejects `address(0)`
-- [ ] Contract compiles successfully with all OpenZeppelin imports resolved (verify with `bun compile:contracts:relayer`)
+- [x] Contract compiles successfully with all OpenZeppelin imports resolved (verify with `bun compile:contracts:relayer`). **PASS** — compilation verified.
 
 ### High (all fixed — verify correctness)
 
@@ -81,9 +81,9 @@ These incorporate all findings from both prior security reviews:
 
 ### General
 
-- [ ] All OpenZeppelin dependencies are pinned to specific versions (not floating)
+- [PARTIAL] All OpenZeppelin dependencies are pinned to specific versions (not floating). **PARTIAL** — uses caret range `^5.2.0` instead of exact pin; allows minor/patch updates which could introduce changes.
 - [x] Contract constructor verifies `destinationContract` is not the zero address (line 70)
 - [x] Owner set via `Ownable(msg.sender)` in constructor (line 67)
 - [x] Nonce check (`usedPayloadNonces`) happens before any external call (line 86)
-- [ ] No `selfdestruct` or `delegatecall` to untrusted addresses
-- [ ] Verify deployed contract bytecode matches source (if already on mainnet)
+- [x] No `selfdestruct` or `delegatecall` to untrusted addresses. **PASS** — verified: neither pattern present in contract source.
+- [N/A] Verify deployed contract bytecode matches source (if already on mainnet). **N/A** — requires on-chain verification, not a source code audit item.

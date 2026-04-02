@@ -43,15 +43,15 @@ Stellar anchors are used for off-ramp flows that terminate on the Stellar networ
 
 ## Audit Checklist
 
-- [ ] Verify `isStellarEphemeralFunded()` checks both account existence AND trustline for the specific Stellar asset
-- [ ] Verify `validateStellarPaymentSequenceNumber()` compares the presigned sequence against the current account sequence on Stellar
-- [ ] Verify the nonce re-execution guard: `currentEphemeralAccountNonce > executeSpacewalkNonce` correctly identifies a previously-executed redeem
-- [ ] Verify `AmountExceedsUserBalance` error recovery path does NOT re-submit the redeem — only waits for Stellar balance
-- [ ] Verify `verifyStellarPaymentSuccess()` checks that tokens are genuinely gone from the ephemeral (not just that some arbitrary condition holds)
-- [ ] Verify `NETWORK_PASSPHRASE` is correctly derived from `SANDBOX_ENABLED` and matches the Horizon server URL
-- [ ] Verify `HORIZON_URL` points to the correct Stellar network (public vs testnet)
-- [ ] Verify the Spacewalk redeem extrinsic is decoded from stored presigned data and not constructed on the server at execution time
-- [ ] Verify the Stellar payment XDR is submitted as-is without server-side modification of destination or amount
-- [ ] Verify `checkBalancePeriodically` timeout (10 minutes) is reasonable for Spacewalk vault execution times in production
-- [ ] Verify no sensitive data (Stellar secret keys) is logged in error handlers
-- [ ] **@ts-ignore on line 72-73 of spacewalk-redeem-handler** — Verify the `.nonce.toNumber()` call returns the correct value; unchecked type assertions may hide API changes
+- [x] Verify `isStellarEphemeralFunded()` checks both account existence AND trustline for the specific Stellar asset. **PASS** — both checks confirmed in code.
+- [x] Verify `validateStellarPaymentSequenceNumber()` compares the presigned sequence against the current account sequence on Stellar. **PASS** — sequence number comparison verified.
+- [x] Verify the nonce re-execution guard: `currentEphemeralAccountNonce > executeSpacewalkNonce` correctly identifies a previously-executed redeem. **PASS** — guard logic correct.
+- [x] Verify `AmountExceedsUserBalance` error recovery path does NOT re-submit the redeem — only waits for Stellar balance. **PASS** — catch block enters waiting path, no re-submission.
+- [x] Verify `verifyStellarPaymentSuccess()` checks that tokens are genuinely gone from the ephemeral (not just that some arbitrary condition holds). **PASS** — checks remaining balance on ephemeral.
+- [x] Verify `NETWORK_PASSPHRASE` is correctly derived from `SANDBOX_ENABLED` and matches the Horizon server URL. **PASS** — conditional logic maps sandbox flag to correct passphrase.
+- [PARTIAL] Verify `HORIZON_URL` points to the correct Stellar network (public vs testnet). **PARTIAL F-025** — URL is configurable but no runtime validation that the URL matches the selected network passphrase.
+- [x] Verify the Spacewalk redeem extrinsic is decoded from stored presigned data and not constructed on the server at execution time. **PASS** — extrinsic decoded from stored hex.
+- [x] Verify the Stellar payment XDR is submitted as-is without server-side modification of destination or amount. **PASS** — XDR submitted unmodified to Horizon.
+- [x] Verify `checkBalancePeriodically` timeout (10 minutes) is reasonable for Spacewalk vault execution times in production. **PASS** — 10-minute timeout appropriate for normal vault operations.
+- [x] Verify no sensitive data (Stellar secret keys) is logged in error handlers. **PASS** — no secret key logging found.
+- [PARTIAL] **@ts-ignore on line 72-73 of spacewalk-redeem-handler** — Verify the `.nonce.toNumber()` call returns the correct value; unchecked type assertions may hide API changes. **PARTIAL F-026** — `@ts-ignore` suppresses type checking; if the Spacewalk API changes the nonce type, the code would fail silently at runtime.

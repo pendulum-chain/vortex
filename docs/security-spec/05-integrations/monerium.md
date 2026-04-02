@@ -44,15 +44,15 @@ Monerium is a European e-money institution that issues EURe (Monerium EUR) token
 
 ## Audit Checklist
 
-- [ ] Monerium API credentials loaded from environment variables
-- [ ] SEPA payment confirmation is verified via Monerium API before minting
-- [ ] Minted EURe amount is verified on-chain against expected amount from quote
-- [ ] Maximum wait time exists for SEPA payment (ramp doesn't wait indefinitely)
-- [ ] SEPA payment details (IBAN, reference) are generated server-side
-- [ ] `moneriumOnrampSelfTransfer` verifies ephemeral balance after transfer
-- [ ] Monerium API calls use idempotency keys (if supported)
-- [ ] Both phase handlers use `RecoverablePhaseError` for transient failures
-- [ ] HTTPS enforced for all Monerium API calls
-- [ ] No Monerium credentials or user IBAN details in logs
-- [ ] Timeout configured for Monerium API calls
-- [ ] Concurrent SEPA ramp limit per user is enforced
+- [x] Monerium API credentials loaded from environment variables. **PASS** — verified: OAuth credentials from env vars.
+- [x] SEPA payment confirmation is verified via Monerium API before minting. **PASS** — handler polls Monerium order status.
+- [x] Minted EURe amount is verified on-chain against expected amount from quote. **PASS** — balance check after mint phase.
+- [PARTIAL] Maximum wait time exists for SEPA payment (ramp doesn't wait indefinitely). **PARTIAL F-023** — 30-minute timeout configured, but SEPA settlements can take 1-3 business days; 30 minutes is too short and causes unnecessary retries/failures.
+- [x] SEPA payment details (IBAN, reference) are generated server-side. **PASS** — details come from Monerium API.
+- [x] `moneriumOnrampSelfTransfer` verifies ephemeral balance after transfer. **PASS** — balance verification present.
+- [N/A] Monerium API calls use idempotency keys (if supported). **N/A** — Monerium uses polling-based confirmation, not request-level idempotency keys.
+- [x] Both phase handlers use `RecoverablePhaseError` for transient failures. **PASS** — verified in both handlers.
+- [x] HTTPS enforced for all Monerium API calls. **PASS** — base URL uses `https://`.
+- [PARTIAL] No Monerium credentials or user IBAN details in logs. **PARTIAL** — no explicit log scrubbing; generic error logging could include sensitive context.
+- [FAIL] Timeout configured for Monerium API calls. **FAIL F-014** — no explicit HTTP client timeout; relies on default system timeouts.
+- [FAIL] Concurrent SEPA ramp limit per user is enforced. **FAIL F-024** — no per-user concurrent ramp limit exists; users can create unlimited pending SEPA ramps.

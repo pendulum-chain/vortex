@@ -50,16 +50,16 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 
 ## Audit Checklist
 
-- [ ] **FINDING**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. Verify if multi-instance deployment is a concern.
-- [ ] **FINDING**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). It will be retried again on the next processing cycle, creating an infinite soft loop.
-- [ ] `state.update()` in the processor uses `{ fields: ["currentPhase", "phaseHistory"] }` — verify this is enforced and not bypassed
-- [ ] Terminal states `complete` and `failed` both trigger `retriesMap.delete()` and halt recursion
-- [ ] `MAX_EXECUTION_TIME_MS` (10 minutes) is enforced via `Promise.race` with a timeout promise
-- [ ] `MAX_RETRIES` (8) is the hard limit — verify no code path bypasses this
-- [ ] `RecoverablePhaseError.minimumWaitSeconds` is respected when provided; fallback is 30 seconds
-- [ ] `phaseHistory` is append-only — phase transitions add to the array, never truncate it
-- [ ] Error logs include: error message, stack trace, phase name, recoverability flag, and ISO timestamp
-- [ ] No phase handler directly calls `RampState.update()` for `currentPhase` — only the processor does this
-- [ ] The `lockedRamps` Set is cleaned up in the `finally` block (verified: `this.lockedRamps.delete(state.id)`)
-- [ ] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
-- [ ] Phase processor is a singleton — verify no code creates additional instances
+- [EXISTING FINDING] **F-003**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. No `SELECT FOR UPDATE` or advisory lock. Multi-instance deployment would be vulnerable.
+- [EXISTING FINDING] **F-004**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). Retry counter resets across processing cycles, creating an infinite soft loop.
+- [x] `state.update()` in the processor uses `{ fields: ["currentPhase", "phaseHistory"] }` — enforced and not bypassed
+- [x] Terminal states `complete` and `failed` both trigger `retriesMap.delete()` and halt recursion
+- [x] `MAX_EXECUTION_TIME_MS` (10 minutes) is enforced via `Promise.race` with a timeout promise
+- [x] `MAX_RETRIES` (8) is the hard limit — no code path bypasses this (caveat: resets across cycles per F-004)
+- [x] `RecoverablePhaseError.minimumWaitSeconds` is respected when provided; fallback is 30 seconds
+- [x] `phaseHistory` is append-only — phase transitions add to the array, never truncate it
+- [x] Error logs include: error message, stack trace, phase name, recoverability flag, and ISO timestamp
+- [x] No phase handler directly calls `RampState.update()` for `currentPhase` — only the processor does this
+- [x] The `lockedRamps` Set is cleaned up in the `finally` block (`this.lockedRamps.delete(state.id)`)
+- [x] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
+- [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no other file creates `new PhaseProcessor()`
