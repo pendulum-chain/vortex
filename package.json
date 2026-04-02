@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "big.js": "^7.0.1",
+    "helmet": "8.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
     "numora-react": "^3.0.3"
