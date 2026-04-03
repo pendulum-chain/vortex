@@ -1,83 +1,90 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { SIGNING_SERVICE_URL } from "../../constants/constants";
 import { AuthService } from "../auth";
 
-// TODO: CONSIDER REACT TANSTACK QUERY
+export class ApiError extends Error {
+  status: number;
+  data: { error?: string; message?: string; details?: string };
 
-/**
- * Base API client for making requests to the backend
- */
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: `${SIGNING_SERVICE_URL}/v1`,
-  headers: {
-    "Content-Type": "application/json"
-  },
-  timeout: 30000
-});
+  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
 
-// Add request interceptor for common headers and auth token
-apiClient.interceptors.request.use(
-  config => {
-    // Add Authorization header if user is authenticated
-    const tokens = AuthService.getTokens();
-    if (tokens?.accessToken) {
-      config.headers.Authorization = `Bearer ${tokens.accessToken}`;
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+async function apiFetch<T>(
+  method: string,
+  path: string,
+  options: {
+    data?: unknown;
+    params?: Record<string, string | number | boolean | undefined>;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+  } = {}
+): Promise<T> {
+  const tokens = AuthService.getTokens();
+
+  const url = new URL(`${SIGNING_SERVICE_URL}/v1${path}`);
+  if (options.params) {
+    for (const [key, value] of Object.entries(options.params)) {
+      if (value !== undefined) url.searchParams.set(key, String(value));
     }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
   }
-);
 
-// Add response interceptor for error handling
-apiClient.interceptors.response.use(
-  response => {
-    return response;
-  },
-  (error: AxiosError) => {
-    console.error("API Error:", error.response?.data || error.message);
-    return Promise.reject(error);
+  const isFormData = options.data instanceof FormData;
+
+  const response = await fetch(url.toString(), {
+    body: isFormData ? (options.data as FormData) : options.data !== undefined ? JSON.stringify(options.data) : undefined,
+    headers: {
+      ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+      ...options.headers
+    },
+    method,
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
+  });
+
+  if (!response.ok) {
+    const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+    console.error("API Error:", errorData);
+    throw new ApiError(response.status, errorData, errorData.error ?? errorData.message ?? response.statusText);
   }
-);
 
-/**
- * Helper function to handle API errors
- * @param error The error object
- * @param defaultMessage Default error message
- * @returns Formatted error message
- */
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
 export const handleApiError = (error: unknown, defaultMessage = "An error occurred"): string => {
-  if (axios.isAxiosError(error)) {
-    const responseData = error.response?.data as { error?: string; message?: string; details?: string } | undefined;
-    return responseData?.error || responseData?.message || error.message || defaultMessage;
+  if (isApiError(error)) {
+    return error.data?.error ?? error.data?.message ?? error.message ?? defaultMessage;
   }
   return error instanceof Error ? error.message : defaultMessage;
 };
 
-/**
- * Generic API request function with error handling
- * @param method The HTTP method
- * @param url The endpoint URL
- * @param data The request data
- * @param config Additional axios config
- * @returns The response data
- */
 export async function apiRequest<T>(
   method: "get" | "post" | "put" | "delete",
   url: string,
   data?: unknown,
-  config?: AxiosRequestConfig
-): Promise<T> {
-  try {
-    const response = await apiClient.request<T>({
-      data,
-      method,
-      url,
-      ...config
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(handleApiError(error));
+  config?: {
+    params?: Record<string, string | number | boolean | undefined>;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
   }
+): Promise<T> {
+  return apiFetch<T>(method, url, { data, ...config });
 }
+
+type Params = Record<string, string | number | boolean | undefined>;
+
+export const apiClient = {
+  delete: <T>(url: string, config?: { params?: Params }) => apiFetch<T>("DELETE", url, { params: config?.params }),
+  get: <T>(url: string, config?: { params?: Params; signal?: AbortSignal }) =>
+    apiFetch<T>("GET", url, { params: config?.params, signal: config?.signal }),
+  post: <T>(url: string, data?: unknown, config?: { headers?: Record<string, string>; params?: Params }) =>
+    apiFetch<T>("POST", url, { data, headers: config?.headers, params: config?.params }),
+  put: <T>(url: string, data?: unknown) => apiFetch<T>("PUT", url, { data })
+};

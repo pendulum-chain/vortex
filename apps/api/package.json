@@ -14,7 +14,7 @@
     "@supabase/supabase-js": "catalog:",
     "@vortexfi/shared": "workspace:*",
     "@wagmi/core": "catalog:",
-    "axios": "catalog:",
+
     "bcrypt": "catalog:",
     "big.js": "catalog:",
     "body-parser": "^1.17.0",

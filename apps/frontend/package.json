@@ -43,7 +43,7 @@
     "@walletconnect/universal-provider": "^2.21.10",
     "@walletconnect/utils": "catalog:",
     "@xstate/react": "^6.0.0",
-    "axios": "catalog:",
+
     "big.js": "catalog:",
     "bn.js": "^5.2.1",
     "buffer": "^6.0.3",
