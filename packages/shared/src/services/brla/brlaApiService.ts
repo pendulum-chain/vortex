@@ -357,7 +357,8 @@ export class BrlaApiService {
    */
   public async initiateKybLevel1(subAccountId: string): Promise<KybLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, undefined);
+    const payload = { redirectUrl: "" };
+    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload);
   }
 
   /**
