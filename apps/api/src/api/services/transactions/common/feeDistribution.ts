@@ -1,7 +1,11 @@
 import {
   AccountMeta,
   ApiManager,
+  EvmClientManager,
+  EvmToken,
+  EvmTransactionData,
   encodeSubmittableExtrinsic,
+  evmTokenConfig,
   getNetworkFromDestination,
   Networks,
   PENDULUM_USDC_ASSETHUB,
@@ -10,7 +14,9 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeFunctionData } from "viem/utils";
 import logger from "../../../../config/logger";
+import erc20ABI from "../../../../contracts/ERC20";
 import Partner from "../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
@@ -163,6 +169,112 @@ export async function addFeeDistributionTransaction(
     unsignedTxs.push({
       meta: {},
       network: Networks.Pendulum,
+      nonce: nextNonce,
+      phase: "distributeFees",
+      signer: account.address,
+      txData: feeDistributionTx
+    });
+    nextNonce++;
+  }
+
+  return nextNonce;
+}
+
+/**
+ * Creates an EVM fee distribution transaction for Base network.
+ * Transfers total fees (network + vortex + partner) to vortex payout address using USDC.
+ *
+ * @param quote The quote ticket
+ * @returns The EVM transaction data or null if no fees to distribute
+ */
+export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<EvmTransactionData | null> {
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
+    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transaction");
+    return null;
+  }
+
+  const networkFeeUSD = usdFeeStructure.network;
+  const vortexFeeUSD = usdFeeStructure.vortex;
+  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
+
+  // Get vortex payout address
+  const vortexPartner = await Partner.findOne({
+    where: { isActive: true, name: "vortex", rampType: quote.rampType }
+  });
+  if (!vortexPartner || !vortexPartner.payoutAddress) {
+    logger.warn("Vortex partner or payout address not found, skipping EVM fee distribution transaction");
+    return null;
+  }
+  const vortexPayoutAddress = vortexPartner.payoutAddress;
+
+  // Use Base USDC for decimal calculations
+  const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC];
+  if (!baseUsdcConfig) {
+    logger.warn("Base USDC configuration not found, skipping EVM fee distribution transaction");
+    return null;
+  }
+
+  const decimals = baseUsdcConfig.decimals;
+
+  // Convert USD fees to USDC raw units
+  const networkFeeUsdcRaw = multiplyByPowerOfTen(networkFeeUSD, decimals);
+  const vortexFeeUsdcRaw = multiplyByPowerOfTen(vortexFeeUSD, decimals);
+  const partnerMarkupFeeUsdcRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, decimals);
+
+  // Calculate total fee amount
+  const totalFeeUsdcRaw = networkFeeUsdcRaw.plus(vortexFeeUsdcRaw).plus(partnerMarkupFeeUsdcRaw);
+
+  if (totalFeeUsdcRaw.lte(0)) {
+    logger.warn("No fees to distribute, skipping EVM fee distribution transaction");
+    return null;
+  }
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const publicClient = evmClientManager.getClient(Networks.Base);
+
+  // Encode USDC transfer to vortex payout address
+  const transferCallData = encodeFunctionData({
+    abi: erc20ABI,
+    args: [vortexPayoutAddress, totalFeeUsdcRaw.toFixed(0)],
+    functionName: "transfer"
+  });
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
+  const txData: EvmTransactionData = {
+    data: transferCallData as `0x${string}`,
+    gas: "100000",
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas),
+    to: baseUsdcConfig.erc20AddressSourceChain,
+    value: "0"
+  };
+
+  return txData;
+}
+
+/**
+ * Adds EVM fee distribution transaction for Base network if available.
+ *
+ * @param quote Quote ticket
+ * @param account Account metadata
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce
+ */
+export async function addEvmFeeDistributionTransaction(
+  quote: QuoteTicketAttributes,
+  account: AccountMeta,
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number
+): Promise<number> {
+  const feeDistributionTx = await createEvmFeeDistributionTransaction(quote);
+
+  if (feeDistributionTx) {
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
       nonce: nextNonce,
       phase: "distributeFees",
       signer: account.address,

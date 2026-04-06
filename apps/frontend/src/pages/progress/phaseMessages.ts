@@ -58,6 +58,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     backupApprove: "", // Not relevant for progress page
     backupSquidRouterApprove: "",
     backupSquidRouterSwap: "",
+    baseTransfer: getTransferringMessage(),
     brlaOnrampMint: t("pages.progress.brlaOnrampMint"), // Not relevant for progress page
     brlaPayoutOnMoonbeam: getTransferringMessage(),
     complete: "",

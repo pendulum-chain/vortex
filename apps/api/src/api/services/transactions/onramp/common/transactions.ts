@@ -4,6 +4,7 @@ import {
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
+  createNablaTransactionsForOnrampOnEVM,
   EvmClientManager,
   EvmNetworks,
   EvmTransactionData,
@@ -231,6 +232,72 @@ export async function addOnrampDestinationChainTransactions(params: {
   };
 
   return txData;
+}
+
+/**
+ * Creates Nabla swap transactions for Base
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce and state metadata
+ */
+export async function addNablaSwapTransactionsOnBase(
+  params: {
+    quote: QuoteTicketAttributes;
+    account: AccountMeta;
+    inputTokenAddress: `0x${string}`;
+    outputTokenAddress: `0x${string}`;
+  },
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number
+): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
+  const { quote, account, inputTokenAddress, outputTokenAddress } = params;
+
+  if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
+    throw new Error("Missing nablaSwap input amount in quote metadata");
+  }
+
+  // The input amount for the swap was already calculated in the quote.
+  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwap.inputAmountForSwapRaw;
+  const outputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw);
+
+  const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+
+  const { approve, swap } = await createNablaTransactionsForOnrampOnEVM(
+    inputAmountForNablaSwapRaw,
+    account,
+    inputTokenAddress,
+    outputTokenAddress,
+    nablaHardMinimumOutputRaw
+  );
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: nextNonce,
+    phase: "nablaApprove",
+    signer: account.address,
+    txData: approve
+  });
+  nextNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: nextNonce,
+    phase: "nablaSwap",
+    signer: account.address,
+    txData: swap
+  });
+  nextNonce++;
+
+  return {
+    nextNonce,
+    stateMeta: {
+      nablaSoftMinimumOutputRaw
+    }
+  };
 }
 
 /**

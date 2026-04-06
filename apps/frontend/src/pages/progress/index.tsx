@@ -21,6 +21,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   backupApprove: 0,
   backupSquidRouterApprove: 0,
   backupSquidRouterSwap: 0,
+  baseTransfer: 10,
   brlaOnrampMint: 5 * 60,
   brlaPayoutOnMoonbeam: 30,
   complete: 0,

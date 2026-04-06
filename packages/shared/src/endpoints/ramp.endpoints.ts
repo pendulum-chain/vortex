@@ -41,6 +41,7 @@ export type RampPhase =
   | "alfredpayOfframpTransfer"
   | "brlaOnrampMint"
   | "brlaPayoutOnMoonbeam"
+  | "baseTransfer"
   | "failed"
   | "timedOut"
   | "finalSettlementSubsidy"

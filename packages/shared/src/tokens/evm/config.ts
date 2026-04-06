@@ -207,6 +207,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.BRLA]: {
+      assetSymbol: "BRLA",
+      decimals: 18,
+      erc20AddressSourceChain: "0xfCB34c47f850f452C15EA1B84d51231C38A61783",
+      isNative: true,
+      network: Networks.Base,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Avalanche]: {
