@@ -27,7 +27,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
   };
 
   // formState.isValid is not working as expected, so we need to check the errors
-  const isFormInvalid = Object.keys(form.formState.errors).length > 0 || !form.formState.isDirty || form.formState.isSubmitting;
+  const isFormInvalid = Object.keys(form.formState.errors).length > 0 || form.formState.isSubmitting;
 
   return (
     <FormProvider {...form}>
@@ -35,7 +35,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
         animate={{ opacity: 1, scale: 1 }}
         className="mt-8 mb-4 flex w-full flex-col"
         initial={{ opacity: 0.8, scale: 0.9 }}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         transition={{ duration: 0.3 }}
       >
         <div className="flex-1 pb-36">
