@@ -1,4 +1,5 @@
 import {
+  AlfredPayCountry,
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
@@ -8,6 +9,7 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
+  FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -60,8 +62,18 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
+  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
+    [FiatToken.USD]: AlfredPayCountry.US,
+    [FiatToken.MXN]: AlfredPayCountry.MX,
+    [FiatToken.COP]: AlfredPayCountry.CO
+  };
+  const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
+  if (!customerCountry) {
+    throw new Error(`Unsupported Alfredpay input currency: ${quote.inputCurrency}`);
+  }
+
   const customer = await AlfredPayCustomer.findOne({
-    where: { userId }
+    where: { country: customerCountry, userId }
   });
 
   if (!customer) {

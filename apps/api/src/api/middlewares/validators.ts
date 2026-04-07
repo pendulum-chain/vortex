@@ -5,6 +5,7 @@ import {
   Currency,
   GetWidgetUrlLocked,
   GetWidgetUrlRefresh,
+  isSupportedFiatCurrency,
   isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -396,6 +397,12 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
     return;
   }
 
+  const fiatCurrency = rampType === RampDirection.BUY ? inputCurrency : outputCurrency;
+  if (!isSupportedFiatCurrency(fiatCurrency)) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.UnsupportedCurrency });
+    return;
+  }
+
   next();
 };
 
@@ -428,6 +435,13 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
 
   if (rampType === RampDirection.SELL && !to) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
+    return;
+  }
+
+  const fiatCurrency = rampType === RampDirection.BUY ? inputCurrency : outputCurrency;
+  if (!isSupportedFiatCurrency(fiatCurrency)) {
+    res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.UnsupportedCurrency });
+    return;
   }
 
   next();

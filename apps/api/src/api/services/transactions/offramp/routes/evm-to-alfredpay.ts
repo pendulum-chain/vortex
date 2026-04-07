@@ -1,11 +1,17 @@
 import {
+  AlfredPayCountry,
   AlfredPayStatus,
+  AlfredpayApiService,
+  AlfredpayChain,
+  AlfredpayFiatCurrency,
+  AlfredpayOnChainCurrency,
   createOfframpSquidrouterTransactionsToEvm,
   ERC20_USDC_POLYGON,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
   EvmTransactionData,
+  FiatToken,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
@@ -123,6 +129,7 @@ const erc20Abi = [
  * This route handles: EVM → Polygon (USDC) → Alfredpay (Fiat)
  */
 export async function prepareEvmToAlfredpayOfframpTransactions({
+  fiatAccountId,
   quote,
   signingAccounts,
   userAddress,
@@ -160,8 +167,18 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     throw new Error(`Unsupported source network ${fromNetwork} for EVM to Alfredpay type offramp`);
   }
 
+  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
+    [FiatToken.USD]: AlfredPayCountry.US,
+    [FiatToken.MXN]: AlfredPayCountry.MX,
+    [FiatToken.COP]: AlfredPayCountry.CO
+  };
+  const customerCountry = fiatToCountry[quote.outputCurrency as FiatToken];
+  if (!customerCountry) {
+    throw new Error(`Unsupported Alfredpay output currency: ${quote.outputCurrency}`);
+  }
+
   const customer = await AlfredPayCustomer.findOne({
-    where: { userId }
+    where: { country: customerCountry, userId }
   });
 
   if (!customer) {
@@ -171,6 +188,27 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   if (customer.status !== AlfredPayStatus.Success) {
     throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
   }
+
+  if (!fiatAccountId) {
+    throw new Error("fiatAccountId is required for Alfredpay offramp");
+  }
+
+  const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
+  if (!alfredpayQuoteId) {
+    throw new Error("Missing alfredpayOfframp.quoteId in quote metadata");
+  }
+
+  const alfredpayService = AlfredpayApiService.getInstance();
+  const offrampOrder = await alfredpayService.createOfframp({
+    amount: quote.inputAmount,
+    chain: AlfredpayChain.MATIC,
+    customerId: customer.alfredPayId,
+    fiatAccountId,
+    fromCurrency: AlfredpayOnChainCurrency.USDC,
+    originAddress: userAddress,
+    quoteId: alfredpayQuoteId,
+    toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
+  });
 
   const inputAmountRaw = new Big(quote.inputAmount).mul(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0, 0);
 
@@ -280,8 +318,10 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   stateMeta = {
     ...stateMeta,
+    alfredpayTransactionId: offrampOrder.transactionId,
     alfredpayUserId: customer.alfredPayId,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    fiatAccountId,
     squidRouterPermitExecutionValue: bridgeResult.swapData.value,
     walletAddress: userAddress
   };
@@ -289,7 +329,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877", // TODO placeholder
+    toAddress: offrampOrder.depositAddress as `0x${string}`,
     toToken: ERC20_USDC_POLYGON
   });
 

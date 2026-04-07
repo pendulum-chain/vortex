@@ -18,6 +18,7 @@ import {
   GetRampStatusResponse,
   generateReferenceLabel,
   IbanPaymentData,
+  isAlfredpayToken,
   MoneriumErrors,
   Networks,
   QuoteError,
@@ -272,13 +273,12 @@ export class RampService extends BaseRampService {
       );
 
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
-      if (quote.inputCurrency === FiatToken.USD) {
+      if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
-      if (quote.outputCurrency === FiatToken.USD) {
-        // TODO mocking. Currently failing in sandbox.
-        //await this.processAlfredpayOfframpStart(rampState, quote, transaction);
+      if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
       }
 
       // Create response
@@ -486,6 +486,7 @@ export class RampService extends BaseRampService {
     }
 
     const response: GetRampStatusResponse = {
+      achPaymentData: rampState.state.fiatPaymentInstructions,
       anchorFeeFiat: fiatFees.anchor,
       anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
@@ -826,6 +827,7 @@ export class RampService extends BaseRampService {
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      fiatAccountId: additionalData?.fiatAccountId as string | undefined,
       quote,
       signingAccounts: normalizedSigningAccounts,
       stellarPaymentData: additionalData?.paymentData,
@@ -1020,7 +1022,7 @@ export class RampService extends BaseRampService {
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-      } else if (quote.inputCurrency === FiatToken.USD) {
+      } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
@@ -1039,7 +1041,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && quote.outputCurrency !== FiatToken.USD) {
+    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
@@ -1159,7 +1161,7 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency: AlfredpayFiatCurrency.USD,
+      fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       quoteId: alfredpayQuoteId,
       toCurrency: AlfredpayOnChainCurrency.USDC

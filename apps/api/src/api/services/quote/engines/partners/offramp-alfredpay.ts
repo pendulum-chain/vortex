@@ -48,7 +48,10 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
     const fromAmount = new Big(ctx.evmToEvm.outputAmountDecimal);
     const toAmount = new Big(quote.toAmount);
 
-    const alfredpayFee = Big(0);
+    const alfredpayFee = AlfredpayApiService.sumFeesByCurrency(
+      quote.fees,
+      req.outputCurrency as unknown as AlfredpayFiatCurrency
+    );
 
     ctx.alfredpayOfframp = {
       currency: ctx.request.outputCurrency,

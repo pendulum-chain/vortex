@@ -31,10 +31,11 @@ export class AlfredpayController {
         return AlfredPayStatus.Failed;
       case AlfredpayKycStatus.COMPLETED:
         return AlfredPayStatus.Success;
+      case AlfredpayKycStatus.UPDATE_REQUIRED:
+        return AlfredPayStatus.UpdateRequired;
       case AlfredpayKycStatus.CREATED:
       default:
         return null; // Do nothing
-      // TODO how do we map their UPDATE_REQUIRED required? what does it mean in terms of flow, for our user?
     }
   }
 
@@ -326,6 +327,11 @@ export class AlfredpayController {
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
+      } else if (country === "MX" || country === "CO") {
+        // MX/CO use API-based (form) KYC — no redirect link needed.
+        // Just reset status so the user can re-fill the form.
+        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+        return res.json({ success: true });
       } else {
         await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
         const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);

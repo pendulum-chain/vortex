@@ -8,6 +8,7 @@ import {
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isAlfredpayToken,
   multiplyByPowerOfTen,
   Networks,
   RampCurrency,
@@ -49,7 +50,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   }
 
   private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
-    return state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD
+    return state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)
       ? "alfredpayOfframpTransfer"
       : "destinationTransfer";
   }
@@ -77,7 +78,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
-        if (quote.inputCurrency === FiatToken.USD) {
+        if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
           expectedAmountRaw = Big(quote.metadata.alfredpayMint!.outputAmountRaw);
           break;
         }
@@ -85,7 +86,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         break;
 
       case RampDirection.SELL:
-        if (quote.outputCurrency === FiatToken.USD) {
+        if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
           expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
           break;
         }
