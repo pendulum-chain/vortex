@@ -231,6 +231,20 @@
         "success": "Verification successful"
       }
     },
+    "colKycForm": {
+      "dni": "Document Number",
+      "dniPlaceholderCc": "10-digit CC number",
+      "dniPlaceholderCe": "6–10 digit CE number",
+      "documentType": "Document Type",
+      "options": {
+        "cc": "Cédula de Ciudadanía (CC)",
+        "ce": "Cédula de Extranjería (CE)"
+      },
+      "phoneNumber": "Phone Number",
+      "selectDocumentType": "Select document type…",
+      "subtitle": "Please provide your personal information to complete KYC.",
+      "title": "Identity Verification"
+    },
     "copyButton": {
       "ariaLabel": "Copy to clipboard"
     },
@@ -333,10 +347,13 @@
       "bankName": "Bank Name",
       "clabe": "CLABE (18 digits)",
       "options": {
+        "ahorro": "Savings (Ahorro)",
         "checking": "Checking",
+        "nequi": "Nequi",
         "savings": "Savings"
       },
       "placeholders": {
+        "accountNumberCo": "10 or 11-digit account number",
         "bankNameMx": "e.g. BBVA, Santander, Banamex",
         "clabe": "e.g. 032180000118359719",
         "routingNumber": "e.g. 021000021"
@@ -350,11 +367,13 @@
       "clickToSelect": "Click to select",
       "descriptions": {
         "ACH": "1-2 business days",
+        "ACH_COL": "Colombian bank transfer",
         "SPEI": "Instant interbank transfer via CLABE number",
         "WIRE": "Same day"
       },
       "labels": {
         "ACH": "ACH Transfer",
+        "ACH_COL": "ACH Colombia",
         "SPEI": "SPEI",
         "WIRE": "Wire Transfer"
       },
@@ -485,10 +504,17 @@
       "city": "City",
       "continue": "Continue",
       "dateOfBirth": "Date of Birth",
-      "dni": "CURP / INE Number",
+      "dni": "Document Number",
+      "documentType": "Document Type",
       "email": "Email",
       "firstName": "First Name",
       "lastName": "Last Name",
+      "options": {
+        "ine": "INE (Credencial para Votar)",
+        "passport": "Passport",
+        "residentCard": "Resident Card"
+      },
+      "selectDocumentType": "Select document type…",
       "state": "State",
       "subtitle": "Please provide your personal information to complete KYC.",
       "title": "Identity Verification",
@@ -543,6 +569,13 @@
         "timerLabel": "Quote expires in:",
         "title": "Pay with Pix"
       },
+      "COPOnrampDetails": {
+        "expiresAt": "Expires",
+        "instruction": "Transfer funds to the bank account below",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "reference": "Reference",
+        "title": "Pay via Bank Transfer"
+      },
       "confirm": "Confirm",
       "continue": "Continue",
       "continueOnPartnersPage": "Continue on Partner's page",
@@ -560,6 +593,13 @@
       "headerText": {
         "buy": "Payment Summary",
         "sell": "Payment Summary"
+      },
+      "MXNOnrampDetails": {
+        "expiresAt": "Expires",
+        "instruction": "Transfer funds via SPEI to the CLABE below",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "reference": "Reference",
+        "title": "Pay with SPEI"
       },
       "next": "Next",
       "offrampFee": "Total fee",
@@ -1153,7 +1193,8 @@
         "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",
-        "tryLargerAmount": "Input amount too low. Please try a larger amount."
+        "tryLargerAmount": "Input amount too low. Please try a larger amount.",
+        "USD_tokenUnavailable": "Building your USD rail - available soon!"
       }
     },
     "termsAndConditions": {

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { ColKycFormScreen } from "./ColKycFormScreen";
 import { CustomerDefinitionScreen } from "./CustomerDefinitionScreen";
 import { DoneScreen } from "./DoneScreen";
 import { FailureKycScreen } from "./FailureKycScreen";
@@ -39,6 +40,7 @@ export const AlfredpayKycFlow = () => {
   const { stateValue, context } = state;
   const kycOrKyb = context.business ? "KYB" : "KYC";
   const isMxn = context.country === "MX";
+  const isCo = context.country === "CO";
 
   if (
     stateValue === "CheckingStatus" ||
@@ -56,7 +58,11 @@ export const AlfredpayKycFlow = () => {
     return <MxnKycFormScreen onSubmit={submitForm} />;
   }
 
-  if (stateValue === "UploadingDocuments" && isMxn) {
+  if (stateValue === "FillingKycForm" && isCo) {
+    return <ColKycFormScreen onSubmit={submitForm} />;
+  }
+
+  if (stateValue === "UploadingDocuments" && (isMxn || isCo)) {
     return <MxnDocumentUploadScreen onSubmit={submitFiles} />;
   }
 
@@ -102,7 +108,7 @@ export const AlfredpayKycFlow = () => {
     return <FailureScreen errorMessage={context.error?.message} onCancel={cancelProcess} onRetry={retryProcess} />;
   }
 
-  if (stateValue === "CustomerDefinition" && !isMxn) {
+  if (stateValue === "CustomerDefinition" && !isMxn && !isCo) {
     return (
       <CustomerDefinitionScreen
         isBusiness={context.business ?? false}

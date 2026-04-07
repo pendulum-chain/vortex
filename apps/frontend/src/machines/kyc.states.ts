@@ -1,4 +1,4 @@
-import { FiatToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -80,6 +80,9 @@ export const kycStateNode = {
             }
             if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
               return "moneriumKyc";
+            }
+            if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
+              return "alfredpayKyc";
             }
             return "stellarKyc";
           },
@@ -171,7 +174,7 @@ export const kycStateNode = {
       always: [
         {
           guard: ({ context }: { context: RampContext }) =>
-            context.executionInput?.fiatToken === FiatToken.USD || context.executionInput?.fiatToken === FiatToken.MXN,
+            !!context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken),
           target: "Alfredpay"
         },
         {

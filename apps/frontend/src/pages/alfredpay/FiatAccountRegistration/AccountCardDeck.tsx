@@ -3,7 +3,7 @@ import { AnimatePresence, motion, type Transition, useReducedMotion } from "moti
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MaskedAccountNumber } from "../../../components/MaskedAccountNumber";
-import { ALFRED_TO_ACCOUNT_TYPE } from "../../../constants/fiatAccountMethods";
+import { resolveAccountTypeKey } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { CardHeader } from "./CardHeader";
 import { RemoveAccountControls } from "./RemoveAccountControls";
@@ -12,10 +12,18 @@ export const CARD_HEIGHT = 214;
 const PEEK = 28;
 const PEEK_EXPANDED = 54; // For mobile accessibility
 
-function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount; onDelete: (id: string) => void }) {
+function FrontCardContent({
+  account,
+  country,
+  onDelete
+}: {
+  account: AlfredpayFiatAccount;
+  country: string;
+  onDelete: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const { fiatAccountFields, type, fiatAccountId } = account;
-  const accountType = ALFRED_TO_ACCOUNT_TYPE[type];
+  const accountType = resolveAccountTypeKey(type, country);
   const label = fiatAccountFields.accountAlias || fiatAccountFields.accountBankCode;
   const last4 = fiatAccountFields.accountNumber.slice(-4);
   const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
@@ -45,9 +53,9 @@ function FrontCardContent({ account, onDelete }: { account: AlfredpayFiatAccount
   );
 }
 
-function BackCardContent({ account, index }: { account: AlfredpayFiatAccount; index: number }) {
+function BackCardContent({ account, country, index }: { account: AlfredpayFiatAccount; country: string; index: number }) {
   const { fiatAccountFields, type } = account;
-  const accountType = ALFRED_TO_ACCOUNT_TYPE[type];
+  const accountType = resolveAccountTypeKey(type, country);
   const bg = index === 1 ? "bg-gray-50" : "bg-gray-100";
   const last4 = fiatAccountFields.accountNumber.slice(-4);
   const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
@@ -63,10 +71,11 @@ function BackCardContent({ account, index }: { account: AlfredpayFiatAccount; in
 
 interface AccountCardDeckProps {
   accounts: AlfredpayFiatAccount[];
+  country: string;
   onDelete: (fiatAccountId: string) => void;
 }
 
-export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
+export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeckProps) {
   const { t } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
   const spring: Transition = shouldReduceMotion ? { duration: 0 } : { bounce: 0.25, duration: 0.45, type: "spring" };
@@ -124,13 +133,13 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
               style={{ cursor: "default", ...sharedCardStyle(i) }}
               transition={spring}
             >
-              <FrontCardContent account={account} onDelete={onDelete} />
+              <FrontCardContent account={account} country={country} onDelete={onDelete} />
             </motion.div>
           ) : (
             <motion.button
               animate={{ scale: 1 - i * 0.045, top: (orderedAccounts.length - 1 - i) * activePeek }}
               aria-label={t("components.fiatAccountMethods.switchToAccount", {
-                accountType: ALFRED_TO_ACCOUNT_TYPE[account.type],
+                accountType: resolveAccountTypeKey(account.type, country),
                 last4: account.fiatAccountFields.accountNumber.slice(-4)
               })}
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
@@ -153,7 +162,7 @@ export function AccountCardDeck({ accounts, onDelete }: AccountCardDeckProps) {
               type="button"
               whileHover={canHover ? { y: -10 } : undefined}
             >
-              <BackCardContent account={account} index={i} />
+              <BackCardContent account={account} country={country} index={i} />
               <AnimatePresence>
                 {hoveredId === account.fiatAccountId && (
                   <motion.div

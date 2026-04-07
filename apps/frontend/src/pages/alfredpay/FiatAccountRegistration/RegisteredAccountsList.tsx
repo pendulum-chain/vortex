@@ -7,13 +7,21 @@ import { KycRequiredBanner } from "./KycRequiredBanner";
 
 interface RegisteredAccountsListProps {
   accounts: AlfredpayFiatAccount[];
+  country: string;
   isLoading: boolean;
   kycApproved: boolean;
   onAddNew: () => void;
   onDelete: (fiatAccountId: string) => void;
 }
 
-export function RegisteredAccountsList({ accounts, isLoading, kycApproved, onAddNew, onDelete }: RegisteredAccountsListProps) {
+export function RegisteredAccountsList({
+  accounts,
+  country,
+  isLoading,
+  kycApproved,
+  onAddNew,
+  onDelete
+}: RegisteredAccountsListProps) {
   const { t } = useTranslation();
   return (
     <div className="relative flex grow-1 flex-col">
@@ -28,7 +36,7 @@ export function RegisteredAccountsList({ accounts, isLoading, kycApproved, onAdd
             {t("components.fiatAccountRegistration.noAccountsConfigured")}
           </p>
         ) : (
-          <AccountCardDeck accounts={accounts} onDelete={onDelete} />
+          <AccountCardDeck accounts={accounts} country={country} onDelete={onDelete} />
         )}
       </div>
 

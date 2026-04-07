@@ -10,6 +10,7 @@ const schema = z.object({
   city: z.string().min(1),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
   dni: z.string().min(1),
+  documentType: z.enum(["INE", "Resident card", "passport"]),
   email: z.string().email(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -97,6 +98,23 @@ export function MxnKycFormScreen({ onSubmit }: MxnKycFormScreenProps) {
             {...register("email")}
           />
           {errors.email && <span className="mt-1 block text-error text-xs">{errors.email.message}</span>}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm" htmlFor="documentType">
+            {t("components.mxnKycForm.documentType")}
+          </label>
+          <select
+            className={`select w-full rounded-lg border bg-base-200 p-2 text-base ${errors.documentType ? "border-error" : "border-neutral-300"}`}
+            id="documentType"
+            {...register("documentType")}
+          >
+            <option value="">{t("components.mxnKycForm.selectDocumentType")}</option>
+            <option value="INE">{t("components.mxnKycForm.options.ine")}</option>
+            <option value="Resident card">{t("components.mxnKycForm.options.residentCard")}</option>
+            <option value="passport">{t("components.mxnKycForm.options.passport")}</option>
+          </select>
+          {errors.documentType && <span className="mt-1 block text-error text-xs">{errors.documentType.message}</span>}
         </div>
 
         <div>

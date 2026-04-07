@@ -10,16 +10,19 @@ const schema = z
     address: z.string().min(1),
     city: z.string().min(1),
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-    dni: z.string().min(6).max(10).regex(/^\d+$/, "Must be numeric"),
-    documentType: z.enum(["CC", "CE"]),
-    email: z.string().email(),
+    dni: z.string().min(6).max(11).regex(/^\d+$/, "Must be numeric"),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
+    phoneNumber: z
+      .string()
+      .min(7)
+      .regex(/^\+?\d[\d\s\-()]{5,}$/, "Enter a valid phone number"),
     state: z.string().min(1),
+    typeDocumentCol: z.enum(["CC", "CE"]),
     zipCode: z.string().min(1)
   })
   .superRefine((data, ctx) => {
-    if (data.documentType === "CC" && data.dni.length !== 10) {
+    if (data.typeDocumentCol === "CC" && data.dni.length !== 10) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CC must be exactly 10 digits", path: ["dni"] });
     }
   });
@@ -40,7 +43,7 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
     watch
   } = useForm<ColKycFormValues>({ resolver: zodResolver(schema) });
 
-  const documentType = watch("documentType");
+  const documentType = watch("typeDocumentCol");
 
   const inputClass = (hasError: boolean) =>
     `input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${hasError ? "border-error" : "border-neutral-300"}`;
@@ -97,34 +100,19 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm" htmlFor="col-email">
-            {t("components.mxnKycForm.email")}
-          </label>
-          <input
-            autoComplete="email"
-            className={inputClass(!!errors.email)}
-            id="col-email"
-            inputMode="email"
-            type="email"
-            {...register("email")}
-          />
-          {errors.email && <span className="mt-1 block text-error text-xs">{errors.email.message}</span>}
-        </div>
-
-        <div>
           <label className="mb-1 block text-sm" htmlFor="col-documentType">
             {t("components.colKycForm.documentType")}
           </label>
           <select
-            className={`select w-full rounded-lg border bg-base-200 p-2 text-base ${errors.documentType ? "border-error" : "border-neutral-300"}`}
+            className={`select w-full rounded-lg border bg-base-200 p-2 text-base ${errors.typeDocumentCol ? "border-error" : "border-neutral-300"}`}
             id="col-documentType"
-            {...register("documentType")}
+            {...register("typeDocumentCol")}
           >
             <option value="">{t("components.colKycForm.selectDocumentType")}</option>
             <option value="CC">{t("components.colKycForm.options.cc")}</option>
             <option value="CE">{t("components.colKycForm.options.ce")}</option>
           </select>
-          {errors.documentType && <span className="mt-1 block text-error text-xs">{errors.documentType.message}</span>}
+          {errors.typeDocumentCol && <span className="mt-1 block text-error text-xs">{errors.typeDocumentCol.message}</span>}
         </div>
 
         <div>
@@ -142,6 +130,22 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
             {...register("dni")}
           />
           {errors.dni && <span className="mt-1 block text-error text-xs">{errors.dni.message}</span>}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm" htmlFor="col-phoneNumber">
+            {t("components.colKycForm.phoneNumber")}
+          </label>
+          <input
+            autoComplete="tel"
+            className={inputClass(!!errors.phoneNumber)}
+            id="col-phoneNumber"
+            inputMode="tel"
+            placeholder="+57 300 000 0000"
+            type="tel"
+            {...register("phoneNumber")}
+          />
+          {errors.phoneNumber && <span className="mt-1 block text-error text-xs">{errors.phoneNumber.message}</span>}
         </div>
 
         <div>

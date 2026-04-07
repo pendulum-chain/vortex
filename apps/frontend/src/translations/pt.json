@@ -232,6 +232,20 @@
         "success": "Verificação bem-sucedida"
       }
     },
+    "colKycForm": {
+      "dni": "Número de Documento",
+      "dniPlaceholderCc": "Número CC de 10 dígitos",
+      "dniPlaceholderCe": "Número CE de 6 a 10 dígitos",
+      "documentType": "Tipo de Documento",
+      "options": {
+        "cc": "Cédula de Ciudadanía (CC)",
+        "ce": "Cédula de Extranjería (CE)"
+      },
+      "phoneNumber": "Número de Telefone",
+      "selectDocumentType": "Selecione o tipo de documento…",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade"
+    },
     "copyButton": {
       "ariaLabel": "Copiar para a área de transferência"
     },
@@ -334,10 +348,13 @@
       "bankName": "Nome do Banco",
       "clabe": "CLABE (18 dígitos)",
       "options": {
+        "ahorro": "Poupança (Ahorro)",
         "checking": "Corrente",
+        "nequi": "Nequi",
         "savings": "Poupança"
       },
       "placeholders": {
+        "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
         "bankNameMx": "ex. BBVA, Santander, Banamex",
         "clabe": "ex. 032180000118359719",
         "routingNumber": "ex. 021000021"
@@ -351,11 +368,13 @@
       "clickToSelect": "Clique para selecionar",
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
+        "ACH_COL": "Transferência bancária colombiana",
         "SPEI": "Transferência interbancária instantânea via número CLABE",
         "WIRE": "No mesmo dia"
       },
       "labels": {
         "ACH": "Transferência ACH",
+        "ACH_COL": "ACH Colômbia",
         "SPEI": "SPEI",
         "WIRE": "Transferência Internacional"
       },
@@ -486,10 +505,17 @@
       "city": "Cidade",
       "continue": "Continuar",
       "dateOfBirth": "Data de Nascimento",
-      "dni": "CURP / Número INE",
+      "dni": "Número do Documento",
+      "documentType": "Tipo de Documento",
       "email": "E-mail",
       "firstName": "Nome",
       "lastName": "Sobrenome",
+      "options": {
+        "ine": "INE (Credencial para Votar)",
+        "passport": "Passaporte",
+        "residentCard": "Cartão de Residente"
+      },
+      "selectDocumentType": "Selecione o tipo de documento…",
       "state": "Estado",
       "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
       "title": "Verificação de Identidade",
@@ -544,6 +570,13 @@
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com PIX"
       },
+      "COPOnrampDetails": {
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos para a conta bancária abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar via Transferência Bancária"
+      },
       "confirm": "Confirmar",
       "continue": "Continuar",
       "continueOnPartnersPage": "Continuar na página do Parceiro",
@@ -560,6 +593,13 @@
       "headerText": {
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
+      },
+      "MXNOnrampDetails": {
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos via SPEI para o CLABE abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar com SPEI"
       },
       "next": "Próximo",
       "offrampFee": "Taxa total",
@@ -1147,7 +1187,8 @@
         "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",
-        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior."
+        "tryLargerAmount": "Valor de entrada muito baixo. Tente um valor maior.",
+        "USD_tokenUnavailable": "Construindo seu trilho USD - disponível em breve!"
       }
     },
     "termsAndConditions": {

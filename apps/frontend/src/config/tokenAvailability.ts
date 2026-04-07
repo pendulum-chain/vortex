@@ -1,4 +1,4 @@
-import { FiatToken } from "@vortexfi/shared";
+import { FiatToken, SUPPORTED_FIAT_CURRENCIES } from "@vortexfi/shared";
 import { DEFAULT_FIAT_TOKEN } from "../stores/quote/useQuoteFormStore";
 
 export interface TokenAvailabilityConfig {
@@ -6,33 +6,21 @@ export interface TokenAvailabilityConfig {
   disabledReasonTranslationKey: string;
 }
 
-// This is our central configuration for token availability
-export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> = {
-  [FiatToken.EURC]: {
-    disabledReasonTranslationKey: "pages.swap.error.EURC_tokenUnavailable",
-    enabled: true
-  },
-  [FiatToken.ARS]: {
-    disabledReasonTranslationKey: "pages.swap.error.ARS_tokenUnavailable",
-    enabled: true
-  },
-  [FiatToken.BRL]: {
-    disabledReasonTranslationKey: "pages.swap.error.BRL_tokenUnavailable",
-    enabled: true
-  },
-  [FiatToken.USD]: {
-    disabledReasonTranslationKey: "pages.swap.error.USD_tokenUnavailable",
-    enabled: true
-  },
-  [FiatToken.MXN]: {
-    disabledReasonTranslationKey: "pages.swap.error.MXN_tokenUnavailable",
-    enabled: true
-  },
-  [FiatToken.COP]: {
-    disabledReasonTranslationKey: "pages.swap.error.COP_tokenUnavailable",
-    enabled: false
-  }
+const DISABLED_REASON_BY_TOKEN: Record<FiatToken, string> = {
+  [FiatToken.EURC]: "pages.swap.error.EURC_tokenUnavailable",
+  [FiatToken.ARS]: "pages.swap.error.ARS_tokenUnavailable",
+  [FiatToken.BRL]: "pages.swap.error.BRL_tokenUnavailable",
+  [FiatToken.USD]: "pages.swap.error.USD_tokenUnavailable",
+  [FiatToken.MXN]: "pages.swap.error.MXN_tokenUnavailable",
+  [FiatToken.COP]: "pages.swap.error.COP_tokenUnavailable"
 };
+
+export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> = Object.fromEntries(
+  SUPPORTED_FIAT_CURRENCIES.map(c => [
+    c.symbol,
+    { disabledReasonTranslationKey: DISABLED_REASON_BY_TOKEN[c.symbol], enabled: c.enabled }
+  ])
+) as Record<FiatToken, TokenAvailabilityConfig>;
 
 export function isFiatTokenEnabled(token: FiatToken): boolean {
   return fiatTokenAvailability[token]?.enabled ?? false;

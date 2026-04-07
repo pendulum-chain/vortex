@@ -34,6 +34,28 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
     { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
     { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
   ],
+  ACH_COL: [
+    { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
+    {
+      field: "accountNumber",
+      label: "components.fiatAccountForms.accountNumber",
+      placeholder: "components.fiatAccountForms.placeholders.accountNumberCo",
+      required: true,
+      type: "text"
+    },
+    {
+      field: "accountType",
+      label: "components.fiatAccountForms.accountType",
+      options: [
+        { label: "components.fiatAccountForms.options.ahorro", value: "AHORRO" },
+        { label: "components.fiatAccountForms.options.nequi", value: "NEQUI" }
+      ],
+      required: true,
+      type: "select"
+    },
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
+  ],
   SPEI: [
     {
       field: "accountBankCode",
