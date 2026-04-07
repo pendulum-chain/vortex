@@ -80,5 +80,5 @@ There are 28 phase handlers in `apps/api/src/api/services/phases/handlers/`. The
 - [x] Moonbeam handler refreshes gas estimate per retry attempt (F-028, fixed)
 - [x] `post-swap-handler` has explicit default rejection for unrecognized routing combinations (F-031, fixed)
 - [x] `distributeFees` is a non-terminal phase — failure triggers retry, not silent skip
+- [EXISTING FINDING] **F-053**: Five phase handlers lack idempotency guards — `stellar-payment-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-swap-handler`, `nabla-swap-handler` can double-execute on retry.
 - [ ] No aggregate cross-ramp subsidy rate limiting — many concurrent ramps could drain funding account
-- [ ] Not all handlers have explicit idempotency guards (rely on chain-level nonce uniqueness)

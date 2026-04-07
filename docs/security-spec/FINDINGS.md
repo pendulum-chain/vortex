@@ -1,18 +1,18 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 9 open (transaction validation + ephemeral account audit)
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 16 open (transaction validation + ephemeral account + phase flow audit)
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account audit (F-038 through F-046).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account / phase flow audit (F-038 through F-053).
 
 ## Summary
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
 | 🔴 Critical | 3 | 0 | 0 | **2** | 5 |
-| 🟠 High | 3 | 2 | 3 | **5** | 13 |
-| 🟡 Medium | 12 | 2 | 4 | **2** | 20 |
-| 🔵 Low / ⚪ Info | 8 | 0 | 0 | 0 | 8 |
-| **Total** | **26** | **4** | **7** | **9** | **46** |
+| 🟠 High | 3 | 2 | 3 | **7** | 15 |
+| 🟡 Medium | 12 | 2 | 4 | **6** | 24 |
+| 🔵 Low / ⚪ Info | 8 | 0 | 0 | **1** | 9 |
+| **Total** | **26** | **4** | **7** | **16** | **53** |
 
 > **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation. **Open** = newly identified, awaiting fix or CTO decision.
 
@@ -423,6 +423,55 @@ These tokens sit indefinitely on ephemeral accounts with no recovery mechanism. 
 
 ---
 
+### F-048: Stellar Payment Allows Extra Operations — No Operation Count Check
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 287-301 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | A malicious client can inject additional operations into the Stellar payment transaction that execute alongside the legitimate payment. |
+
+**Description:** The `stellarCreateAccount` validation enforces `transaction.operations.length !== 3` to ensure exactly 3 operations. However, the `stellarPayment` validation only checks `operations[0].type === "payment"` and `transaction.source === signer` — it does NOT check the operation count. A malicious client could craft a Stellar transaction with:
+
+- Operation 0: legitimate payment (passes validation)
+- Operation 1: a second payment to an attacker's Stellar address
+- Operation 2: an account merge sending the remaining XLM balance to the attacker
+
+All additional operations would execute atomically with the legitimate payment since they're in the same Stellar transaction envelope.
+
+**Fix:** Add `transaction.operations.length === 1` check for `stellarPayment` transactions, matching the pattern used for `stellarCreateAccount`.
+
+---
+
+### F-053: Multiple Phase Handlers Lack Idempotency Guards — Double-Execution on Retry
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/phases/handlers/stellar-payment-handler.ts`, `pendulum-to-assethub-phase-handler.ts`, `pendulum-to-hydration-xcm-phase-handler.ts`, `hydration-swap-handler.ts`, `nabla-swap-handler.ts` |
+| **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Phase flow audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | If the phase processor retries these handlers (due to 10-minute timeout or recoverable error), they will re-execute the on-chain transaction, causing double swaps, double XCM transfers, or double Stellar payments — all resulting in direct fund loss. |
+
+**Description:** Five phase handlers that submit on-chain transactions have NO explicit idempotency guard (no nonce check, no tx hash guard, no balance pre-check):
+
+1. **`stellar-payment-handler.ts`** — Submits the presigned Stellar payment XDR directly. No check for prior submission. Double submission sends the payment amount twice.
+2. **`pendulum-to-assethub-phase-handler.ts`** — Submits presigned XCM extrinsic. Stores `pendulumToAssethubXcmHash` after submission but never checks it before submitting. If the phase times out after submission but before the hash is stored, retry causes double XCM.
+3. **`pendulum-to-hydration-xcm-phase-handler.ts`** — Same pattern as above. Stores `pendulumToHydrationXcmHash` but doesn't check it before submission.
+4. **`hydration-swap-handler.ts`** — Submits presigned Hydration DEX swap extrinsic. No hash guard, no nonce check. Double swap consumes tokens twice.
+5. **`nabla-swap-handler.ts`** — Submits presigned Nabla DEX swap extrinsic. No hash guard. Double swap means the second swap operates on an empty balance (likely failing, but consuming gas and causing a failed ramp).
+
+By contrast, handlers like `spacewalk-redeem-handler` (nonce guard), `moonbeam-to-pendulum-handler` (hash guard), and `squid-router-phase-handler` (hash/nonce guard) demonstrate the correct pattern.
+
+**Fix:** Add idempotency guards to each handler:
+1. **Hash guard pattern**: Before submitting, check if the tx hash already exists in state. If yes, skip to the waiting/verification path. Store the hash immediately after submission (before waiting for finalization).
+2. **Nonce guard pattern**: Compare the ephemeral account's current nonce against the expected nonce. If the nonce has advanced, the transaction was already included — skip to verification.
+3. For `stellar-payment-handler`, check the Stellar ephemeral account's sequence number or verify the payment operation on Horizon before re-submitting.
+
+---
+
 ## 🟡 Medium
 
 ### F-007: 50MB Body Parser Limit
@@ -782,6 +831,113 @@ This exclusion means that Monerium SEPA onramp ramps are never processed by the 
 The exclusion may have been added because SEPA ramps have a different lifecycle (polling for Monerium mint), but the cleanup concern remains: tokens on Polygon ephemeral accounts need to be swept.
 
 **Fix:** Evaluate whether SEPA ramps can leave residual tokens on ephemeral accounts (Polygon, Moonbeam, Pendulum). If yes, either: (1) remove the exclusion and handle SEPA ramps in the standard cleanup flow, or (2) add a SEPA-specific cleanup handler that accounts for the Monerium integration's lifecycle.
+
+---
+
+### F-047: `getTransactionTypeForPhase` Default Silently Maps Unknown Phases to EVM
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 42-70 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | A new phase added to `RampPhase` that is actually Substrate-type would silently fall through to EVM validation, either throwing a confusing error or — if the txData happens to parse as valid EVM — passing without any meaningful check. |
+
+**Description:** The `getTransactionTypeForPhase()` switch statement maps known phases to their chain type (`Substrate`, `Stellar`, or `EVM`). The `default` case returns `EphemeralAccountType.EVM`. Approximately 15 `RampPhase` values are not in the switch:
+
+- `squidRouterPermitExecute`, `squidRouterPay`, `moneriumOnrampSelfTransfer`, `moneriumOnrampMint`
+- `fundEphemeral`, `destinationTransfer`, `moonbeamToPendulum`
+- `alfredpayOnrampMint`, `alfredpayOfframpTransfer`
+- `brlaOnrampMint`, `brlaPayoutOnMoonbeam`, `finalSettlementSubsidy`
+- `backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove`
+
+Most of these happen to be EVM transactions, so the default is accidentally correct. But this is fragile: if a developer adds a new Substrate-type phase without updating the switch, it silently gets EVM validation. Additionally, `squidRouterPermitExecute` falls to the default EVM path, where typed data is then skipped by the early return — creating a double bypass.
+
+**Fix:** Replace `default: return EphemeralAccountType.EVM` with a throw: `default: throw new Error(\`Unknown phase type: ${phase}\`)`. Explicitly add all missing phases to the appropriate case groups.
+
+---
+
+### F-049: `stellarCleanup` Phase Gets No Content Validation
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 207-302 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | A malicious client could substitute a different cleanup XDR that merges the Stellar ephemeral account to an attacker address instead of the server funding account. |
+
+**Description:** The `stellarCleanup` phase is correctly mapped to `EphemeralAccountType.Stellar` in `getTransactionTypeForPhase`, so it enters `validateStellarTransaction`. However, that function only has phase-specific content checks for `stellarCreateAccount` (if block at line 236) and `stellarPayment` (if block at line 287). The `stellarCleanup` phase falls through both if-blocks and receives only:
+
+1. Signer matches expected signer
+2. XDR parses successfully
+
+No validation of: merge destination, operation types, or operation count. The cleanup XDR typically contains an account merge operation that sends the ephemeral account's remaining balance to the server funding account. Without checking the merge destination, a malicious client could craft a cleanup XDR that merges to their own address.
+
+**Fix:** Add a `stellarCleanup` phase check that validates: (1) operation count, (2) operation type is `accountMerge`, (3) merge destination is the server's Stellar funding public key.
+
+---
+
+### F-050: EVM Transaction `to` Address (Contract Target) Not Validated
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 101-151 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | A presigned EVM transaction could target any arbitrary contract address. For `squidRouterApprove`, the client could approve a malicious spender. For `squidRouterSwap`, the client could route through a malicious router contract that skims funds. |
+
+**Description:** `validateEvmTransaction` deserializes the transaction and checks:
+- `from` matches expected signer ✅
+- `chainId` matches expected network ✅
+
+But it does NOT check `to` (the contract target address). The `to` field determines which smart contract the transaction interacts with. For presigned transactions, the server generates unsigned transactions with specific `to` addresses (e.g., the SquidRouter contract, an ERC-20 token contract for approvals). The client could replace the `to` address with:
+- A malicious router contract that executes the swap but sends output to an attacker
+- A malicious token contract for the approval, granting allowance on the wrong token
+- Any arbitrary contract
+
+**Fix:** Validate that `transactionMeta.to` matches the expected contract address for the phase. For `squidRouterApprove`, verify `to` is the expected ERC-20 token contract. For `squidRouterSwap`, verify `to` is the known SquidRouter contract address.
+
+---
+
+### F-051: No Alerting or Monitoring for Cleanup Failures
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/workers/cleanup.worker.ts` |
+| **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Ephemeral account audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | Cleanup failures accumulate silently. Funds trapped on ephemeral accounts go unnoticed until someone manually inspects logs or the database. |
+
+**Description:** The cleanup worker logs errors via `logger.error()` and retries failed handlers on subsequent cycles, but never sends a Slack alert or triggers any monitoring notification. `SlackNotifier` exists and is used elsewhere in the codebase (e.g., balance alerts in `pendulum.controller.ts`) but is not wired into the cleanup worker.
+
+If a cleanup handler fails repeatedly (e.g., due to an RPC outage on a specific chain), the ramp's `postCompleteState.cleanup.errors` array grows but nobody is notified. The 5-minute cron cycle keeps retrying the same failed handlers indefinitely, but if the root cause requires manual intervention (e.g., an expired Stellar account, a chain upgrade that changed the extrinsic format), funds remain trapped.
+
+**Fix:** Add `SlackNotifier` integration to the cleanup worker. Send an alert when: (1) a cleanup handler fails for the same ramp more than N times (e.g., 3 consecutive cycles = 15 minutes), or (2) the total number of ramps with failed cleanup exceeds a threshold. Include the ramp ID, handler name, and error message in the alert.
+
+---
+
+### F-052: No Manual Cleanup Trigger Endpoint
+
+| Field | Value |
+|---|---|
+| **Location** | No endpoint exists — gap in `apps/api/src/api/routes/v1/` |
+| **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Ephemeral account audit (checklist walkthrough), 2026-04-07 |
+| **Impact** | If automated cleanup fails repeatedly for a specific ramp, there is no way to manually trigger a cleanup attempt without direct database modification or service restart. |
+
+**Description:** The cleanup worker runs on a 5-minute cron and processes ramps automatically. However, there is no admin API endpoint to manually trigger cleanup for a specific ramp ID. If a ramp's cleanup is stuck (e.g., the handler keeps failing due to a chain-specific issue that has since been resolved), an operator must either:
+- Wait for the next automatic cycle (which will retry the same failed handler)
+- Directly modify the database to reset the cleanup state
+- Restart the service
+
+None of these are ideal for an operations team responding to a stuck-funds incident.
+
+**Fix:** Add an admin-authenticated endpoint (e.g., `POST /v1/admin/cleanup/:rampId`) that: (1) validates the ramp exists and has `currentPhase: "complete"` or `"failed"`, (2) resets the cleanup error state, (3) triggers post-process handlers immediately for that ramp, (4) returns the result. Protect with `adminAuth` middleware.
 
 ---
 

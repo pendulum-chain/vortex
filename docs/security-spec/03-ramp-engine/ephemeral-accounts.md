@@ -58,5 +58,5 @@ The cleanup worker queries for ramps with `currentPhase: "complete"`, excluding 
 - [x] Cleanup worker processes at most 5 ramps per cycle — verified
 - [x] Cleanup worker marks ramps as cleaned (`postProcessDone: true`) to prevent re-processing — verified
 - [x] Base post-process handler catches errors per-chain and does not let one chain's failure block others — verified
-- [ ] No monitoring or alerting for cleanup failures — silent fund trapping risk
-- [ ] No mechanism to manually trigger cleanup for a specific ramp ID
+- [EXISTING FINDING] **F-051**: No Slack alerting or monitoring notification for cleanup failures — silent fund trapping risk.
+- [EXISTING FINDING] **F-052**: No admin endpoint to manually trigger cleanup for a specific ramp ID.

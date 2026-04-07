@@ -42,10 +42,14 @@ The validation logic lives in `apps/api/src/api/services/transactions/validation
 - [EXISTING FINDING] **F-041**: SELL-direction ramps skip `squidRouterSwap` and `squidRouterApprove` validation entirely via an explicit `continue` statement.
 - [EXISTING FINDING] **F-042**: Substrate transaction validation only checks signer — extrinsic method, parameters, amounts, and destinations are not validated.
 - [EXISTING FINDING] **F-043**: `areAllTxsIncluded` matches on phase+network+nonce+signer metadata only, not on txData content.
+- [EXISTING FINDING] **F-047**: `getTransactionTypeForPhase` default case silently maps unknown phases to EVM instead of throwing — ~15 RampPhase values not in switch.
+- [EXISTING FINDING] **F-048**: Stellar payment validation does not check operation count — client can inject extra operations (e.g., additional payments, account merge).
+- [EXISTING FINDING] **F-049**: `stellarCleanup` phase falls through both if-blocks in `validateStellarTransaction` — only signer and XDR parse, no content validation.
+- [EXISTING FINDING] **F-050**: EVM `validateEvmTransaction` checks `from` and `chainId` but NOT the `to` address (contract target) — transactions could target any arbitrary contract.
 - [x] `validatePresignedTxs` is called in both `updateRamp` and `startRamp` — dual validation confirmed
 - [x] `validateAllPresignedTransactionsSigned` checks every expected transaction has a corresponding signed entry
 - [x] EVM raw transaction validation (`validateEvmTransaction`) checks `from`, `chainId`, and `nonce` against expected signer and chain
 - [x] Onramp-specific validation (`validateAveniaOnramp`, `validateMoneriumOnramp`) checks quote amounts and integration-specific fields
 - [x] Offramp-specific validation (`validateOfframpQuote`, `validateBRLOfframp`, `validateStellarOfframp`) checks quote consistency
 - [x] `RAMP_START_EXPIRATION_TIME_SECONDS` enforces a time window between registration and start — prevents stale presigned transactions from being executed
-- [ ] No default rejection for unrecognized chain types — new chains could silently pass validation
+- [ ] No default rejection for unrecognized chain types — `getTransactionTypeForPhase` default returns EVM (see F-047)
