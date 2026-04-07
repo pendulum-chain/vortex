@@ -131,7 +131,6 @@ export abstract class BaseFinalizeEngine implements Stage {
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      fee: ctx.fees.displayFiat,
       from: request.from,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,

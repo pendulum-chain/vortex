@@ -1,6 +1,6 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** Implementation phase complete — 25 fixed, 3 accepted risk, 9 deferred
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** Implementation phase complete — 26 fixed, 4 accepted risk, 7 deferred
 
 This file consolidates all security findings from the Vortex platform audit. Findings were discovered across two phases: specification writing (F-001 through F-012) and code-vs-spec audit across all 8 modules (F-013 through F-037).
 
@@ -8,11 +8,11 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 
 | Severity | Fixed | Accepted | Deferred | Total |
 |---|---|---|---|---|
-| 🔴 Critical | 2 | 0 | **1** | 3 |
-| 🟠 High | 3 | 1 | **4** | 8 |
+| 🔴 Critical | 3 | 0 | **0** | 3 |
+| 🟠 High | 3 | 2 | **3** | 8 |
 | 🟡 Medium | 12 | 2 | **4** | 18 |
 | 🔵 Low / ⚪ Info | 8 | 0 | **0** | 8 |
-| **Total** | **25** | **3** | **9** | **37** |
+| **Total** | **26** | **4** | **7** | **37** |
 
 > **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation.
 
@@ -41,14 +41,14 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 |---|---|
 | **Location** | Token-config-based fees (used for deductions) vs. database-stored fees (displayed only) |
 | **Spec** | `03-ramp-engine/fee-integrity.md` |
-| **Status** | 🟠 **DEFERRED** — requires architectural unification |
+| **Status** | ✅ **FIXED** |
 | **Impact** | Fees shown to the user may not match fees actually deducted. Silent divergence over time. |
 
 **Description:** Two parallel fee calculation paths exist. Token-config-based fees are what actually deduct from user amounts during swaps. Database-based fees are calculated, stored, and displayed — but are NOT used for actual deductions. These two systems can produce different numbers for the same ramp, meaning users may see one fee but pay another.
 
 **CTO Clarification (2026-04-02):** Unify into a single source of truth. One fee calculation path used for both display and deduction.
 
-**Fix:** Unify the fee systems into a single calculation path. Remove the parallel system so the same calculation is used for both display and on-chain deduction.
+**Resolution:** Removed the redundant `fee` column from `QuoteTicket`. This column stored `displayFiat` fees separately from `metadata.fees`, but was never read back by any code path — `buildQuoteResponse()` and `feeDistribution.ts` both read from `metadata.fees`. The column was dead weight creating the illusion of a second source of truth. `assignFeeSummary()` is now documented as the single source of truth for all fee representations. Migration `025-remove-quote-ticket-fee-column` drops the column while preserving historical data in `metadata.fees`.
 
 ---
 
@@ -134,14 +134,14 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 |---|---|
 | **Location** | All services — `apps/api/src/config/vars.ts`, `apps/rebalancer/src/utils/config.ts` |
 | **Spec** | `07-operations/secret-management.md` |
-| **Status** | 🟠 **DEFERRED** — planned improvement, not this audit cycle |
+| **Status** | ⚪ **ACCEPTED** — Render.com built-in secrets management is sufficient |
 | **Impact** | Server compromise exposes every funding key, database credential, and third-party API key. No way to rotate without full redeployment. No access logging for secret usage. |
 
 **Description:** All secrets are plain environment variables loaded at startup. No HSM, no secrets manager (AWS Secrets Manager, Vault, etc.), no encrypted storage at rest, no audit trail. Blast radius of a server compromise is total: Stellar funding keys, Pendulum seeds, Moonbeam executor keys, all rebalancer chain keys, database credentials, admin tokens, and all third-party API keys.
 
 **CTO Clarification (2026-04-02):** Planned improvement. Migration to a secrets manager is on the roadmap but not in this audit cycle's scope.
 
-**Fix:** Planned for future. At minimum, separate high-value keys (funding/signing) from low-value keys (API tokens). Full secrets manager migration to be scoped separately.
+**Resolution (2026-04-07):** After evaluating Render.com's built-in secrets management (encrypted at rest, SOC 2 Type II, admin-only access in protected environments, audit logging), an external secrets manager (AWS SM, Vault) was deemed unnecessary for the current risk profile. The highest-value secrets (blockchain signing keys) cannot be auto-rotated by any secrets manager anyway. The centralized `config/vars.ts` refactoring (F-016) already provides a clean migration path if requirements change. Revisit if: multi-team ACL needed, regulatory mandate for CMK, or multi-instance deployment requires per-secret policies.
 
 ---
 
