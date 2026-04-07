@@ -9,8 +9,8 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
 import { permitAbi } from "../../../../contracts/PermitAbi";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
@@ -91,7 +91,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
     }
 
     try {
-      const account = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const account = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
       let permitHash: string;
 
       if (state.state.permitTxHash) {

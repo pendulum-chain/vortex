@@ -17,7 +17,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";

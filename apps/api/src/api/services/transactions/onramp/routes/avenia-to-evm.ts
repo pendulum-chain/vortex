@@ -19,7 +19,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";

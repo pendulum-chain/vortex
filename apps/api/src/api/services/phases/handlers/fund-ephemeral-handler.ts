@@ -13,7 +13,8 @@ import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
+import { POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

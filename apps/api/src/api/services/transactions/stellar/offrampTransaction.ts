@@ -1,20 +1,17 @@
 import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@vortexfi/shared";
 import Big from "big.js";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import {
-  FUNDING_SECRET,
-  SANDBOX_ENABLED,
-  SEQUENCE_TIME_WINDOW_IN_SECONDS,
-  SEQUENCE_TIME_WINDOWS,
-  STELLAR_BASE_FEE
-} from "../../../../constants/constants";
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS, SEQUENCE_TIME_WINDOWS, STELLAR_BASE_FEE } from "../../../../constants/constants";
 
 // Define HorizonServer type
 type HorizonServer = Horizon.Server;
 
-const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
-const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+const FUNDING_PUBLIC_KEY = config.secrets.stellarFundingSecret
+  ? Keypair.fromSecret(config.secrets.stellarFundingSecret).publicKey()
+  : "";
+const NETWORK_PASSPHRASE = config.sandboxEnabled ? Networks.TESTNET : Networks.PUBLIC;
 
 const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7;
 
@@ -41,12 +38,12 @@ export async function buildPaymentAndMergeTx({
   const baseFee = STELLAR_BASE_FEE;
   const NUMBER_OF_PRESIGNED_TXS = 5;
 
-  if (!FUNDING_SECRET) {
+  if (!config.secrets.stellarFundingSecret) {
     logger.error("Stellar funding secret not defined");
     throw new Error("Stellar funding secret not defined");
   }
 
-  const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
+  const fundingAccountKeypair = Keypair.fromSecret(config.secrets.stellarFundingSecret);
 
   const { memo, memoType, anchorTargetAccount } = paymentData;
   const transactionMemo =

@@ -9,8 +9,8 @@ import {
   RampPhase,
   TransactionTemporarilyBannedError
 } from "@vortexfi/shared";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -248,7 +248,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         }),
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": SUBSCAN_API_KEY || ""
+          "x-api-key": config.subscanApiKey || ""
         },
         method: "POST"
       });

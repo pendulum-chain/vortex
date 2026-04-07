@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
 import { SlackNotifier } from "./slack.service";
 
@@ -50,13 +51,11 @@ export class PriceFeedService {
    * Private constructor to enforce singleton pattern
    */
   private constructor() {
-    // Read configuration from environment variables
-    this.coingeckoApiKey = process.env.COINGECKO_API_KEY;
-    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3";
+    this.coingeckoApiKey = config.priceProviders.coingecko.apiKey;
+    this.coingeckoApiBaseUrl = config.priceProviders.coingecko.baseUrl;
 
-    // Read cache TTL configuration with defaults (5 minutes = 300000 ms)
-    this.cryptoCacheTtlMs = parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10);
-    this.fiatCacheTtlMs = parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10);
+    this.cryptoCacheTtlMs = config.priceProviders.coingecko.cryptoCacheTtlMs;
+    this.fiatCacheTtlMs = config.priceProviders.coingecko.fiatCacheTtlMs;
 
     if (!this.coingeckoApiKey) {
       logger.warn("COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.");

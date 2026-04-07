@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
@@ -35,7 +35,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
     }
 
     // Determine environment
-    const environment = SANDBOX_ENABLED ? "test" : "live";
+    const environment = config.sandboxEnabled ? "test" : "live";
 
     // Generate public key (pk_live_* or pk_test_*)
     const publicKey = generateApiKey("public", environment);

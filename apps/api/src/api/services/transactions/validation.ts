@@ -16,8 +16,8 @@ import {
 import { Transaction as EvmTransaction } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
 import { APIError } from "../../errors/api-error";
 
 /// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
@@ -142,7 +142,7 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
     });
   }
 
-  if (Number(transactionMeta.chainId) !== getNetworkId(tx.network) && Boolean(SANDBOX_ENABLED) !== true) {
+  if (Number(transactionMeta.chainId) !== getNetworkId(tx.network) && Boolean(config.sandboxEnabled) !== true) {
     throw new APIError({
       message: `EVM transaction chainId ${transactionMeta.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
       status: httpStatus.BAD_REQUEST

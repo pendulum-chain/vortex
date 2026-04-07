@@ -41,8 +41,9 @@ import httpStatus from "http-status";
 import { Op, Transaction } from "sequelize";
 import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED, SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
@@ -969,7 +970,7 @@ export class RampService extends BaseRampService {
         quote.to as EvmNetworks // Fixme: assethub network type issue.
       );
 
-      const userProfile = SANDBOX_ENABLED
+      const userProfile = config.sandboxEnabled
         ? null
         : await getMoneriumUserProfile({
             authToken: additionalData.moneriumAuthToken,
@@ -985,7 +986,7 @@ export class RampService extends BaseRampService {
 
       const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
-      const receiverName = SANDBOX_ENABLED ? "Sandbox User" : userProfile?.name || "User";
+      const receiverName = config.sandboxEnabled ? "Sandbox User" : userProfile?.name || "User";
       const ibanPaymentData = {
         bic: ibanData.bic,
         iban: ibanData.iban,

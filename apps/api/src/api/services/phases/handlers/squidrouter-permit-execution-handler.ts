@@ -7,8 +7,8 @@ import {
   SignedTypedData
 } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
 import { tokenRelayerAbi } from "../../../../contracts/TokenRelayer";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -114,7 +114,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       const payloadNonce = BigInt(payloadMessage.nonce as string);
       const payloadDeadline = BigInt(payloadMessage.deadline as string);
 
-      const relayerAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const relayerAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
       const walletClient = this.evmClientManager.getWalletClient(fromNetwork, relayerAccount);
 
       const hash = await walletClient.writeContract({

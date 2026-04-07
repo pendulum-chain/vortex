@@ -1,7 +1,8 @@
 import { ApiManager, EvmAddress, EvmClientManager, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 
 export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
   try {

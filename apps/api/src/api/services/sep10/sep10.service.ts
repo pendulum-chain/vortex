@@ -1,10 +1,10 @@
 import { FiatToken, TOKEN_CONFIG } from "@vortexfi/shared";
 import { Keypair, Networks, Transaction, TransactionBuilder } from "stellar-sdk";
-import { CLIENT_DOMAIN_SECRET, SANDBOX_ENABLED, SEP10_MASTER_SECRET } from "../../../constants/constants";
+import { config, SEP10_MASTER_SECRET } from "../../../config/vars";
 import { fetchTomlValues } from "../../helpers/anchors";
 import { getOutToken, validateFirstOperation, validateRemainingOperations, validateTransaction } from "./helpers";
 
-const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+const NETWORK_PASSPHRASE = config.sandboxEnabled ? Networks.TESTNET : Networks.PUBLIC;
 
 interface TomlValues {
   signingKey: string;
@@ -23,11 +23,11 @@ export const signSep10Challenge = async (
   clientPublicKey: string,
   memo: string | null
 ): Promise<Sep10Response> => {
-  if (!SEP10_MASTER_SECRET || !CLIENT_DOMAIN_SECRET) {
+  if (!SEP10_MASTER_SECRET || !config.secrets.clientDomainSecret) {
     throw new Error("Missing required secrets");
   }
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
-  const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
+  const clientDomainStellarKeypair = Keypair.fromSecret(config.secrets.clientDomainSecret);
 
   // Map FiatToken enum values to TOKEN_CONFIG keys
   const tokenMapping: Record<FiatToken, keyof typeof TOKEN_CONFIG> = {

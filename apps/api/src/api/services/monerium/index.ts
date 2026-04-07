@@ -14,12 +14,12 @@ import {
   MoneriumUserProfile,
   Networks
 } from "@vortexfi/shared";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { MONERIUM_CLIENT_ID_APP, MONERIUM_CLIENT_SECRET, SANDBOX_ENABLED } from "../../../constants/constants";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 
-const MONERIUM_API_URL = SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app";
-export const MONERIUM_MINT_CHAIN = SANDBOX_ENABLED ? "amoy" : "polygon";
+const MONERIUM_API_URL = config.sandboxEnabled ? "https://api.monerium.dev" : "https://api.monerium.app";
+export const MONERIUM_MINT_CHAIN = config.sandboxEnabled ? "amoy" : "polygon";
 const HEADER_ACCEPT_V2 = { Accept: "application/vnd.monerium.api-v2+json" };
 const HEADER_CONTENT_TYPE_FORM = { "Content-Type": "application/x-www-form-urlencoded" };
 
@@ -27,8 +27,8 @@ const authorize = async (): Promise<MoneriumTokenResponse> => {
   const url = `${MONERIUM_API_URL}/auth/token`;
   const headers = HEADER_CONTENT_TYPE_FORM;
   const body = new URLSearchParams({
-    client_id: MONERIUM_CLIENT_ID_APP || "",
-    client_secret: MONERIUM_CLIENT_SECRET || "",
+    client_id: config.integrations.monerium.clientId || "",
+    client_secret: config.integrations.monerium.clientSecret || "",
     grant_type: "client_credentials"
   });
 

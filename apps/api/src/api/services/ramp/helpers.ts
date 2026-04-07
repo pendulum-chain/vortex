@@ -1,6 +1,6 @@
 import { FiatToken, Networks } from "@vortexfi/shared";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
@@ -121,7 +121,7 @@ export async function getFinalTransactionHashForRamp(
     return { transactionExplorerLink: undefined, transactionHash: undefined };
   }
 
-  if (SANDBOX_ENABLED) {
+  if (config.sandboxEnabled) {
     const sandboxHash = deriveSandboxTransactionHash(rampState);
     return {
       transactionExplorerLink: `https://sandbox-explorer.example.com/tx/${sandboxHash}`,

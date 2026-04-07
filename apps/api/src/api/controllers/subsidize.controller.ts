@@ -13,16 +13,16 @@ import {
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { config } from "../../config";
 import logger from "../../config/logger";
-import { PENDULUM_FUNDING_SEED } from "../../constants/constants";
 
 export const getFundingAccount = () => {
-  if (!PENDULUM_FUNDING_SEED) {
+  if (!config.secrets.pendulumFundingSeed) {
     throw new Error("PENDULUM_FUNDING_SEED is not configured");
   }
 
   const keyring = new Keyring({ type: "sr25519" });
-  return keyring.addFromUri(PENDULUM_FUNDING_SEED);
+  return keyring.addFromUri(config.secrets.pendulumFundingSeed);
 };
 
 const validateSubsidyAmount = (amount: string, maxAmount: string) => {

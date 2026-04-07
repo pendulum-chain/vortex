@@ -12,8 +12,9 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
+import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../errors/phase-error";
@@ -61,7 +62,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       return currentBalance.gt(Big(0));
     };
 
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const moonbeamExecutorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
     const isHashRegisteredInSplitReceiver = async () => {

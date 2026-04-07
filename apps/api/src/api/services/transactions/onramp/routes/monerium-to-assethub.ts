@@ -14,7 +14,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { SANDBOX_ENABLED } from "../../../../../constants/constants";
+import { config } from "../../../../../config";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
@@ -66,7 +66,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     moneriumWalletAddress,
     evmEphemeralEntry.address
   );
-  const moneriumMintNetwork = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
+  const moneriumMintNetwork = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
 
   unsignedTxs.push({
     meta: {},

@@ -23,7 +23,7 @@ import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem
 import { privateKeyToAccount } from "viem/accounts";
 import { moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
