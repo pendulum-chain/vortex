@@ -3,10 +3,12 @@ import {
   ERC20_USDC_POLYGON_DECIMALS,
   EvmToken,
   getNetworkFromDestination,
+  multiplyByPowerOfTen,
   Networks,
   OnChainToken,
   RampDirection
 } from "@vortexfi/shared";
+import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
@@ -26,10 +28,14 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
       );
     }
 
-    if (!ctx.aveniaMint?.outputAmountDecimal) {
+    if (!ctx.nablaSwapEvm) {
       throw new Error(
-        "OnRampSquidRouterBrlToEvmEngine: Missing aveniaMint.outputAmountDecimal in context - ensure initialize stage ran successfully"
+        "OnRampSquidRouterBrlToEvmEngine: Missing nablaSwapEvm.outputAmountDecimal in context - ensure initialize stage ran successfully"
       );
+    }
+
+    if (!ctx.fees?.usd || !ctx.fees?.displayFiat) {
+      throw new Error("OnRampPendulumTransferEngine: Missing fees in context - ensure fee calculation ran successfully");
     }
   }
 
@@ -45,6 +51,23 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
     }
 
     const req = ctx.request;
+
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const usdFees = ctx.fees!.usd!;
+
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const nablaSwap = ctx.nablaSwapEvm!;
+
+    // Deduce fees distributed after Nabla swap and before transfer to next destination
+    // Onramps always have a USD-stablecoin as output, so we can use the USD fee structure
+    const usdFeesDistributedDecimal = Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
+    const usdFeesDistributedRaw = multiplyByPowerOfTen(usdFeesDistributedDecimal, nablaSwap.outputDecimals);
+
+    const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal)).minus(usdFeesDistributedDecimal);
+    const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw))
+      .minus(usdFeesDistributedRaw)
+      .toFixed(0, 0);
+
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
       throw new APIError({
@@ -55,17 +78,17 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const aveniaMint = ctx.aveniaMint!;
+    const nablaSwapEvm = ctx.nablaSwapEvm!;
 
     const usdcBaseTokenDetails = getTokenDetailsForEvmDestination(EvmToken.USDC, Networks.Base);
 
     return {
       data: {
-        amountRaw: aveniaMint.outputAmountRaw,
+        amountRaw: nablaSwapEvm.outputAmountRaw,
         fromNetwork: Networks.Base,
         fromToken: usdcBaseTokenDetails.erc20AddressSourceChain,
-        inputAmountDecimal: aveniaMint.outputAmountDecimal,
-        inputAmountRaw: aveniaMint.outputAmountRaw,
+        inputAmountDecimal: inputAmountDecimal,
+        inputAmountRaw: inputAmountRaw,
         outputDecimals: usdcBaseTokenDetails.decimals,
         toNetwork,
         toToken

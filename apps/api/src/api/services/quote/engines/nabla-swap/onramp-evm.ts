@@ -2,15 +2,15 @@ import { EvmToken, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseNablaSwapEngineEvm, NablaSwapEvmComputation } from "./base-evm";
 
-export class OnRampSwapEngineEVM extends BaseNablaSwapEngineEvm {
+export class OnRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
   readonly config = {
     direction: RampDirection.BUY,
-    skipNote: "OnRampSwapEngineEVM: Skipped because rampType is SELL, this engine handles BUY operations only"
+    skipNote: "OnRampSwapEngineEvm: Skipped because rampType is SELL, this engine handles BUY operations only"
   } as const;
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.fees?.usd) {
-      throw new Error("OnRampSwapEngineEVM: Fees in USD must be calculated first - ensure fee stage ran successfully");
+      throw new Error("OnRampSwapEngineEvm: Fees in USD must be calculated first - ensure fee stage ran successfully");
     }
   }
 
@@ -19,7 +19,7 @@ export class OnRampSwapEngineEVM extends BaseNablaSwapEngineEvm {
 
     if (!ctx.aveniaTransfer) {
       throw new Error(
-        "OnRampSwapEngineEVM: Missing aveniaTransfer quote data from previous stage - ensure initialize stage ran successfully"
+        "OnRampSwapEngineEvm: Missing aveniaTransfer quote data from previous stage - ensure initialize stage ran successfully"
       );
     }
 
