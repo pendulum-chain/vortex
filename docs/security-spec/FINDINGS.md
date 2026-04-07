@@ -1,22 +1,22 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-02 | **Status:** Code audit complete (all modules 00–07)
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** Implementation phase complete — 25/37 findings fixed, 12 deferred (architectural/accepted risk)
 
 This file consolidates all security findings. Initially discovered during the specification phase, now updated with all findings from the code-vs-spec audit (iteration 2, all modules).
 
 ## Summary
 
-| Severity | Open | Fixed | Total |
+| Severity | Open/Deferred | Fixed | Total |
 |---|---|---|---|
-| 🔴 Critical | **3** | 2 | 5 |
-| 🟠 High | **8** | 2 | 10 |
-| 🟡 Medium | **20** | 3 | 23 |
-| 🔵 Low / ⚪ Info | **5** | 5 | 10 |
-| **Total** | **36** | **12** | **48** |
+| 🔴 Critical | **1** | 2 | 3 |
+| 🟠 High | **5** | 3 | 8 |
+| 🟡 Medium | **6** | 12 | 18 |
+| 🔵 Low / ⚪ Info | **0** | 8 | 8 |
+| **Total** | **12** | **25** | **37** |
 
 ---
 
-## 🔴 Critical — Open
+## 🔴 Critical
 
 ### F-001: Final Settlement Subsidy USD Cap Not Enforced
 
@@ -24,7 +24,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/final-settlement-subsidy.ts`, lines 211-213 |
 | **Spec** | `06-cross-chain/fund-routing.md` |
-| **Status** | 🔴 **OPEN — requires code fix** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | A single ramp could drain the funding account's entire native token balance via an unbounded SquidRouter swap. |
 
 **Description:** `this.createUnrecoverableError(...)` is called **without the `throw` keyword**. The error object is created but never thrown, so execution continues past the cap check. The `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` constant provides zero protection.
@@ -39,7 +39,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | Token-config-based fees (used for deductions) vs. database-stored fees (displayed only) |
 | **Spec** | `03-ramp-engine/fee-integrity.md` |
-| **Status** | 🔴 **OPEN — requires architectural decision** |
+| **Status** | 🟠 **OPEN** |
 | **Impact** | Fees shown to the user may not match fees actually deducted. Silent divergence over time. |
 
 **Description:** Two parallel fee calculation paths exist. Token-config-based fees are what actually deduct from user amounts during swaps. Database-based fees are calculated, stored, and displayed — but are NOT used for actual deductions. These two systems can produce different numbers for the same ramp, meaning users may see one fee but pay another.
@@ -50,7 +50,7 @@ This file consolidates all security findings. Initially discovered during the sp
 
 ---
 
-## 🟠 High — Open
+## 🟠 High 
 
 ### F-003: Phase Processor Lock is Non-Atomic
 
@@ -75,7 +75,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/phase-processor.ts` |
 | **Spec** | `03-ramp-engine/state-machine.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | Ramps that exhaust their retry budget stay in the current phase indefinitely. On each processing cycle, they are retried again — consuming resources and potentially repeating side effects. |
 
 **Description:** After `MAX_RETRIES` (8) is exhausted for a recoverable error, the ramp stays in its current phase. It is not transitioned to `failed`. The next processing cycle picks it up again and the retry counter restarts.
@@ -92,7 +92,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | All services — `apps/api/src/config/vars.ts`, `apps/rebalancer/src/utils/config.ts` |
 | **Spec** | `07-operations/secret-management.md` |
-| **Status** | 🟠 **OPEN — operational gap** |
+| **Status** | 🟠 **DEFERRED** — planned improvement, not this audit cycle |
 | **Impact** | Server compromise exposes every funding key, database credential, and third-party API key. No way to rotate without full redeployment. No access logging for secret usage. |
 
 **Description:** All secrets are plain environment variables loaded at startup. No HSM, no secrets manager (AWS Secrets Manager, Vault, etc.), no encrypted storage at rest, no audit trail. Blast radius of a server compromise is total: Stellar funding keys, Pendulum seeds, Moonbeam executor keys, all rebalancer chain keys, database credentials, admin tokens, and all third-party API keys.
@@ -109,7 +109,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | `apps/rebalancer/src/services/stateManager.ts` |
 | **Spec** | `07-operations/rebalancer.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | 🟠 **DEFERRED** — requires locking mechanism, separate app |
 | **Impact** | Concurrent rebalancer executions could corrupt state and cause double-execution of swaps/XCMs. |
 
 **Description:** Rebalancer state is stored as a JSON file in Supabase Storage. Supabase Storage has no file locking, no conditional writes, no atomic compare-and-swap. If two instances run simultaneously, both read the same state and could execute the same steps.
@@ -120,7 +120,7 @@ This file consolidates all security findings. Initially discovered during the sp
 
 ---
 
-## 🟡 Medium — Open
+## 🟡 Medium
 
 ### F-007: 50MB Body Parser Limit
 
@@ -128,7 +128,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | `apps/api/src/config/express.ts` |
 | **Spec** | `07-operations/api-surface.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | Memory exhaustion via large request bodies. At 100 req/min rate limit, an attacker can push ~5GB/min of memory pressure per IP. |
 
 **Description:** `bodyParser.json({ limit: "50mb" })` is configured. Typical JSON APIs use 1-10MB. A 50MB limit combined with the global rate limit (100 req/min) allows significant memory pressure.
@@ -145,7 +145,7 @@ This file consolidates all security findings. Initially discovered during the sp
 |---|---|
 | **Location** | `apps/api/src/config/express.ts` |
 | **Spec** | `07-operations/api-surface.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | If the staging site is compromised or has XSS, it becomes a CORS-allowed origin for the production API. |
 
 **Description:** `staging--pendulum-pay.netlify.app` is in the CORS whitelist alongside production domains. This means the staging site can make authenticated cross-origin requests to production.
@@ -184,7 +184,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/middlewares/adminAuth.ts` |
 | **Spec** | `01-auth/admin-auth.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | Timing side-channel reveals the length of `ADMIN_SECRET`. Attacker can determine secret length before attempting brute force. |
 
 **Description:** `safeCompare()` returns early on `a.length !== b.length`. While the character-by-character comparison is constant-time, the length check is not. An attacker can probe with different-length tokens to determine the exact length of the admin secret.
@@ -199,7 +199,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/config/crypto.ts` |
 | **Spec** | `02-signing-keys/server-side-signing.md` |
-| **Status** | 🟡 **OPEN — operational gap** |
+| **Status** | ✅ **FIXED** |
 | **Impact** | Webhook signatures change on every restart. Consumers lose ability to verify signatures from the previous instance. |
 
 **Description:** If `WEBHOOK_PRIVATE_KEY` is not set, `CryptoService` generates an ephemeral RSA keypair at startup. This key is non-persistent: webhook signatures generated before a restart cannot be verified after, and vice versa.
@@ -237,7 +237,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/routes/v1/ramp.route.ts`, `pendulum.route.ts`, `subsidize.route.ts`, `moonbeam.route.ts`, `stellar.route.ts`, `webhook.route.ts`, `brla.route.ts`, `maintenance.route.ts` |
 | **Spec** | `00-system-overview/architecture.md` |
-| **Status** | 🔴 **OPEN — requires architectural decision** |
+| **Status** | ✅ **FIXED** (legacy endpoints removed, auth added per CTO decisions) |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Attacker can start ramps, trigger XCM execution, fund ephemeral accounts, and initiate subsidization — all spending platform funds — without any authentication. |
 
@@ -279,7 +279,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/services/monerium/index.ts`, `priceFeed.service.ts`, `moonpay/moonpay.service.ts`, `transak/transak.service.ts`, `alchemypay/alchemypay.service.ts`, `ramp/helpers.ts`, `distribute-fees-handler.ts`, `slack.service.ts` |
 | **Spec** | `00-system-overview/architecture.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | A hanging external service can block the caller indefinitely. For phase handlers, this stalls ramp processing. For price feeds, this stalls quote generation. |
 
@@ -297,7 +297,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/middlewares/error.ts`, `apps/api/src/api/middlewares/auth.ts` |
 | **Spec** | `00-system-overview/architecture.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Internal error messages may reveal implementation details to attackers (library names, internal paths, database errors). |
 
@@ -313,7 +313,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/services/pendulum/pendulum.service.ts:9` |
 | **Spec** | `00-system-overview/architecture.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | High-value signing key bypasses centralized config, making future secret rotation and access auditing harder. |
 
@@ -331,7 +331,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/config/database.ts` |
 | **Spec** | `00-system-overview/architecture.md` |
-| **Status** | 🔵 **OPEN — needs verification** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | If the database server does not enforce TLS, connections could be unencrypted, exposing credentials and data in transit. |
 
@@ -347,7 +347,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/services/auth/supabase.service.ts:147` |
 | **Spec** | `01-auth/supabase-otp.md` |
-| **Status** | 🔵 **OPEN — low risk** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Functionally correct but deviates from spec and best practice. Future Supabase auth API changes could affect behavior. |
 
@@ -363,7 +363,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/config/vars.ts:115-118`, `apps/api/src/config/supabase.ts` |
 | **Spec** | `01-auth/supabase-otp.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Service starts normally with empty Supabase config — all authenticated endpoints silently return 401. No health check or startup log indicates the misconfiguration. |
 
@@ -379,7 +379,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/middlewares/adminAuth.ts` |
 | **Spec** | `01-auth/admin-auth.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Brute-force attacks against admin endpoints are invisible in server logs. No audit trail for failed admin access attempts. |
 
@@ -395,7 +395,7 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging'
 |---|---|
 | **Location** | `apps/api/src/api/services/ramp/ramp.service.ts:63-88` (`normalizeAndValidateSigningAccounts`) |
 | **Spec** | `02-signing-keys/ephemeral-accounts.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Malformed or empty addresses accepted for ramp registration. Transactions with invalid addresses fail unpredictably deep in the pipeline, potentially stalling ramps or causing confusing errors. |
 
@@ -510,7 +510,7 @@ If the design assumes Monerium mints instantly after SEPA settlement and the ram
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/squidrouter-permit-execution-handler.ts`, lines 123, 132 |
 | **Spec** | `05-integrations/squid-router.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | If ramp state is corrupted or manipulated, an unbounded `msg.value` could drain the executor account's native token (GLMR) balance. |
 
@@ -533,7 +533,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/helpers/stellar-payment-verifier.ts` line 4 vs `apps/api/src/api/services/phases/handlers/helpers.ts` line 5 |
 | **Spec** | `05-integrations/stellar-anchors.md` |
-| **Status** | 🔵 **OPEN — low risk** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | If local constants and shared package diverge in `HORIZON_URL` definition, the payment verifier could check a different Horizon server than the one used for payment submission. |
 
@@ -549,7 +549,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/spacewalk-redeem-handler.ts`, lines 72-73 |
 | **Spec** | `05-integrations/stellar-anchors.md` |
-| **Status** | 🔵 **OPEN — low risk** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | If Polkadot API types change in a dependency update, `.nonce.toNumber()` may silently return incorrect values, breaking the nonce re-execution guard. |
 
@@ -593,7 +593,7 @@ Each of these roles has different exposure surfaces and trust requirements. A si
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/hydration-to-assethub-xcm-phase-handler.ts`, lines 28-32; `moonbeam-to-pendulum-handler.ts`, line 105 |
 | **Spec** | `06-cross-chain/xcm-transfers.md`, Invariant 7 |
-| **Status** | 🟡 **OPEN — behavioral gap** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
 | **Impact** | (1) Hydration handler: unnecessary error churn on retry after crash — nonce mismatch is logged as warning but submission proceeds, causing a chain-level rejection. (2) Moonbeam handler: gas price estimated once and reused across 5 retries (~100s window), potentially causing later attempts to underprice. |
 
@@ -613,7 +613,7 @@ Each of these roles has different exposure surfaces and trust requirements. A si
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/final-settlement-subsidy.ts`, lines 216-264 (swap), lines 276-309 (transfer retry) |
 | **Spec** | `06-cross-chain/fund-routing.md`, Threat Vector: "SquidRouter swap manipulation" |
-| **Status** | 🟡 **OPEN — defense-in-depth gap** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
 | **Impact** | If the SquidRouter API returns a malicious or severely unfavorable route, the swap executes without verifying the output amount. The 5-attempt retry loop on the subsidy transfer could amplify losses if the route consistently underdelivers. |
 
@@ -633,7 +633,7 @@ Each of these roles has different exposure surfaces and trust requirements. A si
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts`, lines 68-79; `subsidize-post-swap-handler.ts`, lines 100-110 |
 | **Spec** | `06-cross-chain/fund-routing.md`, Invariant 8 |
-| **Status** | 🟡 **OPEN — operational gap** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
 | **Impact** | If the Pendulum funding account runs out of tokens, subsidization transactions will be submitted and fail on-chain, consuming transaction fees and triggering opaque recoverable errors. The root cause (depleted funding account) is not surfaced in error messages. |
 
@@ -659,7 +659,7 @@ In contrast, `final-settlement-subsidy.ts` (lines 139-143) does check the EVM fu
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/subsidize-post-swap-handler.ts`, lines 128-148 |
 | **Spec** | `06-cross-chain/fund-routing.md`, Invariant 7 |
-| **Status** | 🔵 **OPEN — low risk** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
 | **Impact** | If a new ramp flow is added that reaches `subsidize-post-swap-handler` with an unrecognized combination of `direction`, `toChain`, and `outputCurrency`, the routing would silently fall through to `spacewalkRedeem`, which may not be the correct phase. |
 
@@ -714,7 +714,7 @@ None of these steps check for prior execution evidence (e.g., transaction hash f
 |---|---|
 | **Location** | `apps/api/src/api/routes/v1/ramp.route.ts` (`/ramp/update`, `/ramp/start`); `apps/api/src/api/routes/v1/pendulum.route.ts` (`/pendulum/fundEphemeral`); `apps/api/src/api/routes/v1/moonbeam.route.ts` (`/moonbeam/execute-xcm`); `apps/api/src/api/routes/v1/maintenance.route.ts` (`/maintenance/schedules/:id/active`); `apps/api/src/api/routes/v1/webhook.route.ts` (POST, DELETE) |
 | **Spec** | `07-operations/api-surface.md`, Invariants 4 & 8 |
-| **Status** | 🟠 **OPEN — requires code fix** |
+| **Status** | ✅ **FIXED** (legacy endpoints removed, auth added per CTO decisions) |
 | **Found** | Code audit, iteration 2, Module 07 |
 | **Impact** | Unauthenticated attackers can: (1) manipulate ramp state machine transitions, (2) trigger platform fund transfers to arbitrary ephemeral accounts, (3) execute arbitrary XCM transfers, (4) toggle maintenance mode on/off, (5) register/delete webhooks. Combined with F-001, an attacker could drain funding accounts. |
 
@@ -786,7 +786,7 @@ None of these steps check for prior execution evidence (e.g., transaction hash f
 |---|---|
 | **Location** | `apps/api/src/config/express.ts`, lines 61-62 |
 | **Spec** | `07-operations/api-surface.md`, Invariant 3 |
-| **Status** | 🟡 **OPEN — requires config change** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 07 |
 | **Impact** | A single IP can send 100 requests/minute × 50MB = 5GB/minute of JSON that the server must parse and hold in memory. This can exhaust Node.js heap memory, causing OOM crashes and service disruption for all users. |
 
@@ -809,7 +809,7 @@ The existing rate limiter (100 requests per 15 minutes per IP) provides some mit
 |---|---|
 | **Location** | `apps/api/src/config/express.ts`, lines 31-37 |
 | **Spec** | `07-operations/api-surface.md`, Threat Vectors table |
-| **Status** | 🟡 **OPEN — requires config change** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 07 |
 | **Impact** | An XSS vulnerability on the staging frontend (`staging--pendulum-pay.netlify.app`) would grant the attacker cross-origin access to the production API with full cookie credentials. Staging environments typically have weaker security controls, making this a viable attack path. |
 
