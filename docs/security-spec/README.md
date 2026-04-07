@@ -27,6 +27,9 @@ This directory contains the security specification for the Vortex cross-border p
 | State Machine | `03-ramp-engine/state-machine.md` | Phase transitions, locking, idempotency, recovery |
 | Quote Lifecycle | `03-ramp-engine/quote-lifecycle.md` | Creation, expiry, binding to ramp |
 | Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
+| Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
+| Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
+| Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
 | Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |

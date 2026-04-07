@@ -1,20 +1,20 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** Implementation phase complete — 26 fixed, 4 accepted risk, 7 deferred
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 9 open (transaction validation + ephemeral account audit)
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across two phases: specification writing (F-001 through F-012) and code-vs-spec audit across all 8 modules (F-013 through F-037).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account audit (F-038 through F-046).
 
 ## Summary
 
-| Severity | Fixed | Accepted | Deferred | Total |
-|---|---|---|---|---|
-| 🔴 Critical | 3 | 0 | **0** | 3 |
-| 🟠 High | 3 | 2 | **3** | 8 |
-| 🟡 Medium | 12 | 2 | **4** | 18 |
-| 🔵 Low / ⚪ Info | 8 | 0 | **0** | 8 |
-| **Total** | **26** | **4** | **7** | **37** |
+| Severity | Fixed | Accepted | Deferred | Open | Total |
+|---|---|---|---|---|---|
+| 🔴 Critical | 3 | 0 | 0 | **2** | 5 |
+| 🟠 High | 3 | 2 | 3 | **5** | 13 |
+| 🟡 Medium | 12 | 2 | 4 | **2** | 20 |
+| 🔵 Low / ⚪ Info | 8 | 0 | 0 | 0 | 8 |
+| **Total** | **26** | **4** | **7** | **9** | **46** |
 
-> **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation.
+> **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation. **Open** = newly identified, awaiting fix or CTO decision.
 
 ---
 
@@ -89,6 +89,52 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 2. **Add auth middleware**: `requireAuth` to `/stellar/create` and `/brla/*` user data endpoints; `adminAuth` to `/maintenance/*`; `apiKeyAuth` to `/webhook` POST/DELETE
 3. **Document** that `/ramp/start` and `/ramp/update` are intentionally unauthenticated (temporary, backwards compat) with a TODO to add API key auth once SDK users migrate
 4. **Future:** Require API key auth on `/ramp/start` and `/ramp/update`
+
+---
+
+### F-038: EVM Typed Data Bypasses ALL Validation
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 105-107 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🔴 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | A malicious API client can submit EIP-712 typed data authorizing a transfer to an attacker's address. The server will execute it without any validation. |
+
+**Description:** When presigned transactions use `SignedTypedData` or `SignedTypedDataArray` format (EIP-712 permits used by `squidRouterPermitExecute` and similar flows), `validatePresignedTxs()` returns immediately without performing ANY validation:
+
+```typescript
+if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+  return; // ALL EVM validation skipped
+}
+```
+
+This means no signer check, no chainId check, no `from` address check, and no content validation for EIP-712 typed data. A malicious client could submit a permit that authorizes an attacker's spender address for unlimited token allowance, or typed data that routes a SquidRouter execution to an attacker-controlled contract.
+
+**Fix:** Decode EIP-712 typed data and validate critical fields: `spender` must match the expected contract (SquidRouter, TokenRelayer), `value` must match expected amounts, `deadline` must be reasonable, and `verifyingContract` must match the expected chain's deployed contract address.
+
+---
+
+### F-039: Stellar Payment Amount, Destination, and Asset Not Validated
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 287-301 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🔴 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | A malicious client can redirect Stellar payments to an attacker's address, send incorrect amounts, or send the wrong asset — all while passing server-side validation. |
+
+**Description:** The `stellarPayment` validation in `validateStellarTransaction()` checks that: (1) the operation type is "payment", and (2) the transaction source matches the expected signer. However, it does NOT validate:
+
+- **Payment amount** — not checked against the quote's expected amount
+- **Payment destination** — not checked against the expected anchor deposit address; could redirect to an attacker's Stellar address
+- **Payment asset** — not checked; could send a worthless token instead of the expected stablecoin
+
+A malicious client could sign a Stellar payment for 0.0001 XLM to their own address (instead of the quoted amount of USDC to the Stellar anchor) and the server would accept and execute it.
+
+**Fix:** Validate the Stellar payment operation's `destination`, `amount`, and `asset` (code + issuer) against the quote's expected values. These values are known at ramp registration time and should be passed through to the validator.
 
 ---
 
@@ -265,6 +311,115 @@ None of these steps check for prior execution evidence (e.g., transaction hash f
 2. **Add auth**: `adminAuth` on `/maintenance/*`, `apiKeyAuth` on `/webhook` POST/DELETE, `requireAuth` on `/stellar/create` and `/brla/*` user data
 3. **Add input validation middleware** for all remaining endpoints
 4. **Document** `/ramp/start` and `/ramp/update` as intentionally unauthenticated (temporary) with TODO for API key auth
+
+---
+
+### F-040: Stellar CreateAccount Validation Incomplete — StartingBalance, Cosigner, and Asset Not Checked
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 236-285 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | A malicious client can manipulate the Stellar account setup to: omit the server cosigner (making cleanup impossible and enabling fund theft), set a minimal startingBalance (causing downstream failures), or add trust for the wrong asset. |
+
+**Description:** The `stellarCreateAccount` path in `validateStellarTransaction()` validates that the correct operation types are present (createAccount, setOptions, changeTrust) and that the transaction source matches the expected signer. However, it does NOT validate:
+
+- **`startingBalance`** in the createAccount operation — client could set it to the minimum (1 XLM) instead of the required amount
+- **`SetOptions` cosigner** — client could omit the server's cosigner public key, then drain the funded account unilaterally since the server would have no signing authority
+- **`ChangeTrust` asset** — client could add a trustline for a worthless asset instead of the expected stablecoin
+
+The cosigner omission is the most dangerous: without the server cosigner, cleanup transactions cannot be authorized, and the client retains full unilateral control of the ephemeral account after it's been funded by the platform.
+
+**Fix:** Validate: (1) `startingBalance` meets the minimum required for the ramp, (2) `SetOptions` includes the server's cosigner public key with appropriate weight, (3) `ChangeTrust` asset code and issuer match the expected token for this ramp.
+
+---
+
+### F-041: SELL Direction Bypasses SquidRouter Validation Entirely
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, line 94 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | Off-ramp (SELL) SquidRouter swap and approve transactions are not validated at all. A malicious client could submit a SquidRouter swap that routes funds to an attacker's EVM address. |
+
+**Description:** For SELL-direction ramps, the validation loop explicitly skips SquidRouter transactions:
+
+```typescript
+if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue;
+```
+
+This means the client's presigned SquidRouter swap and approval transactions are accepted without any content validation. The client could submit a swap routing output to a different recipient, or an approval granting allowance to an attacker contract.
+
+**Fix:** Remove the SELL-direction skip. Validate SquidRouter transactions for all directions, checking at minimum: the swap recipient address, the approval spender address, and the token/amount being swapped.
+
+---
+
+### F-042: Substrate Transaction Content Never Validated — Only Signer Checked
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 153-205 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | A malicious client could submit any Substrate extrinsic (e.g., `balances.transferAll` to an attacker address) in place of the expected swap, XCM, or bridge call. The server would execute it as long as the signer matches. |
+
+**Description:** `validateSubstrateTransaction()` only validates that the extrinsic signer matches the expected signer address. It does NOT decode or inspect the extrinsic content: method name, pallet, call parameters, amounts, and destination addresses are all unchecked.
+
+Substrate extrinsics encode the call data (pallet + method + parameters) in the payload. Without decoding and validating this, the server has no assurance that the signed extrinsic performs the intended action (e.g., a Nabla swap, an XCM transfer, a Spacewalk redeem).
+
+**Fix:** Decode each Substrate extrinsic using the chain's metadata and validate: (1) the pallet and method match the expected call for this phase, (2) key parameters (amounts, destination addresses) match expected values from the quote, (3) reject extrinsics with unexpected call data.
+
+---
+
+### F-044: No Cleanup for Failed or Timed-Out Ramps — Funds Stuck on Ephemeral Accounts
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/workers/cleanup.worker.ts`, line 154 |
+| **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Ephemeral account audit, 2026-04-07 |
+| **Impact** | Tokens funded to ephemeral accounts during failed ramps are permanently stuck. Platform funds used for subsidization are unrecoverable. |
+
+**Description:** The cleanup worker's query filter only processes ramps with `currentPhase: "complete"`:
+
+```typescript
+currentPhase: "complete"
+```
+
+Ramps that fail mid-execution (e.g., after `fundEphemeral` or `subsidizePreSwap` but before the swap completes) remain in a `failed` state. Their ephemeral accounts may hold:
+- Native tokens from `fundEphemeral` (platform funds)
+- Subsidized tokens from `subsidizePreSwap` / `subsidizePostSwap` (platform funds)
+- Swapped tokens that were never bridged or delivered
+
+These tokens sit indefinitely on ephemeral accounts with no recovery mechanism. Over time, this constitutes a slow drain of platform funds.
+
+**Fix:** Extend the cleanup worker to also query for ramps with `currentPhase: "failed"` (and optionally ramps that have been stuck in a non-terminal phase for longer than a configurable timeout, e.g., 24 hours). Add logic to detect which phases completed and which chains have residual balances, then invoke the appropriate post-process handlers.
+
+---
+
+### F-045: No Cleanup Handler for Polygon, Hydration, or AssetHub Chains
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/phases/post-process/index.ts` |
+| **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Ephemeral account audit, 2026-04-07 |
+| **Impact** | Residual tokens on Polygon, Hydration, and AssetHub ephemeral accounts are never recovered. For Polygon (Monerium EURe) and Hydration (swap outputs), these can be significant amounts. |
+
+**Description:** Post-process handlers exist for three chains: Stellar (`StellarPostProcessHandler`), Pendulum (`PendulumPostProcessHandler`), and Moonbeam (`MoonbeamPostProcessHandler`). Three chains that ephemeral accounts may hold tokens on have NO cleanup handler:
+
+- **Polygon** — Monerium EURe on-ramp mints tokens to the Polygon ephemeral account. After the ramp completes, any dust or failed-transfer tokens remain.
+- **Hydration** — Hydration swap operations may leave residual tokens on the Hydration ephemeral account.
+- **AssetHub** — XCM transfers through AssetHub may leave residual tokens if the transfer fails partway.
+
+**Fix:** Implement post-process handlers for Polygon, Hydration, and AssetHub that: (1) check the ephemeral account balance on each chain, (2) if non-zero, submit a sweep transaction to return tokens to the funding account, (3) handle chain-specific cleanup mechanics (EVM transfer for Polygon, extrinsic for Hydration/AssetHub).
 
 ---
 
@@ -580,6 +735,53 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 **CTO Clarification (2026-04-02):** Oversight. Staging should NOT be in the production CORS whitelist.
 
 **Fix:** Gate the staging origin behind the same `NODE_ENV` check as localhost.
+
+---
+
+### F-043: `areAllTxsIncluded` Matches Metadata Only — Transaction Content Not Verified
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 24-40 |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit, 2026-04-07 |
+| **Impact** | A malicious client can substitute completely different transaction data while preserving the metadata envelope, bypassing the inclusion check. |
+
+**Description:** `areAllTxsIncluded()` verifies that the client's presigned transactions cover all expected phases by matching on `phase`, `network`, `nonce`, and `signer` metadata. It does NOT compare the actual `txData` content. This means a client could:
+
+1. Receive the server's unsigned transactions (which define the expected txData)
+2. Replace the txData with a malicious payload (e.g., redirecting a payment, changing a swap amount)
+3. Keep the phase/network/nonce/signer metadata identical
+4. Submit the modified transactions — `areAllTxsIncluded` passes because metadata matches
+
+While `validatePresignedTxs` provides a second layer of validation, it has its own gaps (F-038 through F-042). The inclusion check should be a strong first gate.
+
+**Fix:** Include a content comparison in `areAllTxsIncluded` — either compare txData directly (hash or deep equality) against the server-generated expected transactions, or include a server-side signature/HMAC over the expected txData that the client cannot forge.
+
+---
+
+### F-046: SEPA Onramp Ramps Excluded from Cleanup
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/workers/cleanup.worker.ts`, line 156 |
+| **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Ephemeral account audit, 2026-04-07 |
+| **Impact** | If a SEPA (Monerium) onramp fails after EURe is minted to the Polygon ephemeral account, the tokens are trapped with no cleanup mechanism. |
+
+**Description:** The cleanup worker explicitly excludes SEPA ramps:
+
+```typescript
+from: { [Op.ne]: "sepa" }
+```
+
+This exclusion means that Monerium SEPA onramp ramps are never processed by the cleanup worker, regardless of their completion status. If a SEPA ramp completes normally, residual EURe dust on the Polygon ephemeral account is lost. If a SEPA ramp fails after Monerium mints EURe but before the tokens are bridged via SquidRouter, the full minted amount is trapped.
+
+The exclusion may have been added because SEPA ramps have a different lifecycle (polling for Monerium mint), but the cleanup concern remains: tokens on Polygon ephemeral accounts need to be swept.
+
+**Fix:** Evaluate whether SEPA ramps can leave residual tokens on ephemeral accounts (Polygon, Moonbeam, Pendulum). If yes, either: (1) remove the exclusion and handle SEPA ramps in the standard cleanup flow, or (2) add a SEPA-specific cleanup handler that accounts for the Monerium integration's lifecycle.
 
 ---
 
