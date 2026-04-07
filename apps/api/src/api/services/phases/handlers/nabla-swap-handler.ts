@@ -4,7 +4,10 @@ import {
   ApiManager,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
+  EvmClientManager,
+  FiatToken,
   NABLA_ROUTER,
+  Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
@@ -22,15 +25,27 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const apiManager = ApiManager.getInstance();
-    const networkName = "pendulum";
-    const pendulumNode = await apiManager.getApi(networkName);
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
+
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
+
+    if (quote.inputCurrency === FiatToken.BRL) {
+      return this.executeEvmSwap(state);
+    } else if (substrateEphemeralAddress) {
+      return this.executeSubstrateSwap(state, quote);
+    } else {
+      throw new Error("NablaSwapPhaseHandler: Neither EVM nor substrate ephemeral address found in state");
+    }
+  }
+
+  private async executeSubstrateSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
+    const apiManager = ApiManager.getInstance();
+    const networkName = "pendulum";
+    const pendulumNode = await apiManager.getApi(networkName);
 
     const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
 
@@ -113,6 +128,39 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       }
 
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
+    }
+
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+    return this.transitionToNextPhase(state, nextPhase);
+  }
+
+  private async executeEvmSwap(state: RampState): Promise<RampState> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+
+    try {
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
+
+      if (typeof nablaSwapTransaction !== "string") {
+        throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
+      }
+
+      const txHash = await baseClient.sendRawTransaction({
+        serializedTransaction: nablaSwapTransaction as `0x${string}`
+      });
+
+      const receipt = await baseClient.waitForTransactionReceipt({
+        hash: txHash
+      });
+
+      if (!receipt || receipt.status !== "success") {
+        throw new Error(`NablaSwapPhaseHandler: EVM swap transaction ${txHash} failed`);
+      }
+
+      logger.info(`NablaSwapPhaseHandler: EVM swap transaction successful: ${txHash}`);
+    } catch (e) {
+      logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
+      throw e;
     }
 
     const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
