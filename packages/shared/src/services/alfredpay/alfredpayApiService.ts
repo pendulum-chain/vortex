@@ -257,9 +257,11 @@ export class AlfredpayApiService {
     data: SubmitKycInformationRequest
   ): Promise<SubmitKycInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc`;
-    return (await this.executeRequest(path, "POST", {
-      kycSubmission: { ...data, nationalities: [data.country] }
-    })) as SubmitKycInformationResponse;
+    const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
+    if (!data.typeDocument) delete kycSubmission.typeDocument;
+    if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
+    if (!data.phoneNumber) delete kycSubmission.phoneNumber;
+    return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 
   public async submitKycFile(

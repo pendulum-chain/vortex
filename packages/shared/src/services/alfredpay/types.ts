@@ -14,7 +14,8 @@ export enum AlfredPayStatus {
   UserCompleted = "USER_COMPLETED",
   Verifying = "VERIFYING",
   Failed = "FAILED",
-  Success = "SUCCESS"
+  Success = "SUCCESS",
+  UpdateRequired = "UPDATE_REQUIRED"
 }
 
 export enum AlfredPayCountry {
@@ -210,10 +211,11 @@ export interface CreateAlfredpayOfframpRequest {
   originAddress: string;
 }
 
-// TODO: Define actual offramp statuses when the offramp flow is implemented
 export enum AlfredpayOfframpStatus {
-  PENDING = "PENDING",
-  COMPLETED = "COMPLETED",
+  ON_CHAIN_DEPOSIT_RECEIVED = "ON_CHAIN_DEPOSIT_RECEIVED",
+  TRADE_COMPLETED = "TRADE_COMPLETED",
+  FIAT_TRANSFER_INITIATED = "FIAT_TRANSFER_INITIATED",
+  FIAT_TRANSFER_COMPLETED = "FIAT_TRANSFER_COMPLETED",
   FAILED = "FAILED"
 }
 
@@ -346,17 +348,25 @@ export enum AlfredpayDocumentType {
   PASSPORT = "passport"
 }
 
+export enum AlfredpayColombiaDocumentType {
+  CC = "CC",
+  CE = "CE"
+}
+
 export interface SubmitKycInformationRequest {
   firstName: string;
   lastName: string;
   dateOfBirth: string; // YYYY-MM-DD
-  email: string;
+  email?: string;
   country: string;
   city: string;
   state: string;
   zipCode: string;
   address: string;
   dni: string;
+  typeDocument?: string; // MXN
+  typeDocumentCol?: AlfredpayColombiaDocumentType;
+  phoneNumber?: string; // Colombia
 }
 
 export interface SubmitKycInformationResponse {
