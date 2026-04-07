@@ -1,22 +1,14 @@
-import { AlfredPayStatus, AlfredpayColombiaDocumentType, AlfredpayCustomerType, AlfredpayKycFileType } from "@vortexfi/shared";
+import {
+  AlfredPayStatus,
+  AlfredpayCustomerType,
+  AlfredpayKycFileType,
+  type SubmitKycInformationRequest
+} from "@vortexfi/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
 
-export interface MxnKycFormData {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  email?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  address: string;
-  dni: string;
-  documentType?: string; // MXN
-  typeDocumentCol?: AlfredpayColombiaDocumentType;
-  phoneNumber?: string; // Colombia
-}
+export type MxnKycFormData = Omit<SubmitKycInformationRequest, "country">;
 
 export interface MxnKycFiles {
   front: File;
