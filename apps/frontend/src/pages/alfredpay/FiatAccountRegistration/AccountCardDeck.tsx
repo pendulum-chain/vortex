@@ -32,7 +32,7 @@ function FrontCardContent({
     <div
       className="flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 shadow-md"
       style={{
-        backgroundImage: "radial-gradient(circle,rgba(0, 0, 0, 0.05) 1px, transparent 1px)",
+        backgroundImage: "radial-gradient(circle,var(--color-dot-overlay) 1px, transparent 1px)",
         backgroundSize: "14px 14px"
       }}
     >

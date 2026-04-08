@@ -9,15 +9,15 @@
   --color-primary: oklch(0.45 0.2 260);
   --color-primary-content: oklch(1 0 0);
   --color-secondary: oklch(0.97 0.003 260);
-  --color-secondary-content: oklch(0.5 0.04 250);
-  --color-accent: oklch(0.55 0.22 350);
+  --color-secondary-content: oklch(0.4 0.04 250);
+  --color-accent: oklch(0.55 0.2 350);
   --color-accent-content: oklch(0 0 0);
   --color-neutral: oklch(0.96 0.005 250);
-  --color-neutral-content: oklch(0.5 0.04 250);
+  --color-neutral-content: oklch(0.4 0.04 250);
   --color-base-100: oklch(0.98 0.005 210);
   --color-base-200: oklch(1 0 0);
   --color-base-300: oklch(0.92 0.008 250);
-  --color-base-content: oklch(0.5 0.04 250);
+  --color-base-content: oklch(0.4 0.04 250);
 
   /* Semantic state colors */
   --color-warning: oklch(0.77 0.16 83);
@@ -44,12 +44,34 @@
   --rounded-btn: 9px;
   --btn-text-case: none;
 
+  /* Brand / third-party colors */
+  --color-telegram: oklch(0.659 0.147 222);
+  --color-w3m-accent: oklch(0.26 0.07 260);
+
+  /* Progress / chart colors */
+  --color-progress-track: oklch(0.928 0.007 264);
+  --color-progress-fill: oklch(0.623 0.214 259);
+  --color-progress-gradient-start: oklch(0.707 0.165 254);
+
+  /* Surface / overlay colors */
+  --color-dot-overlay: oklch(0 0 0 / 0.05);
+  --color-input-disabled: oklch(0.928 0.007 264);
+  --color-shadow: oklch(0 0 0 / 0.2);
+  --color-shadow-border: oklch(0 0 0 / 0.08);
+  --color-shadow-drop: oklch(0 0 0 / 0.05);
+
   /* Base radius for components */
   --radius: 0.625rem;
 
   /* QuoteSummary layout */
   --quote-summary-height: 88px;
   --widget-min-height: 620px;
+}
+
+@media (color-gamut: p3) {
+  :root {
+    --color-accent: oklch(0.55 0.22 350);
+  }
 }
 
 @layer base {
@@ -78,7 +100,7 @@
 
 .input-disabled {
   cursor: not-allowed;
-  color: rgb(229 231 235 / var(--tw-text-opacity));
+  color: var(--color-input-disabled);
   border-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-border-opacity)));
   background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
 }
@@ -263,9 +285,9 @@
 
 .btn-vortex-secondary {
   @apply text-white;
-  @apply bg-pink-600;
+  @apply bg-accent;
   @apply rounded-[var(--radius-field)];
-  @apply border-pink-600;
+  @apply border-accent;
   @apply shadow-none;
   transition: scale 0.1s ease-in-out;
 }
@@ -276,7 +298,7 @@
 
 .btn-vortex-secondary:hover {
   background-color: var(--color-secondary-hover);
-  color: white;
+  color: var(--color-primary-content);
   border-color: var(--color-secondary-hover);
 }
 
@@ -356,7 +378,13 @@
   }
 
   .shadow-custom {
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 10px var(--color-shadow);
+  }
+
+  .shadow-card {
+    box-shadow:
+      0 0 0 1px var(--color-shadow-border),
+      0 4px 12px var(--color-shadow-drop);
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -380,7 +408,7 @@
     transition-duration: 0.5s;
     transition-timing-function: ease-out;
     transition-property: transform;
-    background-color: #24a1de;
+    background-color: var(--color-telegram);
   }
 
   .fadein-button-animation:hover::before {
@@ -388,7 +416,7 @@
   }
 
   .border-telegram {
-    border-color: #24a1de;
+    border-color: var(--color-telegram);
   }
 
   .animate-appear {

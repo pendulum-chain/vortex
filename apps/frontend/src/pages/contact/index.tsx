@@ -12,7 +12,7 @@ export function ContactPage() {
       <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-12">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-white p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] md:p-8"
+          className="rounded-xl bg-white p-6 shadow-card md:p-8"
           initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
           transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
