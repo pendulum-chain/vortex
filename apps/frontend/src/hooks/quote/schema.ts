@@ -48,24 +48,26 @@ export const createQuoteFormSchema = (t: (key: string) => string, rampDirection:
     })
     .superRefine((data, ctx) => {
       if (data.fiatToken === FiatToken.BRL && rampDirection === RampDirection.SELL) {
-        if (!data.pixId) {
+        const { pixId } = data;
+        if (!pixId) {
           ctx.addIssue({
             code: "custom",
             message: t("components.swap.validation.pixId.required"),
             path: ["pixId"]
           });
-        } else if (data.pixId && !pixKeyRegex.some(regex => regex.test(data.pixId))) {
+        } else if (!pixKeyRegex.some(regex => regex.test(pixId))) {
           ctx.addIssue({ code: "custom", message: t("components.swap.validation.pixId.format"), path: ["pixId"] });
         }
       }
       if (data.fiatToken === FiatToken.BRL) {
-        if (!data.taxId) {
+        const { taxId } = data;
+        if (!taxId) {
           ctx.addIssue({
             code: "custom",
             message: t("components.swap.validation.taxId.required"),
             path: ["taxId"]
           });
-        } else if (!isValidCnpj(data.taxId) && !isValidCpf(data.taxId)) {
+        } else if (!isValidCnpj(taxId) && !isValidCpf(taxId)) {
           ctx.addIssue({ code: "custom", message: t("components.swap.validation.taxId.format"), path: ["taxId"] });
         }
       }
