@@ -1,29 +1,21 @@
-import { yupResolver } from "@hookform/resolvers/yup";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { isValidCnpj, isValidCpf } from "@vortexfi/shared";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import * as yup from "yup";
+import { z } from "zod";
 import { ExtendedAveniaFieldOptions } from "../../../components/Avenia/AveniaField";
 import { useTaxId } from "../../../stores/quote/useQuoteFormStore";
 
 const createKybFormSchema = (t: (key: string) => string) =>
-  yup
-    .object({
-      [ExtendedAveniaFieldOptions.TAX_ID]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.taxId.required"))
-        .test("is-valid-tax-id", t("components.brlaExtendedForm.validation.taxId.format"), value => {
-          if (!value) return false;
-          return isValidCpf(value) || isValidCnpj(value);
-        }),
-      [ExtendedAveniaFieldOptions.FULL_NAME]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.fullName.required"))
-        .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
-    })
-    .required();
+  z.object({
+    [ExtendedAveniaFieldOptions.TAX_ID]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.taxId.required"))
+      .refine(value => isValidCpf(value) || isValidCnpj(value), t("components.brlaExtendedForm.validation.taxId.format")),
+    [ExtendedAveniaFieldOptions.FULL_NAME]: z.string().min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
+  });
 
-export type KYBFormData = yup.InferType<ReturnType<typeof createKybFormSchema>>;
+export type KYBFormData = z.infer<ReturnType<typeof createKybFormSchema>>;
 
 export interface UseKYBFormProps {
   initialData?: Partial<KYBFormData>;
@@ -39,7 +31,7 @@ export const useKYBForm = ({ initialData }: UseKYBFormProps) => {
       [ExtendedAveniaFieldOptions.FULL_NAME]: initialData?.fullName || ""
     },
     mode: "onBlur",
-    resolver: yupResolver(createKybFormSchema(t))
+    resolver: standardSchemaResolver(createKybFormSchema(t))
   });
 
   return { kybForm };
