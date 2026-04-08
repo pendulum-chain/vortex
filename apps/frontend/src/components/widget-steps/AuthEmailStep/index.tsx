@@ -1,13 +1,11 @@
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import * as yup from "yup";
+import { z } from "zod";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { MenuButtons } from "../../MenuButtons";
 import { StepFooter } from "../../StepFooter";
-
-const emailSchema = yup.string().email().required();
 
 export interface AuthEmailStepProps {
   className?: string;
@@ -30,7 +28,7 @@ export const AuthEmailStep = ({ className }: AuthEmailStepProps) => {
     e.preventDefault();
 
     const trimmedEmail = email.trim();
-    if (!emailSchema.isValidSync(trimmedEmail)) {
+    if (!z.email().safeParse(trimmedEmail).success) {
       setLocalError(t("components.authEmailStep.validation.invalidEmail"));
       return;
     }

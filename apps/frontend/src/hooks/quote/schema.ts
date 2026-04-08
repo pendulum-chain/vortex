@@ -1,6 +1,6 @@
-import { FiatToken, OnChainToken, OnChainTokenSymbol, RampDirection } from "@vortexfi/shared";
+import { FiatToken, OnChainTokenSymbol, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
-import * as Yup from "yup";
+import { z } from "zod";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
 export type QuoteFormValues = {
@@ -12,12 +12,6 @@ export type QuoteFormValues = {
   deadline?: number;
   pixId?: string;
   taxId?: string;
-};
-
-const transformNumber = (value: unknown, originalValue: unknown) => {
-  if (!originalValue) return 0;
-  if (typeof originalValue === "string" && originalValue !== "") value = Number(originalValue) ?? 0;
-  return value;
 };
 
 const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
@@ -40,40 +34,42 @@ const pixKeyRegex = [
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ // Random
 ];
 
-export const createQuoteFormSchema = (
-  t: (key: string) => string,
-  rampDirection: RampDirection
-): Yup.ObjectSchema<QuoteFormValues> => {
-  return Yup.object().shape({
-    deadline: Yup.number().transform(transformNumber),
-    fiatToken: Yup.mixed<FiatToken>().required(t("components.swap.validation.fiatToken.required")),
-    inputAmount: Yup.string().required(t("components.swap.validation.inputAmount.required")),
-    onChainToken: Yup.mixed<OnChainToken>().required(t("components.swap.validation.onChainToken.required")),
-    outputAmount: Yup.string().optional(),
-    pixId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.SELL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.pixId.required"))
-          .test("matches-one", t("components.swap.validation.pixId.format"), value => {
-            if (!value) return false;
-            return pixKeyRegex.some(regex => regex.test(value));
-          })
-    }),
-    slippage: Yup.number().transform(transformNumber),
-    taxId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.taxId.required"))
-          .test("matches-one", t("components.swap.validation.taxId.format"), value => {
-            if (!value) return false;
-            return isValidCnpj(value) || isValidCpf(value);
-          })
+export const createQuoteFormSchema = (t: (key: string) => string, rampDirection: RampDirection) => {
+  return z
+    .object({
+      deadline: z.number().optional(),
+      fiatToken: z.string() as z.ZodType<FiatToken>,
+      inputAmount: z.string().min(1, t("components.swap.validation.inputAmount.required")),
+      onChainToken: z.string() as z.ZodType<OnChainTokenSymbol>,
+      outputAmount: z.string().optional(),
+      pixId: z.string().optional(),
+      slippage: z.number().optional(),
+      taxId: z.string().optional()
     })
-  });
+    .superRefine((data, ctx) => {
+      if (data.fiatToken === FiatToken.BRL && rampDirection === RampDirection.SELL) {
+        if (!data.pixId) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.pixId.required"),
+            path: ["pixId"]
+          });
+        } else if (data.pixId && !pixKeyRegex.some(regex => regex.test(data.pixId))) {
+          ctx.addIssue({ code: "custom", message: t("components.swap.validation.pixId.format"), path: ["pixId"] });
+        }
+      }
+      if (data.fiatToken === FiatToken.BRL) {
+        if (!data.taxId) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.taxId.required"),
+            path: ["taxId"]
+          });
+        } else if (!isValidCnpj(data.taxId) && !isValidCpf(data.taxId)) {
+          ctx.addIssue({ code: "custom", message: t("components.swap.validation.taxId.format"), path: ["taxId"] });
+        }
+      }
+    });
 };
 
 export const useSchema = () => {

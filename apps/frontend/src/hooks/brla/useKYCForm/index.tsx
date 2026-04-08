@@ -1,9 +1,9 @@
-import { yupResolver } from "@hookform/resolvers/yup";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { isValidCnpj, isValidCpf } from "@vortexfi/shared";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import * as yup from "yup";
+import { z } from "zod";
 import { ExtendedAveniaFieldOptions } from "../../../components/Avenia/AveniaField";
 import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 
@@ -12,91 +12,75 @@ export interface UseKYCFormProps {
   initialData?: KYCFormData;
 }
 
-const getEnumInitialValues = (enumType: Record<string, string>): Record<string, unknown> => {
-  return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: undefined }), {});
-};
-
 const createKycFormSchema = (t: (key: string) => string) =>
-  yup
-    .object({
-      [ExtendedAveniaFieldOptions.TAX_ID]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.taxId.required"))
-        .test("is-valid-tax-id", t("components.brlaExtendedForm.validation.taxId.format"), value => {
-          if (!value) {
-            return false;
-          }
-          return isValidCpf(value) || isValidCnpj(value);
-        }),
-      [ExtendedAveniaFieldOptions.PIX_ID]: yup.string().required(t("components.brlaExtendedForm.validation.pixId.required")),
+  z.object({
+    [ExtendedAveniaFieldOptions.TAX_ID]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.taxId.required"))
+      .refine(value => isValidCpf(value) || isValidCnpj(value), t("components.brlaExtendedForm.validation.taxId.format")),
 
-      [ExtendedAveniaFieldOptions.FULL_NAME]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.fullName.required"))
-        .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
-        .matches(/^[a-zA-Z\s]*$/, t("components.brlaExtendedForm.validation.fullName.format")),
+    [ExtendedAveniaFieldOptions.PIX_ID]: z.string().min(1, t("components.brlaExtendedForm.validation.pixId.required")),
 
-      [ExtendedAveniaFieldOptions.CEP]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.cep.required"))
-        .min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
+    [ExtendedAveniaFieldOptions.FULL_NAME]: z
+      .string()
+      .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
+      .regex(/^[a-zA-Z\s]*$/, t("components.brlaExtendedForm.validation.fullName.format")),
 
-      [ExtendedAveniaFieldOptions.CITY]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.city.required"))
-        .min(5, t("components.brlaExtendedForm.validation.city.minLength")),
+    [ExtendedAveniaFieldOptions.CEP]: z.string().min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
 
-      [ExtendedAveniaFieldOptions.STATE]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.state.required"))
-        .max(2, t("components.brlaExtendedForm.validation.state.maxLength")),
+    [ExtendedAveniaFieldOptions.CITY]: z.string().min(5, t("components.brlaExtendedForm.validation.city.minLength")),
 
-      [ExtendedAveniaFieldOptions.STREET]: yup
-        .string()
-        .required(t("components.brlaExtendedForm.validation.street.required"))
-        .min(5, t("components.brlaExtendedForm.validation.street.minLength")),
+    [ExtendedAveniaFieldOptions.STATE]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.state.required"))
+      .max(2, t("components.brlaExtendedForm.validation.state.maxLength")),
 
-      [ExtendedAveniaFieldOptions.NUMBER]: yup.string().required(t("components.brlaExtendedForm.validation.number.required")),
+    [ExtendedAveniaFieldOptions.STREET]: z.string().min(5, t("components.brlaExtendedForm.validation.street.minLength")),
 
-      [ExtendedAveniaFieldOptions.BIRTHDATE]: yup
-        .date()
-        .transform((value: Date | undefined, originalValue: any) => {
-          return originalValue === "" ? undefined : value;
-        })
-        .required(t("components.brlaExtendedForm.validation.birthdate.required"))
+    [ExtendedAveniaFieldOptions.NUMBER]: z.string().min(1, t("components.brlaExtendedForm.validation.number.required")),
+
+    [ExtendedAveniaFieldOptions.BIRTHDATE]: z.preprocess(
+      val => (val === "" || val === undefined ? undefined : new Date(val as string)),
+      z
+        .date({ error: () => t("components.brlaExtendedForm.validation.birthdate.required") })
         .max(new Date(), t("components.brlaExtendedForm.validation.birthdate.future"))
         .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.birthdate.tooOld"))
-        .test("is-18-or-older", t("components.brlaExtendedForm.validation.birthdate.tooYoung"), value => {
-          if (!value) return true;
-          const birthDate = new Date(value);
-          const ageDate = new Date(birthDate);
+        .refine(value => {
+          const ageDate = new Date(value);
           ageDate.setFullYear(ageDate.getFullYear() + 18);
           return ageDate <= new Date();
-        }),
+        }, t("components.brlaExtendedForm.validation.birthdate.tooYoung"))
+    ),
 
-      [ExtendedAveniaFieldOptions.COMPANY_NAME]: yup
-        .string()
-        .min(3, t("components.brlaExtendedForm.validation.companyName.minLength")),
+    [ExtendedAveniaFieldOptions.COMPANY_NAME]: z.preprocess(
+      val => (val === "" ? undefined : val),
+      z.string().min(3, t("components.brlaExtendedForm.validation.companyName.minLength")).optional()
+    ),
 
-      [ExtendedAveniaFieldOptions.START_DATE]: yup
+    [ExtendedAveniaFieldOptions.START_DATE]: z.preprocess(
+      val => (val === "" || val === undefined ? undefined : new Date(val as string)),
+      z
         .date()
-        .transform((value: Date | undefined, originalValue: any) => {
-          return originalValue === "" ? undefined : value;
-        })
         .max(new Date(), t("components.brlaExtendedForm.validation.startDate.future"))
-        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.startDate.tooOld")),
+        .min(new Date(1900, 0, 1), t("components.brlaExtendedForm.validation.startDate.tooOld"))
+        .optional()
+    ),
 
-      [ExtendedAveniaFieldOptions.PARTNER_CPF]: yup
+    [ExtendedAveniaFieldOptions.PARTNER_CPF]: z.preprocess(
+      val => (val === "" ? undefined : val),
+      z
         .string()
-        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format")),
-      [ExtendedAveniaFieldOptions.EMAIL]: yup
-        .string()
-        .email(t("components.brlaExtendedForm.validation.email.format"))
-        .required(t("components.brlaExtendedForm.validation.email.required"))
-    })
-    .required();
+        .regex(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t("components.brlaExtendedForm.validation.partnerCpf.format"))
+        .optional()
+    ),
 
-export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
+    [ExtendedAveniaFieldOptions.EMAIL]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.email.required"))
+      .pipe(z.email(t("components.brlaExtendedForm.validation.email.format")))
+  });
+
+export type KYCFormData = z.infer<ReturnType<typeof createKycFormSchema>>;
 
 export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
   const { t } = useTranslation();
@@ -105,35 +89,27 @@ export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
 
   const { setTaxId, setPixId } = useQuoteFormStoreActions();
 
-  const kycFormSchema = createKycFormSchema(t);
-
-  const defaultValues = {
-    ...getEnumInitialValues(ExtendedAveniaFieldOptions),
-    ...initialData,
-    [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
-    [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
-  };
-
   const kycForm = useForm<KYCFormData>({
-    defaultValues: defaultValues,
+    defaultValues: {
+      ...initialData,
+      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
+      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
+    },
     mode: "onBlur",
-    resolver: yupResolver(kycFormSchema)
+    resolver: standardSchemaResolver(createKycFormSchema(t))
   });
 
-  const watchedCpf = kycForm.watch(ExtendedAveniaFieldOptions.TAX_ID);
-  const watchedPixId = kycForm.watch(ExtendedAveniaFieldOptions.PIX_ID);
-
   useEffect(() => {
-    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== "") {
-      setTaxId(watchedCpf);
-    }
-  }, [watchedCpf, taxIdFromStore, setTaxId]);
-
-  useEffect(() => {
-    if (watchedPixId !== undefined && watchedPixId !== pixIdFromStore && watchedPixId !== "") {
-      setPixId(watchedPixId);
-    }
-  }, [watchedPixId, pixIdFromStore, setPixId]);
+    const subscription = kycForm.watch((values, { name }) => {
+      if (name === ExtendedAveniaFieldOptions.TAX_ID && values.taxId && values.taxId !== taxIdFromStore) {
+        setTaxId(values.taxId);
+      }
+      if (name === ExtendedAveniaFieldOptions.PIX_ID && values.pixId && values.pixId !== pixIdFromStore) {
+        setPixId(values.pixId);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [kycForm, taxIdFromStore, pixIdFromStore, setTaxId, setPixId]);
 
   useEffect(() => {
     if (cpfApiError) {
@@ -146,7 +122,7 @@ export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
         kycForm.clearErrors(ExtendedAveniaFieldOptions.TAX_ID);
       }
     }
-  }, [t, cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
+  }, [t, cpfApiError, kycForm]);
 
   return { kycForm };
 };
