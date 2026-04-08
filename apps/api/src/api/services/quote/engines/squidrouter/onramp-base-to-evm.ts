@@ -77,14 +77,12 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
     }
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const nablaSwapEvm = ctx.nablaSwapEvm!;
 
     const usdcBaseTokenDetails = getTokenDetailsForEvmDestination(EvmToken.USDC, Networks.Base);
 
     return {
       data: {
-        amountRaw: nablaSwapEvm.outputAmountRaw,
+        amountRaw: inputAmountRaw,
         fromNetwork: Networks.Base,
         fromToken: usdcBaseTokenDetails.erc20AddressSourceChain,
         inputAmountDecimal: inputAmountDecimal,

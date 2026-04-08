@@ -8,7 +8,7 @@ import {
 } from "./common/types";
 import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
-import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm";
+import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
 import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
 import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
