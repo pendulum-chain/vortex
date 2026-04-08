@@ -34,7 +34,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
     if (quote.inputCurrency === FiatToken.BRL) {
-      return this.executeEvmSwap(state);
+      return this.executeEvmSwap(state, quote);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateSwap(state, quote);
     } else {
@@ -134,7 +134,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(state, nextPhase);
   }
 
-  private async executeEvmSwap(state: RampState): Promise<RampState> {
+  private async executeEvmSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
 
@@ -163,7 +163,9 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw e;
     }
 
-    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+    const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
+    const nextPhase =
+      state.type === RampDirection.BUY ? "distributeFees" : isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

@@ -67,7 +67,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     const existingHash = state.state.distributeFeeHash || null;
 
     // For BRL onramp flows, distributio happens on EVM (Base).
-    const isEvmTransaction = quote.inputCurrency === "BRL";
+    const isEvmTransaction = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
 
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);

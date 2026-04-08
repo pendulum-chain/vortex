@@ -24,7 +24,7 @@ import { StateMetadata } from "../meta-state-types";
 
 export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "subsidizePostSwap";
+    return "subsidizePostSwapEvm";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -142,14 +142,10 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    // For EVM, the next phases would be EVM-specific
-    // This needs to be adapted based on the specific EVM chain and flow
-    // For now, keeping similar logic but this should be reviewed
     if (state.type === RampDirection.BUY) {
-      // For BUY operations on EVM, typically go to final settlement or similar
       return "squidRouterSwap";
     } else {
-      throw new Error("SubsidizePostSwapEvmPhaseHandler: SELL operations are not supported in this handler.");
+      return "squidRouterSwap";
     }
   }
 }

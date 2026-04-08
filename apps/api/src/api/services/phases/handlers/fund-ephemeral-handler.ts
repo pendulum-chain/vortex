@@ -11,7 +11,6 @@ import {
 } from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
-import { polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
 
@@ -20,7 +19,6 @@ import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
-import { fundMoonbeamEphemeralAccount } from "../../transactions/moonbeam/balance";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
@@ -93,9 +91,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return false;
   }
 
-  protected getRequiresBaseEphemeralAddress(state: RampState, inputCurrency?: string): boolean {
+  protected getRequiresBaseEphemeralAddress(inputCurrency?: string, outputCurrency?: string): boolean {
     // Only required for BRLA onramps.
-    if (isOnramp(state) && inputCurrency === FiatToken.BRL) {
+    if (inputCurrency === FiatToken.BRL || outputCurrency === FiatToken.BRL) {
       return true;
     }
     return false;
@@ -120,7 +118,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
-    const moonbeamNode = await apiManager.getApi("moonbeam");
 
     const { evmEphemeralAddress, substrateEphemeralAddress } = state.state as StateMetadata;
     const requiresPendulumEphemeralAddress = this.getRequiresPendulumEphemeralAddress(
@@ -133,7 +130,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       quote.inputCurrency,
       quote.outputCurrency
     );
-    const requiresBaseEphemeralAddress = this.getRequiresBaseEphemeralAddress(state, quote.inputCurrency);
+    const requiresBaseEphemeralAddress = this.getRequiresBaseEphemeralAddress(quote.inputCurrency, quote.outputCurrency);
     const requiresDestinationEvmFunding = this.getRequiresDestinationEvmFunding(state);
 
     // Ephemeral checks.
@@ -239,6 +236,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return "distributeFees";
     } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
       return "finalSettlementSubsidy";
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL) {
+      return "distributeFees";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
     }
