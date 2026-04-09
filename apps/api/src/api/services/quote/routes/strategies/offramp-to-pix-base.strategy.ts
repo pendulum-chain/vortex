@@ -6,8 +6,8 @@ import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm-alfredpay";
 import { OffRampSwapEngineEvm } from "../../engines/nabla-swap/offramp-evm";
 
-export class OfframpEvmToAlfredpayStrategy implements IRouteStrategy {
-  readonly name = "OfframpEvmToAlfredpay";
+export class OfframpToPixEvmStrategy implements IRouteStrategy {
+  readonly name = "OfframpToPixEvm";
 
   getStages(_ctx: QuoteContext): StageKey[] {
     return [StageKey.Initialize, StageKey.Fee, StageKey.PartnerOperation, StageKey.Finalize];
@@ -15,7 +15,7 @@ export class OfframpEvmToAlfredpayStrategy implements IRouteStrategy {
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
-      [StageKey.Initialize]: new OffRampFromEvmInitializeEngine(Networks.Polygon),
+      [StageKey.Initialize]: new OffRampFromEvmInitializeEngine(Networks.Base),
       [StageKey.Fee]: new OffRampFeeAveniaEngine(),
       [StageKey.NablaSwap]: new OffRampSwapEngineEvm(EvmToken.BRLA),
       [StageKey.Discount]: new OffRampDiscountEngine(),
