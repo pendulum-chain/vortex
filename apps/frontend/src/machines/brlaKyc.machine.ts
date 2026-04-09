@@ -64,15 +64,13 @@ export const aveniaKycMachine = setup({
       | { type: "COMPANY_VERIFICATION_STARTED" }
       | { type: "REPRESENTATIVE_VERIFICATION_STARTED" },
     input: {} as RampContext,
-    output: {} as { error?: AveniaKycMachineError }
+    output: {} as AveniaKycContext
   }
 }).createMachine({
   context: ({ input }) => ({ ...input }) as AveniaKycContext,
   id: "brlaKyc",
   initial: "FormFilling",
-  output: ({ context }) => ({
-    error: context.error
-  }),
+  output: ({ context }) => context,
   states: {
     DocumentUpload: {
       on: {
