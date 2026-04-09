@@ -41,7 +41,8 @@ export const AveniaVerificationForm = <T extends FieldValues>({
                     ExtendedAveniaFieldOptions.PIX_ID,
                     ExtendedAveniaFieldOptions.TAX_ID,
                     ExtendedAveniaFieldOptions.FULL_NAME,
-                    ExtendedAveniaFieldOptions.COMPANY_NAME
+                    ExtendedAveniaFieldOptions.COMPANY_NAME,
+                    ExtendedAveniaFieldOptions.EMAIL
                   ].includes(field.id as ExtendedAveniaFieldOptions)
                     ? "col-span-2"
                     : ""
@@ -60,7 +61,7 @@ export const AveniaVerificationForm = <T extends FieldValues>({
                 i18nKey={"components.aveniaKYC.description"}
               >
                 Complete these quick identity checks (typically 90 seconds). Data is processed securely by{" "}
-                <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                <a className="text-primary underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
                   Avenia
                 </a>{" "}
                 using bank-grade encryption for transaction security.
