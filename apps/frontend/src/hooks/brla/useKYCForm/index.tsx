@@ -7,6 +7,8 @@ import { z } from "zod";
 import { ExtendedAveniaFieldOptions } from "../../../components/Avenia/AveniaField";
 import { usePixId, useQuoteFormStoreActions, useTaxId } from "../../../stores/quote/useQuoteFormStore";
 
+const toISODateString = (date: Date): string => date.toISOString().split("T")[0];
+
 export interface UseKYCFormProps {
   cpfApiError: string | null;
   initialData?: KYCFormData;
@@ -50,6 +52,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
           ageDate.setFullYear(ageDate.getFullYear() + 18);
           return ageDate <= new Date();
         }, t("components.brlaExtendedForm.validation.birthdate.tooYoung"))
+        .transform(toISODateString)
     ),
 
     [ExtendedAveniaFieldOptions.COMPANY_NAME]: z.preprocess(

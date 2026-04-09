@@ -19,7 +19,7 @@ export const submitActor = fromPromise(async ({ input }: { input: AveniaKycConte
     city: kycFormData.city,
     country: "BRA",
     countryOfTaxId: "BRA",
-    dateOfBirth: kycFormData.birthdate as unknown as string,
+    dateOfBirth: kycFormData.birthdate,
     email: kycFormData.email,
     fullName: kycFormData.fullName,
     state: kycFormData.state,
