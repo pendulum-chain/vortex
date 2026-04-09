@@ -81,4 +81,5 @@ There are 28 phase handlers in `apps/api/src/api/services/phases/handlers/`. The
 - [x] `post-swap-handler` has explicit default rejection for unrecognized routing combinations (F-031, fixed)
 - [x] `distributeFees` is a non-terminal phase — failure triggers retry, not silent skip
 - [EXISTING FINDING] **F-053**: Five phase handlers lack idempotency guards — `stellar-payment-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-swap-handler`, `nabla-swap-handler` can double-execute on retry.
+- [EXISTING FINDING] **F-054**: Backup presigned transactions (`backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove`) have no registered phase handlers — dead code or missing implementation.
 - [ ] No aggregate cross-ramp subsidy rate limiting — many concurrent ramps could drain funding account

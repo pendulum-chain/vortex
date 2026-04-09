@@ -53,3 +53,7 @@ The validation logic lives in `apps/api/src/api/services/transactions/validation
 - [x] Offramp-specific validation (`validateOfframpQuote`, `validateBRLOfframp`, `validateStellarOfframp`) checks quote consistency
 - [x] `RAMP_START_EXPIRATION_TIME_SECONDS` enforces a time window between registration and start — prevents stale presigned transactions from being executed
 - [ ] No default rejection for unrecognized chain types — `getTransactionTypeForPhase` default returns EVM (see F-047)
+- [EXISTING FINDING] **F-055**: Backup presigned transactions (`backupApprove`) use unlimited `maxUint256` ERC-20 approval amount — excessive blast radius if funding key is compromised.
+- [EXISTING FINDING] **F-056**: `sandboxEnabled` bypasses chainId validation in `validateEvmTransaction` and skips entire ramp flow in `initial-phase-handler` — no production guard prevents accidental activation.
+- [EXISTING FINDING] **F-057**: `destinationTransfer` handler broadcasts presigned transaction without verifying the `to` address matches the user's destination from the quote — combined with F-050, no destination validation exists anywhere.
+- [EXISTING FINDING] **F-058**: No per-presigned-transaction TTL after ramp starts — `getPresignedTransaction` performs no age check, presigned txs remain valid indefinitely through recovery retries.

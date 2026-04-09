@@ -1,18 +1,18 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 16 open (transaction validation + ephemeral account + phase flow audit)
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 21 open (transaction validation + ephemeral account + phase flow audit)
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account / phase flow audit (F-038 through F-053).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account / phase flow audit (F-038 through F-058).
 
 ## Summary
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
 | 🔴 Critical | 3 | 0 | 0 | **2** | 5 |
-| 🟠 High | 3 | 2 | 3 | **7** | 15 |
-| 🟡 Medium | 12 | 2 | 4 | **6** | 24 |
-| 🔵 Low / ⚪ Info | 8 | 0 | 0 | **1** | 9 |
-| **Total** | **26** | **4** | **7** | **16** | **53** |
+| 🟠 High | 3 | 2 | 3 | **8** | 16 |
+| 🟡 Medium | 12 | 2 | 4 | **9** | 27 |
+| 🔵 Low / ⚪ Info | 8 | 0 | 0 | **2** | 10 |
+| **Total** | **26** | **4** | **7** | **21** | **58** |
 
 > **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation. **Open** = newly identified, awaiting fix or CTO decision.
 
@@ -469,6 +469,34 @@ By contrast, handlers like `spacewalk-redeem-handler` (nonce guard), `moonbeam-t
 1. **Hash guard pattern**: Before submitting, check if the tx hash already exists in state. If yes, skip to the waiting/verification path. Store the hash immediately after submission (before waiting for finalization).
 2. **Nonce guard pattern**: Compare the ephemeral account's current nonce against the expected nonce. If the nonce has advanced, the transaction was already included — skip to verification.
 3. For `stellar-payment-handler`, check the Stellar ephemeral account's sequence number or verify the payment operation on Horizon before re-submitting.
+
+---
+
+### F-054: Backup Presigned Transactions Have No Registered Phase Handlers — Dead Code or Missing Implementation
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `avenia-to-evm.ts`; `apps/api/src/api/services/phases/register-handlers.ts` |
+| **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
+| **Status** | 🟠 **OPEN** |
+| **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
+| **Impact** | Three onramp routes build presigned transactions for phases `backupSquidRouterApprove`, `backupSquidRouterSwap`, and `backupApprove`, but NO phase handler is registered for any of these phases. If the ramp state machine ever transitions to these phases, the phase registry will have no handler to execute them — the ramp will be stuck indefinitely. If these phases are never reached, the user is signing transactions (including an unlimited ERC-20 approval) that serve no purpose and waste user interaction time. |
+
+**Description:** All three onramp-to-EVM routes (`monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `avenia-to-evm.ts`) build three "backup" presigned transactions per ramp:
+
+1. `backupSquidRouterApprove` — ERC-20 approval for the SquidRouter contract
+2. `backupSquidRouterSwap` — SquidRouter swap call
+3. `backupApprove` — **Unlimited** (`maxUint256`) ERC-20 approval to the platform's funding account
+
+These are pushed to `unsignedTxs` and the client signs them. However, `register-handlers.ts` only registers 27 handlers, and **none** of them have `getPhaseName()` returning `backupSquidRouterApprove`, `backupSquidRouterSwap`, or `backupApprove`. The `phaseRegistry.getHandler(phase)` call in the phase processor will return `undefined` for these phases.
+
+The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning these transactions could theoretically be submitted by anyone with access to the raw signed tx data if the ephemeral account's nonce matches.
+
+**Fix:** Either:
+- **Option A:** Implement dedicated backup handlers (or a generic backup execution handler) and register them in `register-handlers.ts`, with clear transition logic for when the primary path fails.
+- **Option B:** If the backup mechanism is not yet implemented, remove the backup presigned transaction building from all three routes to avoid: (1) unnecessary user signatures, (2) a dangling unlimited approval signed by the user, (3) confusion about whether these phases can be reached.
+
+---
 
 ---
 
@@ -941,6 +969,97 @@ None of these are ideal for an operations team responding to a stuck-funds incid
 
 ---
 
+### F-055: Unlimited ERC-20 Approval (maxUint256) in Backup Presigned Transactions
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts:183-203`, `alfredpay-to-evm.ts:190-209`, `avenia-to-evm.ts:235-254` |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
+| **Impact** | The ephemeral account signs an unlimited (`2^256 - 1`) ERC-20 token approval to the platform's funding account. If the signed `backupApprove` transaction is broadcast (by the platform or an attacker who obtains the raw tx data), the funding account gains unlimited transfer authority over ALL tokens of that type on the ephemeral account — not just the ramp's expected amount. |
+
+**Description:** All three onramp-to-EVM routes compute a `backupApprove` presigned transaction with:
+
+```typescript
+const maxUint256 = 2n ** 256n - 1n;
+const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+const backupApproveTransaction = await addDestinationChainApprovalTransaction({
+  amountRaw: maxUint256.toString(),
+  destinationNetwork: toNetwork as EvmNetworks,
+  spenderAddress: fundingAccount.address,
+  tokenAddress: bridgedTokenForFallback
+});
+```
+
+The spender is the platform's Moonbeam funding account (an EOA derived from `MOONBEAM_FUNDING_PRIVATE_KEY`). While this account is controlled by the platform, the approval amount is excessively permissive. If the funding account's private key is compromised, the attacker could drain ALL ephemeral accounts that have signed this approval — not just the ramp amount.
+
+Additionally, the `backupApprove` nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning on non-Polygon networks the tx is valid starting from the ephemeral account's first transaction.
+
+**Fix:** Replace `maxUint256` with the exact expected backup transfer amount (e.g., `quote.outputAmountRaw` plus a small buffer). This limits the blast radius if the funding key is compromised.
+
+---
+
+### F-056: `sandboxEnabled` Bypasses ChainId Validation and Skips Entire Ramp Flow
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/phases/handlers/initial-phase-handler.ts:32-35`; `apps/api/src/api/services/transactions/validation.ts:145` |
+| **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/state-machine.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (code review), 2026-04-07 |
+| **Impact** | If `SANDBOX_ENABLED=true` is accidentally set in production (or if an attacker can influence environment variables), ALL ramps skip every phase and immediately complete, and EVM chainId validation is disabled. Funds would not actually move, but ramps would appear successful. |
+
+**Description:** Two critical behaviors change when `config.sandboxEnabled` is `true`:
+
+1. **Initial phase handler** (line 32-35): Instead of routing to the correct first phase based on ramp type and currency, the handler waits 10 seconds and transitions directly to `"complete"`:
+   ```typescript
+   if (config.sandboxEnabled) {
+     await new Promise(resolve => setTimeout(resolve, 10000));
+     return this.transitionToNextPhase(state, "complete");
+   }
+   ```
+
+2. **EVM transaction validation** (line 145): The chainId check is skipped:
+   ```typescript
+   if (Number(transactionMeta.chainId) !== getNetworkId(tx.network) && Boolean(config.sandboxEnabled) !== true) {
+   ```
+
+There is no runtime guard to ensure `sandboxEnabled` cannot be `true` when `NODE_ENV=production`. The value is read directly from `process.env.SANDBOX_ENABLED === "true"` in `config/vars.ts`.
+
+**Fix:** Add an explicit guard in `config/vars.ts` or at app startup: if `NODE_ENV === "production"` and `SANDBOX_ENABLED === "true"`, throw an error and refuse to start. Additionally, log a warning at startup when sandbox mode is active.
+
+---
+
+### F-057: `destinationTransfer` Handler Sends Presigned Transaction Without Validating Destination Address
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/api/services/phases/handlers/destination-transfer-handler.ts:40,74-76` |
+| **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/ephemeral-accounts.md` |
+| **Status** | 🟡 **OPEN** |
+| **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
+| **Impact** | The `DestinationTransferHandler` retrieves the presigned `destinationTransfer` transaction and broadcasts it via `sendRawTransactionWithRetry()` without independently verifying that the transfer's `to` address matches the user's destination address from the quote. Combined with F-050 (EVM `to` address not validated during presigned tx submission), a malicious API client could craft a presigned `destinationTransfer` that sends tokens to an attacker's address instead of the user's address. |
+
+**Description:** The handler at line 40 retrieves the raw presigned tx:
+```typescript
+const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
+```
+
+At line 74, it broadcasts it directly:
+```typescript
+const txHash = await evmClientManager.sendRawTransactionWithRetry(
+  quote.network as EvmNetworks,
+  destinationTransfer as `0x${string}`
+);
+```
+
+The handler does check the expected amount via `checkEvmBalanceForToken` (ensuring the ephemeral account has the tokens), but never decodes the presigned transaction to verify that the `to` address matches `quote.toAddress` or any expected recipient. Since F-050 shows that `validatePresignedTxs` also doesn't check `to`, there is no validation of the destination address anywhere in the pipeline.
+
+**Fix:** Before broadcasting, decode the raw presigned `destinationTransfer` transaction and verify that the `to` address (the ERC-20 transfer recipient) matches the expected destination from the quote. Alternatively, fix F-050 to validate `to` during the presigned tx submission step, which would cover this case systemically.
+
+---
+
 ## 🔵 Low / ⚪ Info
 
 ### F-017: Database TLS Not Explicitly Configured
@@ -1071,6 +1190,29 @@ None of these are ideal for an operations team responding to a stuck-funds incid
 **Description:** The `nextPhaseSelector` method uses a series of `if` statements to determine the next phase, with `return "spacewalkRedeem"` as an implicit catch-all. Future SELL flows with different output currencies could be silently misrouted.
 
 **Fix:** Add an explicit `else` clause that throws an error for unrecognized combinations.
+
+---
+
+### F-058: No Per-Presigned-Transaction TTL After Ramp Starts
+
+| Field | Value |
+|---|---|
+| **Location** | `apps/api/src/models/rampState.model.ts` (presignedTxs JSONB field); `apps/api/src/api/services/phases/base-phase-handler.ts` (`getPresignedTransaction`) |
+| **Spec** | `03-ramp-engine/transaction-validation.md` |
+| **Status** | 🔵 **OPEN** |
+| **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
+| **Impact** | Once a ramp starts, presigned transactions stored in `RampState.presignedTxs` have no expiry. If a ramp gets stuck in a non-terminal phase and the recovery worker retriggers it days later, the presigned transactions (which may reference stale nonces, changed on-chain state, or revoked approvals) will be used as-is. |
+
+**Description:** The `PresignedTx` model has no `createdAt` or `expiresAt` field. `getPresignedTransaction()` simply does `state.presignedTxs?.find(tx => tx.phase === phase)` with no age check. While the `RampRecoveryWorker` detects stale ramps (>10 min inactive) and retriggers processing, this recovery mechanism uses the same presigned transactions regardless of age.
+
+Time-related constraints that exist:
+- `RAMP_START_EXPIRATION_TIME_SECONDS` (480s / 8 min) — enforced at `startRamp()` only, before processing begins
+- `MAX_EXECUTION_TIME_MS` (10 min) — per-phase timeout in `PhaseProcessor`
+- `RampRecoveryWorker` — retriggers stale ramps after 10 min of inactivity
+
+None of these invalidate the presigned transactions themselves. A ramp could theoretically be retried many hours after its presigned transactions were created, if repeated failures and recoveries occur.
+
+**Fix:** Add an optional `createdAt` timestamp to the `PresignedTx` structure and enforce a maximum age (e.g., 1 hour) in `getPresignedTransaction()`. If the presigned tx is older than the limit, throw an unrecoverable error and transition the ramp to `failed` instead of attempting to use stale transactions.
 
 ---
 

@@ -60,3 +60,4 @@ The cleanup worker queries for ramps with `currentPhase: "complete"`, excluding 
 - [x] Base post-process handler catches errors per-chain and does not let one chain's failure block others — verified
 - [EXISTING FINDING] **F-051**: No Slack alerting or monitoring notification for cleanup failures — silent fund trapping risk.
 - [EXISTING FINDING] **F-052**: No admin endpoint to manually trigger cleanup for a specific ramp ID.
+- [EXISTING FINDING] **F-057**: `destinationTransfer` handler sends presigned tx without validating destination address — combined with F-050, no destination validation exists in the ephemeral-to-user transfer path.

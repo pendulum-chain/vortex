@@ -63,3 +63,4 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 - [x] The `lockedRamps` Set is cleaned up in the `finally` block (`this.lockedRamps.delete(state.id)`)
 - [x] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
 - [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no other file creates `new PhaseProcessor()`
+- [EXISTING FINDING] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.
