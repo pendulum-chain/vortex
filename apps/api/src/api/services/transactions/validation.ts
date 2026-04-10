@@ -57,6 +57,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
+    case "hydrationCleanup":
       return EphemeralAccountType.Substrate;
     case "stellarCreateAccount":
     case "stellarPayment":
@@ -79,6 +80,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "backupSquidRouterApprove":
     case "backupSquidRouterSwap":
     case "backupApprove":
+    case "polygonCleanup":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({

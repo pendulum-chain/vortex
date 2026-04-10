@@ -14,11 +14,15 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
+import { prepareHydrationCleanupTransaction } from "../../hydration/cleanup";
 import { encodeEvmTransactionData } from "../../index";
+import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
 import { addMoonbeamTransactions, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
 import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
@@ -102,6 +106,21 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const polygonCleanupApproval = await preparePolygonCleanupApproval(
+    ERC20_EURE_POLYGON_V1,
+    fundingAccount.address,
+    moneriumMintNetwork
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: moneriumMintNetwork,
+    nonce: polygonAccountNonce++,
+    phase: "polygonCleanup",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(polygonCleanupApproval) as EvmTransactionData
   });
 
   stateMeta = {
@@ -249,6 +268,16 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
       phase: "hydrationToAssethubXcm",
       signer: substrateEphemeralEntry.address,
       txData: encodeSubmittableExtrinsic(hydrationToAssethubTransfer)
+    });
+
+    const hydrationCleanupTx = await prepareHydrationCleanupTransaction(inputAsset, outputAsset);
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Hydration,
+      nonce: hydrationNonce,
+      phase: "hydrationCleanup",
+      signer: substrateEphemeralEntry.address,
+      txData: encodeSubmittableExtrinsic(hydrationCleanupTx)
     });
   }
 
