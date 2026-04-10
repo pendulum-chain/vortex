@@ -5,15 +5,54 @@ import {
   EvmTokenDetails,
   getOnChainTokenDetails,
   multiplyByPowerOfTen,
-  RampDirection,
   RampPhase
 } from "@vortexfi/shared";
+import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
+import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
+function validateDestinationTransferRecipient(rawTx: `0x${string}`, expectedDestination: string): void {
+  const decoded = parseTransaction(rawTx);
+
+  if (!decoded.to) {
+    throw new Error("DestinationTransferHandler: Presigned transaction has no 'to' address");
+  }
+
+  const isNativeTransfer = !decoded.data || decoded.data === "0x";
+
+  if (isNativeTransfer) {
+    if (decoded.to.toLowerCase() !== expectedDestination.toLowerCase()) {
+      throw new Error(
+        `DestinationTransferHandler: Native transfer recipient mismatch. ` +
+          `Expected ${expectedDestination}, got ${decoded.to}`
+      );
+    }
+    return;
+  }
+
+  // ERC-20 transfer: `to` is the token contract, recipient is in calldata
+  if (!decoded.data) {
+    throw new Error("DestinationTransferHandler: ERC-20 transfer missing calldata");
+  }
+  const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: decoded.data });
+  if (functionName !== "transfer") {
+    throw new Error(`DestinationTransferHandler: Expected ERC-20 'transfer' call, got '${functionName}'`);
+  }
+
+  const [recipient] = args as [string, bigint];
+  if (recipient.toLowerCase() !== expectedDestination.toLowerCase()) {
+    throw new Error(
+      `DestinationTransferHandler: ERC-20 transfer recipient mismatch. ` + `Expected ${expectedDestination}, got ${recipient}`
+    );
+  }
+}
+
 /**
  * Handler for transferring funds to the destination address on EVM networks (onramp only)
  */
@@ -40,7 +79,13 @@ export class DestinationTransferHandler extends BasePhaseHandler {
     const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
     const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
-    const { destinationTransferTxHash } = state.state;
+    const { destinationTransferTxHash, destinationAddress } = state.state as StateMetadata;
+
+    if (destinationAddress) {
+      validateDestinationTransferRecipient(destinationTransfer as `0x${string}`, destinationAddress);
+    } else {
+      logger.warn("DestinationTransferHandler: No destinationAddress in state metadata, skipping recipient validation");
+    }
     if (destinationTransferTxHash) {
       try {
         const client = evmClientManager.getClient(destinationNetwork);

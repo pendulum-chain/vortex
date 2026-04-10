@@ -32,10 +32,16 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
+    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress, nablaSwapTxHash } = state.state as StateMetadata;
 
     if (!nablaSoftMinimumOutputRaw || !substrateEphemeralAddress) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
+    }
+
+    if (nablaSwapTxHash) {
+      logger.info(`NablaSwapPhaseHandler: Transaction already submitted (${nablaSwapTxHash}), skipping to next phase`);
+      const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+      return this.transitionToNextPhase(state, nextPhase);
     }
 
     if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
@@ -101,6 +107,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error("Could not swap token");
       }
+
+      state.state = {
+        ...state.state,
+        nablaSwapTxHash: result.txHash.toString()
+      };
+      await state.update({ state: state.state });
     } catch (e) {
       let errorMessage = "";
       const { result } = e as ExecuteMessageResult;

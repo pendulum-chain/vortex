@@ -70,4 +70,6 @@ export interface StateMetadata {
   alfredpayOfframpTransferTxHash?: string;
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
+  stellarPaymentTxHash?: string;
+  nablaSwapTxHash?: string;
 }

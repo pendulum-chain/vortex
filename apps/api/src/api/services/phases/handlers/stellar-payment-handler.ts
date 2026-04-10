@@ -5,6 +5,7 @@ import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { verifyStellarPaymentSuccess } from "../helpers/stellar-payment-verifier";
+import { StateMetadata } from "../meta-state-types";
 import { isStellarNetworkError } from "./fund-ephemeral-handler";
 
 const NETWORK_PASSPHRASE = config.sandboxEnabled ? Networks.TESTNET : Networks.PUBLIC;
@@ -17,6 +18,13 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    const { stellarPaymentTxHash } = state.state as StateMetadata;
+
+    if (stellarPaymentTxHash) {
+      logger.info(`StellarPaymentPhaseHandler: Transaction already submitted (${stellarPaymentTxHash}), skipping to complete`);
+      return this.transitionToNextPhase(state, "complete");
+    }
+
     const { txData: offrampingTransactionXDR } = this.getPresignedTransaction(state, "stellarPayment");
     if (typeof offrampingTransactionXDR !== "string") {
       throw new Error("Invalid transaction data");
@@ -24,7 +32,13 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
 
     try {
       const offrampingTransaction = new Transaction(offrampingTransactionXDR, NETWORK_PASSPHRASE);
-      await horizonServer.submitTransaction(offrampingTransaction);
+      const submissionResult = await horizonServer.submitTransaction(offrampingTransaction);
+
+      state.state = {
+        ...state.state,
+        stellarPaymentTxHash: submissionResult.hash
+      };
+      await state.update({ state: state.state });
 
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
