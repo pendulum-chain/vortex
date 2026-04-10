@@ -20,7 +20,7 @@ import { config } from "../../../config";
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
-/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
+/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, signer, and txData.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
   for (const subsetTx of subset) {
     const match = set.find(
@@ -28,7 +28,8 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
         setTx.phase === subsetTx.phase &&
         setTx.network === subsetTx.network &&
         setTx.nonce === subsetTx.nonce &&
-        setTx.signer === subsetTx.signer
+        setTx.signer === subsetTx.signer &&
+        JSON.stringify(setTx.txData) === JSON.stringify(subsetTx.txData)
     );
 
     if (!match) {
@@ -63,9 +64,27 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
       return EphemeralAccountType.Stellar;
     case "squidRouterApprove":
     case "squidRouterSwap":
+    case "squidRouterPermitExecute":
+    case "squidRouterPay":
+    case "moneriumOnrampSelfTransfer":
+    case "moneriumOnrampMint":
+    case "fundEphemeral":
+    case "destinationTransfer":
+    case "moonbeamToPendulum":
+    case "alfredpayOnrampMint":
+    case "alfredpayOfframpTransfer":
+    case "brlaOnrampMint":
+    case "brlaPayoutOnMoonbeam":
+    case "finalSettlementSubsidy":
+    case "backupSquidRouterApprove":
+    case "backupSquidRouterSwap":
+    case "backupApprove":
       return EphemeralAccountType.EVM;
     default:
-      return EphemeralAccountType.EVM;
+      throw new APIError({
+        message: `Unknown phase "${phase}" — cannot determine transaction type`,
+        status: httpStatus.BAD_REQUEST
+      });
   }
 }
 
@@ -91,7 +110,6 @@ export async function validatePresignedTxs(
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
-    if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
@@ -101,8 +119,16 @@ export async function validatePresignedTxs(
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
 
-  // do not validate typed data
+  // EIP-712 typed data: full content validation (spender, value, deadline, verifyingContract) requires
+  // domain-specific knowledge per integration. Validate signer only here.
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+    if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
+      throw new APIError({
+        message: `EVM typed data signer ${signer} does not match expected signer ${expectedSigner}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    logger.info(`Validated EIP-712 typed data signer for phase ${tx.phase}: ${signer}`);
     return;
   }
 
@@ -145,6 +171,13 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   if (Number(transactionMeta.chainId) !== getNetworkId(tx.network) && Boolean(config.sandboxEnabled) !== true) {
     throw new APIError({
       message: `EVM transaction chainId ${transactionMeta.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (!transactionMeta.to) {
+    throw new APIError({
+      message: "EVM transaction must have a 'to' address (contract creation not allowed)",
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -202,6 +235,15 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
       status: httpStatus.BAD_REQUEST
     });
   }
+
+  const method = extrinsic.method;
+  if (!method || !method.section || !method.method) {
+    throw new APIError({
+      message: `Substrate transaction for phase ${tx.phase} has no decodable method`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+  logger.debug(`Validated Substrate extrinsic for phase ${tx.phase}: ${method.section}.${method.method}`);
 }
 
 async function validateStellarTransaction(tx: PresignedTx, expectedSigner: string) {
@@ -254,6 +296,12 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
         status: httpStatus.BAD_REQUEST
       });
     }
+    if (!createAccountOp.startingBalance || parseFloat(createAccountOp.startingBalance) <= 0) {
+      throw new APIError({
+        message: "Stellar Create Account operation must have a positive startingBalance",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const setOptionsOp = transaction.operations[1];
     if (setOptionsOp.type !== "setOptions") {
@@ -265,6 +313,12 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     if (setOptionsOp.source !== signer) {
       throw new APIError({
         message: `Stellar Set Options operation source ${setOptionsOp.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (setOptionsOp.type === "setOptions" && !setOptionsOp.signer) {
+      throw new APIError({
+        message: "Stellar SetOptions operation must include a signer (cosigner) key",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -282,9 +336,22 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
         status: httpStatus.BAD_REQUEST
       });
     }
+    if (changeTrustOp.type === "changeTrust" && !changeTrustOp.line) {
+      throw new APIError({
+        message: "Stellar ChangeTrust operation must specify a trust line asset",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 
   if (phase === "stellarPayment") {
+    if (transaction.operations.length !== 1) {
+      throw new APIError({
+        message: `Stellar Payment transaction must have exactly 1 operation, found ${transaction.operations.length}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     const paymentOp = transaction.operations[0];
     if (paymentOp.type !== "payment") {
       throw new APIError({
@@ -295,6 +362,42 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     if (transaction.source !== signer) {
       throw new APIError({
         message: `Stellar Payment transaction source ${transaction.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (paymentOp.type === "payment") {
+      if (!paymentOp.destination) {
+        throw new APIError({
+          message: "Stellar Payment operation must have a destination address",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!paymentOp.amount || parseFloat(paymentOp.amount) <= 0) {
+        throw new APIError({
+          message: "Stellar Payment operation must have a positive amount",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!paymentOp.asset) {
+        throw new APIError({
+          message: "Stellar Payment operation must specify an asset",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+  }
+
+  if (phase === "stellarCleanup") {
+    if (transaction.source !== signer) {
+      throw new APIError({
+        message: `Stellar Cleanup transaction source ${transaction.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (transaction.operations.length === 0 || transaction.operations.length > 5) {
+      throw new APIError({
+        message: `Stellar Cleanup transaction has unexpected operation count: ${transaction.operations.length} (expected 1-5)`,
         status: httpStatus.BAD_REQUEST
       });
     }

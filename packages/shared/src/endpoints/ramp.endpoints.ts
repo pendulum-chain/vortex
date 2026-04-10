@@ -50,7 +50,13 @@ export type RampPhase =
   | "backupApprove"
   | "complete";
 
-export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
+export type CleanupPhase =
+  | "moonbeamCleanup"
+  | "pendulumCleanup"
+  | "stellarCleanup"
+  | "polygonCleanup"
+  | "hydrationCleanup"
+  | "assetHubCleanup";
 
 export enum EphemeralAccountType {
   Stellar = "Stellar",
