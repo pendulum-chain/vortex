@@ -133,7 +133,7 @@ export class RampService extends BaseRampService {
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
-      const quote = await QuoteTicket.findByPk(quoteId, { transaction });
+      const quote = await QuoteTicket.findByPk(quoteId, { lock: Transaction.LOCK.UPDATE, transaction });
 
       if (!quote) {
         throw new APIError({
@@ -168,7 +168,13 @@ export class RampService extends BaseRampService {
         request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
-      await this.consumeQuote(quote.id, transaction);
+      const [affectedRows] = await this.consumeQuote(quote.id, transaction);
+      if (affectedRows === 0) {
+        throw new APIError({
+          message: "Quote already consumed",
+          status: httpStatus.CONFLICT
+        });
+      }
 
       let partner: ActivePartner = null;
       if (quote.partnerId) {

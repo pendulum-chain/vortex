@@ -28,6 +28,6 @@ router.route("/kyb/new-level-1/web-sdk").post(optionalAuth, brlaController.initi
 
 router.route("/kyb/attempt-status").get(brlaController.getKybAttemptStatus);
 
-router.route("/kyc/record-attempt").post(optionalAuth, brlaController.recordInitialKycAttempt);
+router.route("/kyc/record-attempt").post(requireAuth, brlaController.recordInitialKycAttempt);
 
 export default router;
