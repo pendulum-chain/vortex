@@ -24,7 +24,7 @@ export const AveniaVerificationForm = <T extends FieldValues>({
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
   // formState.isValid is not working as expected, so we need to check the errors
-  const isFormInvalid = Object.keys(form.formState.errors).length > 0 || !form.formState.isDirty || form.formState.isSubmitting;
+  const isFormInvalid = Object.keys(form.formState.errors).length > 0 || form.formState.isSubmitting;
 
   return (
     <FormProvider {...form}>

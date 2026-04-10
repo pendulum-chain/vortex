@@ -1,10 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
 @plugin "daisyui";
 
 :root {
+  color-scheme: only light;
+
   /* DaisyUI theme colors */
   --color-primary: oklch(0.45 0.2 260);
   --color-primary-content: oklch(1 0 0);
