@@ -10,14 +10,16 @@ export class OffRampFeeAveniaEngine extends BaseFeeEngine {
   };
 
   protected validate(ctx: QuoteContext): void {
-    if (!ctx.nablaSwap) {
-      throw new Error("OffRampFeeAveniaEngine requires nablaSwap in context");
+    console.log("Validating OffRampFeeAveniaEngine with context:", ctx);
+    if (!ctx.nablaSwap && !ctx.nablaSwapEvm) {
+      throw new Error("OffRampFeeAveniaEngine requires nablaSwap or nablaSwapEvm in context");
     }
   }
 
   protected async compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation> {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
-    const outputAmountOfframp = ctx.nablaSwap!.outputAmountDecimal.toFixed(2, 0);
+    const outputAmountOfframp =
+      ctx.nablaSwap?.outputAmountDecimal.toFixed(2, 0) ?? ctx.nablaSwapEvm!.outputAmountDecimal.toFixed(2, 0);
 
     const brlaApiService = BrlaApiService.getInstance();
     const aveniaQuote = await brlaApiService.createPayOutQuote(

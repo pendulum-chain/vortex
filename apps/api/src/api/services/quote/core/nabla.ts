@@ -135,10 +135,6 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 
 export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest): Promise<NablaSwapResult> {
   const { inputAmountForSwap, inputTokenDetails, outputTokenDetails } = request;
-  console.log("Calculating Nabla swap output with input amount:", inputAmountForSwap);
-  console.log("Input token details:", inputTokenDetails);
-  console.log("Output token details:", outputTokenDetails);
-
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({

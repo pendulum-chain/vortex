@@ -18,6 +18,7 @@ import { Big } from "big.js";
 export enum StageKey {
   Initialize = "Initialize",
   NablaSwap = "NablaSwap",
+  MergeSubsidy = "MergeSubsidy",
   PendulumTransfer = "PendulumTransfer",
   HydrationSwap = "HydrationSwap",
   SquidRouter = "SquidRouter",

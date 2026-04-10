@@ -27,8 +27,8 @@ export class OfframpToPixStrategy implements IRouteStrategy {
         ctx.request.from === "assethub"
           ? new OffRampFromAssethubInitializeEngine()
           : new OffRampFromEvmInitializeEngineMoonbeam(),
-      [StageKey.Fee]: new OffRampFeeAveniaEngine(),
       [StageKey.NablaSwap]: new OffRampSwapEngine(),
+      [StageKey.Fee]: new OffRampFeeAveniaEngine(),
       [StageKey.Discount]: new OffRampDiscountEngine(),
       [StageKey.PendulumTransfer]: new OffRampToAveniaPendulumTransferEngine(),
       [StageKey.Finalize]: new OffRampFinalizeEngine()

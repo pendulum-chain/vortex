@@ -20,6 +20,8 @@ export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
+    await assignPreNablaContext(ctx);
+
     const quoteRequest: EvmBridgeQuoteRequest = {
       amountDecimal: req.inputAmount,
       fromNetwork: req.from as Networks,

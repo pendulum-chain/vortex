@@ -24,14 +24,15 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
 
     const offrampAmountBeforeAnchorFees =
       ctx.request.to === "pix"
-        ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal
+        ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
         : ctx.alfredpayOfframp
           ? ctx.alfredpayOfframp.inputAmountDecimal
           : ctx.pendulumToStellar?.outputAmountDecimal;
 
     if (!offrampAmountBeforeAnchorFees) {
       throw new APIError({
-        message: "OffRampFinalizeEngine requires pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
+        message:
+          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
