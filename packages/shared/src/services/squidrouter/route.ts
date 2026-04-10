@@ -118,10 +118,7 @@ const routeQueues = new Map<string, PQueue>();
  * When useCache is true, returns a stripped-down SquidrouterCachedRouteResult without transactionRequest.
  * When useCache is false or not specified (default), returns the full SquidrouterRouteResult.
  */
-export async function getRoute(
-  params: RouteParams,
-  options: { useCache: true }
-): Promise<SquidrouterCachedRouteResult>;
+export async function getRoute(params: RouteParams, options: { useCache: true }): Promise<SquidrouterCachedRouteResult>;
 export async function getRoute(params: RouteParams, options?: { useCache?: false }): Promise<SquidrouterRouteResult>;
 export async function getRoute(
   params: RouteParams,
@@ -191,10 +188,9 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
     const route = result.data.route;
     if (route.estimate?.aggregateSlippage !== undefined) {
       const slippage = route.estimate.aggregateSlippage;
-      if (slippage > 2.5) {
+      if (slippage > 5) {
         logger.current.warn(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
-        // FIXME: temporarily disabled because we are facing issues with squidrouter routes failing the swap to USDT
-        // throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
+        throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
       }
     }
 

@@ -26,7 +26,18 @@ export const getFundingAccount = () => {
 };
 
 const validateSubsidyAmount = (amount: string, maxAmount: string) => {
-  if (Big(amount).gt(Big(maxAmount))) {
+  let amountBig: Big;
+  try {
+    amountBig = Big(amount);
+  } catch {
+    throw new Error("Invalid subsidy amount");
+  }
+
+  if (amountBig.lte(0)) {
+    throw new Error("Subsidy amount must be positive");
+  }
+
+  if (amountBig.gt(Big(maxAmount))) {
     throw new Error("Amount exceeds maximum subsidy amount");
   }
 };
