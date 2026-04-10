@@ -206,7 +206,7 @@ export async function addOnrampDestinationChainTransactions(params: {
     const txData: EvmTransactionData = {
       data: "0x" as `0x${string}`,
       gas: "21000", // Standard gas limit for native transfers
-      maxFeePerGas: String(maxFeePerGas),
+      maxFeePerGas: String(maxFeePerGas * 3n),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
       to: toAddress as `0x${string}`,
       value: amountRaw
@@ -225,7 +225,7 @@ export async function addOnrampDestinationChainTransactions(params: {
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
     gas: "100000",
-    maxFeePerGas: String(maxFeePerGas),
+    maxFeePerGas: String(maxFeePerGas * 3n),
     maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
     to: toToken,
     value: "0"
@@ -253,13 +253,13 @@ export async function addNablaSwapTransactionsOnBase(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenAddress, outputTokenAddress } = params;
 
-  if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
+  if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw) {
     throw new Error("Missing nablaSwap input amount in quote metadata");
   }
 
   // The input amount for the swap was already calculated in the quote.
-  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwap.inputAmountForSwapRaw;
-  const outputAmountRaw = Big(quote.metadata.nablaSwap.outputAmountRaw);
+  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
+  const outputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
 
   const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
   const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
@@ -276,7 +276,7 @@ export async function addNablaSwapTransactionsOnBase(
     meta: {},
     network: Networks.Base,
     nonce: nextNonce,
-    phase: "nablaApprove",
+    phase: "nablaApproveEvm",
     signer: account.address,
     txData: approve
   });
@@ -286,7 +286,7 @@ export async function addNablaSwapTransactionsOnBase(
     meta: {},
     network: Networks.Base,
     nonce: nextNonce,
-    phase: "nablaSwap",
+    phase: "nablaSwapEvm",
     signer: account.address,
     txData: swap
   });

@@ -9,7 +9,7 @@ import { OfframpToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strate
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { OnrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
-import { OnrampAveniaToEvmStrategy } from "./strategies/onramp-avenia-to-evm.strategy";
+import { OnrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
 import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
 
@@ -29,7 +29,7 @@ export class RouteResolver {
         } else if (ctx.request.inputCurrency === FiatToken.USD) {
           return new OnrampAlfredpayToEvmStrategy();
         } else {
-          return new OnrampAveniaToEvmStrategy();
+          return new OnrampAveniaToEvmBaseStrategy();
         }
       }
     }

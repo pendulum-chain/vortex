@@ -18,6 +18,7 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -45,6 +46,11 @@ export async function prepareAveniaToEvmOnrampTransactions({
 }: AveniaOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
+
+  // Validate that destinationAddress is a valid EVM address for EVM routes
+  if (!isAddress(destinationAddress)) {
+    throw new Error(`Invalid destination address for EVM route: ${destinationAddress}. Must be a valid EVM address.`);
+  }
 
   // Validate inputs and extract required data
   const { toNetwork, outputTokenDetails, substrateEphemeralEntry, evmEphemeralEntry, inputTokenDetails } = validateAveniaOnramp(

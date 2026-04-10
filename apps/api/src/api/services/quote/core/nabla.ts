@@ -16,7 +16,8 @@ import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
 
-const NABLA_ROUTER_BASE: `0x${string}` = "0x58E5Cb2dA15f01CB8FAefef202aa25238efCBdcf";
+const NABLA_ROUTER_BASE: `0x${string}` = "0x0e368D4891C4A52b91b4e1Bf3CdEfcdaAFEF4355"; // TODO modify with router on Base after test
+const NABLA_QUOTER_BASE: `0x${string}` = "0xf4B0f7c272354d070CC5C8140826b7BBe56953dA";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -78,7 +79,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
         }
       ];
 
-      const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.Base, {
+      const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.BaseSepolia, {
         abi: swapAbi,
         address: NABLA_ROUTER_BASE,
         args: [
@@ -134,6 +135,9 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
 
 export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest): Promise<NablaSwapResult> {
   const { inputAmountForSwap, inputTokenDetails, outputTokenDetails } = request;
+  console.log("Calculating Nabla swap output with input amount:", inputAmountForSwap);
+  console.log("Input token details:", inputTokenDetails);
+  console.log("Output token details:", outputTokenDetails);
 
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
@@ -158,32 +162,31 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
       {
         inputs: [
           { name: "_amountIn", type: "uint256" },
-          { name: "_tokenInOut", type: "address[]" }
+          { name: "_tokenPath", type: "address[]" },
+          { name: "_routerPath", type: "address[]" }
         ],
-        name: "getAmountOut",
-        outputs: [
-          { name: "amountOut", type: "uint256" },
-          { name: "feeAmount", type: "uint256" }
-        ],
+        name: "quoteSwapExactTokensForTokens",
+        outputs: [{ name: "amountOut_", type: "uint256" }],
         stateMutability: "view",
         type: "function"
       }
     ];
 
-    const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.Base, {
+    const result = await evmClientManager.readContractWithRetry<bigint>(Networks.BaseSepolia, {
       abi: swapAbi,
-      address: NABLA_ROUTER_BASE,
+      address: NABLA_QUOTER_BASE,
       args: [
         BigInt(amountIn),
         [
           inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
           outputTokenDetails.erc20AddressSourceChain as `0x${string}`
-        ]
+        ],
+        [NABLA_ROUTER_BASE]
       ],
-      functionName: "getAmountOut"
+      functionName: "quoteSwapExactTokensForTokens"
     });
 
-    const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenDetails.decimals, result[0]);
+    const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenDetails.decimals, result);
     if (!preciseQuotedAmountOut) {
       throw new Error("Failed to parse quoted amount out");
     }

@@ -25,9 +25,9 @@ export class OnRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
 
     const inputAmountPreFees = ctx.aveniaTransfer.outputAmountDecimal;
 
-    // For Onramp EVM, the input token for Nabla is the output of Avenia transfer (BRL on Base)
+    // For Onramp EVM, the input token for Nabla is the output of Avenia transfer (BRLA on Base)
     // The output token is fixed at USDC.
-    const inputToken = ctx.aveniaTransfer.currency as EvmToken;
+    const inputToken = EvmToken.BRLA;
     const outputToken = EvmToken.USDC;
 
     return {

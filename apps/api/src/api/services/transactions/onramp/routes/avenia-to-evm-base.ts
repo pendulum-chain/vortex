@@ -1,13 +1,10 @@
 import {
-  AXL_USDC_MOONBEAM_DETAILS,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   EvmTransactionData,
-  encodeSubmittableExtrinsic,
   evmTokenConfig,
-  getNetworkId,
   getOnChainTokenDetailsOrDefault,
   isEvmTokenDetails,
   isNativeEvmToken,
@@ -15,7 +12,9 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { createOnrampSquidrouterTransactionsFromBaseToEvm } from "../../../../../../../../packages/shared/src/services";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -41,12 +40,22 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
+  // Validate that destinationAddress is a valid EVM address for EVM routes
+  if (!isAddress(destinationAddress)) {
+    throw new Error(`Invalid destination address for EVM route: ${destinationAddress}. Must be a valid EVM address.`);
+  }
+
   // Validate inputs and extract required data
   const { toNetwork, outputTokenDetails, evmEphemeralEntry, inputTokenDetails } = validateAveniaOnrampOnBase(
     quote,
     signingAccounts
   );
-
+  console.log(
+    "starting: prepareAveniaToEvmOnrampTransactionsOnBase with quote:",
+    quote,
+    "destinationAddress:",
+    destinationAddress
+  );
   // Setup state metadata
   stateMeta = {
     destinationAddress,
@@ -59,13 +68,14 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   if (!quote.metadata.aveniaTransfer?.outputAmountRaw) {
     throw new Error("Missing aveniaTransfer amountOutRaw in quote metadata");
   }
-  const inputAmountPostAnchorFeeRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
+
+  if (!quote.metadata.evmToEvm?.inputAmountRaw) {
+    throw new Error("Missing evmToEvm inputAmountRaw in quote metadata");
+  }
 
   if (!isEvmTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
-
-  const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
 
   // Output for BRLA onramp will always go through USDC.
   // TODO. Unless the actual BRLA token wants to be onramped.
@@ -73,7 +83,6 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   if (!nablaSwapOutputTokenAddress) {
     throw new Error("Invalid USDC configuration for Base in evmTokenConfig");
   }
-
   const { nextNonce: nonceAfterNabla, stateMeta: nablaStateMeta } = await addNablaSwapTransactionsOnBase(
     {
       account: evmEphemeralEntry,
@@ -113,27 +122,33 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     return { stateMeta, unsignedTxs };
   }
 
-  // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
-  const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
-
-  const inputAmountRawFinalBridge = quote.metadata.evmToEvm?.inputAmountRaw;
-  if (!inputAmountRawFinalBridge) {
-    throw new Error("Missing input amount for final bridge in quote metadata");
-  }
-
-  // Destination chain: Squidrouter swap to final token
-  const { approveData: finalApproveData, swapData: finalSwapData } =
-    await createOnrampSquidrouterTransactionsOnDestinationChain({
+  const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
+    await createOnrampSquidrouterTransactionsFromBaseToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
-      fromToken: outputTokenDetails.erc20AddressSourceChain,
-      network: toNetwork as EvmNetworks,
-      rawAmount: inputAmountRawFinalBridge,
-      toToken: outputTokenDetails.erc20AddressSourceChain
+      fromToken: nablaSwapOutputTokenAddress,
+      rawAmount: quote.metadata.evmToEvm?.inputAmountRaw,
+      toNetwork,
+      toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
     });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "squidRouterApprove",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "squidRouterSwap",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
 
   let destinationNonce = 0;
 
@@ -153,6 +168,29 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     signer: evmEphemeralEntry.address,
     txData: finalDestinationTransfer
   });
+
+  // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
+  const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
+  const bridgedTokenForFallback =
+    toNetwork === Networks.Ethereum
+      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
+      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+
+  const inputAmountRawFinalBridge = quote.metadata.evmToEvm?.inputAmountRaw;
+  if (!inputAmountRawFinalBridge) {
+    throw new Error("Missing input amount for final bridge in quote metadata");
+  }
+
+  // Destination chain: Squidrouter swap to final token
+  const { approveData: finalApproveData, swapData: finalSwapData } =
+    await createOnrampSquidrouterTransactionsOnDestinationChain({
+      destinationAddress: evmEphemeralEntry.address,
+      fromAddress: evmEphemeralEntry.address,
+      fromToken: bridgedTokenForFallback,
+      network: toNetwork as EvmNetworks,
+      rawAmount: inputAmountRawFinalBridge,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
 
   destinationNonce++;
 
@@ -196,6 +234,13 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     signer: evmEphemeralEntry.address,
     txData: backupApproveTransaction
   });
+
+  stateMeta = {
+    ...stateMeta,
+    squidRouterQuoteId,
+    squidRouterReceiverHash,
+    squidRouterReceiverId
+  };
 
   return { stateMeta, unsignedTxs };
 }

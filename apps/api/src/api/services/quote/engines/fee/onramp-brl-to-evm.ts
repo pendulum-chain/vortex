@@ -1,7 +1,9 @@
 import {
-  AXL_USDC_MOONBEAM,
-  AXL_USDC_MOONBEAM_DETAILS,
+  EvmNetworks,
+  EvmToken,
+  evmTokenConfig,
   getNetworkFromDestination,
+  isNetworkEVM,
   multiplyByPowerOfTen,
   Networks,
   OnChainToken,
@@ -17,6 +19,16 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
     direction: RampDirection.BUY,
     skipNote: "Skipped for off-ramp request"
   };
+
+  constructor(
+    private readonly fromNetwork: Networks,
+    private readonly fromToken: EvmToken
+  ) {
+    super();
+    if (!isNetworkEVM(fromNetwork)) {
+      throw new Error(`OnRampAveniaToEvmFeeEngine: ${fromNetwork} is not an EVM network`);
+    }
+  }
 
   protected validate(ctx: QuoteContext): void {
     if (!ctx.aveniaMint) {
@@ -42,14 +54,21 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
 
     const toToken = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
+    const swapNetwork = this.fromNetwork as EvmNetworks;
+    // Get token details from evmTokenConfig
+    const fromTokenDetails = evmTokenConfig[swapNetwork]?.[this.fromToken];
+    if (!fromTokenDetails) {
+      throw new Error(`OnRampAveniaToEvmFeeEngine: invalid token configuration for ${this.fromToken} on ${swapNetwork}`);
+    }
+
     // For simplicity, we just use the input amount and convert it to the raw amount here
     // It's not the actual amount that will be bridged but it doesn't matter for the network fee calculation
-    const amountRaw = multiplyByPowerOfTen(request.inputAmount, AXL_USDC_MOONBEAM_DETAILS.decimals).toFixed(0, 0);
+    const amountRaw = multiplyByPowerOfTen(request.inputAmount, fromTokenDetails.decimals).toFixed(0, 0);
 
     const bridgeResult = await calculateEvmBridgeAndNetworkFee({
       amountRaw,
-      fromNetwork: Networks.Moonbeam,
-      fromToken: AXL_USDC_MOONBEAM,
+      fromNetwork: swapNetwork,
+      fromToken: fromTokenDetails.erc20AddressSourceChain,
       originalInputAmountForRateCalc: request.inputAmount,
       rampType: request.rampType,
       toNetwork,

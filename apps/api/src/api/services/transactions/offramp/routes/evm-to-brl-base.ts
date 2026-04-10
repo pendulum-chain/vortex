@@ -107,8 +107,9 @@ export async function prepareEvmToBRLOfframpTransactions({
   const { nextNonce: nonceAfterNabla, stateMeta: nablaStateMeta } = await addNablaSwapTransactionsOnBase(
     {
       account: evmEphemeralEntry,
-      inputTokenAddress: baseUsdcAddress, // Swap from USDC to BRLA on Base
-      outputTokenAddress: baseBrlaAddress, // BRLA address on Base
+      // TODO remove before release, using mock base tokens.
+      inputTokenAddress: "0x1b888723fb7699f9dF0a99443107E8A888A67e11", // baseUsdcAddress, // Swap from USDC to BRLA on Base
+      outputTokenAddress: "0x57180796D4082Ba903d86c4eA3C86490fA10512c", //baseBrlaAddress, // BRLA address on Base
       quote
     },
     unsignedTxs,

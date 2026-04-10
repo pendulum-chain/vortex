@@ -198,15 +198,15 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const vortexFeeUSD = usdFeeStructure.vortex;
   const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
-  // Get vortex payout address
+  // Get vortex payout address (EVM)
   const vortexPartner = await Partner.findOne({
     where: { isActive: true, name: "vortex", rampType: quote.rampType }
   });
-  if (!vortexPartner || !vortexPartner.payoutAddress) {
-    logger.warn("Vortex partner or payout address not found, skipping EVM fee distribution transaction");
+  if (!vortexPartner || !vortexPartner.payoutAddressEvm) {
+    logger.warn("Vortex partner or EVM payout address not found, skipping EVM fee distribution transaction");
     return null;
   }
-  const vortexPayoutAddress = vortexPartner.payoutAddress;
+  const vortexPayoutAddress = vortexPartner.payoutAddressEvm;
 
   // Use Base USDC for decimal calculations
   const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC];
@@ -241,7 +241,14 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   });
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
+  console.log(
+    "fee distr inputs: totalFeeUsdcRaw:",
+    totalFeeUsdcRaw.toFixed(0),
+    "maxFeePerGas:",
+    maxFeePerGas,
+    "maxPriorityFeePerGas:",
+    maxPriorityFeePerGas
+  );
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
     gas: "100000",
