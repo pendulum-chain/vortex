@@ -254,7 +254,7 @@ export async function addNablaSwapTransactionsOnBase(
   const { quote, account, inputTokenAddress, outputTokenAddress } = params;
 
   if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw) {
-    throw new Error("Missing nablaSwap input amount in quote metadata");
+    throw new Error("Missing nablaSwapEvm input amount in quote metadata");
   }
 
   // The input amount for the swap was already calculated in the quote.

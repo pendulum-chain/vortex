@@ -20,7 +20,7 @@ import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
  * Prepares all transactions for an EVM to BRL offramp.
  * This route handles: EVM → Base (swap) → Avenia Offramp.
  */
-export async function prepareEvmToBRLOfframpTransactions({
+export async function prepareEvmToBRLOfframpBaseTransactions({
   quote,
   signingAccounts,
   userAddress,
