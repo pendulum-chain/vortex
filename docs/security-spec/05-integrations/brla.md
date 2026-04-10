@@ -62,3 +62,4 @@ BRLA is the Brazilian Real stablecoin anchor used for BRL on-ramp and off-ramp o
 - [FAIL] Timeout is configured for BRLA API calls. **FAIL F-014** — no explicit timeout configured on BRLA HTTP client; relies on default system/library timeouts.
 - [x] PIX payment details (QR code) returned to user are generated server-side, not client-modifiable. **PASS** — PIX details come from BRLA API response.
 - [PARTIAL] BRLA interaction amounts are logged for reconciliation (amounts, not credentials). **PARTIAL** — some logging exists but no formal reconciliation logging with explicit amount fields.
+- [x] **FINDING F-064 (MEDIUM)**: Verify BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — changed `/kyc/record-attempt` endpoint from `optionalAuth` to `requireAuth` in `brla.route.ts`, preventing unauthenticated callers from recording KYC attempts.

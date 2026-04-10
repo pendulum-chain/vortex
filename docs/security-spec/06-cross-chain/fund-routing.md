@@ -60,3 +60,4 @@ There are three subsidization phases and one settlement phase:
 - [FAIL] Verify funding account balance is checked before subsidization — insufficient balance should fail the phase, not silently skip. **FAIL F-032** — no pre-check of funding account balance; insufficient balance causes transaction revert at chain level, not a graceful phase error.
 - [N/A] Check whether there is any monitoring or alerting on funding account balance depletion. **N/A** — no monitoring infrastructure audited.
 - [x] Verify `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` value is reasonable for the expected settlement amounts (check the constant's actual value). **PASS** — value reviewed and reasonable for expected settlement sizes.
+- [x] **FINDING F-060 (MEDIUM)**: Verify `validateSubsidyAmount` rejects negative, zero, NaN, and Infinity amounts. **PASS (FIXED)** — added try/catch around `Big()` construction to reject non-numeric strings, and `lte(0)` guard to reject zero and negative values.

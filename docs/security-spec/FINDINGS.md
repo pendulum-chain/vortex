@@ -1,18 +1,18 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-07 | **Status:** 26 fixed, 4 accepted risk, 7 deferred, 21 open (transaction validation + ephemeral account + phase flow audit)
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-10 | **Status:** 49 fixed, 9 accepted risk, 9 deferred, 0 open
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across three phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), and transaction validation / ephemeral account / phase flow audit (F-038 through F-058).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across four phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), and fresh security audit pass (F-059 through F-067).
 
 ## Summary
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
-| 🔴 Critical | 3 | 0 | 0 | **2** | 5 |
-| 🟠 High | 3 | 2 | 3 | **8** | 16 |
-| 🟡 Medium | 12 | 2 | 4 | **9** | 27 |
-| 🔵 Low / ⚪ Info | 8 | 0 | 0 | **2** | 10 |
-| **Total** | **26** | **4** | **7** | **21** | **58** |
+| 🔴 Critical | 5 | 0 | 0 | 0 | 5 |
+| 🟠 High | 11 | 3 | 3 | 0 | 17 |
+| 🟡 Medium | 25 | 3 | 6 | 0 | 34 |
+| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 0 | 11 |
+| **Total** | **49** | **9** | **9** | **0** | **67** |
 
 > **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation. **Open** = newly identified, awaiting fix or CTO decision.
 
@@ -98,7 +98,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 105-107 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | A malicious API client can submit EIP-712 typed data authorizing a transfer to an attacker's address. The server will execute it without any validation. |
 
@@ -122,7 +122,7 @@ This means no signer check, no chainId check, no `from` address check, and no co
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 287-301 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | A malicious client can redirect Stellar payments to an attacker's address, send incorrect amounts, or send the wrong asset — all while passing server-side validation. |
 
@@ -320,7 +320,7 @@ None of these steps check for prior execution evidence (e.g., transaction hash f
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 236-285 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | A malicious client can manipulate the Stellar account setup to: omit the server cosigner (making cleanup impossible and enabling fund theft), set a minimal startingBalance (causing downstream failures), or add trust for the wrong asset. |
 
@@ -342,7 +342,7 @@ The cosigner omission is the most dangerous: without the server cosigner, cleanu
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, line 94 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | Off-ramp (SELL) SquidRouter swap and approve transactions are not validated at all. A malicious client could submit a SquidRouter swap that routes funds to an attacker's EVM address. |
 
@@ -364,7 +364,7 @@ This means the client's presigned SquidRouter swap and approval transactions are
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 153-205 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | A malicious client could submit any Substrate extrinsic (e.g., `balances.transferAll` to an attacker address) in place of the expected swap, XCM, or bridge call. The server would execute it as long as the signer matches. |
 
@@ -382,7 +382,7 @@ Substrate extrinsics encode the call data (pallet + method + parameters) in the 
 |---|---|
 | **Location** | `apps/api/src/api/workers/cleanup.worker.ts`, line 154 |
 | **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Ephemeral account audit, 2026-04-07 |
 | **Impact** | Tokens funded to ephemeral accounts during failed ramps are permanently stuck. Platform funds used for subsidization are unrecoverable. |
 
@@ -409,7 +409,7 @@ These tokens sit indefinitely on ephemeral accounts with no recovery mechanism. 
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/post-process/index.ts` |
 | **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Ephemeral account audit, 2026-04-07 |
 | **Impact** | Residual tokens on Polygon, Hydration, and AssetHub ephemeral accounts are never recovered. For Polygon (Monerium EURe) and Hydration (swap outputs), these can be significant amounts. |
 
@@ -419,7 +419,7 @@ These tokens sit indefinitely on ephemeral accounts with no recovery mechanism. 
 - **Hydration** — Hydration swap operations may leave residual tokens on the Hydration ephemeral account.
 - **AssetHub** — XCM transfers through AssetHub may leave residual tokens if the transfer fails partway.
 
-**Fix:** Implement post-process handlers for Polygon, Hydration, and AssetHub that: (1) check the ephemeral account balance on each chain, (2) if non-zero, submit a sweep transaction to return tokens to the funding account, (3) handle chain-specific cleanup mechanics (EVM transfer for Polygon, extrinsic for Hydration/AssetHub).
+**Fix:** Implemented post-process handlers for all three chains: (1) **Polygon** — presigned `approve(fundingAddress, maxUint256)` created at registration time; handler broadcasts the approve, checks ERC-20 balance via `balanceOf`, and calls `transferFrom` using the server's `MOONBEAM_FUNDING_PRIVATE_KEY`. (2) **Hydration** — presigned `utility.batchAll([tokens.transferAll, balances.transferAll])` created at registration time; handler decodes and submits via `submitExtrinsic` (same pattern as Pendulum). (3) **AssetHub** — explicit no-op (no ephemeral on AssetHub). Route builders updated: `monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `monerium-to-assethub.ts`, `avenia-to-assethub.ts`. Validation updated with `polygonCleanup` → EVM, `hydrationCleanup` → Substrate.
 
 ---
 
@@ -429,7 +429,7 @@ These tokens sit indefinitely on ephemeral accounts with no recovery mechanism. 
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 287-301 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | A malicious client can inject additional operations into the Stellar payment transaction that execute alongside the legitimate payment. |
 
@@ -451,7 +451,7 @@ All additional operations would execute atomically with the legitimate payment s
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/stellar-payment-handler.ts`, `pendulum-to-assethub-phase-handler.ts`, `pendulum-to-hydration-xcm-phase-handler.ts`, `hydration-swap-handler.ts`, `nabla-swap-handler.ts` |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Phase flow audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | If the phase processor retries these handlers (due to 10-minute timeout or recoverable error), they will re-execute the on-chain transaction, causing double swaps, double XCM transfers, or double Stellar payments — all resulting in direct fund loss. |
 
@@ -478,9 +478,11 @@ By contrast, handlers like `spacewalk-redeem-handler` (nonce guard), `moonbeam-t
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `avenia-to-evm.ts`; `apps/api/src/api/services/phases/register-handlers.ts` |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
-| **Status** | 🟠 **OPEN** |
+| **Status** | 🟠 **ACCEPTED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
 | **Impact** | Three onramp routes build presigned transactions for phases `backupSquidRouterApprove`, `backupSquidRouterSwap`, and `backupApprove`, but NO phase handler is registered for any of these phases. If the ramp state machine ever transitions to these phases, the phase registry will have no handler to execute them — the ramp will be stuck indefinitely. If these phases are never reached, the user is signing transactions (including an unlimited ERC-20 approval) that serve no purpose and waste user interaction time. |
+
+**CTO Decision (2026-04-10):** Accepted — backup transactions are intentionally kept for manual execution when SquidRouter swaps fail. No automated handler needed.
 
 **Description:** All three onramp-to-EVM routes (`monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `avenia-to-evm.ts`) build three "backup" presigned transactions per ramp:
 
@@ -821,7 +823,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 24-40 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit, 2026-04-07 |
 | **Impact** | A malicious client can substitute completely different transaction data while preserving the metadata envelope, bypassing the inclusion check. |
 
@@ -844,7 +846,7 @@ While `validatePresignedTxs` provides a second layer of validation, it has its o
 |---|---|
 | **Location** | `apps/api/src/api/workers/cleanup.worker.ts`, line 156 |
 | **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Ephemeral account audit, 2026-04-07 |
 | **Impact** | If a SEPA (Monerium) onramp fails after EURe is minted to the Polygon ephemeral account, the tokens are trapped with no cleanup mechanism. |
 
@@ -868,7 +870,7 @@ The exclusion may have been added because SEPA ramps have a different lifecycle 
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 42-70 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | A new phase added to `RampPhase` that is actually Substrate-type would silently fall through to EVM validation, either throwing a confusing error or — if the txData happens to parse as valid EVM — passing without any meaningful check. |
 
@@ -892,7 +894,7 @@ Most of these happen to be EVM transactions, so the default is accidentally corr
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 207-302 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | A malicious client could substitute a different cleanup XDR that merges the Stellar ephemeral account to an attacker address instead of the server funding account. |
 
@@ -913,7 +915,7 @@ No validation of: merge destination, operation types, or operation count. The cl
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/validation.ts`, lines 101-151 |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | A presigned EVM transaction could target any arbitrary contract address. For `squidRouterApprove`, the client could approve a malicious spender. For `squidRouterSwap`, the client could route through a malicious router contract that skims funds. |
 
@@ -936,9 +938,11 @@ But it does NOT check `to` (the contract target address). The `to` field determi
 |---|---|
 | **Location** | `apps/api/src/api/workers/cleanup.worker.ts` |
 | **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | 🟡 **DEFERRED** |
 | **Found** | Ephemeral account audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | Cleanup failures accumulate silently. Funds trapped on ephemeral accounts go unnoticed until someone manually inspects logs or the database. |
+
+**CTO Decision (2026-04-10):** Deferred — cleanup alerting is not crucial at this stage.
 
 **Description:** The cleanup worker logs errors via `logger.error()` and retries failed handlers on subsequent cycles, but never sends a Slack alert or triggers any monitoring notification. `SlackNotifier` exists and is used elsewhere in the codebase (e.g., balance alerts in `pendulum.controller.ts`) but is not wired into the cleanup worker.
 
@@ -954,9 +958,11 @@ If a cleanup handler fails repeatedly (e.g., due to an RPC outage on a specific 
 |---|---|
 | **Location** | No endpoint exists — gap in `apps/api/src/api/routes/v1/` |
 | **Spec** | `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | 🟡 **DEFERRED** |
 | **Found** | Ephemeral account audit (checklist walkthrough), 2026-04-07 |
 | **Impact** | If automated cleanup fails repeatedly for a specific ramp, there is no way to manually trigger a cleanup attempt without direct database modification or service restart. |
+
+**CTO Decision (2026-04-10):** Deferred — manual cleanup trigger is not crucial at this stage.
 
 **Description:** The cleanup worker runs on a 5-minute cron and processes ramps automatically. However, there is no admin API endpoint to manually trigger cleanup for a specific ramp ID. If a ramp's cleanup is stuck (e.g., the handler keeps failing due to a chain-specific issue that has since been resolved), an operator must either:
 - Wait for the next automatic cycle (which will retry the same failed handler)
@@ -975,9 +981,11 @@ None of these are ideal for an operations team responding to a stuck-funds incid
 |---|---|
 | **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts:183-203`, `alfredpay-to-evm.ts:190-209`, `avenia-to-evm.ts:235-254` |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | 🟡 **ACCEPTED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
 | **Impact** | The ephemeral account signs an unlimited (`2^256 - 1`) ERC-20 token approval to the platform's funding account. If the signed `backupApprove` transaction is broadcast (by the platform or an attacker who obtains the raw tx data), the funding account gains unlimited transfer authority over ALL tokens of that type on the ephemeral account — not just the ramp's expected amount. |
+
+**CTO Decision (2026-04-10):** Accepted — backup mechanism with unlimited approval is intentional for manual recovery of failed SquidRouter swaps. Kept as-is.
 
 **Description:** All three onramp-to-EVM routes compute a `backupApprove` presigned transaction with:
 
@@ -1006,7 +1014,7 @@ Additionally, the `backupApprove` nonce is set to `0` (or `polygonAccountNonce` 
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/initial-phase-handler.ts:32-35`; `apps/api/src/api/services/transactions/validation.ts:145` |
 | **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/state-machine.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (code review), 2026-04-07 |
 | **Impact** | If `SANDBOX_ENABLED=true` is accidentally set in production (or if an attacker can influence environment variables), ALL ramps skip every phase and immediately complete, and EVM chainId validation is disabled. Funds would not actually move, but ramps would appear successful. |
 
@@ -1037,7 +1045,7 @@ There is no runtime guard to ensure `sandboxEnabled` cannot be `true` when `NODE
 |---|---|
 | **Location** | `apps/api/src/api/services/phases/handlers/destination-transfer-handler.ts:40,74-76` |
 | **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/ephemeral-accounts.md` |
-| **Status** | 🟡 **OPEN** |
+| **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
 | **Impact** | The `DestinationTransferHandler` retrieves the presigned `destinationTransfer` transaction and broadcasts it via `sendRawTransactionWithRetry()` without independently verifying that the transfer's `to` address matches the user's destination address from the quote. Combined with F-050 (EVM `to` address not validated during presigned tx submission), a malicious API client could craft a presigned `destinationTransfer` that sends tokens to an attacker's address instead of the user's address. |
 
@@ -1199,9 +1207,11 @@ The handler does check the expected amount via `checkEvmBalanceForToken` (ensuri
 |---|---|
 | **Location** | `apps/api/src/models/rampState.model.ts` (presignedTxs JSONB field); `apps/api/src/api/services/phases/base-phase-handler.ts` (`getPresignedTransaction`) |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
-| **Status** | 🔵 **OPEN** |
+| **Status** | 🔵 **ACCEPTED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
 | **Impact** | Once a ramp starts, presigned transactions stored in `RampState.presignedTxs` have no expiry. If a ramp gets stuck in a non-terminal phase and the recovery worker retriggers it days later, the presigned transactions (which may reference stale nonces, changed on-chain state, or revoked approvals) will be used as-is. |
+
+**CTO Decision (2026-04-10):** Accepted — no-age-limit is intentional so stuck ramps can always be continued regardless of timing.
 
 **Description:** The `PresignedTx` model has no `createdAt` or `expiresAt` field. `getPresignedTransaction()` simply does `state.presignedTxs?.find(tx => tx.phase === phase)` with no age check. While the `RampRecoveryWorker` detects stale ramps (>10 min inactive) and retriggers processing, this recovery mechanism uses the same presigned transactions regardless of age.
 
@@ -1237,6 +1247,210 @@ All 12 TokenRelayer findings from two prior security reviews have been **verifie
 
 ---
 
+## Phase 4: Fresh Security Audit Pass (F-059 — F-067)
+
+> Discovered during a comprehensive re-audit of webhooks, input validation, race conditions, amount handling, and SDK security.
+
+### F-059: Quote Double-Binding Race Condition
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟠 **High** |
+| **Location** | `apps/api/src/api/services/ramp/ramp.service.ts` (lines 132-171), `apps/api/src/api/services/ramp/base.service.ts` (lines 116-124), `apps/api/src/models/rampState.model.ts` (lines 228-231) |
+| **Spec** | `03-ramp-engine/quote-lifecycle.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, race conditions investigation |
+| **Impact** | Two concurrent `registerRamp` requests can bind the same quote to two separate ramps, enabling double-spend or duplicate ramp processing. |
+
+**Description:** `registerRamp` runs inside a database transaction, but has three compounding weaknesses:
+
+1. **No `SELECT FOR UPDATE`:** `QuoteTicket.findByPk(quoteId, { transaction })` on line 136 does not acquire a row-level lock. Two concurrent transactions can both read the same quote as `"pending"`.
+2. **Unchecked `consumeQuote` return value:** `consumeQuote()` (line 171) returns `[affectedRowCount, updatedRows]`, but the return value is **discarded**. If the first transaction commits and changes status to `"consumed"`, the second transaction's UPDATE matches 0 rows — but the code doesn't notice and proceeds to create a second `RampState`.
+3. **No unique constraint on `quoteId`:** The `idx_ramp_quote` index on `rampState.quoteId` is **non-unique**, so the database won't reject duplicate ramps referencing the same quote.
+
+**Exploitation scenario:** Attacker sends two simultaneous `POST /v1/ramp/register` requests with the same `quoteId`. Both transactions read the quote as "pending", both create RampStates, and only one actually flips the quote to "consumed". The second ramp is now bound to a consumed quote but proceeds normally.
+
+**Resolution (Option C):** Applied all three defenses:
+1. Added `{ lock: Transaction.LOCK.UPDATE }` to `QuoteTicket.findByPk()` in `ramp.service.ts` to prevent concurrent reads.
+2. Changed `consumeQuote()` call to check returned `affectedRows` — throws `CONFLICT` if 0 rows affected (quote already consumed).
+3. Migration `026-add-unique-constraint-ramp-quote-id` replaces non-unique `idx_ramp_quote` index with unique constraint `uq_ramp_states_quote_id`. Model updated to reflect unique index.
+
+---
+
+### F-060: Subsidy Amount Validation Missing Positive/NaN Guards
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/controllers/subsidize.controller.ts` (lines 28-32), `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts`, `subsidize-post-swap-handler.ts` |
+| **Spec** | `06-cross-chain/fund-routing.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, amount handling investigation |
+| **Impact** | Negative, zero, NaN, or Infinity subsidy amounts could propagate to on-chain token transfers. |
+
+**Description:** `validateSubsidyAmount()` only checks that the amount doesn't exceed `maximumSubsidyAmountRaw`. It does **not** reject:
+- Negative amounts (e.g., `"-1000"`)
+- Zero amounts
+- Non-numeric strings (e.g., `"NaN"`, `"Infinity"`)
+
+The REST endpoints (`/v1/subsidize/preswap`, `/v1/subsidize/postswap`) are **not mounted** in the v1 router (dead code), so the public attack surface is limited. However, the same `validateSubsidyAmount` function is used by the internal phase handlers (`SubsidizePreSwapPhaseHandler`, `SubsidizePostSwapPhaseHandler`), which call it with values derived from quote metadata. A corrupted or manipulated quote could propagate invalid amounts through the internal subsidy flow.
+
+**Resolution:** Added try/catch around `Big(amount)` construction to reject non-numeric strings, added `amountBig.lte(0)` guard to reject zero and negative values. Both checks now throw before the max-amount check.
+
+---
+
+### F-061: No Maximum Amount Enforcement in Quote Finalization
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/services/quote/engines/finalize/onramp.ts` (line 83), `apps/api/src/api/services/quote/engines/finalize/offramp.ts` (line 48), `apps/api/src/api/services/quote/core/validation-helpers.ts` |
+| **Spec** | `03-ramp-engine/quote-lifecycle.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, amount handling investigation |
+| **Impact** | Users can create quotes with arbitrarily large amounts, potentially exceeding intended per-ramp limits. |
+
+**Description:** `validateAmountLimits()` is a generic helper that supports both `"min"` and `"max"` limit types, and token configs define `maxBuyAmountRaw` / `maxSellAmountRaw`. However, the finalize engines **only call it with `"min"`**:
+
+- `OnRampFinalizeEngine.validate()` → `validateAmountLimits(..., "min", ...)`
+- `OffRampFinalizeEngine.validate()` → `validateAmountLimits(..., "min", ...)`
+
+The `"max"` path is **never invoked** anywhere in the codebase. This means `maxBuyAmountRaw` and `maxSellAmountRaw` in token configs are defined but unenforced.
+
+**Resolution:** Added `validateAmountLimits(..., "max", ...)` calls alongside the existing `"min"` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
+
+---
+
+### F-062: SDK Logs API Key to Console
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `packages/sdk/src/services/ApiService.ts` (line 19) |
+| **Spec** | `07-operations/secret-management.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, SDK security investigation |
+| **Impact** | API keys are written to the console/log output of any application using the SDK. In Node.js server environments, this could expose the API key in log aggregators. |
+
+**Description:** Line 19 of `ApiService.ts`:
+```typescript
+console.log("Creating quote with request:", request);
+```
+The `request` object passed to `createQuote` already has `apiKey` merged in (from `VortexSdk.createQuote()` line 55: `{ ...request, api: true, apiKey: this.apiKey }`). This logs the full request object, including the API key, on every quote creation.
+
+**Resolution:** Removed the `console.log` statement entirely.
+
+---
+
+### F-063: SquidRouter High Slippage Rejection Disabled
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `packages/shared/src/services/squidrouter/route.ts` (lines 193-198) |
+| **Spec** | `05-integrations/squid-router.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, SDK/shared security investigation |
+| **Impact** | Routes with aggregate slippage >2.5% are accepted without rejection. Users could receive significantly less value than quoted if SquidRouter returns a high-slippage route. |
+
+**Description:** The code detects high slippage and logs a warning, but the rejection is commented out:
+```typescript
+if (slippage > 2.5) {
+  logger.current.warn(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+  // FIXME: temporarily disabled because we are facing issues with squidrouter routes failing the swap to USDT
+  // throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
+}
+```
+The `FIXME` comment indicates this was intentionally disabled as a workaround. However, leaving it disabled means there is no protection against high-slippage routes.
+
+**Resolution:** Re-enabled the `throw` statement for routes with slippage >2.5%. The 2.5% threshold remains as the existing hardcoded value.
+
+---
+
+### F-064: BRLA KYC Callback Lacks Inbound Signature Verification
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/routes/v1/brla.route.ts` (line 31), `apps/api/src/api/controllers/brla.controller.ts` |
+| **Spec** | `05-integrations/brla.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, webhook security investigation |
+| **Impact** | Anyone can POST to `/v1/brla/kyc/record-attempt` to create or manipulate BRLA TaxId records. The endpoint uses `optionalAuth` (not mandatory), and there is no HMAC/signature verification to prove the request actually came from BRLA. |
+
+**Description:** The `POST /v1/brla/kyc/record-attempt` endpoint is designed to record KYC attempts from the BRLA integration. It uses `optionalAuth` middleware, meaning it can be called without any authentication. There is no HMAC, webhook signature, or IP allowlist to verify the request originates from BRLA.
+
+The endpoint can write to the `TaxId` model (create/update records with KYC status), which is used downstream in the BRL ramp flow to determine whether a user has sufficient KYC level.
+
+**Note:** The system already implements outbound webhook signing (RSA-PSS via `WebhookDeliveryService`), so the pattern for signature verification exists — it just isn't applied to inbound callbacks.
+
+**Resolution:** Changed `optionalAuth` to `requireAuth` on the `/kyc/record-attempt` endpoint in `brla.route.ts`, ensuring only authenticated sessions can record KYC attempts.
+
+---
+
+### F-065: Ephemeral Keys Stored in Plaintext
+
+| Field | Value |
+|---|---|
+| **Severity** | 🔵 **Low** |
+| **Location** | `packages/sdk/src/storage.ts` (lines 3-11) |
+| **Spec** | `02-signing-keys/ephemeral-accounts.md` |
+| **Status** | 🔵 **ACCEPTED** |
+| **Found** | Fresh audit pass, SDK security investigation |
+| **Impact** | Ephemeral private keys (Stellar secret, Substrate mnemonic, EVM private key) are stored as plaintext JSON on the filesystem or in `localStorage`. If the host is compromised, all ephemeral keys for active ramps are exposed. |
+
+**Description:** When `storeEphemeralKeys` is enabled (default: `true`), the SDK writes ephemeral secrets to:
+- **Node.js:** A JSON file named `ephemerals_{rampId}.json` in the current working directory (no encryption, no restrictive file permissions).
+- **Browser:** `localStorage.setItem(fileName, content)` — accessible to any JS running on the same origin.
+
+These files contain the full `{ address, rampId, secret, type }` for each ephemeral account (Stellar, Substrate, EVM). The secrets allow full control of the ephemeral accounts.
+
+**CTO Decision (2026-04-10):** Accepted — Low severity, SDK concern. Ephemeral accounts are temporary and drained during cleanup. Will address in future SDK hardening iteration.
+
+**Mitigating factor:** Ephemeral accounts are temporary and should be drained during cleanup. The exposure window is limited to the ramp's active duration. Also, the SDK is currently documented as Node.js-only.
+
+---
+
+### F-066: No HTTPS Enforcement in SDK API Communication
+
+| Field | Value |
+|---|---|
+| **Severity** | 🔵 **Low** |
+| **Location** | `packages/sdk/src/services/ApiService.ts` (constructor, line 16) |
+| **Spec** | `07-operations/api-surface.md` |
+| **Status** | 🔵 **ACCEPTED** |
+| **Found** | Fresh audit pass, SDK security investigation |
+| **Impact** | SDK consumers could configure `apiBaseUrl` with an HTTP URL, sending API keys, quote data, and ephemeral account metadata over an unencrypted connection. |
+
+**Description:** The `ApiService` constructor accepts `apiBaseUrl` as a string with no validation. There is no check that the URL uses HTTPS. All SDK API calls (quote creation, ramp registration, ramp start) use this URL directly via `fetch()`.
+
+**CTO Decision (2026-04-10):** Accepted — Low severity, SDK concern. Production API is served over HTTPS. Primarily affects developer misconfiguration. Will address in future SDK hardening iteration.
+
+**Mitigating factor:** In production, the Vortex API is served over HTTPS. This primarily affects developers misconfiguring the SDK during testing who then forget to switch to HTTPS.
+
+---
+
+### F-067: Fee Calculation Allows Negative Fee Components
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/services/quote/core/quote-fees.ts` (lines 43-61, 96-139) |
+| **Spec** | `03-ramp-engine/fee-integrity.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, amount handling investigation |
+| **Impact** | A misconfigured partner fee entry with a negative `markupValue` or `vortexFeeValue` in the database would produce negative fee components, potentially increasing the user's output amount beyond the intended value. |
+
+**Description:** `calculateFeeComponent()` computes fees by either using an absolute value or multiplying a base amount by a relative value. There is no validation that the result is non-negative. `calculatePartnerAndVortexFees()` accumulates these components without a floor check. The `> 0` check on line 114/136 only sets a `hasApplicableFees` flag — it doesn't reject negative values.
+
+If a database partner record has `markupValue = -0.01` and `markupType = "relative"`, the computed markup would be negative, effectively giving the user a discount not intended by the platform.
+
+**Mitigating factor:** Partner records are managed by admins. This isn't directly exploitable by end users — it requires a misconfigured or compromised database entry.
+
+**Resolution:** Added a floor check at the end of `calculateFeeComponent()`: if the computed fee is negative, it is clamped to zero.
+
+---
+
 ## Additional Observations (Not Findings)
 
 These are design observations noted during spec writing that may warrant review but aren't direct vulnerabilities:
@@ -1251,3 +1465,6 @@ These are design observations noted during spec writing that may warrant review 
 | O-6 | No per-endpoint rate limiting — all endpoints share 100 req/min | `07-operations/api-surface.md` |
 | O-7 | `minDynamicDifference` has no DB CHECK constraint — can go negative | `03-ramp-engine/quote-lifecycle.md` |
 | O-8 | Quote expiry hardcoded to 10 min — not configurable via env var | `03-ramp-engine/quote-lifecycle.md` |
+| O-9 | Subsidize REST endpoints (`/v1/subsidize/preswap`, `/v1/subsidize/postswap`) exist in `subsidize.route.ts` but are **not mounted** in the v1 router — dead code that should be removed | `07-operations/api-surface.md` |
+| O-10 | Ephemeral keys are not zeroed from JS memory after signing — they remain until garbage collected | `02-signing-keys/ephemeral-accounts.md` |
+| O-11 | AlfredPay KYC callback endpoints (`kycRedirectOpened`, `kycRedirectFinished`) have `requireAuth` but no dedicated AlfredPay signature verification — relies solely on user session auth | `05-integrations/alfredpay.md` |

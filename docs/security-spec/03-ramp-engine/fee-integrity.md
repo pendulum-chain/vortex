@@ -60,3 +60,5 @@ This means the fees shown to the user (from the database system) may differ from
 - [x] `distributeFees` phase distributes exactly the amounts from the fee breakdown — no recalculation. **PASS** — fee distribution uses stored breakdown values.
 - [x] Anchor fee deduction by external services (BRLA, Stellar) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
+- [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
+- [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.

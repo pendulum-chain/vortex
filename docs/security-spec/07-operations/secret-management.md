@@ -80,3 +80,4 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [x] Verify no API endpoint returns environment variables or server configuration to clients. **PASS** — no endpoint exposes `process.env` or server config.
 - [x] Check whether `GOOGLE_PRIVATE_KEY` contains newlines that might be mis-parsed — a common issue with PEM keys in env vars. **PASS** — PEM key handling present; standard env var parsing.
 - [x] Map the full blast radius: if the API server is compromised, list every account, service, and database that becomes accessible. **PASS (comprehensive)** — full blast radius documented in the Secret Inventory table above.
+- [x] **FINDING F-062 (MEDIUM)**: Verify SDK does not log API keys or secrets to console. **PASS (FIXED)** — removed `console.log("Creating quote with request:", request)` from `ApiService.ts` that was leaking the full request object including API key.
