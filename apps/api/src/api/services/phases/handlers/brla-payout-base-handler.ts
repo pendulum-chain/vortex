@@ -8,9 +8,9 @@ import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
-export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
+export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "brlaPayoutOnMoonbeam";
+    return "brlaPayoutOnBase";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -179,4 +179,4 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 }
 
-export default new BrlaPayoutOnMoonbeamPhaseHandler();
+export default new BrlaPayoutOnBasePhaseHandler();

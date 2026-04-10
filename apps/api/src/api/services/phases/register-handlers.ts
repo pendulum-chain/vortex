@@ -2,7 +2,7 @@ import logger from "../../../config/logger";
 import alfredpayOfframpTransferHandler from "./handlers/alfredpay-offramp-transfer-handler";
 import alfredpayOnrampMintHandler from "./handlers/alfredpay-onramp-mint-handler";
 import brlaOnrampMintHandler from "./handlers/brla-onramp-mint-handler";
-import brlaPayoutMoonbeamHandler from "./handlers/brla-payout-moonbeam-handler";
+import brlaPayoutBaseHandler from "./handlers/brla-payout-base-handler";
 import destinationTransferHandler from "./handlers/destination-transfer-handler";
 import distributeFeesHandler from "./handlers/distribute-fees-handler";
 import finalSettlementSubsidy from "./handlers/final-settlement-subsidy";
@@ -24,6 +24,7 @@ import squidRouterPayPhaseHandler from "./handlers/squid-router-pay-phase-handle
 import squidRouterPhaseHandler from "./handlers/squid-router-phase-handler";
 import squidRouterPermitExecutionHandler from "./handlers/squidrouter-permit-execution-handler";
 import stellarPaymentHandler from "./handlers/stellar-payment-handler";
+import subsidizePostSwapEvmPhaseHandler from "./handlers/subsidize-post-swap-evm-handler";
 import subsidizePostSwapPhaseHandler from "./handlers/subsidize-post-swap-handler";
 import subsidizePreSwapPhaseHandler from "./handlers/subsidize-pre-swap-handler";
 import phaseRegistry from "./phase-registry";
@@ -42,9 +43,10 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(stellarPaymentHandler);
   phaseRegistry.registerHandler(spacewalkRedeemHandler);
   phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler);
+  phaseRegistry.registerHandler(subsidizePostSwapEvmPhaseHandler);
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
-  phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
+  phaseRegistry.registerHandler(brlaPayoutBaseHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(alfredpayOnrampMintHandler);
   phaseRegistry.registerHandler(alfredpayOfframpTransferHandler);

@@ -5,7 +5,6 @@
       "name": "vortex-monorepo",
       "dependencies": {
         "big.js": "^7.0.1",
-        "cobe": "^2.0.1",
         "husky": "^9.1.7",
         "lint-staged": "^16.1.0",
         "numora-react": "^3.0.3",
@@ -152,6 +151,7 @@
         "buffer": "^6.0.3",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "cobe": "catalog:",
         "crypto-js": "^4.2.0",
         "i18next": "^24.2.3",
         "input-otp": "^1.4.2",
@@ -381,6 +381,7 @@
     "bcrypt": "5.1.1",
     "big.js": "^7.0.1",
     "clsx": "^1.2.1",
+    "cobe": "^2.0.1",
     "concurrently": "^9.1.2",
     "prettier": "^2.8.4",
     "stellar-sdk": "^13.1.0",

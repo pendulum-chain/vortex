@@ -60,6 +60,16 @@ export abstract class BaseSquidRouterEngine implements Stage {
 
   protected abstract compute(ctx: QuoteContext): SquidRouterComputation;
 
+  protected mergeSubsidy(ctx: QuoteContext, outputAmountDecimal: Big): Big {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    return outputAmountDecimal.plus(ctx.subsidy!.subsidyAmountInOutputTokenDecimal);
+  }
+
+  protected mergeSubsidyRaw(ctx: QuoteContext, outputAmountRaw: Big): Big {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    return outputAmountRaw.plus(ctx.subsidy!.subsidyAmountInOutputTokenRaw);
+  }
+
   private buildBridgeRequest(data: SquidRouterData, req: CreateQuoteRequest): EvmBridgeRequest {
     return {
       amountRaw: data.amountRaw,

@@ -207,6 +207,62 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.BRLA]: {
+      assetSymbol: "BRLA",
+      decimals: 18,
+      erc20AddressSourceChain: "0xfCB34c47f850f452C15EA1B84d51231C38A61783",
+      isNative: true,
+      network: Networks.Base,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    }
+  },
+  [Networks.BaseSepolia]: {
+    [EvmToken.USDC]: {
+      assetSymbol: "USDC",
+      decimals: 6,
+      erc20AddressSourceChain: "0x1b888723fb7699f9dF0a99443107E8A888A67e11", // Mock USDC contract
+      isNative: false,
+      network: Networks.BaseSepolia,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.USDT]: {
+      assetSymbol: "USDT",
+      decimals: 6,
+      erc20AddressSourceChain: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      isNative: false,
+      network: Networks.BaseSepolia,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.ETH]: {
+      assetSymbol: "ETH",
+      decimals: 18,
+      erc20AddressSourceChain: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      isNative: true,
+      network: Networks.BaseSepolia,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.AXLUSDC]: {
+      assetSymbol: "USDC.axl",
+      decimals: 6,
+      erc20AddressSourceChain: "0xEB466342C4d449BC9f53A865D5Cb90586f405215",
+      isNative: false,
+      network: Networks.BaseSepolia,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.BRLA]: {
+      assetSymbol: "BRLA",
+      decimals: 18,
+      erc20AddressSourceChain: "0x57180796D4082Ba903d86c4eA3C86490fA10512c", // Mock BRLA contract
+      isNative: true,
+      network: Networks.BaseSepolia,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Avalanche]: {

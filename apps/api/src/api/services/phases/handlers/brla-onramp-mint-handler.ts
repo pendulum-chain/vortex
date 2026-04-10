@@ -6,8 +6,8 @@ import {
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
-  FiatToken,
-  getAnyFiatTokenDetailsMoonbeam,
+  EvmToken,
+  evmTokenConfig,
   Networks,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -28,7 +28,7 @@ import { StateMetadata } from "../meta-state-types";
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-// Phase description: wait for the tokens to arrive at the Moonbeam ephemeral address.
+// Phase description: wait for the tokens to arrive at the Base ephemeral address.
 // If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
 export class BrlaOnrampMintHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -106,7 +106,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.BASE,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
@@ -118,7 +118,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
           walletAddress: state.state.evmEphemeralAddress,
-          walletChain: AveniaPaymentMethod.MOONBEAM
+          walletChain: AveniaPaymentMethod.BASE
         }
       },
       taxIdRecord.subAccountId
@@ -127,20 +127,24 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     const expectedAmountReceived = quote.metadata.aveniaTransfer?.outputAmountRaw;
 
     logger.info(
-      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Moonbeam address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
       const pollingTimeMs = 1000;
-      const tokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+      const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
+
+      if (!tokenDetails) {
+        throw new Error("BRLA token details not found for Base network");
+      }
 
       await checkEvmBalancePeriodically(
-        tokenDetails.moonbeamErc20Address,
+        tokenDetails.erc20AddressSourceChain,
         evmEphemeralAddress,
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Moonbeam
+        Networks.Base
       );
     } catch (error) {
       if (!(error instanceof BalanceCheckError)) throw error;
@@ -153,7 +157,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
       throw isCheckTimeout
         ? this.createRecoverableError(`BrlaOnrampMintHandler: phase timeout reached with error: ${error}`)
-        : new Error(`Error checking Moonbeam balance: ${error}`);
+        : new Error(`Error checking Base balance: ${error}`);
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");

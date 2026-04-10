@@ -1,9 +1,13 @@
 import {
   AccountMeta,
+  EvmToken,
+  evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
+  getEvmTokenConfig,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  getOnChainTokenDetailsOrDefault,
   isFiatToken,
   isMoonbeamTokenDetails,
   isOnChainToken,
@@ -58,6 +62,47 @@ export function validateAveniaOnramp(
   }
 
   return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, substrateEphemeralEntry, toNetwork };
+}
+
+export function validateAveniaOnrampOnBase(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[]
+): {
+  toNetwork: Networks;
+  outputTokenDetails: OnChainTokenDetails;
+  evmEphemeralEntry: AccountMeta;
+  inputTokenDetails: OnChainTokenDetails;
+} {
+  const toNetwork = getNetworkFromDestination(quote.to);
+  if (!toNetwork) {
+    throw new Error(`Invalid network for destination ${quote.to}`);
+  }
+
+  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+  if (!evmEphemeralEntry) {
+    throw new Error("Base ephemeral not found");
+  }
+
+  if (!isFiatToken(quote.inputCurrency)) {
+    throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
+  }
+
+  // For Base, we use BRLA's native minted token
+  const inputTokenDetails = getEvmTokenConfig().base[EvmToken.BRLA];
+  if (!inputTokenDetails) {
+    throw new Error("BRLA token details not found for Base");
+  }
+
+  if (!isOnChainToken(quote.outputCurrency)) {
+    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+  }
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+
+  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
+
+  return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
 }
 
 export function validateMoneriumOnramp(

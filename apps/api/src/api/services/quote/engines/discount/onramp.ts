@@ -21,11 +21,13 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
   } as const;
 
   protected validate(ctx: QuoteContext): void {
-    if (!ctx.nablaSwap) {
-      throw new Error("OnRampDiscountEngine requires nablaSwap to be defined");
+    // Handle both Base USDC flows and Moonbeam axlUSDC flows
+    if (!ctx.nablaSwap && !ctx.nablaSwapEvm) {
+      throw new Error("OnRampDiscountEngine requires either nablaSwap or nablaSwapEvm to be defined");
     }
 
-    if (!ctx.nablaSwap.oraclePrice) {
+    const nablaSwap = ctx.nablaSwap || ctx.nablaSwapEvm;
+    if (!nablaSwap?.oraclePrice) {
       throw new Error("OnRampDiscountEngine requires nablaSwap.oraclePrice to be defined");
     }
 
@@ -91,9 +93,63 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     }
   }
 
+  /**
+   * Queries squidrouter to determine the actual conversion rate from USDC on Base
+   * to the final destination token on the target EVM chain.
+   *
+   * The oracle price is based on the Binance USDT-BRL rate, but the Nabla swap on Base
+   * outputs USDC (not USDT). Since USDC may trade at a discount to USDT via
+   * squidrouter, using the oracle USDT rate as the USDC subsidy target means the user
+   * may receive slightly less than the oracle-promised amount after the squidrouter step.
+   *
+   * This method fetches the actual USDC → destination token rate so the discount engine
+   * can back-calculate the precise USDC amount required on Base.
+   *
+   * @param ctx - The quote context (must have request.outputCurrency and request.to set)
+   * @param expectedUSDCDecimal - The oracle-based expected USDC amount used as probe input
+   * @returns The conversion rate (destination token units per USDC) or null on failure
+   */
+  private async getSquidRouterUSDCConversionRate(ctx: QuoteContext, expectedUSDCDecimal: Big): Promise<Big | null> {
+    const req = ctx.request;
+    const toNetwork = getNetworkFromDestination(req.to);
+
+    if (!toNetwork) {
+      return null;
+    }
+
+    try {
+      const bridgeQuote = await getEvmBridgeQuote({
+        amountDecimal: expectedUSDCDecimal.toString(),
+        fromNetwork: Networks.Base,
+        inputCurrency: EvmToken.USDC as unknown as OnChainToken,
+        outputCurrency: req.outputCurrency as OnChainToken,
+        rampType: req.rampType,
+        toNetwork
+      });
+
+      if (expectedUSDCDecimal.lte(0) || bridgeQuote.outputAmountDecimal.lte(0)) {
+        return null;
+      }
+
+      const conversionRate = bridgeQuote.outputAmountDecimal.div(expectedUSDCDecimal);
+      logger.info(
+        `OnRampDiscountEngine: SquidRouter USDC→${req.outputCurrency} rate: ${conversionRate.toFixed(6)} ` +
+          `(input: ${expectedUSDCDecimal.toFixed(6)} USDC, output: ${bridgeQuote.outputAmountDecimal.toFixed(6)} ${req.outputCurrency})`
+      );
+      return conversionRate;
+    } catch (error) {
+      logger.warn(
+        `OnRampDiscountEngine: Could not fetch SquidRouter USDC→${req.outputCurrency} conversion rate, ` +
+          `falling back to 1:1 assumption. Error: ${error}`
+      );
+      return null;
+    }
+  }
+
   protected async compute(ctx: QuoteContext): Promise<DiscountComputation> {
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const nablaSwap = ctx.nablaSwap!;
+    // Determine which nabla swap we're using (Base EVM or Pendulum)
+    const isBaseFlow = !!ctx.nablaSwapEvm;
+    const nablaSwap = ctx.nablaSwapEvm || ctx.nablaSwap!;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const oraclePrice = nablaSwap.oraclePrice!;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
@@ -105,25 +161,25 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    // Calculate the oracle-based expected output in USDT-equivalent axlUSDC terms.
+    // Calculate the oracle-based expected output
     const {
       expectedOutput: oracleExpectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
 
-    // For onramps to EVM chains (not AssetHub), the Nabla output token (axlUSDC on
-    // Pendulum) is subsequently bridged via squidrouter (Moonbeam → EVM destination). The
-    // oracle gives a USDT-BRL rate, but axlUSDC may not trade 1:1 with USDT on squidrouter.
-    // So we use the actual squidrouter route to determine the required axlUSDC amount
+    // For onramps to EVM chains (not AssetHub), adjust for the actual bridge conversion rate
     let adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal;
     if (ctx.request.to !== "assethub") {
-      const squidRouterRate = await this.getSquidRouterAxlUSDCConversionRate(ctx, oracleExpectedOutputDecimal);
+      const squidRouterRate = isBaseFlow
+        ? await this.getSquidRouterUSDCConversionRate(ctx, oracleExpectedOutputDecimal)
+        : await this.getSquidRouterAxlUSDCConversionRate(ctx, oracleExpectedOutputDecimal);
 
       if (squidRouterRate !== null && squidRouterRate.gt(0)) {
         adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal.div(squidRouterRate);
+        const tokenName = isBaseFlow ? "USDC" : "axlUSDC";
         ctx.addNote?.(
-          `OnRampDiscountEngine: Adjusted expected axlUSDC from ${oracleExpectedOutputDecimal.toFixed(6)} ` +
+          `OnRampDiscountEngine: Adjusted expected ${tokenName} from ${oracleExpectedOutputDecimal.toFixed(6)} ` +
             `to ${adjustedExpectedOutputDecimal.toFixed(6)} (squidRouter rate: ${squidRouterRate.toFixed(6)})`
         );
       }
