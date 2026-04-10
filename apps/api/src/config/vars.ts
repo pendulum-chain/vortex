@@ -192,6 +192,10 @@ export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
 export const MOONBEAM_FUNDING_PRIVATE_KEY = config.secrets.moonbeamExecutorPrivateKey;
 
 if (config.env === "production") {
+  if (config.sandboxEnabled) {
+    throw new Error("SANDBOX_ENABLED must not be 'true' in production — refusing to start");
+  }
+
   const missing: string[] = [];
 
   if (!config.supabase.url) missing.push("SUPABASE_URL");
