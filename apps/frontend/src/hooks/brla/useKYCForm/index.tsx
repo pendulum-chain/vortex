@@ -25,19 +25,29 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
     [ExtendedAveniaFieldOptions.FULL_NAME]: z
       .string()
+      .min(1, t("components.brlaExtendedForm.validation.fullName.required"))
       .min(3, t("components.brlaExtendedForm.validation.fullName.minLength"))
       .regex(/^[a-zA-Z\s]*$/, t("components.brlaExtendedForm.validation.fullName.format")),
 
-    [ExtendedAveniaFieldOptions.CEP]: z.string().min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
+    [ExtendedAveniaFieldOptions.CEP]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.cep.required"))
+      .min(3, t("components.brlaExtendedForm.validation.cep.minLength")),
 
-    [ExtendedAveniaFieldOptions.CITY]: z.string().min(5, t("components.brlaExtendedForm.validation.city.minLength")),
+    [ExtendedAveniaFieldOptions.CITY]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.city.required"))
+      .min(5, t("components.brlaExtendedForm.validation.city.minLength")),
 
     [ExtendedAveniaFieldOptions.STATE]: z
       .string()
       .min(1, t("components.brlaExtendedForm.validation.state.required"))
       .max(2, t("components.brlaExtendedForm.validation.state.maxLength")),
 
-    [ExtendedAveniaFieldOptions.STREET]: z.string().min(5, t("components.brlaExtendedForm.validation.street.minLength")),
+    [ExtendedAveniaFieldOptions.STREET]: z
+      .string()
+      .min(1, t("components.brlaExtendedForm.validation.street.required"))
+      .min(5, t("components.brlaExtendedForm.validation.street.minLength")),
 
     [ExtendedAveniaFieldOptions.NUMBER]: z.string().min(1, t("components.brlaExtendedForm.validation.number.required")),
 

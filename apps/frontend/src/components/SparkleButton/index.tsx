@@ -67,6 +67,7 @@ export const SparkleButton = ({ label, onClick, theme = "success", icon, classNa
       <button
         className={cn("btn relative z-10 flex w-full items-center justify-center gap-2", buttonClass)}
         onClick={handleClick}
+        type="button"
       >
         {icon}
         {label}
