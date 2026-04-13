@@ -35,12 +35,13 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (quote.inputCurrency === FiatToken.BRL) {
+    // BRL flows, use evm instance of Nabla.
+    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
       return this.executeEvmApprove(state);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateApprove(state, quote);
     } else {
-      throw new Error("NablaApprovePhaseHandler: Neither EVM nor substrate ephemeral address found in state");
+      throw new Error("NablaApprovePhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
     }
   }
 

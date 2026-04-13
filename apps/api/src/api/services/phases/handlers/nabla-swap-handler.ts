@@ -33,12 +33,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (quote.inputCurrency === FiatToken.BRL) {
+    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
       return this.executeEvmSwap(state, quote);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateSwap(state, quote);
     } else {
-      throw new Error("NablaSwapPhaseHandler: Neither EVM nor substrate ephemeral address found in state");
+      throw new Error("NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
     }
   }
 
@@ -160,7 +160,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       logger.info(`NablaSwapPhaseHandler: EVM swap transaction successful: ${txHash}`);
     } catch (e) {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
-      throw e;
+      // unrecoverable by default.
+      throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
     const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
