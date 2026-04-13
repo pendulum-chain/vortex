@@ -12,7 +12,11 @@ import {
 import { NetworkError, Transaction } from "stellar-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY, POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import {
+  BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_FUNDING_PRIVATE_KEY,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+} from "../../../../constants/constants";
 
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
@@ -317,11 +321,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         throw new Error(`FundEphemeralPhaseHandler: Could not get chain info for ${network}`);
       }
 
+      const amountToFundUnits =
+        network === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+
       const ephmeralAddress = state.state.evmEphemeralAddress;
-      const fundingAmountRaw = multiplyByPowerOfTen(
-        POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
-        chain.nativeCurrency.decimals
-      ).toFixed();
+      const fundingAmountRaw = multiplyByPowerOfTen(amountToFundUnits, chain.nativeCurrency.decimals).toFixed();
 
       // We use Moonbeam's funding account to fund the ephemeral account on the network.
       const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);

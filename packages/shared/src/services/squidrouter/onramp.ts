@@ -14,7 +14,11 @@ import {
   Networks,
   SquidrouterRoute
 } from "../..";
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
+import {
+  BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+  MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+  POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+} from "./config";
 import { getRoute } from "./route";
 import { createGenericRouteParams } from "./route-params";
 import { createTransactionDataFromRoute } from "./route-transactions";
@@ -149,7 +153,7 @@ export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
       publicClient: baseClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW // TODO do we need a different min value for Base?
+      swapValue: BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW
     });
 
     return {
