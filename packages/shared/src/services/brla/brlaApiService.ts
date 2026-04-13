@@ -357,6 +357,7 @@ export class BrlaApiService {
    */
   public async initiateKybLevel1(subAccountId: string): Promise<KybLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    // Avenia requires the field to be present but ignores its value for the Web SDK flow.
     const payload = { redirectUrl: "" };
     return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload);
   }

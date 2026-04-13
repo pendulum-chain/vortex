@@ -1,28 +1,22 @@
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
-import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { QuoteSummary } from "../QuoteSummary";
+import { useKYBForm } from "../../hooks/brla/useKYBForm";
+import { MenuButtons } from "../MenuButtons";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 
-/**
- * AveniaKYBForm - A simplified KYC form for companies (CNPJ)
- * Only collects the company name
- */
 export const AveniaKYBForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
 
   const { t } = useTranslation();
 
-  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
-
-  useEffect(() => {
-    if (aveniaState?.context.taxId) {
-      kycForm.setValue(ExtendedAveniaFieldOptions.TAX_ID, aveniaState.context.taxId);
+  const { kybForm } = useKYBForm({
+    initialData: {
+      fullName: aveniaState?.context.kycFormData?.fullName,
+      taxId: aveniaState?.context.taxId
     }
-  }, [aveniaState?.context.taxId, kycForm]);
+  });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
@@ -41,7 +35,7 @@ export const AveniaKYBForm = () => {
     },
     {
       id: ExtendedAveniaFieldOptions.TAX_ID,
-      index: 2,
+      index: 1,
       label: "CNPJ",
       placeholder: "",
       readOnly: true,
@@ -52,10 +46,15 @@ export const AveniaKYBForm = () => {
 
   return (
     <div className="relative flex min-h-(--widget-min-height) grow flex-col">
-      <div className="flex flex-1 flex-col">
-        <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={companyFormFields} form={kycForm} isCompany={true} />
-      </div>
-      <QuoteSummary />
+      <MenuButtons />
+      <AveniaVerificationForm
+        fields={companyFormFields}
+        form={kybForm}
+        isCompany={true}
+        onSubmit={data => {
+          aveniaKycActor.send({ formData: data, type: "FORM_SUBMIT" });
+        }}
+      />
     </div>
   );
 };

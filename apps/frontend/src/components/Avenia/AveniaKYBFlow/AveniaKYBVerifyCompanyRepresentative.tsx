@@ -1,4 +1,5 @@
 import BusinessCheckRepresentative from "../../../assets/business-check-representative.svg";
+import BusinessCheckRepresentativeSuccess from "../../../assets/business-check-representative-success.svg";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../../contexts/rampState";
 import { AveniaKYBVerifyStep } from "./AveniaKYBVerifyStep";
 
@@ -15,6 +16,7 @@ export const AveniaKYBVerifyCompanyRepresentative = () => {
   return (
     <AveniaKYBVerifyStep
       imageSrc={BusinessCheckRepresentative}
+      imageSrcVerified={BusinessCheckRepresentativeSuccess}
       instructionsKey="components.aveniaKYB.aveniaKYBVerifyCompanyRepresentative.instructions"
       isVerificationStarted={representativeVerificationStarted ?? false}
       onCancel={() => aveniaKycActor.send({ type: "KYB_COMPANY_BACK" })}
