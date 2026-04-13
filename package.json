@@ -55,6 +55,9 @@
     "concurrently": "catalog:",
     "typescript": "catalog:"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "lint-staged": {
     "*": [
       "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false"

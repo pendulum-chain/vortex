@@ -30,6 +30,9 @@
     "tsup": "catalog:",
     "typescript": "catalog:"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "exports": {
     ".": {
       "browser": "./src/index.ts",
