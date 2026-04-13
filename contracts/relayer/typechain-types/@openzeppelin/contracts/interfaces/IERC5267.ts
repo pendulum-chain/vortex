@@ -34,7 +34,7 @@ export interface IERC5267Interface extends Interface {
 export namespace EIP712DomainChangedEvent {
   export type InputTuple = [];
   export type OutputTuple = [];
-  export interface OutputObject {}
+  export type OutputObject = {};
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
   export type Log = TypedEventLog<Event>;

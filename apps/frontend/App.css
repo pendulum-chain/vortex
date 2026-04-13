@@ -1,10 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
 @plugin "daisyui";
 
 :root {
+  color-scheme: only light;
+
   /* DaisyUI theme colors */
   --color-primary: oklch(0.45 0.2 260);
   --color-primary-content: oklch(1 0 0);
@@ -161,12 +162,7 @@
 }
 
 .btn-vortex-accent {
-  @apply bg-gray-200;
-  @apply text-gray-700;
-  @apply rounded-full;
-  @apply border;
-  @apply border-gray-300;
-  @apply duration-200;
+  @apply bg-gray-200 text-gray-700 rounded-full border border-gray-300;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -185,12 +181,7 @@
 }
 
 .btn-vortex-success {
-  @apply bg-success;
-  @apply text-success-content;
-  @apply rounded-[var(--radius-field)];
-  @apply border;
-  @apply border-success;
-  @apply duration-200;
+  @apply bg-success text-success-content rounded-[var(--radius-field)] border border-success;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -228,12 +219,7 @@
 }
 
 .btn-vortex-primary-inverse {
-  @apply bg-white;
-  @apply text-primary;
-  @apply rounded-[var(--radius-field)];
-  @apply border;
-  @apply border-primary;
-  @apply cursor-pointer;
+  @apply bg-white text-primary rounded-[var(--radius-field)] border border-primary cursor-pointer;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -242,31 +228,15 @@
 }
 
 .btn-vortex-primary-inverse:hover {
-  @apply bg-primary/20;
-  @apply border-primary;
+  @apply bg-gray-300 border-primary text-primary;
 }
 
 .btn-vortex-primary-inverse:disabled {
-  @apply bg-white;
-  @apply text-primary;
-  @apply border-primary;
-  @apply opacity-40;
-  @apply cursor-not-allowed;
-}
-
-.btn-vortex-primary-inverse:active,
-.btn-vortex-primary-inverse:focus {
-  @apply bg-primary/20;
-  @apply text-primary;
-  @apply border-primary;
+  @apply bg-white text-primary border-primary opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-secondary {
-  @apply text-white;
-  @apply bg-pink-600;
-  @apply rounded-[var(--radius-field)];
-  @apply border-pink-600;
-  @apply shadow-none;
+  @apply text-white bg-pink-600 rounded-[var(--radius-field)] border-pink-600 shadow-none;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -285,12 +255,7 @@
 }
 
 .btn-vortex-danger {
-  @apply bg-error;
-  @apply text-error-content;
-  @apply rounded-xl;
-  @apply border;
-  @apply border-error;
-  @apply shadow-none;
+  @apply bg-error text-error-content rounded-xl border border-error shadow-none;
   transition: scale 0.1s ease-in-out;
 }
 
@@ -305,11 +270,7 @@
 }
 
 .btn-vortex-danger:disabled {
-  @apply bg-error;
-  @apply text-error-content;
-  @apply border-error;
-  @apply opacity-40;
-  @apply cursor-not-allowed;
+  @apply bg-error text-error-content border-error opacity-40 cursor-not-allowed;
 }
 
 .btn-vortex-danger:active,
