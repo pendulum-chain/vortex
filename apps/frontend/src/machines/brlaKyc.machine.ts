@@ -116,7 +116,7 @@ export const aveniaKycMachine = setup({
               };
             },
             kycFormData: ({ event }) => {
-              return event.formData;
+              return event.formData as KYCFormData;
             },
             taxId: ({ event }) => event.formData.taxId
           }),
@@ -143,7 +143,7 @@ export const aveniaKycMachine = setup({
               return {
                 ...context.kycFormData,
                 ...event.formData
-              };
+              } as KYCFormData;
             },
             taxId: ({ event }) => event.formData.taxId
           }),
