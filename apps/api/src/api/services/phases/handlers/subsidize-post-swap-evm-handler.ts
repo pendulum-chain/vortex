@@ -4,7 +4,7 @@ import {
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
-  isNativeEvmToken,
+  getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
   RampDirection,
@@ -53,7 +53,14 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get token details for the output token
-      const outputTokenDetails = quote.metadata.nablaSwapEvm.outputToken as unknown as EvmTokenDetails;
+      const outputToken = quote.metadata.nablaSwapEvm.outputCurrency as EvmToken;
+
+      const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outputToken) as EvmTokenDetails;
+      if (!outputTokenDetails) {
+        throw new Error(
+          `Could not find token details for output token ${outputToken} on network ${Networks.Base}. Invalid quote metadata.`
+        );
+      }
 
       // Check current balance on EVM
       const currentBalance = await checkEvmBalanceForToken({
@@ -74,6 +81,8 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
+      console.log("debug: expectedSwapOutputAmountRaw", expectedSwapOutputAmountRaw.toString());
+
       // Try to find the required amount to subsidize on the quote metadata
       if (state.type === RampDirection.BUY) {
         // For BUY operations, use the evmToEvm inputAmountRaw as the expected amount
@@ -83,6 +92,7 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
       }
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+      console.log("debug: requiredAmount", requiredAmount.toString());
 
       const didBalanceReachExpected = async () => {
         const balance = await checkEvmBalanceForToken({
@@ -142,11 +152,7 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    if (state.type === RampDirection.BUY) {
-      return "squidRouterSwap";
-    } else {
-      return "squidRouterSwap";
-    }
+    return "squidRouterSwap";
   }
 }
 

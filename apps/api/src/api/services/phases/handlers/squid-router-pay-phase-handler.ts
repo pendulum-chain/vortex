@@ -21,7 +21,7 @@ import {
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { moonbeam, polygon } from "viem/chains";
+import { base, moonbeam, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
@@ -47,18 +47,22 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculat
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private moonbeamPublicClient: PublicClient;
   private polygonPublicClient: PublicClient;
+  private basePublicClient: PublicClient;
   private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
   private polygonWalletClient: ReturnType<typeof createWalletClient>;
+  private baseWalletClient: ReturnType<typeof createWalletClient>;
 
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
     this.moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
     this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
+    this.basePublicClient = evmClientManager.getClient(Networks.Base);
 
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
     this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
     this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
+    this.baseWalletClient = evmClientManager.getWalletClient(Networks.Base, moonbeamExecutorAccount);
   }
 
   /**
@@ -232,12 +236,18 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
             payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
-            const isPolygon = quote.inputCurrency !== FiatToken.BRL;
-            const subsidyToken = isPolygon ? SubsidyToken.MATIC : SubsidyToken.GLMR;
+            let subsidyToken: SubsidyToken;
+            let payerAccount: `0x${string}` | undefined;
+
+            if (quote.inputCurrency === FiatToken.BRL) {
+              subsidyToken = SubsidyToken.ETH;
+              payerAccount = this.baseWalletClient.account?.address;
+            } else {
+              subsidyToken = SubsidyToken.MATIC;
+              payerAccount = this.polygonWalletClient.account?.address;
+            }
+
             const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber();
-            const payerAccount = isPolygon
-              ? this.polygonWalletClient.account?.address
-              : this.moonbeamWalletClient.account?.address;
 
             if (payerAccount) {
               await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
@@ -277,54 +287,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     quote: QuoteTicket
   ): Promise<Hash> {
     if (quote.inputCurrency === FiatToken.BRL) {
-      return this.executeFundTransactionOnMoonbeam(tokenValueRaw, swapHash, logIndex);
+      return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
     } else {
       return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
-    }
-  }
-
-  /**
-   * Execute a call to the Axelar gas service on Moonbeam network.
-   * @param tokenValueRaw The amount of GLMR to fund the transaction with.
-   * @param swapHash The swap transaction hash.
-   * @param logIndex The log index from Axelar scan.
-   * @returns Hash of the transaction that funds the Axelar gas service.
-   */
-  private async executeFundTransactionOnMoonbeam(
-    tokenValueRaw: string,
-    swapHash: `0x${string}`,
-    logIndex: number
-  ): Promise<Hash> {
-    try {
-      const walletClientAccount = this.moonbeamWalletClient.account;
-
-      if (!walletClientAccount) {
-        throw new Error("SquidRouterPayPhaseHandler: Moonbeam wallet client account not found.");
-      }
-
-      const transactionData = encodeFunctionData({
-        abi: axelarGasServiceAbi,
-        args: [swapHash, logIndex, walletClientAccount.address],
-        functionName: "addNativeGas"
-      });
-
-      const { maxFeePerGas, maxPriorityFeePerGas } = await this.moonbeamPublicClient.estimateFeesPerGas();
-
-      const gasPaymentHash = await this.moonbeamWalletClient.sendTransaction({
-        account: walletClientAccount,
-        chain: moonbeam,
-        data: transactionData,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
-        value: BigInt(tokenValueRaw)
-      });
-
-      logger.info(`SquidRouterPayPhaseHandler: Moonbeam fund transaction sent with hash: ${gasPaymentHash}`);
-      return gasPaymentHash;
-    } catch (error) {
-      logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Moonbeam: ", error);
-      throw new Error("SquidRouterPayPhaseHandler: Failed to send Moonbeam transaction");
     }
   }
 
@@ -374,11 +339,57 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
+  /**
+   * Execute a call to the Axelar gas service on Base network.
+   * @param tokenValueRaw The amount of ETH to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @returns Hash of the transaction that funds the Axelar gas service.
+   */
+  private async executeFundTransactionOnBase(tokenValueRaw: string, swapHash: `0x${string}`, logIndex: number): Promise<Hash> {
+    try {
+      const walletClientAccount = this.baseWalletClient.account;
+
+      if (!walletClientAccount) {
+        throw new Error("SquidRouterPayPhaseHandler: Base wallet client account not found.");
+      }
+
+      // Create addNativeGas transaction data
+      const transactionData = encodeFunctionData({
+        abi: axelarGasServiceAbi,
+        args: [swapHash, logIndex, walletClientAccount.address],
+        functionName: "addNativeGas"
+      });
+
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.basePublicClient.estimateFeesPerGas();
+
+      const gasPaymentHash = await this.baseWalletClient.sendTransaction({
+        account: walletClientAccount,
+        chain: base,
+        data: transactionData,
+        maxFeePerGas: maxFeePerGas * 2n,
+        maxPriorityFeePerGas: maxPriorityFeePerGas * 2n,
+        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+        value: BigInt(tokenValueRaw)
+      });
+
+      logger.info(`SquidRouterPayPhaseHandler: Base fund transaction sent with hash: ${gasPaymentHash}`);
+      return gasPaymentHash;
+    } catch (error) {
+      logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Base: ", error);
+      throw new Error("SquidRouterPayPhaseHandler: Failed to send Base transaction");
+    }
+  }
+
   private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
-      // Always Polygon for Monerium onramp, Moonbeam for BRL
+      // Always Polygon for Monerium onramp, Base for BRL
       const fromChain =
-        quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD ? Networks.Polygon : Networks.Moonbeam;
+        quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD
+          ? Networks.Polygon
+          : quote.inputCurrency === FiatToken.BRL
+            ? Networks.Base
+            : Networks.Moonbeam;
       const fromChainId = getNetworkId(fromChain)?.toString();
       const toChain = quote.to === Networks.AssetHub ? Networks.Moonbeam : quote.to;
       const toChainId = getNetworkId(toChain)?.toString();

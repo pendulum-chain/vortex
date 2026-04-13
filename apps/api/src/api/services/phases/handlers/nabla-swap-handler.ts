@@ -139,7 +139,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const baseClient = evmClientManager.getClient(Networks.Base);
 
     try {
-      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
 
       if (typeof nablaSwapTransaction !== "string") {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
@@ -161,6 +161,10 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     } catch (e) {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
       // unrecoverable by default.
+      // TODO do we want to add automatic recovery? Issue is, invalid swaps now revert.
+      // We can add a retry with up to 1 or 2 backups. Or try to differentiate based on the revert message.
+      // Although, this operation should never fail with the right amount of tokens, assuming the minium can be met.
+      // we could call the quoter to be sure right before, a sort of dry-run.
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 

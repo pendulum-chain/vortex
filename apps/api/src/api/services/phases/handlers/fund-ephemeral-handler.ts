@@ -77,6 +77,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (!isOnramp(state) && outputCurrency === FiatToken.USD) {
       return false;
     }
+
+    if (inputCurrency === FiatToken.BRL || outputCurrency === FiatToken.BRL) {
+      return false;
+    }
     return true;
   }
 

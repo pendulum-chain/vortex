@@ -29,7 +29,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.nablaSwap) {
+    if (!quote.metadata.nablaSwap && !quote.metadata.nablaSwapEvm) {
       throw new Error("Missing nablaSwap info in quote metadata");
     }
 
@@ -131,7 +131,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     const baseClient = evmClientManager.getClient(Networks.Base);
 
     try {
-      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, "nablaApprove");
+      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, "nablaApproveEvm");
 
       if (typeof nablaApproveTransaction !== "string") {
         throw new Error("NablaApprovePhaseHandler: Invalid EVM transaction data. This is a bug.");

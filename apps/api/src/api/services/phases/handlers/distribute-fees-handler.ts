@@ -76,7 +76,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
       if (isEvmTransaction) {
         const status = await this.checkEvmTransactionStatus(existingHash).catch((_: unknown) => {
-          throw this.createRecoverableError("Failed to check EVM transaction status");
+          throw this.createRecoverableError("Failed to check EVM transaction status from existing hash.");
         });
 
         if (status === ExtrinsicStatus.Success) {
@@ -87,7 +87,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         }
       } else {
         const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-          throw this.createRecoverableError("Failed to check extrinsic status");
+          throw this.createRecoverableError("Failed to check extrinsic status from existing hash.");
         });
 
         if (status === ExtrinsicStatus.Success) {

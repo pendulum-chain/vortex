@@ -283,7 +283,7 @@ export async function addEvmFeeDistributionTransaction(
       meta: {},
       network: Networks.Base,
       nonce: nextNonce,
-      phase: "distributeFees",
+      phase: "distributeFeesEvm",
       signer: account.address,
       txData: feeDistributionTx
     });
