@@ -15,8 +15,6 @@ export class OnRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
   }
 
   protected compute(ctx: QuoteContext): NablaSwapEvmComputation {
-    const { request } = ctx;
-
     if (!ctx.aveniaTransfer) {
       throw new Error(
         "OnRampSwapEngineEvm: Missing aveniaTransfer quote data from previous stage - ensure initialize stage ran successfully"
