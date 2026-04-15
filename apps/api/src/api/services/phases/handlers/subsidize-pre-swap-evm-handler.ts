@@ -7,7 +7,6 @@ import {
   getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
-  RampDirection,
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
