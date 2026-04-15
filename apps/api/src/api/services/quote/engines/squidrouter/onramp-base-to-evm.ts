@@ -1,6 +1,4 @@
 import {
-  ERC20_USDC_POLYGON,
-  ERC20_USDC_POLYGON_DECIMALS,
   EvmToken,
   getNetworkFromDestination,
   multiplyByPowerOfTen,
