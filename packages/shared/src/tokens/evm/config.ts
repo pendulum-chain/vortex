@@ -212,7 +212,7 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       assetSymbol: "BRLA",
       decimals: 18,
       erc20AddressSourceChain: "0xfCB34c47f850f452C15EA1B84d51231C38A61783",
-      isNative: true,
+      isNative: false,
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
@@ -259,7 +259,7 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       assetSymbol: "BRLA",
       decimals: 18,
       erc20AddressSourceChain: "0x57180796D4082Ba903d86c4eA3C86490fA10512c", // Mock BRLA contract
-      isNative: true,
+      isNative: false,
       network: Networks.BaseSepolia,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm

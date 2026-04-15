@@ -37,6 +37,7 @@ export type RampPhase =
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"
+  | "subsidizePreSwapEvm"
   | "subsidizePostSwap"
   | "subsidizePostSwapEvm"
   | "distributeFees"

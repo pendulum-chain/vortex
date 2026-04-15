@@ -22,9 +22,9 @@ import { SubsidyToken } from "../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
-export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
+export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return "subsidizePostSwapEvm";
+    return "subsidizePreSwapEvm";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -36,85 +36,64 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
     const { evmEphemeralAddress } = state.state as StateMetadata;
 
     if (!evmEphemeralAddress) {
-      throw new Error("SubsidizePostSwapEvmPhaseHandler: State metadata corrupted. This is a bug.");
-    }
-
-    if (!quote.metadata.evmToEvm) {
-      throw new Error("Missing evmToEvm information in quote metadata");
+      throw new Error("SubsidizePreSwapEvmPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     if (!quote.metadata.nablaSwapEvm) {
       throw new Error("Missing nablaSwapEvm information in quote metadata");
     }
 
-    if (!quote.metadata.subsidy) {
-      throw new Error("Missing subsidy information in quote metadata");
-    }
-
     try {
-      // Get token details for the output token
-      const outputToken = quote.metadata.nablaSwapEvm.outputCurrency as EvmToken;
+      // Get token details for the input token
+      const inputToken = quote.metadata.nablaSwapEvm.inputCurrency as EvmToken;
 
-      const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outputToken) as EvmTokenDetails;
-      if (!outputTokenDetails) {
+      const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inputToken) as EvmTokenDetails;
+      if (!inputTokenDetails) {
         throw new Error(
-          `Could not find token details for output token ${outputToken} on network ${Networks.Base}. Invalid quote metadata.`
+          `Could not find token details for input token ${inputToken} on network ${Networks.Base}. Invalid quote metadata.`
         );
       }
 
       // Check current balance on EVM
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",
-        chain: outputTokenDetails.network as EvmNetworks,
+        chain: inputTokenDetails.network as EvmNetworks,
         intervalMs: 1000, // Just check if there's any balance
         ownerAddress: evmEphemeralAddress,
         timeoutMs: 5000,
-        tokenDetails: outputTokenDetails
+        tokenDetails: inputTokenDetails
       });
 
       if (currentBalance.eq(Big(0))) {
         throw new Error("Invalid phase: input token did not arrive yet on EVM");
       }
 
-      // Add a default/base expected output amount from the swap
-      let expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw).plus(
-        quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
-      );
+      const expectedInputAmountForSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
 
-      console.log("debug: expectedSwapOutputAmountRaw", expectedSwapOutputAmountRaw.toString());
-
-      // Try to find the required amount to subsidize on the quote metadata
-      if (state.type === RampDirection.BUY) {
-        // For BUY operations, use the evmToEvm inputAmountRaw as the expected amount
-        expectedSwapOutputAmountRaw = Big(quote.metadata.evmToEvm?.inputAmountRaw);
-      } else {
-        expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
-      }
-
-      const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+      const requiredAmount = Big(expectedInputAmountForSwapRaw).sub(currentBalance);
       console.log("debug: requiredAmount", requiredAmount.toString());
 
       const didBalanceReachExpected = async () => {
         const balance = await checkEvmBalanceForToken({
-          amountDesiredRaw: expectedSwapOutputAmountRaw.toString(),
-          chain: outputTokenDetails.network as EvmNetworks,
+          amountDesiredRaw: expectedInputAmountForSwapRaw.toString(),
+          chain: inputTokenDetails.network as EvmNetworks,
           intervalMs: 1000,
           ownerAddress: evmEphemeralAddress,
           timeoutMs: 5000,
-          tokenDetails: outputTokenDetails
+          tokenDetails: inputTokenDetails
         });
-        return balance.gte(expectedSwapOutputAmountRaw);
+        return balance.gte(Big(expectedInputAmountForSwapRaw));
       };
 
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing on EVM
         logger.info(
-          `Subsidizing post-swap EVM with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
+          `Subsidizing pre-swap EVM with ${requiredAmount.toFixed()} to reach target value of ${expectedInputAmountForSwapRaw}`
         );
 
         const evmClientManager = EvmClientManager.getInstance();
         const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-        const destinationNetwork = outputTokenDetails.network as EvmNetworks;
+        const destinationNetwork = inputTokenDetails.network as EvmNetworks;
 
         // Get gas estimates
         const publicClient = evmClientManager.getClient(destinationNetwork);
@@ -131,12 +110,12 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
           data,
           maxFeePerGas,
           maxPriorityFeePerGas,
-          to: outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
+          to: inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
           value: 0n
         });
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.outputDecimals).toNumber();
-        const subsidyToken = quote.metadata.nablaSwapEvm.outputCurrency as unknown as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.inputDecimals).toNumber();
+        const subsidyToken = quote.metadata.nablaSwapEvm.inputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
 
@@ -144,20 +123,12 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
         await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
-      return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
+      return this.transitionToNextPhase(state, "nablaApprove");
     } catch (e) {
-      logger.error("Error in subsidizePostSwapEvm:", e);
-      throw this.createRecoverableError("SubsidizePostSwapEvmPhaseHandler: Failed to subsidize post swap on EVM.");
-    }
-  }
-
-  protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    if (state.type === RampDirection.BUY) {
-      return "squidRouterSwap";
-    } else {
-      return "brlaPayoutOnBase";
+      logger.error("Error in subsidizePreSwapEvm:", e);
+      throw this.createRecoverableError("SubsidizePreSwapEvmPhaseHandler: Failed to subsidize pre swap on EVM.");
     }
   }
 }
 
-export default new SubsidizePostSwapEvmPhaseHandler();
+export default new SubsidizePreSwapEvmPhaseHandler();

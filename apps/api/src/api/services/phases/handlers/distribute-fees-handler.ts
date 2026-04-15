@@ -63,7 +63,13 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Determine next phase
     const isBrlInvolved = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
     const nextPhase =
-      state.type === RampDirection.BUY ? (isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap") : "subsidizePreSwap";
+      state.type === RampDirection.BUY
+        ? isBrlInvolved
+          ? "subsidizePostSwapEvm"
+          : "subsidizePostSwap"
+        : isBrlInvolved
+          ? "subsidizePreSwapEvm"
+          : "subsidizePreSwap";
 
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
