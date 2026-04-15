@@ -1,7 +1,6 @@
 import { EvmToken, FiatToken, getPendulumDetails, Networks, PENDULUM_USDC_AXL, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseNablaSwapEngineEvm, NablaSwapEvmComputation } from "./base-evm";
-import { NablaSwapComputation } from "./index";
 
 export class OffRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
   readonly outputToken: EvmToken;
