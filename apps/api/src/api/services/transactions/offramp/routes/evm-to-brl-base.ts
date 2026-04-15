@@ -11,7 +11,7 @@ import {
 import Big from "big.js";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
-import { addEvmFeeDistributionTransaction, addFeeDistributionTransaction } from "../../common/feeDistribution";
+import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
