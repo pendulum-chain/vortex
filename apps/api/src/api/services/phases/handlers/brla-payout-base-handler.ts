@@ -189,7 +189,6 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
           });
         } else {
           logger.info(`BrlaPayoutOnBasePhaseHandler: Existing transaction ${brlaPayoutTxHash} succeeded.`);
-          txHash = brlaPayoutTxHash;
         }
       } else {
         txHash = (await evmClientManager.sendRawTransactionWithRetry(
