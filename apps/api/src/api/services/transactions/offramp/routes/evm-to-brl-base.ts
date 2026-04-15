@@ -12,7 +12,7 @@ import Big from "big.js";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
 import { addEvmFeeDistributionTransaction, addFeeDistributionTransaction } from "../../common/feeDistribution";
-import { addNablaSwapTransactionsOnBase } from "../../onramp/common/transactions";
+import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
 
@@ -120,6 +120,30 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
 
   // Fee distribution transaction on EVM
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
+
+  // Output after swap + discount and subsidy
+  const brlaTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
+  if (!brlaTransferAmountRaw) {
+    throw new Error("Missing outputAmountRaw in nablaSwapEvm metadata");
+  }
+
+  const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
+    amountRaw: brlaTransferAmountRaw,
+    destinationNetwork: Networks.Base,
+    isNativeToken: false,
+    toAddress: validatedBrlaEvmAddress,
+    toToken: baseBrlaAddress as `0x${string}`
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce,
+    phase: "brlaPayoutOnBase",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(finalDestinationTransfer) as EvmTransactionData
+  });
+  baseNonce++;
 
   stateMeta = {
     ...stateMeta,
