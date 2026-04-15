@@ -33,7 +33,7 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   let stateMeta: Partial<StateMetadata> = {};
 
   // Validate inputs and extract required data
-  const { fromNetwork, inputTokenDetails, outputTokenDetails } = validateOfframpQuote(quote, signingAccounts);
+  const { fromNetwork, inputTokenDetails } = validateOfframpQuote(quote, signingAccounts);
 
   const evmEphemeralEntry = signingAccounts.find(account => account.type === "EVM");
   if (!evmEphemeralEntry) {
