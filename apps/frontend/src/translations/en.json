@@ -463,6 +463,29 @@
       "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
       "tryAgain": "Try Again"
     },
+    "kybBusinessDocs": {
+      "articlesIncorporation": "Articles of Incorporation",
+      "proofAddress": "Proof of Address",
+      "shareholderRegistry": "Shareholder Registry",
+      "submit": "Submit Documents",
+      "subtitle": "Please upload the required business documents. Max 5 MB per file (JPG, PNG, PDF).",
+      "title": "Business Documents"
+    },
+    "kybForm": {
+      "businessName": "Business Name",
+      "nationality": "Nationality (2-letter code)",
+      "repDni": "Document Number (optional)",
+      "representativeTitle": "Authorized Representative",
+      "subtitle": "Please provide your business information to complete KYB.",
+      "taxId": "Tax ID",
+      "title": "Business Verification",
+      "website": "Website (optional)"
+    },
+    "kybPersonDocs": {
+      "submit": "Submit Documents",
+      "subtitle": "Please upload a photo or scan of the representative's ID document.",
+      "title": "Representative ID ({{current}} of {{total}})"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },

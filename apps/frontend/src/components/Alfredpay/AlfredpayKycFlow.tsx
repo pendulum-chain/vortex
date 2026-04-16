@@ -6,6 +6,9 @@ import { DoneScreen } from "./DoneScreen";
 import { FailureKycScreen } from "./FailureKycScreen";
 import { FailureScreen } from "./FailureScreen";
 import { FillingScreen } from "./FillingScreen";
+import { KybBusinessDocsScreen } from "./KybBusinessDocsScreen";
+import { KybFormScreen } from "./KybFormScreen";
+import { KybPersonDocsScreen } from "./KybPersonDocsScreen";
 import { LinkReadyScreen } from "./LinkReadyScreen";
 import { LoadingScreen } from "./LoadingScreen";
 import { MxnDocumentUploadScreen } from "./MxnDocumentUploadScreen";
@@ -34,6 +37,21 @@ export const AlfredpayKycFlow = () => {
     (files: import("../../machines/alfredpayKyc.machine").MxnKycFiles) => actor?.send({ files, type: "SUBMIT_FILES" }),
     [actor]
   );
+  const submitKybForm = useCallback(
+    (data: import("../../machines/alfredpayKyc.machine").KybFormData) => actor?.send({ data, type: "SUBMIT_KYB_FORM" }),
+    [actor]
+  );
+  const submitKybBusinessFiles = useCallback(
+    (files: import("../../machines/alfredpayKyc.machine").KybBusinessFiles) =>
+      actor?.send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" }),
+    [actor]
+  );
+  const submitKybPersonFiles = useCallback(
+    (files: import("../../machines/alfredpayKyc.machine").KybPersonFiles) =>
+      actor?.send({ files, type: "SUBMIT_KYB_PERSON_FILES" }),
+    [actor]
+  );
+  const goBack = useCallback(() => actor?.send({ type: "GO_BACK" }), [actor]);
 
   if (!actor || !state) return null;
 
@@ -49,7 +67,11 @@ export const AlfredpayKycFlow = () => {
     stateValue === "Retrying" ||
     stateValue === "SubmittingKycInfo" ||
     stateValue === "SubmittingFiles" ||
-    stateValue === "SendingSubmission"
+    stateValue === "SendingSubmission" ||
+    stateValue === "SubmittingKybInfo" ||
+    stateValue === "SubmittingKybBusinessFiles" ||
+    stateValue === "SubmittingKybPersonFiles" ||
+    stateValue === "SendingKybSubmission"
   ) {
     return <LoadingScreen />;
   }
@@ -64,6 +86,27 @@ export const AlfredpayKycFlow = () => {
 
   if (stateValue === "UploadingDocuments" && (isMxn || isCo)) {
     return <MxnDocumentUploadScreen onSubmit={submitFiles} />;
+  }
+
+  if (stateValue === "FillingKybForm") {
+    return <KybFormScreen onSubmit={submitKybForm} />;
+  }
+
+  if (stateValue === "UploadingKybBusinessDocs") {
+    return <KybBusinessDocsScreen onBack={goBack} onSubmit={submitKybBusinessFiles} />;
+  }
+
+  if (stateValue === "UploadingKybPersonDocs") {
+    const totalPersons = context.kybRelatedPersonIds?.length ?? 1;
+    const currentIndex = context.kybRelatedPersonIndex ?? 0;
+    return (
+      <KybPersonDocsScreen
+        currentIndex={currentIndex}
+        onBack={goBack}
+        onSubmit={submitKybPersonFiles}
+        totalPersons={totalPersons}
+      />
+    );
   }
 
   if (stateValue === "PollingStatus") {
@@ -108,7 +151,7 @@ export const AlfredpayKycFlow = () => {
     return <FailureScreen errorMessage={context.error?.message} onCancel={cancelProcess} onRetry={retryProcess} />;
   }
 
-  if (stateValue === "CustomerDefinition" && !isMxn && !isCo) {
+  if (stateValue === "CustomerDefinition") {
     return (
       <CustomerDefinitionScreen
         isBusiness={context.business ?? false}

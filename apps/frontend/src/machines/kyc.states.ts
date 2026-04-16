@@ -3,7 +3,14 @@ import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
-import { AlfredpayKycMachineError, MxnKycFiles, MxnKycFormData } from "./alfredpayKyc.machine";
+import {
+  AlfredpayKycMachineError,
+  KybBusinessFiles,
+  KybFormData,
+  KybPersonFiles,
+  MxnKycFiles,
+  MxnKycFormData
+} from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext, SelectedAveniaData } from "./types";
@@ -17,6 +24,11 @@ export interface AlfredpayKycContext extends RampContext {
   business?: boolean;
   mxnFormData?: MxnKycFormData;
   mxnFiles?: MxnKycFiles;
+  kybFormData?: KybFormData;
+  kybBusinessFiles?: KybBusinessFiles;
+  kybRelatedPersonFiles?: KybPersonFiles[];
+  kybRelatedPersonIndex?: number;
+  kybRelatedPersonIds?: string[];
 }
 
 export interface AveniaKycContext extends RampContext {

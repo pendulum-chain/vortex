@@ -464,6 +464,29 @@
       "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
       "tryAgain": "Tente novamente"
     },
+    "kybBusinessDocs": {
+      "articlesIncorporation": "Contrato Social",
+      "proofAddress": "Comprovante de Endereço",
+      "shareholderRegistry": "Registro de Acionistas",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie os documentos empresariais necessários. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
+      "title": "Documentos Empresariais"
+    },
+    "kybForm": {
+      "businessName": "Nome da Empresa",
+      "nationality": "Nacionalidade (código de 2 letras)",
+      "repDni": "Número do Documento (opcional)",
+      "representativeTitle": "Representante Autorizado",
+      "subtitle": "Por favor, forneça as informações da sua empresa para concluir o KYB.",
+      "taxId": "CNPJ / Identificação Fiscal",
+      "title": "Verificação Empresarial",
+      "website": "Site (opcional)"
+    },
+    "kybPersonDocs": {
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
+      "title": "Documento do Representante ({{current}} de {{total}})"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporariamente desativado"
     },

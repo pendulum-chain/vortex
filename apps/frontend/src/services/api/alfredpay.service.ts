@@ -9,7 +9,8 @@ import {
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
   AlfredpayListFiatAccountsResponse,
-  AlfredpayStatusResponse
+  AlfredpayStatusResponse,
+  SubmitKybInformationRequest
 } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
@@ -131,8 +132,45 @@ export const AlfredpayService = {
     return response.data;
   },
 
+  async sendKybSubmission(country: string, submissionId: string): Promise<void> {
+    await apiClient.post("/alfredpay/sendKybSubmission", { country, submissionId });
+  },
+
   async sendKycSubmission(country: string, submissionId: string): Promise<void> {
     await apiClient.post("/alfredpay/sendKycSubmission", { country, submissionId });
+  },
+
+  async submitKybFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("submissionId", submissionId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKybFile", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+  },
+
+  async submitKybInformation(
+    country: string,
+    data: Omit<SubmitKybInformationRequest, "country">
+  ): Promise<{ submissionId: string }> {
+    const response = await apiClient.post<{ submissionId: string }>("/alfredpay/submitKybInformation", {
+      country,
+      ...data
+    });
+    return response.data;
+  },
+
+  async submitKybRelatedPersonFile(country: string, relatedPersonId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("relatedPersonId", relatedPersonId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKybRelatedPersonFile", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
   },
 
   async submitKycFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
