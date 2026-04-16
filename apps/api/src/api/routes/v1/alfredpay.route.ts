@@ -17,10 +17,22 @@ router.post("/retryKyc", requireAuth, validateResultCountry, AlfredpayController
 router.post("/createBusinessCustomer", requireAuth, validateResultCountry, AlfredpayController.createBusinessCustomer);
 router.get("/getKybRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKybRedirectLink);
 
-// MXN API-based KYC
+// MXN/CO API-based KYC
 router.post("/submitKycInformation", requireAuth, validateResultCountry, AlfredpayController.submitKycInformation);
 router.post("/submitKycFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKycFile);
 router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKycSubmission);
+
+// Business API-based KYB
+router.post("/submitKybInformation", requireAuth, validateResultCountry, AlfredpayController.submitKybInformation);
+router.post("/submitKybFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKybFile);
+router.post(
+  "/submitKybRelatedPersonFile",
+  requireAuth,
+  upload.single("file"),
+  validateResultCountry,
+  AlfredpayController.submitKybRelatedPersonFile
+);
+router.post("/sendKybSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKybSubmission);
 
 // Fiat accounts (USD + MXN)
 router.post("/fiatAccounts", requireAuth, validateResultCountry, AlfredpayController.addFiatAccount);

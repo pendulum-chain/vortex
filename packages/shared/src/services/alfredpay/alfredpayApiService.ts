@@ -7,6 +7,8 @@ import {
   AlfredpayFiatAccountFields,
   AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
+  AlfredpayKybFileType,
+  AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
   AlfredpayOfframpQuote,
   AlfredpayOnrampQuote,
@@ -30,6 +32,8 @@ import {
   ListAlfredpayFiatAccountsResponse,
   RetryKybSubmissionResponse,
   RetryKycSubmissionResponse,
+  SubmitKybInformationRequest,
+  SubmitKybInformationResponse,
   SubmitKycInformationRequest,
   SubmitKycInformationResponse
 } from "./types";
@@ -178,10 +182,9 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as GetKybSubmissionResponse;
   }
 
-  // TODo is this endpoint correct?
-  public async retryKybSubmission(customerId: string, submissionId: string): Promise<RetryKybSubmissionResponse> {
-    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/retry`;
-    return (await this.executeRequest(path, "POST")) as RetryKybSubmissionResponse;
+  // Alfredpay has no dedicated KYB retry endpoint. Retry is handled by fetching a new verification URL.
+  public async retryKybSubmission(_customerId: string, _submissionId: string): Promise<RetryKybSubmissionResponse> {
+    return { message: "ok" };
   }
 
   public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {
@@ -293,5 +296,70 @@ export class AlfredpayApiService {
   public async sendKycSubmission(customerId: string, submissionId: string): Promise<void> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/submit`;
     await this.executeRequest(path, "POST");
+  }
+
+  public async submitKybInformation(
+    customerId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<SubmitKybInformationResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb`;
+    return (await this.executeRequest(path, "POST", { kybSubmission: data })) as SubmitKybInformationResponse;
+  }
+
+  public async submitKybFiles(
+    customerId: string,
+    submissionId: string,
+    fileType: AlfredpayKybFileType,
+    file: Blob
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("rawBody", file);
+    formData.append("fileType", fileType);
+
+    const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
+    const response = await fetch(url, {
+      body: formData,
+      headers: {
+        "api-key": this.apiKey,
+        "api-secret": this.apiSecret
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload KYB file: ${errorText}`);
+    }
+  }
+
+  public async submitKybRelatedPersonFiles(
+    customerId: string,
+    relatedPersonId: string,
+    fileType: AlfredpayKybRelatedPersonFileType,
+    file: Blob
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("rawBody", file);
+    formData.append("fileType", fileType);
+
+    const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;
+    const response = await fetch(url, {
+      body: formData,
+      headers: {
+        "api-key": this.apiKey,
+        "api-secret": this.apiSecret
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload KYB related person file: ${errorText}`);
+    }
+  }
+
+  public async sendKybSubmission(customerId: string, submissionId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/submit`;
+    await this.executeRequest(path, "PUT");
   }
 }

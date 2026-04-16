@@ -377,3 +377,49 @@ export enum AlfredpayKycFileType {
   FRONT = "National ID Front",
   BACK = "National ID Back"
 }
+
+// KYB form submission types
+export enum AlfredpayKybFileType {
+  ARTICLES_INCORPORATION = "articlesIncorporation",
+  PROOF_ADDRESS = "proofAddress",
+  SHAREHOLDER_REGISTRY = "shareholderRegistry"
+}
+
+export enum AlfredpayKybRelatedPersonFileType {
+  DOC_FRONT = "docFront",
+  DOC_BACK = "docBack"
+}
+
+export interface AlfredpayKybRelatedPerson {
+  firstName: string;
+  lastName: string;
+  email: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  nationalities: string[];
+  dni?: string;
+  cpf?: string;
+  pep?: boolean;
+}
+
+export interface SubmitKybInformationRequest {
+  businessName: string;
+  taxId: string;
+  country: string;
+  address: string;
+  state: string;
+  city: string;
+  zipCode: string;
+  website?: string;
+  relatedPersons: AlfredpayKybRelatedPerson[];
+}
+
+export interface AlfredpayKybRelatedPersonResponse {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface SubmitKybInformationResponse {
+  submissionId: string;
+  relatedPersons?: AlfredpayKybRelatedPersonResponse[];
+}
