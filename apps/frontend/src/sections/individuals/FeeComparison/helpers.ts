@@ -1,3 +1,5 @@
+import Big from "big.js";
+
 // In our inputs we use en-US format, where , is thousands separator and . is decimal separator
 const locale = "en-US";
 

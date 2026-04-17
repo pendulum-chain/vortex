@@ -51,7 +51,7 @@ Anchor.init(
     currency: {
       allowNull: false,
       defaultValue: "USD",
-      type: DataTypes.STRING(8)
+      type: DataTypes.STRING(30)
     },
     id: {
       defaultValue: DataTypes.UUIDV4,

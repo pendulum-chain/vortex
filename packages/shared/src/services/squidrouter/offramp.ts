@@ -5,12 +5,9 @@ import { EvmTransactionData, Networks, SquidrouterRoute } from "../../index";
 import { EvmClientManager } from "../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import { encodePayload } from "./payload";
-import {
-  createGenericRouteParams,
-  createRouteParamsWithMoonbeamPostHook,
-  createTransactionDataFromRoute,
-  getRoute
-} from "./route";
+import { getRoute } from "./route";
+import { createGenericRouteParams, createRouteParamsWithMoonbeamPostHook } from "./route-params";
+import { createTransactionDataFromRoute } from "./route-transactions";
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;

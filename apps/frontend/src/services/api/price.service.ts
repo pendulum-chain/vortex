@@ -118,7 +118,8 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string
+    network?: string,
+    signal?: AbortSignal
   ): Promise<AllPricesResponse> {
     return apiRequest<AllPricesResponse>("get", `${this.BASE_PATH}/all`, undefined, {
       params: {
@@ -127,7 +128,8 @@ export class PriceService {
         network,
         sourceCurrency,
         targetCurrency
-      }
+      },
+      signal
     });
   }
 

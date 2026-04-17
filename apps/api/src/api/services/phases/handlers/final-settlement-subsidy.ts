@@ -1,15 +1,18 @@
 import {
-  checkEvmBalancePeriodically,
+  checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   FiatToken,
+  getEvmBalance,
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
   isAlfredpayToken,
+  isNativeEvmToken,
   multiplyByPowerOfTen,
+  NATIVE_TOKEN_ADDRESS,
   Networks,
   RampCurrency,
   RampDirection,
@@ -18,7 +21,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -28,7 +31,6 @@ import { BasePhaseHandler } from "../base-phase-handler";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -61,7 +63,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
-      throw new Error("Quote not found or invalid for the given state");
+      throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
 
     const outTokenDetails =
@@ -74,12 +76,16 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       throw new Error("FinalSettlementSubsidyHandler: Output currency is not an EVM token");
     }
 
-    // 3 distinct cases so far:
+    const isNative = isNativeEvmToken(outTokenDetails);
+
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
         if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-          expectedAmountRaw = Big(quote.metadata.alfredpayMint!.outputAmountRaw);
+          if (!quote.metadata.alfredpayMint) {
+            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay mint metadata");
+          }
+          expectedAmountRaw = Big(quote.metadata.alfredpayMint.outputAmountRaw);
           break;
         }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
@@ -87,7 +93,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
       case RampDirection.SELL:
         if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp!.inputAmountRaw);
+          if (!quote.metadata.alfredpayOfframp) {
+            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay offramp metadata");
+          }
+          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
           break;
         }
         break;
@@ -117,20 +126,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       }
     }
 
-    const actualBalance = await checkEvmBalancePeriodically(
-      outTokenDetails.erc20AddressSourceChain,
-      ephemeralAddress,
-      "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
-      BALANCE_POLLING_TIME_MS,
-      EVM_BALANCE_CHECK_TIMEOUT_MS,
-      destinationNetwork
-    );
+    // 2. Check ephemeral address balance (handles both native and ERC-20 automatically)
+    const actualBalance = await checkEvmBalanceForToken({
+      amountDesiredRaw: "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+      chain: destinationNetwork,
+      intervalMs: BALANCE_POLLING_TIME_MS,
+      ownerAddress: ephemeralAddress,
+      timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+      tokenDetails: outTokenDetails
+    });
 
-    const actualBalanceFundingAccount = await publicClient.readContract({
-      abi: erc20Abi,
-      address: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-      args: [fundingAccount.address],
-      functionName: "balanceOf"
+    // 3. Check funding account balance (handles both native and ERC-20 automatically)
+    const actualBalanceFundingAccount = await getEvmBalance({
+      chain: destinationNetwork,
+      ownerAddress: fundingAccount.address as `0x${string}`,
+      tokenDetails: outTokenDetails
     });
 
     const subsidyAmountRaw = expectedAmountRaw.minus(actualBalance);
@@ -142,10 +152,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
-    logger.info(`FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} units to ${ephemeralAddress}`);
+    logger.info(
+      `FinalSettlementSubsidyHandler: Subsidizing ${subsidyAmountRaw.toString()} raw units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
+    );
 
-    // Check if funding account has enough balance
-    if (new Big(actualBalanceFundingAccount.toString()).lt(subsidyAmountRaw)) {
+    // 4. Top up funding account if insufficient balance (ERC-20 only; native tokens are transferred directly)
+    if (!isNative && actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
       logger.info(
         `FinalSettlementSubsidyHandler: Funding account has insufficient balance. Swapping native token to ${outTokenDetails.assetSymbol}`
       );
@@ -159,17 +171,20 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       const oneUsdInNativeRaw = multiplyByPowerOfTen(oneUsdInNative, nativeToken.decimals).toFixed(0);
 
       const chainId = getNetworkId(destinationNetwork).toString();
+
+      // Use a placeholder address for this query to prevent rate limiting issues
+      const placeholderAddress = privateKeyToAddress(generatePrivateKey());
       const testRouteResult = await getRoute({
         bypassGuardrails: true,
         enableExpress: true,
-        fromAddress: fundingAccount.address,
+        fromAddress: placeholderAddress,
         fromAmount: oneUsdInNativeRaw,
         fromChain: chainId,
         fromToken: NATIVE_TOKEN_ADDRESS,
         slippageConfig: {
           autoMode: 1
         },
-        toAddress: fundingAccount.address,
+        toAddress: placeholderAddress,
         toChain: chainId,
         toToken: outTokenDetails.erc20AddressSourceChain
       });
@@ -182,7 +197,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         `FinalSettlementSubsidyHandler: Swapping ${requiredNativeRaw} native units (approx. rate ${rate}) to get required subsidy.`
       );
 
-      // Check the amount of native is not higher than cap, cap specidied in units of usd.
+      // Check the amount of native is not higher than cap, cap specified in units of usd.
       const requiredNative = new Big(requiredNativeRaw).div(new Big(10).pow(nativeToken.decimals));
       const requiredNativeInUsd = await priceFeedService.convertCurrency(
         requiredNative.toString(),
@@ -233,40 +248,50 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info("FinalSettlementSubsidyHandler: Swap successful. Waiting for balance update...");
 
       // Wait for balance checks to pass
-      await checkEvmBalancePeriodically(
-        outTokenDetails.erc20AddressSourceChain,
-        fundingAccount.address,
-        subsidyAmountRaw.toString(),
-        BALANCE_POLLING_TIME_MS,
-        EVM_BALANCE_CHECK_TIMEOUT_MS,
-        destinationNetwork
-      );
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: subsidyAmountRaw.toString(),
+        chain: destinationNetwork,
+        intervalMs: BALANCE_POLLING_TIME_MS,
+        ownerAddress: fundingAccount.address,
+        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+        tokenDetails: outTokenDetails
+      });
     }
 
-    // Execution Loop
+    // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
     let txHash: `0x${string}` | undefined = state.state.finalSettlementSubsidyTxHash as `0x${string}` | undefined;
 
     try {
-      const data = encodeFunctionData({
-        abi: erc20Abi,
-        args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
-        functionName: "transfer"
-      });
-
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
       let receipt: TransactionReceipt | undefined = undefined;
       let attempt = 0;
 
       while (attempt < 5 && (!receipt || receipt.status !== "success")) {
-        // Blind retry for transaction submission
-        txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-          data,
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-          to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-          value: 0n
-        });
+        if (isNative) {
+          // Native token: simple value transfer, no contract interaction
+          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            to: ephemeralAddress,
+            value: BigInt(subsidyAmountRaw.toFixed(0))
+          });
+        } else {
+          // ERC-20: encode transfer call
+          const data = encodeFunctionData({
+            abi: erc20Abi,
+            args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
+            functionName: "transfer"
+          });
+
+          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            data,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
+            value: 0n
+          });
+        }
 
         receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 

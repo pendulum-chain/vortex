@@ -1,11 +1,4 @@
-import {
-  ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_V1,
-  getNetworkFromDestination,
-  Networks,
-  OnChainToken,
-  RampDirection
-} from "@vortexfi/shared";
+import { ERC20_EURE_POLYGON_V1, getNetworkFromDestination, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
@@ -42,7 +35,8 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
       });
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to);
+    const toTokenAddress = toToken.erc20AddressSourceChain;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const moneriumMint = ctx.moneriumMint!;
 
@@ -53,9 +47,9 @@ export class OnRampSquidRouterEurToEvmEngine extends BaseSquidRouterEngine {
         fromToken: ERC20_EURE_POLYGON_V1,
         inputAmountDecimal: moneriumMint.outputAmountDecimal,
         inputAmountRaw: moneriumMint.outputAmountRaw,
-        outputDecimals: ERC20_EURE_POLYGON_DECIMALS,
+        outputDecimals: toToken.decimals,
         toNetwork,
-        toToken
+        toToken: toTokenAddress
       },
       type: "evm-to-evm"
     };

@@ -214,7 +214,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.info(`Destination EVM ephemeral address already funded on ${destinationNetwork}.`);
       }
     } catch (e) {
-      console.error("Error in FundEphemeralPhaseHandler:", e);
+      logger.error("Error in FundEphemeralPhaseHandler:", e);
 
       // Preserve UnrecoverablePhaseError
       if (e instanceof UnrecoverablePhaseError) {
@@ -341,7 +341,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found`);
       }
     } catch (error) {
-      console.error("FundEphemeralPhaseHandler: Error during funding Polygon ephemeral:", error);
+      logger.error("FundEphemeralPhaseHandler: Error during funding Polygon ephemeral:", error);
       throw new Error("FundEphemeralPhaseHandler: Error during funding Polygon ephemeral: " + error);
     }
   }
@@ -376,7 +376,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found on ${destinationNetwork}`);
       }
     } catch (error) {
-      console.error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral:`, error);
+      logger.error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral:`, error);
       throw new Error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral: ` + error);
     }
   }

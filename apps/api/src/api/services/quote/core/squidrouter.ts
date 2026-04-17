@@ -13,6 +13,7 @@ import {
   QuoteError,
   RampDirection,
   RouteParams,
+  SquidrouterCachedRoute,
   SquidrouterRoute,
   stringifyBigWithSignificantDecimals
 } from "@vortexfi/shared";
@@ -114,10 +115,11 @@ function prepareSquidrouterRouteParams(params: {
 }
 
 /**
- * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
+ * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback.
+ * Works with both full routes and cached routes (which include the value field needed for calculation).
  */
-async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
-  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.transactionRequest.value), -18);
+async function calculateSquidrouterNetworkFee(route: SquidrouterRoute | SquidrouterCachedRoute): Promise<string> {
+  const squidRouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
 
   try {
     // Get current GLMR price in USD from price feed service
@@ -169,7 +171,7 @@ function buildRouteRequest(request: EvmBridgeQuoteRequest) {
 }
 
 async function getSquidrouterRouteData(routeParams: RouteParams) {
-  const routeResult = await getRoute(routeParams);
+  const routeResult = await getRoute(routeParams, { useCache: true });
 
   if (!routeResult?.data?.route?.estimate) {
     throw new APIError({

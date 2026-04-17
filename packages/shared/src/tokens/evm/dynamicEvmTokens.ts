@@ -1,4 +1,3 @@
-import axios from "axios";
 import { EvmNetworks, getNetworkId, isNetworkEVM, Networks } from "../../helpers/networks";
 import logger from "../../logger";
 import { squidRouterConfigBase } from "../../services/squidrouter/config";
@@ -245,12 +244,12 @@ function buildPriceLookup(tokensByNetwork: Record<EvmNetworks, Partial<Record<st
 }
 
 async function fetchSquidRouterTokens(): Promise<SquidRouterToken[]> {
-  const result = await axios.get(SQUID_ROUTER_API_URL, {
-    headers: {
-      "x-integrator-id": squidRouterConfigBase.integratorId
-    }
+  const response = await fetch(SQUID_ROUTER_API_URL, {
+    headers: { "x-integrator-id": squidRouterConfigBase.integratorId }
   });
-  return result.data.tokens;
+  if (!response.ok) throw new Error(`Failed to fetch SquidRouter tokens: ${response.status}`);
+  const data = await response.json();
+  return data.tokens;
 }
 
 function buildFallbackFromStaticConfig(): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {

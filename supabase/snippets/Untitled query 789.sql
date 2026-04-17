@@ -1,1 +1,0 @@
-  SELECT id, email FROM profiles WHERE email = 'szarkiewiczmail@gmail.com';

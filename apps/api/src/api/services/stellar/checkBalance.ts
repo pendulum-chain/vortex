@@ -26,7 +26,7 @@ export function checkBalancePeriodically(
           reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
         }
       } catch (error) {
-        console.error("Error checking balance:", error);
+        logger.error("Error checking balance:", error);
         // Don't clear the interval here, allow it to continue checking
       }
     }, intervalMs);

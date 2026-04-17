@@ -30,7 +30,7 @@ function buildZodSchema(
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const f of fields) {
-    let schema: z.ZodTypeAny = z.string();
+    let schema: z.ZodTypeAny;
 
     if (f.required) {
       schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: t(f.label) }));
@@ -113,14 +113,14 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
       toast.success(t("components.fiatAccountRegistration.registeredSuccess"));
       onSuccess();
     } catch (err: unknown) {
-      const axiosErr = err as {
+      const apiErr = err as {
         response?: {
           status?: number;
           data?: { error?: string; message?: string; fields?: { field: string; message: string }[] };
         };
       };
-      const status = axiosErr?.response?.status;
-      const body = axiosErr?.response?.data;
+      const status = apiErr?.response?.status;
+      const body = apiErr?.response?.data;
 
       if (status === 409) {
         toast.error(t("components.fiatAccountRegistration.alreadyRegistered"));

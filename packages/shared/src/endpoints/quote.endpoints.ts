@@ -84,8 +84,8 @@ export enum QuoteError {
   MissingRequiredFields = "Missing required fields",
   InvalidRampType = 'Invalid ramp type, must be "BUY" or "SELL"',
 
-  MissingToField = "BUY rampType requires 'from' parameter",
-  MissingFromField = "SELL rampType requires 'to' parameter",
+  MissingToField = "SELL rampType requires 'to' parameter",
+  MissingFromField = "BUY rampType requires 'from' parameter",
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",

@@ -93,9 +93,9 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param state The current ramp state
    * @param nextPhase The next phase
    * @param metadata Additional metadata for the transition
-   * @returns The updated ramp state
+   * @returns The updated ramp state. Returns a new in-memory instance.
    */
-  protected async transitionToNextPhase(state: RampState, nextPhase: RampPhase, metadata?: unknown): Promise<RampState> {
+  protected transitionToNextPhase(state: RampState, nextPhase: RampPhase, metadata?: unknown): RampState {
     const phaseHistory = [
       ...state.phaseHistory,
       {
@@ -105,12 +105,11 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       }
     ];
 
-    await state.update({
+    return RampState.build({
+      ...state.get(),
       currentPhase: nextPhase,
       phaseHistory
     });
-
-    return state.reload();
   }
 
   /**

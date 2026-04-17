@@ -1,4 +1,5 @@
 import { Networks, RampDirection, TransakPriceResponse } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { createQuoteRequest } from "./request-creator";
@@ -26,7 +27,7 @@ async function fetchTransakData(url: string): Promise<FetchResult> {
     const body = (await response.json()) as TransakApiResponse;
     return { body, response };
   } catch (fetchError) {
-    console.error("Transak fetch error:", fetchError);
+    logger.error("Transak fetch error:", fetchError);
     throw new ProviderInternalError(`Network error fetching price from Transak: ${(fetchError as Error).message}`);
   }
 }

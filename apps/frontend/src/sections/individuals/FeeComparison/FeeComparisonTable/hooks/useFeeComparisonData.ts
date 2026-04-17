@@ -27,13 +27,14 @@ export function useFeeComparisonData(
 ) {
   // Fetch prices from all providers (including vortex)
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery<AllPricesResponse, Error>({
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       return PriceService.getAllPricesBundled(
         sourceAssetSymbol.toLowerCase() as Currency,
         targetAssetSymbol.toLowerCase() as Currency,
         amount,
         direction,
-        network
+        network,
+        signal
       );
     },
     queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, network, direction],

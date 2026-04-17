@@ -69,7 +69,7 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, "hydrationSwap");
     } catch (e) {
-      console.error("Error in pendulumToHydrationXcm phase:", e);
+      logger.error("Error in pendulumToHydrationXcm phase:", e);
       throw e;
     }
   }

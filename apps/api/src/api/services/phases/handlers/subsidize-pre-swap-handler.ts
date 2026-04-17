@@ -88,7 +88,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, "nablaApprove");
     } catch (e) {
-      console.error("Error in subsidizePreSwap:", e);
+      logger.error("Error in subsidizePreSwap:", e);
       throw this.createRecoverableError("SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.");
     }
   }
