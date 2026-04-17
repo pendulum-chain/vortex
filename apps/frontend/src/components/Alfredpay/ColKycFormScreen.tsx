@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlfredpayColombiaDocumentType } from "@vortexfi/shared";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -18,11 +19,11 @@ const schema = z
       .min(7)
       .regex(/^\+?\d[\d\s\-()]{5,}$/, "Enter a valid phone number"),
     state: z.string().min(1),
-    typeDocumentCol: z.enum(["CC", "CE"]),
+    typeDocumentCol: z.nativeEnum(AlfredpayColombiaDocumentType),
     zipCode: z.string().min(1)
   })
   .superRefine((data, ctx) => {
-    if (data.typeDocumentCol === "CC" && data.dni.length !== 10) {
+    if (data.typeDocumentCol === AlfredpayColombiaDocumentType.CC && data.dni.length !== 10) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CC must be exactly 10 digits", path: ["dni"] });
     }
   });
@@ -124,7 +125,9 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
             id="col-dni"
             inputMode="numeric"
             placeholder={
-              documentType === "CC" ? t("components.colKycForm.dniPlaceholderCc") : t("components.colKycForm.dniPlaceholderCe")
+              documentType === AlfredpayColombiaDocumentType.CC
+                ? t("components.colKycForm.dniPlaceholderCc")
+                : t("components.colKycForm.dniPlaceholderCe")
             }
             type="text"
             {...register("dni")}

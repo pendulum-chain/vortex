@@ -472,7 +472,7 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
 
-      const fileBlob = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKycFile(
         alfredPayCustomer.alfredPayId,
@@ -554,7 +554,7 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
       }
 
-      const fileBlob = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKybFiles(
         alfredPayCustomer.alfredPayId,
@@ -592,7 +592,7 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
       }
 
-      const fileBlob = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKybRelatedPersonFiles(
         alfredPayCustomer.alfredPayId,
@@ -701,7 +701,7 @@ export class AlfredpayController {
 
   static async deleteFiatAccount(req: Request, res: Response) {
     try {
-      const { fiatAccountId } = req.params;
+      const { fiatAccountId } = req.params as { fiatAccountId: string };
       const { country } = req.query as { country: string };
       const userId = req.userId!;
 
