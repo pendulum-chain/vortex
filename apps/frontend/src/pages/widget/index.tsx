@@ -26,6 +26,7 @@ import {
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
+import { isInCompoundState } from "../../machines/types";
 import { FiatAccountRegistration } from "../alfredpay/FiatAccountRegistration";
 
 export interface WidgetProps {
@@ -122,7 +123,9 @@ const WidgetContent = () => {
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
 
-    if (isCnpj && aveniaState?.context.kybUrls) {
+    const isInKybFlow = isCnpj && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
+
+    if (isInKybFlow) {
       return <AveniaKYBFlow />;
     }
 

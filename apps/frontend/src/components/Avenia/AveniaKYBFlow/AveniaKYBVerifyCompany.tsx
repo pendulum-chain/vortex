@@ -1,4 +1,5 @@
 import BusinessCheck from "../../../assets/business-check-business.svg";
+import BusinessCheckSuccess from "../../../assets/business-check-business-success.svg";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../../contexts/rampState";
 import { AveniaKYBVerifyStep } from "./AveniaKYBVerifyStep";
 
@@ -15,6 +16,7 @@ export const AveniaKYBVerifyCompany = () => {
   return (
     <AveniaKYBVerifyStep
       imageSrc={BusinessCheck}
+      imageSrcVerified={BusinessCheckSuccess}
       isVerificationStarted={companyVerificationStarted ?? false}
       onCancel={() => aveniaKycActor.send({ type: "GO_BACK" })}
       onVerificationDone={() => aveniaKycActor.send({ type: "KYB_COMPANY_DONE" })}

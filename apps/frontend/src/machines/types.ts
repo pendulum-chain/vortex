@@ -112,6 +112,24 @@ export type SelectedAveniaData = {
   context: AveniaKycContext;
 };
 
+/**
+ * Checks whether an XState v5 machine is currently in a compound (parent) state.
+ *
+ * In XState v5, `state.value` is a plain string when the machine is in a simple state,
+ * but becomes an object when it is in a nested state. For example, a machine in
+ * `KYBFlow > CompanyVerification` has `state.value === { KYBFlow: "CompanyVerification" }`.
+ *
+ * @see https://stately.ai/docs/xstate-v5/state-machine-actors#state-value
+ *
+ * @example
+ * isInCompoundState(state.value, "KYBFlow")
+ * // true  when state.value === { KYBFlow: "CompanyVerification" }
+ * // false when state.value === "DocumentUpload"
+ */
+export function isInCompoundState(stateValue: unknown, state: string): boolean {
+  return typeof stateValue === "object" && stateValue !== null && state in (stateValue as object);
+}
+
 export type SelectedAlfredpayData = {
   stateValue: AlfredpayKycSnapshot["value"];
   context: AlfredpayKycContext;
