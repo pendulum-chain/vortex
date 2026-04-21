@@ -28,6 +28,7 @@ import {
   KycFailureReason,
   KycLevel1Payload,
   KycLevel1Response,
+  normalizeTaxId,
   RampDirection
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
@@ -40,6 +41,7 @@ import { APIError } from "../errors/api-error";
 // Helper functions for TaxId updates
 
 async function updateTaxIdToAccepted(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  const normalized = normalizeTaxId(taxId);
   await TaxId.update(
     {
       finalQuoteId: quoteId,
@@ -50,13 +52,14 @@ async function updateTaxIdToAccepted(taxId: string, quoteId?: string, sessionId?
     {
       where: {
         internalStatus: TaxIdInternalStatus.Requested,
-        taxId
+        taxId: normalized
       }
     }
   );
 }
 
 async function updateTaxIdToRejected(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
+  const normalized = normalizeTaxId(taxId);
   await TaxId.update(
     {
       finalQuoteId: quoteId,
@@ -67,7 +70,7 @@ async function updateTaxIdToRejected(taxId: string, quoteId?: string, sessionId?
     {
       where: {
         internalStatus: TaxIdInternalStatus.Requested,
-        taxId
+        taxId: normalized
       }
     }
   );
@@ -152,7 +155,7 @@ export const getAveniaUser = async (
         internalStatus: {
           [Op.ne]: TaxIdInternalStatus.Consulted
         },
-        taxId
+        taxId: normalizeTaxId(taxId)
       }
     });
     if (!taxIdRecord) {
@@ -201,7 +204,7 @@ export const recordInitialKycAttempt = async (
 
     const taxIdRecord = await TaxId.findOne({
       where: {
-        taxId
+        taxId: normalizeTaxId(taxId)
       }
     });
 
@@ -245,7 +248,7 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       throw new APIError({
         message: "Ramp disabled",
@@ -309,7 +312,7 @@ export const createSubaccount = async (
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
 
-    const existingTaxId = await TaxId.findByPk(taxId);
+    const existingTaxId = await TaxId.findByPk(normalizeTaxId(taxId));
 
     if (existingTaxId) {
       await existingTaxId.update({
@@ -353,7 +356,7 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
@@ -445,7 +448,7 @@ export const getSelfieLivenessUrl = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
       return;
@@ -503,7 +506,7 @@ export const getUploadUrls = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       // Invalid state. Cannot happen since we create the subaccount first for every tax.
       res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });

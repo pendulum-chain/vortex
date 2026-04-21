@@ -20,6 +20,7 @@ import {
   IbanPaymentData,
   MoneriumErrors,
   Networks,
+  normalizeTaxId,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -46,7 +47,6 @@ import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { SupabaseAuthService } from "../auth/supabase.service";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -665,7 +665,7 @@ export class RampService extends BaseRampService {
   ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found",
@@ -685,7 +685,7 @@ export class RampService extends BaseRampService {
     try {
       const pixKeyData = await brlaApiService.validatePixKey(pixKey);
       //validate the recipient's taxId with partial information
-      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+      if (!validateMaskedNumber(normalizeTaxId(pixKeyData.taxId), normalizeTaxId(receiverTaxId))) {
         throw new APIError({
           message: "Invalid pixKey or receiverTaxId.",
           status: httpStatus.BAD_REQUEST
@@ -736,7 +736,7 @@ export class RampService extends BaseRampService {
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found.",
