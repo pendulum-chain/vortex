@@ -15,6 +15,14 @@ export function generateReferenceLabel(quote: Quote): string {
   return quote.id.slice(0, 8);
 }
 
+/**
+ * Strips all non-digit characters from a tax ID so that
+ * "758.444.017-77" and "75844401777" are stored/compared identically.
+ */
+export function normalizeTaxId(taxId: string): string {
+  return taxId.replace(/\D/g, "");
+}
+
 export const CPF_REGEX = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
 export const CNPJ_REGEX = /^(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})$/;
 

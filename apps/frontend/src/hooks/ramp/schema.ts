@@ -2,7 +2,7 @@ import { decodeAddress, encodeAddress } from "@polkadot/keyring";
 import { hexToU8a, isHex } from "@polkadot/util";
 import { CNPJ_REGEX, CPF_REGEX, FiatToken, isValidCnpj, isValidCpf, Networks, RampDirection } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
-import * as Yup from "yup";
+import { z } from "zod";
 import { useQuote } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 
@@ -14,13 +14,15 @@ export type RampFormValues = {
   fiatToken?: FiatToken;
 };
 
-export const PHONE_REGEX = /^\+[1-9][0-9]\d{1,14}$/;
-export const EMAIL_REGEX =
-  /^(([^<>()[\]\\.,;:\s@"]+(.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-export const RANDOM_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+const pixKeySchema = z.union([
+  z.string().regex(CPF_REGEX),
+  z.string().regex(CNPJ_REGEX),
+  z.string().regex(/^\+[1-9][0-9]\d{1,14}$/),
+  z.email(),
+  z.guid()
+]);
 
-// Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
-const pixKeyRegex = [CPF_REGEX, CNPJ_REGEX, PHONE_REGEX, EMAIL_REGEX, RANDOM_REGEX];
+const evmAddressSchema = z.string().regex(/^(0x)?[0-9a-f]{40}$/i);
 
 const isValidPolkadotAddress = (address: string) => {
   try {
@@ -34,50 +36,65 @@ const isValidPolkadotAddress = (address: string) => {
   }
 };
 
-const isValidEvmAddress = (address: string) => {
-  return /^(0x)?[0-9a-f]{40}$/i.test(address);
-};
-
 export const createRampFormSchema = (
   t: (key: string) => string,
   rampDirection: RampDirection,
   requiresWalletAddress: "substrate" | "evm" | false
 ) => {
-  return Yup.object<RampFormValues>().shape({
-    pixId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.SELL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.pixId.required"))
-          .test("matches-one", t("components.swap.validation.pixId.format"), value => {
-            if (!value) return false;
-            return pixKeyRegex.some(regex => regex.test(value));
-          })
-    }),
-    taxId: Yup.string().when("fiatToken", {
-      is: (value: FiatToken) => value === FiatToken.BRL,
-      otherwise: schema => schema.optional(),
-      then: schema =>
-        schema
-          .required(t("components.swap.validation.taxId.required"))
-          .test("matches-one", t("components.swap.validation.taxId.format"), value => {
-            if (!value) return false;
-            return isValidCnpj(value) || isValidCpf(value);
-          })
-    }),
-    walletAddress: Yup.string()
-      .test("is-valid-evm-address", t("components.swap.validation.walletAddress.formatEvm"), value => {
-        if (!requiresWalletAddress || requiresWalletAddress === "substrate") return true;
-        if (!value) return false;
-        if (requiresWalletAddress === "evm") return isValidEvmAddress(value);
-      })
-      .test("is-valid-substrate-address", t("components.swap.validation.walletAddress.formatSubstrate"), value => {
-        if (!requiresWalletAddress || requiresWalletAddress === "evm") return true;
-        if (!value) return false;
-        if (requiresWalletAddress === "substrate") return isValidPolkadotAddress(value);
-      })
-  });
+  return z
+    .object({
+      fiatToken: z.string().optional() as z.ZodType<FiatToken | undefined>,
+      moneriumWalletAddress: z.string().optional(),
+      pixId: z.string().optional(),
+      taxId: z.string().optional(),
+      walletAddress: z.string().optional()
+    })
+    .superRefine((data, ctx) => {
+      if (data.fiatToken === FiatToken.BRL && rampDirection === RampDirection.SELL) {
+        const { pixId } = data;
+        if (!pixId) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.pixId.required"),
+            path: ["pixId"]
+          });
+        } else if (!pixKeySchema.safeParse(pixId).success) {
+          ctx.addIssue({ code: "custom", message: t("components.swap.validation.pixId.format"), path: ["pixId"] });
+        }
+      }
+      if (data.fiatToken === FiatToken.BRL) {
+        const { taxId } = data;
+        if (!taxId) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.taxId.required"),
+            path: ["taxId"]
+          });
+        } else if (!isValidCnpj(taxId) && !isValidCpf(taxId)) {
+          ctx.addIssue({ code: "custom", message: t("components.swap.validation.taxId.format"), path: ["taxId"] });
+        }
+      }
+      if (requiresWalletAddress === "evm") {
+        const { walletAddress } = data;
+        if (!walletAddress || !evmAddressSchema.safeParse(walletAddress).success) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.walletAddress.formatEvm"),
+            path: ["walletAddress"]
+          });
+        }
+      }
+      if (requiresWalletAddress === "substrate") {
+        const { walletAddress } = data;
+        if (!walletAddress || !isValidPolkadotAddress(walletAddress)) {
+          ctx.addIssue({
+            code: "custom",
+            message: t("components.swap.validation.walletAddress.formatSubstrate"),
+            path: ["walletAddress"]
+          });
+        }
+      }
+    });
 };
 
 export const useSchema = () => {
