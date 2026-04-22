@@ -26,7 +26,7 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
       ctx.request.to === "pix"
         ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal
         : ctx.alfredpayOfframp
-          ? ctx.alfredpayOfframp.inputAmountDecimal
+          ? ctx.alfredpayOfframp.outputAmountDecimal
           : ctx.pendulumToStellar?.outputAmountDecimal;
 
     if (!offrampAmountBeforeAnchorFees) {
