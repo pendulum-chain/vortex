@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
 import type { TFunction } from "i18next";
 import { useMemo } from "react";
@@ -26,11 +26,11 @@ function buildZodSchema(
   fields: FieldDef[],
   accountType: FiatAccountTypeKey,
   t: TFunction
-): z.ZodObject<Record<string, z.ZodTypeAny>> {
-  const shape: Record<string, z.ZodTypeAny> = {};
+): z.ZodObject<Record<string, z.ZodType>> {
+  const shape: Record<string, z.ZodType> = {};
 
   for (const f of fields) {
-    let schema: z.ZodTypeAny;
+    let schema: z.ZodType;
 
     if (f.required) {
       schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: t(f.label) }));
@@ -73,7 +73,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
     formState: { errors },
     handleSubmit,
     register
-  } = useForm({ resolver: zodResolver(schema) });
+  } = useForm({ resolver: standardSchemaResolver(schema) });
 
   const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
 

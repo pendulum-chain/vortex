@@ -9,6 +9,7 @@ import {
   useAveniaKycSelector,
   useRampActor
 } from "../contexts/rampState";
+import { isInCompoundState } from "../machines/types";
 
 export const useStepBackNavigation = () => {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ export const useStepBackNavigation = () => {
         aveniaKycActor.send({ type: "GO_BACK" });
         return;
       }
-      if (typeof childState === "object" && childState !== null && "KYBFlow" in childState) {
+      if (isInCompoundState(childState, "KYBFlow")) {
         aveniaKycActor.send({ type: "GO_BACK" });
         return;
       }
