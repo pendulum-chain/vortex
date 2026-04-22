@@ -112,10 +112,14 @@ export const alfredpayKycMachine = setup({
         }
         await new Promise<void>((resolve, reject) => {
           const id = setTimeout(resolve, 5000);
-          signal.addEventListener("abort", () => {
-            clearTimeout(id);
-            reject(new Error("Aborted"));
-          });
+          signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(id);
+              reject(new Error("Aborted"));
+            },
+            { once: true }
+          );
         });
       }
       throw new Error("Aborted");
@@ -243,10 +247,14 @@ export const alfredpayKycMachine = setup({
         }
         await new Promise<void>((resolve, reject) => {
           const id = setTimeout(resolve, 5000);
-          signal.addEventListener("abort", () => {
-            clearTimeout(id);
-            reject(new Error("Aborted"));
-          });
+          signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(id);
+              reject(new Error("Aborted"));
+            },
+            { once: true }
+          );
         });
       }
       throw new Error("Aborted");

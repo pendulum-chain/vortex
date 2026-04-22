@@ -32,7 +32,7 @@ export const COPOnrampDetails: FC = () => {
       <p className="pt-2 text-center">{t("components.SummaryPage.COPOnrampDetails.instruction")}</p>
       <div className="mt-4 mb-4 flex flex-col items-center rounded-lg bg-blue-50 p-4">
         <p className="text-center">
-          <Trans key="components.SummaryPage.COPOnrampDetails.qrCodeDescription">
+          <Trans i18nKey="components.SummaryPage.COPOnrampDetails.qrCodeDescription">
             Once done, please click on <strong>"I have made the payment"</strong>
           </Trans>
         </p>

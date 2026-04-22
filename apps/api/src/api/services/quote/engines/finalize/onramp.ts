@@ -57,7 +57,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
       const output = ctx.evmToEvm?.outputAmountDecimal ?? ctx.alfredpayMint?.outputAmountDecimal;
       if (!output) {
         throw new APIError({
-          message: "OnRampFinalizeEngine requires bridge output for EVM",
+          message: "OnRampFinalizeEngine requires evmToEvm or alfredpayMint output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
@@ -66,7 +66,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
       const output = ctx.moonbeamToEvm?.outputAmountDecimal;
       if (!output) {
         throw new APIError({
-          message: "OnRampFinalizeEngine requires bridge output for EVM",
+          message: "OnRampFinalizeEngine requires moonbeamToEvm bridge output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
