@@ -138,8 +138,7 @@ export class AlfredpayController {
       res.json(response);
     } catch (error) {
       logger.error("Error creating Alfredpay customer:", error);
-      const message = error instanceof Error ? error.message : "Internal server error";
-      res.status(500).json({ error: message });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 

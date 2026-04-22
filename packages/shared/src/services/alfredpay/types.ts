@@ -273,6 +273,12 @@ export interface AlfredpayFiatPaymentInstructions {
   expirationDate?: string;
   bankName?: string;
   accountHolderName?: string;
+  bankAccountNumber?: string;
+  bankRoutingNumber?: string;
+  bankBeneficiaryName?: string;
+  bankBeneficiaryAddress?: string;
+  paymentDescription?: string;
+  externalId?: string;
   //wildcard
   [key: string]: unknown;
 }
@@ -340,6 +346,18 @@ export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
 
 export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+
+export class AlfredpayTradeLimitError extends Error {
+  readonly minQuantity: string;
+  readonly fromCurrency: string;
+
+  constructor(minQuantity: string, fromCurrency: string) {
+    super(`Trade below minimum: ${minQuantity} ${fromCurrency}`);
+    this.name = "AlfredpayTradeLimitError";
+    this.minQuantity = minQuantity;
+    this.fromCurrency = fromCurrency;
+  }
+}
 
 // MXN KYC form submission types
 export enum AlfredpayDocumentType {

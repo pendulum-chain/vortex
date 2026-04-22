@@ -6,7 +6,17 @@ import { MenuButtons } from "../MenuButtons";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
-function FileDropZone({ label, file, onChange }: { label: string; file: File | null; onChange: (file: File) => void }) {
+function FileDropZone({
+  fieldKey,
+  label,
+  file,
+  onChange
+}: {
+  fieldKey: string;
+  label: string;
+  file: File | null;
+  onChange: (file: File) => void;
+}) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +40,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
         className={`flex min-h-[88px] w-full cursor-pointer touch-manipulation flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 transition-colors ${
           file ? "border-primary bg-primary/5" : "border-neutral-300 bg-base-200 [@media(hover:hover)]:hover:border-primary/60"
         }`}
-        onClick={() => document.getElementById(`kyb-person-doc-${label}`)?.click()}
+        onClick={() => document.getElementById(`kyb-person-doc-${fieldKey}`)?.click()}
         type="button"
       >
         {file ? (
@@ -41,7 +51,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
         <input
           accept={ACCEPTED_TYPES.join(",")}
           className="sr-only"
-          id={`kyb-person-doc-${label}`}
+          id={`kyb-person-doc-${fieldKey}`}
           onChange={e => {
             const f = e.target.files?.[0];
             if (f) handleFile(f);
@@ -82,8 +92,8 @@ export function KybPersonDocsScreen({ currentIndex, totalPersons, onBack, onSubm
       <p className="mb-6 text-center text-gray-500 text-sm">{t("components.kybPersonDocs.subtitle")}</p>
 
       <div className="flex grow-1 flex-col space-y-4 px-1 pb-4">
-        <FileDropZone file={front} label={t("components.mxnDocumentUpload.frontLabel")} onChange={setFront} />
-        <FileDropZone file={back} label={t("components.mxnDocumentUpload.backLabel")} onChange={setBack} />
+        <FileDropZone fieldKey="front" file={front} label={t("components.mxnDocumentUpload.frontLabel")} onChange={setFront} />
+        <FileDropZone fieldKey="back" file={back} label={t("components.mxnDocumentUpload.backLabel")} onChange={setBack} />
 
         <p className="text-center text-gray-400 text-xs">{t("components.mxnDocumentUpload.fileHint")}</p>
 

@@ -1177,8 +1177,10 @@
       "error": {
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "amountOutOfRange": {
-          "buy": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}",
-          "sell": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}"
+          "buyTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}}",
+          "buyTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}}",
+          "sellTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}}",
+          "sellTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}}"
         },
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",

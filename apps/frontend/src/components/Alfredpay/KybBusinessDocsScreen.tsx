@@ -6,7 +6,17 @@ import { MenuButtons } from "../MenuButtons";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
-function FileDropZone({ label, file, onChange }: { label: string; file: File | null; onChange: (file: File) => void }) {
+function FileDropZone({
+  fieldKey,
+  label,
+  file,
+  onChange
+}: {
+  fieldKey: string;
+  label: string;
+  file: File | null;
+  onChange: (file: File) => void;
+}) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +40,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
         className={`flex min-h-[88px] w-full cursor-pointer touch-manipulation flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 transition-colors ${
           file ? "border-primary bg-primary/5" : "border-neutral-300 bg-base-200 [@media(hover:hover)]:hover:border-primary/60"
         }`}
-        onClick={() => document.getElementById(`kyb-doc-${label}`)?.click()}
+        onClick={() => document.getElementById(`kyb-doc-${fieldKey}`)?.click()}
         type="button"
       >
         {file ? (
@@ -41,7 +51,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
         <input
           accept={ACCEPTED_TYPES.join(",")}
           className="sr-only"
-          id={`kyb-doc-${label}`}
+          id={`kyb-doc-${fieldKey}`}
           onChange={e => {
             const f = e.target.files?.[0];
             if (f) handleFile(f);
@@ -80,12 +90,19 @@ export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScree
 
       <div className="flex grow-1 flex-col space-y-4 px-1 pb-4">
         <FileDropZone
+          fieldKey="articlesIncorporation"
           file={articlesIncorporation}
           label={t("components.kybBusinessDocs.articlesIncorporation")}
           onChange={setArticlesIncorporation}
         />
-        <FileDropZone file={proofAddress} label={t("components.kybBusinessDocs.proofAddress")} onChange={setProofAddress} />
         <FileDropZone
+          fieldKey="proofAddress"
+          file={proofAddress}
+          label={t("components.kybBusinessDocs.proofAddress")}
+          onChange={setProofAddress}
+        />
+        <FileDropZone
+          fieldKey="shareholderRegistry"
           file={shareholderRegistry}
           label={t("components.kybBusinessDocs.shareholderRegistry")}
           onChange={setShareholderRegistry}

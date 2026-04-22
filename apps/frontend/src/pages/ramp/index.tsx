@@ -43,7 +43,7 @@ export const Ramp = () => {
     if (quoteFromState && !quote && state !== "QuoteReady") {
       forceSetQuote(quoteFromState);
     }
-  }, [quote, quoteFromState, forceSetQuote]);
+  }, [quote, quoteFromState, forceSetQuote, state]);
 
   useEffect(() => {
     // Keep machine context in sync with live quotes fetched by useQuoteService in QuoteReady
@@ -52,6 +52,5 @@ export const Ramp = () => {
     }
   }, [quote, state, rampActor]);
 
-  console.log("Debug: Current Ramp State:", state);
   return getCurrentComponent();
 };
