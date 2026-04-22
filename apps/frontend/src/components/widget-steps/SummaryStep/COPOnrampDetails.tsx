@@ -19,7 +19,7 @@ export const COPOnrampDetails: FC = () => {
   if (!achPaymentData) return null;
   if (isQuoteExpired) return null;
 
-  const accountNumber = achPaymentData.accountNumber ? String(achPaymentData.accountNumber) : undefined;
+  const accountNumber = achPaymentData.bankAccountNumber ? String(achPaymentData.bankAccountNumber) : undefined;
   const bankName = achPaymentData.bankName ? String(achPaymentData.bankName) : undefined;
   const accountHolderName = achPaymentData.accountHolderName ? String(achPaymentData.accountHolderName) : undefined;
   const reference = achPaymentData.reference ? String(achPaymentData.reference) : undefined;

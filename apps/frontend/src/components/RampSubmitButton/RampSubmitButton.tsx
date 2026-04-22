@@ -229,7 +229,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId) return true;
+      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId && isOfframp) return true;
       return false;
     }
 

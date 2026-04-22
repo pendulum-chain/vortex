@@ -273,6 +273,12 @@ export interface AlfredpayFiatPaymentInstructions {
   expirationDate?: string;
   bankName?: string;
   accountHolderName?: string;
+  bankAccountNumber?: string;
+  bankRoutingNumber?: string;
+  bankBeneficiaryName?: string;
+  bankBeneficiaryAddress?: string;
+  paymentDescription?: string;
+  externalId?: string;
   //wildcard
   [key: string]: unknown;
 }

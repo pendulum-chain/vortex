@@ -34,9 +34,10 @@ export const USOnrampDetails: FC = () => {
       <div className="my-6 flex justify-center">
         <InfoBox>
           <p>{String(achPaymentData.paymentDescription)}</p>
-          <p>{String(achPaymentData.accountNumber)}</p>
-          <p>{String(achPaymentData.routingNumber)}</p>
-          <p>{String(achPaymentData.accountHolderName)}</p>
+          <p>{String(achPaymentData.bankAccountNumber)}</p>
+          <p>{String(achPaymentData.bankRoutingNumber)}</p>
+          <p>{String(achPaymentData.bankBeneficiaryName)}</p>
+          <p>{String(achPaymentData.bankBeneficiaryAddress)}</p>
         </InfoBox>
       </div>
       <p className="text-center">{t("components.SummaryPage.USOnrampDetails.copyCode")}</p>
