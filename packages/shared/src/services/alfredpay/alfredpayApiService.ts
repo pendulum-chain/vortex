@@ -12,6 +12,7 @@ import {
   AlfredpayKycFileType,
   AlfredpayOfframpQuote,
   AlfredpayOnrampQuote,
+  AlfredpayTradeLimitError,
   CreateAlfredpayCustomerResponse,
   CreateAlfredpayFiatAccountRequest,
   CreateAlfredpayFiatAccountResponse,
@@ -107,10 +108,10 @@ export class AlfredpayApiService {
           const parsed = JSON.parse(errorText);
           if (parsed.errorCode === 111426 && parsed.errorMetadata) {
             const { minQuantity, fromCurrency } = parsed.errorMetadata;
-            throw new Error(`ALFREDPAY_TRADE_LIMIT:${minQuantity}:${fromCurrency}`);
+            throw new AlfredpayTradeLimitError(minQuantity, fromCurrency);
           }
         } catch (parseError) {
-          if (parseError instanceof Error && parseError.message.startsWith("ALFREDPAY_TRADE_LIMIT:")) {
+          if (parseError instanceof AlfredpayTradeLimitError) {
             throw parseError;
           }
         }
@@ -220,19 +221,6 @@ export class AlfredpayApiService {
   public async getOfframpTransaction(transactionId: string): Promise<CreateAlfredpayOfframpResponse> {
     const path = `/api/v1/third-party-service/penny/offramp/${transactionId}`;
     return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
-  }
-
-  public async createAchFiatAccount(
-    customerId: string,
-    fiatAccountFields: AlfredpayFiatAccountFields
-  ): Promise<CreateAlfredpayFiatAccountResponse> {
-    const payload: CreateAlfredpayFiatAccountRequest = {
-      customerId,
-      fiatAccountFields,
-      type: AlfredpayFiatAccountType.ACH
-    };
-    const path = "/api/v1/third-party-service/penny/fiatAccounts";
-    return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
   }
 
   public async createFiatAccount(

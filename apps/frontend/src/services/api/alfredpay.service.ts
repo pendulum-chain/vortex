@@ -57,11 +57,10 @@ export const AlfredpayService = {
     return apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectOpened", { country, type });
   },
   async retryKyc(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycRedirectLinkResponse> {
-    const response = await apiClient.post<{ data: AlfredpayGetKycRedirectLinkResponse }>("/alfredpay/retryKyc", {
+    return apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", {
       country,
       type
     });
-    return response.data;
   },
 
   async sendKybSubmission(country: string, submissionId: string): Promise<void> {
@@ -78,20 +77,17 @@ export const AlfredpayService = {
     formData.append("submissionId", submissionId);
     formData.append("fileType", fileType);
     formData.append("file", file);
-    await apiClient.post("/alfredpay/submitKybFile", formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
+    await apiClient.post("/alfredpay/submitKybFile", formData);
   },
 
   async submitKybInformation(
     country: string,
     data: Omit<SubmitKybInformationRequest, "country">
-  ): Promise<{ submissionId: string }> {
-    const response = await apiClient.post<{ data: SubmitKybInformationResponse }>("/alfredpay/submitKybInformation", {
+  ): Promise<SubmitKybInformationResponse> {
+    return apiClient.post<SubmitKybInformationResponse>("/alfredpay/submitKybInformation", {
       country,
       ...data
     });
-    return response.data;
   },
 
   async submitKybRelatedPersonFile(country: string, relatedPersonId: string, fileType: string, file: File): Promise<void> {
@@ -100,9 +96,7 @@ export const AlfredpayService = {
     formData.append("relatedPersonId", relatedPersonId);
     formData.append("fileType", fileType);
     formData.append("file", file);
-    await apiClient.post("/alfredpay/submitKybRelatedPersonFile", formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
+    await apiClient.post("/alfredpay/submitKybRelatedPersonFile", formData);
   },
 
   async submitKycFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
@@ -111,19 +105,16 @@ export const AlfredpayService = {
     formData.append("submissionId", submissionId);
     formData.append("fileType", fileType);
     formData.append("file", file);
-    await apiClient.post("/alfredpay/submitKycFile", formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
+    await apiClient.post("/alfredpay/submitKycFile", formData);
   },
 
   async submitKycInformation(
     country: string,
     data: Omit<import("@vortexfi/shared").SubmitKycInformationRequest, "country">
-  ): Promise<{ submissionId: string }> {
-    const response = await apiClient.post<{ data: SubmitKycInformationResponse }>("/alfredpay/submitKycInformation", {
+  ): Promise<SubmitKycInformationResponse> {
+    return apiClient.post<SubmitKycInformationResponse>("/alfredpay/submitKycInformation", {
       country,
       ...data
     });
-    return response.data;
   }
 };

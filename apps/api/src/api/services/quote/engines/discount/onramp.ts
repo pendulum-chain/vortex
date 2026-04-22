@@ -156,8 +156,6 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
       ? actualSubsidyAmountDecimal.div(adjustedExpectedOutputDecimal)
       : new Big(0);
 
-    console.log("subsidyRate: ", subsidyRate);
-
     return {
       actualOutputAmountDecimal,
       actualOutputAmountRaw,
