@@ -48,10 +48,11 @@ function validateOnramp(
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.amountOutOfRange.buy", {
+    const key = isTooHigh ? "pages.swap.error.amountOutOfRange.buyTooHigh" : "pages.swap.error.amountOutOfRange.buyTooLow";
+    return t(key, {
       assetSymbol: fromToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
-      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 0),
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 0)
     });
   }
 
@@ -91,10 +92,11 @@ function validateOfframp(
       event: "form_error",
       input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t("pages.swap.error.amountOutOfRange.sell", {
+    const key = isTooHigh ? "pages.swap.error.amountOutOfRange.sellTooHigh" : "pages.swap.error.amountOutOfRange.sellTooLow";
+    return t(key, {
       assetSymbol: toToken.fiat.symbol,
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
-      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 0),
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 0)
     });
   }
 
@@ -177,18 +179,18 @@ export const useRampValidation = () => {
     if (quoteError?.includes(QuoteError.BelowLowerLimitSell)) {
       const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxSellAmountRaw), -toToken.decimals);
       const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minSellAmountRaw), -toToken.decimals);
-      return t("pages.swap.error.amountOutOfRange.sell", {
+      return t("pages.swap.error.amountOutOfRange.sellTooLow", {
         assetSymbol: toToken.assetSymbol,
-        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
-        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 0),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 0)
       });
     } else if (quoteError?.includes(QuoteError.BelowLowerLimitBuy) || quoteError?.includes(QuoteError.InputAmountTooLow)) {
       const maxAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.maxBuyAmountRaw), -fromToken.decimals);
       const minAmountUnits = multiplyByPowerOfTen(Big(fiatTokenDetails.minBuyAmountRaw), -fromToken.decimals);
-      return t("pages.swap.error.amountOutOfRange.buy", {
+      return t("pages.swap.error.amountOutOfRange.buyTooLow", {
         assetSymbol: fromToken.assetSymbol,
-        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
-        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 0),
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 0)
       });
     } else if (quoteError) return t(quoteError);
 
