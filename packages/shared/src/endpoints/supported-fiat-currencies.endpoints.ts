@@ -25,6 +25,11 @@ export const SUPPORTED_FIAT_CURRENCIES: SupportedFiatCurrency[] = [
     decimals: 2,
     name: "Argentine Peso",
     symbol: "ARS"
+  },
+  {
+    decimals: 2,
+    name: "United States Dollar",
+    symbol: "USD"
   }
 ];
 

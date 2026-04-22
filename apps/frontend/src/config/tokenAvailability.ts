@@ -22,7 +22,7 @@ export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> =
   },
   [FiatToken.USD]: {
     disabledReasonTranslationKey: "pages.swap.error.USD_tokenUnavailable",
-    enabled: false
+    enabled: true
   },
   [FiatToken.MXN]: {
     disabledReasonTranslationKey: "pages.swap.error.MXN_tokenUnavailable",

@@ -23,8 +23,12 @@ export const alfredpayKycMachine = setup({
     checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
       const country = input.country || "US";
 
-      const status = await AlfredpayService.getAlfredpayStatus(country);
-      return status;
+      try {
+        const status = await AlfredpayService.getAlfredpayStatus(country);
+        return status;
+      } catch (error) {
+        throw error;
+      }
     }),
 
     createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -170,14 +174,21 @@ export const alfredpayKycMachine = setup({
         ],
         onError: [
           {
-            guard: ({ event }) =>
-              (event.error as Error).message.includes("404") || (event.error as Error).message.includes("Not Found"),
+            guard: ({ event }) => {
+              const error = event.error as any;
+              const message = (error?.message || error?.toString() || "").toLowerCase();
+              return error?.status === 404 || message.includes("404") || message.includes("not found");
+            },
             target: "CostumerDefinition"
           },
           {
             actions: assign({
-              error: ({ event }) =>
-                new AlfredpayKycMachineError((event.error as Error).message, AlfredpayKycMachineErrorType.UnknownError)
+              error: ({ event }) => {
+                return new AlfredpayKycMachineError(
+                  (event.error as Error)?.message || "Unknown error",
+                  AlfredpayKycMachineErrorType.UnknownError
+                );
+              }
             }),
             target: "Failure"
           }
