@@ -31,7 +31,7 @@ app.use(
     origin: [
       "https://app.vortexfinance.co",
       "https://metrics.vortexfinance.co",
-      "https://staging--pendulum-pay.netlify.app",
+      "https://staging--vortexfi.netlify.app",
       process.env.NODE_ENV === "development" ? "http://localhost:5173" : null,
       process.env.NODE_ENV === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]
