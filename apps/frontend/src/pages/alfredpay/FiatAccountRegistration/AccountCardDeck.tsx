@@ -40,8 +40,8 @@ function FrontCardContent({
         <CardHeader accountType={accountType} sub={sub} />
         <div className="flex w-full flex-col">
           <p className="mt-5 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountDetails")}</p>
-          <div className="flex w-full min-w-0 items-center justify-between">
-            <p className="min-w-0 truncate text-gray-500">{label}</p>
+          <div className="flex w-full items-center justify-between">
+            <p className="truncate text-gray-500">{label}</p>
             <MaskedAccountNumber accountNumber={fiatAccountFields.accountNumber} />
           </div>
           <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountOwner")}</span>

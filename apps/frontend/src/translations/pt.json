@@ -635,8 +635,9 @@
       "tryAgain": "Tentar novamente",
       "USOnrampDetails": {
         "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
-        "qrCode": "Selecione ACH no app do seu banco e escaneie o QR code abaixo.",
-        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "instruction": "Use esses detalhes para sua transferência ACH.",
+        "paymentDescription": "Uma vez concluído, clique em",
+        "paymentDescriptionStrong": "\"Eu fiz o pagamento\"",
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com ACH"
       },

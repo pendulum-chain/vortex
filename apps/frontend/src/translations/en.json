@@ -635,8 +635,9 @@
       "tryAgain": "Try again",
       "USOnrampDetails": {
         "copyCode": "or copy the ACH code below and paste it in your bank app",
-        "qrCode": "Select ACH in your bank's app and scan the QR code below.",
-        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "instruction": "Use these details for your ACH transfer.",
+        "paymentDescription": "Once done, please click on",
+        "paymentDescriptionStrong": "\"I have made the payment\"",
         "timerLabel": "Quote expires in:",
         "title": "Pay with ACH"
       },
