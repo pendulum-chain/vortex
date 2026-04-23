@@ -1,4 +1,4 @@
-import { FiatToken, RampDirection, RampPhase } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, RampDirection, RampPhase } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -38,9 +38,9 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, "brlaOnrampMint");
     } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
       return this.transitionToNextPhase(state, "moneriumOnrampMint");
-    } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.USD) {
+    } else if (state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
       return this.transitionToNextPhase(state, "alfredpayOnrampMint");
-    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
+    } else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       return this.transitionToNextPhase(state, "squidRouterPermitExecute");
     }
 

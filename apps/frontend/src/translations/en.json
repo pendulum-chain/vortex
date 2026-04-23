@@ -231,6 +231,20 @@
         "success": "Verification successful"
       }
     },
+    "colKycForm": {
+      "dni": "Document Number",
+      "dniPlaceholderCc": "10-digit CC number",
+      "dniPlaceholderCe": "6–10 digit CE number",
+      "documentType": "Document Type",
+      "options": {
+        "cc": "Cédula de Ciudadanía (CC)",
+        "ce": "Cédula de Extranjería (CE)"
+      },
+      "phoneNumber": "Phone Number",
+      "selectDocumentType": "Select document type…",
+      "subtitle": "Please provide your personal information to complete KYC.",
+      "title": "Identity Verification"
+    },
     "copyButton": {
       "ariaLabel": "Copy to clipboard"
     },
@@ -325,17 +339,41 @@
       "totalFee": "Total Fee",
       "yourQuote": "Your quote"
     },
+    "fiatAccountForms": {
+      "accountAlias": "Nickname (optional)",
+      "accountName": "Account Holder Name",
+      "accountNumber": "Account Number",
+      "accountType": "Account Type",
+      "bankName": "Bank Name",
+      "clabe": "CLABE (18 digits)",
+      "options": {
+        "ahorro": "Savings (Ahorro)",
+        "checking": "Checking",
+        "nequi": "Nequi",
+        "savings": "Savings"
+      },
+      "placeholders": {
+        "accountNumberCo": "10 or 11-digit account number",
+        "bankNameMx": "e.g. BBVA, Santander, Banamex",
+        "clabe": "e.g. 032180000118359719",
+        "routingNumber": "e.g. 021000021"
+      },
+      "routingAba": "Routing / ABA Number",
+      "routingNumber": "Routing Number (9 digits)"
+    },
     "fiatAccountMethods": {
       "accountDetails": "ACCOUNT DETAILS",
       "accountOwner": "ACCOUNT OWNER",
       "clickToSelect": "Click to select",
       "descriptions": {
         "ACH": "1-2 business days",
+        "ACH_COL": "Colombian bank transfer",
         "SPEI": "Instant interbank transfer via CLABE number",
         "WIRE": "Same day"
       },
       "labels": {
         "ACH": "ACH Transfer",
+        "ACH_COL": "ACH Colombia",
         "SPEI": "SPEI",
         "WIRE": "Wire Transfer"
       },
@@ -425,6 +463,29 @@
       "invalidParametersGeneric": "An error occurred while fetching the quote. Please try again.",
       "tryAgain": "Try Again"
     },
+    "kybBusinessDocs": {
+      "articlesIncorporation": "Articles of Incorporation",
+      "proofAddress": "Proof of Address",
+      "shareholderRegistry": "Shareholder Registry",
+      "submit": "Submit Documents",
+      "subtitle": "Please upload the required business documents. Max 5 MB per file (JPG, PNG, PDF).",
+      "title": "Business Documents"
+    },
+    "kybForm": {
+      "businessName": "Business Name",
+      "nationality": "Nationality (2-letter code)",
+      "repDni": "Document Number (optional)",
+      "representativeTitle": "Authorized Representative",
+      "subtitle": "Please provide your business information to complete KYB.",
+      "taxId": "Tax ID",
+      "title": "Business Verification",
+      "website": "Website (optional)"
+    },
+    "kybPersonDocs": {
+      "submit": "Submit Documents",
+      "subtitle": "Please upload a photo or scan of the representative's ID document.",
+      "title": "Representative ID ({{current}} of {{total}})"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },
@@ -449,6 +510,38 @@
       "cancel": "Cancel",
       "description": "You have been redirected to our partner...",
       "goToPartner": "Go to partner"
+    },
+    "mxnDocumentUpload": {
+      "backLabel": "Back of Document",
+      "fileHint": "Accepted formats: JPG, PNG, PDF — max 5 MB each",
+      "fileTooLarge": "File exceeds the 5 MB limit.",
+      "frontLabel": "Front of Document",
+      "invalidType": "Only JPG, PNG, or PDF files are accepted.",
+      "submit": "Submit Documents",
+      "subtitle": "Please upload a photo or scan of your ID document. Max 5 MB per file (JPG, PNG, PDF).",
+      "tapToSelect": "Tap to select file",
+      "title": "Upload ID Documents"
+    },
+    "mxnKycForm": {
+      "address": "Street Address",
+      "city": "City",
+      "continue": "Continue",
+      "dateOfBirth": "Date of Birth",
+      "dni": "Document Number",
+      "documentType": "Document Type",
+      "email": "Email",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "options": {
+        "ine": "INE (Credencial para Votar)",
+        "passport": "Passport",
+        "residentCard": "Resident Card"
+      },
+      "selectDocumentType": "Select document type…",
+      "state": "State",
+      "subtitle": "Please provide your personal information to complete KYC.",
+      "title": "Identity Verification",
+      "zipCode": "ZIP Code"
     },
     "navbar": {
       "api": "API",
@@ -499,6 +592,13 @@
         "timerLabel": "Quote expires in:",
         "title": "Pay with Pix"
       },
+      "COPOnrampDetails": {
+        "expiresAt": "Expires",
+        "instruction": "Transfer funds to the bank account below",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "reference": "Reference",
+        "title": "Pay via Bank Transfer"
+      },
       "confirm": "Confirm",
       "continue": "Continue",
       "continueOnPartnersPage": "Continue on Partner's page",
@@ -517,6 +617,13 @@
         "buy": "Payment Summary",
         "sell": "Payment Summary"
       },
+      "MXNOnrampDetails": {
+        "expiresAt": "Expires",
+        "instruction": "Transfer funds via SPEI to the CLABE below",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "reference": "Reference",
+        "title": "Pay with SPEI"
+      },
       "next": "Next",
       "offrampFee": "Total fee",
       "onrampFee": "Total fee",
@@ -528,8 +635,9 @@
       "tryAgain": "Try again",
       "USOnrampDetails": {
         "copyCode": "or copy the ACH code below and paste it in your bank app",
-        "qrCode": "Select ACH in your bank's app and scan the QR code below.",
-        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "instruction": "Use these details for your ACH transfer.",
+        "paymentDescription": "Once done, please click on",
+        "paymentDescriptionStrong": "\"I have made the payment\"",
         "timerLabel": "Quote expires in:",
         "title": "Pay with ACH"
       },
@@ -1060,7 +1168,8 @@
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon.",
-          "EURC": "Funds will be received via Standard SEPA within 1–2 business days.",
+          "EURC": "Funds will be received via Standard SEPA within 1-2 business days.",
+          "MXN": "Your funds will arrive in your bank account via SPEI in a few minutes.",
           "USD": "Your funds will arrive in your bank account in a few minutes."
         }
       },
@@ -1075,8 +1184,10 @@
       "error": {
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "amountOutOfRange": {
-          "buy": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}",
-          "sell": "{{assetSymbol}} orders must be between {{minAmountUnits}} and {{maxAmountUnits}}"
+          "buyTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}} {{assetSymbol}}",
+          "buyTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}} {{assetSymbol}}",
+          "sellTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}} {{assetSymbol}}",
+          "sellTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}} {{assetSymbol}}"
         },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "COP_tokenUnavailable": "Building your COP rail - available soon!",

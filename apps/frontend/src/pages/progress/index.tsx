@@ -269,8 +269,8 @@ const ProgressCircle: FC<{
     <svg className="h-[200px] w-[200px]" viewBox="0 0 200 200">
       <defs>
         <linearGradient id="progressGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-          <stop offset="0%" stopColor="#60A5FA" />
-          <stop offset="100%" stopColor="#3B82F6" />
+          <stop offset="0%" stopColor="var(--color-progress-gradient-start)" />
+          <stop offset="100%" stopColor="var(--color-progress-fill)" />
         </linearGradient>
       </defs>
       <motion.circle
@@ -281,7 +281,7 @@ const ProgressCircle: FC<{
         fill="none"
         initial={{ pathLength: 0 }}
         r={CIRCLE_RADIUS}
-        stroke="#E5E7EB"
+        stroke="var(--color-progress-track)"
         strokeWidth={CIRCLE_STROKE_WIDTH}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       />

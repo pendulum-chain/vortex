@@ -9,7 +9,10 @@ import {
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
   AlfredpayListFiatAccountsResponse,
-  AlfredpayStatusResponse
+  AlfredpayStatusResponse,
+  SubmitKybInformationRequest,
+  SubmitKybInformationResponse,
+  SubmitKycInformationResponse
 } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
@@ -54,6 +57,64 @@ export const AlfredpayService = {
     return apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectOpened", { country, type });
   },
   async retryKyc(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycRedirectLinkResponse> {
-    return apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", { country, type });
+    return apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", {
+      country,
+      type
+    });
+  },
+
+  async sendKybSubmission(country: string, submissionId: string): Promise<void> {
+    await apiClient.post("/alfredpay/sendKybSubmission", { country, submissionId });
+  },
+
+  async sendKycSubmission(country: string, submissionId: string): Promise<void> {
+    await apiClient.post("/alfredpay/sendKycSubmission", { country, submissionId });
+  },
+
+  async submitKybFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("submissionId", submissionId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKybFile", formData);
+  },
+
+  async submitKybInformation(
+    country: string,
+    data: Omit<SubmitKybInformationRequest, "country">
+  ): Promise<SubmitKybInformationResponse> {
+    return apiClient.post<SubmitKybInformationResponse>("/alfredpay/submitKybInformation", {
+      country,
+      ...data
+    });
+  },
+
+  async submitKybRelatedPersonFile(country: string, relatedPersonId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("relatedPersonId", relatedPersonId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKybRelatedPersonFile", formData);
+  },
+
+  async submitKycFile(country: string, submissionId: string, fileType: string, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("country", country);
+    formData.append("submissionId", submissionId);
+    formData.append("fileType", fileType);
+    formData.append("file", file);
+    await apiClient.post("/alfredpay/submitKycFile", formData);
+  },
+
+  async submitKycInformation(
+    country: string,
+    data: Omit<import("@vortexfi/shared").SubmitKycInformationRequest, "country">
+  ): Promise<SubmitKycInformationResponse> {
+    return apiClient.post<SubmitKycInformationResponse>("/alfredpay/submitKycInformation", {
+      country,
+      ...data
+    });
   }
 };

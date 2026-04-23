@@ -1,4 +1,4 @@
-import { EvmToken, FiatToken, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
@@ -9,14 +9,20 @@ export class OffRampEvmToAlfredpayFeeEngine extends BaseFeeEngine {
   };
 
   protected validate(ctx: QuoteContext): void {
-    // No specific validation needed
+    if (!ctx.alfredpayOfframp) {
+      throw new Error("OffRampEvmToAlfredpayFeeEngine requires alfredpayOfframp in context");
+    }
   }
 
   protected async compute(ctx: QuoteContext, anchorFee: string, feeCurrency: RampCurrency): Promise<FeeComputation> {
-    // TODO apply fees from quote.
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const alfredpayFee = ctx.alfredpayOfframp!.fee.toString();
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
+    const alfredpayFeeCurrency = ctx.alfredpayOfframp!.currency as RampCurrency;
+
     return {
-      anchor: { amount: "0", currency: FiatToken.USD as RampCurrency },
-      network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
+      anchor: { amount: alfredpayFee, currency: alfredpayFeeCurrency },
+      network: { amount: "0", currency: ALFREDPAY_EVM_TOKEN as RampCurrency }
     };
   }
 }

@@ -1,10 +1,10 @@
 import {
   AccountMeta,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
-  AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
   BrlaApiService,
@@ -18,6 +18,8 @@ import {
   GetRampStatusResponse,
   generateReferenceLabel,
   IbanPaymentData,
+  isAlfredpayToken,
+  Limit,
   MoneriumErrors,
   Networks,
   normalizeTaxId,
@@ -50,6 +52,7 @@ import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../ser
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
+import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
@@ -272,13 +275,12 @@ export class RampService extends BaseRampService {
       );
 
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
-      if (quote.inputCurrency === FiatToken.USD) {
+      if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
-      if (quote.outputCurrency === FiatToken.USD) {
-        // TODO mocking. Currently failing in sandbox.
-        //await this.processAlfredpayOfframpStart(rampState, quote, transaction);
+      if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
       }
 
       // Create response
@@ -487,6 +489,7 @@ export class RampService extends BaseRampService {
     }
 
     const response: GetRampStatusResponse = {
+      achPaymentData: rampState.state.fiatPaymentInstructions,
       anchorFeeFiat: fiatFees.anchor,
       anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
@@ -655,6 +658,90 @@ export class RampService extends BaseRampService {
   }
 
   /**
+   * Sum the BRL-equivalent volume of all in-progress ramps for a given taxId and direction.
+   */
+  private async getPendingBrlVolume(taxId: string, direction: RampDirection): Promise<Big> {
+    const normalizedTaxId = normalizeTaxId(taxId);
+
+    const pendingRamps = await RampState.findAll({
+      include: [{ as: "quote", model: QuoteTicket }],
+      where: {
+        currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut", "initial"] },
+        "state.taxId": normalizedTaxId,
+        type: direction
+      }
+    });
+
+    let totalPendingBrl = new Big(0);
+    for (const ramp of pendingRamps) {
+      const quote = (ramp as RampState & { quote: QuoteTicket }).quote;
+      if (!quote) continue;
+
+      const brlAmount = direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount;
+      totalPendingBrl = totalPendingBrl.plus(brlAmount);
+    }
+
+    return totalPendingBrl;
+  }
+
+  /**
+   * Validate the ramp amount against both per-currency (BRL) and global (*) limits,
+   * accounting for pending ramp volume that hasn't settled on Avenia yet.
+   */
+  private async validateAveniaLimits(
+    amountBrl: string,
+    limits: Limit[],
+    direction: RampDirection,
+    taxId: string
+  ): Promise<void> {
+    const pendingBrl = await this.getPendingBrlVolume(taxId, direction);
+    const effectiveAmountBrl = new Big(amountBrl).plus(pendingBrl);
+
+    const brlLimits = limits.find(limit => limit.currency === BrlaCurrency.BRL);
+    if (!brlLimits) {
+      throw new APIError({
+        message: "BRL limits not found.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const brlRemaining =
+      direction === RampDirection.BUY
+        ? Number(brlLimits.maxFiatIn) - Number(brlLimits.usedLimit.usedFiatIn)
+        : Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
+
+    if (effectiveAmountBrl.gt(brlRemaining)) {
+      throw new APIError({
+        message: "Amount exceeds BRL limit.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const globalLimits = limits.find(limit => limit.currency === "*");
+    if (globalLimits) {
+      const priceFeedService = PriceFeedService.getInstance();
+      const effectiveAmountUsd = await priceFeedService.convertCurrency(
+        effectiveAmountBrl.toFixed(2),
+        FiatToken.BRL,
+        FiatToken.USD,
+        2
+      );
+
+      const globalRemaining =
+        direction === RampDirection.BUY
+          ? Number(globalLimits.maxFiatIn) - Number(globalLimits.usedLimit.usedFiatIn)
+          : Number(globalLimits.maxFiatOut) - Number(globalLimits.usedLimit.usedFiatOut);
+
+      if (Number(effectiveAmountUsd) > globalRemaining) {
+        throw new APIError({
+          message: "Amount exceeds global limit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+  }
+
+  /**
    * BRLA. Get subaccount and validate pix and tax id.
    */
   public async validateBrlaOfframpRequest(
@@ -698,20 +785,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const brlLimits = subaccountLimits.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
-    if (!brlLimits) {
-      throw new APIError({
-        message: "BRL limits not found.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    if (Number(amount) > Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut)) {
-      throw new APIError({
-        message: "Amount exceeds limit.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    await this.validateAveniaLimits(amount, subaccountLimits.limitInfo.limits, RampDirection.SELL, taxId);
 
     const evmAddress = subAccountData?.wallets.find(w => w.chain === "EVM")?.walletAddress;
 
@@ -745,22 +819,14 @@ export class RampService extends BaseRampService {
     }
 
     const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
-    // Filter for BRL specific limits
-    const brlaLimits = accountLimits?.limitInfo.limits.filter(entry => entry.currency === BrlaCurrency.BRL);
-    if (!brlaLimits || brlaLimits.length === 0) {
+    if (!accountLimits) {
       throw new APIError({
-        message: "BRL limits not found.",
-        status: httpStatus.BAD_REQUEST
+        message: "Failed to fetch subaccount limits.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
-    const { maxFiatIn, usedLimit } = brlaLimits[0] || {};
 
-    if (Number(amount) > Number(maxFiatIn) - Number(usedLimit.usedFiatIn)) {
-      throw new APIError({
-        message: "Amount exceeds KYC limits.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    await this.validateAveniaLimits(amount, accountLimits.limitInfo.limits, RampDirection.BUY, taxId);
 
     const aveniaQuote = await brlaApiService.createPayInQuote({
       inputAmount: String(amount),
@@ -827,6 +893,7 @@ export class RampService extends BaseRampService {
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      fiatAccountId: additionalData?.fiatAccountId as string | undefined,
       quote,
       signingAccounts: normalizedSigningAccounts,
       stellarPaymentData: additionalData?.paymentData,
@@ -1021,7 +1088,7 @@ export class RampService extends BaseRampService {
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-      } else if (quote.inputCurrency === FiatToken.USD) {
+      } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
@@ -1040,7 +1107,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && quote.outputCurrency !== FiatToken.USD) {
+    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
@@ -1160,10 +1227,10 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency: AlfredpayFiatCurrency.USD,
+      fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       quoteId: alfredpayQuoteId,
-      toCurrency: AlfredpayOnChainCurrency.USDC
+      toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
     const order = await alfredpayService.createOnramp(orderRequest);
@@ -1231,7 +1298,7 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
       originAddress: rampState.state.walletAddress,
       quoteId: alfredpayQuoteId,
       toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency

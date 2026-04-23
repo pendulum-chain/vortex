@@ -12,11 +12,11 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
       assetIcon: "usd",
       name: "US Dollar",
       symbol: "USD"
-    }, // TODO find these values with Alfredpay
+    },
     maxBuyAmountRaw: "10000000000",
     maxSellAmountRaw: "100000000000000000000",
-    minBuyAmountRaw: "1",
-    minSellAmountRaw: "0.01",
+    minBuyAmountRaw: "100",
+    minSellAmountRaw: "100",
     type: TokenType.Fiat
   },
   [FiatToken.MXN]: {
@@ -29,8 +29,8 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     },
     maxBuyAmountRaw: "10000000000",
     maxSellAmountRaw: "100000000000000000000",
-    minBuyAmountRaw: "1",
-    minSellAmountRaw: "0.01",
+    minBuyAmountRaw: "15000",
+    minSellAmountRaw: "2000",
     type: TokenType.Fiat
   },
   [FiatToken.COP]: {
@@ -43,8 +43,8 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     },
     maxBuyAmountRaw: "10000000000",
     maxSellAmountRaw: "100000000000000000000",
-    minBuyAmountRaw: "1",
-    minSellAmountRaw: "0.01",
+    minBuyAmountRaw: "3500000",
+    minSellAmountRaw: "100",
     type: TokenType.Fiat
   }
 };

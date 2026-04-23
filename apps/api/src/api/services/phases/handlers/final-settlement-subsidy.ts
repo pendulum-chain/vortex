@@ -9,6 +9,7 @@ import {
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isAlfredpayToken,
   isNativeEvmToken,
   multiplyByPowerOfTen,
   NATIVE_TOKEN_ADDRESS,
@@ -51,7 +52,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   }
 
   private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
-    return state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD
+    return state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)
       ? "alfredpayOfframpTransfer"
       : "destinationTransfer";
   }
@@ -80,9 +81,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
-        if (quote.inputCurrency === FiatToken.USD) {
+        if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
           if (!quote.metadata.alfredpayMint) {
-            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay mint metadata for USD onramp quote");
+            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay mint metadata");
           }
           expectedAmountRaw = Big(quote.metadata.alfredpayMint.outputAmountRaw);
           break;
@@ -91,9 +92,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         break;
 
       case RampDirection.SELL:
-        if (quote.outputCurrency === FiatToken.USD) {
+        if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
           if (!quote.metadata.alfredpayOfframp) {
-            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay offramp metadata for USD sell quote");
+            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay offramp metadata");
           }
           expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
           break;
@@ -213,24 +214,20 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         );
       }
 
-      const swapRouteResult = await getRoute(
-        {
-          bypassGuardrails: true,
-          enableExpress: true,
-          fromAddress: fundingAccount.address,
-          fromAmount: requiredNativeRaw,
-          fromChain: chainId,
-          fromToken: NATIVE_TOKEN_ADDRESS,
-          slippageConfig: {
-            autoMode: 1
-          },
-          toAddress: fundingAccount.address,
-          toChain: chainId,
-          toToken: outTokenDetails.erc20AddressSourceChain
+      const swapRouteResult = await getRoute({
+        bypassGuardrails: true,
+        enableExpress: true,
+        fromAddress: fundingAccount.address,
+        fromAmount: requiredNativeRaw,
+        fromChain: chainId,
+        fromToken: NATIVE_TOKEN_ADDRESS,
+        slippageConfig: {
+          autoMode: 1
         },
-        // Do not use cache for routes that will be executed on-chain
-        { useCache: false }
-      );
+        toAddress: fundingAccount.address,
+        toChain: chainId,
+        toToken: outTokenDetails.erc20AddressSourceChain
+      });
 
       const { route: swapRoute } = swapRouteResult.data;
 

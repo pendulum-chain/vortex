@@ -49,7 +49,10 @@ export const fiatAccountMachine = setup({
         AccountsList: {
           on: {
             ADD_NEW: { target: "PickAccountType" },
-            GO_BACK: { target: "#fiatAccount.Closed" }
+            GO_BACK: {
+              actions: assign({ fiatRegistrationCountry: null, selectedFiatAccountId: null }),
+              target: "#fiatAccount.Closed"
+            }
           }
         },
         PickAccountType: {

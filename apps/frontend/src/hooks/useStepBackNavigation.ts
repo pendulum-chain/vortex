@@ -2,7 +2,13 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useSelector } from "@xstate/react";
 import { useEffect, useRef } from "react";
 import { useFiatAccountActor, useFiatAccountSelector } from "../contexts/FiatAccountMachineContext";
-import { useAveniaKycActor, useAveniaKycSelector, useRampActor } from "../contexts/rampState";
+import {
+  useAlfredpayKycActor,
+  useAlfredpayKycSelector,
+  useAveniaKycActor,
+  useAveniaKycSelector,
+  useRampActor
+} from "../contexts/rampState";
 import { isInCompoundState } from "../machines/types";
 
 export const useStepBackNavigation = () => {
@@ -10,6 +16,8 @@ export const useStepBackNavigation = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
+  const alfredpayKycActor = useAlfredpayKycActor();
+  const alfredpayKycState = useAlfredpayKycSelector();
   const fiatAccountActor = useFiatAccountActor();
   const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
 
@@ -49,6 +57,13 @@ export const useStepBackNavigation = () => {
     if (showFiatAccountRegistration) {
       fiatAccountActor.send({ type: "GO_BACK" });
       return;
+    }
+
+    if (alfredpayKycActor && alfredpayKycState) {
+      if (alfredpayKycState.stateValue === "UploadingDocuments") {
+        alfredpayKycActor.send({ type: "GO_BACK" });
+        return;
+      }
     }
 
     if (aveniaKycActor && aveniaState) {

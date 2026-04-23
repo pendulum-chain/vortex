@@ -40,8 +40,8 @@ export function stripRouteForCache(result: SquidrouterRouteResult): SquidrouterC
   return {
     data: {
       route: {
-        quoteId: result.data.route.quoteId,
         estimate: result.data.route.estimate,
+        quoteId: result.data.route.quoteId,
         transactionRequest: {
           value: result.data.route.transactionRequest.value
         }

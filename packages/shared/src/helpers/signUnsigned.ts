@@ -195,7 +195,7 @@ async function signMultipleEvmTransactions(
       chain: walletClient.chain,
       data: tx.txData.data,
       gas: BigInt(tx.txData.gas),
-      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 1n : BigInt(187500000000),
+      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000),
       maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n : BigInt(187500000000),
       nonce: Number(currentNonce),
       to: tx.txData.to,

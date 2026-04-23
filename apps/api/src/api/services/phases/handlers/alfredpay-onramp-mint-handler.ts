@@ -1,11 +1,11 @@
 import {
+  ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ERC20_TOKEN,
   AlfredpayApiService,
   AlfredpayOnrampStatus,
   BalanceCheckError,
   BalanceCheckErrorType,
   checkEvmBalancePeriodically,
-  ERC20_USDC_POLYGON,
-  ERC20_USDC_POLYGON_DECIMALS,
   Networks,
   RampPhase
 } from "@vortexfi/shared";
@@ -47,12 +47,12 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
     const expectedAmountRaw = quote.metadata.alfredpayMint.outputAmountRaw;
 
     logger.info(
-      `AlfredpayOnrampMintHandler: Waiting for ${expectedAmountRaw} USDC (raw, ${ERC20_USDC_POLYGON_DECIMALS} decimals) ` +
+      `AlfredpayOnrampMintHandler: Waiting for ${expectedAmountRaw} (raw, ${ALFREDPAY_ERC20_DECIMALS} decimals) ` +
         `on Polygon at ephemeral address ${evmEphemeralAddress}. Alfredpay transactionId: ${alfredpayTransactionId}`
     );
 
     const balanceCheckPromise = checkEvmBalancePeriodically(
-      ERC20_USDC_POLYGON,
+      ALFREDPAY_ERC20_TOKEN,
       evmEphemeralAddress,
       expectedAmountRaw,
       BALANCE_POLL_INTERVAL_MS,
@@ -86,7 +86,7 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
     }
 
     logger.info(
-      `AlfredpayOnrampMintHandler: USDC balance reached on Polygon ephemeral ${evmEphemeralAddress}. Proceeding to fundEphemeral.`
+      `AlfredpayOnrampMintHandler: Balance reached on Polygon ephemeral ${evmEphemeralAddress}. Proceeding to fundEphemeral.`
     );
 
     return this.transitionToNextPhase(state, "fundEphemeral");

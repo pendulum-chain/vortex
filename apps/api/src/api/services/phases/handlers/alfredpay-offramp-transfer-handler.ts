@@ -106,7 +106,7 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
           const response = await alfredpayApiService.getOfframpTransaction(transactionId);
           const { status } = response;
 
-          if (status === AlfredpayOfframpStatus.COMPLETED) {
+          if (status === AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED) {
             resolve();
             return;
           }

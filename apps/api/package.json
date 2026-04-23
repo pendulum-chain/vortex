@@ -12,6 +12,7 @@
     "@polkadot/util-crypto": "catalog:",
     "@scure/bip39": "^1.5.4",
     "@supabase/supabase-js": "catalog:",
+    "@types/multer": "^2.1.0",
     "@vortexfi/shared": "workspace:*",
     "@wagmi/core": "catalog:",
 
@@ -34,6 +35,7 @@
     "joi": "^17.13.3",
     "method-override": "^3.0.0",
     "morgan": "^1.8.1",
+    "multer": "^2.1.1",
     "node-cache": "^5.1.2",
     "p-limit": "^6.1.0",
     "pg": "^8.14.1",

@@ -88,7 +88,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
-      {isAlfredpayToken(executionInput.fiatToken) && <FiatAccountSelector />}
+      {isAlfredpayToken(executionInput.fiatToken) && !isOnramp && <FiatAccountSelector />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
