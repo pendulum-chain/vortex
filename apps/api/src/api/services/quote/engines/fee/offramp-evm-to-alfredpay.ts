@@ -1,4 +1,4 @@
-import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
@@ -22,7 +22,7 @@ export class OffRampEvmToAlfredpayFeeEngine extends BaseFeeEngine {
 
     return {
       anchor: { amount: alfredpayFee, currency: alfredpayFeeCurrency },
-      network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
+      network: { amount: "0", currency: ALFREDPAY_EVM_TOKEN as RampCurrency }
     };
   }
 }
