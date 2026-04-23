@@ -195,7 +195,7 @@ async function signMultipleEvmTransactions(
       chain: walletClient.chain,
       data: tx.txData.data,
       gas: BigInt(tx.txData.gas),
-      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 1n : BigInt(187500000000),
+      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 2n : BigInt(187500000000),
       maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n : BigInt(187500000000),
       nonce: Number(currentNonce),
       to: tx.txData.to,
@@ -235,7 +235,9 @@ export async function signUnsignedTransactions(
 
   // Group transactions
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
-  const polygonTxs = unsignedTxs.filter(tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy);
+  const evmTxs = unsignedTxs.filter(
+    tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy || tx.network === Networks.Base
+  );
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
   const destinationNetworkTxs = unsignedTxs.filter(
     tx =>
@@ -344,7 +346,7 @@ export async function signUnsignedTransactions(
     }
 
     // Process Polygon transactions
-    for (const tx of polygonTxs) {
+    for (const tx of evmTxs) {
       if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }

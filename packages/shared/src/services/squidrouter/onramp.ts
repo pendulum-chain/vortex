@@ -14,7 +14,11 @@ import {
   Networks,
   SquidrouterRoute
 } from "../..";
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
+import {
+  BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+  MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
+  POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+} from "./config";
 import { getRoute } from "./route";
 import { createGenericRouteParams } from "./route-params";
 import { createTransactionDataFromRoute } from "./route-transactions";
@@ -29,7 +33,7 @@ export interface OnrampSquidrouterParamsFromMoonbeam {
   moonbeamEphemeralStartingNonce: number;
 }
 
-export interface OnrampSquidrouterParamsFromPolygon {
+export interface OnrampSquidrouterParamsFromEvm {
   fromAddress: string;
   rawAmount: string;
   fromToken: `0x${string}`;
@@ -91,7 +95,7 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
 
 // Onramp from Polygon directly to any token on any EVM chain.
 export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
-  params: OnrampSquidrouterParamsFromPolygon
+  params: OnrampSquidrouterParamsFromEvm
 ): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
     // This error indicates a bug in our code, as AssetHub onramps should be handled differently.
@@ -126,9 +130,46 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
   }
 }
 
+export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
+  params: OnrampSquidrouterParamsFromEvm
+): Promise<OnrampTransactionData> {
+  if (params.toNetwork === Networks.AssetHub) {
+    // This error indicates a bug in our code, as AssetHub onramps should be handled differently.
+    throw new Error("AssetHub is not supported for this flow. Use a different function.");
+  }
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const baseClient = evmClientManager.getClient(Networks.Base);
+  const fromNetwork = Networks.Base;
+
+  const routeParams = createGenericRouteParams({ ...params, amount: params.rawAmount, fromNetwork });
+
+  try {
+    const routeResult = await getRoute(routeParams);
+    const { route } = routeResult.data;
+
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
+      inputTokenErc20Address: params.fromToken,
+      publicClient: baseClient,
+      rawAmount: params.rawAmount,
+      route,
+      swapValue: BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+    });
+
+    return {
+      approveData,
+      route,
+      squidRouterQuoteId,
+      swapData
+    };
+  } catch (e) {
+    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+  }
+}
+
 // Onramp from Polygon directly to any token on any EVM chain.
 export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook(
-  params: Omit<OnrampSquidrouterParamsFromPolygon, "toNetwork">
+  params: Omit<OnrampSquidrouterParamsFromEvm, "toNetwork">
 ): Promise<OnrampTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
   const polygonClient = evmClientManager.getClient(Networks.Polygon);

@@ -571,11 +571,12 @@ export const newKyc = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const initiateKybLevel1 = async (
-  req: Request<unknown, unknown, unknown, { subAccountId?: string }>,
+  req: Request<unknown, { redirectUrl: string }, unknown, { subAccountId?: string }>,
   res: Response<KybLevel1Response | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { subAccountId } = req.query;
+    const { redirectUrl } = req.body as { redirectUrl: string };
 
     if (!subAccountId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing subAccountId" });
@@ -596,7 +597,7 @@ export const initiateKybLevel1 = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const response = await brlaApiService.initiateKybLevel1(subAccountId);
+    const response = await brlaApiService.initiateKybLevel1(subAccountId, redirectUrl);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {

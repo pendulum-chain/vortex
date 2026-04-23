@@ -1,3 +1,4 @@
+import { EvmToken, Networks } from "@vortexfi/shared";
 import { EnginesRegistry, IRouteStrategy, QuoteContext, StageKey } from "../../core/types";
 import { OnRampDiscountEngine } from "../../engines/discount/onramp";
 import { OnRampAveniaToEvmFeeEngine } from "../../engines/fee/onramp-brl-to-evm";
@@ -25,7 +26,7 @@ export class OnrampAveniaToEvmStrategy implements IRouteStrategy {
   getEngines(_ctx: QuoteContext): EnginesRegistry {
     return {
       [StageKey.Initialize]: new OnRampInitializeAveniaEngine(),
-      [StageKey.Fee]: new OnRampAveniaToEvmFeeEngine(),
+      [StageKey.Fee]: new OnRampAveniaToEvmFeeEngine(Networks.Moonbeam, EvmToken.AXLUSDC),
       [StageKey.NablaSwap]: new OnRampSwapEngine(),
       [StageKey.Discount]: new OnRampDiscountEngine(),
       [StageKey.PendulumTransfer]: new OnRampPendulumTransferEngine(),

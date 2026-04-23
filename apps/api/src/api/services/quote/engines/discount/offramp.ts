@@ -13,12 +13,12 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
   } as const;
 
   protected validate(ctx: QuoteContext): void {
-    if (!ctx.nablaSwap) {
-      throw new Error("OffRampDiscountEngine requires nablaSwap to be defined");
+    if (!ctx.nablaSwap && !ctx.nablaSwapEvm) {
+      throw new Error("OffRampDiscountEngine requires nablaSwap or nablaSwapEvm to be defined");
     }
 
-    if (!ctx.nablaSwap.oraclePrice) {
-      throw new Error("OffRampDiscountEngine requires nablaSwap.oraclePrice to be defined");
+    if (!ctx.nablaSwap?.oraclePrice && !ctx.nablaSwapEvm?.oraclePrice) {
+      throw new Error("OffRampDiscountEngine requires nablaSwap.oraclePrice or nablaSwapEvm.oraclePrice to be defined");
     }
 
     if (!ctx.request.inputAmount) {
@@ -28,7 +28,7 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
 
   protected async compute(ctx: QuoteContext): Promise<DiscountComputation> {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const nablaSwap = ctx.nablaSwap!;
+    const nablaSwap = ctx.nablaSwap! || ctx.nablaSwapEvm!;
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const oraclePrice = nablaSwap.oraclePrice!;
 

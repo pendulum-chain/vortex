@@ -853,7 +853,7 @@ export class RampService extends BaseRampService {
     const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
     if (!evmEphemeralEntry) {
       throw new APIError({
-        message: "Moonbeam ephemeral not found",
+        message: "Base ephemeral not found",
         status: httpStatus.BAD_REQUEST
       });
     }
