@@ -37,7 +37,7 @@ export class AlfredpayOffRampFromEvmInitializeEngine extends BaseInitializeEngin
     };
 
     ctx.addNote?.(
-      `Initialized: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToPendulum?.inputAmountRaw}, output=${ctx.evmToPendulum?.outputAmountDecimal.toString()} ${ctx.evmToPendulum?.toToken}, raw=${ctx.evmToPendulum?.outputAmountRaw}`
+      `Initialized: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToEvm?.inputAmountRaw}, output=${ctx.evmToEvm?.outputAmountDecimal.toString()} ${ctx.evmToEvm?.toToken}, raw=${ctx.evmToEvm?.outputAmountRaw}`
     );
   }
 }

@@ -1,5 +1,4 @@
 import {
-  ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   ALFREDPAY_EVM_TOKEN,
   getNetworkFromDestination,
@@ -52,7 +51,7 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
       });
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+    const toTokenDetails = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to);
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const alfredpayMint = ctx.alfredpayMint!;
 
@@ -63,9 +62,9 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
         fromToken: ALFREDPAY_ERC20_TOKEN,
         inputAmountDecimal: alfredpayMint.outputAmountDecimal,
         inputAmountRaw: alfredpayMint.outputAmountRaw,
-        outputDecimals: ALFREDPAY_ERC20_DECIMALS,
+        outputDecimals: toTokenDetails.decimals,
         toNetwork,
-        toToken
+        toToken: toTokenDetails.erc20AddressSourceChain
       },
       type: "evm-to-evm"
     };

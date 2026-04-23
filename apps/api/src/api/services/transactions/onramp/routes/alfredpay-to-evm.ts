@@ -44,7 +44,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error("EVM ephemeral entry not found");
   }
 
-  if (!quote.metadata.alfredpayMint?.outputAmountRaw) {
+  if (quote.metadata.alfredpayMint?.outputAmountRaw === undefined) {
     throw new Error("Missing alfredpay raw mint amount in quote metadata");
   }
 

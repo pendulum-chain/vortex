@@ -54,7 +54,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
       expirationDate: new Date(quote.expiration),
       fee: alfredpayFee,
       inputAmountDecimal: fromAmount,
-      inputAmountRaw: multiplyByPowerOfTen(fromAmount, usdTokenDecimals).toFixed(0, 0),
+      inputAmountRaw: multiplyByPowerOfTen(fromAmount, 2).toFixed(0, 0), // Fiat uses 2 decimals
       outputAmountDecimal: toAmount,
       outputAmountRaw: multiplyByPowerOfTen(toAmount, usdTokenDecimals).toFixed(0, 0),
       quoteId: quote.quoteId
