@@ -84,6 +84,16 @@ export class AlfredpayController {
         }
       } catch (error) {
         logger.error("Error refreshing Alfredpay status:", error);
+
+        // If the upstream API returns 404 (KYC submission not found), the local status is stale.
+        // Reset to Consulted so the frontend re-triggers the KYC flow.
+        const errorMessage = ((error as any)?.message || (error as any)?.toString() || "").toLowerCase();
+        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+          if (alfredPayCustomer.status === AlfredPayStatus.Success) {
+            logger.info("Resetting stale AlfredPay status to Consulted due to upstream 404");
+            await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+          }
+        }
       }
 
       const response: AlfredpayStatusResponse = {
