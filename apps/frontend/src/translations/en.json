@@ -1184,10 +1184,10 @@
       "error": {
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "amountOutOfRange": {
-          "buyTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}}",
-          "buyTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}}",
-          "sellTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}}",
-          "sellTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}}"
+          "buyTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}} {{assetSymbol}}",
+          "buyTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}} {{assetSymbol}}",
+          "sellTooHigh": "{{assetSymbol}} orders must be less than {{maxAmountUnits}} {{assetSymbol}}",
+          "sellTooLow": "{{assetSymbol}} orders must be more than {{minAmountUnits}} {{assetSymbol}}"
         },
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "COP_tokenUnavailable": "Building your COP rail - available soon!",
