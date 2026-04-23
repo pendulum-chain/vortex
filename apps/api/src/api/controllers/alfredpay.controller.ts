@@ -183,7 +183,8 @@ export class AlfredpayController {
         logger.info("No previous KYC submission found or error fetching it, proceeding.");
       }
 
-      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
+      const normalizedCountry = country.toLowerCase() === "us" ? "USA" : country;
+      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, normalizedCountry);
 
       res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
     } catch (error) {
