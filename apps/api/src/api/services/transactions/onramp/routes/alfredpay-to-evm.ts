@@ -1,9 +1,9 @@
 import {
+  ALFREDPAY_ERC20_TOKEN,
   AlfredPayCountry,
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
-  ERC20_USDC_POLYGON,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
@@ -44,7 +44,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error("EVM ephemeral entry not found");
   }
 
-  if (!quote.metadata.alfredpayMint?.outputAmountRaw) {
+  if (quote.metadata.alfredpayMint?.outputAmountRaw === undefined) {
     throw new Error("Missing alfredpay raw mint amount in quote metadata");
   }
 
@@ -93,8 +93,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
   let polygonAccountNonce = 0; // Starts fresh
 
-  // Special case, onramping USDC on Polygon. We need to skip the SquidRouter step and go directly to the destination transfer.
-  if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ERC20_USDC_POLYGON) {
+  // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
+  if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
       amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
       destinationNetwork: toNetwork as EvmNetworks,
@@ -121,7 +121,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
-      fromToken: ERC20_USDC_POLYGON,
+      fromToken: ALFREDPAY_ERC20_TOKEN,
       rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain

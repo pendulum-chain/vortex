@@ -1,16 +1,15 @@
 import {
+  ALFREDPAY_ERC20_TOKEN,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredPayCountry,
   AlfredPayStatus,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
-  AlfredpayOnChainCurrency,
   createOfframpSquidrouterTransactionsToEvm,
-  ERC20_USDC_POLYGON,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
-  EvmTransactionData,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
@@ -19,7 +18,6 @@ import {
   isNetworkEVM,
   Networks,
   SignedTypedData,
-  SQUDROUTER_MAIN_CONTRACT_POLYGON,
   TypedDataDomain,
   UnsignedTx
 } from "@vortexfi/shared";
@@ -27,7 +25,6 @@ import Big from "big.js";
 import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
@@ -204,7 +201,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     chain: AlfredpayChain.MATIC,
     customerId: customer.alfredPayId,
     fiatAccountId,
-    fromCurrency: AlfredpayOnChainCurrency.USDC,
+    fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
     originAddress: userAddress,
     quoteId: alfredpayQuoteId,
     toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
@@ -219,7 +216,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     fromToken: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
     rawAmount: inputAmountRaw,
     toNetwork: Networks.Polygon,
-    toToken: ERC20_USDC_POLYGON
+    toToken: ALFREDPAY_ERC20_TOKEN
   });
 
   const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60); // 24 hours from "now"
@@ -330,7 +327,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
     toAddress: offrampOrder.depositAddress as `0x${string}`,
-    toToken: ERC20_USDC_POLYGON
+    toToken: ALFREDPAY_ERC20_TOKEN
   });
 
   unsignedTxs.push({

@@ -1,10 +1,10 @@
 import {
   AccountMeta,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
-  AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
   BrlaApiService,
@@ -1230,7 +1230,7 @@ export class RampService extends BaseRampService {
       fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       quoteId: alfredpayQuoteId,
-      toCurrency: AlfredpayOnChainCurrency.USDC
+      toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
     const order = await alfredpayService.createOnramp(orderRequest);
@@ -1298,7 +1298,7 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
       originAddress: rampState.state.walletAddress,
       quoteId: alfredpayQuoteId,
       toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency

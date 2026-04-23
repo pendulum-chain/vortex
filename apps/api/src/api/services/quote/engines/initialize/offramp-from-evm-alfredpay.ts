@@ -1,8 +1,8 @@
-import { EvmToken, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
-import { assignPreNablaContext, BaseInitializeEngine } from "./index";
+import { BaseInitializeEngine } from "./index";
 
 export class AlfredpayOffRampFromEvmInitializeEngine extends BaseInitializeEngine {
   readonly config = {
@@ -18,7 +18,7 @@ export class AlfredpayOffRampFromEvmInitializeEngine extends BaseInitializeEngin
       amountDecimal: req.inputAmount,
       fromNetwork: req.from as Networks,
       inputCurrency: req.inputCurrency as OnChainToken,
-      outputCurrency: EvmToken.USDC,
+      outputCurrency: ALFREDPAY_EVM_TOKEN,
       rampType: req.rampType,
       toNetwork: Networks.Polygon
     };
@@ -37,7 +37,7 @@ export class AlfredpayOffRampFromEvmInitializeEngine extends BaseInitializeEngin
     };
 
     ctx.addNote?.(
-      `Initialized: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToPendulum?.inputAmountRaw}, output=${ctx.evmToPendulum?.outputAmountDecimal.toString()} ${ctx.evmToPendulum?.toToken}, raw=${ctx.evmToPendulum?.outputAmountRaw}`
+      `Initialized: input=${req.inputAmount} ${req.inputCurrency}, raw=${ctx.evmToEvm?.inputAmountRaw}, output=${ctx.evmToEvm?.outputAmountDecimal.toString()} ${ctx.evmToEvm?.toToken}, raw=${ctx.evmToEvm?.outputAmountRaw}`
     );
   }
 }

@@ -14,29 +14,37 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
   } as const;
 
   protected async computeOutput(ctx: QuoteContext): Promise<FinalizeComputation> {
-    const anchorFee = ctx.fees?.displayFiat?.anchor;
-    if (anchorFee === undefined) {
-      throw new APIError({
-        message: "OffRampFinalizeEngine requires computed anchor fees",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    const offrampAmountBeforeAnchorFees =
+    const offrampAmount =
       ctx.request.to === "pix"
         ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal
         : ctx.alfredpayOfframp
           ? ctx.alfredpayOfframp.outputAmountDecimal
           : ctx.pendulumToStellar?.outputAmountDecimal;
 
-    if (!offrampAmountBeforeAnchorFees) {
+    if (!offrampAmount) {
       throw new APIError({
         message: "OffRampFinalizeEngine requires pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
-    const amount = new Big(offrampAmountBeforeAnchorFees).minus(anchorFee);
+    // AlfredPay's toAmount is already net-of-fees, so no fee subtraction needed.
+    // For other providers (Stellar, BRLA), the anchor fee must still be subtracted.
+    const isAlfredpay = !!ctx.alfredpayOfframp;
+    let amount: Big;
+
+    if (isAlfredpay) {
+      amount = new Big(offrampAmount);
+    } else {
+      const anchorFee = ctx.fees?.displayFiat?.anchor;
+      if (anchorFee === undefined) {
+        throw new APIError({
+          message: "OffRampFinalizeEngine requires computed anchor fees",
+          status: httpStatus.INTERNAL_SERVER_ERROR
+        });
+      }
+      amount = new Big(offrampAmount).minus(anchorFee);
+    }
 
     return {
       amount,
