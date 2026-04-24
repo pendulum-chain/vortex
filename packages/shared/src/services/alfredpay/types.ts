@@ -333,11 +333,10 @@ export interface CreateAlfredpayFiatAccountResponse {
   fiatAccountId: string;
 }
 
-export interface AlfredpayFiatAccount {
+export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
   fiatAccountId: string;
   customerId: string;
   type: AlfredpayFiatAccountType;
-  fiatAccountFields: AlfredpayFiatAccountFields;
   createdAt?: string;
 }
 
