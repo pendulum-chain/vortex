@@ -62,7 +62,7 @@ export type RampMachineEvents =
   | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
-  | { type: "PROCEED_TO_REGISTRATION" }
+  | { type: "PROCEED_TO_REGISTRATION"; selectedFiatAccountId?: string }
   | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
   | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
   | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
