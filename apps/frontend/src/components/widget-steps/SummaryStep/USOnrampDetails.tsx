@@ -1,5 +1,6 @@
 import { roundDownToTwoDecimals } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
+import Big from "big.js";
 import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
@@ -31,7 +32,7 @@ export const USOnrampDetails: FC = () => {
 
   const fallbackValue = t("components.SummaryPage.USOnrampDetails.notAvailable", "Not available");
 
-  const paymentAmount = roundDownToTwoDecimals(rampState.ramp.inputAmount);
+  const paymentAmount = roundDownToTwoDecimals(new Big(rampState.ramp.inputAmount));
 
   const paymentDescription =
     typeof achPaymentData?.paymentDescription === "string" ? achPaymentData.paymentDescription : undefined;

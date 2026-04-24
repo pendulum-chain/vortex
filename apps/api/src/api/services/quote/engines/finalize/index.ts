@@ -42,6 +42,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
   return {
     anchorFeeFiat: fiatFees.anchor,
     anchorFeeUsd: usdFees.anchor,
+    createdAt: quoteTicket.createdAt,
     expiresAt: quoteTicket.expiresAt,
     feeCurrency: fiatFees.currency,
     from: quoteTicket.from,
@@ -110,6 +111,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       ctx.builtResponse = {
         anchorFeeFiat: fiatFees.anchor,
         anchorFeeUsd: usdFees.anchor,
+        createdAt: new Date(),
         expiresAt,
         feeCurrency: fiatFees.currency,
         from: request.from,
