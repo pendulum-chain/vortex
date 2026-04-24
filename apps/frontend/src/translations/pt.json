@@ -634,10 +634,16 @@
       "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
       "USOnrampDetails": {
+        "accountNumber": "Número da Conta",
+        "accountType": "Tipo de Conta",
+        "amount": "Valor",
+        "beneficiaryName": "Nome do Beneficiário",
         "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
         "instruction": "Use esses detalhes para sua transferência ACH.",
         "paymentDescription": "Uma vez concluído, clique em",
         "paymentDescriptionStrong": "\"Eu fiz o pagamento\"",
+        "paymentReference": "Referência de Pagamento",
+        "routingNumber": "Número de Roteamento",
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com ACH"
       },
@@ -1129,6 +1135,8 @@
       "version": "Versão: 1.0"
     },
     "progress": {
+      "alfredPayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
+      "alfredpayOnrampMint": "Seu pagamento está sendo processado. Isso pode levar de mesmo dia até 3 dias úteis, dependendo do seu banco.",
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
@@ -1148,6 +1156,7 @@
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "squidRouterPermitExecute": "Autorizando transferência de {{assetSymbol}} de {{fromNetwork}}",
       "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",

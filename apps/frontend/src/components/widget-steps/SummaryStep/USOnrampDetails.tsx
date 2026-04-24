@@ -1,3 +1,4 @@
+import { roundDownToTwoDecimals } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -26,9 +27,11 @@ export const USOnrampDetails: FC = () => {
   const { isQuoteExpired, rampState } = useSelector(rampActor, state => state.context);
 
   const achPaymentData = rampState?.ramp?.achPaymentData;
-  if (!achPaymentData || isQuoteExpired) return null;
+  if (!rampState?.ramp || !achPaymentData || isQuoteExpired) return null;
 
   const fallbackValue = t("components.SummaryPage.USOnrampDetails.notAvailable", "Not available");
+
+  const paymentAmount = roundDownToTwoDecimals(rampState.ramp.inputAmount);
 
   const paymentDescription =
     typeof achPaymentData?.paymentDescription === "string" ? achPaymentData.paymentDescription : undefined;
@@ -37,32 +40,38 @@ export const USOnrampDetails: FC = () => {
   const bankDetails = [
     {
       copyable: true,
-      id: "account-number",
-      label: t("components.SummaryPage.USOnrampDetails.accountNumber", "Account number"),
-      value: achPaymentData?.bankAccountNumber
-    },
-    {
-      copyable: true,
-      id: "routing-number",
-      label: t("components.SummaryPage.USOnrampDetails.routingNumber", "Routing number (ACH)"),
-      value: achPaymentData?.bankRoutingNumber
-    },
-    {
-      copyable: true,
       id: "beneficiary-name",
-      label: t("components.SummaryPage.USOnrampDetails.beneficiaryName", "Beneficiary name"),
+      label: t("components.SummaryPage.USOnrampDetails.beneficiaryName", "Beneficiary Eame"),
       value: achPaymentData?.bankBeneficiaryName
     },
     {
       copyable: true,
-      id: "beneficiary-address",
-      label: t("components.SummaryPage.USOnrampDetails.beneficiaryAddress", "Beneficiary address"),
-      value: achPaymentData?.bankBeneficiaryAddress
+      id: "routing-number",
+      label: t("components.SummaryPage.USOnrampDetails.routingNumber", "Routing Number (ACH)"),
+      value: achPaymentData?.bankRoutingNumber
+    },
+    {
+      copyable: true,
+      id: "account-number",
+      label: t("components.SummaryPage.USOnrampDetails.accountNumber", "Bank Account Number"),
+      value: achPaymentData?.bankAccountNumber
+    },
+    {
+      copyable: true,
+      id: "account-type",
+      label: t("components.SummaryPage.USOnrampDetails.accountType", "Account Type"),
+      value: "Checking"
+    },
+    {
+      copyable: true,
+      id: "amount",
+      label: t("components.SummaryPage.USOnrampDetails.amount", "Amount"),
+      value: paymentAmount
     },
     {
       copyable: true,
       id: "payment-reference",
-      label: t("components.SummaryPage.USOnrampDetails.paymentReference", "Payment reference"),
+      label: t("components.SummaryPage.USOnrampDetails.paymentReference", "Payment Reference"),
       value: paymentReference
     }
   ];
