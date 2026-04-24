@@ -19,7 +19,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
+const QUOTE_EXPIRY_THRESHOLD_SECONDS = 15; // Needs to be low for AlfredPay quotes
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
