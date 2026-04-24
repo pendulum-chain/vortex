@@ -644,10 +644,16 @@
       "source": "Source Account",
       "tryAgain": "Try again",
       "USOnrampDetails": {
-        "copyCode": "or copy the ACH code below and paste it in your bank app",
+        "accountNumber": "Account Number",
+        "accountType": "Account Type",
+        "amount": "Amount",
+        "beneficiaryName": "Beneficiary Name",
+        "copyCode": "or copy the ACH code below and paste it in you/**/r bank app",
         "instruction": "Use these details for your ACH transfer.",
         "paymentDescription": "Once done, please click on",
         "paymentDescriptionStrong": "\"I have made the payment\"",
+        "paymentReference": "Payment Reference",
+        "routingNumber": "Routing Number (ACH)",
         "timerLabel": "Quote expires in:",
         "title": "Pay with ACH"
       },
@@ -1145,6 +1151,8 @@
       "version": "Version: 1.0"
     },
     "progress": {
+      "alfredpayOfframpTransfer": "Initializing transfer to your bank account.",
+      "alfredpayOnrampMint": "Your payment is being processed. This can take from same day up to 3 business days depending on your bank.",
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
       "brlaOnrampMint": "Your payment is being processed. This can take up to 5 minutes.",
@@ -1164,6 +1172,7 @@
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "squidRouterPermitExecute": "Initializing the transfer of {{assetSymbol}} from {{fromNetwork}}",
       "squidRouterSwap": "Transferring {{assetSymbol}} from {{fromNetwork}} to {{toNetwork}}",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
       "success": "Transaction completed successfully!",

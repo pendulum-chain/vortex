@@ -28,7 +28,7 @@ async function apiFetch<T>(
 ): Promise<T> {
   const tokens = AuthService.getTokens();
 
-  const url = new URL(`${SIGNING_SERVICE_URL}/v1${path}`);
+  const url = new URL(`${SIGNING_SERVICE_URL}/v1${path}`, window.location.origin);
   if (options.params) {
     for (const [key, value] of Object.entries(options.params)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
