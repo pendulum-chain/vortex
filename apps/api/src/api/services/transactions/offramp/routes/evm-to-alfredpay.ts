@@ -23,6 +23,8 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
@@ -337,6 +339,23 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     phase: "alfredpayOfframpTransfer",
     signer: evmEphemeralEntry.address,
     txData: finalTransferTxData
+  });
+
+  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fallbackTransferTxData = await addOnrampDestinationChainTransactions({
+    amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
+    destinationNetwork: Networks.Polygon as EvmNetworks,
+    toAddress: fundingAccount.address,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: 1,
+    phase: "alfredpayOfframpTransferFallback",
+    signer: evmEphemeralEntry.address,
+    txData: fallbackTransferTxData
   });
 
   return { stateMeta, unsignedTxs };

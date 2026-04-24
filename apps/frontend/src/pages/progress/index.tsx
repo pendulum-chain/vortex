@@ -16,6 +16,7 @@ import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
   alfredpayOfframpTransfer: 30,
+  alfredpayOfframpTransferFallback: 30,
   alfredpayOnrampMint: 5 * 60,
   assethubToPendulum: 24,
   backupApprove: 0,
