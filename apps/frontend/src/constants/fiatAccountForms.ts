@@ -47,6 +47,7 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       field: "accountType",
       label: "components.fiatAccountForms.accountType",
       options: [
+        { label: "components.fiatAccountForms.options.corriente", value: "CORRIENTE" },
         { label: "components.fiatAccountForms.options.ahorro", value: "AHORRO" },
         { label: "components.fiatAccountForms.options.nequi", value: "NEQUI" }
       ],
@@ -54,16 +55,10 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       type: "select"
     },
     { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
-    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
+    { field: "documentType", label: "components.fiatAccountForms.documentType", required: true, type: "text" },
+    { field: "documentNumber", label: "components.fiatAccountForms.documentNumber", required: true, type: "text" }
   ],
   SPEI: [
-    {
-      field: "accountBankCode",
-      label: "components.fiatAccountForms.bankName",
-      placeholder: "components.fiatAccountForms.placeholders.bankNameMx",
-      required: true,
-      type: "text"
-    },
     {
       field: "accountNumber",
       label: "components.fiatAccountForms.clabe",
@@ -71,8 +66,7 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       required: true,
       type: "text"
     },
-    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
-    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" }
   ],
   WIRE: [
     { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
@@ -84,7 +78,27 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       type: "text"
     },
     { field: "accountNumber", label: "components.fiatAccountForms.accountNumber", required: true, type: "text" },
-    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
-    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
+    {
+      field: "accountType",
+      label: "components.fiatAccountForms.accountType",
+      options: [
+        { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
+        { label: "components.fiatAccountForms.options.saving", value: "SAVING" }
+      ],
+      required: true,
+      type: "select"
+    },
+    { field: "bankStreet", label: "components.fiatAccountForms.bankStreet", required: true, type: "text" },
+    { field: "bankCity", label: "components.fiatAccountForms.bankCity", required: true, type: "text" },
+    { field: "bankState", label: "components.fiatAccountForms.bankState", required: true, type: "text" },
+    {
+      field: "bankCountry",
+      hint: "components.fiatAccountForms.hints.bankCountry",
+      label: "components.fiatAccountForms.bankCountry",
+      placeholder: "components.fiatAccountForms.placeholders.bankCountry",
+      required: true,
+      type: "text"
+    },
+    { field: "bankPostalCode", label: "components.fiatAccountForms.bankPostalCode", required: true, type: "text" }
   ]
 };

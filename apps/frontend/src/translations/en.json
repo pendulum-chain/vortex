@@ -340,21 +340,31 @@
       "yourQuote": "Your quote"
     },
     "fiatAccountForms": {
-      "accountAlias": "Nickname (optional)",
       "accountName": "Account Holder Name",
       "accountNumber": "Account Number",
       "accountType": "Account Type",
+      "bankCity": "Bank City",
+      "bankCountry": "Bank Country",
       "bankName": "Bank Name",
+      "bankPostalCode": "Bank Postal Code",
+      "bankState": "Bank State",
+      "bankStreet": "Bank Street",
       "clabe": "CLABE (18 digits)",
+      "documentNumber": "Document Number",
+      "documentType": "Document Type",
+      "hints": {
+        "bankCountry": "Use the 3-letter country code, e.g. USA"
+      },
       "options": {
         "ahorro": "Savings (Ahorro)",
         "checking": "Checking",
+        "corriente": "Checking (Corriente)",
         "nequi": "Nequi",
-        "savings": "Savings"
+        "saving": "Savings"
       },
       "placeholders": {
         "accountNumberCo": "10 or 11-digit account number",
-        "bankNameMx": "e.g. BBVA, Santander, Banamex",
+        "bankCountry": "e.g. USA",
         "clabe": "e.g. 032180000118359719",
         "routingNumber": "e.g. 021000021"
       },

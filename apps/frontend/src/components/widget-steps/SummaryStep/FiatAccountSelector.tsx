@@ -9,7 +9,7 @@ import { useAlfredpayFiatAccounts } from "../../../hooks/alfredpay/useFiatAccoun
 import { DropdownSelector } from "../../ui/DropdownSelector";
 
 function accountLabel(account: AlfredpayFiatAccount) {
-  return account.fiatAccountFields.accountAlias || account.fiatAccountFields.accountBankCode;
+  return account.fiatAccountFields.accountName || account.fiatAccountFields.metadata?.accountHolderName;
 }
 
 function AccountOption({

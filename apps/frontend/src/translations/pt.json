@@ -341,21 +341,31 @@
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {
-      "accountAlias": "Apelido (opcional)",
       "accountName": "Nome do Titular da Conta",
       "accountNumber": "Número da Conta",
       "accountType": "Tipo de Conta",
+      "bankCity": "Cidade do Banco",
+      "bankCountry": "País do Banco",
       "bankName": "Nome do Banco",
+      "bankPostalCode": "CEP do Banco",
+      "bankState": "Estado do Banco",
+      "bankStreet": "Rua do Banco",
       "clabe": "CLABE (18 dígitos)",
+      "documentNumber": "Número do Documento",
+      "documentType": "Tipo de Documento",
+      "hints": {
+        "bankCountry": "Use o código de 3 letras do país, ex. USA"
+      },
       "options": {
         "ahorro": "Poupança (Ahorro)",
         "checking": "Corrente",
+        "corriente": "Corrente (Corriente)",
         "nequi": "Nequi",
-        "savings": "Poupança"
+        "saving": "Poupança"
       },
       "placeholders": {
         "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
-        "bankNameMx": "ex. BBVA, Santander, Banamex",
+        "bankCountry": "ex. USA",
         "clabe": "ex. 032180000118359719",
         "routingNumber": "ex. 021000021"
       },
