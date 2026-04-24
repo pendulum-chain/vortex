@@ -28,7 +28,7 @@ export const USOnrampDetails: FC = () => {
   const { isQuoteExpired, rampState } = useSelector(rampActor, state => state.context);
 
   const achPaymentData = rampState?.ramp?.achPaymentData;
-  if (!rampState?.ramp || !achPaymentData || isQuoteExpired) return null;
+  if (!rampState?.ramp || !achPaymentData) return null;
 
   const fallbackValue = t("components.SummaryPage.USOnrampDetails.notAvailable", "Not available");
 
@@ -81,20 +81,20 @@ export const USOnrampDetails: FC = () => {
     <>
       <hr className="my-6" />
       <div className="space-y-3 text-center">
-        <h2 className="text-lg font-bold">{t("components.SummaryPage.USOnrampDetails.title")}</h2>
+        <h2 className="font-bold text-lg">{t("components.SummaryPage.USOnrampDetails.title")}</h2>
         <p>
           {t("components.SummaryPage.USOnrampDetails.instruction", "Use these bank details to complete your ACH transfer.")}
         </p>
       </div>
       <div className="my-4 rounded-lg bg-blue-50 px-4 py-3">
-        <p className="text-center">
+        <div className="text-center">
           <Trans key="components.SummaryPage.USOnrampDetails.paymentDescription">Once done, please click on</Trans>
           <Trans>
             <p>
               <strong>"I have made the payment"</strong>
             </p>
           </Trans>
-        </p>
+        </div>
       </div>
 
       <div className="mt-2 pb-24">
@@ -103,15 +103,15 @@ export const USOnrampDetails: FC = () => {
             const display = displayValue(value, fallbackValue);
             return (
               <div
-                className="space-y-1 border-b border-gray-100 py-3 last:border-b-0 last:pb-0 first:pt-0 flex items-center justify-between"
+                className="flex items-center justify-between space-y-1 border-gray-100 border-b py-3 first:pt-0 last:border-b-0 last:pb-0"
                 key={id}
               >
                 <div>
-                  <p className="text-xs text-gray-500">{label}</p>
-                  <p className="min-w-0 mt-0.5 flex-1 font-mono text-sm text-gray-600 [overflow-wrap:anywhere]">{display}</p>
+                  <p className="text-gray-500 text-xs">{label}</p>
+                  <p className="mt-0.5 min-w-0 flex-1 font-mono text-gray-600 text-sm [overflow-wrap:anywhere]">{display}</p>
                 </div>
                 {copyable && display !== fallbackValue && (
-                  <CopyButton className="p-2 rounded-full" hideText noBorder text={display} />
+                  <CopyButton className="rounded-full p-2" hideText noBorder text={display} />
                 )}
               </div>
             );

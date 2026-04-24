@@ -19,7 +19,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_PERCENTAGE = 30; // 30%
+const QUOTE_EXPIRY_THRESHOLD_PERCENTAGE = 60; // 60%
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
