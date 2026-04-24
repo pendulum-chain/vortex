@@ -9,7 +9,7 @@ import { useAlfredpayFiatAccounts } from "../../../hooks/alfredpay/useFiatAccoun
 import { DropdownSelector } from "../../ui/DropdownSelector";
 
 function accountLabel(account: AlfredpayFiatAccount) {
-  return account.accountAlias || account.accountBankCode;
+  return account.accountName || account.metadata?.accountHolderName;
 }
 
 function AccountOption({
@@ -79,7 +79,7 @@ export function FiatAccountSelector() {
     ? (resolveAccountTypeKey(selectedAccount.type, country) ?? null)
     : null;
   const Icon = accountType ? ACCOUNT_TYPE_ICONS[accountType] : null;
-  const last4 = selectedAccount.accountNumber.slice(-4);
+  const last4 = selectedAccount?.accountNumber.slice(-4);
 
   const triggerContent = selectedAccount ? (
     <>

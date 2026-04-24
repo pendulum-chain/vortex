@@ -22,11 +22,11 @@ function FrontCardContent({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { accountAlias, accountName, accountBankCode, accountNumber, type, fiatAccountId } = account;
+  const { accountName, metadata, accountNumber, type, fiatAccountId } = account;
   const accountType = resolveAccountTypeKey(type, country);
-  const label = accountAlias || accountBankCode;
+  const label = accountName || metadata?.accountHolderName;
   const last4 = accountNumber.slice(-4);
-  const sub = `${accountBankCode} ••••${last4}`;
+  const sub = `${label} ••••${last4}`;
 
   return (
     <div
@@ -54,11 +54,11 @@ function FrontCardContent({
 }
 
 function BackCardContent({ account, country, index }: { account: AlfredpayFiatAccount; country: string; index: number }) {
-  const { accountNumber, accountBankCode, type } = account;
+  const { accountNumber, accountName, type } = account;
   const accountType = resolveAccountTypeKey(type, country);
   const bg = index === 1 ? "bg-gray-50" : "bg-gray-100";
   const last4 = accountNumber.slice(-4);
-  const sub = `${accountBankCode} ••••${last4}`;
+  const sub = `${accountName} ••••${last4}`;
 
   return (
     <div className={`flex h-full w-full items-start rounded-lg border border-gray-200 ${bg} shadow-sm`}>

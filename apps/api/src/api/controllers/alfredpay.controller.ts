@@ -652,9 +652,14 @@ export class AlfredpayController {
         accountType,
         accountName,
         accountBankCode,
-        accountAlias,
         routingNumber,
-        networkIdentifier
+        bankStreet,
+        bankCity,
+        bankState,
+        bankCountry,
+        bankPostalCode,
+        documentType,
+        documentNumber
       } = req.body as AlfredpayAddFiatAccountRequest;
       const userId = req.userId!;
 
@@ -667,16 +672,45 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
 
+      const alfredpayFiatAccountType = type as AlfredpayFiatAccountType;
+
+      let fiatAccountFields;
+      if (alfredpayFiatAccountType === AlfredpayFiatAccountType.SPEI) {
+        fiatAccountFields = {
+          accountNumber,
+          accountType: "CLABE",
+          isExternal: true,
+          metadata: { accountHolderName: accountName }
+        };
+      } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.ACH) {
+        fiatAccountFields = {
+          accountName: accountBankCode,
+          accountNumber,
+          accountType: accountType ?? "",
+          isExternal: true,
+          metadata: { accountHolderName: accountName, documentNumber, documentType }
+        };
+      } else {
+        // BANK_USA
+        fiatAccountFields = {
+          accountName: accountBankCode,
+          accountNumber,
+          accountType: accountType ?? "",
+          bankCity,
+          bankCountry,
+          bankPostalCode,
+          bankState,
+          bankStreet,
+          routingNumber
+        };
+      }
+
       const alfredpayService = AlfredpayApiService.getInstance();
-      const result = await alfredpayService.createFiatAccount(alfredPayCustomer.alfredPayId, type as AlfredpayFiatAccountType, {
-        accountAlias: accountAlias ?? "",
-        accountBankCode,
-        accountName,
-        accountNumber,
-        accountType: accountType ?? "",
-        networkIdentifier: networkIdentifier ?? "",
-        routingNumber
-      });
+      const result = await alfredpayService.createFiatAccount(
+        alfredPayCustomer.alfredPayId,
+        alfredpayFiatAccountType,
+        fiatAccountFields
+      );
 
       res.json(result);
     } catch (error) {

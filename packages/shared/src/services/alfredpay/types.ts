@@ -310,17 +310,19 @@ export enum AlfredpayFiatAccountType {
 export interface AlfredpayFiatAccountFields {
   accountNumber: string;
   accountType: string;
-  accountName: string;
-  accountBankCode: string;
-  accountAlias: string;
-  networkIdentifier: string;
+  accountName?: string;
+  routingNumber?: string;
   bankStreet?: string;
   bankCity?: string;
   bankState?: string;
   bankCountry?: string;
   bankPostalCode?: string;
-  routingNumber?: string;
-  isExternal?: boolean;
+  isExternal: boolean;
+  metadata?: {
+    accountHolderName?: string;
+    documentType?: string;
+    documentNumber?: string;
+  };
 }
 
 export interface CreateAlfredpayFiatAccountRequest {
