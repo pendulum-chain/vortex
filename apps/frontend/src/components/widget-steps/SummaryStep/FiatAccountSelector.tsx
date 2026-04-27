@@ -100,7 +100,7 @@ export function FiatAccountSelector() {
 
   return (
     <DropdownSelector
-      className="mt-4 mb-32"
+      className="mt-4"
       isLoading={isLoading}
       label={t("components.fiatAccountSelector.label")}
       onOpenChange={setOpen}
