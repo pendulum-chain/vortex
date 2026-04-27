@@ -22,7 +22,16 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import {
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  PublicClient,
+  pad,
+  parseAbiParameters,
+  toHex,
+  erc20Abi as viemErc20Abi
+} from "viem";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
@@ -208,16 +217,39 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   });
 
   const inputAmountRaw = new Big(quote.inputAmount).mul(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0, 0);
+  const inputTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain;
 
-  const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
-    destinationAddress: evmEphemeralEntry.address,
-    fromAddress: userAddress,
-    fromNetwork,
-    fromToken: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    rawAmount: inputAmountRaw,
-    toNetwork: Networks.Polygon,
-    toToken: ALFREDPAY_ERC20_TOKEN
-  });
+  const isDirectPolygonTransfer =
+    fromNetwork === Networks.Polygon && inputTokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
+
+  let payloadDestination: string;
+  let payloadData: string;
+  let payloadEthValue: string;
+
+  if (isDirectPolygonTransfer) {
+    // Source is already Polygon USDT — no SquidRouter bridge needed.
+    // Payload: ERC-20 transfer from relayer to ephemeral.
+    payloadDestination = inputTokenAddress;
+    payloadData = encodeFunctionData({
+      abi: viemErc20Abi,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
+    payloadEthValue = "0";
+  } else {
+    const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
+      destinationAddress: evmEphemeralEntry.address,
+      fromAddress: userAddress,
+      fromNetwork,
+      fromToken: inputTokenAddress,
+      rawAmount: inputAmountRaw,
+      toNetwork: Networks.Polygon,
+      toToken: ALFREDPAY_ERC20_TOKEN
+    });
+    payloadDestination = bridgeResult.swapData.to;
+    payloadData = bridgeResult.swapData.data;
+    payloadEthValue = bridgeResult.swapData.value;
+  }
 
   const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60); // 24 hours from "now"
 
@@ -225,24 +257,19 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   const userNonce = (await publicClient.readContract({
     abi: erc20Abi,
-    address: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+    address: inputTokenAddress,
     args: [userAddress],
     functionName: "nonces"
   })) as bigint;
 
   const tokenName = (await publicClient.readContract({
     abi: erc20Abi,
-    address: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+    address: inputTokenAddress,
     functionName: "name"
   })) as string;
 
   const chainId = getNetworkId(fromNetwork)!;
-  const resolvedDomain = await resolvePermitDomain(
-    publicClient,
-    (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    chainId,
-    tokenName
-  );
+  const resolvedDomain = await resolvePermitDomain(publicClient, inputTokenAddress, chainId, tokenName);
 
   const permitTypedData: SignedTypedData = {
     domain: resolvedDomain,
@@ -277,13 +304,13 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       version: "1"
     },
     message: {
-      data: bridgeResult.swapData.data,
+      data: payloadData,
       deadline: payloadDeadline.toString(),
-      destination: bridgeResult.swapData.to,
-      ethValue: bridgeResult.swapData.value,
+      destination: payloadDestination,
+      ethValue: payloadEthValue,
       nonce: payloadNonce.toString(),
       owner: userAddress,
-      token: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
+      token: inputTokenAddress,
       value: inputAmountRaw.toString()
     },
     primaryType: "Payload",
@@ -319,7 +346,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     alfredpayUserId: customer.alfredPayId,
     evmEphemeralAddress: evmEphemeralEntry.address,
     fiatAccountId,
-    squidRouterPermitExecutionValue: bridgeResult.swapData.value,
+    squidRouterPermitExecutionValue: payloadEthValue,
     walletAddress: userAddress
   };
 
