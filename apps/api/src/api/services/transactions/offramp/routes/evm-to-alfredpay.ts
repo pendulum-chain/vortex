@@ -199,7 +199,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
   const alfredpayService = AlfredpayApiService.getInstance();
   const offrampOrder = await alfredpayService.createOfframp({
-    amount: quote.inputAmount,
+    amount: quote.metadata.alfredpayOfframp.inputAmountDecimal.toString(),
     chain: AlfredpayChain.MATIC,
     customerId: customer.alfredPayId,
     fiatAccountId,
