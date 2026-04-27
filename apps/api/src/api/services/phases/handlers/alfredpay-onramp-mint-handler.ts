@@ -51,6 +51,8 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
         `on Polygon at ephemeral address ${evmEphemeralAddress}. Alfredpay transactionId: ${alfredpayTransactionId}`
     );
 
+    const abortController = new AbortController();
+
     const balanceCheckPromise = checkEvmBalancePeriodically(
       ALFREDPAY_ERC20_TOKEN,
       evmEphemeralAddress,
@@ -60,7 +62,12 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
       Networks.Polygon
     );
 
-    const alfredpayPollingPromise = this.pollAlfredpayOnrampStatus(alfredpayTransactionId, state, ALFREDPAY_POLL_INTERVAL_MS);
+    const alfredpayPollingPromise = this.pollAlfredpayOnrampStatus(
+      alfredpayTransactionId,
+      state,
+      ALFREDPAY_POLL_INTERVAL_MS,
+      abortController.signal
+    );
 
     // - balanceCheckPromise resolves when the USDC balance is met → proceed, or rejects if timeout → recoverable error.
     // - alfredpayPollingPromise rejects if FAILED → transition to failed. Not recoverable
@@ -83,6 +90,8 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
       throw this.createRecoverableError(
         `AlfredpayOnrampMintHandler: Failed to check balance or poll Alfredpay status: ${error instanceof Error ? error.message : String(error)}`
       );
+    } finally {
+      abortController.abort();
     }
 
     logger.info(
@@ -92,11 +101,25 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(state, "fundEphemeral");
   }
 
-  private async pollAlfredpayOnrampStatus(transactionId: string, state: RampState, intervalMs: number): Promise<never> {
+  private async pollAlfredpayOnrampStatus(
+    transactionId: string,
+    state: RampState,
+    intervalMs: number,
+    signal: AbortSignal
+  ): Promise<never> {
     const alfredpayApiService = AlfredpayApiService.getInstance();
 
     return new Promise<never>((_, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+      const onAbort = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+
       const poll = async () => {
+        if (signal.aborted) return;
+
         try {
           const response = await alfredpayApiService.getOnrampTransaction(transactionId);
           const { status, metadata } = response;
@@ -133,7 +156,7 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
           logger.warn(`AlfredpayOnrampMintHandler: Error polling Alfredpay status for ${transactionId}: ${error}`);
         }
 
-        setTimeout(poll, intervalMs);
+        timeoutId = setTimeout(poll, intervalMs);
       };
 
       poll();

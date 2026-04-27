@@ -15,6 +15,7 @@ import { RampState } from "../../types/phases";
 import { getMessageForPhase } from "./phaseMessages";
 
 const PHASE_DURATIONS: Record<RampPhase, number> = {
+  alfredOnrampMintFallback: 0,
   alfredpayOfframpTransfer: 30,
   alfredpayOfframpTransferFallback: 30,
   alfredpayOnrampMint: 5 * 60,

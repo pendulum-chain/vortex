@@ -97,7 +97,7 @@ export const USOnrampDetails: FC = () => {
         </div>
       </div>
 
-      <div className="mt-2 pb-24">
+      <div className="mt-2">
         <InfoBox className="w-full min-w-0">
           {bankDetails.map(({ id, label, value, copyable }) => {
             const display = displayValue(value, fallbackValue);
