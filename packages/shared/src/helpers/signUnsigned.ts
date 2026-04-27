@@ -190,13 +190,21 @@ async function signMultipleEvmTransactions(
     if (!walletClient.account) {
       throw new Error("Wallet client account is undefined");
     }
+    const maxPriorityFeePerGas = tx.txData.maxPriorityFeePerGas
+      ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n
+      : BigInt(187500000000);
+    const maxFeePerGas = (() => {
+      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000);
+      return fee > maxPriorityFeePerGas ? fee : maxPriorityFeePerGas;
+    })();
+
     const txData = {
       account: walletClient.account,
       chain: walletClient.chain,
       data: tx.txData.data,
       gas: BigInt(tx.txData.gas),
-      maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000),
-      maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n : BigInt(187500000000),
+      maxFeePerGas,
+      maxPriorityFeePerGas,
       nonce: Number(currentNonce),
       to: tx.txData.to,
       value: BigInt(tx.txData.value)
