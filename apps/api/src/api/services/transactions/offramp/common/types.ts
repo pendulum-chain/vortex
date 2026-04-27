@@ -12,6 +12,7 @@ export interface OfframpTransactionParams {
   brlaEvmAddress?: string;
   moneriumAuthToken?: string;
   userId?: string;
+  fiatAccountId?: string;
 }
 
 export interface OfframpTransactionsWithMeta {

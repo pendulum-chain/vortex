@@ -6,6 +6,7 @@ import {
   getPendulumDetails,
   isAssetHubTokenDetails,
   Networks,
+  normalizeTaxId,
   UnsignedTx
 } from "@vortexfi/shared";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -44,7 +45,7 @@ export async function prepareAveniaToAssethubOnrampTransactions({
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
     substrateEphemeralAddress: substrateEphemeralEntry.address,
-    taxId
+    taxId: normalizeTaxId(taxId)
   };
 
   // Moonbeam: Initial BRLA transfer to Pendulum

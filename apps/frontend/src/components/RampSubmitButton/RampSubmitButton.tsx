@@ -52,6 +52,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+    const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
     if (
       walletLocked &&
@@ -88,7 +89,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       }
     }
 
-    if (isQuoteExpired) {
+    if (isQuoteExpired && !hasAchPaymentData) {
       return {
         icon: null,
         text: t("components.SummaryPage.quoteExpired")
@@ -229,7 +230,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId) return true;
+      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId && isOfframp) return true;
       return false;
     }
 
@@ -280,7 +281,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   });
 
   const onSubmit = () => {
-    if (isQuoteExpired) {
+    const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
+
+    if (isQuoteExpired && !hasAchPaymentData) {
       rampActor.send({ type: "RESET_RAMP" });
       navigateToCleanOrigin(router, params);
       return;

@@ -10,7 +10,7 @@ const customFormat = winston.format.printf(({ timestamp, level, message, label =
 });
 
 const logger = winston.createLogger({
-  level: "info",
+  level: process.env.LOG_LEVEL || "info",
   transports: [
     new winston.transports.File({
       filename: "error.log",

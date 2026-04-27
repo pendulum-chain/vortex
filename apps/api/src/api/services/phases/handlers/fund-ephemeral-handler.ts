@@ -4,6 +4,7 @@ import {
   EvmNetworks,
   FiatToken,
   getNetworkFromDestination,
+  isAlfredpayToken,
   isNetworkEVM,
   Networks,
   RampDirection,
@@ -69,13 +70,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     // or alfredpay offramp
     if (
       isOnramp(state) &&
-      (inputCurrency === FiatToken.EURC || inputCurrency === FiatToken.USD) &&
+      (inputCurrency === FiatToken.EURC || isAlfredpayToken(inputCurrency as FiatToken)) &&
       state.to !== Networks.AssetHub
     ) {
       return false;
     }
 
-    if (!isOnramp(state) && outputCurrency === FiatToken.USD) {
+    if (!isOnramp(state) && isAlfredpayToken(outputCurrency as FiatToken)) {
       return false;
     }
     return true;
@@ -83,10 +84,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
   protected getRequiresPolygonEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
     // Only required for Monerium and Alfredpay onramps and offramps.
-    if (isOnramp(state) && (inputCurrency === FiatToken.EURC || inputCurrency === FiatToken.USD)) {
+    if (isOnramp(state) && (inputCurrency === FiatToken.EURC || isAlfredpayToken(inputCurrency as FiatToken))) {
       return true;
     }
-    if (!isOnramp(state) && outputCurrency === FiatToken.USD) {
+    if (!isOnramp(state) && isAlfredpayToken(outputCurrency as FiatToken)) {
       return true;
     }
 
@@ -235,7 +236,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return "moonbeamToPendulumXcm";
     }
     // alfredpay onramp case
-    if (isOnramp(state) && quote.inputCurrency === FiatToken.USD) {
+    if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
       return "squidRouterSwap";
     }
     // monerium onramp case
@@ -246,7 +247,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     // off ramp cases
     if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
       return "distributeFees";
-    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD) {
+    } else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       return "finalSettlementSubsidy";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap

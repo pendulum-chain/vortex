@@ -1,4 +1,4 @@
-import { yupResolver } from "@hookform/resolvers/yup";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { FiatToken } from "@vortexfi/shared";
 import { useCallback, useEffect } from "react";
 import { UseFormReturn, useForm } from "react-hook-form";
@@ -31,7 +31,7 @@ export const useQuoteForm = (): {
 
   const form = useForm<QuoteFormValues>({
     defaultValues: DEFAULT_QUOTE_FORM_VALUES,
-    resolver: yupResolver(formSchema)
+    resolver: standardSchemaResolver(formSchema)
   });
 
   const rampActor = useRampActor();

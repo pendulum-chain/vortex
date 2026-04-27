@@ -1,6 +1,7 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
 import type { TFunction } from "i18next";
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
@@ -25,14 +26,14 @@ function buildZodSchema(
   fields: FieldDef[],
   accountType: FiatAccountTypeKey,
   t: TFunction
-): z.ZodObject<Record<string, z.ZodTypeAny>> {
-  const shape: Record<string, z.ZodTypeAny> = {};
+): z.ZodObject<Record<string, z.ZodType>> {
+  const shape: Record<string, z.ZodType> = {};
 
   for (const f of fields) {
-    let schema: z.ZodTypeAny;
+    let schema: z.ZodType;
 
     if (f.required) {
-      schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: f.label }));
+      schema = z.string().min(1, t("components.fiatAccountRegistration.validation.fieldRequired", { field: t(f.label) }));
     } else {
       schema = z.string().optional();
     }
@@ -46,8 +47,11 @@ function buildZodSchema(
     if (f.field === "accountNumber" && accountType === "ACH") {
       schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
+    if (f.field === "accountNumber" && accountType === "ACH_COL") {
+      schema = z.string().regex(/^\d{10,11}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
+    }
     if (f.field === "accountNumber" && accountType === "WIRE") {
-      schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
+      schema = z.string().regex(/^\d{8,34}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
     if (f.field === "accountAlias") {
       schema = z.string().max(40, t("components.fiatAccountRegistration.validation.nickname")).optional();
@@ -65,61 +69,61 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   const fields: FieldDef[] = FORMS[accountType] ?? [];
 
-  const schema = buildZodSchema(fields, accountType, t);
+  const schema = useMemo(() => buildZodSchema(fields, accountType, t), [fields, accountType, t]);
 
   const {
     control,
     formState: { errors },
     handleSubmit,
     register
-  } = useForm({ resolver: zodResolver(schema) });
+  } = useForm({ resolver: standardSchemaResolver(schema) });
 
   const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
 
   const onSubmit = async (data: Record<string, unknown>) => {
     const {
-      accountAlias,
       accountBankCode,
       accountName,
       accountNumber,
       accountType: accountTypeField,
-      networkIdentifier,
       routingNumber,
       bankStreet,
       bankCity,
       bankState,
       bankCountry,
-      bankPostalCode
+      bankPostalCode,
+      documentType,
+      documentNumber
     } = data as Record<string, string>;
 
     try {
       await addFiatAccount.mutateAsync({
-        accountAlias,
-        accountBankCode: accountBankCode ?? "",
-        accountName: accountName ?? "",
+        accountBankCode,
+        accountName,
         accountNumber: accountNumber ?? "",
-        accountType: accountTypeField ?? "",
+        accountType: accountTypeField,
         bankCity,
         bankCountry,
         bankPostalCode,
         bankState,
         bankStreet,
         country,
-        networkIdentifier,
+        documentNumber,
+        documentType,
         routingNumber,
         type: alfredType
       });
       toast.success(t("components.fiatAccountRegistration.registeredSuccess"));
       onSuccess();
     } catch (err: unknown) {
-      const axiosErr = err as {
+      const apiErr = err as {
         response?: {
           status?: number;
           data?: { error?: string; message?: string; fields?: { field: string; message: string }[] };
         };
       };
-      const status = axiosErr?.response?.status;
-      const body = axiosErr?.response?.data;
+      const status = apiErr?.response?.status;
+      const body = apiErr?.response?.data;
 
       if (status === 409) {
         toast.error(t("components.fiatAccountRegistration.alreadyRegistered"));
@@ -143,7 +147,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
           {fields.map(f => (
             <div key={f.field}>
               <label className="mb-1 block text-sm" htmlFor={`field-${f.field}`}>
-                {f.label}
+                {t(f.label)}
               </label>
 
               {f.type === "select" ? (
@@ -153,7 +157,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <SelectTrigger
-                        className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-0 focus-visible:ring-offset-0 data-[size=default]:h-auto ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
+                        className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 data-[size=default]:h-auto ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
                         id={`field-${f.field}`}
                       >
                         <SelectValue placeholder={t("components.fiatAccountRegistration.selectPlaceholder")} />
@@ -161,7 +165,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                       <SelectContent>
                         {f.options?.map(opt => (
                           <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
+                            {t(opt.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -170,15 +174,18 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                 />
               ) : (
                 <input
+                  autoComplete={f.field === "accountName" ? "name" : "off"}
                   className={`input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
                   id={`field-${f.field}`}
-                  placeholder={f.placeholder}
+                  inputMode={f.field === "routingNumber" || f.field === "accountNumber" ? "numeric" : undefined}
+                  placeholder={f.placeholder ? t(f.placeholder) : undefined}
+                  spellCheck={f.field === "routingNumber" || f.field === "accountNumber" ? false : undefined}
                   type={f.type === "phone" ? "tel" : f.type === "email" ? "email" : "text"}
                   {...register(f.field)}
                 />
               )}
 
-              {f.hint && <span className="mt-1 block text-gray-500 text-xs">{f.hint}</span>}
+              {f.hint && <span className="mt-1 block text-gray-500 text-xs">{t(f.hint)}</span>}
               {errors[f.field] && <span className="mt-1 block text-error text-sm">{errors[f.field]?.message as string}</span>}
             </div>
           ))}

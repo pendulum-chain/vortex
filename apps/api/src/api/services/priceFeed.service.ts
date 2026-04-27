@@ -199,6 +199,26 @@ export class PriceFeedService {
       return cachedEntry.value;
     }
 
+    // Check if the currency has a Pendulum representative (Nabla pool).
+    // Currencies like MXN and COP are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
+    let outputTokenPendulumDetails;
+    try {
+      outputTokenPendulumDetails = getPendulumDetails(toCurrency);
+    } catch {
+      // No Pendulum representative — fall back to CoinGecko using USDC as a USD proxy.
+      logger.debug(`Cache miss for ${cacheKey}. No Pendulum pool for ${toCurrency}, fetching from CoinGecko.`);
+      try {
+        const rate = await this.getCryptoPrice("usd-coin", toCurrency.toLowerCase());
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
+        return rate;
+      } catch (cgError) {
+        if (cgError instanceof Error) {
+          logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${cgError.message}`);
+        }
+        throw cgError;
+      }
+    }
+
     logger.debug(`Cache miss for ${cacheKey}. Fetching from Nabla.`);
 
     try {
@@ -211,7 +231,6 @@ export class PriceFeedService {
       // We assume that the exchange rate from axlUSDC to the target currency in the Forex AMM
       // resemble the real fiat exchange rate.
       const inputTokenPendulumDetails = PENDULUM_USDC_AXL;
-      const outputTokenPendulumDetails = getPendulumDetails(toCurrency);
 
       // Call getTokenOutAmount to get the exchange rate
       const amountOut = await getTokenOutAmount({

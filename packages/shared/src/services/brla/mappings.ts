@@ -170,7 +170,7 @@ export interface EndpointMapping {
   };
   [Endpoint.KybLevel1WebSdk]: {
     POST: {
-      body: { redirectUrl: string | undefined };
+      body: { redirectUrl: string };
       response: KybLevel1Response;
     };
     GET: {

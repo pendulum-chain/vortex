@@ -1,43 +1,34 @@
-import { motion } from "motion/react";
-import { FormProvider, UseFormReturn } from "react-hook-form";
+import { FieldValues, FormProvider, SubmitHandler, UseFormReturn } from "react-hook-form";
 import { Trans, useTranslation } from "react-i18next";
 
-import { KYCFormData } from "../../../hooks/brla/useKYCForm";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
-import { AveniaKycActorRef } from "../../../machines/types";
 
 import { StepFooter } from "../../StepFooter";
 import { AveniaField, AveniaFieldProps, ExtendedAveniaFieldOptions } from "../AveniaField";
 
-interface AveniaVerificationFormProps {
+interface AveniaVerificationFormProps<T extends FieldValues> {
   fields: AveniaFieldProps[];
-  form: UseFormReturn<KYCFormData>;
-  aveniaKycActor: AveniaKycActorRef;
+  form: UseFormReturn<T>;
+  onSubmit: SubmitHandler<T>;
   isCompany?: boolean;
 }
 
-export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany = false }: AveniaVerificationFormProps) => {
+export const AveniaVerificationForm = <T extends FieldValues>({
+  form,
+  fields,
+  onSubmit,
+  isCompany = false
+}: AveniaVerificationFormProps<T>) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
-
-  const onSubmit = () => {
-    const formData = form.getValues();
-    aveniaKycActor.send({ formData, type: "FORM_SUBMIT" });
-  };
 
   // formState.isValid is not working as expected, so we need to check the errors
   const isFormInvalid = Object.keys(form.formState.errors).length > 0 || form.formState.isSubmitting;
 
   return (
     <FormProvider {...form}>
-      <motion.form
-        animate={{ opacity: 1, scale: 1 }}
-        className="mt-8 mb-4 flex w-full flex-col"
-        initial={{ opacity: 0.8, scale: 0.9 }}
-        onSubmit={onSubmit}
-        transition={{ duration: 0.3 }}
-      >
+      <form className="mt-8 mb-4 flex w-full flex-col" onSubmit={handleSubmit(onSubmit)}>
         <div className="flex-1 pb-36">
           <h1 className="mt-2 mb-4 text-center font-bold text-3xl text-primary">
             {isCompany ? t("components.aveniaKYB.title.default") : t("components.aveniaKYC.title")}
@@ -50,7 +41,8 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
                     ExtendedAveniaFieldOptions.PIX_ID,
                     ExtendedAveniaFieldOptions.TAX_ID,
                     ExtendedAveniaFieldOptions.FULL_NAME,
-                    ExtendedAveniaFieldOptions.COMPANY_NAME
+                    ExtendedAveniaFieldOptions.COMPANY_NAME,
+                    ExtendedAveniaFieldOptions.EMAIL
                   ].includes(field.id as ExtendedAveniaFieldOptions)
                     ? "col-span-2"
                     : ""
@@ -69,7 +61,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
                 i18nKey={"components.aveniaKYC.description"}
               >
                 Complete these quick identity checks (typically 90 seconds). Data is processed securely by{" "}
-                <a className="underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
+                <a className="text-primary underline" href="https://www.avenia.io" rel="noreferrer" target="_blank">
                   Avenia
                 </a>{" "}
                 using bank-grade encryption for transaction security.
@@ -91,7 +83,7 @@ export const AveniaVerificationForm = ({ form, fields, aveniaKycActor, isCompany
                 : t("components.aveniaKYC.buttons.next")}
           </button>
         </StepFooter>
-      </motion.form>
+      </form>
     </FormProvider>
   );
 };

@@ -18,7 +18,7 @@ export function useFiatAccounts(country: string, options?: { enabled?: boolean }
   const enabled = (options?.enabled ?? true) && !!country;
   return useQuery<AlfredpayListFiatAccountsResponse>({
     enabled,
-    queryFn: () => AlfredpayService.listFiatAccounts(country),
+    queryFn: ({ signal }) => AlfredpayService.listFiatAccounts(country, signal),
     queryKey: [cacheKeys.fiatAccounts, country],
     ...(inactiveOptions["5m"] as FiatAccountsQueryPartialOptions)
   });

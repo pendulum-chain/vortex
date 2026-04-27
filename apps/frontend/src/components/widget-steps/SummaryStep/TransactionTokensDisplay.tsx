@@ -26,8 +26,10 @@ import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { RampExecutionInput } from "../../../types/phases";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
+import { COPOnrampDetails } from "./COPOnrampDetails";
 import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
+import { MXNOnrampDetails } from "./MXNOnrampDetails";
 import { USOnrampDetails } from "./USOnrampDetails";
 
 interface TransactionTokensDisplayProps {
@@ -131,6 +133,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.MXN && <MXNOnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.COP && <COPOnrampDetails />}
       {quoteLocked && targetTimestampMs !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

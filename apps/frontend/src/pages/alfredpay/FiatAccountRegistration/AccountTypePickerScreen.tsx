@@ -45,7 +45,9 @@ export function AccountTypePickerScreen({ countryConfig, onSelect }: AccountType
             type="button"
           >
             <AccountTypeRow accountType={accountType} />
-            <span className="ml-4 text-gray-400 text-lg">›</span>
+            <span aria-hidden="true" className="ml-4 text-gray-400 text-lg">
+              ›
+            </span>
           </button>
         ))}
       </div>

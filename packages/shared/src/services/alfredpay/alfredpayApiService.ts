@@ -7,8 +7,12 @@ import {
   AlfredpayFiatAccountFields,
   AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
+  AlfredpayKybFileType,
+  AlfredpayKybRelatedPersonFileType,
+  AlfredpayKycFileType,
   AlfredpayOfframpQuote,
   AlfredpayOnrampQuote,
+  AlfredpayTradeLimitError,
   CreateAlfredpayCustomerResponse,
   CreateAlfredpayFiatAccountRequest,
   CreateAlfredpayFiatAccountResponse,
@@ -26,8 +30,13 @@ import {
   GetKycRedirectLinkResponse,
   GetKycStatusResponse,
   GetKycSubmissionResponse,
+  ListAlfredpayFiatAccountsResponse,
   RetryKybSubmissionResponse,
-  RetryKycSubmissionResponse
+  RetryKycSubmissionResponse,
+  SubmitKybInformationRequest,
+  SubmitKybInformationResponse,
+  SubmitKycInformationRequest,
+  SubmitKycInformationResponse
 } from "./types";
 
 export class AlfredpayApiService {
@@ -93,7 +102,21 @@ export class AlfredpayApiService {
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed with status '${response.status}'. Error: ${await response.text()}`);
+      const errorText = await response.text();
+      if (response.status === 409) {
+        try {
+          const parsed = JSON.parse(errorText);
+          if (parsed.errorCode === 111426 && parsed.errorMetadata) {
+            const { minQuantity, fromCurrency } = parsed.errorMetadata;
+            throw new AlfredpayTradeLimitError(minQuantity, fromCurrency);
+          }
+        } catch (parseError) {
+          if (parseError instanceof AlfredpayTradeLimitError) {
+            throw parseError;
+          }
+        }
+      }
+      throw new Error(`Request failed with status '${response.status}'. Error: ${errorText}`);
     }
     try {
       return await response.json();
@@ -160,10 +183,9 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as GetKybSubmissionResponse;
   }
 
-  // TODo is this endpoint correct?
-  public async retryKybSubmission(customerId: string, submissionId: string): Promise<RetryKybSubmissionResponse> {
-    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/retry`;
-    return (await this.executeRequest(path, "POST")) as RetryKybSubmissionResponse;
+  // Alfredpay has no dedicated KYB retry endpoint. Retry is handled by fetching a new verification URL.
+  public async retryKybSubmission(_customerId: string, _submissionId: string): Promise<RetryKybSubmissionResponse> {
+    return { message: "ok" };
   }
 
   public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {
@@ -201,16 +223,131 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
   }
 
-  public async createAchFiatAccount(
+  public async createFiatAccount(
     customerId: string,
+    type: AlfredpayFiatAccountType,
     fiatAccountFields: AlfredpayFiatAccountFields
   ): Promise<CreateAlfredpayFiatAccountResponse> {
-    const payload: CreateAlfredpayFiatAccountRequest = {
-      customerId,
-      fiatAccountFields,
-      type: AlfredpayFiatAccountType.ACH
-    };
+    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, type };
     const path = "/api/v1/third-party-service/penny/fiatAccounts";
     return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
+  }
+
+  public async listFiatAccounts(customerId: string): Promise<ListAlfredpayFiatAccountsResponse> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts?customerId=${encodeURIComponent(customerId)}`;
+    return (await this.executeRequest(path, "GET")) as ListAlfredpayFiatAccountsResponse;
+  }
+
+  public async deleteFiatAccount(customerId: string, fiatAccountId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts/${encodeURIComponent(customerId)}/${encodeURIComponent(fiatAccountId)}`;
+    await this.executeRequest(path, "DELETE");
+  }
+
+  public async submitKycInformation(
+    customerId: string,
+    data: SubmitKycInformationRequest
+  ): Promise<SubmitKycInformationResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc`;
+    const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
+    if (!data.typeDocument) delete kycSubmission.typeDocument;
+    if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
+    if (!data.phoneNumber) delete kycSubmission.phoneNumber;
+    return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
+  }
+
+  public async submitKycFile(
+    customerId: string,
+    submissionId: string,
+    fileType: AlfredpayKycFileType,
+    file: Blob
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("fileBody", file);
+    formData.append("fileType", fileType);
+
+    const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
+    const response = await fetch(url, {
+      body: formData,
+      headers: {
+        "api-key": this.apiKey,
+        "api-secret": this.apiSecret
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload KYC file: ${errorText}`);
+    }
+  }
+
+  public async sendKycSubmission(customerId: string, submissionId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/submit`;
+    await this.executeRequest(path, "POST");
+  }
+
+  public async submitKybInformation(
+    customerId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<SubmitKybInformationResponse> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb`;
+    return (await this.executeRequest(path, "POST", { kybSubmission: data })) as SubmitKybInformationResponse;
+  }
+
+  public async submitKybFiles(
+    customerId: string,
+    submissionId: string,
+    fileType: AlfredpayKybFileType,
+    file: Blob
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("rawBody", file);
+    formData.append("fileType", fileType);
+
+    const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
+    const response = await fetch(url, {
+      body: formData,
+      headers: {
+        "api-key": this.apiKey,
+        "api-secret": this.apiSecret
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload KYB file: ${errorText}`);
+    }
+  }
+
+  public async submitKybRelatedPersonFiles(
+    customerId: string,
+    relatedPersonId: string,
+    fileType: AlfredpayKybRelatedPersonFileType,
+    file: Blob
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("rawBody", file);
+    formData.append("fileType", fileType);
+
+    const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;
+    const response = await fetch(url, {
+      body: formData,
+      headers: {
+        "api-key": this.apiKey,
+        "api-secret": this.apiSecret
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload KYB related person file: ${errorText}`);
+    }
+  }
+
+  public async sendKybSubmission(customerId: string, submissionId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/submit`;
+    await this.executeRequest(path, "PUT");
   }
 }

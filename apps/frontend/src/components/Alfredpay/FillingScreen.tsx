@@ -18,7 +18,7 @@ export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling,
   return (
     <main className="relative flex grow-1 flex-col items-center">
       <MenuButtons />
-      <img alt="Business Handshake" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReady} />
+      <img alt="Document ready" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReady} />
       <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
       {onOpenLink && (
         <button className="mt-2 text-primary text-sm underline" onClick={onOpenLink} type="button">
@@ -26,7 +26,12 @@ export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling,
         </button>
       )}
       <StepFooter>
-        <button className="btn-vortex-primary btn w-full rounded-xl" disabled={isSubmitting} onClick={onCompletedFilling}>
+        <button
+          className="btn-vortex-primary btn w-full rounded-xl"
+          disabled={isSubmitting}
+          onClick={onCompletedFilling}
+          type="button"
+        >
           {isSubmitting ? (
             <>
               <Spinner />
