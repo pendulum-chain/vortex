@@ -8,7 +8,7 @@ export interface FieldDef {
   placeholder?: string;
   required: boolean;
   defaultValue?: string;
-  type: "text" | "select" | "phone" | "email" | "checkbox";
+  type: "text" | "select" | "phone" | "email";
 }
 
 export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {

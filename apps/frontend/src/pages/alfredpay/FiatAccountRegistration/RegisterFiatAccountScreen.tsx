@@ -30,11 +30,6 @@ function buildZodSchema(
   const shape: Record<string, z.ZodType> = {};
 
   for (const f of fields) {
-    if (f.type === "checkbox") {
-      shape[f.field] = z.boolean().default(false);
-      continue;
-    }
-
     let schema: z.ZodType;
 
     if (f.required) {
@@ -157,22 +152,6 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
       >
         <div className="grow-1 space-y-4">
           {fields.map(f => {
-            if (f.type === "checkbox") {
-              return (
-                <div className="flex items-center gap-3" key={f.field}>
-                  <input
-                    className="checkbox checkbox-primary checkbox-sm"
-                    id={`field-${f.field}`}
-                    type="checkbox"
-                    {...register(f.field)}
-                  />
-                  <label className="text-sm" htmlFor={`field-${f.field}`}>
-                    {t(f.label)}
-                  </label>
-                </div>
-              );
-            }
-
             return (
               <div key={f.field}>
                 <label className="mb-1 block text-sm" htmlFor={`field-${f.field}`}>
