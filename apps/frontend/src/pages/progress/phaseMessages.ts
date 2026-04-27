@@ -55,6 +55,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
 
   const messages: Record<RampPhase, string> = {
+    alfredOnrampMintFallback: "",
     alfredpayOfframpTransfer: getTransferringMessage(),
     alfredpayOfframpTransferFallback: "",
     alfredpayOnrampMint: t("pages.progress.alfredpayOnrampMint"),
