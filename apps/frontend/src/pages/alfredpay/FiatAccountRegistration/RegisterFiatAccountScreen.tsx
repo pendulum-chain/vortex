@@ -47,8 +47,11 @@ function buildZodSchema(
     if (f.field === "accountNumber" && accountType === "ACH") {
       schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
+    if (f.field === "accountNumber" && accountType === "ACH_COL") {
+      schema = z.string().regex(/^\d{10,11}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
+    }
     if (f.field === "accountNumber" && accountType === "WIRE") {
-      schema = z.string().regex(/^\d{4,17}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
+      schema = z.string().regex(/^\d{8,34}$/, t("components.fiatAccountRegistration.validation.accountNumber"));
     }
     if (f.field === "accountAlias") {
       schema = z.string().max(40, t("components.fiatAccountRegistration.validation.nickname")).optional();
@@ -79,34 +82,34 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   const onSubmit = async (data: Record<string, unknown>) => {
     const {
-      accountAlias,
       accountBankCode,
       accountName,
       accountNumber,
       accountType: accountTypeField,
-      networkIdentifier,
       routingNumber,
       bankStreet,
       bankCity,
       bankState,
       bankCountry,
-      bankPostalCode
+      bankPostalCode,
+      documentType,
+      documentNumber
     } = data as Record<string, string>;
 
     try {
       await addFiatAccount.mutateAsync({
-        accountAlias,
-        accountBankCode: accountBankCode ?? "",
-        accountName: accountName ?? "",
+        accountBankCode,
+        accountName,
         accountNumber: accountNumber ?? "",
-        accountType: accountTypeField ?? "",
+        accountType: accountTypeField,
         bankCity,
         bankCountry,
         bankPostalCode,
         bankState,
         bankStreet,
         country,
-        networkIdentifier,
+        documentNumber,
+        documentType,
         routingNumber,
         type: alfredType
       });
@@ -182,7 +185,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
                 />
               )}
 
-              {f.hint && <span className="mt-1 block text-gray-500 text-xs">{f.hint}</span>}
+              {f.hint && <span className="mt-1 block text-gray-500 text-xs">{t(f.hint)}</span>}
               {errors[f.field] && <span className="mt-1 block text-error text-sm">{errors[f.field]?.message as string}</span>}
             </div>
           ))}

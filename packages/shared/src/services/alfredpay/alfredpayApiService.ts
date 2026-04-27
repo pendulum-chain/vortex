@@ -238,8 +238,8 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "GET")) as ListAlfredpayFiatAccountsResponse;
   }
 
-  public async deleteFiatAccount(fiatAccountId: string): Promise<void> {
-    const path = `/api/v1/third-party-service/penny/fiatAccounts/${encodeURIComponent(fiatAccountId)}`;
+  public async deleteFiatAccount(customerId: string, fiatAccountId: string): Promise<void> {
+    const path = `/api/v1/third-party-service/penny/fiatAccounts/${encodeURIComponent(customerId)}/${encodeURIComponent(fiatAccountId)}`;
     await this.executeRequest(path, "DELETE");
   }
 

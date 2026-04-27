@@ -91,17 +91,17 @@ export interface AlfredpayAddFiatAccountRequest {
   country: string;
   type: AlfredpayFiatAccountType;
   accountNumber: string;
-  accountType: string;
-  accountName: string;
-  accountBankCode: string;
-  accountAlias?: string;
-  networkIdentifier?: string;
+  accountType?: string;
+  accountName?: string;
+  accountBankCode?: string;
   routingNumber?: string;
   bankStreet?: string;
   bankCity?: string;
   bankState?: string;
   bankCountry?: string;
   bankPostalCode?: string;
+  documentType?: string;
+  documentNumber?: string;
 }
 
 export interface AlfredpayAddFiatAccountResponse {

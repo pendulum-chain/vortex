@@ -17,6 +17,16 @@ export interface FinalizeComputation {
   decimals: number;
 }
 
+function getExpirationDate(ctx: QuoteContext): Date {
+  if (ctx.alfredpayMint?.expirationDate) {
+    return ctx.alfredpayMint.expirationDate;
+  }
+  if (ctx.alfredpayOfframp?.expirationDate) {
+    return ctx.alfredpayOfframp.expirationDate;
+  }
+  return new Date(Date.now() + 10 * 60 * 1000);
+}
+
 export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
   const usdFees = quoteTicket.metadata.fees?.usd;
   const fiatFees = quoteTicket.metadata.fees?.displayFiat;
@@ -32,6 +42,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
   return {
     anchorFeeFiat: fiatFees.anchor,
     anchorFeeUsd: usdFees.anchor,
+    createdAt: quoteTicket.createdAt,
     expiresAt: quoteTicket.expiresAt,
     feeCurrency: fiatFees.currency,
     from: quoteTicket.from,
@@ -95,10 +106,13 @@ export abstract class BaseFinalizeEngine implements Stage {
       const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
       const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+      const expiresAt = getExpirationDate(ctx);
+
       ctx.builtResponse = {
         anchorFeeFiat: fiatFees.anchor,
         anchorFeeUsd: usdFees.anchor,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        createdAt: new Date(),
+        expiresAt,
         feeCurrency: fiatFees.currency,
         from: request.from,
         id: "temp-" + Date.now(), // Temporary ID for comparison
@@ -127,10 +141,12 @@ export abstract class BaseFinalizeEngine implements Stage {
     }
 
     // Normal flow: persist to database
+    const expiresAt = getExpirationDate(ctx);
+
     const record = await QuoteTicket.create({
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      expiresAt,
       fee: ctx.fees.displayFiat,
       from: request.from,
       inputAmount: request.inputAmount,
