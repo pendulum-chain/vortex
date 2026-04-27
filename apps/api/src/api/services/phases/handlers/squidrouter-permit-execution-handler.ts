@@ -1,13 +1,12 @@
 import {
   EvmClientManager,
+  EvmNetworks,
   getNetworkFromDestination,
   isNetworkEVM,
   isSignedTypedDataArray,
-  Networks,
   RampPhase,
   SignedTypedData
 } from "@vortexfi/shared";
-import { recoverTypedDataAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
@@ -16,7 +15,6 @@ import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { RELAYER_ADDRESS } from "../../transactions/offramp/routes/evm-to-alfredpay";
 import { BasePhaseHandler } from "../base-phase-handler";
-import { StateMetadata } from "../meta-state-types";
 
 // Phase description: call the relayer contract's `execute` function with both the token permit and
 // the signed squidrouter call.
@@ -30,6 +28,98 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
   public getPhaseName(): RampPhase {
     return "squidRouterPermitExecute";
+  }
+
+  private async executeDirectTransfer(
+    state: RampState,
+    signedTypedDataArray: SignedTypedData[],
+    fromNetwork: EvmNetworks
+  ): Promise<RampState> {
+    if (!isSignedTypedDataArray(signedTypedDataArray) || signedTypedDataArray.length !== 1) {
+      throw this.createUnrecoverableError("Invalid txData format for direct transfer: expected array of 1 SignedTypedData");
+    }
+
+    const [permitTypedData] = signedTypedDataArray;
+    const permitSignature = permitTypedData.signature as { v: number; r: `0x${string}`; s: `0x${string}` } | undefined;
+    if (!permitSignature) {
+      throw this.createUnrecoverableError("Permit signature not found for direct transfer");
+    }
+
+    const permitMessage = permitTypedData.message;
+    const token = permitTypedData.domain.verifyingContract as `0x${string}`;
+    const owner = permitMessage.owner as `0x${string}`;
+    const spender = permitMessage.spender as `0x${string}`;
+    const value = BigInt(permitMessage.value as string);
+    const deadline = BigInt(permitMessage.deadline as string);
+    const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
+
+    const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const walletClient = this.evmClientManager.getWalletClient(fromNetwork, executorAccount);
+    const publicClient = this.evmClientManager.getClient(fromNetwork);
+
+    const permitHash = await walletClient.writeContract({
+      abi: [
+        {
+          inputs: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+            { name: "v", type: "uint8" },
+            { name: "r", type: "bytes32" },
+            { name: "s", type: "bytes32" }
+          ],
+          name: "permit",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function"
+        }
+      ] as const,
+      address: token,
+      args: [owner, spender, value, deadline, permitSignature.v, permitSignature.r, permitSignature.s],
+      functionName: "permit"
+    });
+    logger.info(`Direct transfer permit tx sent: ${permitHash}`);
+
+    const permitReceipt = await publicClient.waitForTransactionReceipt({ hash: permitHash });
+    if (!permitReceipt || permitReceipt.status !== "success") {
+      throw this.createRecoverableError(`Direct transfer permit tx failed: ${permitHash}`);
+    }
+
+    const transferHash = await walletClient.writeContract({
+      abi: [
+        {
+          inputs: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" }
+          ],
+          name: "transferFrom",
+          outputs: [{ name: "", type: "bool" }],
+          stateMutability: "nonpayable",
+          type: "function"
+        }
+      ] as const,
+      address: token,
+      args: [owner, ephemeralAddress, value],
+      functionName: "transferFrom"
+    });
+    logger.info(`Direct transfer transferFrom tx sent: ${transferHash}`);
+
+    const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferHash });
+    if (!transferReceipt || transferReceipt.status !== "success") {
+      throw this.createRecoverableError(`Direct transfer transferFrom tx failed: ${transferHash}`);
+    }
+
+    const updatedState = await state.update({
+      state: {
+        ...state.state,
+        squidRouterPermitExecutionHash: transferHash
+      }
+    });
+
+    logger.info(`Direct transfer completed for ramp ${state.id}`);
+    return this.transitionToNextPhase(updatedState, "fundEphemeral");
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -71,8 +161,13 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         throw this.createUnrecoverableError("Missing presigned transaction for squidRouterPermitExecute phase");
       }
 
-      // For this special phase, txData is of type SignedTypedData[], where the first element is the permit typed data and the second element is the payload typed data
       const signedTypedDataArray = permitExecuteTransaction.txData as SignedTypedData[];
+
+      if (state.state.isDirectTransfer) {
+        return await this.executeDirectTransfer(state, signedTypedDataArray, fromNetwork);
+      }
+
+      // For this special phase, txData is of type SignedTypedData[], where the first element is the permit typed data and the second element is the payload typed data
       if (!isSignedTypedDataArray(signedTypedDataArray) || signedTypedDataArray.length !== 2) {
         throw this.createUnrecoverableError("Invalid txData format: expected array of 2 SignedTypedData objects");
       }
