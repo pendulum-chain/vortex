@@ -90,16 +90,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
-        if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-          if (!quote.metadata.alfredpayMint) {
-            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay mint metadata");
-          }
-          expectedAmountRaw = Big(quote.metadata.alfredpayMint.outputAmountRaw);
-          break;
-        }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
         break;
-
       case RampDirection.SELL:
         if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
           if (!quote.metadata.alfredpayOfframp) {
