@@ -349,7 +349,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
-    nonce: 1,
+    nonce: 0, // Also use nonce 0 to ensure transaction is available immediately
     phase: "alfredpayOfframpTransferFallback",
     signer: evmEphemeralEntry.address,
     txData: fallbackTransferTxData
