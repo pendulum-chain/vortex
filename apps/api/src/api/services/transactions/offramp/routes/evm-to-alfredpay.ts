@@ -23,8 +23,6 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
@@ -204,7 +202,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     customerId: customer.alfredPayId,
     fiatAccountId,
     fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-    originAddress: userAddress,
+    originAddress: evmEphemeralEntry.address,
     quoteId: alfredpayQuoteId,
     toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
   });
@@ -341,11 +339,10 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     txData: finalTransferTxData
   });
 
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
   const fallbackTransferTxData = await addOnrampDestinationChainTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: fundingAccount.address,
+    toAddress: userAddress,
     toToken: ALFREDPAY_ERC20_TOKEN
   });
 
