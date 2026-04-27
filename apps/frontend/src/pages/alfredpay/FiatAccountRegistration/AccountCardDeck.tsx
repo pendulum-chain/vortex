@@ -22,11 +22,11 @@ function FrontCardContent({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { fiatAccountFields, type, fiatAccountId } = account;
+  const { accountName, metadata, accountNumber, type, fiatAccountId } = account;
   const accountType = resolveAccountTypeKey(type, country);
-  const label = fiatAccountFields.accountAlias || fiatAccountFields.accountBankCode;
-  const last4 = fiatAccountFields.accountNumber.slice(-4);
-  const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
+  const label = accountName || metadata?.accountHolderName;
+  const last4 = accountNumber.slice(-4);
+  const sub = `${label} ••••${last4}`;
 
   return (
     <div
@@ -42,10 +42,10 @@ function FrontCardContent({
           <p className="mt-5 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountDetails")}</p>
           <div className="flex w-full items-center justify-between">
             <p className="truncate text-gray-500">{label}</p>
-            <MaskedAccountNumber accountNumber={fiatAccountFields.accountNumber} />
+            <MaskedAccountNumber accountNumber={accountNumber} />
           </div>
           <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountOwner")}</span>
-          <span className="truncate text-gray-500">{fiatAccountFields.accountName}</span>
+          <span className="truncate text-gray-500">{accountName}</span>
         </div>
       </div>
       <RemoveAccountControls onDelete={() => onDelete(fiatAccountId)} />
@@ -54,11 +54,11 @@ function FrontCardContent({
 }
 
 function BackCardContent({ account, country, index }: { account: AlfredpayFiatAccount; country: string; index: number }) {
-  const { fiatAccountFields, type } = account;
+  const { accountNumber, accountName, type } = account;
   const accountType = resolveAccountTypeKey(type, country);
   const bg = index === 1 ? "bg-gray-50" : "bg-gray-100";
-  const last4 = fiatAccountFields.accountNumber.slice(-4);
-  const sub = `${fiatAccountFields.accountBankCode} ••••${last4}`;
+  const last4 = accountNumber.slice(-4);
+  const sub = `${accountName} ••••${last4}`;
 
   return (
     <div className={`flex h-full w-full items-start rounded-lg border border-gray-200 ${bg} shadow-sm`}>
@@ -140,7 +140,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
               animate={{ scale: 1 - i * 0.045, top: (orderedAccounts.length - 1 - i) * activePeek }}
               aria-label={t("components.fiatAccountMethods.switchToAccount", {
                 accountType: resolveAccountTypeKey(account.type, country),
-                last4: account.fiatAccountFields.accountNumber.slice(-4)
+                last4: account.accountNumber.slice(-4)
               })}
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
               initial={false}

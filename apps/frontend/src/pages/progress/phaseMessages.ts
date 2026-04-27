@@ -39,7 +39,12 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
 
   const getSwappingMessage = () => t("pages.progress.swappingTo", { assetSymbol: outputAssetSymbol });
   const getMoonbeamToPendulumMessage = () => t("pages.progress.moonbeamToPendulum", { assetSymbol: inputAssetSymbol });
-  const getSquidrouterSwapMessage = () =>
+  const getSquidRouterPermitMessage = () =>
+    t("pages.progress.squidRouterPermitExecute", {
+      assetSymbol: inputAssetSymbol,
+      fromNetwork: quote.from
+    });
+  const getSquidRouterSwapMessage = () =>
     t("pages.progress.squidRouterSwap", {
       assetSymbol: outputAssetSymbol,
       fromNetwork: quote.inputCurrency === FiatToken.EURC ? "Polygon" : "Moonbeam",
@@ -50,8 +55,10 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
 
   const messages: Record<RampPhase, string> = {
+    alfredOnrampMintFallback: "",
     alfredpayOfframpTransfer: getTransferringMessage(),
-    alfredpayOnrampMint: t("pages.progress.alfredpayOnrampMint"), // Not relevant for progress page
+    alfredpayOfframpTransferFallback: "",
+    alfredpayOnrampMint: t("pages.progress.alfredpayOnrampMint"),
     assethubToPendulum: t("pages.progress.assethubToPendulum", {
       assetSymbol: inputAssetSymbol
     }), // Not relevant for progress page
@@ -92,10 +99,10 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {
       assetSymbol: outputAssetSymbol
     }),
-    squidRouterApprove: getSquidrouterSwapMessage(),
-    squidRouterPay: getSquidrouterSwapMessage(),
-    squidRouterPermitExecute: getSquidrouterSwapMessage(),
-    squidRouterSwap: getSquidrouterSwapMessage(),
+    squidRouterApprove: getSquidRouterSwapMessage(),
+    squidRouterPay: getSquidRouterSwapMessage(),
+    squidRouterPermitExecute: getSquidRouterPermitMessage(),
+    squidRouterSwap: getSquidRouterSwapMessage(),
     stellarCreateAccount: t("pages.progress.createStellarAccount"),
     stellarPayment: t("pages.progress.stellarPayment", {
       assetSymbol: outputAssetSymbol

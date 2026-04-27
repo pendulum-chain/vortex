@@ -17,8 +17,8 @@ export const ALFREDPAY_COUNTRY_METHODS: CountryFiatAccountConfig[] = [
     country: "US",
     countryName: "United States",
     currency: "USD",
-    offramp: ["ACH", "WIRE"],
-    onramp: ["ACH", "WIRE"]
+    offramp: ["WIRE"],
+    onramp: ["WIRE"]
   },
   {
     country: "MX",

@@ -220,6 +220,22 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     txData: backupApproveTransaction
   });
 
+  const alfredMintFallbackTransferTxData = await addOnrampDestinationChainTransactions({
+    amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+    destinationNetwork: Networks.Polygon as EvmNetworks,
+    toAddress: destinationAddress,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "alfredOnrampMintFallback",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(alfredMintFallbackTransferTxData) as EvmTransactionData
+  });
+
   stateMeta = {
     ...stateMeta,
     squidRouterQuoteId,

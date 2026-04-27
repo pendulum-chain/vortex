@@ -71,6 +71,7 @@ export interface QuoteResponse {
 
   paymentMethod: PaymentMethod;
   expiresAt: Date;
+  createdAt: Date;
   sessionId?: string;
 }
 

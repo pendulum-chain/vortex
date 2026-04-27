@@ -19,7 +19,7 @@ import { moneriumKycMachine } from "./moneriumKyc.machine";
 import { stellarKycMachine } from "./stellarKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
-const QUOTE_EXPIRY_THRESHOLD_SECONDS = 120; // 2 minutes
+const QUOTE_EXPIRY_THRESHOLD_PERCENTAGE = 60; // 60%
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
@@ -62,9 +62,13 @@ const refetchQuote = async (
 ) => {
   const now = Date.now();
   const expires = new Date(quote.expiresAt).getTime();
-  const secondsLeft = Math.round((expires - now) / 1000);
+  const created = new Date(quote.createdAt || now).getTime();
+  const totalDuration = expires - created;
+  const timeRemaining = expires - now;
 
-  if (secondsLeft < QUOTE_EXPIRY_THRESHOLD_SECONDS) {
+  const percentageRemaining = totalDuration > 0 ? (timeRemaining / totalDuration) * 100 : 0;
+
+  if (percentageRemaining <= QUOTE_EXPIRY_THRESHOLD_PERCENTAGE) {
     try {
       const newQuote = await QuoteService.createQuote(
         quote.rampType,
@@ -76,6 +80,7 @@ const refetchQuote = async (
         apiKey,
         partnerId
       );
+      console.log("DEBUG: Quote refreshed", { newQuote, oldQuote: quote });
       sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
     } catch (error) {
       console.error("Quote refresh failed:", error);
@@ -613,6 +618,8 @@ export const rampMachine = setup({
         UPDATE_QUOTE: [
           {
             actions: assign({
+              executionInput: ({ context, event }) =>
+                context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
               isSep24Redo: () => true,
               quote: ({ event }) => event.quote,
               quoteId: ({ event }) => event.quote.id
@@ -624,6 +631,8 @@ export const rampMachine = setup({
           {
             actions: [
               assign({
+                executionInput: ({ context, event }) =>
+                  context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
                 isQuoteExpired: false,
                 quote: ({ event }) => event.quote,
                 quoteId: ({ event }) => event.quote.id
@@ -707,6 +716,8 @@ export const rampMachine = setup({
         },
         UPDATE_QUOTE: {
           actions: assign({
+            executionInput: ({ context, event }) =>
+              context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
             quote: ({ event }) => event.quote,
             quoteId: ({ event }) => event.quote.id
           })

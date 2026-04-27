@@ -341,21 +341,31 @@
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {
-      "accountAlias": "Apelido (opcional)",
       "accountName": "Nome do Titular da Conta",
       "accountNumber": "Número da Conta",
       "accountType": "Tipo de Conta",
+      "bankCity": "Cidade do Banco",
+      "bankCountry": "País do Banco",
       "bankName": "Nome do Banco",
+      "bankPostalCode": "CEP do Banco",
+      "bankState": "Estado do Banco",
+      "bankStreet": "Rua do Banco",
       "clabe": "CLABE (18 dígitos)",
+      "documentNumber": "Número do Documento",
+      "documentType": "Tipo de Documento",
+      "hints": {
+        "bankCountry": "Use o código de 3 letras do país, ex. USA"
+      },
       "options": {
         "ahorro": "Poupança (Ahorro)",
         "checking": "Corrente",
+        "corriente": "Corrente (Corriente)",
         "nequi": "Nequi",
-        "savings": "Poupança"
+        "saving": "Poupança"
       },
       "placeholders": {
         "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
-        "bankNameMx": "ex. BBVA, Santander, Banamex",
+        "bankCountry": "ex. USA",
         "clabe": "ex. 032180000118359719",
         "routingNumber": "ex. 021000021"
       },
@@ -634,10 +644,16 @@
       "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
       "USOnrampDetails": {
+        "accountNumber": "Número da Conta",
+        "accountType": "Tipo de Conta",
+        "amount": "Valor",
+        "beneficiaryName": "Nome do Beneficiário",
         "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
         "instruction": "Use esses detalhes para sua transferência ACH.",
         "paymentDescription": "Uma vez concluído, clique em",
         "paymentDescriptionStrong": "\"Eu fiz o pagamento\"",
+        "paymentReference": "Referência de Pagamento",
+        "routingNumber": "Número de Roteamento",
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com ACH"
       },
@@ -1129,6 +1145,8 @@
       "version": "Versão: 1.0"
     },
     "progress": {
+      "alfredPayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
+      "alfredpayOnrampMint": "Seu pagamento está sendo processado. Isso pode levar de mesmo dia até 3 dias úteis, dependendo do seu banco.",
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
@@ -1148,6 +1166,7 @@
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "squidRouterPermitExecute": "Autorizando transferência de {{assetSymbol}} de {{fromNetwork}}",
       "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",
