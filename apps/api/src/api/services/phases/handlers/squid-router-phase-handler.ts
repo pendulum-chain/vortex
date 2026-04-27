@@ -54,7 +54,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     // handle special "singularity" case: Alfredpay onrapm USDC in Polygon.
-    if (quote.to === Networks.Polygon && quote.outputCurrency === EvmToken.USDC) {
+    if (quote.to === Networks.Polygon && quote.outputCurrency === EvmToken.USDT) {
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
