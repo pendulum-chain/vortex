@@ -355,11 +355,14 @@
       "hints": {
         "bankCountry": "Use the 3-letter country code, e.g. USA"
       },
+      "isOwnAccount": "Who does this account belong to?",
       "options": {
         "ahorro": "Savings (Ahorro)",
         "checking": "Checking",
         "corriente": "Checking (Corriente)",
+        "externalAccount": "Someone else's account",
         "nequi": "Nequi",
+        "ownAccount": "My own account",
         "saving": "Savings"
       },
       "placeholders": {

@@ -659,7 +659,8 @@ export class AlfredpayController {
         bankCountry,
         bankPostalCode,
         documentType,
-        documentNumber
+        documentNumber,
+        isExternal = false
       } = req.body as AlfredpayAddFiatAccountRequest;
       const userId = req.userId!;
 
@@ -679,7 +680,7 @@ export class AlfredpayController {
         fiatAccountFields = {
           accountNumber,
           accountType: "CLABE",
-          isExternal: true,
+          isExternal,
           metadata: { accountHolderName: accountName }
         };
       } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.ACH) {
@@ -687,7 +688,7 @@ export class AlfredpayController {
           accountName: accountBankCode,
           accountNumber,
           accountType: accountType ?? "",
-          isExternal: true,
+          isExternal,
           metadata: { accountHolderName: accountName, documentNumber, documentType }
         };
       } else {
@@ -701,6 +702,7 @@ export class AlfredpayController {
           bankPostalCode,
           bankState,
           bankStreet,
+          isExternal,
           routingNumber
         };
       }

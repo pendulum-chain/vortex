@@ -30,6 +30,11 @@ function buildZodSchema(
   const shape: Record<string, z.ZodType> = {};
 
   for (const f of fields) {
+    if (f.type === "checkbox") {
+      shape[f.field] = z.boolean().default(false);
+      continue;
+    }
+
     let schema: z.ZodType;
 
     if (f.required) {
@@ -71,12 +76,17 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
 
   const schema = useMemo(() => buildZodSchema(fields, accountType, t), [fields, accountType, t]);
 
+  const defaultValues = useMemo(
+    () => Object.fromEntries(fields.filter(f => f.defaultValue !== undefined).map(f => [f.field, f.defaultValue])),
+    [fields]
+  );
+
   const {
     control,
     formState: { errors },
     handleSubmit,
     register
-  } = useForm({ resolver: standardSchemaResolver(schema) });
+  } = useForm({ defaultValues, resolver: standardSchemaResolver(schema) });
 
   const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
 
@@ -93,24 +103,26 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
       bankCountry,
       bankPostalCode,
       documentType,
-      documentNumber
-    } = data as Record<string, string>;
+      documentNumber,
+      isOwnAccount
+    } = data as Record<string, unknown>;
 
     try {
       await addFiatAccount.mutateAsync({
-        accountBankCode,
-        accountName,
-        accountNumber: accountNumber ?? "",
-        accountType: accountTypeField,
-        bankCity,
-        bankCountry,
-        bankPostalCode,
-        bankState,
-        bankStreet,
+        accountBankCode: accountBankCode as string,
+        accountName: accountName as string,
+        accountNumber: (accountNumber as string) ?? "",
+        accountType: accountTypeField as string,
+        bankCity: bankCity as string,
+        bankCountry: bankCountry as string,
+        bankPostalCode: bankPostalCode as string,
+        bankState: bankState as string,
+        bankStreet: bankStreet as string,
         country,
-        documentNumber,
-        documentType,
-        routingNumber,
+        documentNumber: documentNumber as string,
+        documentType: documentType as string,
+        isExternal: (isOwnAccount as string) === "external",
+        routingNumber: routingNumber as string,
         type: alfredType
       });
       toast.success(t("components.fiatAccountRegistration.registeredSuccess"));
@@ -144,51 +156,69 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
         onSubmit={handleSubmit(onSubmit as Parameters<typeof handleSubmit>[0])}
       >
         <div className="grow-1 space-y-4">
-          {fields.map(f => (
-            <div key={f.field}>
-              <label className="mb-1 block text-sm" htmlFor={`field-${f.field}`}>
-                {t(f.label)}
-              </label>
+          {fields.map(f => {
+            if (f.type === "checkbox") {
+              return (
+                <div className="flex items-center gap-3" key={f.field}>
+                  <input
+                    className="checkbox checkbox-primary checkbox-sm"
+                    id={`field-${f.field}`}
+                    type="checkbox"
+                    {...register(f.field)}
+                  />
+                  <label className="text-sm" htmlFor={`field-${f.field}`}>
+                    {t(f.label)}
+                  </label>
+                </div>
+              );
+            }
 
-              {f.type === "select" ? (
-                <Controller
-                  control={control}
-                  name={f.field}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                      <SelectTrigger
-                        className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 data-[size=default]:h-auto ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
-                        id={`field-${f.field}`}
-                      >
-                        <SelectValue placeholder={t("components.fiatAccountRegistration.selectPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {f.options?.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {t(opt.label)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              ) : (
-                <input
-                  autoComplete={f.field === "accountName" ? "name" : "off"}
-                  className={`input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
-                  id={`field-${f.field}`}
-                  inputMode={f.field === "routingNumber" || f.field === "accountNumber" ? "numeric" : undefined}
-                  placeholder={f.placeholder ? t(f.placeholder) : undefined}
-                  spellCheck={f.field === "routingNumber" || f.field === "accountNumber" ? false : undefined}
-                  type={f.type === "phone" ? "tel" : f.type === "email" ? "email" : "text"}
-                  {...register(f.field)}
-                />
-              )}
+            return (
+              <div key={f.field}>
+                <label className="mb-1 block text-sm" htmlFor={`field-${f.field}`}>
+                  {t(f.label)}
+                </label>
 
-              {f.hint && <span className="mt-1 block text-gray-500 text-xs">{t(f.hint)}</span>}
-              {errors[f.field] && <span className="mt-1 block text-error text-sm">{errors[f.field]?.message as string}</span>}
-            </div>
-          ))}
+                {f.type === "select" ? (
+                  <Controller
+                    control={control}
+                    name={f.field}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <SelectTrigger
+                          className={`input-vortex-primary w-full rounded-lg border bg-transparent p-2 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 data-[size=default]:h-auto ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
+                          id={`field-${f.field}`}
+                        >
+                          <SelectValue placeholder={t("components.fiatAccountRegistration.selectPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {f.options?.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {t(opt.label)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                ) : (
+                  <input
+                    autoComplete={f.field === "accountName" ? "name" : "off"}
+                    className={`input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${errors[f.field] ? "border-error" : "border-neutral-300"}`}
+                    id={`field-${f.field}`}
+                    inputMode={f.field === "routingNumber" || f.field === "accountNumber" ? "numeric" : undefined}
+                    placeholder={f.placeholder ? t(f.placeholder) : undefined}
+                    spellCheck={f.field === "routingNumber" || f.field === "accountNumber" ? false : undefined}
+                    type={f.type === "phone" ? "tel" : f.type === "email" ? "email" : "text"}
+                    {...register(f.field)}
+                  />
+                )}
+
+                {f.hint && <span className="mt-1 block text-gray-500 text-xs">{t(f.hint)}</span>}
+                {errors[f.field] && <span className="mt-1 block text-error text-sm">{errors[f.field]?.message as string}</span>}
+              </div>
+            );
+          })}
         </div>
 
         <button
