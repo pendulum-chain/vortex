@@ -759,7 +759,7 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      await alfredpayService.deleteFiatAccount(fiatAccountId);
+      await alfredpayService.deleteFiatAccount(alfredPayCustomer.alfredPayId, fiatAccountId);
 
       res.status(204).send();
     } catch (error) {
