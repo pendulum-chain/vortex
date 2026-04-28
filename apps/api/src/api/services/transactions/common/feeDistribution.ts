@@ -241,13 +241,8 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   });
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-  console.log(
-    "fee distr inputs: totalFeeUsdcRaw:",
-    totalFeeUsdcRaw.toFixed(0),
-    "maxFeePerGas:",
-    maxFeePerGas,
-    "maxPriorityFeePerGas:",
-    maxPriorityFeePerGas
+  logger.debug(
+    `Fee distribution inputs: totalFeeUsdcRaw: ${totalFeeUsdcRaw.toFixed(0)}, maxFeePerGas: ${maxFeePerGas}, maxPriorityFeePerGas: ${maxPriorityFeePerGas}`
   );
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,

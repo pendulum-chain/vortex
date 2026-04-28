@@ -103,7 +103,7 @@ export async function validatePresignedTxs(
 
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
-  console.log("Validating EVM transaction with signer:", signer, "on network:", tx.network, "for phase:", tx.phase);
+  logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
   // do not validate typed data
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
     return;
@@ -155,7 +155,7 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
 
 async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
   const { txData, signer, network } = tx;
-  console.log("Validating Substrate transaction with signer:", signer, "on network:", network, "for phase:", tx.phase);
+  logger.debug(`Validating Substrate transaction with signer: ${signer}, on network: ${network}, for phase: ${tx.phase}`);
   if (!expectedSignerSubstrate && !expectedSignerEvm) {
     throw new APIError({
       message: `Expected signer for Substrate transaction is not provided for phase ${tx.phase}`,

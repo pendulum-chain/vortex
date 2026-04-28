@@ -81,7 +81,7 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
-      console.log("debug: expectedSwapOutputAmountRaw", expectedSwapOutputAmountRaw.toString());
+      logger.debug(`SubsidizePostSwapEvmHandler: expectedSwapOutputAmountRaw ${expectedSwapOutputAmountRaw.toString()}`);
 
       // Try to find the required amount to subsidize on the quote metadata
       if (state.type === RampDirection.BUY) {
@@ -92,7 +92,7 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
       }
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
-      console.log("debug: requiredAmount", requiredAmount.toString());
+      logger.debug(`SubsidizePostSwapEvmHandler: requiredAmount ${requiredAmount.toString()}`);
 
       const didBalanceReachExpected = async () => {
         const balance = await checkEvmBalanceForToken({

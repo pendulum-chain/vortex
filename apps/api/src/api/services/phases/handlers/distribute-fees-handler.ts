@@ -7,7 +7,7 @@ import {
   decodeSubmittableExtrinsic,
   EvmClientManager,
   EvmNetworks,
-  isEvmTransactionData,
+  EvmTransactionData,
   Networks,
   RampDirection,
   RampPhase,
@@ -329,7 +329,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * @param network The EVM network
    * @returns The transaction hash
    */
-  private async submitEvmTransaction(txData: any, network: EvmNetworks): Promise<string> {
+  private async submitEvmTransaction(txData: EvmTransactionData, network: EvmNetworks): Promise<string> {
     logger.debug(`Submitting EVM transaction to ${network} for ${this.getPhaseName()} phase`);
 
     const evmClientManager = EvmClientManager.getInstance();
@@ -372,13 +372,13 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   /**
    * Check EVM transaction status
    * @param txHash The transaction hash
+   * @param network The EVM network where the transaction was submitted
    * @returns ExtrinsicStatus: Success, Fail, or Undefined
    */
-  private async checkEvmTransactionStatus(txHash: string): Promise<ExtrinsicStatus> {
+  private async checkEvmTransactionStatus(txHash: string, network: EvmNetworks = Networks.Base): Promise<ExtrinsicStatus> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
-      // Always on Base for EVM.
-      const publicClient = evmClientManager.getClient(Networks.Base);
+      const publicClient = evmClientManager.getClient(network);
 
       const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
 

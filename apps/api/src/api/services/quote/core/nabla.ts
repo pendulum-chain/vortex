@@ -16,8 +16,8 @@ import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
 
-const NABLA_ROUTER_BASE: `0x${string}` = "0x0e368D4891C4A52b91b4e1Bf3CdEfcdaAFEF4355"; // TODO modify with router on Base after test
-const NABLA_QUOTER_BASE: `0x${string}` = "0xf4B0f7c272354d070CC5C8140826b7BBe56953dA";
+const NABLA_ROUTER_BASE: `0x${string}` = "0x58E5Cb2dA15f01CB8FAefef202aa25238efCBdcf";
+const NABLA_QUOTER_BASE: `0x${string}` = "0x94C2F795358170a92271bF2490a56135E3fBA58A";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -79,7 +79,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
         }
       ];
 
-      const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.BaseSepolia, {
+      const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.Base, {
         abi: swapAbi,
         address: NABLA_ROUTER_BASE,
         args: [
@@ -168,7 +168,7 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
       }
     ];
 
-    const result = await evmClientManager.readContractWithRetry<bigint>(Networks.BaseSepolia, {
+    const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
       abi: swapAbi,
       address: NABLA_QUOTER_BASE,
       args: [

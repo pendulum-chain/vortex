@@ -25,7 +25,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     const { taxId, pixDestination, payOutTicketId, brlaPayoutTxHash } = state.state as StateMetadata;
 
     if (!taxId || !pixDestination) {
-      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
+      throw new Error("BrlaPayoutOnBasePhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -38,15 +38,15 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
 
     const taxIdRecord = await TaxId.findByPk(taxId);
     if (!taxIdRecord) {
-      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: SubaccountId must exist at this stage. This is a bug.");
+      throw new Error("BrlaPayoutOnBasePhaseHandler: SubaccountId must exist at this stage. This is a bug.");
     }
 
     if (!isFiatTokenEnum(outputCurrency)) {
-      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Invalid token type.");
+      throw new Error("BrlaPayoutOnBasePhaseHandler: Invalid token type.");
     }
 
     if (!quote.metadata.nablaSwapEvm?.outputAmountDecimal) {
-      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Missing nablaSwapEvm metadata.");
+      throw new Error("BrlaPayoutOnBasePhaseHandler: Missing nablaSwapEvm metadata.");
     }
 
     const amountForPayout = quote.metadata.nablaSwapEvm.outputAmountDecimal;
@@ -90,11 +90,11 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
       if (lastError) {
-        logger.error("BrlaPayoutOnMoonbeamPhaseHandler: Polling for balance failed: ", lastError);
+        logger.error("BrlaPayoutOnBasePhaseHandler: Polling for balance failed: ", lastError);
         throw lastError;
       }
       throw new Error(
-        `BrlaPayoutOnMoonbeamPhaseHandler: Balance check timed out after 5 minutes. Needed ${amountForPayout} units.`
+        `BrlaPayoutOnBasePhaseHandler: Balance check timed out after 5 minutes. Needed ${amountForPayout} units.`
       );
     };
 
@@ -104,7 +104,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       const amount = new Big(outputAmount);
       const subaccount = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
       if (!subaccount) {
-        throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount must exist.");
+        throw new Error("BrlaPayoutOnBasePhaseHandler: Subaccount must exist.");
       }
       const subaccountEvmAddress = subaccount.wallets.filter(wallet => wallet.chain === "EVM")[0];
 
@@ -124,10 +124,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
           pixKey: pixDestination
         }
       };
-      console.log("payOutTicketParams: ", payOutTicketParams);
-      const payOutTicketId = "mocked-ticket-id-for-now";
-
-      //const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
+      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
       logger.debug("Debug: payOutTicketId", payOutTicketId);
       // Update the state with the transaction hashes
       await state.update({
@@ -140,8 +137,8 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
-      logger.error("Error in brlaPayoutOnMoonbeam", e);
-      throw this.createUnrecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
+      logger.error("Error in brlaPayoutOnBase", e);
+      throw this.createUnrecoverableError("BrlaPayoutOnBasePhaseHandler: Failed to trigger BRLA offramp.");
     }
   }
 
@@ -239,7 +236,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
             return AveniaTicketStatus.PAID;
           }
           if (ticket.status === AveniaTicketStatus.FAILED) {
-            throw this.createUnrecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Ticket status is FAILED");
+            throw this.createUnrecoverableError("BrlaPayoutOnBasePhaseHandler: Ticket status is FAILED");
           }
         }
       } catch (error) {
@@ -253,13 +250,13 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     }
 
     if (lastError) {
-      logger.error("BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ", lastError);
+      logger.error("BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ", lastError);
       throw this.createUnrecoverableError(
-        `BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out with an error: ${lastError.message}`
+        `BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ${lastError.message}`
       );
     }
 
-    throw this.createRecoverableError("BrlaPayoutOnMoonbeamPhaseHandler: Polling for ticket status timed out.");
+    throw this.createRecoverableError("BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out.");
   }
 }
 

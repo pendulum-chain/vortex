@@ -33,14 +33,6 @@ export class OffRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
 
     // We receive USDC on Base.
     const inputToken = EvmToken.USDC;
-    console.log(
-      "passing through OffRampSwapEngineEvm with inputAmountPreFees:",
-      inputAmountPreFees.toString(),
-      "inputToken:",
-      inputToken,
-      "outputToken:",
-      this.outputToken
-    );
     return {
       inputAmountPreFees,
       inputToken,

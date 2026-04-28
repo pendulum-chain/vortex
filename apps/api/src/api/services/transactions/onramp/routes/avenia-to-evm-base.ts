@@ -1,4 +1,5 @@
 import {
+  createOnrampSquidrouterTransactionsFromBaseToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   EvmNetworks,
   EvmToken,
@@ -14,7 +15,7 @@ import {
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { createOnrampSquidrouterTransactionsFromBaseToEvm } from "../../../../../../../../packages/shared/src/services";
+import logger from "../../../../../config/logger";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -50,12 +51,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     quote,
     signingAccounts
   );
-  console.log(
-    "starting: prepareAveniaToEvmOnrampTransactionsOnBase with quote:",
-    quote,
-    "destinationAddress:",
-    destinationAddress
-  );
+  logger.debug(`Starting prepareAveniaToEvmOnrampTransactionsOnBase with destinationAddress: ${destinationAddress}`);
   // Setup state metadata
   stateMeta = {
     destinationAddress,

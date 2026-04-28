@@ -70,7 +70,7 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
       const expectedInputAmountForSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
 
       const requiredAmount = Big(expectedInputAmountForSwapRaw).sub(currentBalance);
-      console.log("debug: requiredAmount", requiredAmount.toString());
+      logger.debug(`SubsidizePreSwapEvmHandler: requiredAmount ${requiredAmount.toString()}`);
 
       const didBalanceReachExpected = async () => {
         const balance = await checkEvmBalanceForToken({

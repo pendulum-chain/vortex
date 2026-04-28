@@ -8,9 +8,10 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
-import { polygon } from "viem/chains";
+import { base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import {
+  BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
@@ -67,7 +68,7 @@ export async function isBaseEphemeralFunded(baseEphemeralAddress: string): Promi
     address: baseEphemeralAddress as `0x${string}`
   });
   const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed()
+    multiplyByPowerOfTen(BASE_EPHEMERAL_STARTING_BALANCE_UNITS, base.nativeCurrency.decimals).toFixed()
   );
 
   return Big(balance.toString()).gte(fundingAmountRaw);

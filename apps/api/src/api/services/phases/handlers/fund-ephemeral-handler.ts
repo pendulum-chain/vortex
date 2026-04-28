@@ -59,8 +59,7 @@ const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
   [Networks.BSC]: "0.000115", // ~0.1 USD @ 889
   [Networks.Avalanche]: "0.0034", // ~0.1 USD @ 30
   [Networks.Moonbeam]: "0.34", // ~0.1 USD @ 0.30
-  [Networks.PolygonAmoy]: "0.2", // ~0.1 USD @ 0.50
-  [Networks.BaseSepolia]: "0.000034" // ~0.1 USD @ 3000
+  [Networks.PolygonAmoy]: "0.2" // ~0.1 USD @ 0.50
 };
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {

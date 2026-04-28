@@ -36,8 +36,8 @@ export abstract class BaseNablaSwapEngineEvm implements Stage {
     const { inputAmountPreFees, inputToken, outputToken } = this.compute(ctx);
 
     // Get token details for Base network
-    const inputTokenDetails = getOnChainTokenDetails(Networks.BaseSepolia, inputToken) as EvmTokenDetails;
-    const outputTokenDetails = getOnChainTokenDetails(Networks.BaseSepolia, outputToken) as EvmTokenDetails;
+    const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inputToken) as EvmTokenDetails;
+    const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outputToken) as EvmTokenDetails;
 
     if (!inputTokenDetails || !outputTokenDetails) {
       throw new Error("BaseNablaSwapEngineEvm: Could not find EVM token details for the requested tokens");

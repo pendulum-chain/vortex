@@ -29,10 +29,10 @@ export class InitialPhaseHandler extends BasePhaseHandler {
 
     logger.info(`Executing initial phase for ramp ${state.id}`);
 
-    // if (SANDBOX_ENABLED) {
-    //   await new Promise(resolve => setTimeout(resolve, 10000));
-    //   return this.transitionToNextPhase(state, "complete");
-    // }
+    if (SANDBOX_ENABLED) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      return this.transitionToNextPhase(state, "complete");
+    }
 
     if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.BRL) {
       return this.transitionToNextPhase(state, "brlaOnrampMint");

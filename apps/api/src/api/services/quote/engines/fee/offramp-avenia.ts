@@ -10,7 +10,6 @@ export class OffRampFeeAveniaEngine extends BaseFeeEngine {
   };
 
   protected validate(ctx: QuoteContext): void {
-    console.log("Validating OffRampFeeAveniaEngine with context:", ctx);
     if (!ctx.nablaSwap && !ctx.nablaSwapEvm) {
       throw new Error("OffRampFeeAveniaEngine requires nablaSwap or nablaSwapEvm in context");
     }
