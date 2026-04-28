@@ -1205,6 +1205,7 @@
           "sellTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}} {{assetSymbol}}",
           "sellTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}} {{assetSymbol}}"
         },
+        "assetHubNotSupportedForAlfredPay": "AssetHub não é suportado para esta moeda. Por favor, selecione uma rede diferente.",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
