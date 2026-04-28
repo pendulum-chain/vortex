@@ -1,7 +1,17 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { AssetHubToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import {
+  AssetHubToken,
+  EPaymentMethod,
+  FiatToken,
+  isAlfredpayToken,
+  Networks,
+  QuoteError,
+  RampDirection
+} from "@vortexfi/shared";
+import httpStatus from "http-status";
+import { APIError } from "../../../errors/api-error";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
@@ -13,11 +23,16 @@ import { OnrampAveniaToEvmStrategy } from "./strategies/onramp-avenia-to-evm.str
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
 import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
 
+const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
+
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
     // Onramps
     if (ctx.direction === RampDirection.BUY) {
       if (ctx.to === Networks.AssetHub) {
+        if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
+          throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
+        }
         if (ctx.from === "pix") {
           return new OnrampAveniaToAssethubStrategy();
         } else {
@@ -26,11 +41,7 @@ export class RouteResolver {
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return new OnrampMoneriumToEvmStrategy();
-        } else if (
-          ctx.request.inputCurrency === FiatToken.USD ||
-          ctx.request.inputCurrency === FiatToken.MXN ||
-          ctx.request.inputCurrency === FiatToken.COP
-        ) {
+        } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           return new OnrampAlfredpayToEvmStrategy();
         } else {
           return new OnrampAveniaToEvmStrategy();
@@ -42,6 +53,9 @@ export class RouteResolver {
 
     // Explicitly disallow Assethub USDT and DOT
     if (ctx.from === Networks.AssetHub) {
+      if (ALFREDPAY_PAYMENT_METHODS.has(ctx.to)) {
+        throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
+      }
       if (ctx.request.inputCurrency === AssetHubToken.USDT) {
         throw new Error("Offramp from USDT on AssetHub is currently not supported");
       } else if (ctx.request.inputCurrency === AssetHubToken.DOT) {
