@@ -122,7 +122,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
 
   return (
     <motion.div animate={{ height: containerHeight }} className="relative" ref={deckRef} transition={spring}>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {orderedAccounts.map((account, i) =>
           i === 0 ? (
             <motion.div
@@ -130,6 +130,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
               initial={false}
               key={account.fiatAccountId}
+              layoutId={account.fiatAccountId}
               style={{ cursor: "default", ...sharedCardStyle(i) }}
               transition={spring}
             >
@@ -145,6 +146,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
               initial={false}
               key={account.fiatAccountId}
+              layoutId={account.fiatAccountId}
               onClick={
                 canHover
                   ? () => setActiveId(account.fiatAccountId)

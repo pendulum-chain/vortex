@@ -680,7 +680,6 @@ export class AlfredpayController {
         fiatAccountFields = {
           accountNumber,
           accountType: "CLABE",
-          isExternal,
           metadata: { accountHolderName: accountName }
         };
       } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.ACH) {
@@ -688,30 +687,43 @@ export class AlfredpayController {
           accountName: accountBankCode,
           accountNumber,
           accountType: accountType ?? "",
-          isExternal,
           metadata: { accountHolderName: accountName, documentNumber, documentType }
         };
       } else {
-        // BANK_USA
-        fiatAccountFields = {
-          accountName: accountBankCode,
-          accountNumber,
-          accountType: accountType ?? "",
-          bankCity,
-          bankCountry,
-          bankPostalCode,
-          bankState,
-          bankStreet,
-          isExternal,
-          routingNumber
-        };
+        // BANK_USA — external accounts need address fields inside metadata
+        fiatAccountFields = isExternal
+          ? {
+              accountName: accountBankCode,
+              accountNumber,
+              accountType: accountType ?? "",
+              metadata: {
+                bankCity,
+                bankCountry,
+                bankPostalCode,
+                bankState: bankState?.toUpperCase(),
+                bankStreet
+              },
+              routingNumber
+            }
+          : {
+              accountName: accountBankCode,
+              accountNumber,
+              accountType: accountType ?? "",
+              bankCity,
+              bankCountry,
+              bankPostalCode,
+              bankState: bankState?.toUpperCase(),
+              bankStreet,
+              routingNumber
+            };
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
       const result = await alfredpayService.createFiatAccount(
         alfredPayCustomer.alfredPayId,
         alfredpayFiatAccountType,
-        fiatAccountFields
+        fiatAccountFields,
+        isExternal
       );
 
       res.json(result);

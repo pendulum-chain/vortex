@@ -226,9 +226,10 @@ export class AlfredpayApiService {
   public async createFiatAccount(
     customerId: string,
     type: AlfredpayFiatAccountType,
-    fiatAccountFields: AlfredpayFiatAccountFields
+    fiatAccountFields: AlfredpayFiatAccountFields,
+    isExternal: boolean
   ): Promise<CreateAlfredpayFiatAccountResponse> {
-    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, type };
+    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, isExternal, type };
     const path = "/api/v1/third-party-service/penny/fiatAccounts";
     return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
   }
