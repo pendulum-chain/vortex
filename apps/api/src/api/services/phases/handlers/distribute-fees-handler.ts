@@ -118,7 +118,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       if (isEvmTransaction) {
         logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
         actualTxHash = await this.submitEvmTransaction(
-          distributeFeeTransaction.txData,
+          distributeFeeTransaction.txData as EvmTransactionData,
           distributeFeeTransaction.network as EvmNetworks
         );
       } else {

@@ -1,5 +1,6 @@
 import {
   EvmClientManager,
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,

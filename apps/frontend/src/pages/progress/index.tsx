@@ -25,7 +25,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   backupSquidRouterSwap: 0,
   baseTransfer: 10,
   brlaOnrampMint: 5 * 60,
-  brlaPayoutOnMoonbeam: 30,
+  brlaPayoutOnBase: 30,
   complete: 0,
   destinationTransfer: 12,
   distributeFees: 24,
@@ -40,7 +40,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
+  nablaApproveEvm: 24,
   nablaSwap: 24,
+  nablaSwapEvm: 24,
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
@@ -52,7 +54,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   stellarCreateAccount: 0,
   stellarPayment: 6,
   subsidizePostSwap: 24,
+  subsidizePostSwapEvm: 24,
   subsidizePreSwap: 24,
+  subsidizePreSwapEvm: 24,
   timedOut: 0
 };
 
@@ -193,7 +197,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     return "onramp_eur_evm";
   }
 
-  if (currentPhase === "brlaPayoutOnMoonbeam" || rampState.quote?.outputCurrency === FiatToken.BRL) {
+  if (currentPhase === "brlaPayoutOnBase" || rampState.quote?.outputCurrency === FiatToken.BRL) {
     return "offramp_brl";
   }
 

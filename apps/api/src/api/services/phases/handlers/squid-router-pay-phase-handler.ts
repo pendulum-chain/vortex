@@ -242,10 +242,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
             if (quote.inputCurrency === FiatToken.BRL) {
               subsidyToken = SubsidyToken.ETH;
-              payerAccount = this.baseWalletClient.account?.address;
+              payerAccount = this.baseWalletClient.account?.address as `0x${string}` | undefined;
             } else {
               subsidyToken = SubsidyToken.MATIC;
-              payerAccount = this.polygonWalletClient.account?.address;
+              payerAccount = this.polygonWalletClient.account?.address as `0x${string}` | undefined;
             }
 
             const subsidyAmount = nativeToDecimal(nativeToFundRaw, 18).toNumber();
