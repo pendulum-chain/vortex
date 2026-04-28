@@ -67,7 +67,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     backupSquidRouterSwap: "",
     baseTransfer: getTransferringMessage(),
     brlaOnrampMint: t("pages.progress.brlaOnrampMint"), // Not relevant for progress page
-    brlaPayoutOnMoonbeam: getTransferringMessage(),
+    brlaPayoutOnBase: getTransferringMessage(),
     complete: "",
     destinationTransfer: getDestinationTransferMessage(), // Not relevant for progress page
     distributeFees: getSwappingMessage(),
@@ -87,7 +87,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     nablaApprove: getSwappingMessage(),
+    nablaApproveEvm: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
+    nablaSwapEvm: getSwappingMessage(),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),
@@ -109,7 +111,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
+    subsidizePostSwapEvm: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
+    subsidizePreSwapEvm: getSwappingMessage(),
     timedOut: ""
   };
 
