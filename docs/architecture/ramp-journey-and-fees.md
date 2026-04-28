@@ -289,7 +289,7 @@ graph TD
         B_Off_Dist --> B_Off_Pre[subsidizePreSwapEvm];
         B_Off_Pre --> B_Off_Nabla[nablaSwap];
         B_Off_Nabla --> B_Off_Post[subsidizePostSwapEvm];
-        B_Off_Post --> B_Off_Payout[brlaPayoutBase];
+        B_Off_Post --> B_Off_Payout[brlaPayoutOnBase];
         B_Off_Payout --> Y_off;
 
         %% --- Standard Off-Ramp Flows (EUR/ARS) ---
