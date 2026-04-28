@@ -27,7 +27,7 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       label: "components.fiatAccountForms.accountType",
       options: [
         { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
-        { label: "components.fiatAccountForms.options.savings", value: "SAVINGS" }
+        { label: "components.fiatAccountForms.options.saving", value: "SAVINGS" }
       ],
       required: true,
       type: "select"
