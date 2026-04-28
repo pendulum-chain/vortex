@@ -103,6 +103,9 @@ export enum QuoteError {
   // Availability errors
   UnsupportedCurrency = "Currency not supported",
 
+  // Compatibility errors
+  AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",
+
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",
   FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.",
