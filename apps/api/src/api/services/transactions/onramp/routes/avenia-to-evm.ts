@@ -23,7 +23,7 @@ import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { addEvmFeeDistributionTransaction, addFeeDistributionTransaction } from "../../common/feeDistribution";
+import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import {
   addDestinationChainApprovalTransaction,
