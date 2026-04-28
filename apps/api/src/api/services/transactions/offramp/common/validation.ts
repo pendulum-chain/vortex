@@ -7,6 +7,7 @@ import {
   isFiatToken,
   isOnChainToken,
   isStellarTokenDetails,
+  normalizeTaxId,
   PaymentData,
   StellarTokenDetails
 } from "@vortexfi/shared";
@@ -97,7 +98,7 @@ export function validateBRLOfframp(
     offrampAmountBeforeAnchorFeesRaw: "200", //quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw,
     pixDestination,
     receiverTaxId,
-    taxId
+    taxId: normalizeTaxId(taxId)
   };
 }
 

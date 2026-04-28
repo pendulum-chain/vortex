@@ -1,4 +1,4 @@
-import { BrlaApiService, generateReferenceLabel } from "@vortexfi/shared";
+import { BrlaApiService, generateReferenceLabel, normalizeTaxId } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
@@ -151,7 +151,7 @@ class UnhandledPaymentWorker {
 
     for (const taxId in statesByTaxId) {
       try {
-        const taxIdRecord = await TaxId.findOne({ where: { taxId } });
+        const taxIdRecord = await TaxId.findOne({ where: { taxId: normalizeTaxId(taxId) } });
         if (!taxIdRecord) {
           logger.warn(`No TaxId record found for taxId: ${taxId}. Skipping states.`);
           statesByTaxId[taxId].forEach(state => this.processedStateIds.add(state.id));

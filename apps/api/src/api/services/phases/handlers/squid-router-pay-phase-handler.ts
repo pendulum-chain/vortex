@@ -11,6 +11,7 @@ import {
   getOnChainTokenDetails,
   getStatus,
   getStatusAxelarScan,
+  isAlfredpayToken,
   Networks,
   nativeToDecimal,
   OnChainToken,
@@ -383,9 +384,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
   private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
-      // Always Polygon for Monerium onramp, Base for BRL
+      // Always Polygon for Monerium/Alfredpay onramp, Base for BRL
       const fromChain =
-        quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD
+        quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)
           ? Networks.Polygon
           : quote.inputCurrency === FiatToken.BRL
             ? Networks.Base

@@ -143,6 +143,7 @@ export class SupabaseAuthService {
   static async verifyToken(accessToken: string): Promise<{
     valid: boolean;
     user_id?: string;
+    email?: string;
   }> {
     const { data, error } = await supabase.auth.getUser(accessToken);
 
@@ -151,6 +152,7 @@ export class SupabaseAuthService {
     }
 
     return {
+      email: data.user.email,
       user_id: data.user.id,
       valid: true
     };

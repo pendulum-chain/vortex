@@ -2,6 +2,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  isAlfredpayToken,
   isEvmTokenDetails,
   OnChainToken
 } from "@vortexfi/shared";
@@ -32,8 +33,8 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
   } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
     // Monerium EVM offramp
     return prepareEvmToMoneriumEvmOfframpTransactions(params);
-  } else if (quote.outputCurrency === FiatToken.USD) {
-    // Alfredpay offramp
+  } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    // Alfredpay offramp (USD, MXN, COP)
     return prepareEvmToAlfredpayOfframpTransactions(params);
   } else {
     // Stellar offramp

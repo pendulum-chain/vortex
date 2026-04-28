@@ -1,23 +1,29 @@
 import {
   AlfredPayCountry,
   AlfredPayStatus,
+  AlfredpayAddFiatAccountRequest,
   AlfredpayApiService,
   AlfredpayCreateCustomerRequest,
   AlfredpayCreateCustomerResponse,
   AlfredpayCustomerType,
+  AlfredpayFiatAccountType,
   AlfredpayGetKybRedirectLinkResponse,
   AlfredpayGetKycRedirectLinkRequest,
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
+  AlfredpayKybFileType,
+  AlfredpayKybRelatedPersonFileType,
   AlfredpayKybStatus,
+  AlfredpayKycFileType,
   AlfredpayKycStatus,
   AlfredpayStatusRequest,
-  AlfredpayStatusResponse
+  AlfredpayStatusResponse,
+  SubmitKybInformationRequest,
+  SubmitKycInformationRequest
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import logger from "../../config/logger";
 import AlfredPayCustomer from "../../models/alfredPayCustomer.model";
-import { SupabaseAuthService } from "../services/auth/supabase.service";
 
 export class AlfredpayController {
   private static mapKycStatus(status: AlfredpayKycStatus): AlfredPayStatus | null {
@@ -28,10 +34,11 @@ export class AlfredpayController {
         return AlfredPayStatus.Failed;
       case AlfredpayKycStatus.COMPLETED:
         return AlfredPayStatus.Success;
+      case AlfredpayKycStatus.UPDATE_REQUIRED:
+        return AlfredPayStatus.UpdateRequired;
       case AlfredpayKycStatus.CREATED:
       default:
         return null; // Do nothing
-      // TODO how do we map their UPDATE_REQUIRED required? what does it mean in terms of flow, for our user?
     }
   }
 
@@ -77,6 +84,16 @@ export class AlfredpayController {
         }
       } catch (error) {
         logger.error("Error refreshing Alfredpay status:", error);
+
+        // If the upstream API returns 404 (KYC submission not found), the local status is stale.
+        // Reset to Consulted so the frontend re-triggers the KYC flow.
+        const errorMessage = ((error as any)?.message || (error as any)?.toString() || "").toLowerCase();
+        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+          if (alfredPayCustomer.status === AlfredPayStatus.Success) {
+            logger.info("Resetting stale AlfredPay status to Consulted due to upstream 404");
+            await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+          }
+        }
       }
 
       const response: AlfredpayStatusResponse = {
@@ -96,10 +113,10 @@ export class AlfredpayController {
     try {
       const { country } = req.body as AlfredpayCreateCustomerRequest;
       const userId = req.userId!;
+      const userEmail = req.userEmail;
 
-      const user = await SupabaseAuthService.getUserProfile(userId);
-      if (!user || !user.email) {
-        return res.status(404).json({ error: "User not found or email missing" });
+      if (!userEmail) {
+        return res.status(400).json({ error: "User email not available" });
       }
 
       // Check if customer already exists in our DB
@@ -113,7 +130,7 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(user.email, AlfredpayCustomerType.INDIVIDUAL, country);
+      const newCustomer = await alfredpayService.createCustomer(userEmail, AlfredpayCustomerType.INDIVIDUAL, country);
       const customerId = newCustomer.customerId;
 
       await AlfredPayCustomer.create({
@@ -166,7 +183,8 @@ export class AlfredpayController {
         logger.info("No previous KYC submission found or error fetching it, proceeding.");
       }
 
-      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
+      const normalizedCountry = country.toLowerCase() === "us" ? "USA" : country;
+      const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, normalizedCountry);
 
       res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
     } catch (error) {
@@ -322,6 +340,11 @@ export class AlfredpayController {
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
+      } else if (country === "MX" || country === "CO") {
+        // MX/CO use API-based (form) KYC — no redirect link needed.
+        // Just reset status so the user can re-fill the form.
+        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+        return res.json({ success: true });
       } else {
         await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
         const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
@@ -338,10 +361,10 @@ export class AlfredpayController {
     try {
       const { country } = req.body as { country: string };
       const userId = req.userId!;
+      const userEmail = req.userEmail;
 
-      const user = await SupabaseAuthService.getUserProfile(userId);
-      if (!user || !user.email) {
-        return res.status(404).json({ error: "User not found or email missing" });
+      if (!userEmail) {
+        return res.status(400).json({ error: "User email not available" });
       }
 
       const type = AlfredpayCustomerType.BUSINESS;
@@ -356,7 +379,7 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(user.email, type, country);
+      const newCustomer = await alfredpayService.createCustomer(userEmail, type, country);
       const customerId = newCustomer.customerId;
 
       await AlfredPayCustomer.create({
@@ -414,6 +437,335 @@ export class AlfredpayController {
       res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
     } catch (error) {
       logger.error("Error getting KYB redirect link:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async submitKycInformation(req: Request, res: Response) {
+    try {
+      const { country, ...kycData } = req.body as SubmitKycInformationRequest & { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const result = await alfredpayService.submitKycInformation(alfredPayCustomer.alfredPayId, { ...kycData, country });
+
+      res.json(result);
+    } catch (error) {
+      logger.error("Error submitting KYC information:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async submitKycFile(req: Request, res: Response) {
+    try {
+      const { country, submissionId, fileType } = req.body as { country: string; submissionId: string; fileType: string };
+      const userId = req.userId!;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.submitKycFile(
+        alfredPayCustomer.alfredPayId,
+        submissionId,
+        fileType as AlfredpayKycFileType,
+        fileBlob
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("Error submitting KYC file:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async sendKycSubmission(req: Request, res: Response) {
+    try {
+      const { country, submissionId } = req.body as { country: string; submissionId: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.sendKycSubmission(alfredPayCustomer.alfredPayId, submissionId);
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("Error sending KYC submission:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async submitKybInformation(req: Request, res: Response) {
+    try {
+      const { country, ...kybData } = req.body as SubmitKybInformationRequest & { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay business customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+
+      res.json(result);
+    } catch (error) {
+      logger.error("Error submitting KYB information:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async submitKybFile(req: Request, res: Response) {
+    try {
+      const { country, submissionId, fileType } = req.body as { country: string; submissionId: string; fileType: string };
+      const userId = req.userId!;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay business customer not found" });
+      }
+
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.submitKybFiles(
+        alfredPayCustomer.alfredPayId,
+        submissionId,
+        fileType as AlfredpayKybFileType,
+        fileBlob
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("Error submitting KYB file:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async submitKybRelatedPersonFile(req: Request, res: Response) {
+    try {
+      const { country, relatedPersonId, fileType } = req.body as {
+        country: string;
+        relatedPersonId: string;
+        fileType: string;
+      };
+      const userId = req.userId!;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay business customer not found" });
+      }
+
+      const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.submitKybRelatedPersonFiles(
+        alfredPayCustomer.alfredPayId,
+        relatedPersonId,
+        fileType as AlfredpayKybRelatedPersonFileType,
+        fileBlob
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("Error submitting KYB related person file:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async sendKybSubmission(req: Request, res: Response) {
+    try {
+      const { country, submissionId } = req.body as { country: string; submissionId: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay business customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.sendKybSubmission(alfredPayCustomer.alfredPayId, submissionId);
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("Error sending KYB submission:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
+  static async addFiatAccount(req: Request, res: Response) {
+    try {
+      const {
+        country,
+        type,
+        accountNumber,
+        accountType,
+        accountName,
+        accountBankCode,
+        routingNumber,
+        bankStreet,
+        bankCity,
+        bankState,
+        bankCountry,
+        bankPostalCode,
+        documentType,
+        documentNumber,
+        isExternal = false
+      } = req.body as AlfredpayAddFiatAccountRequest;
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayFiatAccountType = type as AlfredpayFiatAccountType;
+
+      let fiatAccountFields;
+      if (alfredpayFiatAccountType === AlfredpayFiatAccountType.SPEI) {
+        fiatAccountFields = {
+          accountNumber,
+          accountType: "CLABE",
+          isExternal,
+          metadata: { accountHolderName: accountName }
+        };
+      } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.ACH) {
+        fiatAccountFields = {
+          accountName: accountBankCode,
+          accountNumber,
+          accountType: accountType ?? "",
+          isExternal,
+          metadata: { accountHolderName: accountName, documentNumber, documentType }
+        };
+      } else {
+        // BANK_USA
+        fiatAccountFields = {
+          accountName: accountBankCode,
+          accountNumber,
+          accountType: accountType ?? "",
+          bankCity,
+          bankCountry,
+          bankPostalCode,
+          bankState,
+          bankStreet,
+          isExternal,
+          routingNumber
+        };
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const result = await alfredpayService.createFiatAccount(
+        alfredPayCustomer.alfredPayId,
+        alfredpayFiatAccountType,
+        fiatAccountFields
+      );
+
+      res.json(result);
+    } catch (error) {
+      logger.error("Error adding fiat account:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async listFiatAccounts(req: Request, res: Response) {
+    try {
+      const { country } = req.query as { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const accounts = await alfredpayService.listFiatAccounts(alfredPayCustomer.alfredPayId);
+
+      res.json(accounts);
+    } catch (error) {
+      logger.error("Error listing fiat accounts:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async deleteFiatAccount(req: Request, res: Response) {
+    try {
+      const { fiatAccountId } = req.params as { fiatAccountId: string };
+      const { country } = req.query as { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        order: [["updatedAt", "DESC"]],
+        where: { country: country as AlfredPayCountry, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      await alfredpayService.deleteFiatAccount(alfredPayCustomer.alfredPayId, fiatAccountId);
+
+      res.status(204).send();
+    } catch (error) {
+      logger.error("Error deleting fiat account:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   }

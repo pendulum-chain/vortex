@@ -10,7 +10,7 @@ export class OfframpEvmToAlfredpayStrategy implements IRouteStrategy {
   readonly name = "OfframpEvmToAlfredpay";
 
   getStages(_ctx: QuoteContext): StageKey[] {
-    return [StageKey.Initialize, StageKey.Fee, StageKey.PartnerOperation, StageKey.Finalize];
+    return [StageKey.Initialize, StageKey.PartnerOperation, StageKey.Fee, StageKey.Finalize];
   }
 
   getEngines(_ctx: QuoteContext): EnginesRegistry {

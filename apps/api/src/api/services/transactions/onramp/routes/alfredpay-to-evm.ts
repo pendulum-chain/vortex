@@ -1,13 +1,15 @@
 import {
+  ALFREDPAY_ERC20_TOKEN,
+  AlfredPayCountry,
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
-  ERC20_USDC_POLYGON,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
+  FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -48,7 +50,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error("EVM ephemeral entry not found");
   }
 
-  if (!quote.metadata.alfredpayMint?.outputAmountRaw) {
+  if (quote.metadata.alfredpayMint?.outputAmountRaw === undefined) {
     throw new Error("Missing alfredpay raw mint amount in quote metadata");
   }
 
@@ -66,8 +68,18 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
+  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
+    [FiatToken.USD]: AlfredPayCountry.US,
+    [FiatToken.MXN]: AlfredPayCountry.MX,
+    [FiatToken.COP]: AlfredPayCountry.CO
+  };
+  const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
+  if (!customerCountry) {
+    throw new Error(`Unsupported Alfredpay input currency: ${quote.inputCurrency}`);
+  }
+
   const customer = await AlfredPayCustomer.findOne({
-    where: { userId }
+    where: { country: customerCountry, userId }
   });
 
   if (!customer) {
@@ -87,8 +99,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
   let polygonAccountNonce = 0; // Starts fresh
 
-  // Special case, onramping USDC on Polygon. We need to skip the SquidRouter step and go directly to the destination transfer.
-  if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ERC20_USDC_POLYGON) {
+  // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
+  if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
       amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
       destinationNetwork: toNetwork as EvmNetworks,
@@ -115,7 +127,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
-      fromToken: ERC20_USDC_POLYGON,
+      fromToken: ALFREDPAY_ERC20_TOKEN,
       rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
@@ -212,6 +224,22 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     phase: "backupApprove",
     signer: evmEphemeralEntry.address,
     txData: backupApproveTransaction
+  });
+
+  const alfredMintFallbackTransferTxData = await addOnrampDestinationChainTransactions({
+    amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+    destinationNetwork: Networks.Polygon as EvmNetworks,
+    toAddress: destinationAddress,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "alfredOnrampMintFallback",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(alfredMintFallbackTransferTxData) as EvmTransactionData
   });
 
   stateMeta = {

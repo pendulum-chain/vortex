@@ -1,4 +1,4 @@
-import { FiatToken, Networks } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, Networks } from "@vortexfi/shared";
 import {
   AlfredpayOnrampTransactionParams,
   AveniaOnrampTransactionParams,
@@ -44,7 +44,7 @@ export async function prepareOnrampTransactions(
     } else {
       return prepareMoneriumToEvmOnrampTransactions(params);
     }
-  } else if (quote.inputCurrency === FiatToken.USD) {
+  } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
     if (!("userId" in params)) {
       throw new Error("Alfredpay onramps requires logged in user");
     }

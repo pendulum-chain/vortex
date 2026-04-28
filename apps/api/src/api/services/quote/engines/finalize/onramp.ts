@@ -46,11 +46,18 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         });
       }
       finalOutputAmountDecimal = new Big(output);
-    } else if (request.inputCurrency === FiatToken.USD) {
-      const output = ctx.alfredpayMint?.outputAmountDecimal;
+    } else if (
+      request.inputCurrency === FiatToken.USD ||
+      request.inputCurrency === FiatToken.MXN ||
+      request.inputCurrency === FiatToken.COP
+    ) {
+      // evmToEvm is set when Squid Router ran (e.g. USDC Polygon → USDT Arbitrum).
+      // When destination is USDC on Polygon, Squid Router is skipped (skipRouteCalculation)
+      // because Alfredpay already minted USDC there — use the mint output directly.
+      const output = ctx.evmToEvm?.outputAmountDecimal ?? ctx.alfredpayMint?.outputAmountDecimal;
       if (!output) {
         throw new APIError({
-          message: "OnRampFinalizeEngine requires alfredpayMint output for EVM",
+          message: "OnRampFinalizeEngine requires evmToEvm or alfredpayMint output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
@@ -59,7 +66,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
       const output = ctx.moonbeamToEvm?.outputAmountDecimal;
       if (!output) {
         throw new APIError({
-          message: "OnRampFinalizeEngine requires bridge output for EVM",
+          message: "OnRampFinalizeEngine requires moonbeamToEvm bridge output for EVM",
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }

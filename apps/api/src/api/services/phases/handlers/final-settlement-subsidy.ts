@@ -1,4 +1,5 @@
 import {
+  ALFREDPAY_EVM_TOKEN,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
@@ -9,6 +10,7 @@ import {
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isAlfredpayToken,
   isNativeEvmToken,
   multiplyByPowerOfTen,
   NATIVE_TOKEN_ADDRESS,
@@ -51,12 +53,13 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   }
 
   private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
-    return state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.USD
+    return state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)
       ? "alfredpayOfframpTransfer"
       : "destinationTransfer";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
+    logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
 
@@ -64,11 +67,18 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     if (!quote) {
       throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
+    logger.debug(
+      `FinalSettlementSubsidyHandler: Quote found. inputCurrency=${quote.inputCurrency}, outputCurrency=${quote.outputCurrency}, network=${quote.network}`
+    );
+
+    const isAlfredpaySell = state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken);
 
     const outTokenDetails =
       state.type === RampDirection.BUY
         ? (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
-        : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
+        : isAlfredpaySell
+          ? getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN)
+          : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
 
     if (!outTokenDetails || outTokenDetails.type === TokenType.AssetHub) {
       // Should not happen. Destination onchain token or USDC must be defined.
@@ -80,20 +90,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
-        if (quote.inputCurrency === FiatToken.USD) {
-          if (!quote.metadata.alfredpayMint) {
-            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay mint metadata for USD onramp quote");
-          }
-          expectedAmountRaw = Big(quote.metadata.alfredpayMint.outputAmountRaw);
-          break;
-        }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
         break;
-
       case RampDirection.SELL:
-        if (quote.outputCurrency === FiatToken.USD) {
+        if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
           if (!quote.metadata.alfredpayOfframp) {
-            throw new Error("FinalSettlementSubsidyHandler: Missing AlfredPay offramp metadata for USD sell quote");
+            throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay offramp metadata");
           }
           expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
           break;
@@ -108,6 +110,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     const destinationNetwork = state.type === RampDirection.BUY ? (quote.network as EvmNetworks) : Networks.Polygon;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
+
+    logger.debug(
+      `FinalSettlementSubsidyHandler: expectedAmountRaw=${expectedAmountRaw.toString()}, destinationNetwork=${destinationNetwork}, ephemeralAddress=${ephemeralAddress}, isNative=${isNative}`
+    );
 
     // 1. Idempotency Check
     if (state.state.finalSettlementSubsidyTxHash) {
@@ -126,6 +132,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     }
 
     // 2. Check ephemeral address balance (handles both native and ERC-20 automatically)
+    logger.debug(
+      `FinalSettlementSubsidyHandler: Polling ephemeral balance for ${ephemeralAddress} on ${destinationNetwork} (timeout=${EVM_BALANCE_CHECK_TIMEOUT_MS}ms, interval=${BALANCE_POLLING_TIME_MS}ms)`
+    );
     const actualBalance = await checkEvmBalanceForToken({
       amountDesiredRaw: "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
       chain: destinationNetwork,
@@ -134,15 +143,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
       tokenDetails: outTokenDetails
     });
+    logger.debug(`FinalSettlementSubsidyHandler: Ephemeral balance=${actualBalance.toString()}`);
 
     // 3. Check funding account balance (handles both native and ERC-20 automatically)
+    logger.debug(`FinalSettlementSubsidyHandler: Checking funding account balance at ${fundingAccount.address}`);
     const actualBalanceFundingAccount = await getEvmBalance({
       chain: destinationNetwork,
       ownerAddress: fundingAccount.address as `0x${string}`,
       tokenDetails: outTokenDetails
     });
+    logger.debug(`FinalSettlementSubsidyHandler: Funding account balance=${actualBalanceFundingAccount.toString()}`);
 
     const subsidyAmountRaw = expectedAmountRaw.minus(actualBalance);
+    logger.debug(
+      `FinalSettlementSubsidyHandler: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - actual=${actualBalance.toString()})`
+    );
 
     if (subsidyAmountRaw.lte(0)) {
       logger.info(
@@ -213,24 +228,20 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         );
       }
 
-      const swapRouteResult = await getRoute(
-        {
-          bypassGuardrails: true,
-          enableExpress: true,
-          fromAddress: fundingAccount.address,
-          fromAmount: requiredNativeRaw,
-          fromChain: chainId,
-          fromToken: NATIVE_TOKEN_ADDRESS,
-          slippageConfig: {
-            autoMode: 1
-          },
-          toAddress: fundingAccount.address,
-          toChain: chainId,
-          toToken: outTokenDetails.erc20AddressSourceChain
+      const swapRouteResult = await getRoute({
+        bypassGuardrails: true,
+        enableExpress: true,
+        fromAddress: fundingAccount.address,
+        fromAmount: requiredNativeRaw,
+        fromChain: chainId,
+        fromToken: NATIVE_TOKEN_ADDRESS,
+        slippageConfig: {
+          autoMode: 1
         },
-        // Do not use cache for routes that will be executed on-chain
-        { useCache: false }
-      );
+        toAddress: fundingAccount.address,
+        toChain: chainId,
+        toToken: outTokenDetails.erc20AddressSourceChain
+      });
 
       const { route: swapRoute } = swapRouteResult.data;
 
@@ -274,6 +285,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       let attempt = 0;
 
       while (attempt < 5 && (!receipt || receipt.status !== "success")) {
+        logger.debug(`FinalSettlementSubsidyHandler: Subsidy transfer attempt ${attempt + 1}/5, isNative=${isNative}`);
         if (isNative) {
           // Native token: simple value transfer, no contract interaction
           txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {

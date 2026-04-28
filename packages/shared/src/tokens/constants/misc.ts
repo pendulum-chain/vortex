@@ -2,6 +2,9 @@
  * Miscellaneous constants for token configuration
  */
 
+import { AlfredpayOnChainCurrency } from "../../services/alfredpay/types";
+import { EvmToken } from "../types/evm";
+
 export const HORIZON_URL = "https://horizon.stellar.org";
 export const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = "2.5"; // Amount to send to the new stellar ephemeral account created
 export const PENDULUM_WSS = "wss://rpc-pendulum.prd.pendulumchain.tech";
@@ -21,6 +24,7 @@ export const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 // Constants relevant for the Monerium ramps
 export const ERC20_EURE_POLYGON_V1: `0x${string}` = "0x18ec0A6E18E5bc3784fDd3a3634b31245ab704F6"; // EUR.e on Polygon
 export const ERC20_USDC_POLYGON: `0x${string}` = "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359"; // USDC on Polygon
+export const ERC20_USDT_POLYGON: `0x${string}` = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"; // USDT on Polygon
 // We are currently using both V1 and V2 addresses for EUR.e on Polygon, as Squidrouter uses V1 (presumably, due to pools).
 // V2 is used for the permit - transferFrom flow.
 // The token balances are synced between both contracts.
@@ -30,5 +34,12 @@ export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decima
 
 export const ERC20_USDC_POLYGON_DECIMALS = 6; // USDC on Polygon has 6 decimals
 export const ERC20_USDT_POLYGON_DECIMALS = 6; // USDT on Polygon has 6 decimals
+
+// ── AlfredPay on-chain token configuration ──────────────────────────────────
+// Change these constants to switch the stablecoin used in all AlfredPay flows.
+export const ALFREDPAY_ONCHAIN_CURRENCY = AlfredpayOnChainCurrency.USDT;
+export const ALFREDPAY_ERC20_TOKEN: `0x${string}` = ERC20_USDT_POLYGON;
+export const ALFREDPAY_ERC20_DECIMALS = ERC20_USDT_POLYGON_DECIMALS;
+export const ALFREDPAY_EVM_TOKEN = EvmToken.USDT;
 
 export const SQUDROUTER_MAIN_CONTRACT_POLYGON = "0xce16F69375520ab01377ce7B88f5BA8C48F8D666";

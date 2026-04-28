@@ -16,6 +16,7 @@ import {
   isNativeEvmToken,
   multiplyByPowerOfTen,
   Networks,
+  normalizeTaxId,
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
@@ -68,7 +69,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
     substrateEphemeralAddress: substrateEphemeralEntry.address,
-    taxId
+    taxId: normalizeTaxId(taxId)
   };
 
   let moonbeamNonce = 0;

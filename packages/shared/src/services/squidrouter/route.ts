@@ -1,4 +1,3 @@
-import axios, { AxiosError } from "axios";
 import PQueue from "p-queue";
 import logger from "../../logger";
 import { squidRouterConfigBase } from "./config";
@@ -112,6 +111,27 @@ export interface GetRouteOptions {
 // This prevents hitting SquidRouter API rate limits for the same user when multiple getRoute() calls happen in quick succession.
 const routeQueues = new Map<string, PQueue>();
 
+class HttpError extends Error {
+  status: number;
+  data: unknown;
+
+  constructor(status: number, data: unknown) {
+    super(`HTTP ${status}`);
+    this.status = status;
+    this.data = data;
+  }
+}
+
+async function squidFetch<T>(url: string, options: RequestInit): Promise<{ data: T; headers: Headers }> {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new HttpError(response.status, errorData);
+  }
+  const data = (await response.json()) as T;
+  return { data, headers: response.headers };
+}
+
 /**
  * Get a route from Squidrouter.
  *
@@ -145,7 +165,8 @@ export async function getRoute(
   }
 
   try {
-    const result = (await queue.add(() => getRouteInternal(params))) as SquidrouterRouteResult;
+    const result = await queue.add(() => getRouteInternal(params));
+    if (!result) throw new Error("Route fetch returned no result");
 
     if (useCache) {
       const cacheKey = generateRouteCacheKey(params);
@@ -164,47 +185,54 @@ export async function getRoute(
 }
 
 async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteResult> {
-  // This is the integrator ID for the Squidrouter API
   const { integratorId } = squidRouterConfigBase;
   const url = `${SQUIDROUTER_BASE_URL}/route`;
 
+  let fetchResult: Awaited<ReturnType<typeof squidFetch<{ route: SquidrouterRoute }>>>;
   try {
-    const result = await axios.post(url, params, {
+    fetchResult = await squidFetch<{ route: SquidrouterRoute }>(url, {
+      body: JSON.stringify(params),
       headers: {
         "Content-Type": "application/json",
         "x-integrator-id": integratorId
-      }
+      },
+      method: "POST"
     });
-
-    const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
-
-    if (!result.data || !result.data.route) {
-      logger.current.error(`Invalid API response structure. Request ID: ${requestId}`);
-      throw new Error("Invalid response from Squid Router API");
-    }
-
-    // FIXME remove this check once squidRouter works as expected again.
-    // Check if slippage of received route is reasonable.
-    const route = result.data.route;
-    if (route.estimate?.aggregateSlippage !== undefined) {
-      const slippage = route.estimate.aggregateSlippage;
-      if (slippage > 2.5) {
-        logger.current.warn(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
-        // FIXME: temporarily disabled because we are facing issues with squidrouter routes failing the swap to USDT
-        // throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
-      }
-    }
-
-    return { data: { route }, requestId };
   } catch (error) {
-    if (error instanceof AxiosError && error.response) {
-      logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
-      throw new Error(`Failed to fetch route: ${error.response?.data?.message || "Unknown error"}`);
+    if (error instanceof HttpError) {
+      logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.data)}`);
+      const message =
+        typeof error.data === "object" && error.data !== null && "message" in error.data
+          ? String((error.data as { message: unknown }).message)
+          : "Unknown error";
+      error.message = `Failed to fetch route: ${message}`;
     } else {
       logger.current.error(`Error with parameters: ${JSON.stringify(params)}`);
-      throw error;
+    }
+    throw error;
+  }
+
+  const { data, headers } = fetchResult;
+  const requestId = headers.get("x-request-id");
+
+  if (!data || !data.route) {
+    logger.current.error(`Invalid API response structure. Request ID: ${requestId}`);
+    throw new Error("Invalid response from Squid Router API");
+  }
+
+  // FIXME remove this check once squidRouter works as expected again.
+  // Check if slippage of received route is reasonable.
+  const route = data.route;
+  if (route.estimate?.aggregateSlippage !== undefined) {
+    const slippage = route.estimate.aggregateSlippage;
+    if (slippage > 2.5) {
+      logger.current.warn(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
+      // FIXME: temporarily disabled because we are facing issues with squidrouter routes failing the swap to USDT
+      // throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
     }
   }
+
+  return { data: { route }, requestId: requestId ?? "" };
 }
 
 // Function to get the status of the transaction using Squid API
@@ -222,24 +250,23 @@ export async function getStatus(
   logger.current.debug(
     `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`
   );
+
+  const url = new URL(`${SQUIDROUTER_BASE_URL}/status`);
+  if (fromChainId) url.searchParams.set("fromChainId", fromChainId);
+  if (toChainId) url.searchParams.set("toChainId", toChainId);
+  url.searchParams.set("transactionId", transactionId);
+  if (quoteId) url.searchParams.set("quoteId", quoteId);
+
   try {
-    const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
-      headers: {
-        "x-integrator-id": integratorId
-      },
-      params: {
-        fromChainId,
-        quoteId,
-        toChainId,
-        transactionId
-      }
+    const { data } = await squidFetch<SquidRouterPayResponse>(url.toString(), {
+      headers: { "x-integrator-id": integratorId }
     });
-    return result.data;
+    return data;
   } catch (error) {
-    if (error instanceof AxiosError && error.response) {
-      logger.current.error("API error:", error.response.data);
+    if (error instanceof HttpError) {
+      logger.current.error("API error:", error.data);
     }
-    logger.current.error(`Couldn't get status from squidRouter for transactionID ${transactionId}.}`);
+    logger.current.error(`Couldn't get status from squidRouter for transactionID ${transactionId}.`);
     throw error;
   }
 }

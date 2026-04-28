@@ -1,4 +1,5 @@
 import {
+  AlfredpayTradeLimitError,
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
@@ -186,6 +187,17 @@ export class QuoteService extends BaseRampService {
       // Preserve validation errors (BAD_REQUEST) - these are user-facing errors
       if (error instanceof APIError && error.status === httpStatus.BAD_REQUEST) {
         throw error;
+      }
+
+      // Detect Alfredpay trade limit error and surface it as a user-facing limit error
+      if (error instanceof AlfredpayTradeLimitError) {
+        const isOnramp = ctx.request.rampType === RampDirection.BUY;
+        throw new APIError({
+          message: isOnramp
+            ? `${QuoteError.BelowLowerLimitBuy} ${error.minQuantity} ${error.fromCurrency}`
+            : `${QuoteError.BelowLowerLimitSell} ${error.minQuantity} ${error.fromCurrency}`,
+          status: httpStatus.BAD_REQUEST
+        });
       }
 
       // Wrap unexpected errors as generic failure

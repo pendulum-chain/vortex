@@ -88,7 +88,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
-      {isAlfredpayToken(executionInput.fiatToken) && <FiatAccountSelector />}
+      {isAlfredpayToken(executionInput.fiatToken) && !isOnramp && <FiatAccountSelector />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">
@@ -119,7 +119,7 @@ export const SummaryStep: FC = () => {
   return (
     <div className="relative flex grow-1 flex-col">
       <MenuButtons />
-      <div>
+      <div className="mb-24">
         <h1 className="mt-4 mb-4 text-center font-bold text-primary text-widget-title">{headerText}</h1>
         <div className="pb-footer-offset">{content}</div>
       </div>

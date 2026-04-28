@@ -1,9 +1,9 @@
 import {
   EvmClientManager,
-  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
+  isAlfredpayToken,
   Networks,
   RampDirection,
   RampPhase
@@ -55,8 +55,15 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       return state;
     }
 
-    // handle special "singularity" cases: Alfredpay onrapm USDC in Polygon, Avania onramp USDC on Base:
-    if (quote.to === Networks.Polygon && quote.outputCurrency === EvmToken.USDC) {
+    // Alfredpay onramps mint directly to Polygon in the alfredpay token (e.g. USDT),
+    // so no squidRouter swap is needed — skip straight to destination transfer.
+    const isAlfredpayOnramp =
+      state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
+
+    // TODO also add check for Avenia onramp USDC on Base
+
+    if (isAlfredpayOnramp) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 

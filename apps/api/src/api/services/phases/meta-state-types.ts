@@ -71,4 +71,5 @@ export interface StateMetadata {
   alfredpayOfframpTransferTxHash?: string;
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
+  isDirectTransfer?: boolean;
 }
