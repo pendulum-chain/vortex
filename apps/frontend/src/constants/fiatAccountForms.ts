@@ -7,6 +7,7 @@ export interface FieldDef {
   options?: { label: string; value: string }[];
   placeholder?: string;
   required: boolean;
+  defaultValue?: string;
   type: "text" | "select" | "phone" | "email";
 }
 
@@ -26,13 +27,24 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       label: "components.fiatAccountForms.accountType",
       options: [
         { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
-        { label: "components.fiatAccountForms.options.savings", value: "SAVINGS" }
+        { label: "components.fiatAccountForms.options.saving", value: "SAVINGS" }
       ],
       required: true,
       type: "select"
     },
     { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
-    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" }
+    { field: "accountAlias", label: "components.fiatAccountForms.accountAlias", required: false, type: "text" },
+    {
+      defaultValue: "own",
+      field: "isOwnAccount",
+      label: "components.fiatAccountForms.isOwnAccount",
+      options: [
+        { label: "components.fiatAccountForms.options.ownAccount", value: "own" },
+        { label: "components.fiatAccountForms.options.externalAccount", value: "external" }
+      ],
+      required: true,
+      type: "select"
+    }
   ],
   ACH_COL: [
     { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
@@ -56,7 +68,18 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
     },
     { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
     { field: "documentType", label: "components.fiatAccountForms.documentType", required: true, type: "text" },
-    { field: "documentNumber", label: "components.fiatAccountForms.documentNumber", required: true, type: "text" }
+    { field: "documentNumber", label: "components.fiatAccountForms.documentNumber", required: true, type: "text" },
+    {
+      defaultValue: "own",
+      field: "isOwnAccount",
+      label: "components.fiatAccountForms.isOwnAccount",
+      options: [
+        { label: "components.fiatAccountForms.options.ownAccount", value: "own" },
+        { label: "components.fiatAccountForms.options.externalAccount", value: "external" }
+      ],
+      required: true,
+      type: "select"
+    }
   ],
   SPEI: [
     {
@@ -66,7 +89,18 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       required: true,
       type: "text"
     },
-    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" }
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    {
+      defaultValue: "own",
+      field: "isOwnAccount",
+      label: "components.fiatAccountForms.isOwnAccount",
+      options: [
+        { label: "components.fiatAccountForms.options.ownAccount", value: "own" },
+        { label: "components.fiatAccountForms.options.externalAccount", value: "external" }
+      ],
+      required: true,
+      type: "select"
+    }
   ],
   WIRE: [
     { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
@@ -99,6 +133,17 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       required: true,
       type: "text"
     },
-    { field: "bankPostalCode", label: "components.fiatAccountForms.bankPostalCode", required: true, type: "text" }
+    { field: "bankPostalCode", label: "components.fiatAccountForms.bankPostalCode", required: true, type: "text" },
+    {
+      defaultValue: "own",
+      field: "isOwnAccount",
+      label: "components.fiatAccountForms.isOwnAccount",
+      options: [
+        { label: "components.fiatAccountForms.options.ownAccount", value: "own" },
+        { label: "components.fiatAccountForms.options.externalAccount", value: "external" }
+      ],
+      required: true,
+      type: "select"
+    }
   ]
 };

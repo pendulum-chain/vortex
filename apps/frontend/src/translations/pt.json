@@ -356,11 +356,14 @@
       "hints": {
         "bankCountry": "Use o código de 3 letras do país, ex. USA"
       },
+      "isOwnAccount": "A quem pertence esta conta?",
       "options": {
         "ahorro": "Poupança (Ahorro)",
         "checking": "Corrente",
         "corriente": "Corrente (Corriente)",
+        "externalAccount": "Conta de outra pessoa",
         "nequi": "Nequi",
+        "ownAccount": "Minha própria conta",
         "saving": "Poupança"
       },
       "placeholders": {

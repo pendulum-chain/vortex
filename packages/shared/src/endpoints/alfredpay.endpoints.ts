@@ -102,6 +102,7 @@ export interface AlfredpayAddFiatAccountRequest {
   bankPostalCode?: string;
   documentType?: string;
   documentNumber?: string;
+  isExternal?: boolean;
 }
 
 export interface AlfredpayAddFiatAccountResponse {
