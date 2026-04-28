@@ -89,7 +89,7 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
@@ -126,7 +126,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
@@ -163,7 +163,7 @@ export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
@@ -210,7 +210,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
@@ -245,6 +245,6 @@ export async function createOnrampSquidrouterTransactionsOnDestinationChain(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
