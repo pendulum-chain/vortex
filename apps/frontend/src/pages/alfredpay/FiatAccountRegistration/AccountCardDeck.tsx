@@ -11,6 +11,7 @@ import { RemoveAccountControls } from "./RemoveAccountControls";
 export const CARD_HEIGHT = 214;
 const PEEK = 28;
 const PEEK_EXPANDED = 54; // For mobile accessibility
+const DECK_Z_BASE = 10; // above page content, below dropdowns/modals
 
 function FrontCardContent({
   account,
@@ -22,8 +23,8 @@ function FrontCardContent({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { accountName, metadata, accountNumber, type, fiatAccountId } = account;
-  const accountType = resolveAccountTypeKey(type, country);
+  const { accountName, metadata, accountNumber, type, fiatAccountId, accountType } = account;
+  const accountVariant = resolveAccountTypeKey(type, country);
   const label = accountName || metadata?.accountHolderName;
   const last4 = accountNumber.slice(-4);
   const sub = `${label} ••••${last4}`;
@@ -37,15 +38,17 @@ function FrontCardContent({
       }}
     >
       <div>
-        <CardHeader accountType={accountType} sub={sub} />
+        <CardHeader accountType={accountVariant} sub={sub} />
         <div className="flex w-full flex-col">
           <p className="mt-5 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountDetails")}</p>
           <div className="flex w-full items-center justify-between">
             <p className="truncate text-gray-500">{label}</p>
             <MaskedAccountNumber accountNumber={accountNumber} />
           </div>
-          <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountOwner")}</span>
-          <span className="truncate text-gray-500">{accountName}</span>
+          <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountType")}</span>
+          <span className="truncate text-gray-500">
+            {accountVariant} ({accountType})
+          </span>
         </div>
       </div>
       <RemoveAccountControls onDelete={() => onDelete(fiatAccountId)} />
@@ -117,12 +120,12 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
     left: 0,
     position: "absolute" as const,
     right: 0,
-    zIndex: orderedAccounts.length - i
+    zIndex: DECK_Z_BASE + orderedAccounts.length - i
   });
 
   return (
     <motion.div animate={{ height: containerHeight }} className="relative" ref={deckRef} transition={spring}>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {orderedAccounts.map((account, i) =>
           i === 0 ? (
             <motion.div
@@ -130,6 +133,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
               initial={false}
               key={account.fiatAccountId}
+              layoutId={account.fiatAccountId}
               style={{ cursor: "default", ...sharedCardStyle(i) }}
               transition={spring}
             >
@@ -145,6 +149,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
               exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
               initial={false}
               key={account.fiatAccountId}
+              layoutId={account.fiatAccountId}
               onClick={
                 canHover
                   ? () => setActiveId(account.fiatAccountId)

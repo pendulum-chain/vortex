@@ -317,11 +317,22 @@ export interface AlfredpayFiatAccountFields {
   bankState?: string;
   bankCountry?: string;
   bankPostalCode?: string;
-  isExternal: boolean;
   metadata?: {
     accountHolderName?: string;
     documentType?: string;
     documentNumber?: string;
+    bankStreet?: string;
+    bankCity?: string;
+    bankState?: string;
+    bankPostalCode?: string;
+    bankCountry?: string;
+    beneficiaryAddress?: {
+      street?: string;
+      city?: string;
+      country?: string;
+      stateProvince?: string;
+      postalCode?: string;
+    };
   };
 }
 
@@ -329,6 +340,7 @@ export interface CreateAlfredpayFiatAccountRequest {
   customerId: string;
   type: AlfredpayFiatAccountType;
   fiatAccountFields: AlfredpayFiatAccountFields;
+  isExternal: boolean;
 }
 
 export interface CreateAlfredpayFiatAccountResponse {

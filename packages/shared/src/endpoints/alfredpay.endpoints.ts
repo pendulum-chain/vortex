@@ -100,6 +100,11 @@ export interface AlfredpayAddFiatAccountRequest {
   bankState?: string;
   bankCountry?: string;
   bankPostalCode?: string;
+  beneficiaryStreet?: string;
+  beneficiaryCity?: string;
+  beneficiaryState?: string;
+  beneficiaryCountry?: string;
+  beneficiaryPostalCode?: string;
   documentType?: string;
   documentNumber?: string;
   isExternal?: boolean;

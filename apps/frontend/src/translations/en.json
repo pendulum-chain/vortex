@@ -15,7 +15,7 @@
       "accountVerified": "Your account has been verified. You can now proceed.",
       "cancel": "Cancel",
       "completed": "{{kycOrKyb}} Completed!",
-      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click the button below.",
+      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click 'I have finished the verification'.",
       "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
       "continue": "Continue",
       "continueWithPartner": "Please continue with our partner for the {{kycOrKyb}} verification.",
@@ -346,9 +346,14 @@
       "bankCity": "Bank City",
       "bankCountry": "Bank Country",
       "bankName": "Bank Name",
-      "bankPostalCode": "Bank Postal Code",
+      "bankPostalCode": "Bank ZIP",
       "bankState": "Bank State",
       "bankStreet": "Bank Street",
+      "beneficiaryCity": "Beneficiary City",
+      "beneficiaryCountry": "Beneficiary Country",
+      "beneficiaryPostalCode": "Beneficiary ZIP",
+      "beneficiaryState": "Beneficiary State",
+      "beneficiaryStreet": "Beneficiary Street",
       "clabe": "CLABE (18 digits)",
       "documentNumber": "Document Number",
       "documentType": "Document Type",
@@ -363,7 +368,7 @@
         "externalAccount": "Someone else's account",
         "nequi": "Nequi",
         "ownAccount": "My own account",
-        "saving": "Savings"
+        "savings": "Savings"
       },
       "placeholders": {
         "accountNumberCo": "10 or 11-digit account number",
@@ -372,11 +377,15 @@
         "routingNumber": "e.g. 021000021"
       },
       "routingAba": "Routing / ABA Number",
-      "routingNumber": "Routing Number (9 digits)"
+      "routingNumber": "Routing Number (9 digits)",
+      "sections": {
+        "bankAddress": "Bank Address",
+        "beneficiaryAddress": "Beneficiary Address"
+      }
     },
     "fiatAccountMethods": {
       "accountDetails": "ACCOUNT DETAILS",
-      "accountOwner": "ACCOUNT OWNER",
+      "accountType": "ACCOUNT TYPE",
       "clickToSelect": "Click to select",
       "descriptions": {
         "ACH": "1-2 business days",
@@ -416,6 +425,7 @@
       "validation": {
         "accountNumber": "Account number must be 4-17 digits",
         "clabe": "CLABE must be exactly 18 digits",
+        "countryCode": "Must be a 3-letter country code (e.g. USA)",
         "fieldRequired": "{{field}} is required",
         "nickname": "Nickname must be 40 characters or fewer",
         "routing": "Routing number must be exactly 9 digits"

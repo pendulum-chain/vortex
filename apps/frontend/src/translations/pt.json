@@ -99,6 +99,7 @@
       "buttons": {
         "back": "Voltar",
         "compareFees": "Comparar Taxas",
+        "done": "Concluído",
         "finish": "Finalizar",
         "next": "Próximo"
       },
@@ -141,6 +142,7 @@
         "email": "E-mail",
         "fullName": "Nome Completo",
         "number": "Número",
+        "partnerCpf": "CPF do Parceiro",
         "partnerCpff": "CPF do Parceiro",
         "phoneNumber": "Número de Telefone",
         "pixId": "Chave Pix",
@@ -350,6 +352,11 @@
       "bankPostalCode": "CEP do Banco",
       "bankState": "Estado do Banco",
       "bankStreet": "Rua do Banco",
+      "beneficiaryCity": "Cidade do Beneficiário",
+      "beneficiaryCountry": "País do Beneficiário",
+      "beneficiaryPostalCode": "CEP do Beneficiário",
+      "beneficiaryState": "Estado do Beneficiário",
+      "beneficiaryStreet": "Rua do Beneficiário",
       "clabe": "CLABE (18 dígitos)",
       "documentNumber": "Número do Documento",
       "documentType": "Tipo de Documento",
@@ -364,7 +371,7 @@
         "externalAccount": "Conta de outra pessoa",
         "nequi": "Nequi",
         "ownAccount": "Minha própria conta",
-        "saving": "Poupança"
+        "savings": "Poupança"
       },
       "placeholders": {
         "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
@@ -373,11 +380,15 @@
         "routingNumber": "ex. 021000021"
       },
       "routingAba": "Número de Roteamento / ABA",
-      "routingNumber": "Número de Roteamento (9 dígitos)"
+      "routingNumber": "Número de Roteamento (9 dígitos)",
+      "sections": {
+        "bankAddress": "Endereço do Banco",
+        "beneficiaryAddress": "Endereço do Beneficiário"
+      }
     },
     "fiatAccountMethods": {
       "accountDetails": "DETALHES DA CONTA",
-      "accountOwner": "TITULAR DA CONTA",
+      "accountType": "TIPO DE CONTA",
       "clickToSelect": "Clique para selecionar",
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
@@ -417,6 +428,7 @@
       "validation": {
         "accountNumber": "Número da conta deve ter entre 4 e 17 dígitos",
         "clabe": "CLABE deve ter exatamente 18 dígitos",
+        "countryCode": "Deve ser um código de país com 3 letras (ex. BRA)",
         "fieldRequired": "{{field}} é obrigatório",
         "nickname": "Apelido deve ter no máximo 40 caracteres",
         "routing": "Número de roteamento deve ter exatamente 9 dígitos"
@@ -622,6 +634,7 @@
         "amount": "Valor",
         "bic": "BIC",
         "footer": "Por favor, garanta que o valor seja exato.",
+        "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
@@ -777,8 +790,11 @@
     "business": {
       "hero": {
         "comingSoon": "Em breve",
+        "contactUs": "Entre em contato",
         "description": "Com uma integração simples e gratuita, a Vortex lida com KYC, conformidade e liquidação para que você possa se concentrar no seu produto.",
+        "readDocs": "Leia nossa documentação",
         "sdkIntegration": "Integração via SDK",
+        "title": "Permita que seus clientes comprem e vendam cripto instantaneamente - diretamente <0>dentro do seu APP</0>",
         "titlePart1": "Permita que seus clientes comprem e vendam cripto instantaneamente - diretamente",
         "titlePart2": "dentro do seu APP",
         "widgetIntegration": "Integração via Widget"
@@ -826,7 +842,8 @@
           }
         },
         "subtitle": "O app hospedado da Vortex é a maneira mais rápida de adicionar uma rampa fiat on/off segura ao seu app.",
-        "title": "Uma integração. Tudo resolvido."
+        "title": "Uma integração. Tudo resolvido.",
+        "title2": "Tudo resolvido."
       }
     },
     "contact": {
@@ -885,6 +902,8 @@
     },
     "main": {
       "hero": {
+        "buyAndSellCrypto": "Compre e Venda Cripto",
+        "partnerWithUs": "Seja nosso parceiro",
         "subtitle": "Mantemos as coisas simples para você e garantimos que você obtenha a melhor taxa disponível.",
         "title": "<0>Compre e venda cripto.</0> <br /> Rápido, seguro, melhores taxas."
       }
@@ -1149,6 +1168,7 @@
     },
     "progress": {
       "alfredPayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
+      "alfredpayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
       "alfredpayOnrampMint": "Seu pagamento está sendo processado. Isso pode levar de mesmo dia até 3 dias úteis, dependendo do seu banco.",
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
@@ -1351,8 +1371,10 @@
       "title": "<0>Economize</0> em margens de taxa de câmbio"
     },
     "gotQuestions": {
+      "contactSales": "Contato Comercial",
       "contactUs": "Fale Conosco",
       "description": "Entre em contato conosco para respostas e suporte.",
+      "getStartedTitle": "Comece Agora <br /> <0>com a Vortex</0>",
       "title": "Tem Perguntas? Estamos aqui para ajudar!"
     },
     "howToSell": {

@@ -1,7 +1,9 @@
+import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
-import documentReady from "../../assets/document_ready.svg";
+import documentReadySuccess from "../../assets/document_ready_success.svg";
 import { MenuButtons } from "../MenuButtons";
+import { SparkleButton } from "../SparkleButton";
 import { Spinner } from "../Spinner";
 import { StepFooter } from "../StepFooter";
 
@@ -18,29 +20,26 @@ export const FillingScreen = memo(({ kycOrKyb, isSubmitting, onCompletedFilling,
   return (
     <main className="relative flex grow-1 flex-col items-center">
       <MenuButtons />
-      <img alt="Document ready" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReady} />
-      <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
+      <img alt="Document ready" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentReadySuccess} />
+      <p className="text-center text-success">{t("components.alfredpayKycFlow.completeInNewWindow", { kycOrKyb })}</p>
       {onOpenLink && (
         <button className="mt-2 text-primary text-sm underline" onClick={onOpenLink} type="button">
           {t("components.alfredpayKycFlow.reopenLink", { kycOrKyb })}
         </button>
       )}
       <StepFooter>
-        <button
-          className="btn-vortex-primary btn w-full rounded-xl"
-          disabled={isSubmitting}
-          onClick={onCompletedFilling}
-          type="button"
-        >
-          {isSubmitting ? (
-            <>
-              <Spinner />
-              {t("components.alfredpayKycFlow.verifyingCompletion")}
-            </>
-          ) : (
-            t("components.alfredpayKycFlow.finishedVerification", { kycOrKyb })
-          )}
-        </button>
+        {isSubmitting ? (
+          <button className="btn-vortex-success btn w-full rounded-xl" disabled type="button">
+            <Spinner />
+            {t("components.alfredpayKycFlow.verifyingCompletion")}
+          </button>
+        ) : (
+          <SparkleButton
+            icon={<CheckCircleIcon className="h-5 w-5" />}
+            label={t("components.alfredpayKycFlow.finishedVerification", { kycOrKyb })}
+            onClick={onCompletedFilling}
+          />
+        )}
       </StepFooter>
     </main>
   );
