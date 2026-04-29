@@ -25,8 +25,12 @@ export function RegisteredAccountsList({
   const { t } = useTranslation();
   return (
     <div className="relative flex grow-1 flex-col">
-      <h2 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">{t("components.fiatAccountRegistration.title")}</h2>
-      {!kycApproved && <KycRequiredBanner />}
+      <h2 className="mt-3 mb-6 text-center font-bold text-3xl text-primary">{t("components.fiatAccountRegistration.title")}</h2>
+      {!kycApproved && (
+        <div id="kyc-required-banner">
+          <KycRequiredBanner />
+        </div>
+      )}
 
       <div className="mt-8">
         {isLoading ? (
@@ -40,7 +44,13 @@ export function RegisteredAccountsList({
         )}
       </div>
 
-      <button className="btn btn-vortex-primary-inverse my-8 w-full" disabled={!kycApproved} onClick={onAddNew} type="button">
+      <button
+        aria-describedby={!kycApproved ? "kyc-required-banner" : undefined}
+        className="btn btn-vortex-primary-inverse my-8 w-full [touch-action:manipulation]"
+        disabled={!kycApproved}
+        onClick={onAddNew}
+        type="button"
+      >
         {t("components.fiatAccountRegistration.addNew")}
       </button>
     </div>

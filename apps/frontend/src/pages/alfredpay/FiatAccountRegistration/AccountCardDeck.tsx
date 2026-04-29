@@ -11,6 +11,7 @@ import { RemoveAccountControls } from "./RemoveAccountControls";
 export const CARD_HEIGHT = 214;
 const PEEK = 28;
 const PEEK_EXPANDED = 54; // For mobile accessibility
+const DECK_Z_BASE = 10; // above page content, below dropdowns/modals
 
 function FrontCardContent({
   account,
@@ -117,7 +118,7 @@ export function AccountCardDeck({ accounts, country, onDelete }: AccountCardDeck
     left: 0,
     position: "absolute" as const,
     right: 0,
-    zIndex: orderedAccounts.length - i
+    zIndex: DECK_Z_BASE + orderedAccounts.length - i
   });
 
   return (

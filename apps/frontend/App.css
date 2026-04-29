@@ -75,6 +75,14 @@
   }
 }
 
+@variant hov {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 @layer base {
   html,
   body {
