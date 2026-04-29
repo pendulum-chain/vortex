@@ -49,7 +49,7 @@ import RampState from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
+import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile, MONERIUM_MINT_CHAIN } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -252,7 +252,8 @@ export class RampService extends BaseRampService {
 
       presignedTxs.forEach((newTx: UnsignedTx) => {
         const existingIndex = updatedTxs.findIndex(
-          tx => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer
+          tx =>
+            tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer && tx.nonce === newTx.nonce
         );
         if (existingIndex >= 0) {
           updatedTxs[existingIndex] = newTx;
@@ -997,7 +998,7 @@ export class RampService extends BaseRampService {
       const ibanData = await getIbanForAddress(
         additionalData.moneriumWalletAddress,
         additionalData.moneriumAuthToken,
-        quote.to as EvmNetworks // Fixme: assethub network type issue.
+        MONERIUM_MINT_CHAIN
       );
 
       const userProfile = SANDBOX_ENABLED

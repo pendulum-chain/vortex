@@ -114,7 +114,7 @@ export async function buildPaymentAndMergeTx({
     currentCreateAccountTransaction.sign(fundingAccountKeypair);
 
     createAccountTransactions.push({
-      sequence: fundingAccount.sequenceNumber(), // TODO do we require this?
+      sequence: currentFundingAccount.sequenceNumber(), // TODO do we require this?
       tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString("base64")
     });
   }
