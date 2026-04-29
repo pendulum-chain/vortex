@@ -326,6 +326,13 @@ export interface AlfredpayFiatAccountFields {
     bankState?: string;
     bankPostalCode?: string;
     bankCountry?: string;
+    beneficiaryAddress?: {
+      street?: string;
+      city?: string;
+      country?: string;
+      stateProvince?: string;
+      postalCode?: string;
+    };
   };
 }
 
