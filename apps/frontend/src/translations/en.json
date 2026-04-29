@@ -15,7 +15,7 @@
       "accountVerified": "Your account has been verified. You can now proceed.",
       "cancel": "Cancel",
       "completed": "{{kycOrKyb}} Completed!",
-      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click the button below.",
+      "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click 'I have finished the verification'.",
       "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
       "continue": "Continue",
       "continueWithPartner": "Please continue with our partner for the {{kycOrKyb}} verification.",
