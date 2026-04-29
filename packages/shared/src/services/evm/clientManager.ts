@@ -1,5 +1,5 @@
 import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
-import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy, sepolia } from "viem/chains";
+import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "../../index";
 import logger from "../../logger";
 

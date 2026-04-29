@@ -1,6 +1,5 @@
 import { CreateExecuteMessageExtrinsicOptions } from "@pendulum-chain/api-solang";
 import { encodeFunctionData } from "viem/utils";
-import { routerAbi } from "../../../contracts/Router";
 import {
   AccountMeta,
   ApiManager,

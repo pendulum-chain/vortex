@@ -44,8 +44,7 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     brlaEvmAddress: validatedBrlaEvmAddress,
     pixDestination: validatedPixDestination,
     taxId: validatedTaxId,
-    receiverTaxId: validatedReceiverTaxId,
-    offrampAmountBeforeAnchorFeesRaw
+    receiverTaxId: validatedReceiverTaxId
   } = validateBRLOfframp(quote, { brlaEvmAddress, pixDestination, receiverTaxId, taxId });
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
@@ -101,15 +100,25 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     });
   }
 
+  // TODO isn't this missing the rest of the edge case handling?
+
   let baseNonce = 0;
+
+  const baseUSDCTokenAddress = evmTokenConfig[Networks.Base][EvmToken.USDC]?.erc20AddressSourceChain;
+  if (!baseUSDCTokenAddress) {
+    throw new Error("Invalid USDC configuration for Base in evmTokenConfig");
+  }
+  const baseBRLATokenAddress = evmTokenConfig[Networks.Base][EvmToken.BRLA]?.erc20AddressSourceChain;
+  if (!baseBRLATokenAddress) {
+    throw new Error("Invalid BRLA configuration for Base in evmTokenConfig");
+  }
 
   // Add Base Nabla swap transactions (USDC to BRLA on Base)
   const { nextNonce: nonceAfterNabla, stateMeta: nablaStateMeta } = await addNablaSwapTransactionsOnBase(
     {
       account: evmEphemeralEntry,
-      // TODO remove before release, using mock base tokens.
-      inputTokenAddress: "0x1b888723fb7699f9dF0a99443107E8A888A67e11", // baseUsdcAddress, // Swap from USDC to BRLA on Base
-      outputTokenAddress: "0x57180796D4082Ba903d86c4eA3C86490fA10512c", //baseBrlaAddress, // BRLA address on Base
+      inputTokenAddress: baseUSDCTokenAddress,
+      outputTokenAddress: baseBRLATokenAddress,
       quote
     },
     unsignedTxs,

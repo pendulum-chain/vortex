@@ -115,7 +115,7 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   },
   [Networks.BaseSepolia]: {
     displayName: "Base Sepolia",
-    id: baseSepolia.id, // Using the same chain ID as Base since Sepolia is a testnet for Base --- TODO: update if Base Sepolia has a different chain ID after launch
+    id: baseSepolia.id,
     isEVM: true,
     supportsRamp: false
   },

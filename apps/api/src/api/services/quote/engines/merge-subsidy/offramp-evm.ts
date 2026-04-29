@@ -1,5 +1,4 @@
 import { RampDirection } from "@vortexfi/shared";
-import Big from "big.js";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 interface MergeSubsidyConfig {
