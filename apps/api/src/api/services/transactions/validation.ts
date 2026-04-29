@@ -65,7 +65,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "squidRouterSwap":
     case "nablaApproveEvm":
     case "nablaSwapEvm":
-    case "distributeFees":
+    case "distributeFeesEvm":
       return EphemeralAccountType.EVM;
     default:
       return EphemeralAccountType.EVM;

@@ -41,6 +41,7 @@ export type RampPhase =
   | "subsidizePostSwap"
   | "subsidizePostSwapEvm"
   | "distributeFees"
+  | "distributeFeesEvm"
   | "alfredpayOnrampMint"
   | "alfredOnrampMintFallback"
   | "alfredpayOfframpTransfer"

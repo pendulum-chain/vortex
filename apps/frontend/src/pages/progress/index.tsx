@@ -29,6 +29,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   complete: 0,
   destinationTransfer: 12,
   distributeFees: 24,
+  distributeFeesEvm: 24,
   failed: 0,
   finalSettlementSubsidy: 30,
   fundEphemeral: 20,

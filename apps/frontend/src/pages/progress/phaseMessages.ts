@@ -71,6 +71,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     complete: "",
     destinationTransfer: getDestinationTransferMessage(), // Not relevant for progress page
     distributeFees: getSwappingMessage(),
+    distributeFeesEvm: getSwappingMessage(),
     failed: "",
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
