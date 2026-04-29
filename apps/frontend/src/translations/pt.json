@@ -371,7 +371,7 @@
         "externalAccount": "Conta de outra pessoa",
         "nequi": "Nequi",
         "ownAccount": "Minha própria conta",
-        "saving": "Poupança"
+        "savings": "Poupança"
       },
       "placeholders": {
         "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
@@ -843,7 +843,7 @@
         },
         "subtitle": "O app hospedado da Vortex é a maneira mais rápida de adicionar uma rampa fiat on/off segura ao seu app.",
         "title": "Uma integração. Tudo resolvido.",
-        "title2": " Tudo resolvido."
+        "title2": "Tudo resolvido."
       }
     },
     "contact": {
