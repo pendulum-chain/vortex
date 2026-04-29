@@ -4,6 +4,8 @@ import {
   EvmTokenDetails,
   getTokenOutAmount,
   multiplyByPowerOfTen,
+  NABLA_QUOTER_BASE,
+  NABLA_ROUTER_BASE,
   Networks,
   PendulumTokenDetails,
   parseContractBalanceResponse,
@@ -15,9 +17,6 @@ import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
-
-const NABLA_ROUTER_BASE: `0x${string}` = "0x58E5Cb2dA15f01CB8FAefef202aa25238efCBdcf";
-const NABLA_QUOTER_BASE: `0x${string}` = "0x94C2F795358170a92271bF2490a56135E3fBA58A";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;

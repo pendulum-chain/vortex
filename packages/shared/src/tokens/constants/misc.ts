@@ -13,6 +13,7 @@ export const MOONBEAM_WSS = "wss://wss.api.moonbeam.network";
 export const WALLETCONNECT_ASSETHUB_ID = "polkadot:68d56f15f85d3136970ec16946040bc1";
 export const NABLA_ROUTER = "6gAVVw13mQgzzKk4yEwScMmWiCNyMAunXFJUZonbgKrym81N"; // AssetHub USDC instance
 export const NABLA_ROUTER_BASE: `0x${string}` = "0x58E5Cb2dA15f01CB8FAefef202aa25238efCBdcf";
+export const NABLA_QUOTER_BASE: `0x${string}` = "0x94C2F795358170a92271bF2490a56135E3fBA58A";
 
 export const SPACEWALK_REDEEM_SAFETY_MARGIN = 0.05;
 export const AMM_MINIMUM_OUTPUT_SOFT_MARGIN = 0.02;

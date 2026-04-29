@@ -7,16 +7,14 @@ import {
   decodeSubmittableExtrinsic,
   EvmClientManager,
   EvmNetworks,
-  EvmTransactionData,
   Networks,
   RampDirection,
   RampPhase,
   TransactionTemporarilyBannedError,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
-import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY, SUBSCAN_API_KEY } from "../../../../constants/constants";
+import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
@@ -74,14 +72,15 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
 
-    // For BRL onramp flows, distributio happens on EVM (Base).
+    // For BRL flows, distribution happens on EVM (Base).
     const isEvmTransaction = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
+    const evmNetwork = isEvmTransaction ? (Networks.Base as EvmNetworks) : undefined;
 
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
-      if (isEvmTransaction) {
-        const status = await this.checkEvmTransactionStatus(existingHash).catch((_: unknown) => {
+      if (isEvmTransaction && evmNetwork) {
+        const status = await this.checkEvmTransactionStatus(existingHash, evmNetwork).catch((_: unknown) => {
           throw this.createRecoverableError("Failed to check EVM transaction status from existing hash.");
         });
 
@@ -106,8 +105,10 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     try {
-      // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
-      const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
+      // Get the pre-signed fee distribution transaction.
+      // Use "distributeFeesEvm" for EVM flows, "distributeFees" for substrate flows.
+      const presignedPhase = isEvmTransaction ? "distributeFeesEvm" : "distributeFees";
+      const distributeFeeTransaction = this.getPresignedTransaction(state, presignedPhase);
       if (distributeFeeTransaction === undefined) {
         logger.info("No fee distribution transaction data found. Skipping fee distribution.");
         return this.transitionToNextPhase(state, nextPhase);
@@ -117,8 +118,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
       if (isEvmTransaction) {
         logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
-        actualTxHash = await this.submitEvmTransaction(
-          distributeFeeTransaction.txData as EvmTransactionData,
+        actualTxHash = await this.submitEvmRawTransaction(
+          distributeFeeTransaction.txData as string,
           distributeFeeTransaction.network as EvmNetworks
         );
       } else {
@@ -324,25 +325,20 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   }
 
   /**
-   * Submit an EVM transaction
-   * @param txData The EVM transaction data
+   * Submit a presigned EVM raw transaction
+   * @param serializedTransaction The signed serialized transaction
    * @param network The EVM network
    * @returns The transaction hash
    */
-  private async submitEvmTransaction(txData: EvmTransactionData, network: EvmNetworks): Promise<string> {
-    logger.debug(`Submitting EVM transaction to ${network} for ${this.getPhaseName()} phase`);
+  private async submitEvmRawTransaction(serializedTransaction: string, network: EvmNetworks): Promise<string> {
+    logger.debug(`Broadcasting presigned EVM transaction to ${network} for ${this.getPhaseName()} phase`);
+
+    if (typeof serializedTransaction !== "string" || !serializedTransaction.startsWith("0x")) {
+      throw new Error(`Invalid presigned EVM transaction data for ${this.getPhaseName()} phase`);
+    }
 
     const evmClientManager = EvmClientManager.getInstance();
-    const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
-
-    return await evmClientManager.sendTransactionWithBlindRetry(network, fundingAccount, {
-      data: txData.data as `0x${string}`,
-      gas: BigInt(txData.gas || "100000"),
-      maxFeePerGas: txData.maxFeePerGas ? BigInt(txData.maxFeePerGas) : undefined,
-      maxPriorityFeePerGas: txData.maxPriorityFeePerGas ? BigInt(txData.maxPriorityFeePerGas) : undefined,
-      to: txData.to as `0x${string}`,
-      value: BigInt(txData.value || "0")
-    });
+    return await evmClientManager.sendRawTransactionWithRetry(network, serializedTransaction as `0x${string}`);
   }
 
   /**
@@ -375,7 +371,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * @param network The EVM network where the transaction was submitted
    * @returns ExtrinsicStatus: Success, Fail, or Undefined
    */
-  private async checkEvmTransactionStatus(txHash: string, network: EvmNetworks = Networks.Base): Promise<ExtrinsicStatus> {
+  private async checkEvmTransactionStatus(txHash: string, network: EvmNetworks): Promise<ExtrinsicStatus> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
       const publicClient = evmClientManager.getClient(network);
