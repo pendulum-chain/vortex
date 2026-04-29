@@ -23,8 +23,8 @@ function FrontCardContent({
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { accountName, metadata, accountNumber, type, fiatAccountId } = account;
-  const accountType = resolveAccountTypeKey(type, country);
+  const { accountName, metadata, accountNumber, type, fiatAccountId, accountType } = account;
+  const accountVariant = resolveAccountTypeKey(type, country);
   const label = accountName || metadata?.accountHolderName;
   const last4 = accountNumber.slice(-4);
   const sub = `${label} ••••${last4}`;
@@ -38,15 +38,17 @@ function FrontCardContent({
       }}
     >
       <div>
-        <CardHeader accountType={accountType} sub={sub} />
+        <CardHeader accountType={accountVariant} sub={sub} />
         <div className="flex w-full flex-col">
           <p className="mt-5 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountDetails")}</p>
           <div className="flex w-full items-center justify-between">
             <p className="truncate text-gray-500">{label}</p>
             <MaskedAccountNumber accountNumber={accountNumber} />
           </div>
-          <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountOwner")}</span>
-          <span className="truncate text-gray-500">{accountName}</span>
+          <span className="mt-4 text-gray-500 text-xs">{t("components.fiatAccountMethods.accountType")}</span>
+          <span className="truncate text-gray-500">
+            {accountVariant} ({accountType})
+          </span>
         </div>
       </div>
       <RemoveAccountControls onDelete={() => onDelete(fiatAccountId)} />

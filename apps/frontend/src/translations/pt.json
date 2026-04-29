@@ -388,7 +388,7 @@
     },
     "fiatAccountMethods": {
       "accountDetails": "DETALHES DA CONTA",
-      "accountOwner": "TITULAR DA CONTA",
+      "accountType": "TIPO DE CONTA",
       "clickToSelect": "Clique para selecionar",
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
