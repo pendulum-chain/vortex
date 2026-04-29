@@ -352,6 +352,11 @@
       "bankPostalCode": "CEP do Banco",
       "bankState": "Estado do Banco",
       "bankStreet": "Rua do Banco",
+      "beneficiaryCity": "Cidade do Beneficiário",
+      "beneficiaryCountry": "País do Beneficiário",
+      "beneficiaryPostalCode": "CEP do Beneficiário",
+      "beneficiaryState": "Estado do Beneficiário",
+      "beneficiaryStreet": "Rua do Beneficiário",
       "clabe": "CLABE (18 dígitos)",
       "documentNumber": "Número do Documento",
       "documentType": "Tipo de Documento",
@@ -375,7 +380,11 @@
         "routingNumber": "ex. 021000021"
       },
       "routingAba": "Número de Roteamento / ABA",
-      "routingNumber": "Número de Roteamento (9 dígitos)"
+      "routingNumber": "Número de Roteamento (9 dígitos)",
+      "sections": {
+        "bankAddress": "Endereço do Banco",
+        "beneficiaryAddress": "Endereço do Beneficiário"
+      }
     },
     "fiatAccountMethods": {
       "accountDetails": "DETALHES DA CONTA",
@@ -419,6 +428,7 @@
       "validation": {
         "accountNumber": "Número da conta deve ter entre 4 e 17 dígitos",
         "clabe": "CLABE deve ter exatamente 18 dígitos",
+        "countryCode": "Deve ser um código de país com 3 letras (ex. BRA)",
         "fieldRequired": "{{field}} é obrigatório",
         "nickname": "Apelido deve ter no máximo 40 caracteres",
         "routing": "Número de roteamento deve ter exatamente 9 dígitos"

@@ -346,9 +346,14 @@
       "bankCity": "Bank City",
       "bankCountry": "Bank Country",
       "bankName": "Bank Name",
-      "bankPostalCode": "Bank Postal Code",
+      "bankPostalCode": "Bank ZIP",
       "bankState": "Bank State",
       "bankStreet": "Bank Street",
+      "beneficiaryCity": "Beneficiary City",
+      "beneficiaryCountry": "Beneficiary Country",
+      "beneficiaryPostalCode": "Beneficiary ZIP",
+      "beneficiaryState": "Beneficiary State",
+      "beneficiaryStreet": "Beneficiary Street",
       "clabe": "CLABE (18 digits)",
       "documentNumber": "Document Number",
       "documentType": "Document Type",
@@ -372,7 +377,11 @@
         "routingNumber": "e.g. 021000021"
       },
       "routingAba": "Routing / ABA Number",
-      "routingNumber": "Routing Number (9 digits)"
+      "routingNumber": "Routing Number (9 digits)",
+      "sections": {
+        "bankAddress": "Bank Address",
+        "beneficiaryAddress": "Beneficiary Address"
+      }
     },
     "fiatAccountMethods": {
       "accountDetails": "ACCOUNT DETAILS",
@@ -416,6 +425,7 @@
       "validation": {
         "accountNumber": "Account number must be 4-17 digits",
         "clabe": "CLABE must be exactly 18 digits",
+        "countryCode": "Must be a 3-letter country code (e.g. USA)",
         "fieldRequired": "{{field}} is required",
         "nickname": "Nickname must be 40 characters or fewer",
         "routing": "Routing number must be exactly 9 digits"
