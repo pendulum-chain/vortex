@@ -395,7 +395,7 @@ export interface SubmitKycInformationRequest {
   zipCode: string;
   address: string;
   dni: string;
-  typeDocument?: string; // MXN
+  typeDocument?: string;
   typeDocumentCol?: AlfredpayColombiaDocumentType;
   phoneNumber?: string; // Colombia
 }
