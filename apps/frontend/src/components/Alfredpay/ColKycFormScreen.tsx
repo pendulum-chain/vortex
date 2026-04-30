@@ -1,23 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlfredpayColombiaDocumentType } from "@vortexfi/shared";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import type { MxnKycFormData } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 const schema = z
   .object({
     address: z.string().min(1),
     city: z.string().min(1),
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-    dni: z.string().min(6).max(11).regex(/^\d+$/, "Must be numeric"),
+    dni: z.string().min(6).max(10).regex(/^\d+$/, "Must be numeric"),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
-    phoneNumber: z
-      .string()
-      .min(7)
-      .regex(/^\+?\d[\d\s\-()]{5,}$/, "Enter a valid phone number"),
+    phoneNumber: z.string().regex(/^\+\d{1,3}\d{9,10}$/, "Use international format, e.g. +573000000000"),
     state: z.string().min(1),
     typeDocumentCol: z.nativeEnum(AlfredpayColombiaDocumentType),
     zipCode: z.string().min(1)
@@ -38,6 +36,7 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
   const { t } = useTranslation();
 
   const {
+    control,
     formState: { errors },
     handleSubmit,
     register,
@@ -104,15 +103,21 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
           <label className="mb-1 block text-sm" htmlFor="col-documentType">
             {t("components.colKycForm.documentType")}
           </label>
-          <select
-            className={`select w-full rounded-lg border bg-base-200 p-2 text-base ${errors.typeDocumentCol ? "border-error" : "border-neutral-300"}`}
-            id="col-documentType"
-            {...register("typeDocumentCol")}
-          >
-            <option value="">{t("components.colKycForm.selectDocumentType")}</option>
-            <option value="CC">{t("components.colKycForm.options.cc")}</option>
-            <option value="CE">{t("components.colKycForm.options.ce")}</option>
-          </select>
+          <Controller
+            control={control}
+            name="typeDocumentCol"
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className={`w-full ${errors.typeDocumentCol ? "border-error" : ""}`} id="col-documentType">
+                  <SelectValue placeholder={t("components.colKycForm.selectDocumentType")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CC">{t("components.colKycForm.options.cc")}</SelectItem>
+                  <SelectItem value="CE">{t("components.colKycForm.options.ce")}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
           {errors.typeDocumentCol && <span className="mt-1 block text-error text-xs">{errors.typeDocumentCol.message}</span>}
         </div>
 
@@ -139,15 +144,20 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
           <label className="mb-1 block text-sm" htmlFor="col-phoneNumber">
             {t("components.colKycForm.phoneNumber")}
           </label>
-          <input
-            autoComplete="tel"
-            className={inputClass(!!errors.phoneNumber)}
-            id="col-phoneNumber"
-            inputMode="tel"
-            placeholder="+57 300 000 0000"
-            type="tel"
-            {...register("phoneNumber")}
-          />
+          <div className={`flex items-center rounded-lg border ${errors.phoneNumber ? "border-error" : "border-neutral-300"}`}>
+            <span className="select-none border-r border-neutral-300 px-3 py-2 text-base text-gray-500">+</span>
+            <input
+              autoComplete="tel"
+              className="input-vortex-primary input-ghost w-full rounded-r-lg p-2 text-base"
+              id="col-phoneNumber"
+              inputMode="tel"
+              placeholder="573000000000"
+              type="tel"
+              {...register("phoneNumber", {
+                setValueAs: (v: string) => (v ? `+${v.replace(/^\+/, "")}` : v)
+              })}
+            />
+          </div>
           {errors.phoneNumber && <span className="mt-1 block text-error text-xs">{errors.phoneNumber.message}</span>}
         </div>
 
