@@ -3,7 +3,6 @@ import { AlfredpayColombiaDocumentType } from "@vortexfi/shared";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
-import type { MxnKycFormData } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
@@ -29,7 +28,7 @@ const schema = z
 type ColKycFormValues = z.infer<typeof schema>;
 
 interface ColKycFormScreenProps {
-  onSubmit: (data: MxnKycFormData) => void;
+  onSubmit: (data: ColKycFormValues) => void;
 }
 
 export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
@@ -154,7 +153,7 @@ export function ColKycFormScreen({ onSubmit }: ColKycFormScreenProps) {
               placeholder="573000000000"
               type="tel"
               {...register("phoneNumber", {
-                setValueAs: (v: string) => (v ? `+${v.replace(/^\+/, "")}` : v)
+                setValueAs: (v: string) => (v ? `+${v.replace(/^\+/, "").replace(/\D/g, "")}` : v)
               })}
             />
           </div>
