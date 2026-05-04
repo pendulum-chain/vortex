@@ -114,6 +114,49 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(updatedState, "fundEphemeral");
   }
 
+  private async waitForUserHash(
+    state: RampState,
+    hash: `0x${string}` | undefined,
+    fromNetwork: EvmNetworks,
+    label: string
+  ): Promise<void> {
+    if (!hash) {
+      throw this.createRecoverableError(`${label} hash not yet reported by frontend`);
+    }
+    const { publicClient } = this.getExecutorClients(fromNetwork);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (!receipt || receipt.status !== "success") {
+      throw this.createRecoverableError(`${label} tx failed: ${hash}`);
+    }
+    logger.info(`${label} tx confirmed: ${hash}`);
+  }
+
+  private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks): Promise<RampState> {
+    if (state.state.isDirectTransfer) {
+      await this.waitForUserHash(
+        state,
+        state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
+        fromNetwork,
+        "No-permit direct transfer"
+      );
+    } else {
+      await this.waitForUserHash(
+        state,
+        state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
+        fromNetwork,
+        "No-permit approve"
+      );
+      await this.waitForUserHash(
+        state,
+        state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,
+        fromNetwork,
+        "No-permit swap"
+      );
+    }
+
+    return this.transitionToNextPhase(state, "fundEphemeral");
+  }
+
   private async executeDirectTransfer(
     state: RampState,
     signedTypedDataArray: SignedTypedData[],
@@ -212,6 +255,12 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     }
 
     try {
+      // No-permit fallback: the user submitted the substitute transaction(s) from their own
+      // wallet during the signing step. We just verify their on-chain success and proceed.
+      if (state.state.isNoPermitFallback) {
+        return await this.executeNoPermitFallback(state, fromNetwork);
+      }
+
       const existingHash = state.state.squidRouterPermitExecutionHash || null;
 
       if (existingHash) {

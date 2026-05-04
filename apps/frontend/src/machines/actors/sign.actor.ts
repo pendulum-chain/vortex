@@ -94,6 +94,9 @@ export const signTransactionsActor = async ({
 
   let squidRouterApproveHash: string | undefined = undefined;
   let squidRouterSwapHash: string | undefined = undefined;
+  let squidRouterNoPermitTransferHash: string | undefined = undefined;
+  let squidRouterNoPermitApproveHash: string | undefined = undefined;
+  let squidRouterNoPermitSwapHash: string | undefined = undefined;
   let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampPermit: PermitSignature | undefined = undefined;
@@ -142,6 +145,17 @@ export const signTransactionsActor = async ({
       } else if (tx.phase === "squidRouterSwap") {
         squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "squidRouterNoPermitTransfer") {
+        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        squidRouterNoPermitTransferHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "squidRouterNoPermitApprove") {
+        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        squidRouterNoPermitApproveHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "squidRouterNoPermitSwap") {
+        squidRouterNoPermitSwapHash = await signAndSubmitEvmTransaction(tx);
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "assethubToPendulum") {
         if (!substrateWalletAccount) {
           throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
@@ -182,6 +196,9 @@ export const signTransactionsActor = async ({
     moneriumOfframpSignature,
     moneriumOnrampPermit,
     squidRouterApproveHash,
+    squidRouterNoPermitApproveHash,
+    squidRouterNoPermitSwapHash,
+    squidRouterNoPermitTransferHash,
     squidRouterSwapHash
   };
 

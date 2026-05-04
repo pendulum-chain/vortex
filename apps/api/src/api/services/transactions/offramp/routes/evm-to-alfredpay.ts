@@ -22,7 +22,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import { encodeAbiParameters, encodeFunctionData, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
@@ -123,6 +123,19 @@ const erc20Abi = [
   { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" }
 ];
 
+const transferAbi = [
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" }
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  }
+] as const;
+
 /**
  * Prepares all transactions for an EVM to Alfredpay (USD) offramp.
  * This route handles: EVM → Polygon (USDC) → Alfredpay (Fiat)
@@ -215,57 +228,184 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   const isDirectPolygonTransfer =
     fromNetwork === Networks.Polygon && inputTokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
 
-  const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60);
   const publicClient = evmClientManager.getClient(fromNetwork);
-
-  const userNonce = (await publicClient.readContract({
-    abi: erc20Abi,
-    address: inputTokenAddress,
-    args: [userAddress],
-    functionName: "nonces"
-  })) as bigint;
-
-  const tokenName = (await publicClient.readContract({
-    abi: erc20Abi,
-    address: inputTokenAddress,
-    functionName: "name"
-  })) as string;
-
   const chainId = getNetworkId(fromNetwork)!;
-  const resolvedDomain = await resolvePermitDomain(publicClient, inputTokenAddress, chainId, tokenName);
 
-  if (isDirectPolygonTransfer) {
-    // Source is already Polygon USDT — user permits the executor to transferFrom directly.
-    // The executor has gas; the ephemeral is not yet funded at the squidRouterPermitExecute phase.
-    const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
-    const permitTypedData: SignedTypedData = {
-      domain: resolvedDomain,
-      message: {
-        deadline: permitDeadline.toString(),
-        nonce: userNonce.toString(),
-        owner: userAddress,
-        spender: executorAccount.address,
-        value: inputAmountRaw.toString()
-      },
-      primaryType: "Permit",
-      types: {
-        Permit: [
-          { name: "owner", type: "address" },
-          { name: "spender", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" }
-        ]
-      }
-    };
+  // Probe EIP-2612 support: tokens that don't implement nonces() (e.g. USDT on Base) revert here.
+  let userNonce: bigint | null = null;
+  try {
+    userNonce = (await publicClient.readContract({
+      abi: erc20Abi,
+      address: inputTokenAddress,
+      args: [userAddress],
+      functionName: "nonces"
+    })) as bigint;
+  } catch {
+    userNonce = null;
+  }
+  const supportsPermit = userNonce !== null;
+
+  if (supportsPermit && userNonce !== null) {
+    const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60);
+
+    const tokenName = (await publicClient.readContract({
+      abi: erc20Abi,
+      address: inputTokenAddress,
+      functionName: "name"
+    })) as string;
+
+    const resolvedDomain = await resolvePermitDomain(publicClient, inputTokenAddress, chainId, tokenName);
+
+    if (isDirectPolygonTransfer) {
+      // Source is already Polygon USDT — user permits the executor to transferFrom directly.
+      // The executor has gas; the ephemeral is not yet funded at the squidRouterPermitExecute phase.
+      const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const permitTypedData: SignedTypedData = {
+        domain: resolvedDomain,
+        message: {
+          deadline: permitDeadline.toString(),
+          nonce: userNonce.toString(),
+          owner: userAddress,
+          spender: executorAccount.address,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      unsignedTxs.push({
+        meta: {},
+        network: fromNetwork,
+        nonce: 0,
+        phase: "squidRouterPermitExecute",
+        signer: userAddress,
+        txData: [permitTypedData]
+      });
+
+      stateMeta = {
+        ...stateMeta,
+        alfredpayTransactionId: offrampOrder.transactionId,
+        alfredpayUserId: customer.alfredPayId,
+        evmEphemeralAddress: evmEphemeralEntry.address,
+        fiatAccountId,
+        isDirectTransfer: true,
+        walletAddress: userAddress
+      };
+    } else {
+      const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
+        destinationAddress: evmEphemeralEntry.address,
+        fromAddress: userAddress,
+        fromNetwork,
+        fromToken: inputTokenAddress,
+        rawAmount: inputAmountRaw,
+        toNetwork: Networks.Polygon,
+        toToken: ALFREDPAY_ERC20_TOKEN
+      });
+
+      const permitTypedData: SignedTypedData = {
+        domain: resolvedDomain,
+        message: {
+          deadline: permitDeadline.toString(),
+          nonce: userNonce.toString(),
+          owner: userAddress,
+          spender: RELAYER_ADDRESS,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      const payloadNonce = BigInt(Math.floor(Date.now() / 1000));
+      const payloadDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
+      const payloadTypedData: SignedTypedData = {
+        domain: {
+          chainId: getNetworkId(fromNetwork)!,
+          name: "TokenRelayer",
+          verifyingContract: RELAYER_ADDRESS,
+          version: "1"
+        },
+        message: {
+          data: bridgeResult.swapData.data,
+          deadline: payloadDeadline.toString(),
+          destination: bridgeResult.swapData.to,
+          ethValue: bridgeResult.swapData.value,
+          nonce: payloadNonce.toString(),
+          owner: userAddress,
+          token: inputTokenAddress,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Payload",
+        types: {
+          Payload: [
+            { name: "destination", type: "address" },
+            { name: "owner", type: "address" },
+            { name: "token", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "data", type: "bytes" },
+            { name: "ethValue", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      unsignedTxs.push({
+        meta: {},
+        network: fromNetwork,
+        nonce: 0,
+        phase: "squidRouterPermitExecute",
+        signer: userAddress,
+        txData: [permitTypedData, payloadTypedData]
+      });
+
+      stateMeta = {
+        ...stateMeta,
+        alfredpayTransactionId: offrampOrder.transactionId,
+        alfredpayUserId: customer.alfredPayId,
+        evmEphemeralAddress: evmEphemeralEntry.address,
+        fiatAccountId,
+        squidRouterPermitExecutionValue: bridgeResult.swapData.value,
+        walletAddress: userAddress
+      };
+    }
+  } else if (isDirectPolygonTransfer) {
+    // No permit available, but user already holds USDT on Polygon: user signs a single
+    // transfer(ephemeral, amount) in their wallet. Funds land directly on the ephemeral.
+    const transferData = encodeFunctionData({
+      abi: transferAbi,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
 
     unsignedTxs.push({
       meta: {},
       network: fromNetwork,
       nonce: 0,
-      phase: "squidRouterPermitExecute",
+      phase: "squidRouterNoPermitTransfer",
       signer: userAddress,
-      txData: [permitTypedData]
+      txData: {
+        data: transferData,
+        gas: "0",
+        to: inputTokenAddress,
+        value: "0"
+      }
     });
 
     stateMeta = {
@@ -275,9 +415,13 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
       isDirectTransfer: true,
+      isNoPermitFallback: true,
       walletAddress: userAddress
     };
   } else {
+    // Cross-chain fallback: user submits the standard squidRouter approve + swap pair from
+    // their own wallet, bypassing the relayer (which would require permit). Squid lands the
+    // bridged USDC on the EVM ephemeral on Polygon, identical to the permit-based flow.
     const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: userAddress,
@@ -288,69 +432,22 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       toToken: ALFREDPAY_ERC20_TOKEN
     });
 
-    const permitTypedData: SignedTypedData = {
-      domain: resolvedDomain,
-      message: {
-        deadline: permitDeadline.toString(),
-        nonce: userNonce.toString(),
-        owner: userAddress,
-        spender: RELAYER_ADDRESS,
-        value: inputAmountRaw.toString()
-      },
-      primaryType: "Permit",
-      types: {
-        Permit: [
-          { name: "owner", type: "address" },
-          { name: "spender", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" }
-        ]
-      }
-    };
-
-    const payloadNonce = BigInt(Math.floor(Date.now() / 1000));
-    const payloadDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
-
-    const payloadTypedData: SignedTypedData = {
-      domain: {
-        chainId: getNetworkId(fromNetwork)!,
-        name: "TokenRelayer",
-        verifyingContract: RELAYER_ADDRESS,
-        version: "1"
-      },
-      message: {
-        data: bridgeResult.swapData.data,
-        deadline: payloadDeadline.toString(),
-        destination: bridgeResult.swapData.to,
-        ethValue: bridgeResult.swapData.value,
-        nonce: payloadNonce.toString(),
-        owner: userAddress,
-        token: inputTokenAddress,
-        value: inputAmountRaw.toString()
-      },
-      primaryType: "Payload",
-      types: {
-        Payload: [
-          { name: "destination", type: "address" },
-          { name: "owner", type: "address" },
-          { name: "token", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "data", type: "bytes" },
-          { name: "ethValue", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" }
-        ]
-      }
-    };
-
     unsignedTxs.push({
       meta: {},
       network: fromNetwork,
       nonce: 0,
-      phase: "squidRouterPermitExecute",
+      phase: "squidRouterNoPermitApprove",
       signer: userAddress,
-      txData: [permitTypedData, payloadTypedData]
+      txData: bridgeResult.approveData
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 1,
+      phase: "squidRouterNoPermitSwap",
+      signer: userAddress,
+      txData: bridgeResult.swapData
     });
 
     stateMeta = {
@@ -359,6 +456,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       alfredpayUserId: customer.alfredPayId,
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
+      isNoPermitFallback: true,
       squidRouterPermitExecutionValue: bridgeResult.swapData.value,
       walletAddress: userAddress
     };

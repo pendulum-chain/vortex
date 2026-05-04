@@ -100,6 +100,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     squidRouterApprove: getSquidRouterSwapMessage(),
+    squidRouterNoPermitApprove: getSquidRouterPermitMessage(),
+    squidRouterNoPermitSwap: getSquidRouterPermitMessage(),
+    squidRouterNoPermitTransfer: getSquidRouterPermitMessage(),
     squidRouterPay: getSquidRouterSwapMessage(),
     squidRouterPermitExecute: getSquidRouterPermitMessage(),
     squidRouterSwap: getSquidRouterSwapMessage(),
