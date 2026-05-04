@@ -9,6 +9,9 @@ export interface FieldDef {
   required: boolean;
   defaultValue?: string;
   type: "text" | "select" | "phone" | "email";
+  showWhen?: { field: string; value: string };
+  halfWidth?: boolean;
+  sectionLabel?: string;
 }
 
 export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
@@ -27,7 +30,7 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       label: "components.fiatAccountForms.accountType",
       options: [
         { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
-        { label: "components.fiatAccountForms.options.saving", value: "SAVINGS" }
+        { label: "components.fiatAccountForms.options.savings", value: "SAVING" }
       ],
       required: true,
       type: "select"
@@ -106,34 +109,28 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
     { field: "accountBankCode", label: "components.fiatAccountForms.bankName", required: true, type: "text" },
     {
       field: "routingNumber",
+      halfWidth: true,
       label: "components.fiatAccountForms.routingAba",
       placeholder: "components.fiatAccountForms.placeholders.routingNumber",
       required: true,
       type: "text"
     },
-    { field: "accountNumber", label: "components.fiatAccountForms.accountNumber", required: true, type: "text" },
     {
+      defaultValue: "CHECKING",
       field: "accountType",
+      halfWidth: true,
       label: "components.fiatAccountForms.accountType",
-      options: [
-        { label: "components.fiatAccountForms.options.checking", value: "CHECKING" },
-        { label: "components.fiatAccountForms.options.saving", value: "SAVING" }
-      ],
+      options: [{ label: "components.fiatAccountForms.options.checking", value: "CHECKING" }],
       required: true,
       type: "select"
     },
-    { field: "bankStreet", label: "components.fiatAccountForms.bankStreet", required: true, type: "text" },
-    { field: "bankCity", label: "components.fiatAccountForms.bankCity", required: true, type: "text" },
-    { field: "bankState", label: "components.fiatAccountForms.bankState", required: true, type: "text" },
     {
-      field: "bankCountry",
-      hint: "components.fiatAccountForms.hints.bankCountry",
-      label: "components.fiatAccountForms.bankCountry",
-      placeholder: "components.fiatAccountForms.placeholders.bankCountry",
+      field: "accountNumber",
+      label: "components.fiatAccountForms.accountNumber",
       required: true,
       type: "text"
     },
-    { field: "bankPostalCode", label: "components.fiatAccountForms.bankPostalCode", required: true, type: "text" },
+
     {
       defaultValue: "own",
       field: "isOwnAccount",
@@ -144,6 +141,90 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       ],
       required: true,
       type: "select"
+    },
+    {
+      field: "bankStreet",
+      label: "components.fiatAccountForms.bankStreet",
+      required: true,
+      sectionLabel: "components.fiatAccountForms.sections.bankAddress",
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "bankCity",
+      halfWidth: true,
+      label: "components.fiatAccountForms.bankCity",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "bankState",
+      halfWidth: true,
+      label: "components.fiatAccountForms.bankState",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "bankCountry",
+      halfWidth: true,
+      hint: "components.fiatAccountForms.hints.bankCountry",
+      label: "components.fiatAccountForms.bankCountry",
+      placeholder: "components.fiatAccountForms.placeholders.bankCountry",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "bankPostalCode",
+      halfWidth: true,
+      label: "components.fiatAccountForms.bankPostalCode",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "beneficiaryStreet",
+      label: "components.fiatAccountForms.beneficiaryStreet",
+      required: true,
+      sectionLabel: "components.fiatAccountForms.sections.beneficiaryAddress",
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "beneficiaryCity",
+      halfWidth: true,
+      label: "components.fiatAccountForms.beneficiaryCity",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "beneficiaryState",
+      halfWidth: true,
+      label: "components.fiatAccountForms.beneficiaryState",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "beneficiaryCountry",
+      halfWidth: true,
+      hint: "components.fiatAccountForms.hints.bankCountry",
+      label: "components.fiatAccountForms.beneficiaryCountry",
+      placeholder: "components.fiatAccountForms.placeholders.bankCountry",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
+    },
+    {
+      field: "beneficiaryPostalCode",
+      halfWidth: true,
+      label: "components.fiatAccountForms.beneficiaryPostalCode",
+      required: true,
+      showWhen: { field: "isOwnAccount", value: "external" },
+      type: "text"
     }
   ]
 };

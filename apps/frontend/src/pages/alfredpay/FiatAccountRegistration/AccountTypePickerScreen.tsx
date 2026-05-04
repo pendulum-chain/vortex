@@ -32,14 +32,14 @@ export function AccountTypePickerScreen({ countryConfig, onSelect }: AccountType
 
   return (
     <div className="px-1">
-      <h1 className="mt-4 mb-4 text-center font-bold text-3xl text-primary">
+      <h1 className="mt-3 mb-6 text-center font-bold text-3xl text-primary">
         {t("components.fiatAccountRegistration.chooseType")}
       </h1>
 
       <div className="space-y-3">
         {accountTypes.map(accountType => (
           <button
-            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-4 text-left shadow-sm transition-colors hover:border-primary hover:bg-blue-100"
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 hov:border-primary bg-white hov:bg-blue-100 px-4 py-4 text-left shadow-sm transition-[border-color,background-color] duration-150 [touch-action:manipulation] active:scale-[99%]"
             key={accountType}
             onClick={() => onSelect(accountType)}
             type="button"

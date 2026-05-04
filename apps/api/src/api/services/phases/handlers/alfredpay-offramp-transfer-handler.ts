@@ -15,7 +15,7 @@ import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
-const ALFREDPAY_POLL_INTERVAL_MS = 5000;
+const ALFREDPAY_POLL_INTERVAL_MS = 30000;
 const ALFREDPAY_OFFRAMP_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {

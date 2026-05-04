@@ -94,6 +94,12 @@ export async function validatePresignedTxs(
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
+    if (
+      tx.phase === "squidRouterNoPermitTransfer" ||
+      tx.phase === "squidRouterNoPermitApprove" ||
+      tx.phase === "squidRouterNoPermitSwap"
+    )
+      continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
     if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);

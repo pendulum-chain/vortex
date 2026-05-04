@@ -93,7 +93,7 @@ export class AlfredpayApiService {
       options.body = JSON.stringify(payload);
     }
     const fullUrl = `${ALFREDPAY_BASE_URL}${url}`;
-    logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
     const response = await fetch(fullUrl, options);
 
@@ -226,9 +226,10 @@ export class AlfredpayApiService {
   public async createFiatAccount(
     customerId: string,
     type: AlfredpayFiatAccountType,
-    fiatAccountFields: AlfredpayFiatAccountFields
+    fiatAccountFields: AlfredpayFiatAccountFields,
+    isExternal: boolean
   ): Promise<CreateAlfredpayFiatAccountResponse> {
-    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, type };
+    const payload: CreateAlfredpayFiatAccountRequest = { customerId, fiatAccountFields, isExternal, type };
     const path = "/api/v1/third-party-service/penny/fiatAccounts";
     return (await this.executeRequest(path, "POST", payload)) as CreateAlfredpayFiatAccountResponse;
   }

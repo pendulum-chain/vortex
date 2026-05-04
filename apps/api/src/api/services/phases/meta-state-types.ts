@@ -72,4 +72,11 @@ export interface StateMetadata {
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
   isDirectTransfer?: boolean;
+  // Fallback path used when input ERC20 does not support EIP-2612 permit.
+  // The user submits the substituting transaction(s) from their own wallet and
+  // reports back the resulting tx hashes via UpdateRampRequest.additionalData.
+  isNoPermitFallback?: boolean;
+  squidRouterNoPermitTransferHash?: string;
+  squidRouterNoPermitApproveHash?: string;
+  squidRouterNoPermitSwapHash?: string;
 }
