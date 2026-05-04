@@ -38,7 +38,9 @@ export type RampPhase =
   | "subsidizePostSwap"
   | "distributeFees"
   | "alfredpayOnrampMint"
+  | "alfredOnrampMintFallback"
   | "alfredpayOfframpTransfer"
+  | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
   | "brlaPayoutOnMoonbeam"
   | "failed"
@@ -160,6 +162,7 @@ export interface RegisterRampRequest {
   signingAccounts: AccountMeta[];
   userId?: string;
   additionalData?: {
+    fiatAccountId?: string; // For determine the correct payment method for AlfredPay flows
     walletAddress?: string;
     destinationAddress?: string;
     moneriumWalletAddress?: string;

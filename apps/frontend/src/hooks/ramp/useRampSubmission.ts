@@ -125,14 +125,11 @@ export const useRampSubmission = () => {
   );
 
   const onRampConfirm = useCallback(
-    async (data?: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
+    async (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string } = {}) => {
       if (executionPreparing) return;
       setExecutionPreparing(true);
 
       try {
-        if (!data) {
-          throw new Error("Invalid ramp data.");
-        }
         console.log("DEBUG: Ramp Submission Data: ", data);
         const executionInput = await prepareExecutionInput(data);
 

@@ -3,28 +3,30 @@ import type { AlfredpayFiatAccount } from "@vortexfi/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FiatAccountTypeKey } from "../../../constants/fiatAccountMethods";
-import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS, ALFRED_TO_ACCOUNT_TYPE } from "../../../constants/fiatAccountMethods";
+import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS, resolveAccountTypeKey } from "../../../constants/fiatAccountMethods";
 import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/FiatAccountMachineContext";
 import { useAlfredpayFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
 import { DropdownSelector } from "../../ui/DropdownSelector";
 
 function accountLabel(account: AlfredpayFiatAccount) {
-  return account.fiatAccountFields.accountAlias || account.fiatAccountFields.accountBankCode;
+  return account.accountName || account.metadata?.accountHolderName;
 }
 
 function AccountOption({
   account,
+  country,
   selected,
   onSelect
 }: {
   account: AlfredpayFiatAccount;
+  country: string | undefined;
   selected: boolean;
   onSelect: () => void;
 }) {
   const { t } = useTranslation();
-  const accountType = ALFRED_TO_ACCOUNT_TYPE[account.type];
+  const accountType = resolveAccountTypeKey(account.type, country);
   const Icon = accountType ? ACCOUNT_TYPE_ICONS[accountType] : null;
-  const last4 = account.fiatAccountFields.accountNumber.slice(-4);
+  const last4 = account.accountNumber.slice(-4);
 
   return (
     <button
@@ -74,10 +76,10 @@ export function FiatAccountSelector() {
   }
 
   const accountType: FiatAccountTypeKey | null = selectedAccount
-    ? (ALFRED_TO_ACCOUNT_TYPE[selectedAccount.type] ?? null)
+    ? (resolveAccountTypeKey(selectedAccount.type, country) ?? null)
     : null;
   const Icon = accountType ? ACCOUNT_TYPE_ICONS[accountType] : null;
-  const last4 = selectedAccount?.fiatAccountFields.accountNumber.slice(-4);
+  const last4 = selectedAccount?.accountNumber.slice(-4);
 
   const triggerContent = selectedAccount ? (
     <>
@@ -98,7 +100,7 @@ export function FiatAccountSelector() {
 
   return (
     <DropdownSelector
-      className="mt-4 mb-32"
+      className="mt-4"
       isLoading={isLoading}
       label={t("components.fiatAccountSelector.label")}
       onOpenChange={setOpen}
@@ -110,6 +112,7 @@ export function FiatAccountSelector() {
           {accounts.map(account => (
             <AccountOption
               account={account}
+              country={country}
               key={account.fiatAccountId}
               onSelect={() => {
                 fiatAccountActor.send({ id: account.fiatAccountId, type: "SELECT_ACCOUNT" });

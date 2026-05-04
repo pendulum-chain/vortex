@@ -99,6 +99,7 @@
       "buttons": {
         "back": "Voltar",
         "compareFees": "Comparar Taxas",
+        "done": "Concluído",
         "finish": "Finalizar",
         "next": "Próximo"
       },
@@ -141,6 +142,7 @@
         "email": "E-mail",
         "fullName": "Nome Completo",
         "number": "Número",
+        "partnerCpf": "CPF do Parceiro",
         "partnerCpff": "CPF do Parceiro",
         "phoneNumber": "Número de Telefone",
         "pixId": "Chave Pix",
@@ -231,6 +233,20 @@
         "rejected": "Verificação KYC rejeitada",
         "success": "Verificação bem-sucedida"
       }
+    },
+    "colKycForm": {
+      "dni": "Número de Documento",
+      "dniPlaceholderCc": "Número CC de 10 dígitos",
+      "dniPlaceholderCe": "Número CE de 6 a 10 dígitos",
+      "documentType": "Tipo de Documento",
+      "options": {
+        "cc": "Cédula de Ciudadanía (CC)",
+        "ce": "Cédula de Extranjería (CE)"
+      },
+      "phoneNumber": "Número de Telefone",
+      "selectDocumentType": "Selecione o tipo de documento…",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade"
     },
     "copyButton": {
       "ariaLabel": "Copiar para a área de transferência"
@@ -326,17 +342,63 @@
       "totalFee": "Taxa total",
       "yourQuote": "Sua cotação"
     },
+    "fiatAccountForms": {
+      "accountName": "Nome do Titular da Conta",
+      "accountNumber": "Número da Conta",
+      "accountType": "Tipo de Conta",
+      "bankCity": "Cidade do Banco",
+      "bankCountry": "País do Banco",
+      "bankName": "Nome do Banco",
+      "bankPostalCode": "CEP do Banco",
+      "bankState": "Estado do Banco",
+      "bankStreet": "Rua do Banco",
+      "beneficiaryCity": "Cidade do Beneficiário",
+      "beneficiaryCountry": "País do Beneficiário",
+      "beneficiaryPostalCode": "CEP do Beneficiário",
+      "beneficiaryState": "Estado do Beneficiário",
+      "beneficiaryStreet": "Rua do Beneficiário",
+      "clabe": "CLABE (18 dígitos)",
+      "documentNumber": "Número do Documento",
+      "documentType": "Tipo de Documento",
+      "hints": {
+        "bankCountry": "Use o código de 3 letras do país, ex. USA"
+      },
+      "isOwnAccount": "A quem pertence esta conta?",
+      "options": {
+        "ahorro": "Poupança (Ahorro)",
+        "checking": "Corrente",
+        "corriente": "Corrente (Corriente)",
+        "externalAccount": "Conta de outra pessoa",
+        "nequi": "Nequi",
+        "ownAccount": "Minha própria conta",
+        "savings": "Poupança"
+      },
+      "placeholders": {
+        "accountNumberCo": "Número de conta de 10 ou 11 dígitos",
+        "bankCountry": "ex. USA",
+        "clabe": "ex. 032180000118359719",
+        "routingNumber": "ex. 021000021"
+      },
+      "routingAba": "Número de Roteamento / ABA",
+      "routingNumber": "Número de Roteamento (9 dígitos)",
+      "sections": {
+        "bankAddress": "Endereço do Banco",
+        "beneficiaryAddress": "Endereço do Beneficiário"
+      }
+    },
     "fiatAccountMethods": {
       "accountDetails": "DETALHES DA CONTA",
-      "accountOwner": "TITULAR DA CONTA",
+      "accountType": "TIPO DE CONTA",
       "clickToSelect": "Clique para selecionar",
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
+        "ACH_COL": "Transferência bancária colombiana",
         "SPEI": "Transferência interbancária instantânea via número CLABE",
         "WIRE": "No mesmo dia"
       },
       "labels": {
         "ACH": "Transferência ACH",
+        "ACH_COL": "ACH Colômbia",
         "SPEI": "SPEI",
         "WIRE": "Transferência Internacional"
       },
@@ -366,6 +428,7 @@
       "validation": {
         "accountNumber": "Número da conta deve ter entre 4 e 17 dígitos",
         "clabe": "CLABE deve ter exatamente 18 dígitos",
+        "countryCode": "Deve ser um código de país com 3 letras (ex. BRA)",
         "fieldRequired": "{{field}} é obrigatório",
         "nickname": "Apelido deve ter no máximo 40 caracteres",
         "routing": "Número de roteamento deve ter exatamente 9 dígitos"
@@ -426,6 +489,29 @@
       "invalidParametersGeneric": "Ocorreu um erro ao buscar a cotação. Por favor, tente novamente.",
       "tryAgain": "Tente novamente"
     },
+    "kybBusinessDocs": {
+      "articlesIncorporation": "Contrato Social",
+      "proofAddress": "Comprovante de Endereço",
+      "shareholderRegistry": "Registro de Acionistas",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie os documentos empresariais necessários. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
+      "title": "Documentos Empresariais"
+    },
+    "kybForm": {
+      "businessName": "Nome da Empresa",
+      "nationality": "Nacionalidade (código de 2 letras)",
+      "repDni": "Número do Documento (opcional)",
+      "representativeTitle": "Representante Autorizado",
+      "subtitle": "Por favor, forneça as informações da sua empresa para concluir o KYB.",
+      "taxId": "CNPJ / Identificação Fiscal",
+      "title": "Verificação Empresarial",
+      "website": "Site (opcional)"
+    },
+    "kybPersonDocs": {
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
+      "title": "Documento do Representante ({{current}} de {{total}})"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporariamente desativado"
     },
@@ -450,6 +536,38 @@
       "cancel": "Cancelar",
       "description": "Você foi redirecionado para nosso parceiro...",
       "goToPartner": "Ir para o parceiro"
+    },
+    "mxnDocumentUpload": {
+      "backLabel": "Verso do Documento",
+      "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
+      "fileTooLarge": "O arquivo excede o limite de 5 MB.",
+      "frontLabel": "Frente do Documento",
+      "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do seu documento. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
+      "tapToSelect": "Toque para selecionar o arquivo",
+      "title": "Enviar Documentos de Identidade"
+    },
+    "mxnKycForm": {
+      "address": "Endereço",
+      "city": "Cidade",
+      "continue": "Continuar",
+      "dateOfBirth": "Data de Nascimento",
+      "dni": "Número do Documento",
+      "documentType": "Tipo de Documento",
+      "email": "E-mail",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "options": {
+        "ine": "INE (Credencial para Votar)",
+        "passport": "Passaporte",
+        "residentCard": "Cartão de Residente"
+      },
+      "selectDocumentType": "Selecione o tipo de documento…",
+      "state": "Estado",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade",
+      "zipCode": "CEP"
     },
     "navbar": {
       "api": "API",
@@ -500,6 +618,13 @@
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com PIX"
       },
+      "COPOnrampDetails": {
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos para a conta bancária abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar via Transferência Bancária"
+      },
       "confirm": "Confirmar",
       "continue": "Continuar",
       "continueOnPartnersPage": "Continuar na página do Parceiro",
@@ -509,6 +634,7 @@
         "amount": "Valor",
         "bic": "BIC",
         "footer": "Por favor, garanta que o valor seja exato.",
+        "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
@@ -516,6 +642,13 @@
       "headerText": {
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
+      },
+      "MXNOnrampDetails": {
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos via SPEI para o CLABE abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar com SPEI"
       },
       "next": "Próximo",
       "offrampFee": "Taxa total",
@@ -527,9 +660,16 @@
       "source": "Conta de origem",
       "tryAgain": "Tentar novamente",
       "USOnrampDetails": {
+        "accountNumber": "Número da Conta",
+        "accountType": "Tipo de Conta",
+        "amount": "Valor",
+        "beneficiaryName": "Nome do Beneficiário",
         "copyCode": "ou copie o código ACH abaixo e cole no app do seu banco",
-        "qrCode": "Selecione ACH no app do seu banco e escaneie o QR code abaixo.",
-        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "instruction": "Use esses detalhes para sua transferência ACH.",
+        "paymentDescription": "Uma vez concluído, clique em",
+        "paymentDescriptionStrong": "\"Eu fiz o pagamento\"",
+        "paymentReference": "Referência de Pagamento",
+        "routingNumber": "Número de Roteamento",
         "timerLabel": "Cotação expira em:",
         "title": "Pagar com ACH"
       },
@@ -650,8 +790,11 @@
     "business": {
       "hero": {
         "comingSoon": "Em breve",
+        "contactUs": "Entre em contato",
         "description": "Com uma integração simples e gratuita, a Vortex lida com KYC, conformidade e liquidação para que você possa se concentrar no seu produto.",
+        "readDocs": "Leia nossa documentação",
         "sdkIntegration": "Integração via SDK",
+        "title": "Permita que seus clientes comprem e vendam cripto instantaneamente - diretamente <0>dentro do seu APP</0>",
         "titlePart1": "Permita que seus clientes comprem e vendam cripto instantaneamente - diretamente",
         "titlePart2": "dentro do seu APP",
         "widgetIntegration": "Integração via Widget"
@@ -699,7 +842,8 @@
           }
         },
         "subtitle": "O app hospedado da Vortex é a maneira mais rápida de adicionar uma rampa fiat on/off segura ao seu app.",
-        "title": "Uma integração. Tudo resolvido."
+        "title": "Uma integração. Tudo resolvido.",
+        "title2": "Tudo resolvido."
       }
     },
     "contact": {
@@ -758,6 +902,8 @@
     },
     "main": {
       "hero": {
+        "buyAndSellCrypto": "Compre e Venda Cripto",
+        "partnerWithUs": "Seja nosso parceiro",
         "subtitle": "Mantemos as coisas simples para você e garantimos que você obtenha a melhor taxa disponível.",
         "title": "<0>Compre e venda cripto.</0> <br /> Rápido, seguro, melhores taxas."
       }
@@ -1021,6 +1167,9 @@
       "version": "Versão: 1.0"
     },
     "progress": {
+      "alfredPayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
+      "alfredpayOfframpTransfer": "Inicializando transferência para sua conta bancária.",
+      "alfredpayOnrampMint": "Seu pagamento está sendo processado. Isso pode levar de mesmo dia até 3 dias úteis, dependendo do seu banco.",
       "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "brlaOnrampMint": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos.",
@@ -1040,6 +1189,7 @@
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "squidRouterPermitExecute": "Autorizando transferência de {{assetSymbol}} de {{fromNetwork}}",
       "squidRouterSwap": "Transferindo {{assetSymbol}} de {{fromNetwork}} para {{toNetwork}}",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "success": "Transação concluída com sucesso!",
@@ -1055,6 +1205,7 @@
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+          "MXN": "Seus fundos chegarão à sua conta bancária via SPEI em alguns minutos.",
           "USD": "Em breve os fundos estarão disponíveis em sua conta bancária."
         }
       },
@@ -1069,9 +1220,12 @@
       "error": {
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "amountOutOfRange": {
-          "buy": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}",
-          "sell": "Pedidos em {{assetSymbol}} devem estar entre {{minAmountUnits}} e {{maxAmountUnits}}"
+          "buyTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}} {{assetSymbol}}",
+          "buyTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}} {{assetSymbol}}",
+          "sellTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}} {{assetSymbol}}",
+          "sellTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}} {{assetSymbol}}"
         },
+        "assetHubNotSupportedForAlfredPay": "AssetHub não é suportado para esta moeda. Por favor, selecione uma rede diferente.",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
@@ -1217,8 +1371,10 @@
       "title": "<0>Economize</0> em margens de taxa de câmbio"
     },
     "gotQuestions": {
+      "contactSales": "Contato Comercial",
       "contactUs": "Fale Conosco",
       "description": "Entre em contato conosco para respostas e suporte.",
+      "getStartedTitle": "Comece Agora <br /> <0>com a Vortex</0>",
       "title": "Tem Perguntas? Estamos aqui para ajudar!"
     },
     "howToSell": {
