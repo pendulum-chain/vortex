@@ -128,6 +128,15 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     if (!receipt || receipt.status !== "success") {
       throw this.createRecoverableError(`${label} tx failed: ${hash}`);
     }
+
+    // Verify the transaction was sent by the expected wallet
+    const expectedFrom = (state.state.walletAddress as string)?.toLowerCase();
+    if (expectedFrom && receipt.from.toLowerCase() !== expectedFrom) {
+      throw this.createUnrecoverableError(
+        `${label} tx from address mismatch: expected ${expectedFrom}, got ${receipt.from.toLowerCase()}`
+      );
+    }
+
     logger.info(`${label} tx confirmed: ${hash}`);
   }
 

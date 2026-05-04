@@ -100,9 +100,17 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     squidRouterApprove: getSquidRouterSwapMessage(),
-    squidRouterNoPermitApprove: getSquidRouterPermitMessage(),
-    squidRouterNoPermitSwap: getSquidRouterPermitMessage(),
-    squidRouterNoPermitTransfer: getSquidRouterPermitMessage(),
+    squidRouterNoPermitApprove: t("pages.progress.squidRouterNoPermitApprove", {
+      assetSymbol: inputAssetSymbol,
+      fromNetwork: quote.from
+    }),
+    squidRouterNoPermitSwap: t("pages.progress.squidRouterNoPermitSwap", {
+      assetSymbol: inputAssetSymbol,
+      fromNetwork: quote.from
+    }),
+    squidRouterNoPermitTransfer: t("pages.progress.squidRouterNoPermitTransfer", {
+      assetSymbol: inputAssetSymbol
+    }),
     squidRouterPay: getSquidRouterSwapMessage(),
     squidRouterPermitExecute: getSquidRouterPermitMessage(),
     squidRouterSwap: getSquidRouterSwapMessage(),

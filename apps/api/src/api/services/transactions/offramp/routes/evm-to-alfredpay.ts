@@ -22,7 +22,16 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeAbiParameters, encodeFunctionData, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import {
+  ContractFunctionExecutionError,
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  pad,
+  parseAbiParameters,
+  PublicClient,
+  toHex
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
@@ -240,8 +249,14 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       args: [userAddress],
       functionName: "nonces"
     })) as bigint;
-  } catch {
-    userNonce = null;
+  } catch (error) {
+    // Only treat contract-level failures (function not found / execution reverted) as "no permit".
+    // Re-throw network/transport errors so the request can be retried.
+    if (error instanceof ContractFunctionExecutionError) {
+      userNonce = null;
+    } else {
+      throw error;
+    }
   }
   const supportsPermit = userNonce !== null;
 
