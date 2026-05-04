@@ -22,7 +22,16 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeAbiParameters, encodeFunctionData, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import {
+  ContractFunctionExecutionError,
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  PublicClient,
+  pad,
+  parseAbiParameters,
+  toHex
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
@@ -232,6 +241,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   const chainId = getNetworkId(fromNetwork)!;
 
   // Probe EIP-2612 support: tokens that don't implement nonces() (e.g. USDT on Base) revert here.
+  // Only treat contract-call failures as "no permit"; rethrow network/transport errors.
   let userNonce: bigint | null = null;
   try {
     userNonce = (await publicClient.readContract({
@@ -240,8 +250,12 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       args: [userAddress],
       functionName: "nonces"
     })) as bigint;
-  } catch {
-    userNonce = null;
+  } catch (error) {
+    if (error instanceof ContractFunctionExecutionError) {
+      userNonce = null;
+    } else {
+      throw error;
+    }
   }
   const supportsPermit = userNonce !== null;
 
