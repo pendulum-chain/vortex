@@ -571,7 +571,7 @@ export const newKyc = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const initiateKybLevel1 = async (
-  req: Request<unknown, unknown, unknown, { subAccountId?: string }>,
+  req: Request<unknown, { redirectUrl: string }, unknown, { subAccountId?: string }>,
   res: Response<KybLevel1Response | BrlaErrorResponse>
 ): Promise<void> => {
   try {

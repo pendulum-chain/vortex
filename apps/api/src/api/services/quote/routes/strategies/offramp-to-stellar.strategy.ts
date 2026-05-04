@@ -3,7 +3,7 @@ import { OffRampDiscountEngine } from "../../engines/discount/offramp";
 import { OffRampFeeStellarEngine } from "../../engines/fee/offramp-stellar";
 import { OffRampFinalizeEngine } from "../../engines/finalize/offramp";
 import { OffRampFromAssethubInitializeEngine } from "../../engines/initialize/offramp-from-assethub";
-import { OffRampFromEvmInitializeEngine } from "../../engines/initialize/offramp-from-evm";
+import { OffRampFromEvmInitializeEngineMoonbeam } from "../../engines/initialize/offramp-from-evm";
 import { OffRampSwapEngine } from "../../engines/nabla-swap/offramp";
 import { OffRampToStellarPendulumTransferEngine } from "../../engines/pendulum-transfers/offramp-stellar";
 
@@ -24,7 +24,9 @@ export class OfframpToStellarStrategy implements IRouteStrategy {
   getEngines(ctx: QuoteContext): EnginesRegistry {
     return {
       [StageKey.Initialize]:
-        ctx.request.from === "assethub" ? new OffRampFromAssethubInitializeEngine() : new OffRampFromEvmInitializeEngine(),
+        ctx.request.from === "assethub"
+          ? new OffRampFromAssethubInitializeEngine()
+          : new OffRampFromEvmInitializeEngineMoonbeam(),
       [StageKey.NablaSwap]: new OffRampSwapEngine(),
       [StageKey.Fee]: new OffRampFeeStellarEngine(),
       [StageKey.Discount]: new OffRampDiscountEngine(),

@@ -49,6 +49,7 @@ export interface StateMetadata {
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
   payOutTicketId: string | undefined;
+  brlaPayoutTxHash?: `0x${string}`;
   // Only used in onramp, offramp - monerium
   moneriumOnrampPermit?: PermitSignature;
   permitTxHash?: string;

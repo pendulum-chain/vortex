@@ -1,12 +1,21 @@
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
-import { ApiManager, decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from "@vortexfi/shared";
+import {
+  ApiManager,
+  decodeSubmittableExtrinsic,
+  EvmClientManager,
+  FiatToken,
+  NABLA_ROUTER,
+  Networks,
+  RampPhase
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -14,15 +23,32 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const apiManager = ApiManager.getInstance();
-    const networkName = "pendulum";
-    const pendulumNode = await apiManager.getApi(networkName);
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
+
+    if (!quote.metadata.nablaSwap && !quote.metadata.nablaSwapEvm) {
+      throw new Error("Missing nablaSwap info in quote metadata");
+    }
+
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
+
+    // BRL flows, use evm instance of Nabla.
+    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+      return this.executeEvmApprove(state);
+    } else if (substrateEphemeralAddress) {
+      return this.executeSubstrateApprove(state, quote);
+    } else {
+      throw new Error("NablaApprovePhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
+    }
+  }
+
+  private async executeSubstrateApprove(state: RampState, quote: QuoteTicket): Promise<RampState> {
+    const apiManager = ApiManager.getInstance();
+    const networkName = "pendulum";
+    const pendulumNode = await apiManager.getApi(networkName);
 
     if (!quote.metadata.nablaSwap) {
       throw new Error("Missing nablaSwap info in quote metadata");
@@ -96,6 +122,38 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       }
       logger.error(`Could not approve the required amount of token: ${errorMessage}`);
 
+      throw e;
+    }
+  }
+
+  private async executeEvmApprove(state: RampState): Promise<RampState> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+
+    try {
+      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, "nablaApproveEvm");
+
+      if (typeof nablaApproveTransaction !== "string") {
+        throw new Error("NablaApprovePhaseHandler: Invalid EVM transaction data. This is a bug.");
+      }
+
+      const txHash = await baseClient.sendRawTransaction({
+        serializedTransaction: nablaApproveTransaction as `0x${string}`
+      });
+
+      const receipt = await baseClient.waitForTransactionReceipt({
+        hash: txHash
+      });
+
+      if (!receipt || receipt.status !== "success") {
+        throw new Error(`NablaApprovePhaseHandler: EVM approve transaction ${txHash} failed`);
+      }
+
+      logger.info(`NablaApprovePhaseHandler: EVM approve transaction successful: ${txHash}`);
+
+      return this.transitionToNextPhase(state, "nablaSwap");
+    } catch (e) {
+      logger.error(`Could not approve token on EVM: ${(e as Error).message}`);
       throw e;
     }
   }

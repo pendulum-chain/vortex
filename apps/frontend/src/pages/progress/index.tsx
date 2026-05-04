@@ -23,11 +23,13 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   backupApprove: 0,
   backupSquidRouterApprove: 0,
   backupSquidRouterSwap: 0,
+  baseTransfer: 10,
   brlaOnrampMint: 5 * 60,
-  brlaPayoutOnMoonbeam: 30,
+  brlaPayoutOnBase: 30,
   complete: 0,
   destinationTransfer: 12,
   distributeFees: 24,
+  distributeFeesEvm: 24,
   failed: 0,
   finalSettlementSubsidy: 30,
   fundEphemeral: 20,
@@ -39,7 +41,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
+  nablaApproveEvm: 24,
   nablaSwap: 24,
+  nablaSwapEvm: 24,
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
@@ -54,7 +58,9 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   stellarCreateAccount: 0,
   stellarPayment: 6,
   subsidizePostSwap: 24,
+  subsidizePostSwapEvm: 24,
   subsidizePreSwap: 24,
+  subsidizePreSwapEvm: 24,
   timedOut: 0
 };
 
@@ -195,7 +201,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     return "onramp_eur_evm";
   }
 
-  if (currentPhase === "brlaPayoutOnMoonbeam" || rampState.quote?.outputCurrency === FiatToken.BRL) {
+  if (currentPhase === "brlaPayoutOnBase" || rampState.quote?.outputCurrency === FiatToken.BRL) {
     return "offramp_brl";
   }
 
@@ -423,12 +429,12 @@ export const ProgressPage = () => {
   const { t } = useTranslation();
   const { trackEvent } = useEventsContext();
   const rampActor = useRampActor();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { rampState } = useSelector(rampActor, state => ({
     rampState: state.context.rampState
   }));
 
+  const rampId = rampState?.ramp?.id;
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
 
@@ -449,24 +455,42 @@ export const ProgressPage = () => {
     return false;
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
+  // Sync displayed phase to the active ramp. This also covers ramp-identity
+  // changes (e.g. user starts a new ramp): a new ramp's phase resets to
+  // "initial", so we won't briefly render the previous ramp's phase before
+  // the next poll lands.
   useEffect(() => {
-    if (!rampState?.ramp?.id || !flowType || intervalRef.current) return;
+    const newPhase = rampState?.ramp?.currentPhase ?? "initial";
+    prevPhaseRef.current = newPhase;
+    setCurrentPhase(newPhase);
+  }, [rampState?.ramp?.currentPhase]);
 
-    const rampId = rampState.ramp.id;
+  useEffect(() => {
+    if (!rampId || !flowType) return;
+
+    let cancelled = false;
 
     //XSTATE: we could also move this into an internal process inside the FollowUp state.
     const fetchRampState = async () => {
       try {
         const updatedRampProcess = await RampService.getRampStatus(rampId);
+        if (cancelled) return;
 
-        const currentRampState = rampState;
-        if (currentRampState) {
-          const updatedRampState = {
-            ...currentRampState,
-            ramp: updatedRampProcess
-          };
-          rampActor.send({ rampState: updatedRampState, type: "SET_RAMP_STATE" });
-        }
+        // Defensive: the backend should echo the rampId we asked for, but if it
+        // doesn't, drop the response rather than overwriting state.
+        if (updatedRampProcess.id !== rampId) return;
+
+        // Read the latest snapshot from the actor instead of relying on a
+        // stale closure over `rampState`. If the active ramp has changed (or
+        // been cleared) since this poll started, ignore this response - it
+        // belongs to a stale ramp and would otherwise overwrite the new one.
+        const latest = rampActor.getSnapshot().context.rampState;
+        if (!latest || latest.ramp?.id !== rampId) return;
+
+        rampActor.send({
+          rampState: { ...latest, ramp: updatedRampProcess },
+          type: "SET_RAMP_STATE"
+        });
 
         const maybeNewPhase = updatedRampProcess.currentPhase;
         if (maybeNewPhase !== prevPhaseRef.current) {
@@ -481,14 +505,18 @@ export const ProgressPage = () => {
           setCurrentPhase(maybeNewPhase);
         }
       } catch (error) {
-        console.error("Failed to fetch ramp state:", error);
+        if (!cancelled) console.error("Failed to fetch ramp state:", error);
       }
     };
 
     fetchRampState();
     const intervalId = setInterval(fetchRampState, 5000);
-    intervalRef.current = intervalId;
-  }, [rampState?.ramp?.id, phaseSequence, rampState, trackEvent, flowType, rampActor.send]);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [rampId, flowType, phaseSequence, rampActor, trackEvent]);
 
   return (
     <main>

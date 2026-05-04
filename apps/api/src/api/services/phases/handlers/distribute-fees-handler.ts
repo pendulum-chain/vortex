@@ -5,9 +5,13 @@ import { ISubmittableResult } from "@polkadot/types/types";
 import {
   ApiManager,
   decodeSubmittableExtrinsic,
+  EvmClientManager,
+  EvmNetworks,
+  Networks,
   RampDirection,
   RampPhase,
-  TransactionTemporarilyBannedError
+  TransactionTemporarilyBannedError,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { SUBSCAN_API_KEY } from "../../../../constants/constants";
@@ -26,7 +30,7 @@ enum ExtrinsicStatus {
 }
 
 /**
- * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
+ * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum or EVM chains
  */
 export class DistributeFeesHandler extends BasePhaseHandler {
   private apiManager: ApiManager;
@@ -55,40 +59,76 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine next phase
-    const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
+    const isBrlInvolved = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
+    const nextPhase =
+      state.type === RampDirection.BUY
+        ? isBrlInvolved
+          ? "subsidizePostSwapEvm"
+          : "subsidizePostSwap"
+        : isBrlInvolved
+          ? "subsidizePreSwapEvm"
+          : "subsidizePreSwap";
 
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
 
+    // For BRL flows, distribution happens on EVM (Base).
+    const isEvmTransaction = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
+    const evmNetwork = isEvmTransaction ? (Networks.Base as EvmNetworks) : undefined;
+
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
-      const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-        throw this.createRecoverableError("Failed to check extrinsic status");
-      });
+      if (isEvmTransaction && evmNetwork) {
+        const status = await this.checkEvmTransactionStatus(existingHash, evmNetwork).catch((_: unknown) => {
+          throw this.createRecoverableError("Failed to check EVM transaction status from existing hash.");
+        });
 
-      if (status === ExtrinsicStatus.Success) {
-        logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
-        return this.transitionToNextPhase(state, nextPhase);
+        if (status === ExtrinsicStatus.Success) {
+          logger.info(`Existing distribute fee EVM transaction was successful for ramp ${state.id}`);
+          return this.transitionToNextPhase(state, nextPhase);
+        } else {
+          logger.info(`Existing distribute fee EVM transaction was not successful (status: ${status}), will retry`);
+        }
       } else {
-        logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
+        const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
+          throw this.createRecoverableError("Failed to check extrinsic status from existing hash.");
+        });
+
+        if (status === ExtrinsicStatus.Success) {
+          logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
+          return this.transitionToNextPhase(state, nextPhase);
+        } else {
+          logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
+        }
       }
     }
 
     try {
-      // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
-      const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
+      // Get the pre-signed fee distribution transaction.
+      // Use "distributeFeesEvm" for EVM flows, "distributeFees" for substrate flows.
+      const presignedPhase = isEvmTransaction ? "distributeFeesEvm" : "distributeFees";
+      const distributeFeeTransaction = this.getPresignedTransaction(state, presignedPhase);
       if (distributeFeeTransaction === undefined) {
         logger.info("No fee distribution transaction data found. Skipping fee distribution.");
         return this.transitionToNextPhase(state, nextPhase);
       }
 
-      const { api } = await this.apiManager.getApi("pendulum");
+      let actualTxHash: string;
 
-      const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
+      if (isEvmTransaction) {
+        logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
+        actualTxHash = await this.submitEvmRawTransaction(
+          distributeFeeTransaction.txData as string,
+          distributeFeeTransaction.network as EvmNetworks
+        );
+      } else {
+        const { api } = await this.apiManager.getApi("pendulum");
+        const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
 
-      logger.info(`Submitting fee distribution transaction for ramp ${state.id}...`);
-      const actualTxHash = await this.submitTransaction(decodedTx, api);
+        logger.info(`Submitting substrate fee distribution transaction for ramp ${state.id}...`);
+        actualTxHash = await this.submitTransaction(decodedTx, api);
+      }
 
       logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
 
@@ -100,8 +140,12 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         }
       });
 
-      // Wait for extrinsic success using Subscan API
-      await this.waitForExtrinsicSuccess(actualTxHash);
+      // Wait for transaction success
+      if (isEvmTransaction) {
+        await this.waitForEvmTransactionSuccess(actualTxHash, distributeFeeTransaction.network as EvmNetworks);
+      } else {
+        await this.waitForExtrinsicSuccess(actualTxHash);
+      }
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
       return this.transitionToNextPhase(updatedState, nextPhase);
@@ -277,6 +321,75 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     } catch (error: unknown) {
       logger.error(`Error checking extrinsic status with Subscan: ${error}`);
       throw error;
+    }
+  }
+
+  /**
+   * Submit a presigned EVM raw transaction
+   * @param serializedTransaction The signed serialized transaction
+   * @param network The EVM network
+   * @returns The transaction hash
+   */
+  private async submitEvmRawTransaction(serializedTransaction: string, network: EvmNetworks): Promise<string> {
+    logger.debug(`Broadcasting presigned EVM transaction to ${network} for ${this.getPhaseName()} phase`);
+
+    if (typeof serializedTransaction !== "string" || !serializedTransaction.startsWith("0x")) {
+      throw new Error(`Invalid presigned EVM transaction data for ${this.getPhaseName()} phase`);
+    }
+
+    const evmClientManager = EvmClientManager.getInstance();
+    return await evmClientManager.sendRawTransactionWithRetry(network, serializedTransaction as `0x${string}`);
+  }
+
+  /**
+   * Wait for EVM transaction success
+   * @param txHash The transaction hash
+   * @param network The EVM network
+   */
+  private async waitForEvmTransactionSuccess(txHash: string, network: EvmNetworks): Promise<void> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(network);
+
+    await waitUntilTrueWithTimeout(
+      async () => {
+        try {
+          const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+          return receipt?.status === "success";
+        } catch (error) {
+          logger.debug(`Error checking EVM transaction receipt: ${error}`);
+          return false;
+        }
+      },
+      2000, // check every 2 seconds
+      180000 // timeout after 3 minutes
+    );
+  }
+
+  /**
+   * Check EVM transaction status
+   * @param txHash The transaction hash
+   * @param network The EVM network where the transaction was submitted
+   * @returns ExtrinsicStatus: Success, Fail, or Undefined
+   */
+  private async checkEvmTransactionStatus(txHash: string, network: EvmNetworks): Promise<ExtrinsicStatus> {
+    try {
+      const evmClientManager = EvmClientManager.getInstance();
+      const publicClient = evmClientManager.getClient(network);
+
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+
+      if (receipt) {
+        if (receipt.status === "success") {
+          return ExtrinsicStatus.Success;
+        } else {
+          return ExtrinsicStatus.Fail;
+        }
+      }
+
+      return ExtrinsicStatus.Undefined;
+    } catch (error: unknown) {
+      logger.error(`Error checking EVM transaction status: ${error}`);
+      return ExtrinsicStatus.Undefined;
     }
   }
 }

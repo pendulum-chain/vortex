@@ -1,5 +1,6 @@
 import {
   EvmClientManager,
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
@@ -20,12 +21,14 @@ import { BasePhaseHandler } from "../base-phase-handler";
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private moonbeamClient: PublicClient;
   private polygonClient: PublicClient;
+  private baseClient: PublicClient;
 
   constructor() {
     super();
     const evmClientManager = EvmClientManager.getInstance();
     this.moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
     this.polygonClient = evmClientManager.getClient(Networks.Polygon);
+    this.baseClient = evmClientManager.getClient(Networks.Base);
   }
 
   /**
@@ -58,8 +61,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     const isAlfredpayOnramp =
       state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
 
+    // TODO also add check for Avenia onramp USDC on Base
+
     if (isAlfredpayOnramp) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
+
+    if (quote.to === Networks.Base && quote.outputCurrency === EvmToken.USDC) {
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
@@ -131,7 +140,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
   /**
    * Get the appropriate public client based on the input token
-   * Monerium's EUR uses polygon, BRL uses moonbeam
+   * Monerium's EUR uses polygon, BRL uses Base
    * @param state The current ramp state
    * @returns The appropriate public client
    */
@@ -145,7 +154,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       if (quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD) {
         return this.polygonClient;
       } else if (quote.inputCurrency === FiatToken.BRL) {
-        return this.moonbeamClient;
+        return this.baseClient;
       } else {
         logger.info(
           `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`

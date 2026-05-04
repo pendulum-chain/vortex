@@ -87,13 +87,15 @@ export function validateBRLOfframp(
     throw new Error("brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL");
   }
 
-  if (!quote.metadata.pendulumToMoonbeamXcm?.outputAmountRaw) {
-    throw new Error("Quote metadata is missing pendulumToMoonbeamXcm information");
-  }
+  // TODO  add validation relevant to EVM flow, after quote context is known.
+  // if (!quote.metadata.pendulumToMoonbeamXcm?.outputAmountRaw) {
+  //   throw new Error("Quote metadata is missing pendulumToMoonbeamXcm information");
+  // }
 
+  // TODO still don't know which field will be
   return {
     brlaEvmAddress,
-    offrampAmountBeforeAnchorFeesRaw: quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw,
+    offrampAmountBeforeAnchorFeesRaw: "200", //quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw,
     pixDestination,
     receiverTaxId,
     taxId: normalizeTaxId(taxId)

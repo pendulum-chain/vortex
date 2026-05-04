@@ -769,16 +769,44 @@ export class RampService extends BaseRampService {
     }
 
     // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
+    // The user-facing error stays generic, but server-side logs differentiate failure modes for diagnosis.
+    let pixKeyData;
     try {
-      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
-      //validate the recipient's taxId with partial information
-      if (!validateMaskedNumber(normalizeTaxId(pixKeyData.taxId), normalizeTaxId(receiverTaxId))) {
-        throw new APIError({
-          message: "Invalid pixKey or receiverTaxId.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    } catch (_error) {
+      pixKeyData = await brlaApiService.validatePixKey(pixKey);
+    } catch (error) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix-info lookup failed for pixKey=${pixKey}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      throw new APIError({
+        message: "Invalid pixKey or receiverTaxId.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    let masksMatch: boolean;
+    try {
+      // Do NOT pass the masked taxId through normalizeTaxId: that helper strips all
+      // non-digits, which would also strip the `*` mask characters and break the
+      // length-aligned comparison done by validateMaskedNumber.
+      masksMatch = validateMaskedNumber(pixKeyData.taxId, normalizeTaxId(receiverTaxId));
+    } catch (error) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix key owner taxId is not comparable to receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(
+          receiverTaxId
+        )}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw new APIError({
+        message: "Invalid pixKey or receiverTaxId.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (!masksMatch) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix key owner taxId does not match receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}`
+      );
       throw new APIError({
         message: "Invalid pixKey or receiverTaxId.",
         status: httpStatus.BAD_REQUEST
@@ -920,7 +948,7 @@ export class RampService extends BaseRampService {
     const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
     if (!evmEphemeralEntry) {
       throw new APIError({
-        message: "Moonbeam ephemeral not found",
+        message: "Base ephemeral not found",
         status: httpStatus.BAD_REQUEST
       });
     }
