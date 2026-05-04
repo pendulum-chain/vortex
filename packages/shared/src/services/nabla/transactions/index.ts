@@ -118,7 +118,7 @@ export async function createNablaTransactionsForOnrampOnEVM(
         { name: "_to", type: "address" },
         { name: "_deadline", type: "uint256" }
       ],
-      name: "swapExactTokensForTokens",
+      name: "swapExactTokensForTokensWithoutPriceFeedUpdate",
       outputs: [{ type: "uint256[]" }],
       stateMutability: "nonpayable",
       type: "function"
@@ -134,7 +134,7 @@ export async function createNablaTransactionsForOnrampOnEVM(
       ephemeralAddress,
       BigInt(deadline)
     ],
-    functionName: "swapExactTokensForTokens"
+    functionName: "swapExactTokensForTokensWithoutPriceFeedUpdate"
   });
 
   const { maxFeePerGas: swapMaxFee, maxPriorityFeePerGas: swapMaxPriority } = await baseClient.estimateFeesPerGas();
