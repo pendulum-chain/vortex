@@ -6,8 +6,10 @@ import {
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
+  EvmAddress,
   EvmToken,
   evmTokenConfig,
+  getEvmTokenBalance,
   Networks,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -61,6 +63,24 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
+    if (!tokenDetails) {
+      throw new Error("BRLA token details not found for Base network");
+    }
+
+    const expectedAmountReceived = quote.metadata.aveniaTransfer.outputAmountRaw;
+
+    // Recovery shortcut: a previous run may have already minted on Avenia and
+    // transferred to the ephemeral. If the ephemeral already holds the expected
+    // amount, skip the Avenia balance wait and the (idempotent-but-wasteful)
+    // pay-out ticket creation.
+    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, expectedAmountReceived)) {
+      logger.info(
+        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds the expected ${expectedAmountReceived} BRLA. Skipping mint flow.`
+      );
+      return this.transitionToNextPhase(state, "fundEphemeral");
     }
 
     const brlaApiService = BrlaApiService.getInstance();
@@ -124,19 +144,12 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       taxIdRecord.subAccountId
     );
 
-    const expectedAmountReceived = quote.metadata.aveniaTransfer?.outputAmountRaw;
-
     logger.info(
       `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
       const pollingTimeMs = 1000;
-      const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
-
-      if (!tokenDetails) {
-        throw new Error("BRLA token details not found for Base network");
-      }
 
       await checkEvmBalancePeriodically(
         tokenDetails.erc20AddressSourceChain,
@@ -161,6 +174,28 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");
+  }
+
+  private async ephemeralAlreadyFunded(
+    tokenAddress: string,
+    ownerAddress: string,
+    expectedAmountRaw: string
+  ): Promise<boolean> {
+    try {
+      const balance = await getEvmTokenBalance({
+        chain: Networks.Base,
+        ownerAddress: ownerAddress as EvmAddress,
+        tokenAddress: tokenAddress as EvmAddress
+      });
+      return balance.gte(new Big(expectedAmountRaw));
+    } catch (error) {
+      // Treat read failures as "not funded" so we fall through to the regular
+      // flow rather than aborting the phase on a transient RPC error.
+      logger.warn(
+        `BrlaOnrampMintHandler: ephemeral balance pre-check failed for ${ownerAddress}, falling back to Avenia flow: ${error}`
+      );
+      return false;
+    }
   }
 
   protected isPaymentTimeoutReached(state: RampState): boolean {
