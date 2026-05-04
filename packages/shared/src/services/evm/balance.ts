@@ -105,6 +105,10 @@ export function checkEvmBalancePeriodically(
         const someBalanceBig = new Big(result);
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 
+        logger.current.debug(
+          `checkEvmBalancePeriodically: Balance of ${brlaEvmAddress} for token ${tokenAddress} on ${chain}: ${someBalanceBig.toString()} (target: ${amountDesiredRaw})`
+        );
+
         if (someBalanceBig.gte(amountDesiredUnitsBig)) {
           resolve(someBalanceBig);
         } else if (Date.now() - startTime > timeoutMs) {
