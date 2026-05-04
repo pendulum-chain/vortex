@@ -118,7 +118,8 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     state: RampState,
     hash: `0x${string}` | undefined,
     fromNetwork: EvmNetworks,
-    label: string
+    label: string,
+    expectedFrom?: `0x${string}`
   ): Promise<void> {
     if (!hash) {
       throw this.createRecoverableError(`${label} hash not yet reported by frontend`);
@@ -128,29 +129,37 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     if (!receipt || receipt.status !== "success") {
       throw this.createRecoverableError(`${label} tx failed: ${hash}`);
     }
+    if (expectedFrom && receipt.from.toLowerCase() !== expectedFrom.toLowerCase()) {
+      throw this.createUnrecoverableError(`${label} tx ${hash} was sent by ${receipt.from}, expected ${expectedFrom}`);
+    }
     logger.info(`${label} tx confirmed: ${hash}`);
   }
 
   private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks): Promise<RampState> {
+    const expectedFrom = state.state.walletAddress as `0x${string}` | undefined;
+
     if (state.state.isDirectTransfer) {
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
         fromNetwork,
-        "No-permit direct transfer"
+        "No-permit direct transfer",
+        expectedFrom
       );
     } else {
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
         fromNetwork,
-        "No-permit approve"
+        "No-permit approve",
+        expectedFrom
       );
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,
         fromNetwork,
-        "No-permit swap"
+        "No-permit swap",
+        expectedFrom
       );
     }
 
