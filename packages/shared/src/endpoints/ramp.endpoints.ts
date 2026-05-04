@@ -16,6 +16,9 @@ export type RampPhase =
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
   | "squidRouterPermitExecute"
+  | "squidRouterNoPermitTransfer"
+  | "squidRouterNoPermitApprove"
+  | "squidRouterNoPermitSwap"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -191,6 +194,9 @@ export interface UpdateRampRequest {
   additionalData?: {
     squidRouterApproveHash?: string;
     squidRouterSwapHash?: string;
+    squidRouterNoPermitTransferHash?: string;
+    squidRouterNoPermitApproveHash?: string;
+    squidRouterNoPermitSwapHash?: string;
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     moneriumOnrampPermit?: PermitSignature;
