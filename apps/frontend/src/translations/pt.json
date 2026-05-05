@@ -491,10 +491,13 @@
     },
     "kybBusinessDocs": {
       "articlesIncorporation": "Contrato Social",
+      "docBack": "Documento de Identidade – Verso",
+      "docFront": "Documento de Identidade – Frente",
       "proofAddress": "Comprovante de Endereço",
       "shareholderRegistry": "Registro de Acionistas",
       "submit": "Enviar Documentos",
       "subtitle": "Por favor, envie os documentos empresariais necessários. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
+      "taxIdDocument": "Documento de Identificação Fiscal",
       "title": "Documentos Empresariais"
     },
     "kybForm": {
