@@ -173,10 +173,9 @@ export class RampService extends BaseRampService {
       const response: RegisterRampResponse = {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
-        depositQrCode: rampState.state.depositQrCode,
+        // depositQrCode and ibanPaymentData  are released by updateRamp once all presigned transactions validate.
         expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
-        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
         inputAmount: quote.inputAmount,
         inputCurrency: quote.inputCurrency,
@@ -274,6 +273,8 @@ export class RampService extends BaseRampService {
         { transaction }
       );
 
+      const presignChecksPass = await this.tryReleaseDepositQr(rampState, quote, transaction);
+
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
       if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
@@ -288,10 +289,10 @@ export class RampService extends BaseRampService {
         achPaymentData,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
-        depositQrCode: rampState.state.depositQrCode,
+        depositQrCode: presignChecksPass ? rampState.state.depositQrCode : undefined,
         expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
-        ibanPaymentData: rampState.state.ibanPaymentData,
+        ibanPaymentData: presignChecksPass ? rampState.state.ibanPaymentData : undefined,
         id: rampState.id,
         inputAmount: quote.inputAmount,
         inputCurrency: quote.inputCurrency,
@@ -495,10 +496,10 @@ export class RampService extends BaseRampService {
       countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase,
-      depositQrCode: rampState.state.depositQrCode,
+      depositQrCode: rampState.state.presignChecksPass ? rampState.state.depositQrCode : undefined,
       feeCurrency: fiatFees.currency,
       from: rampState.from,
-      ibanPaymentData: rampState.state.ibanPaymentData,
+      ibanPaymentData: rampState.state.presignChecksPass ? rampState.state.ibanPaymentData : undefined,
       id: rampState.id,
       inputAmount: quote.inputAmount,
       inputCurrency: quote.inputCurrency,
@@ -1132,6 +1133,35 @@ export class RampService extends BaseRampService {
     );
 
     return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
+  }
+
+  private async tryReleaseDepositQr(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<boolean> {
+    if (rampState.state.presignChecksPass) return true;
+
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      EVM: rampState.state.evmEphemeralAddress,
+      Stellar: rampState.state.stellarEphemeralAccountId,
+      Substrate: rampState.state.substrateEphemeralAddress
+    };
+
+    try {
+      this.validateRampStateData(rampState, quote);
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
+      if (!this.validateAllPresignedTransactionsSigned(rampState)) return false;
+    } catch {
+      return false;
+    }
+
+    await rampState.update(
+      {
+        state: {
+          ...rampState.state,
+          presignChecksPass: true
+        }
+      },
+      { transaction }
+    );
+    return true;
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {

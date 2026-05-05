@@ -48,6 +48,10 @@ export interface StateMetadata {
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
+  // Set to true once update-time validation gate passes (all presigned txs valid + complete,
+  // ramp state data complete). Until then, depositQrCode/ibanPaymentData are withheld from
+  // the integrator even though they exist in state.
+  presignChecksPass?: boolean;
   payOutTicketId: string | undefined;
   brlaPayoutTxHash?: `0x${string}`;
   // Only used in onramp, offramp - monerium
