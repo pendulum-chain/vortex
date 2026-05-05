@@ -17,7 +17,7 @@ const schema = z.object({
   repNationality: z.string().length(2, "Enter a 2-letter country code"),
   state: z.string().min(1),
   taxId: z.string().min(1),
-  website: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  website: z.string().url("Enter a valid URL"),
   zipCode: z.string().min(1)
 });
 
@@ -56,7 +56,7 @@ export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
       ],
       state: fields.state,
       taxId: fields.taxId,
-      website: fields.website || undefined,
+      website: fields.website,
       zipCode: fields.zipCode
     });
   };
