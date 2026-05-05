@@ -70,6 +70,8 @@ export const AlfredpayKycFlow = () => {
     stateValue === "SendingSubmission" ||
     stateValue === "SubmittingKybInfo" ||
     stateValue === "SubmittingKybBusinessFiles" ||
+    stateValue === "FindingKybCustomerAndBusiness" ||
+    stateValue === "SubmittingKybRelatedPersonBundle" ||
     stateValue === "SubmittingKybPersonFiles" ||
     stateValue === "SendingKybSubmission"
   ) {
