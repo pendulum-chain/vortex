@@ -93,7 +93,7 @@ export class AlfredpayApiService {
       options.body = JSON.stringify(payload);
     }
     const fullUrl = `${ALFREDPAY_BASE_URL}${url}`;
-    logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
     const response = await fetch(fullUrl, options);
 

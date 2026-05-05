@@ -143,7 +143,7 @@ export class BrlaApiService {
       options.body = body;
     }
     const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
-    logger.current.info(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
     const response = await fetch(fullUrl, options);
 
