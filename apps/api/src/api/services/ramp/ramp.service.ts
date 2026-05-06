@@ -63,6 +63,42 @@ import { getFinalTransactionHashForRamp } from "./helpers";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
 
+// Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
+function partitionUnsignedTxs(
+  unsignedTxs: UnsignedTx[],
+  ephemerals: { evm?: string; substrate?: string; stellar?: string }
+): { ephemeralTxs: UnsignedTx[]; userWalletTxs: UnsignedTx[] } {
+  const ephemeralSigners = new Set(
+    [ephemerals.evm, ephemerals.substrate, ephemerals.stellar].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
+  );
+
+  const ephemeralTxs: UnsignedTx[] = [];
+  const userWalletTxs: UnsignedTx[] = [];
+  for (const tx of unsignedTxs) {
+    if (ephemeralSigners.has(tx.signer.toLowerCase())) {
+      ephemeralTxs.push(tx);
+    } else {
+      userWalletTxs.push(tx);
+    }
+  }
+  return { ephemeralTxs, userWalletTxs };
+}
+
+// For offramp, user-wallet txs are only released once all ephemeral presigned txs are received
+// and validated. This prevents older SDK versions from kicking off the user's source-of-funds
+// transfer when the backend has added new ephemeral txs that the SDK does not know how to sign.
+function filterUnsignedTxsForResponse(rampState: RampState, ephemeralPresignChecksPass: boolean): UnsignedTx[] {
+  if (rampState.type !== RampDirection.SELL) return rampState.unsignedTxs;
+  if (ephemeralPresignChecksPass) return rampState.unsignedTxs;
+
+  const { ephemeralTxs } = partitionUnsignedTxs(rampState.unsignedTxs, {
+    evm: rampState.state.evmEphemeralAddress,
+    stellar: rampState.state.stellarEphemeralAccountId,
+    substrate: rampState.state.substrateEphemeralAddress
+  });
+  return ephemeralTxs;
+}
+
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
@@ -187,7 +223,7 @@ export class RampService extends BaseRampService {
         status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
-        unsignedTxs: rampState.unsignedTxs,
+        unsignedTxs: filterUnsignedTxsForResponse(rampState, false),
         updatedAt: rampState.updatedAt.toISOString(),
         walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
@@ -274,6 +310,7 @@ export class RampService extends BaseRampService {
       );
 
       const presignChecksPass = await this.tryReleaseDepositQr(rampState, quote, transaction);
+      const ephemeralPresignChecksPass = presignChecksPass || (await this.ephemeralPresignChecksPass(rampState));
 
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
       if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
@@ -304,7 +341,8 @@ export class RampService extends BaseRampService {
         status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
-        unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
+        unsignedTxs: filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass),
+        // Use current time since we just updated
         updatedAt: new Date().toISOString(),
         walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
@@ -1133,6 +1171,21 @@ export class RampService extends BaseRampService {
     );
 
     return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
+  }
+
+  private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      EVM: rampState.state.evmEphemeralAddress,
+      Stellar: rampState.state.stellarEphemeralAccountId,
+      Substrate: rampState.state.substrateEphemeralAddress
+    };
+
+    try {
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
+      return this.validateAllPresignedTransactionsSigned(rampState);
+    } catch {
+      return false;
+    }
   }
 
   private async tryReleaseDepositQr(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<boolean> {
