@@ -107,9 +107,14 @@ export interface GetRouteOptions {
   useCache?: boolean;
 }
 
-// Rate-limited queues per fromAddress: at most 1 concurrent request per address, with a minimum 1000ms gap between calls.
+// Rate-limited queues per fromAddress: at most 1 concurrent request per address, with a minimum 1500ms gap between calls.
 // This prevents hitting SquidRouter API rate limits for the same user when multiple getRoute() calls happen in quick succession.
+// 1500ms was chosen empirically: Squidrouter's per-address bucket rejected requests at 1000ms apart with retryAfter=1s.
+const ROUTE_QUEUE_INTERVAL_MS = 1500;
 const routeQueues = new Map<string, PQueue>();
+
+// Cap any retryAfter value Squidrouter returns to avoid pathologically long waits if the API misbehaves.
+const MAX_RETRY_AFTER_MS = 5000;
 
 class HttpError extends Error {
   status: number;
@@ -160,12 +165,12 @@ export async function getRoute(
   let queue = routeQueues.get(normalizedFromAddress);
 
   if (!queue) {
-    queue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 });
+    queue = new PQueue({ concurrency: 1, interval: ROUTE_QUEUE_INTERVAL_MS, intervalCap: 1 });
     routeQueues.set(normalizedFromAddress, queue);
   }
 
   try {
-    const result = await queue.add(() => getRouteInternal(params));
+    const result = await queue.add(() => getRouteInternalWithRetry(params));
     if (!result) throw new Error("Route fetch returned no result");
 
     if (useCache) {
@@ -182,6 +187,41 @@ export async function getRoute(
       routeQueues.delete(normalizedFromAddress);
     }
   }
+}
+
+async function getRouteInternalWithRetry(params: RouteParams): Promise<SquidrouterRouteResult> {
+  try {
+    return await getRouteInternal(params);
+  } catch (error) {
+    const retryAfterMs = extractRateLimitRetryAfterMs(error);
+    if (retryAfterMs === undefined) throw error;
+
+    logger.current.warn(`Squidrouter rate limit hit. Retrying once after ${retryAfterMs}ms.`);
+    await sleep(retryAfterMs);
+    return getRouteInternal(params);
+  }
+}
+
+function extractRateLimitRetryAfterMs(error: unknown): number | undefined {
+  if (!(error instanceof HttpError)) return undefined;
+
+  const data = error.data as { retryAfter?: unknown; error?: unknown } | null;
+  const looksLikeRateLimit =
+    error.status === 429 ||
+    (typeof data?.error === "string" && data.error.toLowerCase().includes("too many")) ||
+    typeof data?.retryAfter === "number";
+  if (!looksLikeRateLimit) return undefined;
+
+  const retryAfterSeconds = typeof data?.retryAfter === "number" ? data.retryAfter : 1;
+  const retryAfterMs = Math.min(Math.max(retryAfterSeconds, 0) * 1000, MAX_RETRY_AFTER_MS);
+  // Add a small jitter (up to 250ms) so concurrent retries don't all fire at the same instant,
+  // while still respecting the maximum retry delay cap.
+  const jitterMs = Math.floor(Math.random() * 250);
+  return Math.min(retryAfterMs + jitterMs, MAX_RETRY_AFTER_MS);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteResult> {
