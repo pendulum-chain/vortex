@@ -214,8 +214,10 @@ function extractRateLimitRetryAfterMs(error: unknown): number | undefined {
 
   const retryAfterSeconds = typeof data?.retryAfter === "number" ? data.retryAfter : 1;
   const retryAfterMs = Math.min(Math.max(retryAfterSeconds, 0) * 1000, MAX_RETRY_AFTER_MS);
-  // Add a small jitter (up to 250ms) so concurrent retries don't all fire at the same instant.
-  return retryAfterMs + Math.floor(Math.random() * 250);
+  // Add a small jitter (up to 250ms) so concurrent retries don't all fire at the same instant,
+  // while still respecting the maximum retry delay cap.
+  const jitterMs = Math.floor(Math.random() * 250);
+  return Math.min(retryAfterMs + jitterMs, MAX_RETRY_AFTER_MS);
 }
 
 function sleep(ms: number): Promise<void> {
