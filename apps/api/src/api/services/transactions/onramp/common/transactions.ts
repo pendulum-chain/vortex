@@ -16,6 +16,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem/utils";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -269,7 +270,8 @@ export async function addNablaSwapTransactionsOnBase(
     account,
     inputTokenAddress,
     outputTokenAddress,
-    nablaHardMinimumOutputRaw
+    nablaHardMinimumOutputRaw,
+    config.swap.deadlineMinutes
   );
 
   unsignedTxs.push({

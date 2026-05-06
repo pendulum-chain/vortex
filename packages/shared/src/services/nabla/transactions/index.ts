@@ -65,7 +65,8 @@ export async function createNablaTransactionsForOnrampOnEVM(
   ephemeral: AccountMeta,
   inputTokenAddress: `0x${string}`,
   outputTokenAddress: `0x${string}`,
-  nablaHardMinimumOutputRaw: string
+  nablaHardMinimumOutputRaw: string,
+  deadlineMinutes: number
 ) {
   if (ephemeral.type !== "EVM") {
     throw new Error(`Can't create Nabla EVM transactions for ${ephemeral.type}`);
@@ -106,7 +107,7 @@ export async function createNablaTransactionsForOnrampOnEVM(
   };
 
   // Create swap transaction
-  const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+  const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
 
   // Standard ABI for the swap function
   const swapAbi = [
