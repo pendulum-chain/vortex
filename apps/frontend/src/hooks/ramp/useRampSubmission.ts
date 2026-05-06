@@ -99,6 +99,12 @@ export const useRampSubmission = () => {
       const isMoneriumOnramp = quote.rampType === RampDirection.BUY && fiatToken === FiatToken.EURC;
       const moneriumWalletAddress = data.moneriumWalletAddress ?? (isMoneriumOnramp ? connectedEvmAddress : undefined);
 
+      if (isMoneriumOnramp && !moneriumWalletAddress) {
+        throw new Error(
+          "No Monerium wallet address found. Please connect an EVM wallet or provide a Monerium wallet address."
+        );
+      }
+
       const executionInput: RampExecutionInput = {
         ephemerals,
         fiatToken,
