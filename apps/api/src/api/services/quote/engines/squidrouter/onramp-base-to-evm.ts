@@ -11,7 +11,7 @@ import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
-import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig, SquidRouterData } from "./index";
+import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
 export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
@@ -38,16 +38,6 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
   }
 
   protected compute(ctx: QuoteContext): SquidRouterComputation {
-    // skip for the trivial case scenario.
-    if (ctx.to === Networks.Base && ctx.request.outputCurrency === EvmToken.USDC) {
-      return {
-        data: {
-          skipRouteCalculation: true
-        } as SquidRouterData,
-        type: "evm-to-evm"
-      };
-    }
-
     const req = ctx.request;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
@@ -56,8 +46,6 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const nablaSwap = ctx.nablaSwapEvm!;
 
-    // Deduce fees distributed after Nabla swap and before transfer to next destination
-    // Onramps always have a USD-stablecoin as output, so we can use the USD fee structure
     const usdFeesDistributedDecimal = Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
     const usdFeesDistributedRaw = multiplyByPowerOfTen(usdFeesDistributedDecimal, nablaSwap.outputDecimals);
 
@@ -65,6 +53,27 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
     const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw))
       .minus(usdFeesDistributedRaw)
       .toFixed(0, 0);
+
+    const usdcBaseTokenDetails = getTokenDetailsForEvmDestination(EvmToken.USDC, Networks.Base);
+
+    // Trivial case: nabla output (USDC on Base) is already the requested output. Skip the Squid
+    // route fetch but still emit bridge meta so downstream stages have a 1:1 passthrough record.
+    if (ctx.to === Networks.Base && ctx.request.outputCurrency === EvmToken.USDC) {
+      return {
+        data: {
+          amountRaw: inputAmountRaw,
+          fromNetwork: Networks.Base,
+          fromToken: usdcBaseTokenDetails.erc20AddressSourceChain,
+          inputAmountDecimal,
+          inputAmountRaw,
+          outputDecimals: usdcBaseTokenDetails.decimals,
+          skipRouteCalculation: true,
+          toNetwork: Networks.Base,
+          toToken: usdcBaseTokenDetails.erc20AddressSourceChain
+        },
+        type: "evm-to-evm"
+      };
+    }
 
     const toNetwork = getNetworkFromDestination(req.to);
     if (!toNetwork) {
@@ -75,8 +84,6 @@ export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
     }
 
     const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
-
-    const usdcBaseTokenDetails = getTokenDetailsForEvmDestination(EvmToken.USDC, Networks.Base);
 
     return {
       data: {

@@ -61,6 +61,15 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
       throw new Error(`OnRampAveniaToEvmFeeEngine: invalid token configuration for ${this.fromToken} on ${swapNetwork}`);
     }
 
+    // Same-chain same-token: Nabla swap output already matches the destination token (e.g. BRL → Base USDC).
+    // No bridge needed, so skip the Squid route call (which would fail with "same token same chain") and report zero network fee.
+    if (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) {
+      return {
+        anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
+        network: { amount: "0", currency: "USD" as RampCurrency }
+      };
+    }
+
     // For simplicity, we just use the input amount and convert it to the raw amount here
     // It's not the actual amount that will be bridged but it doesn't matter for the network fee calculation
     const amountRaw = multiplyByPowerOfTen(request.inputAmount, fromTokenDetails.decimals).toFixed(0, 0);
