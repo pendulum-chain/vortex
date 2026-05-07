@@ -4,21 +4,34 @@ import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import {
   ApiManager,
+  checkEvmBalanceForToken,
   decodeSubmittableExtrinsic,
   EvmClientManager,
   EvmNetworks,
+  EvmToken,
+  EvmTokenDetails,
+  evmTokenConfig,
+  getNetworkFromDestination,
+  multiplyByPowerOfTen,
   Networks,
+  PENDULUM_USDC_ASSETHUB,
+  PENDULUM_USDC_AXL,
   RampDirection,
   RampPhase,
   TransactionTemporarilyBannedError,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
+import Big from "big.js";
 import logger from "../../../../config/logger";
 import { SUBSCAN_API_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
+
+const FEE_BALANCE_POLL_INTERVAL_MS = 5_000;
+const FEE_BALANCE_POLL_TIMEOUT_MS = 60_000;
 
 /**
  * Enum for extrinsic status check results
@@ -114,6 +127,11 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         return this.transitionToNextPhase(state, nextPhase);
       }
 
+      // The funding token (USDC) may not yet be on the ephemeral when we reach this phase
+      // (e.g. squidrouter swap can be slow to credit). Poll for it before submitting; if it
+      // never arrives within the timeout, throw a recoverable error so we retry the phase.
+      await this.ensureFeeTokenBalance(state, quote, distributeFeeTransaction.signer, isEvmTransaction);
+
       let actualTxHash: string;
 
       if (isEvmTransaction) {
@@ -160,6 +178,126 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       // Wrap as recoverable error
       const error = e instanceof Error ? e : new Error(String(e));
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  private computeRequiredFeeRaw(quote: QuoteTicket, decimals: number): Big | null {
+    const usdFeeStructure = quote.metadata.fees?.usd;
+    if (!usdFeeStructure) {
+      return null;
+    }
+
+    const totalUsd = new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex).plus(usdFeeStructure.partnerMarkup);
+    if (totalUsd.lte(0)) {
+      return null;
+    }
+
+    return multiplyByPowerOfTen(totalUsd, decimals);
+  }
+
+  private async ensureFeeTokenBalance(
+    state: RampState,
+    quote: QuoteTicket,
+    signerAddress: string,
+    isEvmTransaction: boolean
+  ): Promise<void> {
+    if (isEvmTransaction) {
+      await this.ensureEvmFeeTokenBalance(quote, signerAddress);
+    } else {
+      await this.ensureSubstrateFeeTokenBalance(state, quote);
+    }
+  }
+
+  private async ensureEvmFeeTokenBalance(quote: QuoteTicket, signerAddress: string): Promise<void> {
+    const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC] as EvmTokenDetails | undefined;
+    if (!baseUsdcConfig) {
+      throw this.createUnrecoverableError("Base USDC configuration not found; cannot verify fee balance.");
+    }
+
+    const requiredRaw = this.computeRequiredFeeRaw(quote, baseUsdcConfig.decimals);
+    if (!requiredRaw) {
+      logger.info("No positive USD fees configured; skipping fee balance precondition check.");
+      return;
+    }
+
+    logger.info(
+      `Checking EVM fee balance: signer=${signerAddress} requires >= ${requiredRaw.toFixed(0)} USDC raw on Base before submitting fee distribution.`
+    );
+
+    try {
+      const balance = await checkEvmBalanceForToken({
+        amountDesiredRaw: requiredRaw.toFixed(0),
+        chain: Networks.Base as EvmNetworks,
+        intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
+        ownerAddress: signerAddress,
+        timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
+        tokenDetails: baseUsdcConfig
+      });
+      logger.info(`EVM fee balance precondition met: balance=${balance.toFixed(0)} >= required=${requiredRaw.toFixed(0)}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw this.createRecoverableError(
+        `Fee distribution precondition failed: USDC balance not available on ${signerAddress} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
+      );
+    }
+  }
+
+  private async ensureSubstrateFeeTokenBalance(state: RampState, quote: QuoteTicket): Promise<void> {
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
+    if (!substrateEphemeralAddress) {
+      throw this.createUnrecoverableError(
+        "DistributeFeesHandler: Missing substrateEphemeralAddress in state; cannot verify substrate fee balance."
+      );
+    }
+
+    // Network reference matches the selection in createSubstrateFeeDistributionTransaction:
+    // offramp uses source network, onramp uses destination network. The chosen stablecoin
+    // (PENDULUM_USDC_ASSETHUB vs PENDULUM_USDC_AXL) MUST match what the presigned tx transfers.
+    const networkReference = state.type === RampDirection.SELL ? quote.from : quote.to;
+    const network = getNetworkFromDestination(networkReference);
+    if (!network) {
+      logger.warn(`DistributeFeesHandler: Invalid network for ${networkReference}; skipping balance precondition check.`);
+      return;
+    }
+
+    const stablecoinDetails = network === Networks.AssetHub ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
+    const requiredRaw = this.computeRequiredFeeRaw(quote, stablecoinDetails.decimals);
+    if (!requiredRaw) {
+      logger.info("No positive USD fees configured; skipping fee balance precondition check.");
+      return;
+    }
+
+    logger.info(
+      `Checking substrate fee balance: address=${substrateEphemeralAddress} requires >= ${requiredRaw.toFixed(0)} ${stablecoinDetails.assetSymbol} raw on Pendulum before submitting fee distribution.`
+    );
+
+    const apiManager = ApiManager.getInstance();
+    const pendulumNode = await apiManager.getApi("pendulum");
+
+    const isBalanceSufficient = async (): Promise<boolean> => {
+      try {
+        const balanceResponse = await pendulumNode.api.query.tokens.accounts(
+          substrateEphemeralAddress,
+          stablecoinDetails.currencyId
+        );
+        const free = new Big((balanceResponse as unknown as { free?: { toString(): string } })?.free?.toString() ?? "0");
+        return free.gte(requiredRaw);
+      } catch (err) {
+        logger.debug(`DistributeFeesHandler: error reading substrate balance: ${err instanceof Error ? err.message : err}`);
+        return false;
+      }
+    };
+
+    try {
+      await waitUntilTrueWithTimeout(isBalanceSufficient, FEE_BALANCE_POLL_INTERVAL_MS, FEE_BALANCE_POLL_TIMEOUT_MS);
+      logger.info(
+        `Substrate fee balance precondition met for ${substrateEphemeralAddress} (>= ${requiredRaw.toFixed(0)} ${stablecoinDetails.assetSymbol}).`
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw this.createRecoverableError(
+        `Fee distribution precondition failed: ${stablecoinDetails.assetSymbol} balance not available on ${substrateEphemeralAddress} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
+      );
     }
   }
 
