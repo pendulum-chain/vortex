@@ -7,8 +7,7 @@ import {
   getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
-  RampPhase,
-  waitUntilTrueWithTimeout
+  RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
@@ -72,18 +71,6 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
       const requiredAmount = Big(expectedInputAmountForSwapRaw).sub(currentBalance);
       logger.debug(`SubsidizePreSwapEvmHandler: requiredAmount ${requiredAmount.toString()}`);
 
-      const didBalanceReachExpected = async () => {
-        const balance = await checkEvmBalanceForToken({
-          amountDesiredRaw: expectedInputAmountForSwapRaw.toString(),
-          chain: inputTokenDetails.network as EvmNetworks,
-          intervalMs: 1000,
-          ownerAddress: evmEphemeralAddress,
-          timeoutMs: 5000,
-          tokenDetails: inputTokenDetails
-        });
-        return balance.gte(Big(expectedInputAmountForSwapRaw));
-      };
-
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing on EVM
         logger.info(
@@ -118,8 +105,13 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
 
-        // Wait for the balance to update
-        await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: txHash as `0x${string}`
+        });
+
+        if (!receipt || receipt.status !== "success") {
+          throw new Error(`SubsidizePreSwapEvmPhaseHandler: Subsidy transaction ${txHash} failed or was not found`);
+        }
       }
 
       return this.transitionToNextPhase(state, "nablaApprove");

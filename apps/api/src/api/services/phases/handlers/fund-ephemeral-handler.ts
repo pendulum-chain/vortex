@@ -221,8 +221,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       const recoverableError = this.createRecoverableError("Error funding ephemeral account");
       throw recoverableError;
     }
-    // await 30 seconds to ensure the funding is settled.
-    await new Promise(resolve => setTimeout(resolve, 30000));
 
     return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
   }

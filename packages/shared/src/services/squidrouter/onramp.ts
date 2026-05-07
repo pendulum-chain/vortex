@@ -14,14 +14,25 @@ import {
   Networks,
   SquidrouterRoute
 } from "../..";
-import {
-  BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
-  MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
-  POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
-} from "./config";
 import { getRoute } from "./route";
 import { createGenericRouteParams } from "./route-params";
 import { createTransactionDataFromRoute } from "./route-transactions";
+
+// Bridge gas safety margin: pay 5% over Squidrouter's quoted native value to reduce the
+// likelihood that the squidRouterPay phase needs to top up Axelar gas. Any small overpayment
+// is forwarded to the ephemeral account on the destination chain (or refunded by Axelar).
+const BRIDGE_GAS_SAFETY_MARGIN_BPS = 10500n;
+
+function computeSwapValueWithSafetyMargin(routeValueRaw: string): string {
+  if (!routeValueRaw || routeValueRaw === "" || routeValueRaw === "0") {
+    return "0";
+  }
+  try {
+    return ((BigInt(routeValueRaw) * BRIDGE_GAS_SAFETY_MARGIN_BPS) / 10000n).toString();
+  } catch {
+    return routeValueRaw;
+  }
+}
 
 export interface OnrampSquidrouterParamsFromMoonbeam {
   fromAddress: string;
@@ -79,7 +90,7 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
       publicClient: moonbeamClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
 
     return {
@@ -117,7 +128,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
     return {
       approveData,
@@ -153,7 +164,7 @@ export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
       publicClient: baseClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
 
     return {
@@ -198,7 +209,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
 
     return {
