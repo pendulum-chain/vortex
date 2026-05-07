@@ -100,12 +100,15 @@ export async function isDestinationEvmEphemeralFunded(
     return false;
   }
 
+  const targetBalance =
+    destinationNetwork === VortexNetworks.Polygon
+      ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+      : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+
   const balance = await destinationClient.getBalance({
     address: evmEphemeralAddress as `0x${string}`
   });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, chain.nativeCurrency.decimals).toFixed()
-  );
+  const fundingAmountRaw = new Big(multiplyByPowerOfTen(targetBalance, chain.nativeCurrency.decimals).toFixed());
 
   return Big(balance.toString()).gte(fundingAmountRaw);
 }

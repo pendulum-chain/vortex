@@ -8,7 +8,8 @@ import {
   isNetworkEVM,
   Networks,
   RampDirection,
-  RampPhase
+  RampPhase,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { type Hex, parseTransaction } from "viem";
@@ -360,6 +361,22 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       if (!receipt || receipt.status !== "success") {
         throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found`);
       }
+
+      // The receipt confirms inclusion, but downstream phases use a different RPC client which
+      // may briefly lag behind. Poll the balance until it reflects the funded amount so that
+      // subsequent phases (nablaApprove etc.) don't read a stale balance.
+      const isFundedCheck =
+        network === Networks.Polygon
+          ? () => isPolygonEphemeralFunded(ephmeralAddress)
+          : () => isBaseEphemeralFunded(ephmeralAddress);
+
+      try {
+        await waitUntilTrueWithTimeout(isFundedCheck, 1000, 30000);
+      } catch (pollError) {
+        throw new Error(
+          `FundEphemeralPhaseHandler: Funded ${ephmeralAddress} on ${network} but balance not reflected on RPC within timeout: ${pollError}`
+        );
+      }
     } catch (error) {
       logger.error(`FundEphemeralPhaseHandler: Error during funding ${network} ephemeral:`, error);
       throw new Error(`FundEphemeralPhaseHandler: Error during funding ${network} ephemeral: ` + error);
@@ -394,6 +411,18 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (!receipt || receipt.status !== "success") {
         throw new Error(`FundEphemeralPhaseHandler: Transaction ${txHash} failed or was not found on ${destinationNetwork}`);
+      }
+
+      try {
+        await waitUntilTrueWithTimeout(
+          () => isDestinationEvmEphemeralFunded(ephemeralAddress, destinationNetwork),
+          1000,
+          30000
+        );
+      } catch (pollError) {
+        throw new Error(
+          `FundEphemeralPhaseHandler: Funded ${ephemeralAddress} on ${destinationNetwork} but balance not reflected on RPC within timeout: ${pollError}`
+        );
       }
     } catch (error) {
       logger.error(`FundEphemeralPhaseHandler: Error during funding ${destinationNetwork} ephemeral:`, error);
