@@ -11,6 +11,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
+import { type Hex, parseTransaction } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import {
@@ -324,7 +325,24 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         network === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
 
       const ephmeralAddress = state.state.evmEphemeralAddress;
-      const fundingAmountRaw = multiplyByPowerOfTen(amountToFundUnits, chain.nativeCurrency.decimals).toFixed();
+      const baseFundingRaw = BigInt(multiplyByPowerOfTen(amountToFundUnits, chain.nativeCurrency.decimals).toFixed());
+
+      // Cover the exact native value the presigned squidRouter swap will send (bridge gas etc.).
+      // The value already includes a safety margin from computeSwapValueWithSafetyMargin.
+      // squidRouterPay remains as a top-up safety net if the route value still falls short.
+      const swapTx = this.getPresignedTransaction(state, "squidRouterSwap");
+      let swapValueRaw = 0n;
+      if (swapTx?.txData && typeof swapTx.txData === "string") {
+        try {
+          swapValueRaw = parseTransaction(swapTx.txData as Hex).value ?? 0n;
+        } catch (decodeError) {
+          logger.warn(
+            `FundEphemeralPhaseHandler: Could not decode squidRouterSwap presigned tx for value extraction on ${network}: ${decodeError}`
+          );
+        }
+      }
+
+      const fundingAmountRaw = (baseFundingRaw + swapValueRaw).toString();
 
       // We use Moonbeam's funding account to fund the ephemeral account on the network.
       const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
