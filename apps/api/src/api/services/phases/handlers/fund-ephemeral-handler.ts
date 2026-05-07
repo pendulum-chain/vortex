@@ -30,6 +30,7 @@ import { BasePhaseHandler } from "../base-phase-handler";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
 import {
+  DESTINATION_EVM_FUNDING_AMOUNTS,
   horizonServer,
   isBaseEphemeralFunded,
   isDestinationEvmEphemeralFunded,
@@ -52,18 +53,6 @@ export function isStellarNetworkError(error: unknown): error is NetworkError {
 function isOnramp(state: RampState): boolean {
   return state.type === RampDirection.BUY;
 }
-
-const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
-  [Networks.Ethereum]: "0.00016", // ~0.5 USD @ 3000
-  [Networks.Arbitrum]: "0.000045", // ~0.1 USD @ 2300
-  [Networks.Base]: "0.000034", // ~0.1 USD @ 3000
-  [Networks.Polygon]: "0.6", // ~0.06 USD @ 0.13
-  [Networks.BSC]: "0.000115", // ~0.1 USD @ 889
-  [Networks.Avalanche]: "0.0034", // ~0.1 USD @ 30
-  [Networks.Moonbeam]: "0.34", // ~0.1 USD @ 0.30
-  [Networks.PolygonAmoy]: "0.2", // ~0.1 USD @ 0.50
-  [Networks.BaseSepolia]: "0.000034" // ~0.1 USD @ 3000
-};
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

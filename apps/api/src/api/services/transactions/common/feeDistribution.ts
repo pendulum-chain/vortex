@@ -30,7 +30,7 @@ import { getZenlinkIdForAsset } from "../../zenlink";
  * @param quote The quote ticket
  * @returns The encoded transaction or null if no fees to distribute
  */
-export async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
+export async function createSubstrateFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi("pendulum");
 
@@ -50,19 +50,33 @@ export async function createFeeDistributionTransaction(quote: QuoteTicketAttribu
   const vortexPartner = await Partner.findOne({
     where: { isActive: true, name: "vortex", rampType: quote.rampType }
   });
-  if (!vortexPartner || !vortexPartner.payoutAddress) {
-    logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
-    return null;
+  if (!vortexPartner) {
+    logger.error(
+      "FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
+        quote.rampType +
+        ". A row with name='vortex' and is_active=true MUST exist in the 'partners' table; otherwise no fees can be collected."
+    );
+    throw new Error(`Vortex partner row missing for rampType=${quote.rampType}; cannot build fee distribution transaction.`);
   }
-  const vortexPayoutAddress = vortexPartner.payoutAddress;
+  if (!vortexPartner.payoutAddressSubstrate) {
+    logger.error(
+      "FEE DISTRIBUTION FAILED: 'payout_address_substrate' is not set on the 'vortex' partner row (rampType=" +
+        quote.rampType +
+        "). This column MUST be set to a Pendulum address; otherwise no substrate fees can be collected."
+    );
+    throw new Error(
+      `Vortex partner is missing payout_address_substrate (rampType=${quote.rampType}); cannot build fee distribution transaction.`
+    );
+  }
+  const vortexPayoutAddress = vortexPartner.payoutAddressSubstrate;
 
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
     const quotePartner = await Partner.findOne({
       where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
     });
-    if (quotePartner && quotePartner.payoutAddress) {
-      partnerPayoutAddress = quotePartner.payoutAddress;
+    if (quotePartner && quotePartner.payoutAddressSubstrate) {
+      partnerPayoutAddress = quotePartner.payoutAddressSubstrate;
     }
   }
 
@@ -164,7 +178,7 @@ export async function addFeeDistributionTransaction(
   unsignedTxs: UnsignedTx[],
   nextNonce: number
 ): Promise<number> {
-  const feeDistributionTx = await createFeeDistributionTransaction(quote);
+  const feeDistributionTx = await createSubstrateFeeDistributionTransaction(quote);
 
   if (feeDistributionTx) {
     unsignedTxs.push({
@@ -205,9 +219,25 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const vortexPartner = await Partner.findOne({
     where: { isActive: true, name: "vortex", rampType: quote.rampType }
   });
-  if (!vortexPartner || !vortexPartner.payoutAddressEvm) {
-    logger.warn("Vortex partner or EVM payout address not found, skipping EVM fee distribution transaction");
-    return null;
+  if (!vortexPartner) {
+    logger.error(
+      "EVM FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
+        quote.rampType +
+        ". A row with name='vortex' and is_active=true MUST exist in the 'partners' table; otherwise no fees can be collected."
+    );
+    throw new Error(
+      `Vortex partner row missing for rampType=${quote.rampType}; cannot build EVM fee distribution transaction.`
+    );
+  }
+  if (!vortexPartner.payoutAddressEvm) {
+    logger.error(
+      "EVM FEE DISTRIBUTION FAILED: 'payout_address_evm' is not set on the 'vortex' partner row (rampType=" +
+        quote.rampType +
+        "). This column MUST be set to an EVM address (used on Base for BRL flows); otherwise no EVM fees can be collected."
+    );
+    throw new Error(
+      `Vortex partner is missing payout_address_evm (rampType=${quote.rampType}); cannot build EVM fee distribution transaction.`
+    );
   }
   const vortexPayoutAddress = vortexPartner.payoutAddressEvm;
 

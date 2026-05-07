@@ -88,17 +88,40 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
-// Simplified check for native balance >0
+// Native-token funding amounts sent to the destination EVM ephemeral so it can pay
+// gas for the final destination transfer. Threshold MUST match what is sent in
+// `fundDestinationEvmEphemeralAccount`; otherwise the post-funding balance poll
+// will spuriously succeed (or fail) and downstream phases may run with a
+// short-funded ephemeral.
+export const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [VortexNetworks.Ethereum]: "0.00016",
+  [VortexNetworks.Arbitrum]: "0.000045",
+  [VortexNetworks.Base]: "0.000034",
+  [VortexNetworks.Polygon]: "0.6",
+  [VortexNetworks.BSC]: "0.000115",
+  [VortexNetworks.Avalanche]: "0.0034",
+  [VortexNetworks.Moonbeam]: "0.34",
+  [VortexNetworks.PolygonAmoy]: "0.2",
+  [VortexNetworks.BaseSepolia]: "0.000034"
+};
+
 export async function isDestinationEvmEphemeralFunded(
   evmEphemeralAddress: string,
   destinationNetwork: EvmNetworks
 ): Promise<boolean> {
   const evmClientManager = EvmClientManager.getInstance();
   const destinationClient = evmClientManager.getClient(destinationNetwork);
+  const chain = destinationClient.chain;
+  if (!chain) {
+    throw new Error(`isDestinationEvmEphemeralFunded: Could not get chain info for ${destinationNetwork}`);
+  }
 
   const balance = await destinationClient.getBalance({
     address: evmEphemeralAddress as `0x${string}`
   });
 
-  return Big(balance.toString()).gte(0);
+  const fundingAmountUnits = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
+  const fundingAmountRaw = new Big(multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed());
+
+  return Big(balance.toString()).gte(fundingAmountRaw);
 }
