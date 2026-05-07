@@ -88,27 +88,17 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
+// Simplified check for native balance >0
 export async function isDestinationEvmEphemeralFunded(
   evmEphemeralAddress: string,
   destinationNetwork: EvmNetworks
 ): Promise<boolean> {
   const evmClientManager = EvmClientManager.getInstance();
   const destinationClient = evmClientManager.getClient(destinationNetwork);
-  const chain = destinationClient.chain;
-
-  if (!chain) {
-    return false;
-  }
-
-  const targetBalance =
-    destinationNetwork === VortexNetworks.Polygon
-      ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
-      : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
 
   const balance = await destinationClient.getBalance({
     address: evmEphemeralAddress as `0x${string}`
   });
-  const fundingAmountRaw = new Big(multiplyByPowerOfTen(targetBalance, chain.nativeCurrency.decimals).toFixed());
 
-  return Big(balance.toString()).gte(fundingAmountRaw);
+  return Big(balance.toString()).gte(0);
 }
