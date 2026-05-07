@@ -113,6 +113,11 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     throw new Error("Invalid BRLA configuration for Base in evmTokenConfig");
   }
 
+  // Fee distribution transaction on EVM MUST be built before the Nabla swap on offramps:
+  // fees are paid in USDC, which on offramps is available before the USDC -> BRLA swap.
+  // Nonce ordering on Base: distributeFeesEvm=0, nablaApproveEvm=1, nablaSwapEvm=2, brlaPayoutOnBase=3.
+  baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
+
   // Add Base Nabla swap transactions (USDC to BRLA on Base)
   const { nextNonce: nonceAfterNabla, stateMeta: nablaStateMeta } = await addNablaSwapTransactionsOnBase(
     {
@@ -126,9 +131,6 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   );
   stateMeta = { ...stateMeta, ...nablaStateMeta };
   baseNonce = nonceAfterNabla;
-
-  // Fee distribution transaction on EVM
-  baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
   // Output after swap + discount and subsidy
   const brlaTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
