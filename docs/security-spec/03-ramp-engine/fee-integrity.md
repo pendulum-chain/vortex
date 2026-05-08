@@ -18,8 +18,22 @@ This means the fees shown to the user (from the database system) may differ from
 
 - **On-ramp:** Fees are deducted from the input amount BEFORE the swap. `inputAmountAfterFees = inputAmount - fees`.
 - **Off-ramp:** Fees are deducted from the swap output AFTER the swap. `outputAfterFees = swapOutput - fees`.
-- **Anchor fees** (BRLA, Stellar) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
-- **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` phase.
+- **Anchor fees** (Avenia/BRLA, Stellar) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
+- **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` (Substrate) or `distributeFeesEvm` (EVM) phase.
+
+### Distribution Mechanisms (Updated 2026-05)
+
+Two parallel implementations live in `apps/api/src/api/services/transactions/common/feeDistribution.ts`:
+
+1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `Partner.payout_address_substrate` (renamed in migration 027 from `payout_address`, commit `f3dbb7ea7`).
+2. **EVM (Base, NEW)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `Partner.payout_address_evm` (added in migration 026, no backfill).
+
+The `distribute-fees-handler.ts` chooses the correct path based on phase name (`distributeFees` vs `distributeFeesEvm`). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
+
+### Ordering with Nabla swap (BRL flows on Base)
+
+- **Offramp (USDC → BRLA)**: `distributeFeesEvm` runs **before** `nablaSwapEvm` so partner/vortex fees are taken in USDC (the universal stablecoin) before swapping the remainder to BRLA. Reordered in commit `423a38c79`.
+- **Onramp (BRLA → USDC)**: `distributeFeesEvm` runs **after** `nablaSwapEvm`, again ensuring fees are denominated in USDC.
 
 ## Security Invariants
 
@@ -62,3 +76,7 @@ This means the fees shown to the user (from the database system) may differ from
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
 - [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
 - [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.
+- [NEW] EVM `distributeFeesEvm` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
+- [NEW] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts` (commit `b518fcec8`).
+- [NEW] BRL offramp ordering: `distributeFeesEvm` BEFORE `nablaSwapEvm`. **PASS** — verified in `evm-to-brl-base.ts` line 119-131 (commit `423a38c79`).
+- [NEW OPEN F-NEW-06 (MEDIUM)] **`Partner.payout_address_evm` has no backfill** (migration 026, commit `b518fcec8`-era). For partners created before 026 or without an explicit EVM payout address, the column is NULL. The intended behavior (per team) is to **fall back to a default Vortex address**. **The current code path for NULL needs to be verified** — if it currently throws or sends to `0x0`, fees may be lost or the phase fails. Trace `distributeFeesEvm` NULL handling.

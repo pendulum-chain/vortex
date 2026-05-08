@@ -4,21 +4,34 @@
 
 Fund routing covers the mechanisms by which the platform ensures ephemeral accounts have the correct token amounts at each stage of a ramp. This includes **subsidization** (topping up ephemeral accounts with platform funds) and **final settlement** (transferring tokens from EVM ephemeral accounts to the user's destination).
 
-There are three subsidization phases and one settlement phase:
+There are now **five** subsidization-related phase handlers and one settlement phase, split between Substrate (Pendulum) and EVM (Base + legacy chains):
 
-**Phase handlers:**
+**Phase handlers (Substrate):**
 - `subsidize-pre-swap-handler.ts` — Tops up the Pendulum ephemeral before a Nabla swap to ensure it has the expected input amount
-- `subsidize-post-swap-handler.ts` — Tops up the Pendulum ephemeral after a Nabla swap to ensure it has the expected output amount. Also contains complex next-phase routing logic.
-- `final-settlement-subsidy.ts` — Tops up an EVM ephemeral account using SquidRouter to swap native tokens for ERC-20. Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`).
+- `subsidize-post-swap-handler.ts` — Tops up the Pendulum ephemeral after a Nabla swap. Also contains complex next-phase routing logic.
+- `final-settlement-subsidy.ts` — Tops up an EVM ephemeral by SquidRouter-swapping native → ERC-20 (legacy / cross-chain settlement). Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`).
 - `destination-transfer-handler.ts` — Sends the presigned EVM transfer from the ephemeral to the user's destination address
+
+**Phase handlers (EVM, NEW 2026-05):**
+- `subsidize-pre-swap-evm-handler.ts` — Tops up the Base ephemeral before `nablaSwapEvm` to ensure it has the expected input amount. **No USD cap — see open question.**
+- `subsidize-post-swap-evm-handler.ts` — Tops up the Base ephemeral after `nablaSwapEvm` to ensure it has the expected output amount. **No USD cap — see open question.**
 
 **How subsidization works:**
 1. Read the ephemeral account's current balance
-2. Compare against the expected amount (from ramp state)
+2. Compare against the expected amount (from ramp state metadata, e.g. `nablaSwapEvm.inputAmountForSwapRaw` for pre-swap EVM)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
-4. The funding account is derived from `FUNDING_SECRET` / `PENDULUM_FUNDING_SEED` (Pendulum) or `MOONBEAM_FUNDING_PRIVATE_KEY` (EVM)
+4. The funding account is derived from `FUNDING_SECRET` / `PENDULUM_FUNDING_SEED` (Pendulum/Stellar) or `MOONBEAM_FUNDING_PRIVATE_KEY` (EVM — used on **Moonbeam, Base, and any other EVM chain**; see open question on rename)
 
-**Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or the cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
+**Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
+
+### `MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed (2026-05)
+
+Despite the name, this private key is now used on **all EVM chains** the platform operates on:
+- Moonbeam (legacy EUR/USD subsidization)
+- Base (new BRL on/off-ramp pre/post-swap subsidization)
+- Destination chain `backupApprove` spender for BRL on-ramp (`avenia-to-evm-base.ts:214`)
+
+**Per the team's intent**, this should be renamed to `EVM_FUNDING_PRIVATE_KEY` and exposed as a non-constant getter (e.g., `getEvmFundingAccount(network)`) to make the cross-chain reuse explicit and reduce the cognitive trap of "Moonbeam" in the name. Tracked as **F-NEW-07** in `SPEC-DELTA-2026-05.md`.
 
 ## Security Invariants
 
@@ -61,3 +74,5 @@ There are three subsidization phases and one settlement phase:
 - [N/A] Check whether there is any monitoring or alerting on funding account balance depletion. **N/A** — no monitoring infrastructure audited.
 - [x] Verify `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` value is reasonable for the expected settlement amounts (check the constant's actual value). **PASS** — value reviewed and reasonable for expected settlement sizes.
 - [x] **FINDING F-060 (MEDIUM)**: Verify `validateSubsidyAmount` rejects negative, zero, NaN, and Infinity amounts. **PASS (FIXED)** — added try/catch around `Big()` construction to reject non-numeric strings, and `lte(0)` guard to reject zero and negative values.
+- [NEW OPEN F-NEW-02 (MEDIUM)] **EVM subsidy handlers (`subsidize-pre-swap-evm-handler.ts`, `subsidize-post-swap-evm-handler.ts`) have NO USD cap** equivalent to `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`. They trust `nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` from quote metadata directly. **Confirmed bug (per team).** Severity equivalent to original F-001. Add an EVM-side cap and balance pre-check.
+- [NEW OPEN F-NEW-07 (LOW)] **`MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed.** Used on Base and other EVM chains. Per team: rename to `EVM_FUNDING_PRIVATE_KEY` and refactor from a top-level constant to a getter (e.g., `getEvmFundingAccount(network)`) so the cross-chain reuse is explicit. Code change required, but no security regression.
