@@ -25,9 +25,10 @@ type KybFormFields = z.infer<typeof schema>;
 
 interface KybFormScreenProps {
   onSubmit: (data: KybFormData) => void;
+  country: string;
 }
 
-export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
+export function KybFormScreen({ onSubmit, country }: KybFormScreenProps) {
   const { t } = useTranslation();
 
   const {
@@ -233,7 +234,7 @@ export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
               className={inputClass(!!errors.repNationality)}
               id="kyb-repNationality"
               maxLength={2}
-              placeholder="MX"
+              placeholder={country}
               type="text"
               {...register("repNationality", { setValueAs: v => v.toUpperCase() })}
             />

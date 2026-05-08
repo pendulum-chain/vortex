@@ -91,7 +91,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKybForm") {
-    return <KybFormScreen onSubmit={submitKybForm} />;
+    return <KybFormScreen country={context.country} onSubmit={submitKybForm} />;
   }
 
   if (stateValue === "UploadingKybBusinessDocs") {
