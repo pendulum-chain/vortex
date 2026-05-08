@@ -15,7 +15,7 @@ Ephemeral accounts may be created on:
 - **Polygon** — For Monerium EURe operations
 - **AssetHub** — For XCM transfers to/from Pendulum and Hydration
 - **Hydration** — For Hydration DEX swaps and XCM transfers
-- **Base (NEW 2026-05)** — Hub for all BRL on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Nabla-on-EVM swap (USDC↔BRLA), and EVM fee distribution via Multicall3.
+- **Base** — Hub for all BRL on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Nabla-on-EVM swap (USDC↔BRLA), and EVM fee distribution via Multicall3.
 
 ### Cleanup Architecture
 
@@ -24,7 +24,7 @@ Three post-process handlers exist:
 - **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
 - **MoonbeamPostProcessHandler** — Waits 3 hours for SquidRouter refunds to land, then submits `moonbeamCleanup` to sweep Moonbeam ephemeral tokens.
 
-> **Policy decision (2026-05):** No post-process handler exists for Base, Polygon, AssetHub, or Hydration. The team has decided to **skip cleanup transactions on EVM networks entirely** until a proper custody solution is in place. Residual dust on Base/Polygon ephemerals is accepted as known risk. This is intentional, not an oversight. Track this as **Open Question F-NEW-05** in `SPEC-DELTA-2026-05.md` for visibility but do not gate audits on it.
+No post-process handler exists for Base, Polygon, AssetHub, or Hydration. Cleanup transactions on EVM networks are intentionally skipped until a custody solution is in place. Residual dust on EVM ephemerals is accepted as a known operational risk and is not a defect.
 
 The cleanup worker queries for ramps with `currentPhase: "complete"`, excluding SEPA (`from: { [Op.ne]: "sepa" }`), and processes up to 5 ramps per cycle.
 
@@ -43,7 +43,7 @@ The cleanup worker queries for ramps with `currentPhase: "complete"`, excluding 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Stuck funds on failed ramp** | Ramp fails after `fundEphemeral` but before any swap executes. Tokens sit on ephemeral Pendulum account. Cleanup worker only processes `complete` ramps, so these tokens are never recovered. | **OPEN (F-044)**: Extend cleanup worker to process `failed` and timed-out ramps. Add cleanup handlers that detect which phase the ramp reached and sweep accordingly. |
-| **Stuck funds on Polygon/Hydration/AssetHub/Base** | Ramp completes with tokens remaining on EVM ephemeral accounts (Polygon Monerium dust, Base BRLA/USDC dust after BRL ramps, etc.). No post-process handler exists for these chains. | **ACCEPTED RISK (2026-05)**: Team decision to skip EVM cleanup until proper custody is implemented. F-045 reframed as policy choice, not bug. Tracked in SPEC-DELTA. |
+| **Stuck funds on Polygon/Hydration/AssetHub/Base** | Ramp completes with tokens remaining on EVM ephemeral accounts (Polygon Monerium dust, Base BRLA/USDC dust after BRL ramps, etc.). No post-process handler exists for these chains. | **Accepted operational risk**: EVM cleanup is intentionally not implemented and will be revisited when a custody solution is in place. |
 | **SEPA ramp exclusion** | SEPA onramp ramps are explicitly excluded from cleanup. If Monerium mints EURe to the ephemeral Polygon account but the ramp fails, those EURe tokens are trapped. | **OPEN (F-046)**: Evaluate whether SEPA ramps can leave residual tokens. If so, remove the exclusion or add a SEPA-specific cleanup handler. |
 | **Premature Moonbeam cleanup** | Cleanup runs before the 3-hour SquidRouter refund window expires. Refunded tokens land on an already-swept ephemeral account. | MoonbeamPostProcessHandler enforces `MOONBEAM_CLEANUP_DELAY_MS` (3 hours). Verify this delay is checked before every Moonbeam cleanup, not just on first attempt. |
 | **Ephemeral key loss** | Client generates the ephemeral keypair, but if the client disconnects or loses the key before cleanup, the server needs cosigner authority to sweep. If cosigner was never set (see F-040), cleanup is impossible. | Ensure SetOptions/multisig setup is validated at registration time. Server cosigner must be confirmed before the ramp starts. |
@@ -52,7 +52,7 @@ The cleanup worker queries for ramps with `currentPhase: "complete"`, excluding 
 ## Audit Checklist
 
 - [EXISTING FINDING] **F-044**: Cleanup worker only processes `currentPhase: "complete"`. Failed/timed-out ramps with funded ephemeral accounts are never cleaned up.
-- [EXISTING FINDING] **F-045 (REFRAMED 2026-05)**: No post-process handler exists for Polygon, Hydration, AssetHub, or Base. **Reframed as accepted risk** — team decided to skip EVM cleanup until a proper custody solution is implemented. Tracked in SPEC-DELTA-2026-05.md as F-NEW-05.
+- **F-045 (accepted operational risk)**: No post-process handler exists for Polygon, Hydration, AssetHub, or Base. EVM cleanup is intentionally skipped until a custody solution is in place. Not treated as a defect.
 - [EXISTING FINDING] **F-046**: SEPA onramp ramps (`from: "sepa"`) are explicitly excluded from cleanup. Residual tokens from failed SEPA ramps may be unrecoverable.
 - [x] StellarPostProcessHandler submits `stellarCleanup` XDR from ramp state — verified
 - [x] PendulumPostProcessHandler submits `pendulumCleanup` extrinsic from ramp state — verified

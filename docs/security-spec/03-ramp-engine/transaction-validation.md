@@ -10,16 +10,16 @@ Validation occurs at two points:
 
 The validation logic lives in `apps/api/src/api/services/transactions/validation.ts` and is chain-specific: separate paths for EVM (Ethereum-compatible), Substrate (Polkadot-compatible), and Stellar transactions. Additional quote-level and integration-level validation lives in `transactions/onramp/common/validation.ts` and `transactions/offramp/common/validation.ts`.
 
-### New 2026-05: Presigned-Tx Partitioning, Filtering, and Deposit-QR Gating
+### Presigned-Tx Partitioning, Filtering, and Deposit-QR Gating
 
-Two new mechanisms now control what the client sees and when:
+Two mechanisms control what the client sees and when:
 
-1. **Partitioning + filtering** (commit `4838e3c69`): `ramp.service.ts:71` `partitionUnsignedTxs(rampState)` splits presigned txs into ephemeral-signed (server-cosigned) and user-signed buckets. `filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass)` then strips ephemeral txs from the SDK response until the server has validated all ephemeral presigned signatures. This prevents the SDK / client from seeing or acting on transactions whose presign checks have not yet passed.
-2. **Deposit-QR gating** (commit `32be1659c`): For BRL on-ramp, `state.depositQrCode` is only released to the client after `ephemeralPresignChecksPass === true`. This guarantees the user cannot make a PIX payment before the server has confirmed the ephemeral signature chain is valid (i.e., before all presigned txs needed to settle the deposit have been verified).
+1. **Partitioning + filtering**: `ramp.service.ts` calls `partitionUnsignedTxs(rampState)` to split presigned txs into ephemeral-signed (server-cosigned) and user-signed buckets. `filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass)` then strips ephemeral txs from the SDK response until the server has validated all ephemeral presigned signatures. This prevents the SDK / client from seeing or acting on transactions whose presign checks have not yet passed.
+2. **Deposit-QR gating**: For BRL on-ramp, `state.depositQrCode` is only released to the client after `ephemeralPresignChecksPass === true`. This guarantees the user cannot make a PIX payment before the server has confirmed the ephemeral signature chain is valid (i.e., before all presigned txs needed to settle the deposit have been verified).
 
-### New 2026-05: User-Submitted Transaction Phases
+### User-Submitted Transaction Phases
 
-Three phases use user-wallet-submitted transactions instead of ephemeral presigned txs (commit `b45768be3`):
+Three phases use user-wallet-submitted transactions instead of ephemeral presigned txs:
 
 - `squidRouterNoPermitTransfer` — Direct ERC-20 transfer from user wallet (when source ERC-20 lacks EIP-2612 permit and direction is direct-transfer).
 - `squidRouterNoPermitApprove` — User wallet approves Squid spender.
@@ -76,7 +76,7 @@ This is consistent with the existing skip for `moneriumOnrampMint` and SELL-dire
 - [EXISTING FINDING] **F-056**: `sandboxEnabled` bypasses chainId validation in `validateEvmTransaction` and skips entire ramp flow in `initial-phase-handler` — no production guard prevents accidental activation.
 - [EXISTING FINDING] **F-057**: `destinationTransfer` handler broadcasts presigned transaction without verifying the `to` address matches the user's destination from the quote — combined with F-050, no destination validation exists anywhere.
 - [EXISTING FINDING] **F-058**: No per-presigned-transaction TTL after ramp starts — `getPresignedTransaction` performs no age check, presigned txs remain valid indefinitely through recovery retries.
-- [NEW] Presigned-tx partitioning via `partitionUnsignedTxs` + `filterUnsignedTxsForResponse`. **PASS** — ephemeral txs hidden from SDK response until `ephemeralPresignChecksPass` flips true (commit `4838e3c69`).
-- [NEW] Deposit QR code (BRL onramp) gated on `ephemeralPresignChecksPass`. **PASS** — verified in `meta-state-types.ts` (commit `32be1659c`).
-- [NEW OPEN F-NEW-04 (MEDIUM)] **No-permit fallback receipt validation is shallow**: `waitForUserHash` (squidrouter-permit-execution-handler.ts) checks `receipt.status === "success"` only. It does NOT verify `receipt.to`, `receipt.from === expectedUserAddress`, decoded calldata (Squid call params), or transferred token/value match the expected ramp parameters. A user (or attacker who controls the user's signing flow) could report any successful tx hash from their wallet. While this primarily harms the user (their funds), a clever sequence might allow a ramp to advance without actually depositing on Base, leading to a stuck `squidRouterPay`. Risk likely bounded by the subsequent balance check in `squidRouterPay`, but should be hardened.
-- [NEW] User-submitted phase types (`squidRouterNoPermit*`) explicitly skipped in `validatePresignedTxs` (commit `b45768be3`). **PASS** — intentional; backend trust shifted to receipt verification.
+- [x] Presigned-tx partitioning via `partitionUnsignedTxs` + `filterUnsignedTxsForResponse`. **PASS** — ephemeral txs hidden from SDK response until `ephemeralPresignChecksPass` flips true.
+- [x] Deposit QR code (BRL onramp) gated on `ephemeralPresignChecksPass`. **PASS** — verified in `meta-state-types.ts`.
+- [OPEN] **No-permit fallback receipt validation is shallow**: `waitForUserHash` (squidrouter-permit-execution-handler.ts) checks `receipt.status === "success"` only. It does NOT verify `receipt.to`, `receipt.from === expectedUserAddress`, decoded calldata (Squid call params), or transferred token/value match the expected ramp parameters. A user (or attacker who controls the user's signing flow) could report any successful tx hash from their wallet. While this primarily harms the user (their funds), a clever sequence might allow a ramp to advance without actually depositing on Base, leading to a stuck `squidRouterPay`. Risk likely bounded by the subsequent balance check in `squidRouterPay`, but should be hardened to decode and assert on `to`, `from`, calldata, and value for each `squidRouterNoPermit*` phase.
+- [x] User-submitted phase types (`squidRouterNoPermit*`) explicitly skipped in `validatePresignedTxs`. **PASS** — intentional; backend trust shifted to receipt verification (subject to the OPEN finding above).

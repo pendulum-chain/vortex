@@ -1,10 +1,8 @@
 # BRLA / Avenia Integration
 
-> **Updated 2026-05** — BRL flows migrated from Moonbeam/Pendulum to Base. The previous `brla-payout-moonbeam-handler.ts` and BRLA-on-Moonbeam ERC-20 path have been removed. This document reflects the current Base + Avenia API architecture. See `SPEC-DELTA-2026-05.md` for the change summary.
-
 ## What This Does
 
-BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, accessed via the **Avenia API** (operator of BRLA). All BRL liquidity flow now happens on **Base (Ethereum L2)** — there is no longer any BRLA on Moonbeam/Polygon, no XCM/teleport for BRL, and no Pendulum-side BRL handling.
+BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, accessed via the **Avenia API** (operator of BRLA). All BRL liquidity flow happens on **Base (Ethereum L2)**: there is no BRLA on Moonbeam or Polygon, no XCM/teleport for BRL, and no Pendulum-side BRL handling.
 
 **Provider type:** Both (on-ramp and off-ramp)
 **Fiat currency:** BRL (Brazilian Real)
@@ -25,7 +23,7 @@ BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, acces
 ### Off-ramp flow (User EVM → Base USDC → BRLA → PIX)
 
 1. User signs Squid permit / no-permit fallback / direct transfer (depending on source chain) → tokens arrive on Base ephemeral as USDC.
-2. `distributeFeesEvm` runs **before** Nabla swap (commit `423a38c79`) so partner/vortex fees are taken in USDC.
+2. `distributeFeesEvm` runs **before** Nabla swap so partner/vortex fees are taken in USDC.
 3. `subsidizePreSwapEvm` → `nablaApproveEvm` → `nablaSwapEvm`: Nabla DEX on Base swaps USDC → BRLA.
 4. `brlaPayoutOnBase`:
    1. Sends presigned ERC-20 transfer of `brlaTransferAmountRaw` (= `nablaSwapEvm.outputAmountRaw`) BRLA from the ephemeral to the Avenia deposit address (the Avenia subaccount's EVM wallet).
@@ -84,22 +82,22 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] Avenia API credentials loaded from environment variables (not hardcoded). **PASS** — credentials loaded via env config.
 - [x] `brlaOnrampMint` polls Base RPC for BRLA arrival before advancing. **PASS** — `checkEvmBalancePeriodically` against `evmEphemeralAddress` for up to 30 minutes.
 - [x] `brlaPayoutOnBase` PIX amount equals `quote.outputAmount`. **PASS** — `createPayOutQuote.outputAmount = amountForQuote = new Big(quote.outputAmount).round(2,0)`.
-- [x] On-chain BRLA transfer amount equals `nablaSwapEvm.outputAmountRaw`. **PASS** — `brlaTransferAmountRaw = quote.metadata.nablaSwapEvm.outputAmountRaw` in `evm-to-brl-base.ts:136`.
+- [x] On-chain BRLA transfer amount equals `nablaSwapEvm.outputAmountRaw`. **PASS** — `brlaTransferAmountRaw = quote.metadata.nablaSwapEvm.outputAmountRaw` in `evm-to-brl-base.ts`.
 - [x] User CPF/tax ID is validated at ramp registration (not at payout). **PASS** — CPF validation present in registration flow.
 - [x] Avenia subaccount creation is idempotent. **PASS** — checks existing subaccount before creating.
-- [x] Recovery: `payOutTicketId` short-circuits ticket re-creation. **PASS** — `brla-payout-base-handler.ts:57-60`.
-- [x] Recovery: `brlaPayoutTxHash` short-circuits on-chain transfer re-broadcast. **PASS** — `brla-payout-base-handler.ts:157-189`.
+- [x] Recovery: `payOutTicketId` short-circuits ticket re-creation. **PASS** — verified in `brla-payout-base-handler.ts`.
+- [x] Recovery: `brlaPayoutTxHash` short-circuits on-chain transfer re-broadcast. **PASS** — verified in `brla-payout-base-handler.ts`.
 - [PARTIAL] Avenia API responses are validated (status, amount, ticket ID). **PARTIAL** — ticket status checked for `PAID`/`FAILED`; other statuses fall through to retry; no explicit amount cross-check on `getAccountBalance` response shape.
 - [x] `RecoverablePhaseError` used for transient Avenia API failures. **PASS** — `createRecoverableError` wraps `sendBrlaPayoutTransaction` failures and ticket-status timeouts.
 - [x] HTTPS enforced for all Avenia API calls. **PASS** — base URL uses `https://`.
 - [PARTIAL] No Avenia API credentials or user tax IDs appear in logs. **PARTIAL** — `payOutTicketId` is debug-logged with the literal CPF subaccount; review log redaction.
-- [FAIL] **F-014 (CARRIED OVER)**: Timeout configured for Avenia HTTP client. **FAIL** — relies on default system/library timeouts; no explicit `AbortController` on `BrlaApiService` calls.
+- [FAIL] **F-014**: Timeout configured for Avenia HTTP client. **FAIL** — relies on default system/library timeouts; no explicit `AbortController` on `BrlaApiService` calls.
 - [x] PIX deposit details (QR code) generated server-side. **PASS** — comes from Avenia API response.
-- [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`, commit `32be1659c`).
+- [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
 - [PARTIAL] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
 - [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requireAuth`.
 
-## Open Questions (see SPEC-DELTA-2026-05.md)
+## Open Questions
 
-- **F-NEW-01 (HIGH)**: `validateBRLOfframp` in `offramp/common/validation.ts` has hardcoded `offrampAmountBeforeAnchorFeesRaw: "200"` with a TODO; never validated against `quote.outputAmount`. **Confirmed bug; must fix.**
-- **F-NEW-02 (MEDIUM)**: `subsidize-pre/post-swap-evm-handler.ts` lack the USD cap that `final-settlement-subsidy.ts` enforces. **Confirmed gap; EVM subsidies are unbounded.**
+- **Hardcoded BRL offramp validation amount (HIGH, confirmed bug)**: `validateBRLOfframp` in `offramp/common/validation.ts` has a hardcoded `offrampAmountBeforeAnchorFeesRaw: "200"` with a TODO comment, never validated against `quote.outputAmount`. Must be replaced with the real pre-anchor-fee amount derived from `quote.metadata.nablaSwapEvm.outputAmountRaw` and asserted against the actual presigned BRLA transfer amount.
+- **EVM subsidy USD cap missing (MEDIUM, confirmed gap)**: `subsidize-pre-swap-evm-handler.ts` and `subsidize-post-swap-evm-handler.ts` lack the USD cap that `final-settlement-subsidy.ts` enforces (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`). EVM subsidies on Base are currently unbounded. See `06-cross-chain/fund-routing.md`.

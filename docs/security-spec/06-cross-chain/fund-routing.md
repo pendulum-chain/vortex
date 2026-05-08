@@ -12,7 +12,7 @@ There are now **five** subsidization-related phase handlers and one settlement p
 - `final-settlement-subsidy.ts` — Tops up an EVM ephemeral by SquidRouter-swapping native → ERC-20 (legacy / cross-chain settlement). Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`).
 - `destination-transfer-handler.ts` — Sends the presigned EVM transfer from the ephemeral to the user's destination address
 
-**Phase handlers (EVM, NEW 2026-05):**
+**Phase handlers (EVM):**
 - `subsidize-pre-swap-evm-handler.ts` — Tops up the Base ephemeral before `nablaSwapEvm` to ensure it has the expected input amount. **No USD cap — see open question.**
 - `subsidize-post-swap-evm-handler.ts` — Tops up the Base ephemeral after `nablaSwapEvm` to ensure it has the expected output amount. **No USD cap — see open question.**
 
@@ -24,14 +24,14 @@ There are now **five** subsidization-related phase handlers and one settlement p
 
 **Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
 
-### `MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed (2026-05)
+### `MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed
 
-Despite the name, this private key is now used on **all EVM chains** the platform operates on:
-- Moonbeam (legacy EUR/USD subsidization)
-- Base (new BRL on/off-ramp pre/post-swap subsidization)
-- Destination chain `backupApprove` spender for BRL on-ramp (`avenia-to-evm-base.ts:214`)
+Despite the name, this private key is used on **all EVM chains** the platform operates on:
+- Moonbeam (EUR/USD subsidization)
+- Base (BRL on/off-ramp pre/post-swap subsidization)
+- Destination chain `backupApprove` spender for BRL on-ramp (`avenia-to-evm-base.ts`)
 
-**Per the team's intent**, this should be renamed to `EVM_FUNDING_PRIVATE_KEY` and exposed as a non-constant getter (e.g., `getEvmFundingAccount(network)`) to make the cross-chain reuse explicit and reduce the cognitive trap of "Moonbeam" in the name. Tracked as **F-NEW-07** in `SPEC-DELTA-2026-05.md`.
+This key MUST be renamed to `EVM_FUNDING_PRIVATE_KEY` and exposed via a per-network getter (e.g., `getEvmFundingAccount(network)`) so the cross-chain reuse is explicit and the cognitive trap of "Moonbeam" in the name is removed. See the open question in the audit checklist.
 
 ## Security Invariants
 
@@ -74,5 +74,5 @@ Despite the name, this private key is now used on **all EVM chains** the platfor
 - [N/A] Check whether there is any monitoring or alerting on funding account balance depletion. **N/A** — no monitoring infrastructure audited.
 - [x] Verify `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` value is reasonable for the expected settlement amounts (check the constant's actual value). **PASS** — value reviewed and reasonable for expected settlement sizes.
 - [x] **FINDING F-060 (MEDIUM)**: Verify `validateSubsidyAmount` rejects negative, zero, NaN, and Infinity amounts. **PASS (FIXED)** — added try/catch around `Big()` construction to reject non-numeric strings, and `lte(0)` guard to reject zero and negative values.
-- [NEW OPEN F-NEW-02 (MEDIUM)] **EVM subsidy handlers (`subsidize-pre-swap-evm-handler.ts`, `subsidize-post-swap-evm-handler.ts`) have NO USD cap** equivalent to `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`. They trust `nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` from quote metadata directly. **Confirmed bug (per team).** Severity equivalent to original F-001. Add an EVM-side cap and balance pre-check.
-- [NEW OPEN F-NEW-07 (LOW)] **`MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed.** Used on Base and other EVM chains. Per team: rename to `EVM_FUNDING_PRIVATE_KEY` and refactor from a top-level constant to a getter (e.g., `getEvmFundingAccount(network)`) so the cross-chain reuse is explicit. Code change required, but no security regression.
+- [OPEN] **EVM subsidy handlers (`subsidize-pre-swap-evm-handler.ts`, `subsidize-post-swap-evm-handler.ts`) have NO USD cap** equivalent to `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`. They trust `nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` from quote metadata directly. Severity equivalent to original F-001. Port the `validateSubsidyAmount` + USD cap logic from `final-settlement-subsidy.ts` (using a Base-native USD reference) and throw `UnrecoverableError` (with the `throw` keyword) when the cap is exceeded.
+- [OPEN] **`MOONBEAM_FUNDING_PRIVATE_KEY` is misnamed.** Used on Base and other EVM chains. Rename to `EVM_FUNDING_PRIVATE_KEY` and refactor from a top-level constant to a getter (e.g., `getEvmFundingAccount(network)`) so the cross-chain reuse is explicit. Update all callers in `subsidize-*-evm-handler.ts`, `final-settlement-subsidy.ts`, `avenia-to-evm-base.ts`, and any Squid handler that funds gas.
