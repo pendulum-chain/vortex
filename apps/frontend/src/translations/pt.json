@@ -33,6 +33,32 @@
       "verifyingStatus": "Verificando Status {{kycOrKyb}}",
       "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
     },
+    "arDocumentUpload": {
+      "backLabel": "Verso do DNI",
+      "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
+      "fileTooLarge": "O arquivo excede o limite de 5 MB.",
+      "frontLabel": "Frente do DNI",
+      "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do seu DNI (frente e verso) e uma selfie. Máx. 5 MB por arquivo.",
+      "tapToSelect": "Toque para selecionar o arquivo",
+      "title": "Enviar Documentos de Identidade"
+    },
+    "arKycForm": {
+      "cuit": "CUIT",
+      "cuitPlaceholder": "CUIT",
+      "dni": "Número do DNI",
+      "dniPlaceholder": "Número do DNI",
+      "documentType": "Tipo de Documento",
+      "options": {
+        "dni": "DNI (Documento Nacional de Identidad)"
+      },
+      "pepLabel": "Sou uma Pessoa Politicamente Exposta (PEP)",
+      "phoneNumber": "Número de Telefone",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade"
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continuar",
@@ -393,12 +419,14 @@
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
         "ACH_COL": "Transferência bancária colombiana",
+        "COELSA": "Transferência bancária argentina",
         "SPEI": "Transferência interbancária instantânea via número CLABE",
         "WIRE": "No mesmo dia"
       },
       "labels": {
         "ACH": "Transferência ACH",
         "ACH_COL": "ACH Colômbia",
+        "COELSA": "COELSA",
         "SPEI": "SPEI",
         "WIRE": "Transferência Internacional"
       },

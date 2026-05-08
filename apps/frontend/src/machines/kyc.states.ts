@@ -5,6 +5,7 @@ import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import {
   AlfredpayKycMachineError,
+  ArKycFiles,
   KybBusinessFiles,
   KybFormData,
   KybPersonFiles,
@@ -24,6 +25,7 @@ export interface AlfredpayKycContext extends RampContext {
   business?: boolean;
   mxnFormData?: MxnKycFormData;
   mxnFiles?: MxnKycFiles;
+  arFiles?: ArKycFiles;
   kybFormData?: KybFormData;
   kybBusinessFiles?: KybBusinessFiles;
   kybRelatedPersonFiles?: KybPersonFiles[];

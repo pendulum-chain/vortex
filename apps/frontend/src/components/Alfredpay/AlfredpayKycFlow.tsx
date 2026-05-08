@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { ArDocumentUploadScreen } from "./ArDocumentUploadScreen";
+import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
 import { CustomerDefinitionScreen } from "./CustomerDefinitionScreen";
 import { DoneScreen } from "./DoneScreen";
@@ -37,6 +39,10 @@ export const AlfredpayKycFlow = () => {
     (files: import("../../machines/alfredpayKyc.machine").MxnKycFiles) => actor?.send({ files, type: "SUBMIT_FILES" }),
     [actor]
   );
+  const submitArFiles = useCallback(
+    (files: import("../../machines/alfredpayKyc.machine").ArKycFiles) => actor?.send({ files, type: "SUBMIT_AR_FILES" }),
+    [actor]
+  );
   const submitKybForm = useCallback(
     (data: import("../../machines/alfredpayKyc.machine").KybFormData) => actor?.send({ data, type: "SUBMIT_KYB_FORM" }),
     [actor]
@@ -59,6 +65,7 @@ export const AlfredpayKycFlow = () => {
   const kycOrKyb = context.business ? "KYB" : "KYC";
   const isMxn = context.country === "MX";
   const isCo = context.country === "CO";
+  const isAr = context.country === "AR";
 
   if (
     stateValue === "CheckingStatus" ||
@@ -67,6 +74,7 @@ export const AlfredpayKycFlow = () => {
     stateValue === "Retrying" ||
     stateValue === "SubmittingKycInfo" ||
     stateValue === "SubmittingFiles" ||
+    stateValue === "SubmittingArFiles" ||
     stateValue === "SendingSubmission" ||
     stateValue === "SubmittingKybInfo" ||
     stateValue === "SubmittingKybBusinessFiles" ||
@@ -84,8 +92,16 @@ export const AlfredpayKycFlow = () => {
     return <ColKycFormScreen onSubmit={submitForm} />;
   }
 
+  if (stateValue === "FillingKycForm" && isAr) {
+    return <ArKycFormScreen onSubmit={submitForm} />;
+  }
+
   if (stateValue === "UploadingDocuments" && (isMxn || isCo)) {
     return <MxnDocumentUploadScreen onSubmit={submitFiles} />;
+  }
+
+  if (stateValue === "UploadingArDocuments" && isAr) {
+    return <ArDocumentUploadScreen onSubmit={submitArFiles} />;
   }
 
   if (stateValue === "FillingKybForm") {

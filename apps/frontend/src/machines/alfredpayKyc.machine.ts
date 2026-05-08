@@ -19,6 +19,12 @@ export interface MxnKycFiles {
   back: File;
 }
 
+export interface ArKycFiles {
+  front: File;
+  back: File;
+  selfie: File;
+}
+
 export interface KybBusinessFiles {
   articlesIncorporation: File;
   proofAddress: File;
@@ -144,6 +150,15 @@ export const alfredpayKycMachine = setup({
       return AlfredpayService.sendKycSubmission(country, input.submissionId);
     }),
 
+    submitArFiles: fromPromise(async ({ input }: { input: AlfredpayKycContext & { arFiles?: ArKycFiles } }) => {
+      const country = input.country || "AR";
+      if (!input.submissionId) throw new Error("Submission ID missing");
+      if (!input.arFiles) throw new Error("KYC files missing");
+      await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.FRONT, input.arFiles.front);
+      await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.BACK, input.arFiles.back);
+      await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.SELFIE, input.arFiles.selfie);
+    }),
+
     submitFiles: fromPromise(
       async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: MxnKycFormData; mxnFiles?: MxnKycFiles } }) => {
         const country = input.country || "MX";
@@ -264,6 +279,7 @@ export const alfredpayKycMachine = setup({
     context: {} as AlfredpayKycContext & {
       mxnFormData?: MxnKycFormData;
       mxnFiles?: MxnKycFiles;
+      arFiles?: ArKycFiles;
       kybFormData?: KybFormData;
       kybBusinessFiles?: KybBusinessFiles;
       kybRelatedPersonFiles?: KybPersonFiles[];
@@ -285,6 +301,7 @@ export const alfredpayKycMachine = setup({
       | { type: "GO_BACK" }
       | { type: "SUBMIT_FORM"; data: MxnKycFormData }
       | { type: "SUBMIT_FILES"; files: MxnKycFiles }
+      | { type: "SUBMIT_AR_FILES"; files: ArKycFiles }
       | { type: "SUBMIT_KYB_FORM"; data: KybFormData }
       | { type: "SUBMIT_KYB_BUSINESS_FILES"; files: KybBusinessFiles }
       | { type: "SUBMIT_KYB_PERSON_FILES"; files: KybPersonFiles },
@@ -325,8 +342,8 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
-            // MXN and CO use API-based form, not iFrame link
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            // MXN, CO, and AR use API-based form, not iFrame link
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -365,11 +382,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -567,11 +585,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -623,6 +642,24 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "sendSubmission"
+      }
+    },
+
+    SubmittingArFiles: {
+      invoke: {
+        id: "submitArFiles",
+        input: ({ context }) => context,
+        onDone: {
+          target: "SendingSubmission"
+        },
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError)
+          }),
+          target: "Failure"
+        },
+        src: "submitArFiles"
       }
     },
 
@@ -735,6 +772,16 @@ export const alfredpayKycMachine = setup({
           target: "Failure"
         },
         src: "submitKycInfo"
+      }
+    },
+
+    UploadingArDocuments: {
+      on: {
+        GO_BACK: { target: "FillingKycForm" },
+        SUBMIT_AR_FILES: {
+          actions: assign({ arFiles: ({ event }) => event.files }),
+          target: "SubmittingArFiles"
+        }
       }
     },
 

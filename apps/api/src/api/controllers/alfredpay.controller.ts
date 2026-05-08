@@ -340,7 +340,7 @@ export class AlfredpayController {
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
-      } else if (country === "MX" || country === "CO") {
+      } else if (country === "MX" || country === "CO" || country === "AR") {
         // MX/CO use API-based (form) KYC — no redirect link needed.
         // Just reset status so the user can re-fill the form.
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
@@ -443,7 +443,7 @@ export class AlfredpayController {
 
   static async submitKycInformation(req: Request, res: Response) {
     try {
-      const { country, ...kycData } = req.body as SubmitKycInformationRequest & { country: string };
+      const { country, ...kycData } = req.body as SubmitKycInformationRequest;
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -693,6 +693,11 @@ export class AlfredpayController {
           accountNumber,
           accountType: accountType ?? "",
           metadata: { accountHolderName: accountName, documentNumber, documentType }
+        };
+      } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.COELSA) {
+        fiatAccountFields = {
+          accountNumber,
+          accountType: accountType ?? ""
         };
       } else {
         // BANK_USA — external accounts need address fields inside metadata

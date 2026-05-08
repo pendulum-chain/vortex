@@ -252,7 +252,12 @@ export class AlfredpayApiService {
     const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
     if (!data.typeDocument) delete kycSubmission.typeDocument;
     if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
+    if (!data.typeDocumentAr) delete kycSubmission.typeDocumentAr;
     if (!data.phoneNumber) delete kycSubmission.phoneNumber;
+    if (!data.cuit) delete kycSubmission.cuit;
+    if (data.pep !== false && !data.pep) delete kycSubmission.pep;
+    if (!data.countryCode) delete kycSubmission.countryCode;
+    if (data.nationalities) kycSubmission.nationalities = data.nationalities;
     return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 
