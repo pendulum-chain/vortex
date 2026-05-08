@@ -60,7 +60,7 @@ i18n.use(initReactI18next).init({
   }
 });
 
-const router = createRouter({ routeTree, scrollRestoration: true });
+const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
   interface Register {
