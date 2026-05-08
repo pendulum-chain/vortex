@@ -13,14 +13,25 @@ import { handleAPIResponse } from "../errors";
 import type { BrlKycResponse } from "../types";
 
 export class ApiService {
-  constructor(private readonly apiBaseUrl: string) {}
+  constructor(
+    private readonly apiBaseUrl: string,
+    private readonly secretKey?: string
+  ) {}
+
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (this.secretKey) {
+      headers["X-API-Key"] = this.secretKey;
+    }
+    return headers;
+  }
 
   async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/quotes`, {
       body: JSON.stringify(request),
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "POST"
     });
 
@@ -29,9 +40,7 @@ export class ApiService {
 
   async getQuote(quoteId: string): Promise<QuoteResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/quotes/${quoteId}`, {
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "GET"
     });
 
@@ -41,9 +50,7 @@ export class ApiService {
   async registerRamp(request: RegisterRampRequest): Promise<RegisterRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/register`, {
       body: JSON.stringify(request),
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "POST"
     });
 
@@ -53,9 +60,7 @@ export class ApiService {
   async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/update`, {
       body: JSON.stringify(request),
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "POST"
     });
     return handleAPIResponse<UpdateRampResponse>(response, "/v1/ramp/update");
@@ -64,9 +69,7 @@ export class ApiService {
   async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/start`, {
       body: JSON.stringify(request),
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "POST"
     });
 
@@ -76,9 +79,7 @@ export class ApiService {
   async getRampStatus(rampId: string): Promise<RampProcess> {
     const url = new URL(`${this.apiBaseUrl}/v1/ramp/${rampId}`);
     const response = await fetch(url.toString(), {
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "GET"
     });
 
@@ -93,9 +94,7 @@ export class ApiService {
     }
 
     const response = await fetch(url.toString(), {
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: this.buildHeaders(),
       method: "GET"
     });
 

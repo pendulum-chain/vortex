@@ -1,4 +1,5 @@
 import { assign, DoneActorEvent, fromPromise, setup } from "xstate";
+import { KYBFormData } from "../hooks/brla/useKYBForm";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { BrlaService } from "../services/api";
 import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
@@ -47,7 +48,7 @@ export const aveniaKycMachine = setup({
   types: {
     context: {} as AveniaKycContext,
     events: {} as
-      | { type: "FORM_SUBMIT"; formData: KYCFormData }
+      | { type: "FORM_SUBMIT"; formData: KYCFormData | KYBFormData }
       | { type: "LIVENESS_DONE" }
       | { type: "DOCUMENTS_SUBMIT"; documentsId: UploadIds }
       | { type: "CLOSE_SUCCESS_MODAL" }
@@ -64,15 +65,13 @@ export const aveniaKycMachine = setup({
       | { type: "COMPANY_VERIFICATION_STARTED" }
       | { type: "REPRESENTATIVE_VERIFICATION_STARTED" },
     input: {} as RampContext,
-    output: {} as { error?: AveniaKycMachineError }
+    output: {} as AveniaKycContext
   }
 }).createMachine({
   context: ({ input }) => ({ ...input }) as AveniaKycContext,
   id: "brlaKyc",
   initial: "FormFilling",
-  output: ({ context }) => ({
-    error: context.error
-  }),
+  output: ({ context }) => context,
   states: {
     DocumentUpload: {
       on: {
@@ -115,7 +114,7 @@ export const aveniaKycMachine = setup({
               };
             },
             kycFormData: ({ event }) => {
-              return event.formData;
+              return event.formData as KYCFormData;
             },
             taxId: ({ event }) => event.formData.taxId
           }),
@@ -142,7 +141,7 @@ export const aveniaKycMachine = setup({
               return {
                 ...context.kycFormData,
                 ...event.formData
-              };
+              } as KYCFormData;
             },
             taxId: ({ event }) => event.formData.taxId
           }),

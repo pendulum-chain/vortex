@@ -30,7 +30,7 @@ const NETWORKS: NetworkConfig[] = [
   },
   {
     name: "paseo",
-    wsUrls: ["wss://asset-hub-paseo-rpc.n.dwellir.com"]
+    wsUrls: ["wss://paseo.ibp.network"]
   }
 ];
 

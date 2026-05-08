@@ -10,6 +10,7 @@ interface CopyButtonProps {
   noBorder?: boolean;
   iconPosition?: "left" | "right";
   onClick?: () => void;
+  hideText?: boolean;
 }
 
 const getButtonClasses = (noBorder: boolean, className: string) => {
@@ -21,11 +22,19 @@ const getButtonClasses = (noBorder: boolean, className: string) => {
   return `${baseClasses} ${borderClasses} ${className}`;
 };
 
-const getIconClasses = (iconPosition: "left" | "right") => {
+const getIconClasses = (iconPosition: "left" | "right", hideText: boolean) => {
+  if (hideText) return "h-4 w-4";
   return `h-4 w-4 ${iconPosition === "left" ? "mr-1" : "ml-1"}`;
 };
 
-export const CopyButton = ({ text, className = "", noBorder = false, iconPosition = "left", onClick }: CopyButtonProps) => {
+export const CopyButton = ({
+  text,
+  className = "",
+  noBorder = false,
+  iconPosition = "left",
+  onClick,
+  hideText = false
+}: CopyButtonProps) => {
   const { t } = useTranslation();
   const clipboard = useClipboard();
   const { showToast } = useToastMessage();
@@ -43,14 +52,14 @@ export const CopyButton = ({ text, className = "", noBorder = false, iconPositio
   };
 
   const buttonClasses = getButtonClasses(noBorder, className);
-  const iconClasses = getIconClasses(iconPosition);
+  const iconClasses = getIconClasses(iconPosition, hideText);
 
   return (
     <button aria-label={t("components.copyButton.ariaLabel")} className={buttonClasses} onClick={handleClick} type="button">
       {iconPosition === "left" && (
         <AnimatedCopyIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
       )}
-      {text}
+      {!hideText && text}
       {iconPosition === "right" && (
         <AnimatedCopyIcon className={iconClasses} onAnimationComplete={handleAnimationComplete} trigger={triggerAnimation} />
       )}

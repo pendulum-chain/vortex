@@ -1,7 +1,6 @@
 import {
-  ERC20_USDC_POLYGON,
-  ERC20_USDC_POLYGON_DECIMALS,
-  EvmToken,
+  ALFREDPAY_ERC20_TOKEN,
+  ALFREDPAY_EVM_TOKEN,
   getNetworkFromDestination,
   Networks,
   OnChainToken,
@@ -34,7 +33,7 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
   }
 
   protected compute(ctx: QuoteContext): SquidRouterComputation {
-    if (ctx.to === Networks.Polygon && ctx.request.outputCurrency === EvmToken.USDC) {
+    if (ctx.to === Networks.Polygon && ctx.request.outputCurrency === ALFREDPAY_EVM_TOKEN) {
       return {
         data: {
           skipRouteCalculation: true
@@ -52,7 +51,7 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
       });
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+    const toTokenDetails = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to);
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const alfredpayMint = ctx.alfredpayMint!;
 
@@ -60,12 +59,12 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
       data: {
         amountRaw: alfredpayMint.outputAmountRaw,
         fromNetwork: Networks.Polygon,
-        fromToken: ERC20_USDC_POLYGON,
+        fromToken: ALFREDPAY_ERC20_TOKEN,
         inputAmountDecimal: alfredpayMint.outputAmountDecimal,
         inputAmountRaw: alfredpayMint.outputAmountRaw,
-        outputDecimals: ERC20_USDC_POLYGON_DECIMALS,
+        outputDecimals: toTokenDetails.decimals,
         toNetwork,
-        toToken
+        toToken: toTokenDetails.erc20AddressSourceChain
       },
       type: "evm-to-evm"
     };

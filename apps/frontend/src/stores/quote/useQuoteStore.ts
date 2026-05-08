@@ -55,6 +55,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.MissingFromField]: "pages.swap.error.missingFromField",
   [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
   [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
+  [QuoteError.AssetHubNotSupportedForAlfredPay]: "pages.swap.error.assetHubNotSupportedForAlfredPay",
 
   // Amount too low - suggest larger amount
   [QuoteError.InputAmountTooLowToCoverFees]: "pages.swap.error.tryLargerAmount",

@@ -66,7 +66,7 @@ createAppKit({
   projectId,
   themeMode: "light",
   themeVariables: {
-    "--w3m-accent": "#162456"
+    "--w3m-accent": "oklch(0.26 0.07 260)"
   }
 });
 

@@ -19,7 +19,7 @@ export const StepItem: React.FC<StepItemProps> = ({ step, index, isLast, onStepC
 
   return (
     <>
-      <div className="relative flex items-center justify-center pb-2" style={{ gridColumn: index + 1, gridRow: 1 }}>
+      <div className="relative flex items-center justify-center" style={{ gridColumn: index + 1, gridRow: 1 }}>
         <StepCircle isClickable={clickable} onClick={handleClick} status={step.status} step={step} />
         {!isLast && nextStepStatus && <StepConnector currentStepStatus={step.status} nextStepStatus={nextStepStatus} />}
       </div>

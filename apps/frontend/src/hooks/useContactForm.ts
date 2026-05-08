@@ -1,26 +1,25 @@
-import { yupResolver } from "@hookform/resolvers/yup";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import * as yup from "yup";
+import { z } from "zod";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const createContactFormSchema = (t: (key: string) => string) =>
-  yup.object({
-    email: yup
+  z.object({
+    email: z
       .string()
-      .required(t("pages.contact.validation.emailRequired"))
-      .matches(EMAIL_REGEX, t("pages.contact.validation.emailFormat")),
-    fullName: yup.string().required(t("pages.contact.validation.fullNameRequired")),
-    inquiry: yup.string().required(t("pages.contact.validation.inquiryRequired")),
-    privacyPolicyAccepted: yup
+      .min(1, t("pages.contact.validation.emailRequired"))
+      .regex(EMAIL_REGEX, t("pages.contact.validation.emailFormat")),
+    fullName: z.string().min(1, t("pages.contact.validation.fullNameRequired")),
+    inquiry: z.string().min(1, t("pages.contact.validation.inquiryRequired")),
+    privacyPolicyAccepted: z
       .boolean()
-      .oneOf([true], t("pages.contact.validation.privacyPolicyRequired"))
-      .required(t("pages.contact.validation.privacyPolicyRequired")),
-    projectName: yup.string().required(t("pages.contact.validation.projectNameRequired"))
+      .refine(val => val === true, { message: t("pages.contact.validation.privacyPolicyRequired") }),
+    projectName: z.string().min(1, t("pages.contact.validation.projectNameRequired"))
   });
 
-export type ContactFormData = yup.InferType<ReturnType<typeof createContactFormSchema>>;
+export type ContactFormData = z.infer<ReturnType<typeof createContactFormSchema>>;
 
 export function useContactForm() {
   const { t } = useTranslation();
@@ -35,7 +34,7 @@ export function useContactForm() {
       projectName: ""
     },
     mode: "onChange",
-    resolver: yupResolver(schema)
+    resolver: standardSchemaResolver(schema)
   });
 
   return { form, schema };

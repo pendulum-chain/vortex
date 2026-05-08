@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { durations, easings } from "../../../constants/animations";
+import { cn } from "../../../helpers/cn";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
 import { AveniaKycActorRef } from "../../../machines/types";
 import { BrlaService } from "../../../services/api";
@@ -156,7 +157,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>,
     fileName?: string
   ) => (
-    <label className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-blue-500">
+    <label
+      className={cn(
+        "relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 ",
+        valid ? "border-success bg-success/10" : "hover:border-primary hover:bg-primary/10"
+      )}
+    >
       <Icon className="mb-2 h-12 w-12 text-gray-400" />
       <span className="mb-1 text-gray-600">{label}</span>
       <span className="text-gray-400 text-sm">{fileName || t("components.documentUpload.helperText")}</span>
@@ -170,7 +176,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
             initial={{ scale: 0 }}
             transition={shouldReduceMotion ? { duration: 0 } : { damping: 15, stiffness: 200, type: "spring" }}
           >
-            <CheckCircleIcon className="h-6 w-6 text-green-500" />
+            <CheckCircleIcon className="h-6 w-6 text-success" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -246,7 +252,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
           {error && (
             <motion.p
               animate={{ opacity: 1 }}
-              className="mt-4 text-center text-red-800"
+              className="mt-4 mb-4 text-center text-red-800"
               exit={{ opacity: 0 }}
               initial={{ opacity: 0 }}
               transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.fast }}

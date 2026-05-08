@@ -89,6 +89,8 @@ Starts a registered onramp process.
 ```typescript
 interface VortexSdkConfig {
   apiBaseUrl: string;
+  publicKey?: string;
+  secretKey?: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   autoReconnect?: boolean;
@@ -98,6 +100,23 @@ interface VortexSdkConfig {
 ```
 
 Only the base Vortex API is required. If the RPC URL's are not provided, default public ones will be used.
+
+### API keys
+
+Two optional keys can be passed to the SDK:
+
+- `publicKey` (`pk_live_*` / `pk_test_*`): attached to quote requests for partner attribution and discount eligibility.
+- `secretKey` (`sk_live_*` / `sk_test_*`): sent as the `X-API-Key` header on every request, authenticating the partner.
+
+Both are optional today. After the grace period, partner-scoped endpoints will reject calls that omit them, so it is recommended to start passing them now.
+
+```typescript
+const sdk = new VortexSdk({
+  apiBaseUrl: "http://localhost:3000",
+  publicKey: "pk_live_...",
+  secretKey: "sk_live_..."
+});
+```
 
 
 ## Development

@@ -81,6 +81,9 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "backupSquidRouterSwap":
     case "backupApprove":
     case "polygonCleanup":
+    case "nablaApproveEvm":
+    case "nablaSwapEvm":
+    case "distributeFeesEvm":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({
@@ -112,6 +115,13 @@ export async function validatePresignedTxs(
 
     const txType = getTransactionTypeForPhase(tx.phase);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
+    if (
+      tx.phase === "squidRouterNoPermitTransfer" ||
+      tx.phase === "squidRouterNoPermitApprove" ||
+      tx.phase === "squidRouterNoPermitSwap"
+    )
+      continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
+    if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
@@ -120,7 +130,7 @@ export async function validatePresignedTxs(
 
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
-
+  logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
   // EIP-712 typed data: full content validation (spender, value, deadline, verifyingContract) requires
   // domain-specific knowledge per integration. Validate signer only here.
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
@@ -187,7 +197,7 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
 
 async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
   const { txData, signer, network } = tx;
-
+  logger.debug(`Validating Substrate transaction with signer: ${signer}, on network: ${network}, for phase: ${tx.phase}`);
   if (!expectedSignerSubstrate && !expectedSignerEvm) {
     throw new APIError({
       message: `Expected signer for Substrate transaction is not provided for phase ${tx.phase}`,

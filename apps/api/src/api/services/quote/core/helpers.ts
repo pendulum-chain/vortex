@@ -23,14 +23,16 @@ export const SUPPORTED_CHAINS: {
       EPaymentMethod.PIX as DestinationType,
       EPaymentMethod.SEPA as DestinationType,
       EPaymentMethod.CBU as DestinationType,
-      EPaymentMethod.ACH as DestinationType
+      EPaymentMethod.ACH as DestinationType,
+      EPaymentMethod.SPEI as DestinationType
     ]
   },
   [RampDirection.BUY]: {
     from: [
       EPaymentMethod.PIX as DestinationType,
       EPaymentMethod.SEPA as DestinationType,
-      EPaymentMethod.ACH as DestinationType
+      EPaymentMethod.ACH as DestinationType,
+      EPaymentMethod.SPEI as DestinationType
     ],
     to: [
       Networks.AssetHub,

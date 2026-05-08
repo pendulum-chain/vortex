@@ -1,4 +1,4 @@
-import { yupResolver } from "@hookform/resolvers/yup";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useEffect, useRef } from "react";
 import { UseFormReturn, useForm } from "react-hook-form";
 import { RampFormValues, useSchema } from "./schema";
@@ -13,7 +13,7 @@ export const useRampForm = (
 
   const form = useForm<RampFormValues>({
     defaultValues,
-    resolver: yupResolver(formSchema)
+    resolver: standardSchemaResolver(formSchema)
   });
 
   const isAddressSet = useRef(false);

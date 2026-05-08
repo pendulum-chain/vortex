@@ -51,7 +51,13 @@ export function deriveFromTo(
  */
 export function getPaymentMethodFromDestinations(from: DestinationType, to: DestinationType): PaymentMethod {
   // Check if 'from' is a payment method
-  const paymentMethods: PaymentMethod[] = [EPaymentMethod.PIX, EPaymentMethod.SEPA, EPaymentMethod.CBU, EPaymentMethod.ACH];
+  const paymentMethods: PaymentMethod[] = [
+    EPaymentMethod.PIX,
+    EPaymentMethod.SEPA,
+    EPaymentMethod.CBU,
+    EPaymentMethod.ACH,
+    EPaymentMethod.SPEI
+  ];
 
   if (paymentMethods.includes(from as PaymentMethod)) {
     return from as PaymentMethod;
@@ -69,7 +75,7 @@ export const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     ARS: EPaymentMethod.CBU,
     BRL: EPaymentMethod.PIX,
-    COP: EPaymentMethod.SPEI,
+    COP: EPaymentMethod.ACH,
     EUR: EPaymentMethod.SEPA,
     MXN: EPaymentMethod.SPEI,
     USD: EPaymentMethod.ACH

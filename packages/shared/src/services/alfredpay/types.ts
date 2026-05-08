@@ -14,7 +14,8 @@ export enum AlfredPayStatus {
   UserCompleted = "USER_COMPLETED",
   Verifying = "VERIFYING",
   Failed = "FAILED",
-  Success = "SUCCESS"
+  Success = "SUCCESS",
+  UpdateRequired = "UPDATE_REQUIRED"
 }
 
 export enum AlfredPayCountry {
@@ -210,10 +211,11 @@ export interface CreateAlfredpayOfframpRequest {
   originAddress: string;
 }
 
-// TODO: Define actual offramp statuses when the offramp flow is implemented
 export enum AlfredpayOfframpStatus {
-  PENDING = "PENDING",
-  COMPLETED = "COMPLETED",
+  ON_CHAIN_DEPOSIT_RECEIVED = "ON_CHAIN_DEPOSIT_RECEIVED",
+  TRADE_COMPLETED = "TRADE_COMPLETED",
+  FIAT_TRANSFER_INITIATED = "FIAT_TRANSFER_INITIATED",
+  FIAT_TRANSFER_COMPLETED = "FIAT_TRANSFER_COMPLETED",
   FAILED = "FAILED"
 }
 
@@ -271,6 +273,12 @@ export interface AlfredpayFiatPaymentInstructions {
   expirationDate?: string;
   bankName?: string;
   accountHolderName?: string;
+  bankAccountNumber?: string;
+  bankRoutingNumber?: string;
+  bankBeneficiaryName?: string;
+  bankBeneficiaryAddress?: string;
+  paymentDescription?: string;
+  externalId?: string;
   //wildcard
   [key: string]: unknown;
 }
@@ -302,34 +310,47 @@ export enum AlfredpayFiatAccountType {
 export interface AlfredpayFiatAccountFields {
   accountNumber: string;
   accountType: string;
-  accountName: string;
-  accountBankCode: string;
-  accountAlias: string;
-  networkIdentifier: string;
+  accountName?: string;
+  routingNumber?: string;
   bankStreet?: string;
   bankCity?: string;
   bankState?: string;
   bankCountry?: string;
   bankPostalCode?: string;
-  routingNumber?: string;
-  isExternal?: boolean;
+  metadata?: {
+    accountHolderName?: string;
+    documentType?: string;
+    documentNumber?: string;
+    bankStreet?: string;
+    bankCity?: string;
+    bankState?: string;
+    bankPostalCode?: string;
+    bankCountry?: string;
+    beneficiaryAddress?: {
+      street?: string;
+      city?: string;
+      country?: string;
+      stateProvince?: string;
+      postalCode?: string;
+    };
+  };
 }
 
 export interface CreateAlfredpayFiatAccountRequest {
   customerId: string;
   type: AlfredpayFiatAccountType;
   fiatAccountFields: AlfredpayFiatAccountFields;
+  isExternal: boolean;
 }
 
 export interface CreateAlfredpayFiatAccountResponse {
   fiatAccountId: string;
 }
 
-export interface AlfredpayFiatAccount {
+export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
   fiatAccountId: string;
   customerId: string;
   type: AlfredpayFiatAccountType;
-  fiatAccountFields: AlfredpayFiatAccountFields;
   createdAt?: string;
 }
 
@@ -338,3 +359,98 @@ export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
 
 export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+
+export class AlfredpayTradeLimitError extends Error {
+  readonly minQuantity: string;
+  readonly fromCurrency: string;
+
+  constructor(minQuantity: string, fromCurrency: string) {
+    super(`Trade below minimum: ${minQuantity} ${fromCurrency}`);
+    this.name = "AlfredpayTradeLimitError";
+    this.minQuantity = minQuantity;
+    this.fromCurrency = fromCurrency;
+  }
+}
+
+// MXN KYC form submission types
+export enum AlfredpayDocumentType {
+  INE = "INE",
+  RESIDENT_CARD = "Resident card",
+  PASSPORT = "passport"
+}
+
+export enum AlfredpayColombiaDocumentType {
+  CC = "CC",
+  CE = "CE"
+}
+
+export interface SubmitKycInformationRequest {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  email?: string;
+  country: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  address: string;
+  dni: string;
+  typeDocument?: string; // MXN
+  typeDocumentCol?: AlfredpayColombiaDocumentType;
+  phoneNumber?: string; // Colombia
+}
+
+export interface SubmitKycInformationResponse {
+  submissionId: string;
+}
+
+export enum AlfredpayKycFileType {
+  FRONT = "National ID Front",
+  BACK = "National ID Back"
+}
+
+// KYB form submission types
+export enum AlfredpayKybFileType {
+  ARTICLES_INCORPORATION = "articlesIncorporation",
+  PROOF_ADDRESS = "proofAddress",
+  SHAREHOLDER_REGISTRY = "shareholderRegistry"
+}
+
+export enum AlfredpayKybRelatedPersonFileType {
+  DOC_FRONT = "docFront",
+  DOC_BACK = "docBack"
+}
+
+export interface AlfredpayKybRelatedPerson {
+  firstName: string;
+  lastName: string;
+  email: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  nationalities: string[];
+  dni?: string;
+  cpf?: string;
+  pep?: boolean;
+}
+
+export interface SubmitKybInformationRequest {
+  businessName: string;
+  taxId: string;
+  country: string;
+  address: string;
+  state: string;
+  city: string;
+  zipCode: string;
+  website?: string;
+  relatedPersons: AlfredpayKybRelatedPerson[];
+}
+
+export interface AlfredpayKybRelatedPersonResponse {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface SubmitKybInformationResponse {
+  submissionId: string;
+  relatedPersons?: AlfredpayKybRelatedPersonResponse[];
+}

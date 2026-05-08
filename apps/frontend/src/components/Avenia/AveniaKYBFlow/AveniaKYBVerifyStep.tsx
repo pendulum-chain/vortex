@@ -1,11 +1,13 @@
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
+import { ArrowTopRightOnSquareIcon, ShieldCheckIcon } from "@heroicons/react/24/solid";
 import { Trans, useTranslation } from "react-i18next";
-import { useQuote } from "../../../stores/quote/useQuoteStore";
+import { cn } from "../../../helpers/cn";
+import { SparkleButton } from "../../SparkleButton";
 import { StepFooter } from "../../StepFooter";
 
 interface AveniaKYBVerifyStepProps {
   titleKey: string;
   imageSrc: string;
+  imageSrcVerified?: string;
   verificationUrl: string;
   isVerificationStarted: boolean;
   onCancel: () => void;
@@ -19,6 +21,7 @@ interface AveniaKYBVerifyStepProps {
 export const AveniaKYBVerifyStep = ({
   titleKey,
   imageSrc,
+  imageSrcVerified,
   verificationUrl,
   isVerificationStarted,
   onCancel,
@@ -35,12 +38,19 @@ export const AveniaKYBVerifyStep = ({
       <div className="flex-1 pb-36">
         <div className="mt-8 mb-4 flex w-full flex-col">
           <div>
-            <h1 className="mt-2 mb-4 text-center font-bold text-2xl text-primary">{t(titleKey)}</h1>
+            <h1
+              className={cn(
+                "mt-2 mb-4 text-center font-bold text-2xl",
+                isVerificationStarted ? "text-success" : "text-primary"
+              )}
+            >
+              {t(titleKey)}
+            </h1>
 
             <img
               alt="Business Check"
               className="mx-auto mt-16 w-[170px] transition-opacity duration-300 motion-reduce:transition-none"
-              src={imageSrc}
+              src={isVerificationStarted && imageSrcVerified ? imageSrcVerified : imageSrc}
             />
 
             {!isVerificationStarted && (
@@ -79,15 +89,17 @@ export const AveniaKYBVerifyStep = ({
       </div>
 
       <StepFooter>
-        <div className="mt-8 flex gap-4">
-          <button className="btn-vortex-primary-inverse btn flex-1" onClick={onCancel}>
+        <div className="mt-8 grid grid-cols-2 gap-4">
+          <button className="btn-vortex-primary-inverse btn" onClick={onCancel}>
             {t(cancelButtonKey)}
           </button>
 
           {isVerificationStarted ? (
-            <button className="btn-vortex-primary btn flex-1" onClick={onVerificationDone}>
-              {t("components.aveniaKYB.buttons.iHaveVerified")}
-            </button>
+            <SparkleButton
+              icon={<ShieldCheckIcon className="h-5 w-5" />}
+              label={t("components.aveniaKYB.buttons.iHaveVerified")}
+              onClick={onVerificationDone}
+            />
           ) : (
             <a
               className="btn-vortex-primary btn flex flex-1 items-center justify-center gap-1"

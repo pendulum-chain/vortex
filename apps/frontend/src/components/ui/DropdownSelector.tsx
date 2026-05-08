@@ -5,6 +5,7 @@ import { cn } from "../../helpers/cn";
 
 interface DropdownSelectorProps {
   label?: string;
+  triggerAriaLabel?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   triggerContent: ReactNode;
@@ -15,6 +16,7 @@ interface DropdownSelectorProps {
 
 export function DropdownSelector({
   label,
+  triggerAriaLabel,
   open,
   onOpenChange,
   triggerContent,
@@ -62,6 +64,7 @@ export function DropdownSelector({
       <button
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-label={triggerAriaLabel}
         className={cn(
           "flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-3 rounded-xl border border-base-300 bg-base-200 px-3 py-2.5 text-left transition-colors active:scale-[0.98]",
           "[@media(hover:hover)]:hover:border-gray-300 [@media(hover:hover)]:hover:bg-neutral"

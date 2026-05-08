@@ -27,6 +27,7 @@ type Story = StoryObj<typeof meta>;
 const sampleQuote: QuoteResponse = {
   anchorFeeFiat: "0.5",
   anchorFeeUsd: "0.5",
+  createdAt: new Date(),
   expiresAt: new Date("2024-12-31T23:59:59Z"),
   feeCurrency: AssetHubToken.USDC,
   from: Networks.Polygon,
@@ -54,6 +55,7 @@ const sampleQuote: QuoteResponse = {
 const cryptoToFiatQuote: QuoteResponse = {
   anchorFeeFiat: "1.2",
   anchorFeeUsd: "1.2",
+  createdAt: new Date(),
   expiresAt: new Date("2024-12-31T23:59:59Z"),
   feeCurrency: AssetHubToken.USDC,
   from: Networks.Ethereum,
@@ -81,6 +83,7 @@ const cryptoToFiatQuote: QuoteResponse = {
 const fiatToCryptoQuote: QuoteResponse = {
   anchorFeeFiat: "2.50",
   anchorFeeUsd: "2.50",
+  createdAt: new Date(),
   expiresAt: new Date("2024-12-31T23:59:59Z"),
   feeCurrency: FiatToken.BRL,
   from: EPaymentMethod.PIX,
@@ -108,6 +111,7 @@ const fiatToCryptoQuote: QuoteResponse = {
 const largeAmountQuote: QuoteResponse = {
   anchorFeeFiat: "15.0",
   anchorFeeUsd: "15.0",
+  createdAt: new Date(),
   expiresAt: new Date("2024-12-31T23:59:59Z"),
   feeCurrency: AssetHubToken.USDC,
   from: Networks.Polygon,

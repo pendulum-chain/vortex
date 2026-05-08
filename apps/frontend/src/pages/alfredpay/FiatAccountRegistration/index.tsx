@@ -62,6 +62,7 @@ export function FiatAccountRegistration({ kycApproved, preselectedCountry }: Fia
       {matchesAccountsList && (
         <RegisteredAccountsList
           accounts={accounts}
+          country={selectedCountry.country}
           isLoading={isLoading}
           kycApproved={kycApproved}
           onAddNew={handleAddNew}

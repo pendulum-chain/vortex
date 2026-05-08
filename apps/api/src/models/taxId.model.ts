@@ -1,4 +1,4 @@
-import { AveniaAccountType } from "@vortexfi/shared";
+import { AveniaAccountType, normalizeTaxId } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -143,6 +143,16 @@ TaxId.init(
     }
   },
   {
+    hooks: {
+      beforeCreate: instance => {
+        instance.taxId = normalizeTaxId(instance.taxId);
+      },
+      beforeUpdate: instance => {
+        if (instance.changed("taxId")) {
+          instance.taxId = normalizeTaxId(instance.taxId);
+        }
+      }
+    },
     indexes: [
       {
         fields: ["sub_account_id"],

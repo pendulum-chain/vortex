@@ -2,6 +2,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
+  isAlfredpayToken,
   isEvmTokenDetails,
   OnChainToken
 } from "@vortexfi/shared";
@@ -9,7 +10,7 @@ import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/
 import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
 import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
 import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
-import { prepareEvmToBRLOfframpTransactions } from "./routes/evm-to-brl";
+import { prepareEvmToBRLOfframpBaseTransactions } from "./routes/evm-to-brl-base";
 import { prepareEvmToMoneriumEvmOfframpTransactions } from "./routes/evm-to-monerium-evm";
 import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
 
@@ -25,15 +26,15 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
   if (quote.outputCurrency === FiatToken.BRL) {
     const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency as OnChainToken);
     if (inputTokenDetails && isEvmTokenDetails(inputTokenDetails)) {
-      return prepareEvmToBRLOfframpTransactions(params);
+      return prepareEvmToBRLOfframpBaseTransactions(params);
     } else {
       return prepareAssethubToBRLOfframpTransactions(params);
     }
   } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
     // Monerium EVM offramp
     return prepareEvmToMoneriumEvmOfframpTransactions(params);
-  } else if (quote.outputCurrency === FiatToken.USD) {
-    // Alfredpay offramp
+  } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    // Alfredpay offramp (USD, MXN, COP)
     return prepareEvmToAlfredpayOfframpTransactions(params);
   } else {
     // Stellar offramp

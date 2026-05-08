@@ -15,7 +15,7 @@ export const DoneScreen = memo(({ kycOrKyb, onContinue }: DoneScreenProps) => {
   return (
     <div className="relative flex grow-1 flex-col items-center">
       <MenuButtons />
-      <img alt="Business Handshake" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentVerified} />
+      <img alt="Document verified" className="mx-auto mt-8 mb-8 h-50 w-1/2 object-contain" src={documentVerified} />
       <p className="font-bold text-green-600 text-lg">{t("components.alfredpayKycFlow.completed", { kycOrKyb })}</p>
       <p className="text-center text-gray-600">{t("components.alfredpayKycFlow.accountVerified")}</p>
       {onContinue && (

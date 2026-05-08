@@ -1,8 +1,10 @@
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
+import { ArrowTopRightOnSquareIcon, ShieldCheckIcon } from "@heroicons/react/20/solid";
 import { motion } from "motion/react";
 import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import livenessCheck from "../../../assets/liveness-check.svg";
+import livenessCheckSuccess from "../../../assets/liveness-check-success.svg";
+import { cn } from "../../../helpers/cn";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
 import { StepFooter } from "../../StepFooter";
 
@@ -48,7 +50,9 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
         transition={{ duration: 0.3 }}
       >
         <div className="text-center">
-          <h1 className="mb-4 font-bold text-3xl text-primary">{t("components.aveniaLiveness.title")}</h1>
+          <h1 className={cn("mb-4 font-bold text-3xl", livenessCheckOpened ? "text-success" : "text-primary")}>
+            {t("components.aveniaLiveness.title")}
+          </h1>
           <motion.p
             animate={{ opacity: 1 }}
             className="text-gray-600 text-sm"
@@ -71,7 +75,11 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
           <span>{t("components.aveniaLiveness.cameraWarning")}</span>
         </div>
 
-        <img alt="Liveness Check" className="mx-auto mb-8 w-1/2 " src={livenessCheck} />
+        <img
+          alt="Liveness Check"
+          className="mx-auto mb-8 w-1/2"
+          src={livenessCheckOpened ? livenessCheckSuccess : livenessCheck}
+        />
 
         {livenessCheckOpened && (
           <div className="mb-4 text-center text-sm">
@@ -93,11 +101,12 @@ export const AveniaLivenessStep: React.FC<AveniaLivenessStepProps> = ({ aveniaSt
           {livenessCheckOpened ? (
             <motion.button
               animate={{ opacity: 1, y: 0 }}
-              className="btn-vortex-primary btn w-full px-8"
+              className="btn btn-success w-full px-8 text-white"
               initial={{ opacity: 0, y: 20 }}
               onClick={handleLivenessDone}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
+              <ShieldCheckIcon className="h-4 w-4" />
               {t("components.aveniaLiveness.livenessDone")}
             </motion.button>
           ) : (

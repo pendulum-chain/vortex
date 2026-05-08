@@ -16,8 +16,10 @@ import {
   isNativeEvmToken,
   multiplyByPowerOfTen,
   Networks,
+  normalizeTaxId,
   UnsignedTx
 } from "@vortexfi/shared";
+import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -46,6 +48,11 @@ export async function prepareAveniaToEvmOnrampTransactions({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
+  // Validate that destinationAddress is a valid EVM address for EVM routes
+  if (!isAddress(destinationAddress)) {
+    throw new Error(`Invalid destination address for EVM route: ${destinationAddress}. Must be a valid EVM address.`);
+  }
+
   // Validate inputs and extract required data
   const { toNetwork, outputTokenDetails, substrateEphemeralEntry, evmEphemeralEntry, inputTokenDetails } = validateAveniaOnramp(
     quote,
@@ -62,7 +69,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
     substrateEphemeralAddress: substrateEphemeralEntry.address,
-    taxId
+    taxId: normalizeTaxId(taxId)
   };
 
   let moonbeamNonce = 0;
@@ -193,6 +200,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   let destinationNonce = 0;
 
   const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
     destinationNetwork: toNetwork as EvmNetworks,

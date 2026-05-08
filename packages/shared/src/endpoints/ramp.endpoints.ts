@@ -16,6 +16,9 @@ export type RampPhase =
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
   | "squidRouterPermitExecute"
+  | "squidRouterNoPermitTransfer"
+  | "squidRouterNoPermitApprove"
+  | "squidRouterNoPermitSwap"
   | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
@@ -23,7 +26,9 @@ export type RampPhase =
   | "fundEphemeral"
   | "destinationTransfer"
   | "nablaApprove"
+  | "nablaApproveEvm"
   | "nablaSwap"
+  | "nablaSwapEvm"
   | "hydrationSwap"
   | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
@@ -35,12 +40,18 @@ export type RampPhase =
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"
+  | "subsidizePreSwapEvm"
   | "subsidizePostSwap"
+  | "subsidizePostSwapEvm"
   | "distributeFees"
+  | "distributeFeesEvm"
   | "alfredpayOnrampMint"
+  | "alfredOnrampMintFallback"
   | "alfredpayOfframpTransfer"
+  | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
-  | "brlaPayoutOnMoonbeam"
+  | "brlaPayoutOnBase"
+  | "baseTransfer"
   | "failed"
   | "timedOut"
   | "finalSettlementSubsidy"
@@ -166,6 +177,7 @@ export interface RegisterRampRequest {
   signingAccounts: AccountMeta[];
   userId?: string;
   additionalData?: {
+    fiatAccountId?: string; // For determine the correct payment method for AlfredPay flows
     walletAddress?: string;
     destinationAddress?: string;
     moneriumWalletAddress?: string;
@@ -194,6 +206,9 @@ export interface UpdateRampRequest {
   additionalData?: {
     squidRouterApproveHash?: string;
     squidRouterSwapHash?: string;
+    squidRouterNoPermitTransferHash?: string;
+    squidRouterNoPermitApproveHash?: string;
+    squidRouterNoPermitSwapHash?: string;
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     moneriumOnrampPermit?: PermitSignature;

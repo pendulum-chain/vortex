@@ -1,14 +1,12 @@
 import {
+  ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
-  AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   CreateAlfredpayOnrampQuoteRequest,
-  CreateAlfredpayOnrampRequest,
-  ERC20_USDC_POLYGON_DECIMALS,
   multiplyByPowerOfTen,
-  Networks,
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -24,7 +22,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    const usdTokenDecimals = ERC20_USDC_POLYGON_DECIMALS;
+    const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     const inputAmountDecimal = new Big(req.inputAmount);
 
     const alfredpayService = AlfredpayApiService.getInstance();
@@ -38,7 +36,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
         customerId: req.userId || "unknown"
       }, // Mints hardcoded to Polygon.
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      toCurrency: AlfredpayOnChainCurrency.USDC // Mints hardcoded to USDC, on Polygon.
+      toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
     const quote = await alfredpayService.createOnrampQuote(quoteRequest);
@@ -56,7 +54,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
       expirationDate: new Date(quote.expiration),
       fee: alfredpayFee,
       inputAmountDecimal: fromAmount,
-      inputAmountRaw: multiplyByPowerOfTen(fromAmount, usdTokenDecimals).toFixed(0, 0),
+      inputAmountRaw: multiplyByPowerOfTen(fromAmount, 2).toFixed(0, 0), // Fiat uses 2 decimals
       outputAmountDecimal: toAmount,
       outputAmountRaw: multiplyByPowerOfTen(toAmount, usdTokenDecimals).toFixed(0, 0),
       quoteId: quote.quoteId

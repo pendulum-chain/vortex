@@ -71,6 +71,7 @@ export interface QuoteResponse {
 
   paymentMethod: PaymentMethod;
   expiresAt: Date;
+  createdAt: Date;
   sessionId?: string;
 }
 
@@ -101,6 +102,9 @@ export enum QuoteError {
 
   // Availability errors
   UnsupportedCurrency = "Currency not supported",
+
+  // Compatibility errors
+  AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",
 
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",

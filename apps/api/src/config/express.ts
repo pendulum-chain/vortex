@@ -31,7 +31,7 @@ app.use(
     origin: [
       "https://app.vortexfinance.co",
       "https://metrics.vortexfinance.co",
-      config.env !== "production" ? "https://staging--pendulum-pay.netlify.app" : null,
+      config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
       config.env === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]

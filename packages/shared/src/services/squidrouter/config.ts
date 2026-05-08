@@ -4,6 +4,7 @@ import { AXL_USDC_MOONBEAM } from "../../tokens/moonbeam/config";
 export const SQUIDROUTER_FEE_OVERPAY = 0.25; // 25% overpayment
 export const MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW = "10000000000000000"; // 0.01 GLMR in raw units
 export const POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW = "10000000000000000"; // 0.01 MATIC in raw units
+export const BASE_SQUIDROUTER_SWAP_MIN_VALUE_RAW = "10000000000000"; // 0.00001 ETH in raw units
 
 interface ConfigBase {
   toChainId: string;

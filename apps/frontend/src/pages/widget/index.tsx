@@ -2,6 +2,7 @@ import { isValidCnpj } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { AlfredpayKycFlow } from "../../components/Alfredpay/AlfredpayKycFlow";
+import { LoadingScreen } from "../../components/Alfredpay/LoadingScreen";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
@@ -26,6 +27,7 @@ import {
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
+import { isInCompoundState } from "../../machines/types";
 import { FiatAccountRegistration } from "../alfredpay/FiatAccountRegistration";
 
 export interface WidgetProps {
@@ -34,19 +36,16 @@ export interface WidgetProps {
 
 export const Widget = ({ className }: WidgetProps) => (
   <FiatAccountMachineContext.Provider>
-    <motion.div
-      animate={{ opacity: 1, scale: 1 }}
+    <div
       className={cn(
         "relative mx-6 mt-8 mb-4 flex min-h-[var(--widget-min-height)] flex-col overflow-hidden rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
         className
       )}
-      initial={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
     >
       <WidgetContent />
       <SettingsMenu />
       <HistoryMenu />
-    </motion.div>
+    </div>
   </FiatAccountMachineContext.Provider>
 );
 
@@ -83,14 +82,16 @@ const WidgetContent = () => {
 
   const isAuthEmail = useSelector(
     rampActor,
-    state =>
-      state.matches("CheckAuth") ||
-      state.matches("EnterEmail") ||
-      state.matches("CheckingEmail") ||
-      state.matches("RequestingOTP")
+    state => state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP")
   );
 
+  const isLoadingAuthEmail = useSelector(rampActor, state => state.matches("CheckAuth"));
+
   const isAuthOTP = useSelector(rampActor, state => state.matches("EnterOTP") || state.matches("VerifyingOTP"));
+
+  if (isLoadingAuthEmail) {
+    return <LoadingScreen />;
+  }
 
   if (isError) {
     return <ErrorStep />;
@@ -122,7 +123,9 @@ const WidgetContent = () => {
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
 
-    if (isCnpj && aveniaState?.context.kybUrls) {
+    const isInKybFlow = isCnpj && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
+
+    if (isInKybFlow) {
       return <AveniaKYBFlow />;
     }
 

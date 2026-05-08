@@ -15,6 +15,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config";
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
@@ -39,6 +40,11 @@ export async function prepareMoneriumToEvmOnrampTransactions({
 }: MoneriumOnrampTransactionParams): Promise<OnrampTransactionsWithMeta> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
+
+  // Validate that destinationAddress is a valid EVM address for EVM routes
+  if (!isAddress(destinationAddress)) {
+    throw new Error(`Invalid destination address for EVM route: ${destinationAddress}. Must be a valid EVM address.`);
+  }
 
   // Validate inputs and extract required data
   const { toNetwork, outputTokenDetails, evmEphemeralEntry } = validateMoneriumOnramp(quote, signingAccounts);

@@ -94,6 +94,12 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress
     };
+  } else if (executionInput.quote.rampType === RampDirection.SELL && isAlfredpayToken(executionInput.fiatToken)) {
+    additionalData = {
+      fiatAccountId: executionInput.selectedFiatAccountId,
+      sessionId: input.externalSessionId,
+      walletAddress: connectedWalletAddress
+    };
   } else {
     additionalData = {
       // moneriumAuthToken is only relevant after enabling Monerium offramps.

@@ -11,7 +11,8 @@ export interface PartnerAttributes {
   markupType: "absolute" | "relative" | "none";
   markupValue: number;
   markupCurrency: RampCurrency;
-  payoutAddress: string;
+  payoutAddressSubstrate: string | null;
+  payoutAddressEvm: string | null;
   rampType: RampDirection;
   vortexFeeType: "absolute" | "relative" | "none";
   vortexFeeValue: number;
@@ -43,7 +44,9 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare markupCurrency: RampCurrency;
 
-  declare payoutAddress: string;
+  declare payoutAddressSubstrate: string | null;
+
+  declare payoutAddressEvm: string | null;
 
   declare rampType: RampDirection;
 
@@ -135,9 +138,14 @@ Partner.init(
       allowNull: false,
       type: DataTypes.STRING(100)
     },
-    payoutAddress: {
+    payoutAddressEvm: {
       allowNull: true,
-      field: "payout_address",
+      field: "payout_address_evm",
+      type: DataTypes.STRING(255)
+    },
+    payoutAddressSubstrate: {
+      allowNull: true,
+      field: "payout_address_substrate",
       type: DataTypes.STRING(255)
     },
     rampType: {

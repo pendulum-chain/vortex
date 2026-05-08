@@ -1,23 +1,39 @@
 /**
  * RouteResolver selects a route strategy based on direction and destination.
  */
-import { AssetHubToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import {
+  AssetHubToken,
+  EPaymentMethod,
+  FiatToken,
+  isAlfredpayToken,
+  Networks,
+  QuoteError,
+  RampDirection
+} from "@vortexfi/shared";
+import httpStatus from "http-status";
+import { APIError } from "../../../errors/api-error";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
+import { OfframpToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { OnrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
-import { OnrampAveniaToEvmStrategy } from "./strategies/onramp-avenia-to-evm.strategy";
+import { OnrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
 import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
+
+const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
     // Onramps
     if (ctx.direction === RampDirection.BUY) {
       if (ctx.to === Networks.AssetHub) {
+        if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
+          throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
+        }
         if (ctx.from === "pix") {
           return new OnrampAveniaToAssethubStrategy();
         } else {
@@ -26,10 +42,10 @@ export class RouteResolver {
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return new OnrampMoneriumToEvmStrategy();
-        } else if (ctx.request.inputCurrency === FiatToken.USD) {
+        } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           return new OnrampAlfredpayToEvmStrategy();
         } else {
-          return new OnrampAveniaToEvmStrategy();
+          return new OnrampAveniaToEvmBaseStrategy();
         }
       }
     }
@@ -38,6 +54,9 @@ export class RouteResolver {
 
     // Explicitly disallow Assethub USDT and DOT
     if (ctx.from === Networks.AssetHub) {
+      if (ALFREDPAY_PAYMENT_METHODS.has(ctx.to)) {
+        throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
+      }
       if (ctx.request.inputCurrency === AssetHubToken.USDT) {
         throw new Error("Offramp from USDT on AssetHub is currently not supported");
       } else if (ctx.request.inputCurrency === AssetHubToken.DOT) {
@@ -47,8 +66,10 @@ export class RouteResolver {
 
     switch (ctx.to) {
       case "pix":
-        return new OfframpToPixStrategy();
+        return ctx.from === Networks.AssetHub ? new OfframpToPixStrategy() : new OfframpToPixEvmStrategy();
+      case "wire":
       case "ach":
+      case "spei":
         return new OfframpEvmToAlfredpayStrategy();
       case "sepa":
       case "cbu":

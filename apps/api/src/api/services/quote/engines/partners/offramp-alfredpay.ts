@@ -1,11 +1,11 @@
 import {
+  ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
-  AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   CreateAlfredpayOfframpQuoteRequest,
-  ERC20_USDC_POLYGON_DECIMALS,
   multiplyByPowerOfTen,
   RampDirection
 } from "@vortexfi/shared";
@@ -26,7 +26,7 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
       throw new Error("OfframpTransactionAlfredpayEngine: No evmToEvm quote");
     }
 
-    const usdTokenDecimals = ERC20_USDC_POLYGON_DECIMALS;
+    const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     const inputAmountDecimal = new Big(ctx.evmToEvm.outputAmountDecimal);
 
     const alfredpayService = AlfredpayApiService.getInstance();
@@ -34,7 +34,7 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
     const quoteRequest: CreateAlfredpayOfframpQuoteRequest = {
       chain: AlfredpayChain.MATIC,
       fromAmount: inputAmountDecimal.toString(),
-      fromCurrency: AlfredpayOnChainCurrency.USDC, // Offramp deposit is USDC
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
       metadata: {
         businessId: "vortex",
         customerId: req.userId || "unknown"
@@ -48,7 +48,10 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
     const fromAmount = new Big(ctx.evmToEvm.outputAmountDecimal);
     const toAmount = new Big(quote.toAmount);
 
-    const alfredpayFee = Big(0);
+    const alfredpayFee = AlfredpayApiService.sumFeesByCurrency(
+      quote.fees,
+      req.outputCurrency as unknown as AlfredpayFiatCurrency
+    );
 
     ctx.alfredpayOfframp = {
       currency: ctx.request.outputCurrency,

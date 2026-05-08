@@ -1,11 +1,16 @@
 import {
+  ALFREDPAY_ERC20_TOKEN,
+  ALFREDPAY_ONCHAIN_CURRENCY,
+  AlfredPayCountry,
   AlfredPayStatus,
+  AlfredpayApiService,
+  AlfredpayChain,
+  AlfredpayFiatCurrency,
   createOfframpSquidrouterTransactionsToEvm,
-  ERC20_USDC_POLYGON,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
-  EvmTransactionData,
+  FiatToken,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
@@ -13,15 +18,24 @@ import {
   isNetworkEVM,
   Networks,
   SignedTypedData,
-  SQUDROUTER_MAIN_CONTRACT_POLYGON,
   TypedDataDomain,
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeAbiParameters, keccak256, PublicClient, pad, parseAbiParameters, toHex } from "viem";
+import {
+  ContractFunctionExecutionError,
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  PublicClient,
+  pad,
+  parseAbiParameters,
+  toHex
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
@@ -118,11 +132,25 @@ const erc20Abi = [
   { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" }
 ];
 
+const transferAbi = [
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" }
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  }
+] as const;
+
 /**
  * Prepares all transactions for an EVM to Alfredpay (USD) offramp.
  * This route handles: EVM → Polygon (USDC) → Alfredpay (Fiat)
  */
 export async function prepareEvmToAlfredpayOfframpTransactions({
+  fiatAccountId,
   quote,
   signingAccounts,
   userAddress,
@@ -160,8 +188,18 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     throw new Error(`Unsupported source network ${fromNetwork} for EVM to Alfredpay type offramp`);
   }
 
+  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
+    [FiatToken.USD]: AlfredPayCountry.US,
+    [FiatToken.MXN]: AlfredPayCountry.MX,
+    [FiatToken.COP]: AlfredPayCountry.CO
+  };
+  const customerCountry = fiatToCountry[quote.outputCurrency as FiatToken];
+  if (!customerCountry) {
+    throw new Error(`Unsupported Alfredpay output currency: ${quote.outputCurrency}`);
+  }
+
   const customer = await AlfredPayCustomer.findOne({
-    where: { userId }
+    where: { country: customerCountry, userId }
   });
 
   if (!customer) {
@@ -172,125 +210,277 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
   }
 
-  const inputAmountRaw = new Big(quote.inputAmount).mul(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0, 0);
+  if (!fiatAccountId) {
+    throw new Error("fiatAccountId is required for Alfredpay offramp");
+  }
 
-  const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
-    destinationAddress: evmEphemeralEntry.address,
-    fromAddress: userAddress,
-    fromNetwork,
-    fromToken: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    rawAmount: inputAmountRaw,
-    toNetwork: Networks.Polygon,
-    toToken: ERC20_USDC_POLYGON
+  const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
+  if (!alfredpayQuoteId) {
+    throw new Error("Missing alfredpayOfframp.quoteId in quote metadata");
+  }
+
+  const alfredpayService = AlfredpayApiService.getInstance();
+  const offrampOrder = await alfredpayService.createOfframp({
+    amount: quote.metadata.alfredpayOfframp.inputAmountDecimal.toString(),
+    chain: AlfredpayChain.MATIC,
+    customerId: customer.alfredPayId,
+    fiatAccountId,
+    fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+    originAddress: evmEphemeralEntry.address,
+    quoteId: alfredpayQuoteId,
+    toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
   });
 
-  const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60); // 24 hours from "now"
+  const inputAmountRaw = new Big(quote.inputAmount).mul(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0, 0);
+  const inputTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain;
+
+  const isDirectPolygonTransfer =
+    fromNetwork === Networks.Polygon && inputTokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
 
   const publicClient = evmClientManager.getClient(fromNetwork);
-
-  const userNonce = (await publicClient.readContract({
-    abi: erc20Abi,
-    address: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    args: [userAddress],
-    functionName: "nonces"
-  })) as bigint;
-
-  const tokenName = (await publicClient.readContract({
-    abi: erc20Abi,
-    address: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    functionName: "name"
-  })) as string;
-
   const chainId = getNetworkId(fromNetwork)!;
-  const resolvedDomain = await resolvePermitDomain(
-    publicClient,
-    (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-    chainId,
-    tokenName
-  );
 
-  const permitTypedData: SignedTypedData = {
-    domain: resolvedDomain,
-    message: {
-      deadline: permitDeadline.toString(),
-      nonce: userNonce.toString(),
-      owner: userAddress,
-      spender: RELAYER_ADDRESS,
-      value: inputAmountRaw.toString()
-    },
-    primaryType: "Permit",
-    types: {
-      Permit: [
-        { name: "owner", type: "address" },
-        { name: "spender", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "nonce", type: "uint256" },
-        { name: "deadline", type: "uint256" }
-      ]
+  // Probe EIP-2612 support: tokens that don't implement nonces() (e.g. USDT on Base) revert here.
+  // Only treat contract-call failures as "no permit"; rethrow network/transport errors.
+  let userNonce: bigint | null = null;
+  try {
+    userNonce = (await publicClient.readContract({
+      abi: erc20Abi,
+      address: inputTokenAddress,
+      args: [userAddress],
+      functionName: "nonces"
+    })) as bigint;
+  } catch (error) {
+    if (error instanceof ContractFunctionExecutionError) {
+      userNonce = null;
+    } else {
+      throw error;
     }
-  };
+  }
+  const supportsPermit = userNonce !== null;
 
-  // Create payload typed data for the relayer
-  const payloadNonce = BigInt(Math.floor(Date.now() / 1000)); // Use timestamp as nonce
-  const payloadDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+  if (supportsPermit && userNonce !== null) {
+    const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60);
 
-  const payloadTypedData: SignedTypedData = {
-    domain: {
-      chainId: getNetworkId(fromNetwork)!,
-      name: "TokenRelayer",
-      verifyingContract: RELAYER_ADDRESS,
-      version: "1"
-    },
-    message: {
-      data: bridgeResult.swapData.data,
-      deadline: payloadDeadline.toString(),
-      destination: bridgeResult.swapData.to,
-      ethValue: bridgeResult.swapData.value,
-      nonce: payloadNonce.toString(),
-      owner: userAddress,
-      token: (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain,
-      value: inputAmountRaw.toString()
-    },
-    primaryType: "Payload",
-    types: {
-      Payload: [
-        { name: "destination", type: "address" },
-        { name: "owner", type: "address" },
-        { name: "token", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "data", type: "bytes" },
-        { name: "ethValue", type: "uint256" },
-        { name: "nonce", type: "uint256" },
-        { name: "deadline", type: "uint256" }
-      ]
+    const tokenName = (await publicClient.readContract({
+      abi: erc20Abi,
+      address: inputTokenAddress,
+      functionName: "name"
+    })) as string;
+
+    const resolvedDomain = await resolvePermitDomain(publicClient, inputTokenAddress, chainId, tokenName);
+
+    if (isDirectPolygonTransfer) {
+      // Source is already Polygon USDT — user permits the executor to transferFrom directly.
+      // The executor has gas; the ephemeral is not yet funded at the squidRouterPermitExecute phase.
+      const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const permitTypedData: SignedTypedData = {
+        domain: resolvedDomain,
+        message: {
+          deadline: permitDeadline.toString(),
+          nonce: userNonce.toString(),
+          owner: userAddress,
+          spender: executorAccount.address,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      unsignedTxs.push({
+        meta: {},
+        network: fromNetwork,
+        nonce: 0,
+        phase: "squidRouterPermitExecute",
+        signer: userAddress,
+        txData: [permitTypedData]
+      });
+
+      stateMeta = {
+        ...stateMeta,
+        alfredpayTransactionId: offrampOrder.transactionId,
+        alfredpayUserId: customer.alfredPayId,
+        evmEphemeralAddress: evmEphemeralEntry.address,
+        fiatAccountId,
+        isDirectTransfer: true,
+        walletAddress: userAddress
+      };
+    } else {
+      const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
+        destinationAddress: evmEphemeralEntry.address,
+        fromAddress: userAddress,
+        fromNetwork,
+        fromToken: inputTokenAddress,
+        rawAmount: inputAmountRaw,
+        toNetwork: Networks.Polygon,
+        toToken: ALFREDPAY_ERC20_TOKEN
+      });
+
+      const permitTypedData: SignedTypedData = {
+        domain: resolvedDomain,
+        message: {
+          deadline: permitDeadline.toString(),
+          nonce: userNonce.toString(),
+          owner: userAddress,
+          spender: RELAYER_ADDRESS,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      const payloadNonce = BigInt(Math.floor(Date.now() / 1000));
+      const payloadDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
+      const payloadTypedData: SignedTypedData = {
+        domain: {
+          chainId: getNetworkId(fromNetwork)!,
+          name: "TokenRelayer",
+          verifyingContract: RELAYER_ADDRESS,
+          version: "1"
+        },
+        message: {
+          data: bridgeResult.swapData.data,
+          deadline: payloadDeadline.toString(),
+          destination: bridgeResult.swapData.to,
+          ethValue: bridgeResult.swapData.value,
+          nonce: payloadNonce.toString(),
+          owner: userAddress,
+          token: inputTokenAddress,
+          value: inputAmountRaw.toString()
+        },
+        primaryType: "Payload",
+        types: {
+          Payload: [
+            { name: "destination", type: "address" },
+            { name: "owner", type: "address" },
+            { name: "token", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "data", type: "bytes" },
+            { name: "ethValue", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      };
+
+      unsignedTxs.push({
+        meta: {},
+        network: fromNetwork,
+        nonce: 0,
+        phase: "squidRouterPermitExecute",
+        signer: userAddress,
+        txData: [permitTypedData, payloadTypedData]
+      });
+
+      stateMeta = {
+        ...stateMeta,
+        alfredpayTransactionId: offrampOrder.transactionId,
+        alfredpayUserId: customer.alfredPayId,
+        evmEphemeralAddress: evmEphemeralEntry.address,
+        fiatAccountId,
+        squidRouterPermitExecutionValue: bridgeResult.swapData.value,
+        walletAddress: userAddress
+      };
     }
-  };
+  } else if (isDirectPolygonTransfer) {
+    // No permit available, but user already holds USDT on Polygon: user signs a single
+    // transfer(ephemeral, amount) in their wallet. Funds land directly on the ephemeral.
+    const transferData = encodeFunctionData({
+      abi: transferAbi,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
 
-  // Bundle both signatures into a single transaction
-  const typedDataArray: SignedTypedData[] = [permitTypedData, payloadTypedData];
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterNoPermitTransfer",
+      signer: userAddress,
+      txData: {
+        data: transferData,
+        gas: "0",
+        to: inputTokenAddress,
+        value: "0"
+      }
+    });
 
-  unsignedTxs.push({
-    meta: {},
-    network: fromNetwork,
-    nonce: 0,
-    phase: "squidRouterPermitExecute",
-    signer: userAddress,
-    txData: typedDataArray
-  });
+    stateMeta = {
+      ...stateMeta,
+      alfredpayTransactionId: offrampOrder.transactionId,
+      alfredpayUserId: customer.alfredPayId,
+      evmEphemeralAddress: evmEphemeralEntry.address,
+      fiatAccountId,
+      isDirectTransfer: true,
+      isNoPermitFallback: true,
+      walletAddress: userAddress
+    };
+  } else {
+    // Cross-chain fallback: user submits the standard squidRouter approve + swap pair from
+    // their own wallet, bypassing the relayer (which would require permit). Squid lands the
+    // bridged USDC on the EVM ephemeral on Polygon, identical to the permit-based flow.
+    const bridgeResult = await createOfframpSquidrouterTransactionsToEvm({
+      destinationAddress: evmEphemeralEntry.address,
+      fromAddress: userAddress,
+      fromNetwork,
+      fromToken: inputTokenAddress,
+      rawAmount: inputAmountRaw,
+      toNetwork: Networks.Polygon,
+      toToken: ALFREDPAY_ERC20_TOKEN
+    });
 
-  stateMeta = {
-    ...stateMeta,
-    alfredpayUserId: customer.alfredPayId,
-    evmEphemeralAddress: evmEphemeralEntry.address,
-    squidRouterPermitExecutionValue: bridgeResult.swapData.value,
-    walletAddress: userAddress
-  };
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterNoPermitApprove",
+      signer: userAddress,
+      txData: bridgeResult.approveData
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 1,
+      phase: "squidRouterNoPermitSwap",
+      signer: userAddress,
+      txData: bridgeResult.swapData
+    });
+
+    stateMeta = {
+      ...stateMeta,
+      alfredpayTransactionId: offrampOrder.transactionId,
+      alfredpayUserId: customer.alfredPayId,
+      evmEphemeralAddress: evmEphemeralEntry.address,
+      fiatAccountId,
+      isNoPermitFallback: true,
+      squidRouterPermitExecutionValue: bridgeResult.swapData.value,
+      walletAddress: userAddress
+    };
+  }
 
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
     amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
     destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877", // TODO placeholder
-    toToken: ERC20_USDC_POLYGON
+    toAddress: offrampOrder.depositAddress as `0x${string}`,
+    toToken: ALFREDPAY_ERC20_TOKEN
   });
 
   unsignedTxs.push({
@@ -300,6 +490,22 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     phase: "alfredpayOfframpTransfer",
     signer: evmEphemeralEntry.address,
     txData: finalTransferTxData
+  });
+
+  const fallbackTransferTxData = await addOnrampDestinationChainTransactions({
+    amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
+    destinationNetwork: Networks.Polygon as EvmNetworks,
+    toAddress: userAddress,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  });
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: 0, // Also use nonce 0 to ensure transaction is available immediately
+    phase: "alfredpayOfframpTransferFallback",
+    signer: evmEphemeralEntry.address,
+    txData: fallbackTransferTxData
   });
 
   return { stateMeta, unsignedTxs };

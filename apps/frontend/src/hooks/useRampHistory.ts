@@ -30,15 +30,16 @@ export function useRampHistory(walletAddress?: string) {
 
   return useQuery({
     enabled: addresses.length > 0,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const allTransactions: Transaction[] = [];
 
       for (const address of addresses) {
         try {
-          const response = await RampService.getRampHistory(address, 100);
+          const response = await RampService.getRampHistory(address, 100, undefined, signal);
           const transactions = response.transactions.map(formatTransaction);
           allTransactions.push(...transactions);
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") throw error;
           console.warn(`Failed to fetch wallet history for ${address}:`, error);
         }
       }

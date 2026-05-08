@@ -137,7 +137,12 @@ export class RampService {
    * @param offset The offset for pagination
    * @returns The transaction history
    */
-  static async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+  static async getRampHistory(
+    walletAddress: string,
+    limit?: number,
+    offset?: number,
+    signal?: AbortSignal
+  ): Promise<GetRampHistoryResponse> {
     const queryParams = new URLSearchParams();
     if (limit) queryParams.append("limit", limit.toString());
     if (offset) queryParams.append("offset", offset.toString());
@@ -145,6 +150,6 @@ export class RampService {
     const queryString = queryParams.toString();
     const url = `${this.BASE_PATH}/history/${walletAddress}${queryString ? `?${queryString}` : ""}`;
 
-    return apiRequest<GetRampHistoryResponse>("get", url);
+    return apiRequest<GetRampHistoryResponse>("get", url, undefined, { signal });
   }
 }

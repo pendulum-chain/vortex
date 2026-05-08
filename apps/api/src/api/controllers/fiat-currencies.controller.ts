@@ -19,7 +19,7 @@ export const getSupportedFiatCurrenciesHandler = async (
 ): Promise<void> => {
   try {
     res.status(httpStatus.OK).json({
-      currencies: SUPPORTED_FIAT_CURRENCIES
+      currencies: SUPPORTED_FIAT_CURRENCIES.filter(c => c.enabled)
     });
   } catch (error) {
     next(error);

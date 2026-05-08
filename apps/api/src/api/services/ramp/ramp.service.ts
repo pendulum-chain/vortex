@@ -1,11 +1,11 @@
 import { decodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
+  ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
-  AlfredpayOnChainCurrency,
   AlfredpayPaymentMethodType,
   AveniaPaymentMethod,
   BrlaApiService,
@@ -19,8 +19,11 @@ import {
   GetRampStatusResponse,
   generateReferenceLabel,
   IbanPaymentData,
+  isAlfredpayToken,
+  Limit,
   MoneriumErrors,
   Networks,
+  normalizeTaxId,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -53,6 +56,7 @@ import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../ser
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
+import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
@@ -62,6 +66,42 @@ import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
+
+// Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
+function partitionUnsignedTxs(
+  unsignedTxs: UnsignedTx[],
+  ephemerals: { evm?: string; substrate?: string; stellar?: string }
+): { ephemeralTxs: UnsignedTx[]; userWalletTxs: UnsignedTx[] } {
+  const ephemeralSigners = new Set(
+    [ephemerals.evm, ephemerals.substrate, ephemerals.stellar].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
+  );
+
+  const ephemeralTxs: UnsignedTx[] = [];
+  const userWalletTxs: UnsignedTx[] = [];
+  for (const tx of unsignedTxs) {
+    if (ephemeralSigners.has(tx.signer.toLowerCase())) {
+      ephemeralTxs.push(tx);
+    } else {
+      userWalletTxs.push(tx);
+    }
+  }
+  return { ephemeralTxs, userWalletTxs };
+}
+
+// For offramp, user-wallet txs are only released once all ephemeral presigned txs are received
+// and validated. This prevents older SDK versions from kicking off the user's source-of-funds
+// transfer when the backend has added new ephemeral txs that the SDK does not know how to sign.
+function filterUnsignedTxsForResponse(rampState: RampState, ephemeralPresignChecksPass: boolean): UnsignedTx[] {
+  if (rampState.type !== RampDirection.SELL) return rampState.unsignedTxs;
+  if (ephemeralPresignChecksPass) return rampState.unsignedTxs;
+
+  const { ephemeralTxs } = partitionUnsignedTxs(rampState.unsignedTxs, {
+    evm: rampState.state.evmEphemeralAddress,
+    stellar: rampState.state.stellarEphemeralAccountId,
+    substrate: rampState.state.substrateEphemeralAddress
+  });
+  return ephemeralTxs;
+}
 
 /**
  * Validates the address format for a given ephemeral account type.
@@ -213,10 +253,9 @@ export class RampService extends BaseRampService {
       const response: RegisterRampResponse = {
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
-        depositQrCode: rampState.state.depositQrCode,
+        // depositQrCode and ibanPaymentData  are released by updateRamp once all presigned transactions validate.
         expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
-        ibanPaymentData: rampState.state.ibanPaymentData,
         id: rampState.id,
         inputAmount: quote.inputAmount,
         inputCurrency: quote.inputCurrency,
@@ -228,7 +267,7 @@ export class RampService extends BaseRampService {
         status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
-        unsignedTxs: rampState.unsignedTxs,
+        unsignedTxs: filterUnsignedTxsForResponse(rampState, false),
         updatedAt: rampState.updatedAt.toISOString(),
         walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
@@ -314,14 +353,16 @@ export class RampService extends BaseRampService {
         { transaction }
       );
 
+      const presignChecksPass = await this.tryReleaseDepositQr(rampState, quote, transaction);
+      const ephemeralPresignChecksPass = presignChecksPass || (await this.ephemeralPresignChecksPass(rampState));
+
       let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
-      if (quote.inputCurrency === FiatToken.USD) {
+      if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
       }
 
-      if (quote.outputCurrency === FiatToken.USD) {
-        // TODO mocking. Currently failing in sandbox.
-        //await this.processAlfredpayOfframpStart(rampState, quote, transaction);
+      if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
       }
 
       // Create response
@@ -329,10 +370,10 @@ export class RampService extends BaseRampService {
         achPaymentData,
         createdAt: rampState.createdAt.toISOString(),
         currentPhase: rampState.currentPhase,
-        depositQrCode: rampState.state.depositQrCode,
+        depositQrCode: presignChecksPass ? rampState.state.depositQrCode : undefined,
         expiresAt: new Date(rampState.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
         from: rampState.from,
-        ibanPaymentData: rampState.state.ibanPaymentData,
+        ibanPaymentData: presignChecksPass ? rampState.state.ibanPaymentData : undefined,
         id: rampState.id,
         inputAmount: quote.inputAmount,
         inputCurrency: quote.inputCurrency,
@@ -344,7 +385,8 @@ export class RampService extends BaseRampService {
         status: this.mapPhaseToStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
-        unsignedTxs: rampState.unsignedTxs, // Use current time since we just updated
+        unsignedTxs: filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass),
+        // Use current time since we just updated
         updatedAt: new Date().toISOString(),
         walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress
       };
@@ -530,15 +572,16 @@ export class RampService extends BaseRampService {
     }
 
     const response: GetRampStatusResponse = {
+      achPaymentData: rampState.state.fiatPaymentInstructions,
       anchorFeeFiat: fiatFees.anchor,
       anchorFeeUsd: usdFees.anchor,
       countryCode: quote.countryCode || undefined,
       createdAt: rampState.createdAt.toISOString(),
       currentPhase,
-      depositQrCode: rampState.state.depositQrCode,
+      depositQrCode: rampState.state.presignChecksPass ? rampState.state.depositQrCode : undefined,
       feeCurrency: fiatFees.currency,
       from: rampState.from,
-      ibanPaymentData: rampState.state.ibanPaymentData,
+      ibanPaymentData: rampState.state.presignChecksPass ? rampState.state.ibanPaymentData : undefined,
       id: rampState.id,
       inputAmount: quote.inputAmount,
       inputCurrency: quote.inputCurrency,
@@ -698,6 +741,90 @@ export class RampService extends BaseRampService {
   }
 
   /**
+   * Sum the BRL-equivalent volume of all in-progress ramps for a given taxId and direction.
+   */
+  private async getPendingBrlVolume(taxId: string, direction: RampDirection): Promise<Big> {
+    const normalizedTaxId = normalizeTaxId(taxId);
+
+    const pendingRamps = await RampState.findAll({
+      include: [{ as: "quote", model: QuoteTicket }],
+      where: {
+        currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut", "initial"] },
+        "state.taxId": normalizedTaxId,
+        type: direction
+      }
+    });
+
+    let totalPendingBrl = new Big(0);
+    for (const ramp of pendingRamps) {
+      const quote = (ramp as RampState & { quote: QuoteTicket }).quote;
+      if (!quote) continue;
+
+      const brlAmount = direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount;
+      totalPendingBrl = totalPendingBrl.plus(brlAmount);
+    }
+
+    return totalPendingBrl;
+  }
+
+  /**
+   * Validate the ramp amount against both per-currency (BRL) and global (*) limits,
+   * accounting for pending ramp volume that hasn't settled on Avenia yet.
+   */
+  private async validateAveniaLimits(
+    amountBrl: string,
+    limits: Limit[],
+    direction: RampDirection,
+    taxId: string
+  ): Promise<void> {
+    const pendingBrl = await this.getPendingBrlVolume(taxId, direction);
+    const effectiveAmountBrl = new Big(amountBrl).plus(pendingBrl);
+
+    const brlLimits = limits.find(limit => limit.currency === BrlaCurrency.BRL);
+    if (!brlLimits) {
+      throw new APIError({
+        message: "BRL limits not found.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const brlRemaining =
+      direction === RampDirection.BUY
+        ? Number(brlLimits.maxFiatIn) - Number(brlLimits.usedLimit.usedFiatIn)
+        : Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
+
+    if (effectiveAmountBrl.gt(brlRemaining)) {
+      throw new APIError({
+        message: "Amount exceeds BRL limit.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const globalLimits = limits.find(limit => limit.currency === "*");
+    if (globalLimits) {
+      const priceFeedService = PriceFeedService.getInstance();
+      const effectiveAmountUsd = await priceFeedService.convertCurrency(
+        effectiveAmountBrl.toFixed(2),
+        FiatToken.BRL,
+        FiatToken.USD,
+        2
+      );
+
+      const globalRemaining =
+        direction === RampDirection.BUY
+          ? Number(globalLimits.maxFiatIn) - Number(globalLimits.usedLimit.usedFiatIn)
+          : Number(globalLimits.maxFiatOut) - Number(globalLimits.usedLimit.usedFiatOut);
+
+      if (Number(effectiveAmountUsd) > globalRemaining) {
+        throw new APIError({
+          message: "Amount exceeds global limit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+  }
+
+  /**
    * BRLA. Get subaccount and validate pix and tax id.
    */
   public async validateBrlaOfframpRequest(
@@ -708,7 +835,7 @@ export class RampService extends BaseRampService {
   ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found",
@@ -725,36 +852,51 @@ export class RampService extends BaseRampService {
     }
 
     // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
+    // The user-facing error stays generic, but server-side logs differentiate failure modes for diagnosis.
+    let pixKeyData;
     try {
-      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
-      //validate the recipient's taxId with partial information
-      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
-        throw new APIError({
-          message: "Invalid pixKey or receiverTaxId.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    } catch (_error) {
+      pixKeyData = await brlaApiService.validatePixKey(pixKey);
+    } catch (error) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix-info lookup failed for pixKey=${pixKey}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
       throw new APIError({
         message: "Invalid pixKey or receiverTaxId.",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    const brlLimits = subaccountLimits.limitInfo.limits.find(limit => limit.currency === BrlaCurrency.BRL);
-    if (!brlLimits) {
+    let masksMatch: boolean;
+    try {
+      // Do NOT pass the masked taxId through normalizeTaxId: that helper strips all
+      // non-digits, which would also strip the `*` mask characters and break the
+      // length-aligned comparison done by validateMaskedNumber.
+      masksMatch = validateMaskedNumber(pixKeyData.taxId, normalizeTaxId(receiverTaxId));
+    } catch (error) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix key owner taxId is not comparable to receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(
+          receiverTaxId
+        )}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw new APIError({
-        message: "BRL limits not found.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    if (Number(amount) > Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut)) {
-      throw new APIError({
-        message: "Amount exceeds limit.",
+        message: "Invalid pixKey or receiverTaxId.",
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    if (!masksMatch) {
+      logger.warn(
+        `validateBrlaOfframpRequest: pix key owner taxId does not match receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}`
+      );
+      throw new APIError({
+        message: "Invalid pixKey or receiverTaxId.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    await this.validateAveniaLimits(amount, subaccountLimits.limitInfo.limits, RampDirection.SELL, taxId);
 
     const evmAddress = subAccountData?.wallets.find(w => w.chain === "EVM")?.walletAddress;
 
@@ -779,7 +921,7 @@ export class RampService extends BaseRampService {
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
+    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
     if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found.",
@@ -788,22 +930,14 @@ export class RampService extends BaseRampService {
     }
 
     const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
-    // Filter for BRL specific limits
-    const brlaLimits = accountLimits?.limitInfo.limits.filter(entry => entry.currency === BrlaCurrency.BRL);
-    if (!brlaLimits || brlaLimits.length === 0) {
+    if (!accountLimits) {
       throw new APIError({
-        message: "BRL limits not found.",
-        status: httpStatus.BAD_REQUEST
+        message: "Failed to fetch subaccount limits.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
-    const { maxFiatIn, usedLimit } = brlaLimits[0] || {};
 
-    if (Number(amount) > Number(maxFiatIn) - Number(usedLimit.usedFiatIn)) {
-      throw new APIError({
-        message: "Amount exceeds KYC limits.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    await this.validateAveniaLimits(amount, accountLimits.limitInfo.limits, RampDirection.BUY, taxId);
 
     const aveniaQuote = await brlaApiService.createPayInQuote({
       inputAmount: String(amount),
@@ -870,6 +1004,7 @@ export class RampService extends BaseRampService {
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      fiatAccountId: additionalData?.fiatAccountId as string | undefined,
       quote,
       signingAccounts: normalizedSigningAccounts,
       stellarPaymentData: additionalData?.paymentData,
@@ -896,7 +1031,7 @@ export class RampService extends BaseRampService {
     const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
     if (!evmEphemeralEntry) {
       throw new APIError({
-        message: "Moonbeam ephemeral not found",
+        message: "Base ephemeral not found",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -1064,7 +1199,7 @@ export class RampService extends BaseRampService {
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-      } else if (quote.inputCurrency === FiatToken.USD) {
+      } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       }
       return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
@@ -1082,8 +1217,52 @@ export class RampService extends BaseRampService {
     return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
   }
 
+  private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      EVM: rampState.state.evmEphemeralAddress,
+      Stellar: rampState.state.stellarEphemeralAccountId,
+      Substrate: rampState.state.substrateEphemeralAddress
+    };
+
+    try {
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
+      return this.validateAllPresignedTransactionsSigned(rampState);
+    } catch {
+      return false;
+    }
+  }
+
+  private async tryReleaseDepositQr(rampState: RampState, quote: QuoteTicket, transaction: Transaction): Promise<boolean> {
+    if (rampState.state.presignChecksPass) return true;
+
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      EVM: rampState.state.evmEphemeralAddress,
+      Stellar: rampState.state.stellarEphemeralAccountId,
+      Substrate: rampState.state.substrateEphemeralAddress
+    };
+
+    try {
+      this.validateRampStateData(rampState, quote);
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
+      if (!this.validateAllPresignedTransactionsSigned(rampState)) return false;
+    } catch {
+      return false;
+    }
+
+    await rampState.update(
+      {
+        state: {
+          ...rampState.state,
+          presignChecksPass: true
+        }
+      },
+      { transaction }
+    );
+    return true;
+  }
+
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && quote.outputCurrency !== FiatToken.USD) {
+    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
@@ -1203,10 +1382,10 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency: AlfredpayFiatCurrency.USD,
+      fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       quoteId: alfredpayQuoteId,
-      toCurrency: AlfredpayOnChainCurrency.USDC
+      toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
     const order = await alfredpayService.createOnramp(orderRequest);
@@ -1274,7 +1453,7 @@ export class RampService extends BaseRampService {
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
       originAddress: rampState.state.walletAddress,
       quoteId: alfredpayQuoteId,
       toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency

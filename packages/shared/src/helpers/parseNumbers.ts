@@ -128,9 +128,10 @@ export function roundDownToSignificantDecimals(number: Big.BigSource, decimals: 
     return big;
   }
 
-  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
+  return big.prec(Math.max(1, big.e + 1 + decimals), 0);
 }
 
-export function roundDownToTwoDecimals(big: Big): string {
+export function roundDownToTwoDecimals(source: Big.BigSource): string {
+  const big = new Big(source);
   return roundDownToSignificantDecimals(big, 2).toFixed(2, 0);
 }

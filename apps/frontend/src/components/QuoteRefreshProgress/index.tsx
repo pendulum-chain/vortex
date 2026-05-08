@@ -49,7 +49,7 @@ export function QuoteRefreshProgress() {
               cy={radius}
               fill="transparent"
               r={normalizedRadius}
-              stroke="#e5e7eb"
+              stroke="var(--color-progress-track)"
               strokeWidth={strokeWidth}
             />
             <motion.circle
@@ -59,7 +59,7 @@ export function QuoteRefreshProgress() {
               fill="transparent"
               initial={{ strokeDashoffset: circumference }}
               r={normalizedRadius}
-              stroke="#3b82f6"
+              stroke="var(--color-progress-fill)"
               strokeDasharray={strokeDasharray}
               strokeLinecap="round"
               strokeWidth={strokeWidth}

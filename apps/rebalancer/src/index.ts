@@ -2,6 +2,7 @@ import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
 import { getSwapPoolsWithCoverageRatio } from "./services/indexer";
+import { phaseOrder, RebalancePhase, StateManager } from "./services/stateManager.ts";
 import { getConfig, getPendulumAccount } from "./utils/config.ts";
 
 const args = process.argv.slice(2);
@@ -40,12 +41,20 @@ async function checkForRebalancing() {
   // Proceed with rebalancing
   await cryptoWaitReady();
   const pendulumAccount = getPendulumAccount();
-  const rebalancerAccountBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
-  if (config.rebalancingUsdToBrlMinBalance && rebalancerAccountBalance.lt(config.rebalancingUsdToBrlMinBalance)) {
-    throw new Error(
-      `Rebalancer account balance ${rebalancerAccountBalance} is below the minimum required balance of ${config.rebalancingUsdToBrlMinBalance} to perform rebalancing.`
-    );
+
+  const stateManager = new StateManager();
+  const state = await stateManager.getState();
+  const isResuming = !forceRestart && state && state.currentPhase !== RebalancePhase.Idle;
+
+  if (!isResuming) {
+    const rebalancerAccountBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
+    if (config.rebalancingUsdToBrlMinBalance && rebalancerAccountBalance.lt(config.rebalancingUsdToBrlMinBalance)) {
+      throw new Error(
+        `Rebalancer account balance ${rebalancerAccountBalance} is below the minimum required balance of ${config.rebalancingUsdToBrlMinBalance} to perform rebalancing.`
+      );
+    }
   }
+
   await rebalanceBrlaToUsdcAxl(amountAxlUsdc, forceRestart);
 }
 

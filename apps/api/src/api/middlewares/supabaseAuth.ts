@@ -6,6 +6,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      userEmail?: string;
     }
   }
 }
@@ -33,6 +34,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.userId = result.user_id;
+    req.userEmail = result.email;
     next();
   } catch (error) {
     logger.error("Auth middleware error:", error);

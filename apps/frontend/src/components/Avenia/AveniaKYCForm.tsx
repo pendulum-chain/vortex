@@ -2,20 +2,63 @@ import { isValidCnpj } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../contexts/rampState";
 import { useKYCForm } from "../../hooks/brla/useKYCForm";
-import { QuoteSummary } from "../QuoteSummary";
-import { StepBackButton } from "../StepBackButton";
+import { AveniaKycActorRef, SelectedAveniaData } from "../../machines/types";
+import { MenuButtons } from "../MenuButtons";
 import { AveniaLivenessStep } from "../widget-steps/AveniaLivenessStep";
 import { AveniaFieldProps, ExtendedAveniaFieldOptions } from "./AveniaField";
 import { AveniaVerificationForm } from "./AveniaVerificationForm";
 import { DocumentUpload } from "./DocumentUpload";
 import { VerificationStatus } from "./VerificationStatus";
 
+interface AveniaKYCContentProps {
+  aveniaKycActor: AveniaKycActorRef;
+  aveniaState: SelectedAveniaData;
+  fields: AveniaFieldProps[];
+}
+
+const AveniaKYCFormStep = ({ aveniaKycActor, aveniaState, fields }: AveniaKYCContentProps) => {
+  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState.context.kycFormData });
+  return (
+    <AveniaVerificationForm
+      fields={fields}
+      form={kycForm}
+      isCompany={false}
+      onSubmit={data => {
+        aveniaKycActor.send({ formData: data, type: "FORM_SUBMIT" });
+      }}
+    />
+  );
+};
+
+const AveniaKYCContent = ({ aveniaKycActor, aveniaState, fields }: AveniaKYCContentProps) => {
+  const { stateValue } = aveniaState;
+
+  if (
+    stateValue === "Verifying" ||
+    stateValue === "Submit" ||
+    stateValue === "Success" ||
+    stateValue === "Rejected" ||
+    stateValue === "Failure"
+  ) {
+    return <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
+  }
+
+  if (stateValue === "DocumentUpload") {
+    return <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId ?? ""} />;
+  }
+
+  if (stateValue === "LivenessCheck" || stateValue === "RefreshingLivenessUrl") {
+    return <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
+  }
+
+  return <AveniaKYCFormStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} fields={fields} />;
+};
+
 export const AveniaKYCForm = () => {
   const aveniaKycActor = useAveniaKycActor();
   const aveniaState = useAveniaKycSelector();
 
   const { t } = useTranslation();
-  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState?.context.kycFormData });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
@@ -23,7 +66,7 @@ export const AveniaKYCForm = () => {
     return null;
   }
 
-  const pixformFields: AveniaFieldProps[] = [
+  const fields: AveniaFieldProps[] = [
     {
       id: ExtendedAveniaFieldOptions.FULL_NAME,
       index: 0,
@@ -99,7 +142,7 @@ export const AveniaKYCForm = () => {
   ];
 
   if (isValidCnpj(aveniaState.context.taxId)) {
-    pixformFields.push({
+    fields.push({
       id: ExtendedAveniaFieldOptions.COMPANY_NAME,
       index: 10,
       label: t("components.brlaExtendedForm.form.companyName"),
@@ -107,14 +150,14 @@ export const AveniaKYCForm = () => {
       required: true,
       type: "text"
     });
-    pixformFields.push({
+    fields.push({
       id: ExtendedAveniaFieldOptions.START_DATE,
       index: 11,
       label: t("components.brlaExtendedForm.form.startDate"),
       required: true,
       type: "date"
     });
-    pixformFields.push({
+    fields.push({
       id: ExtendedAveniaFieldOptions.PARTNER_CPF,
       index: 12,
       label: t("components.brlaExtendedForm.form.partnerCpf"),
@@ -123,36 +166,10 @@ export const AveniaKYCForm = () => {
     });
   }
 
-  let content;
-  if (
-    aveniaState.stateValue === "Verifying" ||
-    aveniaState.stateValue === "Submit" ||
-    aveniaState.stateValue === "Success" ||
-    aveniaState.stateValue === "Rejected" ||
-    aveniaState.stateValue === "Failure"
-  ) {
-    content = <VerificationStatus aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
-  } else if (aveniaState.stateValue === "DocumentUpload") {
-    content = <DocumentUpload aveniaKycActor={aveniaKycActor} taxId={aveniaState.context.taxId} />;
-  } else if (aveniaState.stateValue === "LivenessCheck" || aveniaState.stateValue === "RefreshingLivenessUrl") {
-    content = <AveniaLivenessStep aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} />;
-  } else {
-    content = (
-      <AveniaVerificationForm aveniaKycActor={aveniaKycActor} fields={pixformFields} form={kycForm} isCompany={false} />
-    );
-  }
-
   return (
     <div className="relative flex min-h-(--widget-min-height) grow flex-col">
-      <div className="flex flex-1 flex-col">
-        <div className="relative">
-          <div className="mb-4">
-            <StepBackButton />
-          </div>
-          {content}
-        </div>
-      </div>
-      <QuoteSummary />
+      <MenuButtons />
+      <AveniaKYCContent aveniaKycActor={aveniaKycActor} aveniaState={aveniaState} fields={fields} />
     </div>
   );
 };

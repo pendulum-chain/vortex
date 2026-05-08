@@ -8,10 +8,11 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
-import { polygon } from "viem/chains";
+import { base, polygon } from "viem/chains";
 import { config } from "../../../../config";
 import logger from "../../../../config/logger";
 import {
+  BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
@@ -53,10 +54,24 @@ export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string
   return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
-export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
+export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonbeamNode: API): Promise<boolean> {
   //@ts-ignore
-  const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
+  const { data: balance } = await moonbeamNode.api.query.system.account(moonbeamEphemeralAddress);
   return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
+}
+
+export async function isBaseEphemeralFunded(baseEphemeralAddress: string): Promise<boolean> {
+  const evmClientManager = EvmClientManager.getInstance();
+  const baseClient = evmClientManager.getClient(VortexNetworks.Base);
+
+  const balance = await baseClient.getBalance({
+    address: baseEphemeralAddress as `0x${string}`
+  });
+  const fundingAmountRaw = new Big(
+    multiplyByPowerOfTen(BASE_EPHEMERAL_STARTING_BALANCE_UNITS, base.nativeCurrency.decimals).toFixed()
+  );
+
+  return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
 export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
@@ -73,6 +88,23 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
+// Native-token funding amounts sent to the destination EVM ephemeral so it can pay
+// gas for the final destination transfer. Threshold MUST match what is sent in
+// `fundDestinationEvmEphemeralAccount`; otherwise the post-funding balance poll
+// will spuriously succeed (or fail) and downstream phases may run with a
+// short-funded ephemeral.
+export const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [VortexNetworks.Ethereum]: "0.00016",
+  [VortexNetworks.Arbitrum]: "0.000045",
+  [VortexNetworks.Base]: "0.000034",
+  [VortexNetworks.Polygon]: "0.6",
+  [VortexNetworks.BSC]: "0.000115",
+  [VortexNetworks.Avalanche]: "0.0034",
+  [VortexNetworks.Moonbeam]: "0.34",
+  [VortexNetworks.PolygonAmoy]: "0.2",
+  [VortexNetworks.BaseSepolia]: "0.000034"
+};
+
 export async function isDestinationEvmEphemeralFunded(
   evmEphemeralAddress: string,
   destinationNetwork: EvmNetworks
@@ -80,17 +112,16 @@ export async function isDestinationEvmEphemeralFunded(
   const evmClientManager = EvmClientManager.getInstance();
   const destinationClient = evmClientManager.getClient(destinationNetwork);
   const chain = destinationClient.chain;
-
   if (!chain) {
-    return false;
+    throw new Error(`isDestinationEvmEphemeralFunded: Could not get chain info for ${destinationNetwork}`);
   }
 
   const balance = await destinationClient.getBalance({
     address: evmEphemeralAddress as `0x${string}`
   });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, chain.nativeCurrency.decimals).toFixed()
-  );
+
+  const fundingAmountUnits = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
+  const fundingAmountRaw = new Big(multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed());
 
   return Big(balance.toString()).gte(fundingAmountRaw);
 }

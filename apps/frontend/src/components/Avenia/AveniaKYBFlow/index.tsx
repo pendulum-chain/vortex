@@ -1,4 +1,5 @@
 import { useAveniaKycSelector } from "../../../contexts/rampState";
+import { MenuButtons } from "../../MenuButtons";
 import { AveniaKYBVerificationStatus } from "./AveniaKYBVerificationStatus";
 import { AveniaKYBVerifyCompany } from "./AveniaKYBVerifyCompany";
 import { AveniaKYBVerifyCompanyRepresentative } from "./AveniaKYBVerifyCompanyRepresentative";
@@ -8,13 +9,19 @@ export const AveniaKYBFlow = () => {
 
   if (!aveniaState) return null;
 
-  if (aveniaState.context.kybStep === "company") {
-    return <AveniaKYBVerifyCompany />;
-  } else if (aveniaState.context.kybStep === "representative") {
-    return <AveniaKYBVerifyCompanyRepresentative />;
+  let content;
+  if (aveniaState.context.kybStep === "representative") {
+    content = <AveniaKYBVerifyCompanyRepresentative />;
   } else if (aveniaState.context.kybStep === "verification") {
-    return <AveniaKYBVerificationStatus />;
+    content = <AveniaKYBVerificationStatus />;
+  } else {
+    content = <AveniaKYBVerifyCompany />;
   }
 
-  return <AveniaKYBVerifyCompany />;
+  return (
+    <div className="relative">
+      <MenuButtons />
+      {content}
+    </div>
+  );
 };
