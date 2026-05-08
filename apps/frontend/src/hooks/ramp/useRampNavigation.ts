@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect } from "react";
+import { ReactNode, useCallback, useLayoutEffect } from "react";
 import { useIsQuoteComponentDisplayed } from "./useIsQuoteComponentDisplayed";
 import { useRampComponentState } from "./useRampComponentState";
 
@@ -32,9 +32,10 @@ export const useRampNavigation = (
     isQuoteDisplayed
   );
 
-  useEffect(() => {
-    console.log("activeScreen", activeScreen);
-    window.scrollTo({ behavior: "instant", top: 0 });
+  useLayoutEffect(() => {
+    if (activeScreen === "progress" || activeScreen === "success" || activeScreen === "failure") {
+      window.scrollTo({ behavior: "instant", top: 0 });
+    }
   }, [activeScreen]);
 
   const getCurrentComponent = useCallback(() => {
