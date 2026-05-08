@@ -4,6 +4,7 @@ import {
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
+  ERC20_USDC_POLYGON,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,

@@ -15,8 +15,11 @@ import { NetworkError, Transaction } from "stellar-sdk";
 import { type Hex, parseTransaction } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { BASE_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
-import { POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
+import {
+  BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+} from "../../../../constants/constants";
 
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

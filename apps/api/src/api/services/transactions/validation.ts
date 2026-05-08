@@ -75,7 +75,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "alfredpayOnrampMint":
     case "alfredpayOfframpTransfer":
     case "brlaOnrampMint":
-    case "brlaPayoutOnMoonbeam":
+    case "brlaPayoutOnBase":
     case "finalSettlementSubsidy":
     case "backupSquidRouterApprove":
     case "backupSquidRouterSwap":

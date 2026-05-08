@@ -15,8 +15,8 @@ import {
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config";
 import logger from "../../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";

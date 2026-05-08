@@ -4,6 +4,7 @@ import {
   getAddressForFormat,
   RampPhase,
   submitXTokens,
+  waitUntilTrue,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";

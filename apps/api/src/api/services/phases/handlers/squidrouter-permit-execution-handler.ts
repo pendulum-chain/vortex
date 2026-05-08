@@ -76,7 +76,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
   }
 
   private getExecutorClients(fromNetwork: EvmNetworks) {
-    const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const executorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     return {
       publicClient: this.evmClientManager.getClient(fromNetwork),
       walletClient: this.evmClientManager.getWalletClient(fromNetwork, executorAccount)

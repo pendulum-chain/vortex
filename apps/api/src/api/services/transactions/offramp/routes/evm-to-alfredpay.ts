@@ -33,7 +33,7 @@ import {
   toHex
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
+import { config } from "../../../../../config";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
@@ -273,7 +273,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     if (isDirectPolygonTransfer) {
       // Source is already Polygon USDT — user permits the executor to transferFrom directly.
       // The executor has gas; the ephemeral is not yet funded at the squidRouterPermitExecute phase.
-      const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const executorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
       const permitTypedData: SignedTypedData = {
         domain: resolvedDomain,
         message: {
