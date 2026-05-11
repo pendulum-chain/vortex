@@ -41,7 +41,8 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
   [Networks.Arbitrum]: { decimals: 18, symbol: "ETH" },
   [Networks.Base]: { decimals: 18, symbol: "ETH" },
   [Networks.Avalanche]: { decimals: 18, symbol: "AVAX" },
-  [Networks.Moonbeam]: { decimals: 18, symbol: "GLMR" }
+  [Networks.Moonbeam]: { decimals: 18, symbol: "GLMR" },
+  [Networks.BaseSepolia]: { decimals: 18, symbol: "ETH" }
 };
 
 /**

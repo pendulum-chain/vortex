@@ -4,6 +4,7 @@ import {
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   createMoonbeamToPendulumXCM,
   createNablaTransactionsForOnramp,
+  createNablaTransactionsForOnrampOnEVM,
   EvmClientManager,
   EvmNetworks,
   EvmTransactionData,
@@ -15,6 +16,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem/utils";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -205,7 +207,7 @@ export async function addOnrampDestinationChainTransactions(params: {
     const txData: EvmTransactionData = {
       data: "0x" as `0x${string}`,
       gas: "21000", // Standard gas limit for native transfers
-      maxFeePerGas: String(maxFeePerGas),
+      maxFeePerGas: String(maxFeePerGas * 3n),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
       to: toAddress as `0x${string}`,
       value: amountRaw
@@ -224,13 +226,80 @@ export async function addOnrampDestinationChainTransactions(params: {
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
     gas: "100000",
-    maxFeePerGas: String(maxFeePerGas),
+    maxFeePerGas: String(maxFeePerGas * 3n),
     maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
     to: toToken,
     value: "0"
   };
 
   return txData;
+}
+
+/**
+ * Creates Nabla swap transactions for Base
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce and state metadata
+ */
+export async function addNablaSwapTransactionsOnBase(
+  params: {
+    quote: QuoteTicketAttributes;
+    account: AccountMeta;
+    inputTokenAddress: `0x${string}`;
+    outputTokenAddress: `0x${string}`;
+  },
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number
+): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
+  const { quote, account, inputTokenAddress, outputTokenAddress } = params;
+
+  if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw) {
+    throw new Error("Missing nablaSwapEvm input amount in quote metadata");
+  }
+
+  // The input amount for the swap was already calculated in the quote.
+  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
+  const outputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
+
+  const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+
+  const { approve, swap } = await createNablaTransactionsForOnrampOnEVM(
+    inputAmountForNablaSwapRaw,
+    account,
+    inputTokenAddress,
+    outputTokenAddress,
+    nablaHardMinimumOutputRaw,
+    config.swap.deadlineMinutes
+  );
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: nextNonce,
+    phase: "nablaApproveEvm",
+    signer: account.address,
+    txData: approve
+  });
+  nextNonce++;
+
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: nextNonce,
+    phase: "nablaSwapEvm",
+    signer: account.address,
+    txData: swap
+  });
+  nextNonce++;
+
+  return {
+    nextNonce,
+    stateMeta: {
+      nablaSoftMinimumOutputRaw
+    }
+  };
 }
 
 /**

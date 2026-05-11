@@ -16,14 +16,15 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
   protected async computeOutput(ctx: QuoteContext): Promise<FinalizeComputation> {
     const offrampAmount =
       ctx.request.to === "pix"
-        ? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal
+        ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
         : ctx.alfredpayOfframp
           ? ctx.alfredpayOfframp.outputAmountDecimal
           : ctx.pendulumToStellar?.outputAmountDecimal;
 
     if (!offrampAmount) {
       throw new APIError({
-        message: "OffRampFinalizeEngine requires pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
+        message:
+          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }

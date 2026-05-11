@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "vortex-monorepo",
@@ -260,7 +259,7 @@
     },
     "packages/sdk": {
       "name": "@vortexfi/sdk",
-      "version": "0.5.1",
+      "version": "0.6.0",
       "dependencies": {
         "@vortexfi/shared": "workspace:*",
       },
@@ -276,7 +275,7 @@
     },
     "packages/shared": {
       "name": "@vortexfi/shared",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@paraspell/sdk-pjs": "^11.8.5",
         "@pendulum-chain/api-solang": "catalog:",

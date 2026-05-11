@@ -4,7 +4,7 @@ import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter
 import { QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
-export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
+export class OffRampFromEvmInitializeEngineMoonbeam extends BaseInitializeEngine {
   readonly config = {
     direction: RampDirection.SELL,
     skipNote: "OffRampFromEvmInitializeEngine: Skipped because rampType is BUY, this engine handles SELL operations only"

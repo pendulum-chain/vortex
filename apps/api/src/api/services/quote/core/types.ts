@@ -4,6 +4,7 @@
 import {
   CreateQuoteRequest,
   DestinationType,
+  EvmToken,
   PendulumCurrencyId,
   QuoteFeeStructure,
   QuoteResponse,
@@ -17,6 +18,7 @@ import { Big } from "big.js";
 export enum StageKey {
   Initialize = "Initialize",
   NablaSwap = "NablaSwap",
+  MergeSubsidy = "MergeSubsidy",
   PendulumTransfer = "PendulumTransfer",
   HydrationSwap = "HydrationSwap",
   SquidRouter = "SquidRouter",
@@ -126,6 +128,21 @@ export interface QuoteContext {
     outputToken: string; // ERC20 wrapper address
     effectiveExchangeRate?: string;
     outputCurrency: RampCurrency;
+    oraclePrice?: Big;
+  };
+
+  nablaSwapEvm?: {
+    inputAmountForSwapDecimal: string;
+    inputAmountForSwapRaw: string;
+    inputCurrency: EvmToken;
+    inputToken: string; // ERC20 address
+    inputDecimals: number;
+    outputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputCurrency: EvmToken;
+    outputDecimals: number;
+    outputToken: string; // ERC20 address
+    effectiveExchangeRate?: string;
     oraclePrice?: Big;
   };
 

@@ -6,6 +6,7 @@ import {
   FiatToken,
   getAnyFiatTokenDetailsMoonbeam,
   multiplyByPowerOfTen,
+  Networks,
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -90,7 +91,9 @@ export class OnRampInitializeAveniaEngine extends BaseInitializeEngine {
     };
 
     const xcmFees = buildXcmMeta();
-    await assignMoonbeamToPendulumXcm(ctx, xcmFees, mintedBrlaDecimal, mintedBrlaRaw);
+    if (ctx.to === Networks.AssetHub) {
+      await assignMoonbeamToPendulumXcm(ctx, xcmFees, mintedBrlaDecimal, mintedBrlaRaw);
+    }
 
     ctx.addNote?.(`Assuming ${mintedBrlaDecimal.toFixed()} BRLA minted on ephemeral account`);
   }
