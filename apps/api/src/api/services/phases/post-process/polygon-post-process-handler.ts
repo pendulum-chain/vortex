@@ -1,11 +1,10 @@
 import { CleanupPhase, EvmClientManager, EvmNetworks, Networks, RampDirection } from "@vortexfi/shared";
 import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
 import RampState from "../../../../models/rampState.model";
+import { getEvmFundingAccount } from "../evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 export class PolygonPostProcessHandler extends BasePostProcessHandler {
@@ -65,7 +64,7 @@ export class PolygonPostProcessHandler extends BasePostProcessHandler {
         return [false, this.createErrorObject(`Approve tx ${txHash} failed`)];
       }
 
-      const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const fundingAccount = getEvmFundingAccount(polygonNetwork);
       const walletClient = evmClientManager.getWalletClient(polygonNetwork, fundingAccount);
 
       const transferFromHash = await walletClient.writeContract({

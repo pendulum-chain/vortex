@@ -93,6 +93,9 @@ interface Config {
   sandboxEnabled: boolean;
   rampWidgetUrl: string;
   backendTestStarterAccount: string | undefined;
+  defaults: {
+    vortexEvmPayoutAddress: string | undefined;
+  };
 }
 
 export const config: Config = {
@@ -107,6 +110,9 @@ export const config: Config = {
     password: process.env.DB_PASSWORD || "postgres",
     port: parseInt(process.env.DB_PORT || "5432", 10),
     username: process.env.DB_USERNAME || "postgres"
+  },
+  defaults: {
+    vortexEvmPayoutAddress: process.env.DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS
   },
   env: process.env.NODE_ENV || "production",
 
@@ -189,7 +195,7 @@ export const config: Config = {
 
 // Derived values — aliases kept for semantic clarity in consuming code
 export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
-export const MOONBEAM_FUNDING_PRIVATE_KEY = config.secrets.moonbeamExecutorPrivateKey;
+export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
 if (config.env === "production") {
   if (config.sandboxEnabled) {

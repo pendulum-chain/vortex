@@ -13,9 +13,7 @@ import {
 } from "@vortexfi/shared";
 import { NetworkError, Transaction } from "stellar-sdk";
 import { type Hex, parseTransaction } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
@@ -27,6 +25,7 @@ import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { getEvmFundingAccount } from "../evm-funding";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { StateMetadata } from "../meta-state-types";
 import {
@@ -335,7 +334,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       const fundingAmountRaw = (baseFundingRaw + swapValueRaw).toString();
 
       // We use Moonbeam's funding account to fund the ephemeral account on the network.
-      const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
 
       const txHash = await walletClient.sendTransaction({
@@ -386,7 +385,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       const fundingAmountUnits = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
       const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed();
 
-      const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+      const fundingAccount = getEvmFundingAccount(destinationNetwork);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
 
       const txHash = await walletClient.sendTransaction({

@@ -13,10 +13,10 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config";
 import logger from "../../../../../config/logger";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -210,11 +210,13 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   });
   destinationNonce++;
 
-  const maxUint256 = 2n ** 256n - 1n;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(Networks.Base);
+
+  // Bound approval to the bridged amount + 5% slippage cushion (replaces unbounded maxUint256).
+  const backupApproveAmountRaw = new Big(inputAmountRawFinalBridge).mul("1.05").toFixed(0, 0);
 
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
-    amountRaw: maxUint256.toString(),
+    amountRaw: backupApproveAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     spenderAddress: fundingAccount.address,
     tokenAddress: bridgedTokenForFallback

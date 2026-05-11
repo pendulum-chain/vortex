@@ -22,14 +22,14 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
-import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../config/vars";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { getEvmFundingAccount } from "../evm-funding";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -63,7 +63,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
     const evmClientManager = EvmClientManager.getInstance();
-    const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+    const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {

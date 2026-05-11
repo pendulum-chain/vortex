@@ -20,9 +20,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -100,7 +99,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   };
 
   let polygonAccountNonce = 0; // Starts fresh
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(Networks.Polygon);
 
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {

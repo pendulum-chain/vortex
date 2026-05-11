@@ -16,9 +16,8 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { priceFeedService } from "../../../priceFeed.service";
 import { encodeEvmTransactionData } from "../../index";
@@ -72,7 +71,7 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   };
 
   const moneriumMintNetwork = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(moneriumMintNetwork);
 
   let polygonAccountNonce = 0;
 

@@ -14,9 +14,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
@@ -108,7 +107,7 @@ export async function prepareMoneriumToAssethubOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(moneriumMintNetwork);
   const polygonCleanupApproval = await preparePolygonCleanupApproval(
     ERC20_EURE_POLYGON_V1,
     fundingAccount.address,
