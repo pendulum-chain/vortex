@@ -6,7 +6,7 @@
 2. New mechanisms touching multiple modules (no-permit fallback, deposit-QR gating, presigned-tx partitioning, EVM fee distribution, EVM subsidization).
 3. Open audit findings introduced or surfaced by these changes — to be addressed in the next audit pass.
 
-> Existing finding IDs (F-001 through F-067) are preserved. New findings introduced in this delta are numbered **F-NEW-01** through **F-NEW-07**.
+> Existing finding IDs (F-001 through F-067) are preserved. New findings introduced in this delta are numbered **F-NEW-01** through **F-NEW-11** (with **F-NEW-06** split into **06a** and **06b**).
 
 ---
 
@@ -168,23 +168,33 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ---
 
-### F-NEW-06 — `Partner.payout_address_evm` NULL handling unverified (MEDIUM)
+### F-NEW-06a — `Partner.payout_address_evm` NULL on vortex row throws (LOW, operational)
 
-**Location:** Migration 026 (`apps/api/src/database/migrations/026-add-payout-address-evm-to-partners.ts`); `apps/api/src/api/services/transactions/common/feeDistribution.ts`.
+**Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:232-241`.
 
-**Issue:** Migration 026 adds `payout_address_evm` as nullable with **no backfill**. For partners created before 026 (or any partner with NULL `payout_address_evm`), the column is empty when `distributeFeesEvm` runs.
+**Issue:** When the active `vortex` partner row has `payout_address_evm = NULL`, `distributeFeesEvm` throws `Error("Vortex partner is missing payout_address_evm...")` and the phase fails. There is no env-var fallback (e.g., `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`) despite team intent to fall back to a default Vortex address.
 
-**Per team intent:** Should fall back to a default Vortex address to prevent fund loss.
+**Risk:** No fund loss (phase aborts before any transfer). Operational risk only — a misconfigured or pre-026 vortex row blocks all EVM fee distribution.
 
-**Current state:** Unverified. Code path for NULL needs to be traced — if the current code throws or sends to `0x0`, fees may be lost or the phase fails for all pre-026 partners.
+**Suggested fix:**
+1. Define `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` env var.
+2. In `feeDistribution.ts`, coalesce `vortexPartner.payoutAddressEvm ?? DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`.
+3. Log a warning when the fallback is used so reconciliation can flag the misconfigured row.
 
-**User decision:** **Falls back to default Vortex address (intended).**
+---
 
-**Suggested fix (if not already implemented):**
-1. Define a `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` config constant.
-2. In `feeDistribution.ts`, when reading `partner.payout_address_evm`, coalesce NULL to the default.
-3. Add a unit test for partner with NULL `payout_address_evm`.
-4. Optional: emit a warning log when the fallback is used so reconciliation can identify partners missing config.
+### F-NEW-06b — Partner `payout_address_evm` NULL silently drops markup fees (MEDIUM)
+
+**Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:245-253, 273`.
+
+**Issue:** When the quote's partner has `payout_address_evm = NULL`, the code falls through silently: `partnerPayoutAddressEvm` stays `null`, `hasPartnerFees` becomes `false`, and the partner markup fee is never distributed. Vortex still gets paid; the partner does not. No error is surfaced to the partner or in logs at WARN/ERROR level.
+
+**Risk:** Silent fee loss for the partner on every BRL-on-Base ramp where the partner row is missing EVM payout config. Partners onboarded before migration 026 (or any new partner who forgot the EVM column) lose markup with no operational signal.
+
+**Suggested fix:**
+1. At minimum: emit a WARN log when `partnerMarkupFeeUSD > 0` but `partnerPayoutAddressEvm === null`, identifying the partner ID.
+2. Preferred: fail quote creation in `quote/engines/squidrouter/index.ts` (or upstream) if the requested ramp is BRL-on-Base and the partner has `payout_address_evm = NULL`.
+3. Add a unit test for partner with NULL `payout_address_evm` exercising both the WARN path and the quote-time failure.
 
 ---
 
@@ -245,14 +255,19 @@ These pre-existing findings remain open and are unchanged by the BRL migration:
 
 ## 6. Suggested Next Audit Pass
 
-Priority order for the next audit/dev cycle, based on severity × likelihood:
+Priority order for the next audit/dev cycle, based on severity × likelihood. Resolution status reflects fixes landed during the 2026-05 remediation pass.
 
-1. **F-NEW-02** (HIGH if cap matters in practice) — Add EVM subsidy USD cap. Mirror F-001 fix.
-2. **F-NEW-01** (HIGH) — Replace hardcoded `validateBRLOfframp` amount.
-3. **F-NEW-06** (MEDIUM) — Verify and harden `payout_address_evm` NULL fallback.
-4. **F-NEW-04** (MEDIUM) — Harden no-permit fallback receipt validation.
-5. **F-NEW-11** (MEDIUM) — Re-evaluate F-029 severity with Base in scope.
-6. **F-NEW-07** (LOW, mostly hygiene) — Rename `MOONBEAM_FUNDING_PRIVATE_KEY` → `EVM_FUNDING_PRIVATE_KEY` with proper getter abstraction.
-7. **F-NEW-03** (LOW) — Tighten `backupApprove` allowance from `maxUint256` to a calculated bound.
-8. **F-NEW-08, F-NEW-09, F-NEW-10** — Investigate edge cases and add invariant checks.
-9. **F-NEW-05** — Defer until custody solution is designed (per team decision).
+| # | Finding | Status |
+|---|---|---|
+| 1 | **F-NEW-02** (HIGH if cap matters in practice) — Add EVM subsidy USD cap. Mirror F-001 fix. | RESOLVED — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION="0.05"` enforced in pre/post-swap EVM handlers. |
+| 2 | **F-NEW-01** (HIGH) — Replace hardcoded `validateBRLOfframp` amount. | RESOLVED — `validateBRLOfframpMetadata(quote)` reads `quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw`. Dead `evm-to-brl.ts` route deleted. |
+| 3 | **F-NEW-06b** (MEDIUM) — Surface or fail-fast on partner `payout_address_evm` NULL (silent markup loss). | RESOLVED — quote-time rejection (`APIError 400`) when partner has markup AND `payout_address_evm` NULL on EVM-payout routes; runtime WARN if it slips through. |
+| 4 | **F-NEW-04** (MEDIUM) — Harden no-permit fallback receipt validation. | RESOLVED — `waitForUserHash` now verifies receipt `to` and tx `input` against the presigned `EvmTransactionData`. |
+| 5 | **F-NEW-11** (MEDIUM) — Re-evaluate F-029 severity with Base in scope. | RESOLVED — `fund-routing.md` and `secret-management.md` updated to reflect Base blast radius (BRLA payouts, EVM fee distribution, ephemeral subsidization across all EVM chains). |
+| 6 | **F-NEW-06a** (LOW) — Add `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` env-var fallback. | RESOLVED — `config.defaults.vortexEvmPayoutAddress` falls back when `vortexPartner.payoutAddressEvm` is NULL. |
+| 7 | **F-NEW-07** (LOW, mostly hygiene) — Rename `MOONBEAM_FUNDING_PRIVATE_KEY` → `EVM_FUNDING_PRIVATE_KEY` with proper getter abstraction. | RESOLVED — new `EVM_FUNDING_PRIVATE_KEY` env (back-compat fallback to `MOONBEAM_EXECUTOR_PRIVATE_KEY`); all 13 call sites migrated to `getEvmFundingAccount(network)` helper at `apps/api/src/api/services/phases/evm-funding.ts`. |
+| 8 | **F-NEW-03** (LOW) — Tighten `backupApprove` allowance from `maxUint256` to a calculated bound. | RESOLVED — `avenia-to-evm-base.ts` `backupApprove` now uses `inputAmountRawFinalBridge × 1.05`. |
+| 9 | **F-NEW-08** — Investigate skip-Squid passthrough divergence. | NO BUG — same-chain same-token passthrough has no Squid fee; `networkFeeUSD="0"` and 1:1 rate are correct. |
+| 10 | **F-NEW-09** — Investigate BRLA payout recovery branches. | NO BUG — once `payOutTicketId` exists, BRLA acknowledged the EVM payout; on-chain receipt is no longer authoritative. |
+| 11 | **F-NEW-10** — Avenia anchor-fee assumption in three-amount model. | RESOLVED — `evm-to-brl-base.ts` asserts `brlaTransferAmountRaw ≥ quote.outputAmount * 10^brlaDecimals`. |
+| 12 | **F-NEW-05** — Defer until custody solution is designed (per team decision). | DEFERRED — accepted risk; no EVM cleanup transactions implemented. |

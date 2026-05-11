@@ -15,7 +15,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | `FUNDING_SECRET` | Stellar funding account keypair | Drain of Stellar funding pool — affects all Stellar off-ramps |
 | `PENDULUM_FUNDING_SEED` | Pendulum funding account seed | Drain of Pendulum funding pool — affects all subsidization |
 | `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Calls `executeXCM` on Moonbeam receiver contract | Unauthorized XCM execution on Moonbeam — could route funds incorrectly |
-| `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers on Moonbeam | Drain of Moonbeam funding pool |
+| `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
 | `CLIENT_DOMAIN_SECRET` | SEP-10 domain signing for Stellar anchors | Impersonation of Vortex in Stellar anchor authentication |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
