@@ -49,6 +49,10 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
+    if (!quote.metadata.aveniaMint) {
+      throw new Error("Missing 'aveniaMint' in quote metadata");
+    }
+
     if (!quote.metadata.aveniaTransfer) {
       throw new Error("Missing 'aveniaTransfer' in quote metadata");
     }
@@ -82,11 +86,11 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     const brlaApiService = BrlaApiService.getInstance();
     try {
       logger.info(
-        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRL`
+        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
       );
       await waitUntilTrueWithTimeout(
         async () => {
-          if (!quote.metadata.aveniaTransfer) {
+          if (!quote.metadata.aveniaMint) {
             return false;
           }
 
@@ -95,7 +99,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
-          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaTransfer.outputAmountDecimal).toFixed(2, 0));
+          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
         PAYMENT_TIMEOUT_MS
@@ -117,7 +121,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     // Transfer the funds from the subaccount to the ephemeral address
     const aveniaQuote = await brlaApiService.createPayInQuote({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: Big(quote.metadata.aveniaTransfer.outputAmountDecimal).toFixed(2, 0),
+      inputAmount: Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0),
       inputCurrency: BrlaCurrency.BRLA,
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
@@ -141,7 +145,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     );
 
     logger.info(
-      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaMint.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
