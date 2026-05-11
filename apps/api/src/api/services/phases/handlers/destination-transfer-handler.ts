@@ -29,7 +29,7 @@ function validateDestinationTransferRecipient(rawTx: `0x${string}`, expectedDest
   if (isNativeTransfer) {
     if (decoded.to.toLowerCase() !== expectedDestination.toLowerCase()) {
       throw new Error(
-        `DestinationTransferHandler: Native transfer recipient mismatch. ` +
+        "DestinationTransferHandler: Native transfer recipient mismatch. " +
           `Expected ${expectedDestination}, got ${decoded.to}`
       );
     }
@@ -48,7 +48,7 @@ function validateDestinationTransferRecipient(rawTx: `0x${string}`, expectedDest
   const [recipient] = args as [string, bigint];
   if (recipient.toLowerCase() !== expectedDestination.toLowerCase()) {
     throw new Error(
-      `DestinationTransferHandler: ERC-20 transfer recipient mismatch. ` + `Expected ${expectedDestination}, got ${recipient}`
+      "DestinationTransferHandler: ERC-20 transfer recipient mismatch. " + `Expected ${expectedDestination}, got ${recipient}`
     );
   }
 }

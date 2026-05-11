@@ -132,7 +132,6 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   stateMeta = { ...stateMeta, ...nablaStateMeta };
   baseNonce = nonceAfterNabla;
 
-  // Output after swap + discount and subsidy
   const brlaTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
   if (!brlaTransferAmountRaw) {
     throw new Error("Missing outputAmountRaw in nablaSwapEvm metadata");
