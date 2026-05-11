@@ -563,7 +563,11 @@ export class AlfredpayController {
       const alfredpayService = AlfredpayApiService.getInstance();
       const details = await alfredpayService.getKybBusinessDetails(alfredPayCustomer.alfredPayId);
 
-      res.json(details);
+      const minimized = details.map(business => ({
+        relatedPersons: (business.relatedPersons ?? []).map(person => ({ idRelatedPerson: person.idRelatedPerson }))
+      }));
+
+      res.json(minimized);
     } catch (error) {
       logger.error("Error finding Alfredpay KYB customer and business:", error);
       const message = error instanceof Error ? error.message : "Internal server error";

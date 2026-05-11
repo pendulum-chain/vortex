@@ -441,7 +441,7 @@ export interface SubmitKybInformationRequest {
   state: string;
   city: string;
   zipCode: string;
-  website?: string;
+  website: string;
   relatedPersons: AlfredpayKybRelatedPerson[];
 }
 

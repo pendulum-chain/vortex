@@ -187,7 +187,7 @@ export const alfredpayKycMachine = setup({
       }
     ),
 
-    submitKybBusinessKyFiles: fromPromise(
+    submitKybBusinessFiles: fromPromise(
       async ({ input }: { input: AlfredpayKycContext & { kybBusinessFiles?: KybBusinessFiles } }) => {
         const country = input.country || "MX";
         if (!input.submissionId) {
@@ -733,7 +733,7 @@ export const alfredpayKycMachine = setup({
 
     SubmittingKybBusinessFiles: {
       invoke: {
-        id: "submitKybBusinessKyFiles",
+        id: "submitKybBusinessFiles",
         input: ({ context }) => context,
         onDone: {
           target: "FindingKybCustomerAndBusiness"
@@ -753,7 +753,7 @@ export const alfredpayKycMachine = setup({
           }),
           target: "Failure"
         },
-        src: "submitKybBusinessKyFiles"
+        src: "submitKybBusinessFiles"
       }
     },
 
