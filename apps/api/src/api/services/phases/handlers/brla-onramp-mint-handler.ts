@@ -86,11 +86,11 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     const brlaApiService = BrlaApiService.getInstance();
     try {
       logger.info(
-        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
+        `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRL`
       );
       await waitUntilTrueWithTimeout(
         async () => {
-          if (!quote.metadata.aveniaMint) {
+          if (!quote.metadata.aveniaTransfer) {
             return false;
           }
 
@@ -99,7 +99,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
-          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
+          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaTransfer.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
         PAYMENT_TIMEOUT_MS
