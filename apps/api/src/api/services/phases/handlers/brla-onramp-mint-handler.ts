@@ -49,10 +49,6 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.aveniaMint) {
-      throw new Error("Missing 'aveniaMint' in quote metadata");
-    }
-
     if (!quote.metadata.aveniaTransfer) {
       throw new Error("Missing 'aveniaTransfer' in quote metadata");
     }
@@ -121,7 +117,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     // Transfer the funds from the subaccount to the ephemeral address
     const aveniaQuote = await brlaApiService.createPayInQuote({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0),
+      inputAmount: Big(quote.metadata.aveniaTransfer.outputAmountDecimal).toFixed(2, 0),
       inputCurrency: BrlaCurrency.BRLA,
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
