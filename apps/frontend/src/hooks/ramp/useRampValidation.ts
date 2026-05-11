@@ -29,15 +29,21 @@ function validateOnramp(
   {
     inputAmount,
     fromToken,
+    quoteLimits,
     trackEvent
   }: {
     inputAmount: Big;
     fromToken: FiatTokenDetails;
+    quoteLimits?: { min: string; max: string };
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxBuyAmountRaw), -fromToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
+  const maxAmountUnits = quoteLimits
+    ? new Big(quoteLimits.max)
+    : multiplyByPowerOfTen(Big(fromToken.maxBuyAmountRaw), -fromToken.decimals);
+  const minAmountUnits = quoteLimits
+    ? new Big(quoteLimits.min)
+    : multiplyByPowerOfTen(Big(fromToken.minBuyAmountRaw), -fromToken.decimals);
 
   const isTooHigh = inputAmount && maxAmountUnits.lt(inputAmount);
   const isTooLow = inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount);
@@ -66,6 +72,7 @@ function validateOfframp(
     fromToken,
     toToken,
     quote,
+    quoteLimits,
     userInputTokenBalance,
     isDisconnected,
     trackEvent
@@ -74,17 +81,27 @@ function validateOfframp(
     fromToken: OnChainTokenDetails;
     toToken: FiatTokenDetails;
     quote: QuoteResponse;
+    quoteLimits?: { min: string; max: string };
     userInputTokenBalance: string | null;
     isDisconnected: boolean;
     trackEvent: (event: TrackableEvent) => void;
   }
 ): string | null {
-  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
-  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
-  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
+  // AlfredPay quotes return stablecoin-denominated input limits; compare against `inputAmount` (stablecoin units).
+  // Legacy path (BRL/EURC) compares against fiat `outputAmount` against fiat min/max.
+  const maxAmountUnits = quoteLimits
+    ? new Big(quoteLimits.max)
+    : multiplyByPowerOfTen(Big(toToken.maxSellAmountRaw), -toToken.decimals);
+  const minAmountUnits = quoteLimits
+    ? new Big(quoteLimits.min)
+    : multiplyByPowerOfTen(Big(toToken.minSellAmountRaw), -toToken.decimals);
 
-  const isTooHigh = inputAmount && quote && maxAmountUnits.lt(amountOut);
-  const isTooLow = !amountOut.eq(0) && !config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut);
+  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
+  const amountToCheck = quoteLimits ? inputAmount : amountOut;
+  const unitSymbol = quoteLimits ? fromToken.assetSymbol : toToken.fiat.symbol;
+
+  const isTooHigh = inputAmount && quote && maxAmountUnits.lt(amountToCheck);
+  const isTooLow = !amountToCheck.eq(0) && !config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountToCheck);
 
   if (isTooHigh || isTooLow) {
     trackEvent({
@@ -94,7 +111,7 @@ function validateOfframp(
     });
     const key = isTooHigh ? "pages.swap.error.amountOutOfRange.sellTooHigh" : "pages.swap.error.amountOutOfRange.sellTooLow";
     return t(key, {
-      assetSymbol: toToken.fiat.symbol,
+      assetSymbol: unitSymbol,
       maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 0),
       minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 0)
     });
@@ -194,11 +211,13 @@ export const useRampValidation = () => {
       });
     } else if (quoteError) return t(quoteError);
 
+    const quoteLimits = quote?.inputAmountLimits;
     let validationError = null;
     if (isOnramp) {
       validationError = validateOnramp(t, {
         fromToken: fromToken as FiatTokenDetails,
         inputAmount,
+        quoteLimits,
         trackEvent
       });
     } else {
@@ -207,6 +226,7 @@ export const useRampValidation = () => {
         inputAmount,
         isDisconnected,
         quote: quote as QuoteResponse,
+        quoteLimits,
         toToken: toToken as FiatTokenDetails,
         trackEvent,
         userInputTokenBalance: userInputTokenBalance?.balance || "0"

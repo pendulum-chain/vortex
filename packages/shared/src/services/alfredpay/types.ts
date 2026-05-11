@@ -360,6 +360,24 @@ const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MX
 
 export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
+/** Raw shape returned by `GET …/configurations`. `typeCustomer: null` means the pair applies to both customer types. */
+export interface AlfredpayConfigPair {
+  id: string;
+  fromCurrency: string;
+  toCurrency: string;
+  businessId: string | null;
+  maxQuantity: string;
+  minQuantity: string;
+  decimals: string;
+  typeCustomer: AlfredpayCustomerType | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetAllConfigsResponse {
+  supportedPairs: AlfredpayConfigPair[];
+}
+
 export class AlfredpayTradeLimitError extends Error {
   readonly minQuantity: string;
   readonly fromCurrency: string;

@@ -48,6 +48,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
     from: quoteTicket.from,
     id: quoteTicket.id,
     inputAmount: trimTrailingZeros(quoteTicket.inputAmount),
+    inputAmountLimits: quoteTicket.metadata.alfredpayInputLimits,
     inputCurrency: quoteTicket.inputCurrency,
     network: quoteTicket.network,
     networkFeeFiat: fiatFees.network,
@@ -87,7 +88,7 @@ export abstract class BaseFinalizeEngine implements Stage {
     }
 
     const computation = await this.computeOutput(ctx);
-    this.validate(ctx, computation);
+    await this.validate(ctx, computation);
 
     const outputAmountStr = computation.amount.toFixed(computation.decimals, 0);
 
@@ -117,6 +118,7 @@ export abstract class BaseFinalizeEngine implements Stage {
         from: request.from,
         id: "temp-" + Date.now(), // Temporary ID for comparison
         inputAmount: trimTrailingZeros(request.inputAmount),
+        inputAmountLimits: ctx.alfredpayInputLimits,
         inputCurrency: request.inputCurrency,
         network: request.network,
         networkFeeFiat: fiatFees.network,
@@ -170,7 +172,7 @@ export abstract class BaseFinalizeEngine implements Stage {
 
   protected abstract computeOutput(ctx: QuoteContext): Promise<FinalizeComputation>;
 
-  protected validate(ctx: QuoteContext, result: FinalizeComputation): void {
+  protected async validate(_ctx: QuoteContext, _result: FinalizeComputation): Promise<void> {
     // Implemented by subclasses when necessary
   }
 }

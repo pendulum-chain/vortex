@@ -73,6 +73,12 @@ export interface QuoteResponse {
   expiresAt: Date;
   createdAt: Date;
   sessionId?: string;
+
+  /**
+   * Resolved input-side amount limits for this quote. Decimal-string values in human units of `inputCurrency`.
+   * Currently populated only for AlfredPay quotes (USD/MXN/COP).
+   */
+  inputAmountLimits?: { min: string; max: string };
 }
 
 // GET /quotes/:id

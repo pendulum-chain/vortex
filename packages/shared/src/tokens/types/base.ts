@@ -45,6 +45,25 @@ export interface FiatDetails {
   name: string;
 }
 
+/** String-literal values match `AlfredpayCustomerType` enum in services/alfredpay/types.ts. */
+export type AlfredpayCustomerKey = "INDIVIDUAL" | "BUSINESS";
+export type AlfredpayStablecoinKey = "USDC" | "USDT";
+
+export interface AlfredpayLimitsBucket {
+  minRaw: string;
+  maxRaw: string;
+}
+
+/**
+ * Multi-axis AlfredPay limits.
+ * - `onramp` raw values are scaled by the FIAT decimals of the parent token.
+ * - `offramp` raw values are scaled by the STABLECOIN decimals (USDC/USDT = 6).
+ */
+export interface AlfredpayCurrencyLimits {
+  onramp: Record<AlfredpayStablecoinKey, Record<AlfredpayCustomerKey, AlfredpayLimitsBucket>>;
+  offramp: Record<AlfredpayStablecoinKey, Record<AlfredpayCustomerKey, AlfredpayLimitsBucket>>;
+}
+
 export interface BaseFiatTokenDetails {
   fiat: FiatDetails;
   minSellAmountRaw: string;
@@ -53,6 +72,8 @@ export interface BaseFiatTokenDetails {
   maxBuyAmountRaw: string;
   buyFeesBasisPoints?: number;
   buyFeesFixedComponent?: number;
+  /** Multi-axis AlfredPay limits; populated only for AlfredPay-routed fiats (USD/MXN/COP). */
+  alfredpayLimits?: AlfredpayCurrencyLimits;
 }
 
 export interface FiatCurrencyDetails extends BaseTokenDetails, BaseFiatTokenDetails {

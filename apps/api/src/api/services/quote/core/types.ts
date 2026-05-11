@@ -266,6 +266,12 @@ export interface QuoteContext {
   // Allow engines to supply a ready response (used by special-case engine and finalize stage)
   builtResponse?: QuoteResponse;
 
+  /**
+   * Resolved AlfredPay input-side limits in human units of `inputCurrency`.
+   * Set by the finalize engine during validation for AlfredPay quotes; surfaced on the QuoteResponse.
+   */
+  alfredpayInputLimits?: { min: string; max: string };
+
   // Flag to skip database persistence (for best quote comparison)
   skipPersistence?: boolean;
 

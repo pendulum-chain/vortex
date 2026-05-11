@@ -25,6 +25,7 @@ import {
   CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
   GetAlfredpayOnrampTransactionResponse,
+  GetAllConfigsResponse,
   GetKybRedirectLinkResponse,
   GetKybStatusResponse,
   GetKybSubmissionResponse,
@@ -141,6 +142,15 @@ export class AlfredpayApiService {
       "POST",
       payload
     )) as CreateAlfredpayCustomerResponse;
+  }
+
+  /**
+   * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   */
+  public async getAllConfigs(): Promise<GetAllConfigsResponse> {
+    const path = "/api/v1/third-party-service/penny/configurations";
+    return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 
   public async findCustomer(email: string, country: string): Promise<FindAlfredpayCustomerResponse> {
