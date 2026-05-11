@@ -8,7 +8,7 @@ import {
 } from "./common/types";
 import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
-import { prepareAveniaToEvmOnrampTransactions } from "./routes/avenia-to-evm";
+import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
 import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
 import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
@@ -32,7 +32,7 @@ export async function prepareOnrampTransactions(
     if (quote.to === Networks.AssetHub) {
       return prepareAveniaToAssethubOnrampTransactions(aveniaParams);
     } else {
-      return prepareAveniaToEvmOnrampTransactions(aveniaParams);
+      return prepareAveniaToEvmOnrampTransactionsOnBase(aveniaParams);
     }
   } else if (quote.inputCurrency === FiatToken.EURC) {
     if (!("moneriumWalletAddress" in params)) {

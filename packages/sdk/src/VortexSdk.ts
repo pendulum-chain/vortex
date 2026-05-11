@@ -29,17 +29,17 @@ import type {
 
 export class VortexSdk {
   private apiService: ApiService;
-  private apiKey: string | undefined;
+  private publicKey: string | undefined;
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private initializationPromise: Promise<void>;
   private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
-    this.apiService = new ApiService(config.apiBaseUrl);
+    this.apiService = new ApiService(config.apiBaseUrl, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
-    this.apiKey = config.apiKey;
+    this.publicKey = config.publicKey;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -52,7 +52,7 @@ export class VortexSdk {
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
-    const apiRequest = { ...request, api: true, apiKey: this.apiKey };
+    const apiRequest = { ...request, api: true, apiKey: this.publicKey };
     const baseQuote = await this.apiService.createQuote(apiRequest);
     return baseQuote as ExtendedQuoteResponse<T>;
   }

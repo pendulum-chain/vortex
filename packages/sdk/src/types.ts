@@ -151,7 +151,18 @@ export interface NetworkConfig {
 
 export interface VortexSdkConfig {
   apiBaseUrl: string;
-  apiKey?: string;
+  /**
+   * Public API key (pk_live_* or pk_test_*). Sent in request bodies for tracking
+   * and partner-specific discounts. Optional during the grace period; some
+   * endpoints will require it once enforcement begins.
+   */
+  publicKey?: string;
+  /**
+   * Secret API key (sk_live_* or sk_test_*). Sent as the `X-API-Key` header for
+   * partner authentication. Optional during the grace period; endpoints that
+   * accept a `partnerId` will require it once enforcement begins.
+   */
+  secretKey?: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;

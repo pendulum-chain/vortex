@@ -273,16 +273,58 @@ export class TransactionSigningError extends VortexSdkInternalError {
   }
 }
 
+function extractErrorMessage(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nestedMessage = extractErrorMessage(item);
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const nestedMessage = extractErrorMessage(record.message ?? record.error ?? record.detail ?? record.title);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Error parsing utilities
  */
 export function parseAPIError(response: any): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, status = 500, errors } = response;
-    const errorMessage = message || error;
+    const { message, error, status, errors } = response;
+    const normalizedStatus = typeof status === "number" ? status : 500;
+    const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
 
     if (errorMessage) {
-      if (errorMessage.includes("Missing required fields")) {
+      if (errorMessage?.includes("Missing required fields")) {
         return new MissingRequiredFieldsError([]);
       }
       if (errorMessage === QuoteError.QuoteNotFound) {
@@ -302,7 +344,7 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage === "Moonbeam ephemeral not found") {
         return new MoonbeamEphemeralNotFoundError();
       }
-      if (errorMessage === "Subaccount not found") {
+      if (errorMessage.includes("Subaccount not found")) {
         return new SubaccountNotFoundError();
       }
       if (errorMessage === "KYC invalid") {
@@ -341,7 +383,7 @@ export function parseAPIError(response: any): VortexSdkError {
       }
     }
 
-    return new VortexSdkError(errorMessage || "Unknown API error", status, true, errors);
+    return new VortexSdkError(errorMessage ?? "Unknown API error", normalizedStatus, true, errors);
   }
 
   return new VortexSdkError("Unknown error occurred", 500);

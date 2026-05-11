@@ -14,10 +14,25 @@ import {
   Networks,
   SquidrouterRoute
 } from "../..";
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 import { getRoute } from "./route";
 import { createGenericRouteParams } from "./route-params";
 import { createTransactionDataFromRoute } from "./route-transactions";
+
+// Bridge gas safety margin: pay 5% over Squidrouter's quoted native value to reduce the
+// likelihood that the squidRouterPay phase needs to top up Axelar gas. Any small overpayment
+// is forwarded to the ephemeral account on the destination chain (or refunded by Axelar).
+const BRIDGE_GAS_SAFETY_MARGIN_BPS = 10500n;
+
+function computeSwapValueWithSafetyMargin(routeValueRaw: string): string {
+  if (!routeValueRaw || routeValueRaw === "" || routeValueRaw === "0") {
+    return "0";
+  }
+  try {
+    return ((BigInt(routeValueRaw) * BRIDGE_GAS_SAFETY_MARGIN_BPS) / 10000n).toString();
+  } catch {
+    return routeValueRaw;
+  }
+}
 
 export interface OnrampSquidrouterParamsFromMoonbeam {
   fromAddress: string;
@@ -29,7 +44,7 @@ export interface OnrampSquidrouterParamsFromMoonbeam {
   moonbeamEphemeralStartingNonce: number;
 }
 
-export interface OnrampSquidrouterParamsFromPolygon {
+export interface OnrampSquidrouterParamsFromEvm {
   fromAddress: string;
   rawAmount: string;
   fromToken: `0x${string}`;
@@ -75,7 +90,7 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
       publicClient: moonbeamClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
 
     return {
@@ -85,13 +100,13 @@ export async function createOnrampSquidrouterTransactionsFromMoonbeamToEvm(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
 // Onramp from Polygon directly to any token on any EVM chain.
 export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
-  params: OnrampSquidrouterParamsFromPolygon
+  params: OnrampSquidrouterParamsFromEvm
 ): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
     // This error indicates a bug in our code, as AssetHub onramps should be handled differently.
@@ -113,7 +128,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
     return {
       approveData,
@@ -122,13 +137,50 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToEvm(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
+  }
+}
+
+export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
+  params: OnrampSquidrouterParamsFromEvm
+): Promise<OnrampTransactionData> {
+  if (params.toNetwork === Networks.AssetHub) {
+    // This error indicates a bug in our code, as AssetHub onramps should be handled differently.
+    throw new Error("AssetHub is not supported for this flow. Use a different function.");
+  }
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const baseClient = evmClientManager.getClient(Networks.Base);
+  const fromNetwork = Networks.Base;
+
+  const routeParams = createGenericRouteParams({ ...params, amount: params.rawAmount, fromNetwork });
+
+  try {
+    const routeResult = await getRoute(routeParams);
+    const { route } = routeResult.data;
+
+    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
+      inputTokenErc20Address: params.fromToken,
+      publicClient: baseClient,
+      rawAmount: params.rawAmount,
+      route,
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
+    });
+
+    return {
+      approveData,
+      route,
+      squidRouterQuoteId,
+      swapData
+    };
+  } catch (e) {
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
 // Onramp from Polygon directly to any token on any EVM chain.
 export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook(
-  params: Omit<OnrampSquidrouterParamsFromPolygon, "toNetwork">
+  params: Omit<OnrampSquidrouterParamsFromEvm, "toNetwork">
 ): Promise<OnrampTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
   const polygonClient = evmClientManager.getClient(Networks.Polygon);
@@ -157,7 +209,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
       publicClient: polygonClient,
       rawAmount: params.rawAmount,
       route,
-      swapValue: POLYGON_SQUIDROUTER_SWAP_MIN_VALUE_RAW
+      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
     });
 
     return {
@@ -169,7 +221,7 @@ export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWi
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }
 
@@ -204,6 +256,6 @@ export async function createOnrampSquidrouterTransactionsOnDestinationChain(
       swapData
     };
   } catch (e) {
-    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
   }
 }

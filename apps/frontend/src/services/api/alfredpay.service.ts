@@ -8,6 +8,7 @@ import {
   AlfredpayGetKybRedirectLinkResponse,
   AlfredpayGetKycRedirectLinkResponse,
   AlfredpayGetKycStatusResponse,
+  AlfredpayKybCustomerAndBusiness,
   AlfredpayListFiatAccountsResponse,
   AlfredpayStatusResponse,
   SubmitKybInformationRequest,
@@ -29,6 +30,9 @@ export const AlfredpayService = {
   },
   async deleteFiatAccount(fiatAccountId: string, country: string): Promise<void> {
     await apiClient.delete(`/alfredpay/fiatAccounts/${fiatAccountId}`, { params: { country } });
+  },
+  async findKybCustomerAndBusiness(country: string): Promise<AlfredpayKybCustomerAndBusiness[]> {
+    return apiClient.get<AlfredpayKybCustomerAndBusiness[]>("/alfredpay/findKybCustomerAndBusiness", { params: { country } });
   },
   async getAlfredpayStatus(country: string): Promise<AlfredpayStatusResponse> {
     return apiClient.get<AlfredpayStatusResponse>("/alfredpay/alfredpayStatus", { params: { country } });

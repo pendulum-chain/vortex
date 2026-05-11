@@ -37,7 +37,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         }
         finalOutputAmountDecimal = output;
       }
-    } else if (request.inputCurrency === FiatToken.EURC) {
+    } else if (request.inputCurrency === FiatToken.EURC || request.inputCurrency === FiatToken.BRL) {
       const output = ctx.evmToEvm?.outputAmountDecimal;
       if (!output) {
         throw new APIError({

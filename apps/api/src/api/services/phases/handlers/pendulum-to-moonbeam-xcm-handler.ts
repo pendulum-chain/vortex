@@ -179,7 +179,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     if (state.type === RampDirection.SELL) {
-      return "brlaPayoutOnMoonbeam";
+      return "brlaPayoutOnBase";
     } else {
       return "squidRouterSwap";
     }

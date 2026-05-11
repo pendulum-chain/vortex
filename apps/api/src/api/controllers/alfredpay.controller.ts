@@ -547,6 +547,34 @@ export class AlfredpayController {
     }
   }
 
+  static async findKybCustomerAndBusiness(req: Request, res: Response) {
+    try {
+      const { country } = req.query as { country: string };
+      const userId = req.userId!;
+
+      const alfredPayCustomer = await AlfredPayCustomer.findOne({
+        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
+      });
+
+      if (!alfredPayCustomer) {
+        return res.status(404).json({ error: "Alfredpay business customer not found" });
+      }
+
+      const alfredpayService = AlfredpayApiService.getInstance();
+      const details = await alfredpayService.getKybBusinessDetails(alfredPayCustomer.alfredPayId);
+
+      const minimized = details.map(business => ({
+        relatedPersons: (business.relatedPersons ?? []).map(person => ({ idRelatedPerson: person.idRelatedPerson }))
+      }));
+
+      res.json(minimized);
+    } catch (error) {
+      logger.error("Error finding Alfredpay KYB customer and business:", error);
+      const message = error instanceof Error ? error.message : "Internal server error";
+      res.status(500).json({ error: message });
+    }
+  }
+
   static async submitKybFile(req: Request, res: Response) {
     try {
       const { country, submissionId, fileType } = req.body as { country: string; submissionId: string; fileType: string };
@@ -582,6 +610,7 @@ export class AlfredpayController {
   }
 
   static async submitKybRelatedPersonFile(req: Request, res: Response) {
+    let pennyCustomerId: string | undefined;
     try {
       const { country, relatedPersonId, fileType } = req.body as {
         country: string;
@@ -602,6 +631,8 @@ export class AlfredpayController {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
       }
 
+      pennyCustomerId = alfredPayCustomer.alfredPayId;
+
       const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKybRelatedPersonFiles(
@@ -613,7 +644,11 @@ export class AlfredpayController {
 
       res.json({ success: true });
     } catch (error) {
-      logger.error("Error submitting KYB related person file:", error);
+      const body = req.body as { country?: string; relatedPersonId?: string; fileType?: string };
+      const errSummary = error instanceof Error ? error.message : String(error);
+      logger.error(
+        `[submitKybRelatedPersonFile] ${errSummary} | customerIdPenny=${pennyCustomerId ?? "n/a"} relatedPersonId=${body.relatedPersonId ?? "n/a"} userId=${req.userId ?? "n/a"}`
+      );
       const message = error instanceof Error ? error.message : "Internal server error";
       res.status(500).json({ error: message });
     }
