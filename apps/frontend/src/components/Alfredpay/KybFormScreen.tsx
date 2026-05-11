@@ -17,7 +17,7 @@ const schema = z.object({
   repNationality: z.string().length(2, "Enter a 2-letter country code"),
   state: z.string().min(1),
   taxId: z.string().min(1),
-  website: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  website: z.string().url("Enter a valid URL"),
   zipCode: z.string().min(1)
 });
 
@@ -25,9 +25,10 @@ type KybFormFields = z.infer<typeof schema>;
 
 interface KybFormScreenProps {
   onSubmit: (data: KybFormData) => void;
+  country: string;
 }
 
-export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
+export function KybFormScreen({ onSubmit, country }: KybFormScreenProps) {
   const { t } = useTranslation();
 
   const {
@@ -56,7 +57,7 @@ export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
       ],
       state: fields.state,
       taxId: fields.taxId,
-      website: fields.website || undefined,
+      website: fields.website,
       zipCode: fields.zipCode
     });
   };
@@ -233,7 +234,7 @@ export function KybFormScreen({ onSubmit }: KybFormScreenProps) {
               className={inputClass(!!errors.repNationality)}
               id="kyb-repNationality"
               maxLength={2}
-              placeholder="MX"
+              placeholder={country}
               type="text"
               {...register("repNationality", { setValueAs: v => v.toUpperCase() })}
             />
