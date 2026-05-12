@@ -92,7 +92,8 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
         );
         const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
-          throw this.createUnrecoverableError(
+          // Pause for operator intervention without moving the ramp to failed.
+          throw this.createRecoverableError(
             `SubsidizePreSwapEvmPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
           );
         }
