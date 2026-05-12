@@ -7,6 +7,7 @@ import {
   getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
+  RampCurrency,
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -17,8 +18,11 @@ import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
+import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+
+const MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION = "0.05"; // 5% of quote.outputAmount in USD
 
 export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -72,6 +76,24 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
       logger.debug(`SubsidizePreSwapEvmHandler: requiredAmount ${requiredAmount.toString()}`);
 
       if (requiredAmount.gt(Big(0))) {
+        const subsidyDecimal = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.inputDecimals).toString();
+        const subsidyUsd = await priceFeedService.convertCurrency(
+          subsidyDecimal,
+          inputToken as RampCurrency,
+          EvmToken.USDC as RampCurrency
+        );
+        const quoteOutputUsd = await priceFeedService.convertCurrency(
+          quote.outputAmount,
+          quote.outputCurrency as RampCurrency,
+          EvmToken.USDC as RampCurrency
+        );
+        const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        if (Big(subsidyUsd).gt(subsidyCapUsd)) {
+          throw this.createUnrecoverableError(
+            `SubsidizePreSwapEvmPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+          );
+        }
+
         // Do the actual subsidizing on EVM
         logger.info(
           `Subsidizing pre-swap EVM with ${requiredAmount.toFixed()} to reach target value of ${expectedInputAmountForSwapRaw}`
