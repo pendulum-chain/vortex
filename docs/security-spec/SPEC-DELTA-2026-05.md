@@ -114,7 +114,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 **User decision:** **Bug — EVM needs equivalent USD cap.**
 
-**Suggested fix:** Port the `validateSubsidyAmount` + USD cap logic from `final-settlement-subsidy.ts` into the EVM subsidy handlers. Use a Base-native USD reference (USDC at 1.0 or chainlink feed). Throw `UnrecoverableError` (with the `throw` keyword) when cap is exceeded.
+**Suggested fix:** Port the `validateSubsidyAmount` + USD cap logic from `final-settlement-subsidy.ts` into the EVM subsidy handlers. Use a Base-native USD reference (USDC at 1.0 or chainlink feed). When the cap is exceeded, throw a recoverable phase error before submitting any transfer so the ramp waits for operator action instead of requiring manual repair of an unrecoverably failed phase.
 
 ---
 
@@ -265,11 +265,11 @@ These pre-existing findings remain open and are unchanged by the BRL migration:
 
 ## 6. Suggested Next Audit Pass
 
-Priority order for the next audit/dev cycle, based on severity × likelihood. Resolution status reflects fixes landed during the 2026-05 remediation pass. Post-review fixes on 2026-05-12 also closed the Supabase quote-ownership bypass in `assertQuoteOwnership`, restored signed-payload-aware presigned transaction matching, removed duplicate Squid permit relayer execution, restored direct-transfer permit execution, and preserved unrecoverable EVM subsidy cap errors.
+Priority order for the next audit/dev cycle, based on severity × likelihood. Resolution status reflects fixes landed during the 2026-05 remediation pass. Post-review fixes on 2026-05-12 also closed the Supabase quote-ownership bypass in `assertQuoteOwnership`, restored signed-payload-aware presigned transaction matching, removed duplicate Squid permit relayer execution, restored direct-transfer permit execution, and documented the recoverable-wait policy for EVM subsidy cap breaches.
 
 | # | Finding | Status |
 |---|---|---|
-| 1 | **F-NEW-02** (HIGH if cap matters in practice) — Add EVM subsidy USD cap. Mirror F-001 fix. | RESOLVED — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION="0.05"` enforced in pre/post-swap EVM handlers. |
+| 1 | **F-NEW-02** (HIGH if cap matters in practice) — Add EVM subsidy USD cap. Mirror F-001 fix. | RESOLVED — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION="0.05"` enforced in pre/post-swap EVM handlers; over-cap cases are recoverable waits with no transfer submitted. |
 | 2 | **F-NEW-01** (HIGH) — Replace hardcoded `validateBRLOfframp` amount. | RESOLVED — `validateBRLOfframpMetadata(quote)` reads `quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw`. Dead `evm-to-brl.ts` route deleted. |
 | 3 | **F-NEW-06b** (MEDIUM) — Surface or fail-fast on partner `payout_address_evm` NULL (silent markup loss). | RESOLVED — quote-time rejection (`APIError 400`) when partner has markup AND `payout_address_evm` NULL on EVM-payout routes; runtime WARN if it slips through. |
 | 4 | **F-NEW-04** (MEDIUM) — Harden no-permit fallback receipt validation. | RESOLVED — `waitForUserHash` now verifies receipt `to` and tx `input` against the presigned `EvmTransactionData`. |
